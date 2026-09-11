@@ -1,0 +1,46 @@
+{
+  "format": "snapback2.loop-budget.macos-trust-inventory.v1",
+  "observedUtcDate": "2026-09-11",
+  "securitySettingsChanged": false,
+  "credentialsExposed": false,
+  "hosts": [
+    {
+      "name": "Charlie’s MacBook Pro (2)",
+      "role": "current M1 Max control plane",
+      "developerMode": "disabled",
+      "validCodeSigningIdentities": 2,
+      "noninteractiveSigningProbe": "errSecInternalComponent",
+      "changedProductSamplesRun": 2
+    },
+    {
+      "name": "MacBook Pro M5 Max (silver)",
+      "developerMode": "disabled",
+      "gatekeeperAssessments": "enabled",
+      "validCodeSigningIdentities": 0,
+      "changedProductSamplesRun": 0,
+      "reason": "No existing trusted execution path."
+    },
+    {
+      "name": "MacBook Pro M5 Max (black)",
+      "developerMode": "disabled",
+      "gatekeeperAssessments": "enabled",
+      "validCodeSigningIdentities": 3,
+      "developerIdApplicationIdentityPresent": true,
+      "developerIdNoninteractiveSigningProbe": "errSecInternalComponent",
+      "changedProductSamplesRun": 0,
+      "reason": "No usable noninteractive identity; an unrelated cargo test was active."
+    },
+    {
+      "name": "Apartment MacBook Air",
+      "developerMode": "enabled before this run",
+      "gatekeeperAssessments": "enabled",
+      "validCodeSigningIdentities": 1,
+      "noninteractiveSigningProbe": "errSecInternalComponent",
+      "freshAdhocTinyExecutableFirstLaunchSeconds": [0.411983291, 0.373158459],
+      "changedProductSamplesRun": 2,
+      "changedProductFirstLaunchSeconds": [0.720009583, 0.5567865],
+      "reason": "Pre-existing developer mode did not exempt changed Cargo products from Gatekeeper scanning."
+    }
+  ]
+}
+

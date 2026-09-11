@@ -1,0 +1,16 @@
+# Sample 1: external timer started 2026-09-11T10:48:01.278Z
+2026-09-11 03:48:01.305 Df syspolicyd[646:4b6c65d] [com.apple.syspolicy.exec:default] GK performScan: PST: (path: 3b6cbb4f28b7afe7), (team: (null)), (id: (null)), (bundle_id: (null))
+2026-09-11 03:48:01.737 Df syspolicyd[646:4b70046] [com.apple.CFNetwork:Summary] Task <A768D561-A091-4B6A-B235-21473280C949>.<56972> summary for task success {transaction_duration_ms=431, response_status=200, connection=3326, protocol="h3", domain_lookup_duration_ms=27, connect_duration_ms=225, secure_connection_duration_ms=224, private_relay=false, request_start_ms=255, request_duration_ms=0, response_start_ms=419, response_duration_ms=11, request_bytes=291, request_throughput_kbps=6847, response_bytes=726, response_throughput_kbps=497, cache_hit=false}
+2026-09-11 03:48:01.744 Df syspolicyd[646:4b6c65d] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-09-11 03:48:01.779 Df syspolicyd[646:4b6c65d] [com.apple.xpc:connection] [0xa75735cc0] activating connection: mach=false listener=false peer=false name=com.apple.XprotectFramework.AnalysisService
+2026-09-11 03:48:01.944 Df syspolicyd[646:4b70046] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: 3b6cbb4f28b7afe7), (team: (null)), (id: snapback2-9ce6aed01e667e66), (bundle_id: NOT_A_BUNDLE), 0, 0, 1, 0, 0, 0, 0
+2026-09-11 03:48:01.944 Df syspolicyd[646:4b70046] [com.apple.syspolicy.exec:default] Putting executable into provenance with metadata: TA(68077c6fd5523c7, 2)
+
+# Sample 2: external timer started 2026-09-11T10:50:45.204Z
+2026-09-11 03:50:45.239 Df syspolicyd[646:4b6f963] [com.apple.syspolicy.exec:default] GK performScan: PST: (path: 3b6cbb4f28b7afe7), (team: (null)), (id: (null)), (bundle_id: (null))
+2026-09-11 03:50:45.436 Df syspolicyd[646:4b70046] [com.apple.CFNetwork:Summary] Task <125E03D8-0D01-486C-A167-BABEEB353C8E>.<56999> summary for task success {transaction_duration_ms=197, response_status=200, connection=3328, protocol="h3", domain_lookup_duration_ms=58, connect_duration_ms=35, secure_connection_duration_ms=34, private_relay=false, request_start_ms=97, request_duration_ms=0, response_start_ms=188, response_duration_ms=8, request_bytes=291, request_throughput_kbps=5733, response_bytes=727, response_throughput_kbps=689, cache_hit=false}
+2026-09-11 03:50:45.440 Df syspolicyd[646:4b6f963] [com.apple.securityd:SecError] Error checking with notarization daemon: 3
+2026-09-11 03:50:45.550 Df syspolicyd[646:4b6f963] [com.apple.xpc:connection] [0xa75734500] activating connection: mach=false listener=false peer=false name=com.apple.XprotectFramework.AnalysisService
+2026-09-11 03:50:45.709 Df syspolicyd[646:4b75009] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: 3b6cbb4f28b7afe7), (team: (null)), (id: snapback2-bebebeb75a1bd3d5), (bundle_id: NOT_A_BUNDLE), 0, 0, 1, 0, 0, 0, 0
+2026-09-11 03:50:45.710 Df syspolicyd[646:4b75009] [com.apple.syspolicy.exec:default] Putting executable into provenance with metadata: TA(68077c6fd5523c7, 2)
+

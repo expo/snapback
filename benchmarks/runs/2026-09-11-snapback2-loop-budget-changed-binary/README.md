@@ -61,3 +61,29 @@ Exact values are in [`samples.json`](samples.json); selected raw unified-log
 lines for the second formal sample are in
 [`sample-2-macos-launch-policy.log`](sample-2-macos-launch-policy.log).
 
+## Fleet recheck: Apartment Air
+
+A later recheck used the Apartment M5 Air because it already had developer
+mode enabled. Black and Air were unreachable directly from the M1 control
+plane, but both were reachable through Silver as a jump host. Silver itself
+had developer mode disabled and no valid signing identity. Air reported one
+valid Apple Development identity, but a noninteractive temporary-file signing
+probe returned `errSecInternalComponent`; no credential prompt or machine
+security change was attempted.
+
+The Air's pre-existing trust made two new ad-hoc trivial-executable controls
+pass at 0.411983 s and 0.373158 s. The product result did not follow. Two fresh,
+byte-distinct release products at then-current integration head `7a709d324`
+had first observations of **0.720010 s** and **0.556787 s**, with adjacent
+second observations of 0.030027 s and 0.031615 s. Internal doctor work was
+57.232 ms and 59.461 ms. The retained unified logs show a notarization request
+and XProtect/Gatekeeper scan for each changed product despite developer mode.
+
+The recheck therefore remains **not qualified**. Exact samples and host setup
+are in [`air-recheck.json`](air-recheck.json), with the selected raw OS trace
+in [`air-macos-launch-policy.log`](air-macos-launch-policy.log). The
+[`fleet trust inventory`](fleet-trust-inventory.json) also records the other
+candidate Macs: Silver had no identity and developer mode disabled; Black had
+developer mode disabled and three listed identities, including Developer ID,
+but its Developer ID signing probe also returned `errSecInternalComponent`.
+Black was not measured while an unrelated Cargo test was active.

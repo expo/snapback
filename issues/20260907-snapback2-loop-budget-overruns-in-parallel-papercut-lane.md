@@ -246,3 +246,31 @@ The remaining action is a controlled setup repair that removes the launch
 assessment without discarding the changed binary's first observation, followed
 by two fresh qualifying samples. Byte-baseline and full-suite verdicts remain
 separate.
+
+## Fleet developer-trust recheck — 2026-09-11
+
+The Apartment M5 Air was reachable through Silver with developer mode already
+enabled. Its one listed Apple Development identity was not usable
+noninteractively (`codesign` returned `errSecInternalComponent`), but two fresh
+ad-hoc trivial-executable controls passed first launch at 0.411983 s and
+0.373158 s. No security setting was changed.
+
+Silver reported developer mode disabled and zero signing identities. Black
+reported developer mode disabled and three valid identities, including a
+Developer ID Application identity, but the strongest identity's
+noninteractive signing probe also returned `errSecInternalComponent`. Black
+was not loaded further while an unrelated Cargo test was active.
+
+Two byte-distinct Snapback 2 release relinks at then-current integration head
+`7a709d324` still failed the retained first observation at **0.720010 s** and
+**0.556787 s** / 0.5 s. Their adjacent second samples passed at 0.030027 s and
+0.031615 s, while the internal doctor reports were 57.232 ms and 59.461 ms.
+Unified logging shows that both first launches still performed notarization
+network work followed by XProtect/Gatekeeper scanning despite the pre-existing
+developer-mode setting.
+
+**Disposition remains open.** The fleet recheck rules out already-enabled
+developer mode as a sufficient setup repair, and the only visible signing
+identity could not be used without interactive credential state. The exact
+[Air qualification record](../benchmarks/runs/2026-09-11-snapback2-loop-budget-changed-binary/air-recheck.json)
+retains both failures; neither first sample was discarded.

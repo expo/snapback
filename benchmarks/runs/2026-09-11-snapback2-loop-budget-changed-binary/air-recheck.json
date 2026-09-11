@@ -1,0 +1,94 @@
+{
+  "format": "snapback2.loop-budget.changed-binary.fleet-recheck.v1",
+  "source": "7a709d32423d03f0a081fc7b13cceaf99236ae96",
+  "budgetSeconds": 0.5,
+  "method": {
+    "command": "snapback2 doctor --json",
+    "timer": "Node performance.now around spawnSync, matching scripts/measure.mjs",
+    "prewarmed": false,
+    "buildsOverlapped": false,
+    "firstObservationRetained": true,
+    "sourceIsIntegrationHeadAtMeasurement": true
+  },
+  "machine": {
+    "fleetName": "Apartment MacBook Air",
+    "hostname": "Charlies-MacBook-Air.local",
+    "model": "Mac17,3",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "logicalCpus": 10,
+    "os": "macOS 26.6.2 (25G83)",
+    "node": "v24.18.0",
+    "cargo": "1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "developerMode": "enabled before this run",
+    "gatekeeperAssessments": "enabled",
+    "validCodeSigningIdentities": 1,
+    "noninteractiveSigningProbe": "errSecInternalComponent"
+  },
+  "setupControls": {
+    "freshAdhocTinyExecutableFirstLaunchSeconds": [
+      0.411983291,
+      0.373158459
+    ],
+    "compilerBundleSha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+    "compilerProbeAnswered": true,
+    "note": "The current compiler bundle and compiler-core chunk were emitted before declaration generation reported missing Expo/React dependencies in the reused Air node_modules. Doctor's real compiler probe answered in both runs."
+  },
+  "samples": [
+    {
+      "buildMetadata": "loop_budget_air_control_one",
+      "binarySha256": "a12ffa591cdeb697a0a761bc9bdf794d723f86d4ca6c9e7cfd678465e7d752d2",
+      "binaryInode": 52913580,
+      "binaryBytes": 16663680,
+      "signature": "adhoc",
+      "identifier": "snapback2-9ce6aed01e667e66",
+      "firstStartedUtc": "2026-09-11T10:48:01.278Z",
+      "loadAverageOneMinute": 8.02,
+      "first": {
+        "externalSeconds": 0.720009583,
+        "status": 0,
+        "doctorElapsedMs": 57.231959,
+        "compilerMs": 44.908084,
+        "withinBudget": false
+      },
+      "second": {
+        "externalSeconds": 0.030026584,
+        "status": 0,
+        "doctorElapsedMs": 26.957958,
+        "compilerMs": 24.225125,
+        "withinBudget": true
+      }
+    },
+    {
+      "buildMetadata": "loop_budget_air_control_two",
+      "binarySha256": "38fd027a37dd3bb7ae32a0b2c79f0a86cf0f28ad73619a389947401e1f722c4e",
+      "binaryInode": 52918748,
+      "binaryBytes": 16679536,
+      "signature": "adhoc",
+      "identifier": "snapback2-bebebeb75a1bd3d5",
+      "firstStartedUtc": "2026-09-11T10:50:45.204Z",
+      "loadAverageOneMinute": 8.18,
+      "first": {
+        "externalSeconds": 0.5567865,
+        "status": 0,
+        "doctorElapsedMs": 59.461291,
+        "compilerMs": 47.143958,
+        "withinBudget": false
+      },
+      "second": {
+        "externalSeconds": 0.031614959,
+        "status": 0,
+        "doctorElapsedMs": 28.502042,
+        "compilerMs": 25.67275,
+        "withinBudget": true
+      }
+    }
+  ],
+  "verdict": {
+    "qualified": false,
+    "reason": "Both retained changed-binary first samples exceed 0.5 seconds despite pre-existing developer mode.",
+    "ticketDisposition": "open"
+  }
+}
+
