@@ -326,14 +326,7 @@ export async function main() {
   await mkdir(resolve(workspace, "target"), { recursive: true });
   await writeFile(resolve(workspace, "target/e2-witness-result.json"), JSON.stringify(record, null, 2) + "\n");
   const finalFailure = [failure, ...mediaFailures].filter(Boolean).sort((a, b) => a.step - b.step)[0];
-  if (finalFailure) {
-    // One bounded, updatable ticket for this scheduled witness, not one per run.
-    const ticket = resolve(workspace, "../issues/20260904-snapback2-expo-witness.md");
-    await writeFile(ticket, `# Snapback 2 Expo witness needs qualification\n\nStatus: Open\n\nLast run: ${record.date}\nFailing step: ${finalFailure.step} — ${names[finalFailure.step - 1]}\n\n\`\`\`\n${finalFailure.message}\n\`\`\`\n\nRun \`cd snapback2 && node scripts/witness-expo.mjs\` outside the sandbox. Success requires all ten steps; see \`target/e2-witness-result.json\`. Android and Expo web remain outside E2.\n`);
-    process.exitCode = 1;
-  }
+  // `scripts/scheduled.mjs` runs this on a schedule and keeps its ticket; the exit status is the verdict.
+  if (finalFailure) process.exitCode = 1;
 }
-if (process.argv.includes("--print-launchd")) {
-  const xml = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-  log(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>Label</key><string>com.snapback.expo-witness</string><key>ProgramArguments</key><array><string>${xml(process.execPath)}</string><string>${xml(fileURLToPath(import.meta.url))}</string></array><key>WorkingDirectory</key><string>${xml(workspace)}</string><key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(process.env.PATH ?? "/usr/bin:/bin")}</string></dict><key>StartInterval</key><integer>21600</integer><key>StandardOutPath</key><string>${xml(workspace)}/target/expo-witness-schedule.log</string><key>StandardErrorPath</key><string>${xml(workspace)}/target/expo-witness-schedule.log</string></dict></plist>`);
-} else if (process.argv[1] === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) await main();

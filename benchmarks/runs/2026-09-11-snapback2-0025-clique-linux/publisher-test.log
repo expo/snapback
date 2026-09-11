@@ -1,0 +1,29 @@
+publish: --stage-only saved prior immutable stage at /tmp/snapback2-publication-test-herfmX/durable.previous
+publish: --stage-only saved prior immutable stage at /tmp/snapback2-publication-test-ydpFWJ/host-a.previous
+✔ stages exactly snapback2-darwin-arm64 (20.483691ms)
+✔ stages exactly snapback2-linux-x64 (15.944219ms)
+✔ stages exactly snapback2-darwin-arm64 and snapback2-linux-x64 (28.088585ms)
+✔ platform selection order produces the same unified manifest and immutable shim tarball (439.251571ms)
+✔ refuses absent, mismatched, duplicate and non-platform selections without editing the shim (3.538902ms)
+✔ rejects a resumed shim that advertises a platform outside its immutable artifacts (24.069763ms)
+✔ rejects artifact records that disagree with the packed package identity (19.544533ms)
+✔ host consumer qualification excludes a foreign binary while retaining the packed shim (0.697695ms)
+✔ foreign platform import requires portable digest-bound native-host consumer evidence (36.155411ms)
+✔ a full-set imported shim is reused byte-for-byte while a single-platform shim expands (58.678066ms)
+✔ a resume with stale local shim bytes refuses an imported canonical full-set shim (27.550178ms)
+✔ publication refuses a mismatched durable resume without changing its receipt or tarballs (1.115701ms)
+✔ stage-only can change selection while preserving the prior immutable stage (1.769061ms)
+✔ the two-host stage-stage-stage-publish workflow converges on one immutable shim (29.629013ms)
+✔ publication requires every host consumer to have exercised the final identical shim (0.681521ms)
+✔ a selected platform shim installs from an unchanged lock in a fresh npm consumer (587.337405ms)
+ℹ Node v24.13.1; npm 11.8.0; offline synthetic tarballs, default peer and optional dependencies
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1369.123597
+publish: snapback2-test-platform@0.0.1 already matches staged artifact
+publish self-test ok; staged helper qualified; macOS floors and Linux dependencies checked; codec cache archives digest-bound; resume without HEIC refused; helper digest bound; durable dry-run resume preserved
