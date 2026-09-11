@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "snapback2.cache-lane-measurement.v1",
+  "source": "350caddd319a01c1f2551e632328c042f19ee043",
+  "host": {
+    "name": "Charlie’s MacBook Pro M5 Max Silver",
+    "logicalCpus": 18,
+    "cargo": "1.97.0",
+    "sccache": "0.17.0",
+    "node": "24.20.0"
+  },
+  "cargoCommand": "cargo build -q --release -p snapback2 -p snapback2-media",
+  "measureCommand": "node scripts/measure.mjs --cold",
+  "sequential": true,
+  "sccache": {
+    "directory": "/Users/ccheever/.cache/snapback-s2-sccache-bench",
+    "coldUncachedSeconds": 33.71,
+    "emptyCacheFillSeconds": 34.53,
+    "normalizedSecondWorktreeSeconds": 14.96,
+    "fillIncrementalProxySeconds": 10.43,
+    "uncachedIncrementalProxySeconds": 1.61,
+    "normalizedSecondWorktreeStats": {
+      "compileRequests": 154,
+      "executed": 115,
+      "hits": 113,
+      "misses": 0,
+      "nonCacheableCalls": 36,
+      "cacheBytesApproximate": 105906176
+    },
+    "configuration": {
+      "RUSTC_WRAPPER": "/opt/homebrew/bin/sccache",
+      "CARGO_INCREMENTAL": "0",
+      "SCCACHE_BASEDIRS": "the current worktree root; server restarted when changing worktrees"
+    }
+  },
+  "sharedBuildDir": {
+    "directory": "/Users/ccheever/.cache/snapback-s2-build-dir-bench",
+    "emptyFillSeconds": 33.49,
+    "sequentialSecondWorktreeSeconds": 21.05,
+    "bytesAfterFillApproximate": 668991488,
+    "bytesAfterSecondWorktreeApproximate": 1015021568,
+    "note": "A constant shared build-dir reuses work but serializes concurrent Cargo users. {workspace-path-hash} isolates the two manifest paths and therefore does not provide this cross-worktree reuse."
+  },
+  "measureRunLimitations": [
+    "The full measure command also rejected Node 24.20.0 for byte-baseline publication, which requires Node 24.18.0.",
+    "Its packaged chat effects journey was blocked by the no-engine package and its debug-binary stat followed cargo clean; neither failure occurred in the measured release build.",
+    "All cache comparisons use the same source, host, toolchain, command, and non-overlapping execution."
+  ],
+  "decision": "Do not enable either cache globally. Use normalized sccache explicitly for cold cross-worktree qualification; keep the ordinary incremental loop enabled. Do not share one constant Cargo build-dir across concurrent lanes."
+}
