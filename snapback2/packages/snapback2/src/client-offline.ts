@@ -459,8 +459,12 @@ export async function performOfflineResume<Authority>(options: {
         // refusals fall through to the next known candidate.
         check();
         if (options.runtime.principal !== grantPrincipal || revision !== options.runtime.coverageRevision) throw error;
+        // Only a validated terminal owner refusal proves this candidate is
+        // unusable. Transport and malformed-body ambiguity retain the durable
+        // log and stop this recovery attempt.
+        if (!isRefusalError(error) || error.retryable || error.status === undefined) throw error;
         if (seed.drain) {
-          await options.runtime.dropWatermark(seed.op, seed.args);
+          await options.runtime.dropWatermark(seed.op, seed.args, revision);
           check();
         }
       }

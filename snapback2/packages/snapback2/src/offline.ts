@@ -704,9 +704,9 @@ export class OfflineRuntime {
         } else {
           this.pendingBounds = bounds;
           this.pendingProgram = held;
+          if (held) this.restoreProgram(held);
+          this.outbox.notify();
         }
-        if (this.partition === undefined && held) this.restoreProgram(held);
-        this.outbox.notify();
       });
     });
   }
@@ -945,9 +945,13 @@ export class OfflineRuntime {
   }
 
   /** Stop retrying a delivery-log candidate the owner has refused. */
-  async dropWatermark(op: string, args: unknown): Promise<void> {
-    if (this.partition === undefined) return;
-    await this.store.commit({ dropWatermarks: [canonicalAnswerKey(op, args, this.declaredCursorArg(op))] });
+  async dropWatermark(op: string, args: unknown, revision = this.coverageRevision): Promise<void> {
+    const principal = this.partition;
+    if (principal === undefined) return;
+    await this.serial(async () => {
+      if (this.partition !== principal || this.coverageRevision !== revision) return;
+      await this.store.commit({ dropWatermarks: [canonicalAnswerKey(op, args, this.declaredCursorArg(op))] });
+    });
   }
 
   /** Offline admission uses the held generation; current metadata never certifies stale coverage. */
