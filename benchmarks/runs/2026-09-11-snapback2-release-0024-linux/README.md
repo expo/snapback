@@ -67,6 +67,26 @@ READY, with no required correction. The original failed B log and all successful
 checkpoint stages remain preserved, not reused as qualification of future
 changed native bytes.
 
+The exact immutable combined shim at this checkpoint measures client139,450 /
+React149,295 / Expo152,792 gzip bytes with prescribed Node24.18.0,
+TypeScript5.9.3 and gzip9. React adds35 bytes over the earlier acquisition
+measurement because the latest starter fix adds its refusal callback. The
+complete-runtime semantic inputs did not change; its latest prescribed
+measurement remains88,086 below90,000. These public closures are below the
+author-approved release-only amounts, but the ordinary growth check and
+cleanup ticket remain unchanged and open. Exact package measurement evidence
+travels with the B/A2 receipts, not as a new baseline.
+
+Retained compact checkpoint evidence:
+[Linux B](./snapback2-6c7-linux-b-checkpoint-evidence.tar.gz), SHA-256
+`d36b35c9bc2d879ca4efefdbf53d822f3aa4ae352092fce52e9b1a8aa77a612c`;
+[Mac A2](./snapback2-6c7-mac-a2-checkpoint-evidence.tar.gz), SHA-256
+`7a176ad558aa84c298a7e52e412e35d2360a939a1bf5ca4b6f78c79d75f59e66`.
+These retain process logs, identities, stage/resume/tarball hashes, closure
+measurement and Linux ELF findings; full native tarballs stay in the
+preserved host stages. `closure-measurement.json` is identical on both hosts,
+SHA-256 `6ec786cd58ab6e003be09c3735b07ab7bd87183f6d6f9a27638261b219477854`.
+
 ## Resumed scope and orientation
 
 The author answered "go ahead" to the proposed native Intl implementation.
