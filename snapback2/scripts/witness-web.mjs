@@ -10,6 +10,7 @@
 //   node scripts/witness-web.mjs            # Google Chrome via playwright-core's "chrome" channel
 //   SNAPBACK2_WITNESS_BROWSER=/path/to/chromium node scripts/witness-web.mjs
 //   node scripts/witness-web.mjs --sessions # LLP 1018 shared subscriptions and tab takeover only
+//   node scripts/witness-web.mjs --capacity # exact 256/257 boundary and no-poll live-write witness
 //   node scripts/witness-web.mjs --signup   # signup grant + first IndexedDB-backed profile write only
 //   node scripts/witness-web.mjs --keep     # leave the scratch project and profile behind
 //
@@ -19,7 +20,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { tmpdir } from "node:os";
+import { cpus, loadavg, tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -34,6 +35,7 @@ const keep = process.argv.includes("--keep");
 const indexedSearchBody = "Café expires while offline";
 const indexedSearchTerm = "CAFE\u0301";
 const sessionsOnly = process.argv.includes("--sessions");
+const capacityOnly = process.argv.includes("--capacity");
 const signupOnly = process.argv.includes("--signup");
 const steps = [];
 
@@ -429,6 +431,123 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     fail("two app consumers share one logical owner subscription and release it", error);
   }
 
+  // @ref LLP 1002#4-the-wire — exercise the exact logical-stream boundary in
+  // a real browser: 256 distinct shapes remain live while only child 257 is
+  // refused, and the full latest state arrives under second-client writes.
+  try {
+  const capacity = await writer.evaluate(async ({ count, ownerUrl }) => {
+    const headers = { "Content-Type": "application/json", "X-Snapback-As": "alice" };
+    const abort = new AbortController();
+    const response = await fetch(`${ownerUrl}/api/live`, { method: "POST", body: "{}", headers, signal: abort.signal });
+    if (!response.ok || !response.body) throw new Error(`live open returned ${response.status}`);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const pending = [];
+    let buffered = "";
+    const consume = () => {
+      for (;;) {
+        const end = buffered.indexOf("\n\n");
+        if (end < 0) return;
+        const block = buffered.slice(0, end); buffered = buffered.slice(end + 2);
+        const data = block.split("\n").filter(line => line.startsWith("data: ")).map(line => line.slice(6)).join("\n");
+        if (data) pending.push(JSON.parse(data));
+      }
+    };
+    while (!pending.some(frame => typeof frame.session === "string")) {
+      const chunk = await reader.read();
+      if (chunk.done) throw new Error("live stream closed before its session frame");
+      buffered += decoder.decode(chunk.value, { stream: true }); consume();
+    }
+    const session = pending.find(frame => typeof frame.session === "string").session;
+    const deliveries = new Map();
+    for (const frame of pending) if (typeof frame.id === "string") deliveries.set(frame.id, frame.data);
+    pending.length = 0;
+    const pump = (async () => {
+      try {
+        for (;;) {
+          consume();
+          while (pending.length) {
+            const frame = pending.shift();
+            if (typeof frame.id === "string") deliveries.set(frame.id, frame.data);
+          }
+          const chunk = await reader.read();
+          if (chunk.done) return;
+          buffered += decoder.decode(chunk.value, { stream: true });
+        }
+      } catch (error) {
+        if (!abort.signal.aborted) throw error;
+      }
+    })();
+    const add = Array.from({ length: count }, (_, index) => ({
+      id: `capacity-${index}`,
+      path: `/api/subscribe?op=messages.thread&args=${encodeURIComponent(JSON.stringify({
+        conversationId: index === 0 ? "conversation-1" : `capacity-${index}`, c: null,
+      }))}`,
+    }));
+    const admitted = await fetch(`${ownerUrl}/api/live/control`, { method: "POST", headers,
+      body: JSON.stringify({ session, add, remove: [] }) });
+    const acknowledgement = await admitted.json();
+    window.__capacityWitness = { abort, deliveries, pump, session, ownerUrl, headers };
+    return { status: admitted.status, acknowledgement, opened: add.length,
+      distinctShapes: new Set(add.map(child => child.path)).size };
+  }, { count: 256, ownerUrl });
+  assert.equal(capacity.status, 200);
+  assert.deepEqual(capacity.acknowledgement, { ok: true });
+  assert.equal(capacity.opened, 256);
+  assert.equal(capacity.distinctShapes, 256);
+
+  const refusal = await writer.evaluate(async () => {
+    const witness = window.__capacityWitness;
+    const response = await fetch(`${witness.ownerUrl}/api/live/control`, { method: "POST", headers: witness.headers,
+      body: JSON.stringify({ session: witness.session, add: [{ id: "capacity-256",
+        path: `/api/subscribe?op=messages.thread&args=${encodeURIComponent(JSON.stringify({ conversationId: "capacity-256", c: null }))}` }], remove: [] }) });
+    const envelope = await response.json();
+    return { status: response.status, code: envelope.code, family: envelope.family, guide: envelope.guide,
+      responsive: document.body.isConnected };
+  });
+  assert.deepEqual(refusal, { status: 400, code: "E_OWNER_BUSY", family: "owner", guide: "owner/dev", responsive: true });
+
+  const liveWrites = Array.from({ length: 12 }, (_, index) => `capacity-live-${Date.now()}-${index}`);
+  const clientModule = await import(resolve(dist, "client.mjs"));
+  const secondClient = clientModule.createClient({ url: ownerUrl, persona: "alice" });
+  try {
+    for (const body of liveWrites) {
+      const result = await secondClient.mutation(clientModule.api.messages.send, { conversationId: "conversation-1", body });
+      assert.equal(result.state, "committed");
+    }
+  } finally { await secondClient.close(); }
+  await pollUntil(writer, (bodies) => {
+    const event = window.__capacityWitness?.deliveries.get("capacity-0");
+    const delivered = event?.data?.map(row => row.message?.body) ?? [];
+    return bodies.every(body => delivered.includes(body));
+  }, liveWrites, { timeout: 15_000, label: "all sustained writes in the live capacity child" });
+  const delivered = await writer.evaluate((bodies) => {
+    const event = window.__capacityWitness.deliveries.get("capacity-0");
+    return { state: event.state, live: event.live, seq: event.seq,
+      retained: bodies.filter(body => event.data.some(row => row.message?.body === body)).length };
+  }, liveWrites);
+  await writer.evaluate(async () => {
+    const witness = window.__capacityWitness;
+    await fetch(`${witness.ownerUrl}/api/live/control`, { method: "POST", headers: witness.headers,
+      body: JSON.stringify({ session: witness.session, close: true }) }).catch(() => undefined);
+    witness.abort.abort(); await witness.pump.catch(() => undefined);
+    delete window.__capacityWitness;
+  });
+  step("256 distinct browser subscriptions survive a local 257th-child refusal and sustained second-client writes without polling", {
+    opened: capacity.opened, distinctShapes: capacity.distinctShapes, refusal, writes: liveWrites.length,
+    delivered, host: { cpus: cpus().length, load: loadavg().map(value => Number(value.toFixed(2))) },
+  });
+  } catch (error) {
+    await writer.evaluate(async () => {
+      const witness = window.__capacityWitness;
+      if (!witness) return;
+      witness.abort.abort(); await witness.pump.catch(() => undefined);
+      delete window.__capacityWitness;
+    }).catch(() => undefined);
+    fail("256/257 live capacity and sustained no-poll delivery", error);
+  }
+  if (capacityOnly) return;
+
   try {
   const follower = await context.newPage();
   await follower.goto(appUrl);
@@ -659,7 +778,7 @@ async function main() {
     let page = await launch();
     if (signupOnly) {
       await signupWitness(page);
-    } else if (sessionsOnly) {
+    } else if (sessionsOnly || capacityOnly) {
       await sharedSessions(context, page, appUrl, owner.url);
     } else {
     await page.waitForFunction(() => /log downloaded/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });

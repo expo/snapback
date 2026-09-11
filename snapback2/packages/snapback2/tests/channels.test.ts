@@ -232,6 +232,51 @@ test("a slow multiplexed channel consumer receives the newest full snapshot and 
   } finally { abort.abort(); transport.close(); }
 });
 
+test("the 257th multiplexed child is refused without closing 256 healthy siblings", async () => {
+  const { build } = createRequire(import.meta.url)("esbuild");
+  const bundled = await build({ entryPoints: [new URL("../src/live.ts", import.meta.url).pathname],
+    bundle: true, write: false, format: "esm", platform: "neutral" });
+  const { SharedSse } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].contents).toString("base64")}`);
+  let output!: ReadableStreamDefaultController<Uint8Array>;
+  const controls: any[] = [];
+  const encode = (value: unknown) => new TextEncoder().encode(`data: ${JSON.stringify(value)}\n\n`);
+  const transport = new SharedSse("http://capacity.test", async (input: string, init: RequestInit) => {
+    if (input.endsWith("/control")) {
+      controls.push(JSON.parse(String(init.body)));
+      return json({ ok: true });
+    }
+    return new Response(new ReadableStream({ start(controller) {
+      output = controller; output.enqueue(encode({ session: "a".repeat(64) }));
+    } }));
+  });
+  const controllers = Array.from({ length: 257 }, () => new AbortController());
+  try {
+    const healthy = await Promise.all(controllers.slice(0, 256).map((controller, index) => transport.open(
+      `/api/subscribe?op=messages.thread&args=${encodeURIComponent(JSON.stringify({ conversationId: `shape-${index}`, c: null }))}`,
+      undefined, controller.signal, new Headers(), async () => {},
+    )));
+    await eventually(() => controls.some(command => command.add?.length === 256));
+    await assert.rejects(transport.open("/api/subscribe?op=messages.thread&args={}", undefined,
+      controllers[256].signal, new Headers(), async () => {}), (error: any) => {
+      assert.equal(error.code, "E_OWNER_BUSY");
+      assert.equal(error.envelope.site, "client.subscribe");
+      assert.equal(error.envelope.guide, "live-query");
+      return true;
+    });
+    assert.equal(healthy.every(response => response.ok), true);
+    assert.equal(controls.length, 1, "the excess child is refused before disturbing the owner stream");
+
+    controllers[0].abort();
+    const replacement = await transport.open("/api/subscribe?op=messages.thread&args={}", undefined,
+      controllers[256].signal, new Headers(), async () => {});
+    assert.equal(replacement.ok, true);
+    await eventually(() => controls.some(command => command.remove?.length === 1 && command.add?.length === 1));
+  } finally {
+    for (const controller of controllers) controller.abort();
+    transport.close();
+  }
+});
+
 test("React Strict Mode keeps the active handle and closes replaced/unmounted scopes", async context => {
   const owner = wire(); context.after(() => owner.client.close());
   let latest: ReturnType<typeof useChannel> | undefined;
