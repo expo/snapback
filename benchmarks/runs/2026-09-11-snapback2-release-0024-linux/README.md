@@ -1,13 +1,20 @@
 # Snapback2 0.0.24: Linux runtime and two-platform publication
 
-Status: resumed 18:03 UTC with explicit author approval for real native
-ICU-backed Intl in Ibex, followed by publication and Clique. No 0.0.24 package
-has been published. A Linux package and identical two-platform shim passed
-both native consumers at Snapback `6c7f81ace` / Ibex `02cf5b12`, but final
-runtime review requires a corrective candidate before publication. No
-Clique actor has started. The earlier Mac artifacts, source commits, reviews
-and failed qualification attempts remain preserved; changed source requires
-fresh staging, not reuse of those old qualification receipts.
+Status at20:53 UTC: final native Intl is reviewed and landed in Ibex main;
+final Linux and Mac packages have each passed all19 production consumer
+steps. Publication awaits the final cross-platform receipt refresh and
+registry precheck. No0.0.24 package has been published and no Clique actor
+has started. The author approved this release's package-size exception;
+existing checks and the cleanup ticket remain unchanged. Earlier checkpoints
+and failed attempts below are retained history, not current blockers.
+
+Ibex main landed as `1bc50b1cfcb48877a30987867107211fe989309a`, a clean
+fast-forward from `0019691e87f120a33cfec9b7dd22b6d98f49d420`. Its
+`crates/ibex2` tree `803eb2c913cc800f31593664b87f258dd05b9124` is identical
+to the qualified49fa product. The two later commits contain only documented
+limitations and byte-exact review mirrors. Snapback integration also includes
+main `5439f9715dd3a1445b98f4d81cd4d88744a56a48`; its issue-only changes do
+not change any qualified `snapback2/` input.
 
 Current final product candidate: Ibex
 `49fa9841212cf1fc119a3f8dcd246b1f9ab71ea8`, pinned by Snapback
@@ -25,7 +32,16 @@ correction remains. Their unchanged responses are under
 second fields are not added merely to strengthen the optional positive test;
 the exact Rust999.9→999 assertion and negative public-path regressions cover
 the correction. Signed zero is not exposed by the formatter's public results.
-Final production artifact qualification is pending. No npm write has occurred.
+Final Linux B passed all19 steps: EPYC PID2443710,
+20:41:59–20:44:59 UTC, exit0. Final Mac A3 passed all19 steps: Silver
+PID66858,20:48:49–20:50:45 UTC, exit0. Both use Snapback5f115/Ibex49fa
+and the unchanged canonical shim SHA-256
+`dbb2c3ce953bc9eae903faa24997794632e4e0a47d2f609a0fb11ae71d475733`.
+Although Mac executable inputs are semantically unchanged, A3's rebuild
+changed native binary bytes through source identity/link output. Its new
+Darwin tarball therefore requires a final Linux B2 receipt refresh; the old
+Mac artifact is not silently substituted. All prior stages remain preserved.
+No npm write has occurred.
 
 The broader correction-delta reviews are complete and preserved in
 `llp/reviews/1003-native-intl-20260911.r3.*.md`: Grok READY, Sol NOT READY
