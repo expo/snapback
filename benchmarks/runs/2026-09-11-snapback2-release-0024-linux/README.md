@@ -83,6 +83,44 @@ native/runtime qualification and exact staged consumers still gate publication.
 The remainder records the initial attempt and its hold, not new qualification
 claims for the resumed candidate.
 
+### Native completion checkpoint and review disposition
+
+The integrated checkpoint is Ibex
+`62241df63462c22635207dc9d58e5e175a3ac3b8` (tree
+`e7da1f3141973ba41bb1325a0fe66f1628a36ada`), parent
+`011924c05ded174a42e5b97db5ba0ec19cdfc498`. The full SHA was verified with
+Git after an initial message mistyped its suffix; no export or qualification
+is bound to that nonexistent spelling. Linux full Hermes no-fail-fast passed
+19:14:44–19:15:02 UTC (PID 2013824, exit 0), the combined focused suite passed
+31/31, clippy passed, and the separate EPYC no-engine suite passed. The final
+Mac shared-code regression and production staged consumers remain pending.
+
+Mutually blind [Sol](../../../llp/reviews/1003-native-intl-20260911.r1.sol.md)
+and [Grok](../../../llp/reviews/1003-native-intl-20260911.r1.grok.md) reviews
+of the earlier exact NumberFormat/case checkpoint completed with NOT READY
+and READY respectively. Root dispositions, based on concrete inspection:
+
+- Accept the non-object `newTarget.prototype` fallback finding; correct both
+  NumberFormat and DateTimeFormat with an exactly-once prototype lookup and
+  regression coverage. Final integrated source gets both-family review.
+- Locale private-use and complete Unicode numbering-type parsing were already
+  corrected and tested in the integrated checkpoint.
+- Decline the currency maximum-only default change for this selected 2020
+  behavior. [ECMA-402 2020 §12.1.1](https://402.ecma-international.org/7.0/#sec-setnumberformatdigitoptions)
+  steps 12.2–12.4 prescribe the implemented currency-minimum default and
+  maximum's lower bound. The review requested newer-spec behavior.
+- Strengthen the optional compact/percent output assertions; their ICU
+  skeletons were correct, but permissive regular expressions could miss a
+  regression. Other nonblocking suggestions do not expand release scope.
+
+Date `formatMatcher: "basic"` still shares ICU best-pattern selection, as in
+the pinned predecessor. The existing surface ticket records this limitation.
+SQLite's exact construction-anchored integrity check admits only the four
+trusted locale-method replacements before first validation, not a wholesale
+snapshot refresh; later authored tampering remains refused. This security
+delta is explicitly included in final review. None of these records claims
+complete Intl conformance or qualifies a package for publication by itself.
+
 The author requested npm publication followed by Clique on expo-build-1000,
 using Astra at the previous builder effort. After the Darwin-only 0.0.23
 publication exposed the missing full Linux runtime, the author explicitly

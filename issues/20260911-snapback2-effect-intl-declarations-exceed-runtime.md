@@ -29,6 +29,15 @@ the newly exposed Linux NumberFormat, locale-case and date-parts stubs being
 replaced in the current native-Intl commission. Do not close this issue merely
 because that Linux delta passes its focused tests.
 
+The bounded Linux DateTimeFormat replacement still maps `formatMatcher:
+"basic"` and `"best fit"` to ICU best-pattern selection; it does not implement
+the separate ECMA BasicFormatMatcher algorithm. This limitation predates the
+replacement: the pinned Hermes
+[PlatformIntlICU.cpp](https://github.com/facebook/hermes/blob/6badada762121682b5481b6124e6c3a991ae6046/lib/Platform/Intl/PlatformIntlICU.cpp#L401)
+only comments the matcher branch and unconditionally uses
+`udatpg_getBestPatternWithOptions` for component skeletons. Track the limitation
+here without calling the current completion full Intl conformance.
+
 The bounded audit and original probe inputs/outputs are retained with the
 [release record](../benchmarks/runs/2026-09-11-snapback2-release-0024-linux/README.md).
 The initial Linux executable is SHA-256
