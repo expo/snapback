@@ -55,3 +55,31 @@ discoverability correction classes, then run a newly preregistered serial cold
 N≥3 cell on that published pin. These applications and any warm continuation
 are ineligible. Close this ticket only when the time, ≤1 correction, ≤2
 retrieval, exact plain-test, and pass^3 criteria all clear together.
+
+## Source remediation — 2026-09-11 (UTC)
+
+**Disposition:** Open — fixed in source; publication and a new cold N≥3 cell
+remain. No published-package benchmark was rerun in this remediation round.
+
+- `ebdc5650e` withholds the live-close control response until the retired SSE
+  handler has returned its bounded worker token. A 96-cycle no-pacing owner
+  regression and a worker-release ordering unit test pass.
+- `851155fc8` marks concrete-disjoint silence inapplicable only when every
+  mutation write site is covered by the query's whole-index authoritative
+  range. The receipt names the exception; point/ranged or mixed-table cases,
+  rejected mutations, and missing physical commits still block. The former
+  profile-only blocking fixture now passes without an unrelated operation.
+- `de0671f33` makes the naturally attempted `guide test` and `guide schema`
+  topics aliases for `testing` and `quarry`, documents the four canonical
+  membership operation signatures and seed shape, and adds `guide`/`rewrite`
+  fields to blocked authorization receipts. Exact-incarnation refusal semantics
+  remain: a scope-only leave is not accepted.
+
+Focused evidence: compiler/package checks 302/302; trace-oracle units 7/7;
+the profile-only derived fixture, 96-cycle SSE close fixture, guide aliases,
+and missing-exact-delete refusal all pass. `ref-check --verbose` passes. The
+repository caps check still reports two unrelated pre-existing over-cap files.
+
+Remaining acceptance is exactly the prior disposition: publish a package with
+these fixes, preregister a fresh serial same-configuration N≥3 cell, and clear
+the timing, correction, retrieval, plain-test, and pass^3 gates together.
