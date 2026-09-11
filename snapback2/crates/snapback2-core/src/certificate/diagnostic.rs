@@ -404,3 +404,29 @@ pub(super) fn priced_terms(
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cap_repair_names_when_other_work_leaves_no_positive_chunk() {
+        let cost = Cost {
+            value: 100,
+            site: Some("schema.tables.memberships".into()),
+            source: "10 calls × cap 10 by group on memberships".into(),
+            repair: Repair::Cap {
+                name: "cap 10 by group on memberships".into(),
+                calls: 10,
+                per_call: 10,
+                maintain_line: None,
+            },
+        };
+        let rewrite = cost.rewrite(150, 40);
+        assert!(rewrite.contains("no positive chunk size"), "{rewrite}");
+        assert!(
+            rewrite.contains("reduce the other work or split the job"),
+            "{rewrite}"
+        );
+    }
+}

@@ -53,6 +53,20 @@ fn scan(index: &str, prefix: Vec<Expr>, take: u32) -> Expr {
         provenance: KeyProvenance::Const,
     })
 }
+fn merge_lane(site: &str, scope: &str) -> MergeLane {
+    let Expr::Scan(mut scan) = scan("byScope", vec![Expr::Literal(Value::Id(scope.into()))], 1)
+    else {
+        unreachable!()
+    };
+    scan.site = site.into();
+    scan.merge_site = Some("items.merge".into());
+    MergeLane {
+        setup: vec![],
+        scan,
+        source: None,
+        binding: String::new(),
+    }
+}
 fn fixture_project() -> ProjectJson {
     let mut items = table(&[
         ("id", ColumnType::Id),
@@ -180,6 +194,15 @@ fn fixture_project() -> ProjectJson {
                 ))],
             ),
             program(
+                "merged",
+                ProgramKind::Query,
+                vec![Stmt::Return(Expr::Merge(Merge {
+                    site: "items.merge".into(),
+                    lanes: vec![merge_lane("items.s2", "s2"), merge_lane("items.s3", "s3")],
+                    held_search: None,
+                }))],
+            ),
+            program(
                 "point",
                 ProgramKind::Query,
                 vec![Stmt::Return(get("items", "i1"))],
@@ -219,9 +242,12 @@ fn fixture() -> Runtime {
     runtime
 }
 fn item(id: &str, label: &str) -> Value {
+    item_in_scope(id, "s1", label)
+}
+fn item_in_scope(id: &str, scope: &str, label: &str) -> Value {
     object([
         ("id", Value::Id(id.into())),
-        ("scope", Value::Id("s1".into())),
+        ("scope", Value::Id(scope.into())),
         ("label", Value::String(label.into())),
     ])
 }
@@ -263,6 +289,20 @@ fn system_range_skips_membership_rules_and_derives_complete_from_exhaustion() {
         operator(&mut runtime, "limited").state,
         ExecutionState::Capped
     );
+}
+#[test]
+fn system_merge_stays_capped_when_its_union_exceeds_the_page() {
+    let mut runtime = fixture();
+    runtime
+        .seed(&[
+            ("items".into(), item_in_scope("i3", "s2", "third")),
+            ("items".into(), item_in_scope("i4", "s3", "fourth")),
+        ])
+        .unwrap();
+    let result = operator(&mut runtime, "merged");
+    assert_eq!(result.state, ExecutionState::Capped);
+    assert_eq!(result.result.as_array().unwrap().len(), 1);
+    assert_eq!(result.trace.merges[0].deduplicated_union_len, 2);
 }
 #[test]
 fn system_point_reads_hidden_rows_without_verdicts_or_receipts_and_does_not_commit() {
