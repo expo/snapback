@@ -113,13 +113,16 @@ export class ClientInbox {
   following(principal: string, authenticated: boolean, authEpoch: number | undefined, persona: boolean): void {
     const scope = this.scope(principal);
     const established = authenticated || persona;
-    if (this.follower && this.follower.scope === scope && this.follower.authEpoch === authEpoch && this.follower.established === established) {
+    // @ref LLP 1018.004#2-the-inbox — a dev persona has no auth epoch in its
+    // durable row identity, so confirmation churn must not replace its role.
+    const followerEpoch = persona ? undefined : authEpoch;
+    if (this.follower && this.follower.scope === scope && this.follower.authEpoch === followerEpoch && this.follower.established === established) {
       this.post({ protocol: PROTOCOL, type: "discover", scope });
       this.notify();
       return;
     }
     this.stop();
-    this.follower = { scope, principal, ...(authEpoch === undefined ? {} : { authEpoch }), established, followerId: randomId() };
+    this.follower = { scope, principal, ...(followerEpoch === undefined ? {} : { authEpoch: followerEpoch }), established, followerId: randomId() };
     this.open(scope);
     this.post({ protocol: PROTOCOL, type: "discover", scope });
     this.armFollowerPoll();
