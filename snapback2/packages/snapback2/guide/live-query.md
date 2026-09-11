@@ -21,6 +21,12 @@ never resubmit automatically; a lost/invalid response may follow a commit.
 `client.query()` retries retryable transport failures with backoff, up to three attempts.
 One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes
 reconnect through SSE.
+Identical operation plus canonical arguments share one logical subscription,
+including across hooks. A client admits at most 256 distinct live shapes; child
+257 refuses with `E_OWNER_BUSY`, `site: client.subscribe`, and leaves the 256
+existing children live. For list screens, subscribe once to a list/composite
+query that carries row receipts and reactions. Do not mount one query per row
+or add a polling reconciliation loop for ordinary live delivery.
 Queued writes replay after `online()` (`guide offline`). `last` clears on
 account/op change. `ResultOf<Op>`/`ArgsOf<Op>`: `snapback2/client`.
 

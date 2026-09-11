@@ -24,7 +24,13 @@ interface Connection {
   terminal(error: RefusalError): Promise<void>;
 }
 const encoder = new TextEncoder();
+const maxSubscriptions = 256;
 const aborted = () => { const error = new Error("subscription closed"); error.name = "AbortError"; return error; };
+const capacityRefusal = () => new RefusalError({
+  code: "E_OWNER_BUSY", family: "owner",
+  message: `a live connection supports at most ${maxSubscriptions} subscriptions`,
+  site: "client.subscribe", rewrite: "close unused subscriptions", guide: "live-query",
+});
 
 export class SharedSse {
   private connection?: Connection;
@@ -36,6 +42,12 @@ export class SharedSse {
     const key = JSON.stringify([...headers].filter(([name]) => name !== "last-event-id"));
     if (this.connection && this.connection.key !== key) this.close();
     let connection = this.connection;
+    // @ref LLP 1002#4-the-wire — refuse only the excess logical child; a
+    // server-level control refusal would otherwise terminally fail all 256
+    // healthy siblings carried by the same physical stream.
+    if (connection && connection.entries.size >= maxSubscriptions) {
+      return Promise.reject(capacityRefusal());
+    }
     if (!connection) {
       connection = { headers: new Headers(headers), key, abort: new AbortController(), entries: new Map(), sent: new Set(), flushing: false, terminal };
       connection.headers.delete("Last-Event-ID");
