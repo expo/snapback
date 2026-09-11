@@ -88,3 +88,27 @@ boundary adjudication is
 All actor phases remain foreground under the existing harness with recorded
 PID, start, end, exit and interruption metadata. A later phase may reuse only
 attributed listeners; unrelated fleet processes are not stopped.
+
+## Concurrent-run custody incident
+
+At21:50 UTC, fetching main revealed another supervisor's
+[separate0.0.25 run](../2026-09-11-snapback2-0025-clique-linux/README.md).
+That supervisor reports briefly changing this preparation's version file
+to0.0.25 and truncating `preflight/pre-builder.json` through a refused
+preflight before discovering this already-running actor. It restored the
+version file and launched its own actor at21:47:42 in a separate directory
+on ports53200–53219. We did not stop or modify either actor.
+
+Our read-only check confirmed the0.0.24 app dependency and installed package,
+the original rendered-prompt hash, the patched runner hash and the instrument
+manifest hash. The live pre-builder JSON is now empty. The **actual original
+preflight is retained** in the immutable preparation archive above, with
+SHA-256 `9d88cb704e3e0285bf222a8a8f7ba7475e17fba4ec8df003e30cc8e353a6ff4a`;
+it is not a reconstructed receipt. Leave the truncated file as incident
+evidence rather than silently replacing it. Subsequent phases must continue
+to use the exact0.0.24 pin and original generic wrappers.
+
+The concurrent actor adds shared-host load from21:47:42 onward. This reinforces
+the diagnostic-only posture: wall times are not controlled comparative
+performance measurements. At discovery our builder reported M1 green and
+M2 in progress; its own defect attributions still require independent grading.
