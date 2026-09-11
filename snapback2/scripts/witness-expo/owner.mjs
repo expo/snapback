@@ -60,11 +60,12 @@ export async function seedWitness(url) {
     for (const title of ["Third opened room", "Never opened room"]) rooms.push(committed(await alice.mutation(api.groups.groupCreate, { title, members: ["dev:bob"] })).id);
     for (const conversationId of rooms) committed(await alice.mutation(api.messages.send, { conversationId, body: `witness seed ${conversationId}` }));
     const doomed = committed(await alice.mutation(api.messages.send, { conversationId: rooms[0], body: "Café expires while offline" })).id;
-    // The fixture is a real PNG; upload is byte-backed on the host, as on the web witness.
-    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+    // The fixture is a real RGBA PNG accepted by Android and iOS native decoders;
+    // upload is byte-backed on the host, as on the web witness.
+    const png = await readFile(new URL("./view-once.png", import.meta.url));
     const assets = [], forbidden = [];
     for (let index = 0; index < 2; index++) {
-      const photo = await alice.upload(new Blob([index === 0 ? png : await readFile(new URL("./view-once.png", import.meta.url))], { type: "image/png" }), { kind: "image" });
+      const photo = await alice.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
       committed(await alice.mutation(index === 1 ? api.messages.sendOncePhoto : api.messages.sendPhoto, { conversationId: rooms[0], photo }));
       assets.push(photo);
       if (index === 1) {

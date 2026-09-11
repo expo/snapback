@@ -151,7 +151,8 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
             search, searchVariants, searchProbe: args.searchDiagnostics === true
               ? witnessSearchProbe(client, [...diagnosticTerms, String(args.search)]) : undefined,
             answer, conversationView, composed, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(),
-            media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
+            media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri,
+              loadedUri: currentMedia.loadedUri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);
       },
