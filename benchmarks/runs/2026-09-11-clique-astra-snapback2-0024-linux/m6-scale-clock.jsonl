@@ -1,0 +1,4 @@
+{"event":"start","epoch":1789167936,"files":["instrument/fixtures/starter-m1.log","instrument/fixtures/starter-m2.log","instrument/fixtures/starter-m3.log","instrument/fixtures/scale.log"],"url":"http://127.0.0.1:53102"}
+{"event":"checkpoint","checkpoint":"10%","epoch":1789168364.788,"excludedProbeMs":10191}
+{"event":"checkpoint","checkpoint":"50%","epoch":1789169180.37,"excludedProbeMs":26943}
+{"event":"end","epoch":1789170317,"started":1789167936,"pass":true,"excludedProbeMs":37133,"actionsThisInvocation":167244}

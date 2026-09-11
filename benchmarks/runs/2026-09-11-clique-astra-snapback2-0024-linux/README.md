@@ -5,8 +5,9 @@ expo-build-1000. PID2598100, Codex thread
 `01a09266-ee00-7701-bd60-d118acbb9fc0`, foreground harness session52200.
 All three0.0.24 packages were registry-visible with exact staged hashes and
 both native registry-only consumer suites passed19/19 before launch.
-No benchmark outcome or milestone-green claim is made yet. This document
-records one run, not a new benchmark protocol.
+No independent benchmark grade exists yet. Builder-reported checkpoints
+below remain provisional. This document records one run, not a new benchmark
+protocol.
 
 The package is the qualified source snapshot
 `5f115db401a41954f10dc3737e5b03872470a4eb`, published from the20:54 release
@@ -88,6 +89,41 @@ boundary adjudication is
 All actor phases remain foreground under the existing harness with recorded
 PID, start, end, exit and interruption metadata. A later phase may reuse only
 attributed listeners; unrelated fleet processes are not stopped.
+
+## Progress snapshot — 2026-09-11 at23:55 UTC
+
+The builder reports functional M1–M6 green; M8 remains under test. The
+independent grader, fresh M7 session and final scorer have not started.
+M3 uses a documented group-fixture adapter, and the copied UI kit contains
+eight accessibility-value compatibility patches. The frozen instrument
+remains unchanged. These deviations require grading, not automatic acceptance.
+
+The original M6 scale replay completed **167,244 actions**, with its
+[clock](./m6-scale-clock.jsonl) recording start1789167936, end1789170317,
+`pass:true`, and37,133ms of excluded probes. That is2,381s raw elapsed,
+not a controlled comparative performance result. The
+[final verification](./m6-scale-verification.json) reports exact manifest
+and named-content agreement, including1,008 users,50,228 posts and100,015
+messages. It uses operator-paged state; this is not independent grader
+verification of every client API or authorization assertion. The JSON also
+retains non-scored timing probes without turning them into a blanket scale
+claim. Subsequent media/deep-history checks are still in the remote evidence.
+
+M8 has a separate scale source/store on port53103. Its
+[first attempt](./m8-scale-attempt1-clock.jsonl) failed after8,144 actions
+with a membership-cap rejection. The builder traced this to the fixture's
+1,000-conversation hub exceeding its app's100-conversation cap and is revising
+bounded digest/search handling. Its original clock retains that failure and
+the retry start; this local copy additionally preserves the first refusal.
+The retry is ongoing. M8's autonomous digest/restart proof reports passing,
+but does not replace the failed scale evidence. No supervisor coaching or
+app edits have been supplied.
+
+Exact hashes of these completed observations:
+
+- M6 clock: `cf6801d7d485599688362fb755f1aaba0a0c2dffef088538ef5241c32817836b`
+- M6 verification: `99e246da934631acf936cc00f82d6c120ddff43492af5aca480a2eb3ca8169ba`
+- M8 first refusal: `8b0fe29eaf44ed799dce154c99125c3b6c2bca41a59054138227c5ffe2627202`
 
 ## Concurrent-run custody incident
 
