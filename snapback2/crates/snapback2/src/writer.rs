@@ -394,6 +394,9 @@ pub enum Action {
     Stop {
         cause: String,
     },
+    /// Owner-process teardown only: the effects runner has stopped or detached, so
+    /// no later settlement can require the writer.
+    FinishStop,
 }
 
 struct Request {
@@ -1100,6 +1103,7 @@ impl State {
                 self.stop.store(true, AtomicOrdering::SeqCst);
                 Ok(json!({ "ok": true, "exited": cause }))
             }
+            Action::FinishStop => Ok(json!({ "ok": true })),
         }
     }
 
