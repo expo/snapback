@@ -146,15 +146,47 @@ The auth-startup findings explicitly marked Resolved stay resolved. Later direct
 
 Remaining work is the separately named reachable diagnostics, source wording and missing controls (redirect statuses, uniformity/cap cases, partial-site parity, live-read cleanup/backoff). Cross-check each against its owning current test before fixing; retain other tickets as the single owner of their reproduced defects. No broad compiler or auth regression is established by this umbrella.
 
-## Implementation progress — 2026-09-11
+## Server/compiler implementation and disposition — 2026-09-11
 
-Two reachable effect residuals are now closed. A static import nested in
-`run` produces one `E_EFFECT_IMPORT` at its authored site without a redundant
-TypeScript `E_EFFECT_TYPE`; the complete compiler suite passes 300/300. The
-Hermes cross-origin redirect matrix now exercises 301 and 308 beside
-302/303/307, and all redirect checks use the whole-header-block content-type
-assertion so duplicate/default content types cannot hide behind a first match.
+**Status remains Open for the client-owned L7 items and the separately owned
+L8b partial-site ticket.** The server/compiler residue in this umbrella is now
+resolved or explicitly retired as follows.
 
-The umbrella remains open for the independently listed uniformity/cap,
-real-merge closure, live-read cleanup/backoff, malformed disclosure, and other
-missing-control items that are not already owned by a narrower ticket.
+- **Compiler (`2b3ea88b5`).** A nested static import did reproduce two
+  diagnostics at one source site (`E_EFFECT_IMPORT` plus `E_EFFECT_TYPE`); the
+  effect checker now owns the single refusal and the exact-count regression
+  pins it. The nearby wording and helper-module ES2020 coverage were already
+  correct. Explicit-index point and range reads now pin the intentionally
+  exclusive named/positional spelling. Direct Quarry compilation proves that
+  `words`, `tokens`, `range`, `min`, `max`, `count`, `divmod`, and `share` are
+  legal table names; the deleted generated-TypeScript path no longer creates
+  the reported collisions, so reserving them would be a regression. Rule
+  literal text widths now count Unicode scalars, consistent with program text.
+  The old TypeScript optional-list and optional-`??` authoring paths are
+  obsolete under LLP 1018.000 §6 and were not revived.
+- **Certificates and authority (`408af8ad4`).** Exact regressions now cover the
+  `fits == 0` cap repair, largest-first ordering on both examined and index
+  entries, two visible members under one conversation with exactly two rule
+  probes, and an overlarge system-viewer merge union remaining capped. The
+  `every()` helper-instance conjunction and forged
+  `hoist=false, decided_true=true` cases were already permanent tests. Mixed
+  steps/heap refusal terms and real Quarry closure bytes were also already
+  pinned. `E_STEPS` has mapped to the bound family since `27088fe5c`.
+- **Effects and asset HTTP (`01f004564`).** The cross-origin redirect matrix now
+  covers 301 and 308 as well as 302/303/307 and uses the whole header-block
+  content-type assertion. The ordinary asset route now records why
+  `tiny_http` supplies headers-only HEAD behavior; the existing raw-TCP test
+  remains the executable proof.
+- **No behavior change is warranted for two speculative edges.** Every
+  constructed merge shape label begins with `merge {site}:`, so
+  `merge_label`'s early `None` cannot be reached by the typed caller. Likewise,
+  `Generation::schema_certificate` creates the private disclosure object and
+  `Certificate.disclosures` is `Vec<String>`; no untyped caller can reach the
+  two `expect()` branches in `disclose_once_assets`. Turning either private
+  invariant into a public refusal would add an API for an impossible input.
+
+Remaining acceptance is unchanged client work: the `useQuery` cleanup race,
+the failed-transition backoff pin, and the site-label parity owned by
+`20260905-snapback2-enriched-capped-page-cursor-parity.md`. Keep this umbrella
+open until those owners land or move their criteria; do not reopen the resolved
+auth-startup sections.
