@@ -1,0 +1,20 @@
+publish: --stage-only saved prior immutable stage at /home/ccheever/lanes/clique-20260909-footprint-baseline/snapback2/dist/npm/publish-snapback2-linux-x64-0.0.25.previous
+publish: reusing decoder-only codec build /home/ccheever/lanes/clique-20260909-footprint-baseline/snapback2/target/media-codecs/libde265-1.1.2-libheif-1.23.3-linux-x64-native/prefix
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+────────────
+ Nextest run ID 30400da1-1877-4015-ba0b-a9f5169417d5 with nextest profile: default
+    Starting 4 tests across 1 binary
+        PASS [   0.008s] (1/4) snapback2-media::cli unknown_argv_is_bounded_too
+        PASS [   0.015s] (2/4) snapback2-media::cli every_verb_refuses_with_exit_two_one_bounded_json_line
+        PASS [   0.018s] (3/4) snapback2-media::cli executable_success_path_covers_every_verb
+        PASS [   0.026s] (4/4) snapback2-media::cli executable_probe_reports_display_dimensions_for_orientations_one_through_eight
+────────────
+     Summary [   0.026s] 4 tests run: 4 passed, 0 skipped
+guide/live-query.md: below 20% headroom; split this topic before expanding it
+guide/offline.md: below 20% headroom; split this topic before expanding it
+guide/testing.md: below 20% headroom; split this topic before expanding it
+guide: 32 cards, 97464/98304 bytes (0% headroom)
+
+added 1 package in 5s
+publish consumer: {"steps":[{"name":"install tarballs","seconds":2.472126855999999,"ok":true},{"name":"doctor","seconds":0.06670963999999913,"ok":true},{"name":"guide auth","seconds":0.027936256000000867,"ok":true},{"name":"public client and React exports","seconds":0.060750622000001385,"ok":true},{"name":"todos init","seconds":0.879356541000001,"ok":true},{"name":"todos check","seconds":0.9058016640000024,"ok":true},{"name":"todos React bundle","seconds":1.5938789249999972,"ok":true},{"name":"todos dev","seconds":0.4959849639999993,"ok":true},{"name":"React live query round trip","seconds":0.19013529500000004,"ok":true},{"name":"todos receipt","accepted":true,"verdict":"pass"},{"name":"todos test","seconds":1.2727302850000015,"ok":true},{"name":"todos stop","seconds":0.16515275499999915,"ok":true},{"name":"chat init","seconds":1.3663845849999998,"ok":true},{"name":"chat check","seconds":1.3571817770000016,"ok":true},{"name":"chat React bundle","seconds":1.5988884709999984,"ok":true},{"name":"chat dev","seconds":0.7966038849999968,"ok":true},{"name":"chat receipt","accepted":true,"verdict":"pass"},{"name":"chat test","seconds":11.350549403,"ok":true},{"name":"chat stop","seconds":0.24471990899999946,"ok":true}]}
+staged and qualified snapback2-linux-x64@0.0.25; transfer /home/ccheever/lanes/clique-20260909-footprint-baseline/snapback2/dist/npm/publish-snapback2-linux-x64-0.0.25 and pass its resume.json with --platform-artifact

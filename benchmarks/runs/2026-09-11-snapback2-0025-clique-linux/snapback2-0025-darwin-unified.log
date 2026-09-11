@@ -1,0 +1,21 @@
+publish: --stage-only saved prior immutable stage at /Users/ccheever/projects/snapback/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.25.previous
+publish: snapback2-media deployment target 11.0
+publish: reusing decoder-only codec build /Users/ccheever/projects/snapback/snapback2/target/media-codecs/libde265-1.1.2-libheif-1.23.3-darwin-arm64-macos-11.0/prefix
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+────────────
+ Nextest run ID 2920089c-ec6a-437a-9863-0ea2b27be015 with nextest profile: default
+    Starting 4 tests across 1 binary
+        PASS [   0.420s] (1/4) snapback2-media::cli unknown_argv_is_bounded_too
+        PASS [   0.435s] (2/4) snapback2-media::cli every_verb_refuses_with_exit_two_one_bounded_json_line
+        PASS [   0.447s] (3/4) snapback2-media::cli executable_success_path_covers_every_verb
+        PASS [   0.453s] (4/4) snapback2-media::cli executable_probe_reports_display_dimensions_for_orientations_one_through_eight
+────────────
+     Summary [   0.453s] 4 tests run: 4 passed, 0 skipped
+guide/live-query.md: below 20% headroom; split this topic before expanding it
+guide/offline.md: below 20% headroom; split this topic before expanding it
+guide/testing.md: below 20% headroom; split this topic before expanding it
+guide: 32 cards, 97464/98304 bytes (0% headroom)
+
+added 1 package in 2s
+publish consumer: {"steps":[{"name":"install tarballs","seconds":0.7626480410000004,"ok":true},{"name":"doctor","seconds":0.3589403339999999,"ok":true},{"name":"guide auth","seconds":0.02882433300000048,"ok":true},{"name":"public client and React exports","seconds":0.029332583000000342,"ok":true},{"name":"todos init","seconds":0.3353174589999999,"ok":true},{"name":"todos check","seconds":0.33852891600000024,"ok":true},{"name":"todos React bundle","seconds":1.1539985829999997,"ok":true},{"name":"todos dev","seconds":0.21720375000000058,"ok":true},{"name":"React live query round trip","seconds":0.07808191599999918,"ok":true},{"name":"todos receipt","accepted":true,"verdict":"pass"},{"name":"todos test","seconds":0.6018609579999993,"ok":true},{"name":"todos stop","seconds":0.17390995799999837,"ok":true},{"name":"chat init","seconds":0.5247834999999995,"ok":true},{"name":"chat check","seconds":0.5011999999999989,"ok":true},{"name":"chat React bundle","seconds":0.5754319999999988,"ok":true},{"name":"chat dev","seconds":0.5184865410000002,"ok":true},{"name":"chat receipt","accepted":true,"verdict":"pass"},{"name":"chat test","seconds":4.440989291,"ok":true},{"name":"chat stop","seconds":0.17957741700000043,"ok":true}]}
+staged and qualified snapback2-darwin-arm64@0.0.25; transfer /Users/ccheever/projects/snapback/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.25 and pass its resume.json with --platform-artifact
