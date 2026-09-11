@@ -23,6 +23,12 @@ believes it is connected leaves a blank player with no caption until the compone
 remounts. A source review of that starter found the gap; it was not reproduced in a
 browser.
 
+The workaround also mislabels. `MessageMedia.tsx` treats any failure while the
+connection is not `connected` as "not downloaded", including a refusal the server made
+during `reconnecting`. That media reads "Photo not downloaded" (or "Video not
+downloaded") until a retry made after reconnecting gets the refusal again and says
+"unavailable"; retries stop after three per mount (review of `93dfd33f9`, source only).
+
 ## Requested outcome and acceptance
 
 - Report a mint failure to `AssetVideo`'s `onRefusal` (and to other `useAssetUrl`

@@ -18,6 +18,12 @@ arrived message slides the head page's `last 50` window, the next page's cursor 
 longer matches, and the edited message is missing until the replacement page loads.
 Any typed draft is lost at that point.
 
+The same absence leaves `ui.editing` set, because `Thread.tsx` clears it only on a ready,
+complete view with no reason. No editor is visible, yet every other message's Edit button
+stays disabled until such a view arrives (review of `93dfd33f9`, source only).
+`Thread.tsx` is at the 60-line limit `tests/chat-screens.test.ts` enforces, so a fix has
+to move lines out of it.
+
 ## Requested outcome and acceptance
 
 - Keep the draft, base and note for `[account, messageId]` outside the row so a

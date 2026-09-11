@@ -59,7 +59,9 @@ untouched.
 Evidence (`chat-screens-owner.test.ts`): "React Thread renders ordinary photos and
 clips with accessible loading and refusal states" sends a real JPEG and MP4, sees the
 photo bytes and the player, shows "Photo unavailable" for a second viewer whose byte
-fetch is refused, and shows the first account's photo loading again afterwards; the
+fetches that viewer's client `fetch` stub answers with a 410 `E_ASSET_VIEWED` refusal
+(the test's stand-in, not an authorization decision by the real owner), and shows the
+first account's photo loading again afterwards; the
 offline photo and offline clip tests mount from held data offline and see the network
 request made after reconnecting; the unreachable-bytes test answers 503 to every byte
 request and bounds that photo's requests. The transport-family branch of that mapping is
