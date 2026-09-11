@@ -6,6 +6,20 @@ use std::sync::mpsc::{self, SyncSender};
 const MAX_SUBSCRIPTIONS: usize = 256;
 #[derive(Clone, Default)]
 pub(super) struct Streams(Arc<Mutex<BTreeMap<String, Connection>>>);
+impl Streams {
+    pub(super) fn wake_all(&self) {
+        let wakes = self
+            .0
+            .lock()
+            .expect("live streams lock")
+            .values()
+            .map(|connection| connection.wake.clone())
+            .collect::<Vec<_>>();
+        for wake in wakes {
+            let _ = wake.try_send(());
+        }
+    }
+}
 #[derive(Clone)]
 struct Connection {
     identity: Identity,
@@ -350,5 +364,38 @@ fn unsubscribe(child: Child, handle: &OwnerHandle) {
             let _ = handle.call(Action::ChannelUnsubscribe { id });
         }
         None => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owner_shutdown_wakes_every_idle_physical_stream() {
+        let streams = Streams::default();
+        let mut ready = Vec::new();
+        for session in ["one", "two"] {
+            let (commands, _incoming) = mpsc::sync_channel(1);
+            let (wake, receiver) = mpsc::sync_channel(1);
+            streams.0.lock().unwrap().insert(
+                session.to_owned(),
+                Connection {
+                    identity: Identity::Persona("alice".to_owned()),
+                    commands,
+                    wake,
+                },
+            );
+            ready.push(receiver);
+        }
+
+        streams.wake_all();
+
+        for receiver in ready {
+            assert_eq!(
+                receiver.recv_timeout(Duration::from_millis(100)),
+                Ok(())
+            );
+        }
     }
 }

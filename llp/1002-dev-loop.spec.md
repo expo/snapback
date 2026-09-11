@@ -595,7 +595,9 @@ owner changes its offset, sweeps sessions, or reruns live state.
   generation active until explicitly applied or replaced by an admitted successor.
 - **Exit.** Only `dev --stop`, a signal, or a fatal error; every exit writes
   `{ exited: cause }` to the log and removes `owner.json`. No exit 0 with an
-  empty stdout.
+  empty stdout. Shutdown wakes every idle multiplexed stream immediately;
+  the stream's 15-second heartbeat wait can never hold the process beyond the
+  two-second `dev --stop` observation boundary.
 - **Threads.** One writer thread owns the `Runtime` behind a channel; HTTP
   connections are threads (`tiny_http` or std-only); SSE streams hold a
   receiver and are fanned out by the writer after each commit
