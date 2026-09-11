@@ -148,3 +148,29 @@ The concurrent actor adds shared-host load from21:47:42 onward. This reinforces
 the diagnostic-only posture: wall times are not controlled comparative
 performance measurements. At discovery our builder reported M1 green and
 M2 in progress; its own defect attributions still require independent grading.
+
+### Cross-lane browser traffic discovered at23:57 UTC
+
+Concurrent main commit `a07a851b0b195ede1572fccb1bdae57566e0a038`
+records that an inherited `EXPO_PUBLIC_SNAPBACK_URL` sent the0.0.25 actor's
+initial M1 browser traffic to this run's backend on53100. A read-only check
+of that actor's public run log confirmed its event at epoch1789163616
+(21:53:36 UTC): initial signup/profile requests targeted53100, the actor
+discarded its invalid suite attempt, pinned53200 and stopped web PID2745801.
+We did not read that actor's implementation or feed its findings to our builder.
+
+**This is a potential state-contamination incident, not merely shared CPU
+load.** The accepted writes and their effects on this run have not been
+established. Our M1 green predates the other actor's start; M2 was still
+running during this interval. Do not describe the whole continuous run as
+cleanly isolated, attribute every correction to Snapback, or use its times
+as controlled measurements. Retain the artifact and diagnostic evidence;
+do not silently restart the builder or erase the affected interval.
+
+The later M6/M8 scale servers use fresh stores on53102/53103, distinct from
+the implicated53100 destination, but share host load. Before each fresh
+grader/M7/scorer launch, explicitly unset `EXPO_PUBLIC_SNAPBACK_URL` and
+`VITE_SNAPBACK_URL` in that process environment, as the updated repository
+protocol requires. This will be a recorded launch-environment correction,
+not an edit to the running builder or frozen instrument, and cannot repair
+the earlier isolation claim retroactively.
