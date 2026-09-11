@@ -92,7 +92,9 @@ on BLACK at current `15c134d056`; the scratch assertions were removed afterward.
 ### Reset removes physical staging before later seed refusal
 
 The probe extended existing
-`tests/owner.rs::reset_seed_refusal_is_atomic_and_keeps_the_owner_running`:
+`tests/owner.rs::reset_seed_refusal_is_atomic_and_keeps_the_owner_running`.
+`triage-reset.stage` is a synthetic owned marker placed in the staging directory; it is
+not an active receiving/finalizing upload and does not qualify those worker races:
 
 ```diff
  let log_start = fs::metadata(&log_path).unwrap().len();
@@ -114,16 +116,68 @@ absent because `writer_assets::State::reset` calls `LocalStaging::clear` first.
 
 ### One blob-delete error aborts a later sibling
 
-The minimal `asset_gc.rs` probe used a `BlobStore` whose enumeration visited `ID` then
-`SIBLING_ID`; `delete(ID)` returned `asset_io("injected first deletion failure")`, and
-later deletes appended their key to `Mutex<Vec<String>>`. Its assertion was:
+Here is the complete temporary patch that was compiled and run. Apply it inside the
+existing `#[cfg(test)] mod tests` in `asset_gc.rs`, immediately after `ID`. Existing
+imports `use super::*` and `use crate::blob_store::{BlobStore, FileBlobStore}` supply
+`BTreeSet`, `Refusal`, `asset_io`, and `BlobStore`; all other names are fully qualified.
+Both ids satisfy the real asset-id shape. The fake performs no filesystem writes, so its
+synthetic `root` creates nothing and needs no cleanup.
 
-```rust
-let ids = BTreeSet::from([ID.to_owned(), SIBLING_ID.to_owned()]);
-let error = sweep_asset_blobs(&root, &blobs, &BTreeSet::new(), &ids).unwrap_err();
-assert_eq!(error.code, "E_OWNER_ASSET_IO");
-assert_eq!(*blobs.deleted.lock().unwrap(), vec![SIBLING_ID.to_owned()],
-    "one failed blob deletion must not prevent a later sibling from being deleted");
+```diff
+ const ID: &str = "s2id-00000000000000000000000000000006-0000000000000001";
++const SIBLING_ID: &str = "s2id-00000000000000000000000000000006-0000000000000002";
++
++struct FirstDeleteFails {
++    deleted: std::sync::Mutex<Vec<String>>,
++}
++
++impl BlobStore for FirstDeleteFails {
++    fn put(&self, _key: &str, _source: &mut dyn std::io::Read) -> Result<u64, Refusal> {
++        unreachable!("triage probe does not publish")
++    }
++
++    fn get(
++        &self,
++        _key: &str,
++        _range: Option<crate::blob_store::ByteRange>,
++    ) -> Result<crate::blob_store::BlobRead, Refusal> {
++        unreachable!("triage probe does not read")
++    }
++
++    fn delete(&self, key: &str) -> Result<(), Refusal> {
++        if key == ID {
++            return Err(asset_io("injected first deletion failure"));
++        }
++        self.deleted.lock().unwrap().push(key.to_owned());
++        Ok(())
++    }
++
++    fn enumerate(
++        &self,
++        _prefix: &str,
++        visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
++    ) -> Result<(), Refusal> {
++        visitor(ID)?;
++        visitor(SIBLING_ID)?;
++        Ok(())
++    }
++}
++
++#[test]
++fn triage_delete_failure_does_not_abort_sibling_progress() {
++    let root = std::env::temp_dir().join("snapback2-asset-gc-triage-sibling");
++    let blobs = FirstDeleteFails {
++        deleted: std::sync::Mutex::new(Vec::new()),
++    };
++    let ids = BTreeSet::from([ID.to_owned(), SIBLING_ID.to_owned()]);
++    let error = sweep_asset_blobs(&root, &blobs, &BTreeSet::new(), &ids).unwrap_err();
++    assert_eq!(error.code, "E_OWNER_ASSET_IO");
++    assert_eq!(
++        *blobs.deleted.lock().unwrap(),
++        vec![SIBLING_ID.to_owned()],
++        "one failed blob deletion must not prevent a later sibling from being deleted"
++    );
++}
 ```
 
 ```text
@@ -132,7 +186,8 @@ cargo test -p snapback2 --bin snapback2 asset_gc::tests::triage_delete_failure_d
 ```
 
 This confirms `visitor(ID)?` / `blobs.delete(key)?` stops enumeration before the sibling;
-the caller's later `finish_asset_reclaims` is also skipped by propagation.
+the caller's later `finish_asset_reclaims` is also skipped by propagation. This is an
+injected `BlobStore::delete` refusal, not a physical filesystem-unlink qualification.
 
 Items 1, 4, and 5 are source-confirmed but were not race/failure-injection tested in this
 bounded pass. Next acceptance: validate seed before destructive clear (including a paused
