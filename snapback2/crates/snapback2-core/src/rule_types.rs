@@ -433,8 +433,13 @@ fn compatible_subject_id_ref(
     actual: &RuleType,
     expected: &RuleType,
 ) -> bool {
+    // @ref LLP 1010#a3-one-row-binder — an update rule's old and next
+    // binders are both typed images of the same nominal table row.
+    let subject_id = matches!(term, RuleTerm::Field(field) if field == "id")
+        || rule_use.is_update()
+            && matches!(term, RuleTerm::OldField(field) | RuleTerm::NextField(field) if field == "id");
     matches!(rule_use, RuleUse::Table(_))
-        && matches!(term, RuleTerm::Field(field) if field == "id")
+        && subject_id
         && actual == &RuleType::Id
         && matches!(expected, RuleType::Ref(table) if Some(table.as_str()) == subject.table_name())
 }

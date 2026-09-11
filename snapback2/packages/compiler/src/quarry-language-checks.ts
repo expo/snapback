@@ -136,12 +136,18 @@ value video viewer walk where while width with wordPrefixes words
     await project(`query preview(body: text <=2000):
   return slice(body, 0, 80)
 
+query full(body: text <=2000):
+  return body
+
 mutation record(body: text <=2000):
   preview = slice(body, 0, 80)
   return insert pushLog { preview }
 `, (lowered, checked) => {
       const preview = operation(lowered.project.programs, "probe.preview");
       const certificate = checked.find(item => item.program === preview.name)!.certificate!;
+      const fullCertificate = checked.find(item => item.program === "probe.full")!.certificate!;
+      assert(certificate.max_output_bytes < fullCertificate.max_output_bytes,
+        `literal slice did not reduce the certified output bound: ${certificate.max_output_bytes}/${fullCertificate.max_output_bytes}`);
       for (const input of ["", "a".repeat(79), "a".repeat(80), "a".repeat(81), "a".repeat(223),
         `${"🙂".repeat(79)}界tail`]) {
         const result = new ClientStore(lowered.project.schema).reexecute(preview,
@@ -161,6 +167,33 @@ mutation record(body: text <=2000):
       ["query bad(body: text <=20 ?):\n  return slice(body, 0, 10)\n", "must be present text"],
       ["query bad(body: text <=20):\n  return slice(body, true, 10)\n", "start must be an int"],
     ]) refusal(source, message);
+  });
+  test("update-rule row ids retain their table identity in indexed probes", async () => {
+    const declarations = `use identity
+
+table conversations:
+  visibleMessages: int
+  update (old, next) <- exists memberships[old.id, viewer] and next.id = old.id
+
+table memberships:
+  conversation: conversations
+  principal: principal
+  unique byConversationPrincipal: conversation, principal
+  public
+`;
+    await project("query probe():\n  return null\n", (lowered) => {
+      deepStrictEqual(lowered.project.schema.tables.conversations.rules.update, { And: [
+        { Exists: { table: "memberships", index: "byConversationPrincipal",
+          key: [{ OldField: "id" }, "Viewer"], provenance: "Shape" } },
+        { Eq: [{ NextField: "id" }, { OldField: "id" }] },
+      ] });
+    }, declarations);
+  });
+  test("explicit point and range reads reject mixed named and positional keys", () => {
+    for (const source of [
+      "query point():\n  return posts[author = viewer, now] by byAuthor\n",
+      "query page():\n  return posts[author = viewer, now] first 10 by byAuthor\n",
+    ]) refusal(source, "cannot mix named and positional");
   });
   test("guarded writes bind optional inserts and conditional updates to native certificates and the twin", async () => {
     const declarations = `use identity
