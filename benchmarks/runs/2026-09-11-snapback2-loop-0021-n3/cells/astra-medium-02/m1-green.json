@@ -1,0 +1,28 @@
+{
+  "at": "2026-09-11T08:26:10.734430+00:00",
+  "completionTime": "2026-09-11T08:26:10.734430+00:00",
+  "commands": [
+    {
+      "command": "npx snapback2 test > evidence/m1-suite2.log 2>&1",
+      "exit": 0
+    },
+    {
+      "command": "npm run acceptance > evidence/m1-browser2.log 2>&1",
+      "exit": 0
+    },
+    {
+      "command": "npm run build > evidence/m1-build.log 2>&1",
+      "exit": 0
+    }
+  ],
+  "receipt": ".snapback/receipts/1789115113806.json",
+  "logs": [
+    "evidence/m1-suite2.log",
+    "evidence/m1-browser2.log",
+    "evidence/acceptance-results.json"
+  ],
+  "browserEvidence": [
+    "evidence/m1-live-profile.png",
+    "evidence/m1-duplicate-email.png"
+  ]
+}

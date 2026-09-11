@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-09-11T07:43:38.228674+00:00",
+  "commands": [
+    {
+      "command": "npx snapback2 test > evidence/m1-suite.log 2>&1",
+      "exit": 0
+    },
+    {
+      "command": "npm run acceptance > evidence/m1-browser-certified-2.log 2>&1",
+      "exit": 0
+    },
+    {
+      "command": "npm run build > evidence/m1-build-final.log 2>&1",
+      "exit": 0
+    }
+  ],
+  "receipt": ".snapback/receipts/1789112539440.json",
+  "logs": [
+    "evidence/m1-suite.log",
+    "evidence/m1-browser-certified-2.log",
+    "evidence/m1-browser-results.json",
+    "evidence/m1-live-profile.png"
+  ],
+  "generation": "dfc1d6ab36b930b906095ba584106ab3ca6b377fe933516dc11d6c2215cd3005"
+}

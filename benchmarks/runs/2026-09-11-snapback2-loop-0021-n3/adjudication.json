@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "snapback2-loop-adjudication.v1",
+  "recordedAt": "2026-09-11",
+  "package": {
+    "specifier": "snapback2@0.0.21",
+    "integrity": "sha512-Mc2fRjWYmKW4rYhh+ksZ/Q4ZvM5JzyXxZ/IMRmDkXTgYUiJq03yYcYIodxp15mf8sePWjFR9g8u9MEi0K90zcw=="
+  },
+  "configuration": {
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "replicates": 3,
+    "coldSessions": true,
+    "serial": true,
+    "sameMachine": true,
+    "sourceBriefSha256": "9dc2f38ab7e6e3d414208d6a0de396f5b07b2e6b2a9dd08060b5c17d28747c5e"
+  },
+  "replicates": [
+    {
+      "id": "astra-medium-01",
+      "m1Seconds": 677.462,
+      "m1Under1200": true,
+      "retrievalCallsBeforeFirstEdit": 2,
+      "retrievalGate": true,
+      "snapbackCorrectionLoops": 2,
+      "correctionGate": false,
+      "builderAllGreen": false,
+      "auditedM1ToM3Pass": false,
+      "reason": "Application acceptance passed, but the final required plain snapback2 test failed with E_OWNER_TEST_SSE HTTP 503 during derived invalidation subscriptions.",
+      "correctionIds": ["C07", "C08"],
+      "excludedBuilderFinding": "C25 is an unresolved CLI port limitation, not a failure-to-recovery episode, so it is retained but not counted."
+    },
+    {
+      "id": "astra-medium-02",
+      "m1Seconds": 313.893,
+      "m1Under1200": true,
+      "retrievalCallsBeforeFirstEdit": 3,
+      "retrievalGate": false,
+      "snapbackCorrectionLoops": 2,
+      "correctionGate": false,
+      "builderAllGreen": true,
+      "auditedM1ToM3Pass": false,
+      "reason": "The retained direct full-suite command exited 1 and no later direct plain-command pass exists; the builder substituted python3 scripts/paced-suite.py, which does not satisfy the frozen command requirement.",
+      "correctionSummaries": [
+        "Profile-only derived invalidation required an unrelated physical write.",
+        "Rapid full-suite SSE probes returned HTTP 503; recovery used controller pacing."
+      ]
+    },
+    {
+      "id": "astra-medium-03",
+      "m1Seconds": 455.462,
+      "m1Under1200": true,
+      "retrievalCallsBeforeFirstEdit": 2,
+      "retrievalGate": true,
+      "snapbackCorrectionLoops": 3,
+      "correctionGate": false,
+      "builderAllGreen": true,
+      "auditedM1ToM3Pass": true,
+      "reason": "The final documented acceptance command and an unchanged plain snapback2 test both exited 0, with browser and API evidence retained.",
+      "correctionIds": ["S01", "S02", "S03"]
+    }
+  ],
+  "aggregate": {
+    "m1Seconds": {
+      "values": [677.462, 313.893, 455.462],
+      "median": 455.462,
+      "minimum": 313.893,
+      "maximum": 677.462,
+      "allUnder1200": true,
+      "gate": true
+    },
+    "retrievalCallsBeforeFirstEdit": {
+      "values": [2, 3, 2],
+      "median": 2,
+      "minimum": 2,
+      "maximum": 3,
+      "allAtMost2": false,
+      "gate": false
+    },
+    "snapbackCorrectionLoops": {
+      "values": [2, 2, 3],
+      "median": 2,
+      "minimum": 2,
+      "maximum": 3,
+      "allAtMost1": false,
+      "gate": false,
+      "attributionRuleStatus": "draft"
+    },
+    "pass3": {
+      "constituentPasses": [false, false, true],
+      "passingReplicates": 1,
+      "totalReplicates": 3,
+      "gate": false,
+      "note": "The preregistration requires all three frozen replicates to pass; a failed constituent is below the >=0.8 pass^3 gate."
+    },
+    "loopBar": false
+  },
+  "historicalRecordAudit": [
+    {
+      "record": "2026-09-09-clique-snapback2-0.0.20-treatment",
+      "eligible": false,
+      "reason": "Three cold builders used three different model configurations, so each cell is N=1; pre-edit retrieval counts are absent and only Astra has a committed machine record."
+    },
+    {
+      "record": "2026-09-10-clique-ri-0.0.21",
+      "eligible": false,
+      "reason": "Astra-medium and Grok-xhigh are each N=1, ran in parallel with other work, and have no reduced-run pre-edit retrieval measurement; Astra continued after a missing-harness-file first attempt."
+    }
+  ],
+  "disposition": "OPEN — publish a fixed package and rerun a newly preregistered cold N>=3 cell."
+}

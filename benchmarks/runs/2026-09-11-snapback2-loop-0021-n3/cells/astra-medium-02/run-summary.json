@@ -1,0 +1,649 @@
+{
+  "app": "Clique",
+  "package": {
+    "name": "snapback2",
+    "version": "0.0.21"
+  },
+  "startTime": "2026-09-11T08:21:04+00:00",
+  "startTimeBasis": "First command start, inferred from its measured duration and the immediately following UTC clock reading. Exact brief-delivery timestamp was not exposed; it preceded this by several seconds.",
+  "endTime": "2026-09-11T08:49:04.886778+00:00",
+  "elapsedWallSeconds": 1680.887,
+  "milestones": {
+    "M1": {
+      "status": "pass",
+      "firstGreen": "2026-09-11T08:26:10.734430+00:00",
+      "evidence": [
+        "evidence/m1-green.json",
+        "evidence/m1-suite2.log",
+        "evidence/m1-browser2.log",
+        ".snapback/receipts/1789115113806.json"
+      ]
+    },
+    "M2": {
+      "status": "pass",
+      "firstGreen": "2026-09-11T08:46:55.164Z",
+      "firstGreenBasis": "First timestamped combined command proving the complete current app, full suite and all strengthened acceptance assertions together. Earlier M2 functional acceptance is retained separately.",
+      "evidence": [
+        "evidence/m2-acceptance.log",
+        "evidence/m2-journey.log",
+        "evidence/final-acceptance.log",
+        ".snapback/receipts/1789116195689.json"
+      ]
+    },
+    "M3": {
+      "status": "pass",
+      "firstGreen": "2026-09-11T08:46:55.164Z",
+      "firstGreenBasis": "First timestamped combined command proving the complete current app, full suite and all strengthened acceptance assertions together. Earlier M3 functional acceptance is retained separately.",
+      "evidence": [
+        "evidence/m3-acceptance3.log",
+        "evidence/m3-journey.log",
+        "evidence/final-acceptance.log",
+        ".snapback/receipts/1789116195689.json"
+      ]
+    }
+  },
+  "acceptance": {
+    "M1.1": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M1.1.signup-ui",
+          "status": "pass",
+          "at": "2026-09-11T08:46:46.324Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M1.2": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M1.2.duplicate-handle",
+          "status": "pass",
+          "at": "2026-09-11T08:46:46.197Z"
+        },
+        {
+          "id": "M1.2.duplicate-email",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.059Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json",
+        "evidence/m1-duplicate-email.png"
+      ]
+    },
+    "M1.3": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M1.3.reload",
+          "status": "pass",
+          "at": "2026-09-11T08:46:46.402Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M1.4": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M1.4.logout-revocation",
+          "status": "pass",
+          "at": "2026-09-11T08:46:46.951Z",
+          "meRefused": true,
+          "refusal": "RefusalError: session is missing or expired",
+          "backendState": "refused",
+          "response": {
+            "state": "refused",
+            "code": "E_AUTH_REQUIRED",
+            "family": "auth",
+            "message": "authentication is required",
+            "guide": "auth/identity",
+            "rewrite": "send Authorization: Bearer <token> or X-Snapback-As in dev"
+          }
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M1.5": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M1.5.live-profile-render",
+          "status": "pass",
+          "at": "2026-09-11T08:46:46.871Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json",
+        "evidence/m1-live-profile.png"
+      ]
+    },
+    "M2.1": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M2.1.live-global-author",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.604Z"
+        },
+        {
+          "id": "M2.browser-live-feed-pagination",
+          "status": "pass",
+          "at": "2026-09-11T08:46:48.578Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json",
+        "evidence/m2-live-feed.png"
+      ]
+    },
+    "M2.2": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M2.2.follow-unfollow-counts-own-no-self",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.691Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M2.3": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M2.3.global-only",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.703Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M2.4": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M2.4.set-state-live-like",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.753Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M2.5": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M2.5.attributed-repost-toggle-followed-reposter",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.788Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M2.6": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M2.6.live-direct-chronological-replies-not-in-feeds",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.855Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M2.7": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M2.7.both-feeds-pagination-no-gaps-duplicates",
+          "status": "pass",
+          "at": "2026-09-11T08:46:48.204Z"
+        },
+        {
+          "id": "M2.browser-live-feed-pagination",
+          "status": "pass",
+          "at": "2026-09-11T08:46:48.578Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M3.1": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M3.1.live-DM-names-reuse",
+          "status": "pass",
+          "at": "2026-09-11T08:46:48.663Z",
+          "conversationId": "s2id-a651324af3b24e06691567fd74a7d343-0000000000068401"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M3.2": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M3.2.identical-membership-groups",
+          "status": "pass",
+          "at": "2026-09-11T08:46:48.672Z",
+          "ids": [
+            "s2id-a651324af3b24e06691567fd74a7d343-0000000000121801",
+            "s2id-a651324af3b24e06691567fd74a7d343-0000000000121c01"
+          ]
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M3.3": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M3.3.typing-deadlines",
+          "status": "pass",
+          "at": "2026-09-11T08:46:53.352Z",
+          "visibleMs": 4,
+          "expiryMs": 4669
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M3.4": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M3.4.monotonic-direct-group-slowest",
+          "status": "pass",
+          "at": "2026-09-11T08:46:53.437Z",
+          "directHistory": [
+            0,
+            1,
+            2
+          ],
+          "groupHistory": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "id": "M3.receipts-departed-recipient-excluded",
+          "status": "pass",
+          "at": "2026-09-11T08:46:53.476Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json"
+      ]
+    },
+    "M3.5": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M3.5.quoted-link-render",
+          "status": "pass",
+          "at": "2026-09-11T08:46:54.436Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json",
+        "evidence/m3-quoted-reply.png"
+      ]
+    },
+    "M3.6": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M3.6.removal-retains-local-history-no-new-nonadmin-refused",
+          "status": "pass",
+          "at": "2026-09-11T08:46:55.100Z",
+          "backendState": "denied",
+          "nonAdminState": "rejected"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json",
+        "evidence/m3-removed-history.png"
+      ]
+    },
+    "M3.7": {
+      "status": "pass",
+      "checks": [
+        {
+          "id": "M3.7.seed-idempotent",
+          "status": "pass",
+          "at": "2026-09-11T08:46:47.514Z"
+        }
+      ],
+      "evidence": [
+        "evidence/final-acceptance.log",
+        "evidence/acceptance-results.json",
+        "evidence/seed-idempotence.json"
+      ]
+    }
+  },
+  "additionalChecks": [
+    {
+      "id": "M2.validation.post-limit",
+      "status": "pass",
+      "at": "2026-09-11T08:46:48.206Z"
+    },
+    {
+      "id": "M3.history-new-member-full-send-time-recipients",
+      "status": "pass",
+      "at": "2026-09-11T08:46:55.115Z"
+    },
+    {
+      "id": "M3.validation-size-roles-leave-message-limit",
+      "status": "pass",
+      "at": "2026-09-11T08:46:55.132Z"
+    }
+  ],
+  "commands": [
+    {
+      "command": "npx snapback2 check",
+      "exit": 0,
+      "log": "evidence/final-check.log",
+      "at": "2026-09-11T08:43:13.674Z"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exit": 0,
+      "log": "evidence/final-typecheck.log",
+      "at": "2026-09-11T08:43:14.393Z"
+    },
+    {
+      "command": "npm run build",
+      "exit": 0,
+      "log": "evidence/final-build.log",
+      "at": "2026-09-11T08:43:15.077Z"
+    },
+    {
+      "command": "npx snapback2 dev --port 53200",
+      "exit": 0,
+      "log": "evidence/final-owner-start.log",
+      "at": "2026-09-11T08:43:15.237Z"
+    },
+    {
+      "command": "npm run seed",
+      "exit": 0,
+      "log": "evidence/final-seed.log",
+      "at": "2026-09-11T08:43:15.525Z"
+    },
+    {
+      "command": "python3 scripts/paced-suite.py",
+      "exit": 0,
+      "log": "evidence/paced-controller.log",
+      "at": "2026-09-11T08:46:44.490Z"
+    },
+    {
+      "command": "npx tsx scripts/acceptance.ts",
+      "exit": 0,
+      "log": "evidence/final-acceptance.log",
+      "at": "2026-09-11T08:46:55.164Z"
+    },
+    {
+      "command": "npm run acceptance > evidence/acceptance-command.log 2>&1",
+      "exit": 0,
+      "evidence": "evidence/acceptance-command.exit"
+    },
+    {
+      "command": "npm run build > evidence/final-build-current.log 2>&1",
+      "exit": 0,
+      "evidence": "evidence/final-build-current.log"
+    }
+  ],
+  "snapbackTest": {
+    "command": "npx snapback2 test",
+    "controllerPacing": "python3 scripts/paced-suite.py",
+    "exit": 0,
+    "verdict": "pass",
+    "receipt": ".snapback/receipts/1789116195689.json",
+    "stdoutStderr": "evidence/paced-suite.log",
+    "checks": [
+      {
+        "name": "certify",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "rules",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "bounds",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "invalidation",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "replay",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "live-revocation",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "successor-policy-fence",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "grant-incarnation-aba",
+        "kind": "derived",
+        "verdict": "pass"
+      },
+      {
+        "name": "M1 profiles validate, stay owned and update live",
+        "kind": "journey",
+        "verdict": "pass"
+      },
+      {
+        "name": "M1 built-in signup rejects short passwords and duplicate emails",
+        "kind": "journey",
+        "verdict": "pass"
+      },
+      {
+        "name": "M3 unique DMs, groups, quote scope, membership and monotonic receipts",
+        "kind": "journey",
+        "verdict": "pass"
+      },
+      {
+        "name": "M3 typing channel transports sender identity",
+        "kind": "journey",
+        "verdict": "pass"
+      },
+      {
+        "name": "M2 feeds, set-state reactions, direct replies and 20-row cursors",
+        "kind": "journey",
+        "verdict": "pass"
+      }
+    ]
+  },
+  "firstProductEdit": {
+    "at": "2026-09-11T08:21:31.515236+00:00",
+    "nextAction": "npx snapback2 init . --template chat --client react",
+    "retrievalCalls": [
+      {
+        "at": "2026-09-11T08:21:09Z",
+        "command": "cat node_modules/snapback2/README.md",
+        "purpose": "Package orientation and supported public interfaces"
+      },
+      {
+        "at": "2026-09-11T08:21:17Z",
+        "command": "npx snapback2 guide init && npx snapback2 guide auth && npx snapback2 guide schema && npx snapback2 guide test",
+        "purpose": "Scaffolding, authentication, schema and tests; schema was unknown so test did not run"
+      },
+      {
+        "at": "2026-09-11T08:21:26Z",
+        "command": "npx snapback2 guide quarry && npx snapback2 guide testing && npx snapback2 guide dev",
+        "purpose": "Backend language, journeys and owner port configuration"
+      }
+    ]
+  },
+  "retrievalCallsBeforeFirstProductEdit": 3,
+  "retrievalEvidenceNote": "Each initial fact-acquisition invocation is recorded separately with its exact command. Initial timestamps were manually recorded during orientation; native event order is authoritative. Dependency installation preceded the product scaffold.",
+  "correctionLoops": [
+    {
+      "milestone": "M1",
+      "attribution": "agent",
+      "summary": "Requested nonexistent guide schema; recovered using listed quarry and testing pages.",
+      "commands": [
+        "npx snapback2 guide schema",
+        "npx snapback2 guide quarry && npx snapback2 guide testing && npx snapback2 guide dev"
+      ]
+    },
+    {
+      "milestone": "M1",
+      "attribution": "snapback",
+      "summary": "Full test blocked on profile-only backend: derived invalidation demanded an unrelated physical write for global directory and byHandle. Added required M2 createPost operation, providing a real disjoint write; full suite passed.",
+      "evidence": [
+        "evidence/m1-suite.log",
+        "evidence/m1-suite2.log",
+        "evidence/m1-suite2.exit"
+      ]
+    },
+    {
+      "milestone": "M1",
+      "attribution": "agent",
+      "summary": "Logout acceptance expected query state denied; SDK reports refused for revoked authentication. Tightened assertion to require auth.me rejection plus refused query.",
+      "evidence": [
+        "evidence/m1-browser.log",
+        "scripts/acceptance.ts"
+      ]
+    },
+    {
+      "milestone": "M2",
+      "attribution": "agent",
+      "summary": "Quarry counts used read true, then public property, neither accepted on maintains; recovered with read <- allow. Ambiguous follows exists fixed with named index.",
+      "evidence": [
+        "evidence/m2-check.log",
+        "evidence/m2-check2.log",
+        "evidence/m2-check3.log"
+      ]
+    },
+    {
+      "milestone": "M2/M3",
+      "attribution": "snapback",
+      "summary": "Rapid full-suite SSE probes repeatedly returned HTTP 503 starting at attempt 48, cascading to later journeys. Recovered by pacing only the unmodified test controller; isolated owner runs normally. Full derived suite passed. Direct unpaced command remains susceptible.",
+      "evidence": [
+        "evidence/m2-suite.log",
+        "evidence/m2-suite2.log",
+        "evidence/m3-suite.log",
+        "evidence/first-paced-suite.log",
+        "evidence/first-paced-suite-exit.json",
+        "scripts/paced-suite.py"
+      ]
+    },
+    {
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Channel subscribe returns a closeable observation, not an unsubscribe function. Cleanup error masked the browser-removal failure and left acceptance process alive; fixed cleanup and terminated only own process.",
+      "evidence": [
+        "evidence/m3-acceptance.log",
+        "scripts/messaging-acceptance.ts"
+      ]
+    },
+    {
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Broad process listing used to diagnose own hanging acceptance incidentally displayed another lane process path; no files or source from it were read and no information from that lane was used. Subsequent process inspection must be scoped to known own PIDs.",
+      "commands": [
+        "ps -axo pid,ppid,command | rg 'snapback2|tsx scripts'"
+      ]
+    },
+    {
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Initial M3 fixture lacked directPairs rows, picked a quote from the wrong first scope, and leave lacked a captured membership ID for the canonical ABA proof. Added valid DM fixture, aligned first message scope, and fenced leave by membership ID; full paced suite passed all authorization proofs.",
+      "evidence": [
+        "evidence/m3-suite.log",
+        "evidence/first-paced-suite.log",
+        "snapback/seed.ts",
+        "snapback/groups.q"
+      ]
+    },
+    {
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "After removal, transient unavailable profile query was mistaken for absent profile, reopening onboarding. Kept last confirmed profile through query transitions; Chromium removal/history acceptance passed.",
+      "evidence": [
+        "evidence/m3-acceptance2.log",
+        "evidence/m3-acceptance3.log",
+        "src/App.tsx"
+      ]
+    },
+    {
+      "milestone": "M2/M3",
+      "attribution": "agent",
+      "summary": "Typecheck found literal strings instead of branded principals and un-narrowed query results in new journeys/UI. Used authenticated viewer principals, explicit result narrowing, and Principal types. Typecheck passed.",
+      "evidence": [
+        "evidence/typecheck.log",
+        "evidence/typecheck2.log",
+        "evidence/typecheck3.log",
+        "evidence/typecheck3.exit"
+      ]
+    }
+  ],
+  "remainingLimitations": [
+    "Direct unpaced snapback2 test repeatedly hit HTTP 503 during rapid derived SSE probes. The unmodified full suite passes with controller-only pacing; no checks or assertions were skipped.",
+    "Following is capped at 500 followees; initial people and conversation discovery pages show up to 50 rows. Post feeds, replies and message history have pagination.",
+    "The isolated owner started internally by snapback2 test chooses an ephemeral port; app-owned services use only 53200 and 53201.",
+    "Removed-member history is local to the browser and account partition; only previously downloaded history survives removal.",
+    "A broad process listing incidentally displayed another benchmark lane process path. No files, source, or app information from that lane were read or used.",
+    "Elapsed time is measured from the first command; exact brief delivery time is unavailable."
+  ],
+  "allGreen": true
+}

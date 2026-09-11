@@ -1,0 +1,741 @@
+{
+  "app": "Clique",
+  "package": {
+    "name": "snapback2",
+    "version": "0.0.21"
+  },
+  "startTime": "2026-09-11T08:51:35Z",
+  "endTime": "2026-09-11T09:30:31.716Z",
+  "timeBasis": {
+    "start": "Approximate brief arrival; first direct UTC clock sample was 2026-09-11T08:51:40Z. Milestone and final command completion times are system-generated.",
+    "firstObservedClock": "2026-09-11T08:51:40Z"
+  },
+  "elapsedWallSeconds": 2336.716,
+  "milestones": {
+    "M1": {
+      "status": "passed",
+      "firstGreenTime": "2026-09-11T08:59:07.080Z",
+      "elapsedSeconds": 452.08,
+      "deadlineSeconds": 1200,
+      "deadlineMet": true,
+      "evidence": "evidence/m1-green.json",
+      "receipt": ".snapback/receipts/1789117142979.json"
+    },
+    "M2": {
+      "status": "passed",
+      "firstGreenTime": "2026-09-11T09:03:37.062Z",
+      "evidence": "evidence/m2-green.json",
+      "receipt": ".snapback/receipts/1789117407326.json"
+    },
+    "M3": {
+      "status": "passed",
+      "firstGreenTime": "2026-09-11T09:27:30.111Z",
+      "evidence": "evidence/m3-green.json",
+      "receipt": ".snapback/receipts/1789118819780.json",
+      "note": "Earlier green candidate was superseded after final review found the retained receipt display regression; final Chromium checks include that case."
+    }
+  },
+  "acceptance": [
+    {
+      "id": "M1.1",
+      "result": "passed",
+      "description": "Chromium signup lands authenticated",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.log"
+      ]
+    },
+    {
+      "id": "M1.2",
+      "result": "passed",
+      "description": "Duplicate handle and email each produce visible errors",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-duplicate-email.png"
+      ]
+    },
+    {
+      "id": "M1.3",
+      "result": "passed",
+      "description": "Reload preserves authenticated session",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json"
+      ]
+    },
+    {
+      "id": "M1.4",
+      "result": "passed",
+      "description": "Logout/reload remains signed out; old bearer me() and mutation refused",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.log"
+      ]
+    },
+    {
+      "id": "M1.5",
+      "result": "passed",
+      "description": "Another signed-in Chromium client renders display name and bio live",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-live-profile.png"
+      ]
+    },
+    {
+      "id": "M2.1",
+      "result": "passed",
+      "description": "Alice original appears in Bob live Global with author",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log"
+      ]
+    },
+    {
+      "id": "M2.2",
+      "result": "passed",
+      "description": "Follow/counts live; unfollow next load removes all Alice actors, Global and Bob own preserved; self follow refused",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log"
+      ]
+    },
+    {
+      "id": "M2.3",
+      "result": "passed",
+      "description": "Unfollowed Carol original Global-only",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log"
+      ]
+    },
+    {
+      "id": "M2.4",
+      "result": "passed",
+      "description": "Like, repeat set, and unlike reflected live",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log"
+      ]
+    },
+    {
+      "id": "M2.5",
+      "result": "passed",
+      "description": "Attributed Alice repost surfaces unfollowed Carol for Bob; toggle removes it",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log"
+      ]
+    },
+    {
+      "id": "M2.6",
+      "result": "passed",
+      "description": "Reply count live, direct chronological thread, neither feed includes replies",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log"
+      ]
+    },
+    {
+      "id": "M2.7",
+      "result": "passed",
+      "description": "26 new seeded originals across both feeds; next cursors, exact-once rows, reverse chronological order",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-browser.png"
+      ]
+    },
+    {
+      "id": "M3.1",
+      "result": "passed",
+      "description": "Alice/Bob live DMs; reverse-pair start reuses same id; author identities join public names",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-chat.png",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-carol-retained.png"
+      ]
+    },
+    {
+      "id": "M3.2",
+      "result": "passed",
+      "description": "Two distinct same-membership groups discoverable by all three users",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log"
+      ]
+    },
+    {
+      "id": "M3.3",
+      "result": "passed",
+      "description": "Typing visible in 2ms and expired in 3203ms",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-chat.png",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-carol-retained.png"
+      ]
+    },
+    {
+      "id": "M3.4",
+      "result": "passed",
+      "description": "Direct sent→delivered→read; group waits for Carol after Bob reads; later delivered ACK cannot regress read",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-chat.png",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-carol-retained.png"
+      ]
+    },
+    {
+      "id": "M3.5",
+      "result": "passed",
+      "description": "Quoted reply stores original message reference; Chromium separately verifies excerpt link",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-chat.png",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-carol-retained.png"
+      ]
+    },
+    {
+      "id": "M3.6",
+      "result": "passed",
+      "description": "Non-admin removal refused; removed Carol loses live/read access; prior local copy retained; departed recipient excluded from aggregate",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-chat.png",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-carol-retained.png"
+      ]
+    },
+    {
+      "id": "M3.7",
+      "result": "passed",
+      "description": "Seed twice returns same Alice/Bob/Carol ids and profile rows",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log"
+      ]
+    }
+  ],
+  "globalRequirements": [
+    {
+      "item": "Built-in auth; password minimum; persistent session; server-side logout revocation",
+      "result": "passed",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.log",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json",
+        "src/main.tsx",
+        "snapback/schema.q"
+      ]
+    },
+    {
+      "item": "Server-authoritative profile uniqueness, bounds and ownership",
+      "result": "passed",
+      "evidence": [
+        ".snapback/receipts/1789118819780.json",
+        "snapback/profiles.q",
+        "snapback/schema.q"
+      ]
+    },
+    {
+      "item": "Idempotent Alice/Bob/Carol email/password seed",
+      "result": "passed",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "scripts/seed.mjs"
+      ]
+    },
+    {
+      "item": "Group size/name/description, roles/add/remove/promote/leave, message bounds and quote scope",
+      "result": "passed",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        ".snapback/receipts/1789118819780.json"
+      ]
+    },
+    {
+      "item": "Monotonic receipts including departed membership and retained UI state",
+      "result": "passed",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json"
+      ]
+    },
+    {
+      "item": "New member full history; removed client retains prior local history but gets no new messages",
+      "result": "passed",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-carol-retained.png"
+      ]
+    },
+    {
+      "item": "Real Chromium used for browser-specific acceptance",
+      "result": "passed",
+      "evidence": [
+        "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m2-browser.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.json"
+      ]
+    },
+    {
+      "item": "Full authored Snapback suite without scope reduction or pacing",
+      "result": "passed",
+      "evidence": [
+        ".snapback/receipts/1789118819780.json",
+        "evidence/runs/2026-09-11T09-26-59-638Z/all-suite.log"
+      ]
+    }
+  ],
+  "acceptanceCommand": {
+    "command": "npm run acceptance",
+    "exit": 0,
+    "log": "evidence/acceptance.log",
+    "immutableRunDirectory": "evidence/runs/2026-09-11T09-26-59-638Z"
+  },
+  "commandExits": [
+    {
+      "command": "npx snapback2 test",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:26:59.639Z",
+      "endedAt": "2026-09-11T09:27:08.133Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/all-suite.log"
+    },
+    {
+      "command": "node scripts/m1.mjs",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:27:08.134Z",
+      "endedAt": "2026-09-11T09:27:10.258Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.log"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:27:10.258Z",
+      "endedAt": "2026-09-11T09:27:10.958Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/all-types.log"
+    },
+    {
+      "command": "node scripts/m2.mjs",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:27:10.958Z",
+      "endedAt": "2026-09-11T09:27:11.896Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log"
+    },
+    {
+      "command": "node scripts/social-browser.mjs",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:27:11.896Z",
+      "endedAt": "2026-09-11T09:27:14.748Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/m2-browser.log"
+    },
+    {
+      "command": "node scripts/m3.mjs",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:27:14.748Z",
+      "endedAt": "2026-09-11T09:27:18.863Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log"
+    },
+    {
+      "command": "node scripts/chat-browser.mjs",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:27:18.863Z",
+      "endedAt": "2026-09-11T09:27:29.407Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.log"
+    },
+    {
+      "command": "npm run build",
+      "exit": 0,
+      "signal": null,
+      "startedAt": "2026-09-11T09:27:29.407Z",
+      "endedAt": "2026-09-11T09:27:30.099Z",
+      "log": "evidence/runs/2026-09-11T09-26-59-638Z/build.log"
+    }
+  ],
+  "firstMilestoneCommandExits": {
+    "M1": [
+      {
+        "command": "npx snapback2 test",
+        "exit": 0,
+        "log": "evidence/m1-suite.log"
+      },
+      {
+        "command": "node scripts/m1.mjs",
+        "exit": 0,
+        "log": "evidence/m1-browser.log"
+      },
+      {
+        "command": "npx tsc --noEmit",
+        "exit": 0,
+        "log": "evidence/m1-types.log"
+      }
+    ],
+    "M2": [
+      {
+        "command": "npx snapback2 test",
+        "exit": 0,
+        "log": "evidence/m2-suite.log"
+      },
+      {
+        "command": "node scripts/m1.mjs",
+        "exit": 0,
+        "log": "evidence/m1-browser.log"
+      },
+      {
+        "command": "npx tsc --noEmit",
+        "exit": 0,
+        "log": "evidence/m2-types.log"
+      },
+      {
+        "command": "node scripts/m2.mjs",
+        "exit": 0,
+        "log": "evidence/m2-api.log"
+      },
+      {
+        "command": "node scripts/social-browser.mjs",
+        "exit": 0,
+        "log": "evidence/m2-browser.log"
+      }
+    ]
+  },
+  "snapbackTestReceiptPath": ".snapback/receipts/1789118819780.json",
+  "snapbackChecks": [
+    {
+      "name": "certify",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "rules",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "bounds",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "invalidation",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "replay",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "live-revocation",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "successor-policy-fence",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "grant-incarnation-aba",
+      "kind": "derived",
+      "verdict": "pass"
+    },
+    {
+      "name": "M1 profile ownership and validation",
+      "kind": "journey",
+      "verdict": "pass"
+    },
+    {
+      "name": "M2 posts follows reactions replies and cursors",
+      "kind": "journey",
+      "verdict": "pass"
+    },
+    {
+      "name": "M3 unique DMs groups quotes and monotonic receipts",
+      "kind": "journey",
+      "verdict": "pass"
+    }
+  ],
+  "retrievalCallsBeforeFirstProductEdit": {
+    "count": 2,
+    "evidence": "evidence/first-product-edit.json",
+    "calls": [
+      {
+        "at": "2026-09-11T08:51:44Z",
+        "command": "cat node_modules/snapback2/README.md",
+        "purpose": "Read installed package overview and supported entry points"
+      },
+      {
+        "at": "2026-09-11T08:51:53Z",
+        "command": "npx snapback2 guide init && npx snapback2 guide auth && npx snapback2 guide",
+        "purpose": "Scaffold, built-in authentication, and Quarry grammar"
+      }
+    ],
+    "timestampBasis": "The two retrieval-call timestamps were manually recorded to second precision; native invocation timestamps are authoritative. The first-product-edit timestamp was generated immediately before init."
+  },
+  "correctionLoops": [
+    {
+      "id": "A01",
+      "milestone": "M1",
+      "attribution": "agent",
+      "summary": "Wrong guide topic: test was unknown; testing succeeded.",
+      "evidence": [
+        "npx snapback2 guide test && npx snapback2 guide live-query && npx snapback2 dev --help",
+        "npx snapback2 guide testing && npx snapback2 guide live-query && npx snapback2 dev --help"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A02",
+      "milestone": "M1",
+      "attribution": "agent",
+      "summary": "Profiles all scan lacked an explicit index; selected byId.",
+      "evidence": [
+        "npx snapback2 check",
+        "snapback/profiles.q"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A03",
+      "milestone": "M1",
+      "attribution": "agent",
+      "summary": "Journey QueryResult.data access lacked narrowing; added data-in guards.",
+      "evidence": [
+        "evidence/m1-suite-type-failure.log",
+        "snapback/tests/clique.test.ts"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "S01",
+      "milestone": "M1",
+      "attribution": "snapback",
+      "summary": "Profiles-only full derived invalidation blocked on impossible concrete-disjoint writes for an all-profile scan. Planned follow operations supplied real independent writes and the M1 full suite passed.",
+      "evidence": [
+        "evidence/m1-suite-disjoint-block.log",
+        "evidence/m1-suite.log",
+        "evidence/m1-green.json"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A04",
+      "milestone": "M2",
+      "attribution": "agent",
+      "summary": "Maintain read policy used public, then true; corrected to read <- allow from the rules guide.",
+      "evidence": [
+        "evidence/m2-maintain-failure.log",
+        "evidence/m2-rules-index-failure.log",
+        "snapback/schema.q"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A05",
+      "milestone": "M2",
+      "attribution": "agent",
+      "summary": "Follows point lookup was ambiguous between two principal/principal indexes; named byFollowerFollowed.",
+      "evidence": [
+        "evidence/m2-rules-index-failure.log",
+        "snapback/follows.q"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A06",
+      "milestone": "M2",
+      "attribution": "agent",
+      "summary": "Follow component used string instead of branded Principal; corrected prop type.",
+      "evidence": [
+        "npx tsc --noEmit",
+        "src/Social.tsx"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "S02",
+      "milestone": "M1–M3",
+      "attribution": "snapback",
+      "summary": "Repeated full-suite SSE HTTP 503 failures began after 48 derived subscription attempts. Reordering seed personas to put committing cases first, naming the profile edit changeMyProfile before createMyProfile in enumeration, and adding reciprocal-follow/repost fixtures reduced wasted attempts. Final unchanged plain snapback2 test passes all checks. Two external pacing experiments were explored; neither is required by final acceptance. No package code or assertions were modified.",
+      "evidence": [
+        "evidence/m1-suite-sse-failure.log",
+        "evidence/m1-suite-sse-repeat.log",
+        "evidence/m2-suite-sse-after-fixture.log",
+        "evidence/m3-suite-observe.log",
+        "evidence/m3-suite-tuned.log",
+        "evidence/m3-suite-tuned2.log",
+        "evidence/m3-paced-suite-first-failure.log",
+        "evidence/m3-paced-suite.log",
+        "evidence/suite-pacing-first.json",
+        "evidence/suite-pacing.json",
+        "evidence/experiments/paced-suite.mjs"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A07",
+      "milestone": "M2",
+      "attribution": "agent",
+      "summary": "Derived repost-off probe had no existing repost to remove; added a real seeded repost.",
+      "evidence": [
+        "evidence/m2-suite-repost-fixture-failure.log",
+        "snapback/seed.ts"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A08",
+      "milestone": "M2",
+      "attribution": "agent",
+      "summary": "Generic journey query helper inferred unknown data; explicitly typed its test result after checking response presence.",
+      "evidence": [
+        "npx tsc --noEmit",
+        "snapback/tests/clique.test.ts"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A09",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Receipt column read was a reserved word; renamed it seen.",
+      "evidence": [
+        "evidence/m3-reserved-field-failure.log",
+        "snapback/schema.q"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A10",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Nested room × roster × full-profile projection exceeded certified byte bounds; separated the scoped roster query and narrowed its profile projection.",
+      "evidence": [
+        "evidence/m3-roster-bound-failure.log",
+        "snapback/groups.q"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A11",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "dmPairs table lacked a rule-proof seed row; added a valid DM, memberships and pair fixture.",
+      "evidence": [
+        "evidence/m3-suite-initial-failure.log",
+        "snapback/seed.ts"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "S03",
+      "milestone": "M3",
+      "attribution": "snapback",
+      "summary": "Canonical membership proofs required exact template operation names and a membershipId-bearing memberLeave signature, beyond the ordinary semantics of the original named operations. Matched memberAdd/memberPromote/memberRemove/memberLeave and their captured membership signatures; final revocation, successor fence and ABA proofs pass.",
+      "evidence": [
+        "evidence/m3-suite-initial-failure.log",
+        "evidence/m3-paced-suite-first-failure.log",
+        "snapback/groups.q",
+        "evidence/m3-suite-tuned2.log"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A12",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Channel subscribe returned an observation with close(), not an unsubscribe function; corrected acceptance cleanup.",
+      "evidence": [
+        "evidence/m3-channel-cleanup-failure.log",
+        "scripts/m3.mjs"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A13",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Browser member picker had duplicate Bob display labels from development and real accounts; added handles and selected the real account explicitly.",
+      "evidence": [
+        "evidence/m3-browser-duplicate-label-failure.log",
+        "src/Chat.tsx",
+        "scripts/chat-browser.mjs"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A14",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "A broad process-name inspection incidentally displayed other owner process paths during own-supervisor diagnosis. No other app/source content was opened or used. Later process inspection was restricted to the current test child tree.",
+      "evidence": [
+        "ps -axo pid,ppid,command | rg 'snapback2.*(test|foreground)|npm exec snapback2'",
+        "evidence/experiments/paced-suite.mjs"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A15",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Browser test treated the empty open attribute as false and closed an already-open details panel; changed the check to === null.",
+      "evidence": [
+        "evidence/m3-browser-details-failure.log",
+        "scripts/chat-browser.mjs"
+      ],
+      "status": "recovered"
+    },
+    {
+      "id": "A16",
+      "milestone": "M3",
+      "attribution": "agent",
+      "summary": "Code review found that a retained own-message receipt defaulted back to Sent when its query became unavailable. Persisted the highest server-confirmed state per account/message and added a browser assertion before removal, after removal, and after reload.",
+      "evidence": [
+        "src/Chat.tsx",
+        "scripts/chat-browser.mjs",
+        "evidence/m3-browser.json"
+      ],
+      "status": "recovered"
+    }
+  ],
+  "correctionCounts": {
+    "agent": 16,
+    "snapback": 3,
+    "environment": 0,
+    "ambiguous": 0
+  },
+  "remainingLimitations": [
+    "The final plain package test passes, but its 0.0.21 derived SSE workload required the documented fixture/enumeration workaround; larger query sets may encounter the same package issue.",
+    "Following is capped at 50 followees per account. Discovery/member pickers read the first 50 profiles. Feeds page 20 rows; conversation history pages 50 and supports earlier history.",
+    "Retained removed-member history and receipt display state are local to the same browser/account and are lost if that browser storage is cleared.",
+    "Brief-arrival elapsed time is approximate by a few seconds, and pre-edit retrieval-call timestamps have manual second-level precision.",
+    "A process diagnostic incidentally displayed other lane process paths. No other app, source checkout, or prior-app content was opened or used; the incident is recorded as A14."
+  ],
+  "evidenceNotes": [
+    "Earlier successful browser log aliases were reused; final acceptance output/artifacts now have an immutable timestamped run directory, and all package receipts plus saved failure logs remain.",
+    "Package installation preceded init as orientation; evidence/first-product-edit.json names init as the first authored product edit."
+  ],
+  "runtime": {
+    "web": "http://127.0.0.1:53301",
+    "owner": "http://127.0.0.1:53300",
+    "ownerStatus": "evidence/final-owner-status.json"
+  },
+  "allGreen": true
+}

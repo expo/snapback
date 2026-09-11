@@ -1,0 +1,68 @@
+
+> acceptance
+> node scripts/acceptance.mjs
+
+{
+  command: 'npx snapback2 test',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:26:59.639Z',
+  endedAt: '2026-09-11T09:27:08.133Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/all-suite.log'
+}
+{
+  command: 'node scripts/m1.mjs',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:27:08.134Z',
+  endedAt: '2026-09-11T09:27:10.258Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/m1-browser.log'
+}
+{
+  command: 'npx tsc --noEmit',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:27:10.258Z',
+  endedAt: '2026-09-11T09:27:10.958Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/all-types.log'
+}
+{
+  command: 'node scripts/m2.mjs',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:27:10.958Z',
+  endedAt: '2026-09-11T09:27:11.896Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/m2-api.log'
+}
+{
+  command: 'node scripts/social-browser.mjs',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:27:11.896Z',
+  endedAt: '2026-09-11T09:27:14.748Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/m2-browser.log'
+}
+{
+  command: 'node scripts/m3.mjs',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:27:14.748Z',
+  endedAt: '2026-09-11T09:27:18.863Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/m3-api.log'
+}
+{
+  command: 'node scripts/chat-browser.mjs',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:27:18.863Z',
+  endedAt: '2026-09-11T09:27:29.407Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/m3-browser.log'
+}
+{
+  command: 'npm run build',
+  exit: 0,
+  signal: null,
+  startedAt: '2026-09-11T09:27:29.407Z',
+  endedAt: '2026-09-11T09:27:30.099Z',
+  log: 'evidence/runs/2026-09-11T09-26-59-638Z/build.log'
+}

@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-11T08:51:56.934Z",
+  "nextAction": "npx snapback2 init . --template chat --client react --json",
+  "retrievalCalls": [
+    {
+      "at": "2026-09-11T08:51:44Z",
+      "command": "cat node_modules/snapback2/README.md",
+      "purpose": "Read installed package overview and supported entry points"
+    },
+    {
+      "at": "2026-09-11T08:51:53Z",
+      "command": "npx snapback2 guide init && npx snapback2 guide auth && npx snapback2 guide",
+      "purpose": "Scaffold, built-in authentication, and Quarry grammar"
+    }
+  ]
+}

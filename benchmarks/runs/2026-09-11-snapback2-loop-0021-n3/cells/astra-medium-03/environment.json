@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "snapback2-loop-cell-environment.v1",
+  "replicate": "astra-medium-03",
+  "startedAt": "2026-09-11T08:51:31.618Z",
+  "host": {
+    "computerName": "Charlie’s MacBook Pro M5 Max Silver",
+    "hardwareModel": "Mac17,6",
+    "physicalCpu": "18",
+    "logicalCpu": "18",
+    "memoryBytes": "137438953472",
+    "osVersion": "26.6.2",
+    "architecture": "arm64",
+    "load": "1:51  up 16 days,  4:07, 14 users, load averages: 1.64 1.59 1.59"
+  },
+  "tools": {
+    "node": {
+      "path": "/opt/homebrew/Cellar/node@24/24.20.0/bin/node",
+      "version": "v24.20.0"
+    },
+    "npm": "11.19.0",
+    "codex": "codex-cli 0.153.4",
+    "codexAuth": ""
+  },
+  "package": {
+    "specifier": "snapback2@0.0.21",
+    "expectedIntegrity": "sha512-Mc2fRjWYmKW4rYhh+ksZ/Q4ZvM5JzyXxZ/IMRmDkXTgYUiJq03yYcYIodxp15mf8sePWjFR9g8u9MEi0K90zcw==",
+    "registryObservation": "{\n  \"version\": \"0.0.21\",\n  \"dist.integrity\": \"sha512-Mc2fRjWYmKW4rYhh+ksZ/Q4ZvM5JzyXxZ/IMRmDkXTgYUiJq03yYcYIodxp15mf8sePWjFR9g8u9MEi0K90zcw==\"\n}"
+  },
+  "harness": {
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "argv": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--json",
+      "--model",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=\"medium\"",
+      "-"
+    ],
+    "m1DeadlineSeconds": 1200,
+    "wholeCellCapSeconds": 3600,
+    "promptSha256": "f75db220eac9e88133ed963b2513bc4b81a395b4e60073dada306d258d3f79de",
+    "sourceBriefSha256": "9dc2f38ab7e6e3d414208d6a0de396f5b07b2e6b2a9dd08060b5c17d28747c5e"
+  }
+}

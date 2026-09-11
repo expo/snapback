@@ -1,0 +1,827 @@
+{
+  "binary": {
+    "version": "0.0.21",
+    "digest": "rust64:9c751a4abcf2ebff"
+  },
+  "generation": "dfc1d6ab36b930b906095ba584106ab3ca6b377fe933516dc11d6c2215cd3005",
+  "commands": [
+    "snapback2 dev --foreground --port 0",
+    "seed",
+    "snapback2 test"
+  ],
+  "checks": [
+    {
+      "name": "certify",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 136,
+      "detail": {
+        "operations": 6
+      }
+    },
+    {
+      "name": "rules",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 0,
+      "detail": {
+        "actualBy": "data",
+        "blocked": [],
+        "coverage": "every stored row and seed persona for each completed table; no row sampling",
+        "expectedBy": "engine",
+        "probeLimit": 16384,
+        "probes": 0,
+        "tables": {}
+      }
+    },
+    {
+      "name": "bounds",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 2,
+      "detail": {
+        "blocked": [],
+        "enforcedBy": "engine",
+        "executions": [
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.byHandle",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.byHandle.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.byHandle",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.byHandle.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.byHandle",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.byHandle.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 1,
+              "ceiling": 1
+            },
+            "op": "profiles.mine",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.mine.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 1,
+              "ceiling": 1
+            },
+            "op": "profiles.mine",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.mine.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 0,
+              "ceiling": 1
+            },
+            "op": "profiles.mine",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.mine.0",
+                "take": 1
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 7
+            }
+          },
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 2,
+              "ceiling": 102
+            },
+            "op": "profiles.people",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.people.0",
+                "take": 100
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 2,
+              "ceiling": 512
+            }
+          },
+          {
+            "as": "bob",
+            "examined": {
+              "actual": 2,
+              "ceiling": 102
+            },
+            "op": "profiles.people",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.people.0",
+                "take": 100
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 2,
+              "ceiling": 512
+            }
+          },
+          {
+            "as": "charlie",
+            "examined": {
+              "actual": 2,
+              "ceiling": 102
+            },
+            "op": "profiles.people",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "profiles.people.0",
+                "take": 100
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 2,
+              "ceiling": 512
+            }
+          }
+        ],
+        "probes": 9
+      }
+    },
+    {
+      "name": "invalidation",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 1126,
+      "detail": {
+        "attemptLimitPerQuery": 64,
+        "attempts": 15,
+        "blocked": [],
+        "candidateLimit": 12,
+        "coverage": "one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence per query; not every operation pair",
+        "deliveryProbes": 2,
+        "exclusions": 0,
+        "groups": [
+          {
+            "candidates": [
+              "follows.setFollow"
+            ],
+            "query": "profiles.byHandle",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "profiles.byHandle",
+            "sites": [
+              [
+                "profiles",
+                "byHandle"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "follows.setFollow"
+            ],
+            "query": "profiles.mine",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "profiles.mine",
+            "sites": [
+              [
+                "profiles",
+                "byPrincipal"
+              ]
+            ],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "follows.setFollow"
+            ],
+            "query": "profiles.people",
+            "sites": [],
+            "witnessed": true
+          },
+          {
+            "candidates": [
+              "profiles.createMyProfile",
+              "profiles.updateMyProfile"
+            ],
+            "query": "profiles.people",
+            "sites": [
+              [
+                "profiles",
+                "byHandle"
+              ]
+            ],
+            "witnessed": true
+          }
+        ],
+        "intersectionLevel": "exact authoritative trace key x commit touched key",
+        "intersections": [
+          {
+            "mutation": "profiles.createMyProfile",
+            "query": "profiles.byHandle",
+            "sites": [
+              {
+                "index": "byHandle",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.updateMyProfile",
+            "query": "profiles.byHandle",
+            "sites": [
+              {
+                "index": "byHandle",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.createMyProfile",
+            "query": "profiles.mine",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.updateMyProfile",
+            "query": "profiles.mine",
+            "sites": [
+              {
+                "index": "byPrincipal",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.createMyProfile",
+            "query": "profiles.people",
+            "sites": [
+              {
+                "index": "byHandle",
+                "table": "profiles"
+              }
+            ]
+          },
+          {
+            "mutation": "profiles.updateMyProfile",
+            "query": "profiles.people",
+            "sites": [
+              {
+                "index": "byHandle",
+                "table": "profiles"
+              }
+            ]
+          }
+        ],
+        "outcomes": [
+          {
+            "disposition": "no-write",
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:bob"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:alice"
+            },
+            "mutationPersona": "bob",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 1
+          },
+          {
+            "code": "E_CONSTRAINT",
+            "disposition": "rejected",
+            "family": "schema",
+            "message": "sealed unique conflict on profiles.byPrincipal",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "responseState": "rejected",
+            "rule": null,
+            "selected": false,
+            "staticSitesIntersect": true
+          },
+          {
+            "code": "E_CONSTRAINT",
+            "disposition": "rejected",
+            "family": "schema",
+            "message": "sealed unique conflict on profiles.byPrincipal",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "bob",
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "responseState": "rejected",
+            "rule": null,
+            "selected": false,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "charlie",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "profiles.byHandle",
+            "queryArgs": {
+              "handle": "derived_handle"
+            },
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:bob"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:alice"
+            },
+            "mutationPersona": "bob",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 1
+          },
+          {
+            "code": "E_CONSTRAINT",
+            "disposition": "rejected",
+            "family": "schema",
+            "message": "sealed unique conflict on profiles.byPrincipal",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "responseState": "rejected",
+            "rule": null,
+            "selected": false,
+            "staticSitesIntersect": true
+          },
+          {
+            "code": "E_CONSTRAINT",
+            "disposition": "rejected",
+            "family": "schema",
+            "message": "sealed unique conflict on profiles.byPrincipal",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "bob",
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "responseState": "rejected",
+            "rule": null,
+            "selected": false,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "charlie",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "profiles.mine",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "disposition": "no-write",
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:bob"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.people",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "staticSitesIntersect": false
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "follows.setFollow",
+            "mutationArgs": {
+              "following": false,
+              "target": "dev:alice"
+            },
+            "mutationPersona": "bob",
+            "overlaps": false,
+            "probeRole": "pair",
+            "query": "profiles.people",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": false,
+            "writes": 1
+          },
+          {
+            "code": "E_CONSTRAINT",
+            "disposition": "rejected",
+            "family": "schema",
+            "message": "sealed unique conflict on profiles.byPrincipal",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "alice",
+            "probeRole": "pair",
+            "query": "profiles.people",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "responseState": "rejected",
+            "rule": null,
+            "selected": false,
+            "staticSitesIntersect": true
+          },
+          {
+            "code": "E_CONSTRAINT",
+            "disposition": "rejected",
+            "family": "schema",
+            "message": "sealed unique conflict on profiles.byPrincipal",
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "bob",
+            "probeRole": "pair",
+            "query": "profiles.people",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "responseState": "rejected",
+            "rule": null,
+            "selected": false,
+            "staticSitesIntersect": true
+          },
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "profiles.createMyProfile",
+            "mutationArgs": {
+              "bio": "derived test",
+              "displayName": "derived test",
+              "handle": "derived_handle",
+              "link": "https://example.com/derived",
+              "location": "derived test"
+            },
+            "mutationPersona": "charlie",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "profiles.people",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 1
+          }
+        ],
+        "overlapProbes": 2,
+        "probes": 6,
+        "silenceProbes": 4,
+        "skipped": [],
+        "transport": "SSE"
+      }
+    },
+    {
+      "name": "replay",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 37,
+      "detail": {
+        "attempts": 5,
+        "blocked": [],
+        "candidateLimit": 12,
+        "candidateSelection": "first two seed scopes and first six personas; exhaustion blocks",
+        "clock": "1700000000000 + mutation index",
+        "comparison": "byte-identical committed execution + authoritative trace",
+        "forks": 10,
+        "newIds": "replay-<mutation>-<ordinal>",
+        "probes": 3,
+        "skipped": []
+      }
+    },
+    {
+      "name": "M1 profile ownership and validation",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 18,
+      "detail": {
+        "file": "/Users/ccheever/snapback2-loop-0021-n3-execution/astra-medium-01/app/.snapback/test-run-1789112539440/project/.snapback/build/tests/chat.mjs"
+      }
+    }
+  ],
+  "arms": [
+    "headless"
+  ],
+  "verdict": "pass",
+  "scope": {
+    "changed": []
+  }
+}

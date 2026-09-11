@@ -1,0 +1,102 @@
+[
+  {
+    "milestone": "M1",
+    "attribution": "agent",
+    "summary": "Requested nonexistent guide schema; recovered using listed quarry and testing pages.",
+    "commands": [
+      "npx snapback2 guide schema",
+      "npx snapback2 guide quarry && npx snapback2 guide testing && npx snapback2 guide dev"
+    ]
+  },
+  {
+    "milestone": "M1",
+    "attribution": "snapback",
+    "summary": "Full test blocked on profile-only backend: derived invalidation demanded an unrelated physical write for global directory and byHandle. Added required M2 createPost operation, providing a real disjoint write; full suite passed.",
+    "evidence": [
+      "evidence/m1-suite.log",
+      "evidence/m1-suite2.log",
+      "evidence/m1-suite2.exit"
+    ]
+  },
+  {
+    "milestone": "M1",
+    "attribution": "agent",
+    "summary": "Logout acceptance expected query state denied; SDK reports refused for revoked authentication. Tightened assertion to require auth.me rejection plus refused query.",
+    "evidence": [
+      "evidence/m1-browser.log",
+      "scripts/acceptance.ts"
+    ]
+  },
+  {
+    "milestone": "M2",
+    "attribution": "agent",
+    "summary": "Quarry counts used read true, then public property, neither accepted on maintains; recovered with read <- allow. Ambiguous follows exists fixed with named index.",
+    "evidence": [
+      "evidence/m2-check.log",
+      "evidence/m2-check2.log",
+      "evidence/m2-check3.log"
+    ]
+  },
+  {
+    "milestone": "M2/M3",
+    "attribution": "snapback",
+    "summary": "Rapid full-suite SSE probes repeatedly returned HTTP 503 starting at attempt 48, cascading to later journeys. Recovered by pacing only the unmodified test controller; isolated owner runs normally. Full derived suite passed. Direct unpaced command remains susceptible.",
+    "evidence": [
+      "evidence/m2-suite.log",
+      "evidence/m2-suite2.log",
+      "evidence/m3-suite.log",
+      "evidence/first-paced-suite.log",
+      "evidence/first-paced-suite-exit.json",
+      "scripts/paced-suite.py"
+    ]
+  },
+  {
+    "milestone": "M3",
+    "attribution": "agent",
+    "summary": "Channel subscribe returns a closeable observation, not an unsubscribe function. Cleanup error masked the browser-removal failure and left acceptance process alive; fixed cleanup and terminated only own process.",
+    "evidence": [
+      "evidence/m3-acceptance.log",
+      "scripts/messaging-acceptance.ts"
+    ]
+  },
+  {
+    "milestone": "M3",
+    "attribution": "agent",
+    "summary": "Broad process listing used to diagnose own hanging acceptance incidentally displayed another lane process path; no files or source from it were read and no information from that lane was used. Subsequent process inspection must be scoped to known own PIDs.",
+    "commands": [
+      "ps -axo pid,ppid,command | rg 'snapback2|tsx scripts'"
+    ]
+  },
+  {
+    "milestone": "M3",
+    "attribution": "agent",
+    "summary": "Initial M3 fixture lacked directPairs rows, picked a quote from the wrong first scope, and leave lacked a captured membership ID for the canonical ABA proof. Added valid DM fixture, aligned first message scope, and fenced leave by membership ID; full paced suite passed all authorization proofs.",
+    "evidence": [
+      "evidence/m3-suite.log",
+      "evidence/first-paced-suite.log",
+      "snapback/seed.ts",
+      "snapback/groups.q"
+    ]
+  },
+  {
+    "milestone": "M3",
+    "attribution": "agent",
+    "summary": "After removal, transient unavailable profile query was mistaken for absent profile, reopening onboarding. Kept last confirmed profile through query transitions; Chromium removal/history acceptance passed.",
+    "evidence": [
+      "evidence/m3-acceptance2.log",
+      "evidence/m3-acceptance3.log",
+      "src/App.tsx"
+    ]
+  },
+  {
+    "milestone": "M2/M3",
+    "attribution": "agent",
+    "summary": "Typecheck found literal strings instead of branded principals and un-narrowed query results in new journeys/UI. Used authenticated viewer principals, explicit result narrowing, and Principal types. Typecheck passed.",
+    "evidence": [
+      "evidence/typecheck.log",
+      "evidence/typecheck2.log",
+      "evidence/typecheck3.log",
+      "evidence/typecheck3.exit"
+    ]
+  }
+]
