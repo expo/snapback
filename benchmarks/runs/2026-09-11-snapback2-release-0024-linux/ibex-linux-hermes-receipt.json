@@ -1,0 +1,47 @@
+{
+  "schema": "ibex/hermes-upstream-pinned-receipt/1",
+  "producedOn": "2026-09-11",
+  "upstream": {
+    "artifact": "facebook/hermes",
+    "sourceCommit": "6badada762121682b5481b6124e6c3a991ae6046",
+    "sourceRef": "260318099.0.0-stable",
+    "sourceVersion": "260318099.0.0"
+  },
+  "engine": {
+    "binary": "libhermesvm_a.a",
+    "binaryDigest": "sha256-d8e4f46cb503c78b7d2964a200bf8edaa00dc53370a26b0abc998a602dfaff8d",
+    "variant": "release",
+    "target": "linux"
+  },
+  "patchSet": {
+    "digest": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "applied": [],
+    "presentInTree": [
+      "0001-domain-package-principal.patch",
+      "0002-frame-attribution-helper.patch",
+      "0003-capability-bridge-exports.patch",
+      "0004-native-compartment-globals.patch",
+      "0005-native-compartment-refinements.patch",
+      "0006-eval-binding-and-native-deep-freeze.patch",
+      "0007-fail-closed-async-deputy-attribution.patch",
+      "0008-schedule-time-principal-capture.patch",
+      "0009-raw-throw-capture.patch",
+      "0010-completion-record-discriminator.patch",
+      "0011-structured-async-failure-provenance.patch",
+      "0012-keyed-external-arraybuffer-alias.patch",
+      "0013-native-job-constrained-principals.patch",
+      "0014-honor-disabled-eval-for-return-this.patch",
+      "0015-empty-disabled-hermes-internal.patch"
+    ],
+    "verifiedAbsentSymbols": [
+      "ex_hermes_vm_current_package_id",
+      "ex_hermes_vm_collect_package_ids",
+      "ex_hermes_vm_disable_eval",
+      "ex_hermes_vm_set_pending_package_id"
+    ]
+  },
+  "compiler": {
+    "binary": "hermesc-linux-x64",
+    "digest": "sha256-4c8904c59c69fa1ebc24b1369cb6afb976e45bf1dd9505a67aa7710e734f661a"
+  }
+}

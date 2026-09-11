@@ -1,0 +1,31 @@
+{
+  "schema": "ibex/hermes-upstream-pinned-receipt/1",
+  "producedOn": "2026-09-11",
+  "upstream": {
+    "artifact": "facebook/hermes",
+    "sourceCommit": "6badada762121682b5481b6124e6c3a991ae6046",
+    "sourceRef": "260318099.0.0-stable",
+    "sourceVersion": "260318099.0.0"
+  },
+  "engine": {
+    "binary": "hermesvm",
+    "binaryDigest": "sha256-521eac2fddec8d23f4ad42d1d5381796902c27203fb23f48785881a816b6c4d2",
+    "variant": "debugger",
+    "target": "apple"
+  },
+  "patchSet": {
+    "digest": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "applied": [],
+    "presentInTree": [],
+    "verifiedAbsentSymbols": [
+      "ex_hermes_vm_current_package_id",
+      "ex_hermes_vm_collect_package_ids",
+      "ex_hermes_vm_disable_eval",
+      "ex_hermes_vm_set_pending_package_id"
+    ]
+  },
+  "compiler": {
+    "binary": "hermesc-macos-arm64",
+    "digest": "sha256-fa070c2feddee6968c6a5aef1c92bfb84c075be1471c4733ad0361b680d73132"
+  }
+}

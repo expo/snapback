@@ -1,0 +1,122 @@
+{
+  "name": "snapback2-darwin-arm64",
+  "version": "0.0.24",
+  "bin": "/Users/ccheever/projects/snapback/snapback2/target/hermes/production/snapback2",
+  "mediaBin": "/Users/ccheever/projects/snapback/snapback2/target/production/snapback2-media",
+  "mediaBytes": 2147984,
+  "withoutEngine": false,
+  "withoutEngineBytes": 4461008,
+  "withEngineBytes": 7813744,
+  "platformQualifications": {
+    "snapback2-darwin-arm64": {
+      "format": 1,
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.24",
+      "integrity": "sha512-8dNK1yA1cuREbmzghpxmGgSlNGB8yYH9DhCyxsUmAeRD9z7FWEpiAttV/nKCt2xAYPzXjV10c0BtIXYtyH4dxg==",
+      "shimIntegrity": "sha512-EBce3NWm480F5a4Y1UAsuuURG+4+TSp417fVDoIQFRkDc28Z4RPZmZf+LTz/mW+XLURb24mo94iZ1pk1qKfpbg==",
+      "mediaDigest": "bd7dce23a0fb11ca7dae8dd5b4a71f3efb574ac4260d471a80cab02aa48ce583",
+      "host": {
+        "platform": "darwin",
+        "arch": "arm64"
+      },
+      "consumer": {
+        "verdict": "pass",
+        "steps": [
+          {
+            "name": "install tarballs",
+            "ok": true
+          },
+          {
+            "name": "doctor",
+            "ok": true
+          },
+          {
+            "name": "guide auth",
+            "ok": true
+          },
+          {
+            "name": "public client and React exports",
+            "ok": true
+          },
+          {
+            "name": "todos init",
+            "ok": true
+          },
+          {
+            "name": "todos check",
+            "ok": true
+          },
+          {
+            "name": "todos React bundle",
+            "ok": true
+          },
+          {
+            "name": "todos dev",
+            "ok": true
+          },
+          {
+            "name": "React live query round trip",
+            "ok": true
+          },
+          {
+            "name": "todos receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "todos test",
+            "ok": true
+          },
+          {
+            "name": "todos stop",
+            "ok": true
+          },
+          {
+            "name": "chat init",
+            "ok": true
+          },
+          {
+            "name": "chat check",
+            "ok": true
+          },
+          {
+            "name": "chat React bundle",
+            "ok": true
+          },
+          {
+            "name": "chat dev",
+            "ok": true
+          },
+          {
+            "name": "chat receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "chat test",
+            "ok": true
+          },
+          {
+            "name": "chat stop",
+            "ok": true
+          }
+        ]
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.24",
+      "tarball": "/Users/ccheever/projects/snapback/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.24/snapback2-darwin-arm64-0.0.24.tgz",
+      "integrity": "sha512-8dNK1yA1cuREbmzghpxmGgSlNGB8yYH9DhCyxsUmAeRD9z7FWEpiAttV/nKCt2xAYPzXjV10c0BtIXYtyH4dxg=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.24",
+      "tarball": "/Users/ccheever/projects/snapback/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.24/snapback2-0.0.24.tgz",
+      "integrity": "sha512-EBce3NWm480F5a4Y1UAsuuURG+4+TSp417fVDoIQFRkDc28Z4RPZmZf+LTz/mW+XLURb24mo94iZ1pk1qKfpbg=="
+    }
+  ],
+  "mediaDigest": "bd7dce23a0fb11ca7dae8dd5b4a71f3efb574ac4260d471a80cab02aa48ce583"
+}
