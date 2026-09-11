@@ -698,12 +698,32 @@ export class OfflineRuntime {
         throwIfAborted(signal);
         // Custody must succeed before a reset can erase the predecessor coverage.
         if (this.partition !== undefined) {
-          const swap = { bounds, programs: programCustody(held) };
+          const rotates = held !== undefined && (this.held !== undefined && !sameProgram(held, this.held)
+            || this.facts !== undefined && !sameProgram(held, this.facts));
+          const epoch = this.sessionEpoch ?? this.facts?.authEpoch;
+          const priorFacts = this.facts;
+          const successor = rotates && held && epoch !== undefined ? programFacts(held, epoch) : undefined;
+          const superseded = successor ?? this.superseded ?? priorFacts;
+          // @ref LLP 1012#coverage-reset-amendment — adopting a successor
+          // program and withdrawing predecessor coverage is one carrier swap.
+          // Otherwise CarrierIndex can observe old maintained rows through the
+          // successor grouping between `/api/program` and resetCoverage().
+          const swap: StoreSwap = rotates ? {
+            bounds, programs: programCustody(held), schema: held?.schema,
+            // Keep predecessor facts as the resume request until the owner
+            // answers E_OFFLINE_RESET; only coverage and program custody move.
+            resetCoverage: true, facts: priorFacts, superseded,
+          } : { bounds, programs: programCustody(held) };
           await this.commitProgram(swap);
           const persisted = Object.values(await this.store.outbox.programs())[0];
           if (persisted) this.restoreProgram(persisted);
           this.outbox.notify();
           throwIfAborted(signal);
+          if (rotates) {
+            this.outbox.resetTrust(); this.coverageRevision++;
+            this.facts = priorFacts; this.superseded = superseded;
+            this.sessionEpoch = epoch;
+          }
         } else {
           this.pendingBounds = bounds;
           this.pendingProgram = held;
