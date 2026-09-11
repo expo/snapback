@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-09-11T21:45:52.527362+00:00",
+  "artifacts": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.25",
+      "dist.integrity": "sha512-Ng2AjaASXTv46wyPKRFdQhNCqfyfMVTYTe1GsB3QrkVhAlQ/n9e6c2ERIm3Qx0HmtnnCAuMzslHtGYXQ6EBynw==",
+      "dist-tags": {
+        "latest": "0.0.25"
+      }
+    },
+    {
+      "name": "snapback2-linux-x64",
+      "version": "0.0.25",
+      "dist.integrity": "sha512-7I7Amb5QyYa0XR/UKyyZh6lyiq8umEn9jsJbc84YmzPoeGEgcIIGFg4seqQD6NsBTFlRk/WoBtqysrkJvvYd/g==",
+      "dist-tags": {
+        "latest": "0.0.25"
+      }
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.25",
+      "dist.integrity": "sha512-Pz+p7jcLmkGUm1VrLXga20IYLl6aPyc41ndVVLmfaKWafOuRFLsIFCCP3PusJc3+J8mCm0pPko21YdzG8hWjog==",
+      "dist-tags": {
+        "latest": "0.0.25"
+      }
+    }
+  ]
+}
