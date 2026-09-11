@@ -393,7 +393,12 @@ async function sharedSessions(context, writer, appUrl, ownerUrl, principal) {
       const body = request.postDataJSON() ?? {};
       controls.push(body); added.push(...(body.add ?? []));
     }
-    if (request.url() === ownerUrl + "/api/mutation") replayed.push(request.postDataJSON());
+    // Only the sends: a delivered page's receipt acknowledgement (`_delivery.<log>.ack`) is the
+    // client's own queued work, not a row a tab admitted, and it lands whenever a page is accepted.
+    if (request.url() === ownerUrl + "/api/mutation") {
+      const body = request.postDataJSON();
+      if (body?.op === "messages.send") replayed.push(body);
+    }
   });
   try {
   const sharedArgs = { conversationId: "conversation-2" };
