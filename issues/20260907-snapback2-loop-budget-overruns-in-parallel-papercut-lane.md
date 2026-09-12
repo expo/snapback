@@ -384,3 +384,21 @@ package 48, compiler 40, evaluator 6 and doctests 14. Phases overlap and must
 not be summed. This is not a matched experiment attributing timing growth to
 the small client recovery repair. Both actual runs remain in the record; no
 rerun replaces the 105.234-second budget failure or raises the limit.
+
+## Acquisition continuation — 2026-09-12
+
+The integrated continuation passes 1,456 package tests, 1,205 native tests,
+compiler/evaluator checks and doctests on EPYC. The package phase takes
+78.113 seconds (reported as 79), so the complete suite remains above its
+60-second budget. Subsequent primitive-encoding simplifications pass the
+266-case native differential evaluator and its property controls.
+
+The canonical Node 24.18.0 loop record at `2026-09-12T09:36:08.131Z` binds
+remote source `596ce337e` to local `f1cbdcc023` through identical Snapback 2 tree
+`fd3f85b02c957f5985f32135a4778b90238c0424`. Runtime gzip is 89,996 bytes, below
+the unchanged 90,000 ceiling. Public client/React/Expo closures measure
+143,224 / 153,192 / 156,653 bytes. The existing growth comparisons against
+136,547 / 146,166 / 149,836 / 84,580 bytes still fail; no new byte baseline is
+accepted. Warm build, incremental rebuild, consumer verification, project
+check, both doctor samples and init-to-dev pass their latency budgets. All
+earlier failed measurements remain in the append-only metric records.

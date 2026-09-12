@@ -9430,5 +9430,144 @@
         "Three immediate sends all committed exactly once; one owner-stop failure remains strictfalse; no population latency distribution"
       ]
     }
+  },
+  "acquisitionContinuation20260912": {
+    "status": "incremental implementation; sub-3000 ms full endpoint remains open",
+    "localSource": "f1cbdcc023",
+    "remoteSource": "596ce337e",
+    "snapback2Tree": "fd3f85b02c957f5985f32135a4778b90238c0424",
+    "verification": {
+      "functionalSuite": {
+        "packagePassed": 1456,
+        "nativePassed": 1205,
+        "compilerEvaluatorDoctests": "pass",
+        "packagePhaseSeconds": 78.112723551,
+        "suiteBudgetSeconds": 60,
+        "suiteBudgetPass": false
+      },
+      "finalEncodingDelta": {
+        "nativeDifferentialCases": 266,
+        "passed": 266,
+        "serverOnly": 27,
+        "indexDeliveryMaintainedOwnershipControls": "pass"
+      },
+      "canonicalBytes": {
+        "node": "v24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9,
+        "runtime": 89996,
+        "runtimeCeiling": 90000,
+        "client": 143224,
+        "react": 153192,
+        "expo": 156653
+      },
+      "measureCheck": "fail: four existing growth comparisons; all latency steps pass; no new byte baseline accepted",
+      "refs": "pass",
+      "caps": "fail: inherited Snapback 1 1504-line snapback-agent-safe-paired.rs raises oversize count to205 vs204; Snapback 2 sources below1500",
+      "inventories": "fail: inherited Snapback 1 caps.test registration and missing/stale generated guide/diagnostics; excluded by Snapback 2 fence",
+      "logs": {
+        "fullTests": {
+          "retainedPath": "/tmp/acquisition-20260912-final-test.log",
+          "sha256": "2f652dbdd1521f42c35e3c1e358c0f239dc3075894a15020dbc1e8a41ccf91d2",
+          "bytes": 274932
+        },
+        "measure": {
+          "retainedPath": "/tmp/acquisition-20260912-sized-measure.log",
+          "sha256": "6f13e20cb24fe8129780ca782f0dfde9e66f5cff332b99c70bbfc97ccec0a481",
+          "bytes": 4618
+        },
+        "evaluatorFinalDelta": {
+          "retainedPath": "/tmp/acquisition-20260912-shared-bytes-evaluator.log",
+          "sha256": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f",
+          "bytes": 3570
+        },
+        "refs": {
+          "retainedPath": "/tmp/acquisition-20260912-landing-refs.log",
+          "sha256": "817ca6ed993cf9b541731ac882b9e27fb0a2a7ca5f8056578dccc067fc073114",
+          "bytes": 80
+        },
+        "caps": {
+          "retainedPath": "/tmp/acquisition-20260912-landing-caps.log",
+          "sha256": "55cee64aadba04a803437cd48c147d2e8244dbfaa1c4546d97373060a9a6221f",
+          "bytes": 623
+        },
+        "inventories": {
+          "retainedPath": "/tmp/acquisition-20260912-inventories.log",
+          "sha256": "0e94a3d753de723ba08c552baa20d21c44e2f079903db93721a86874cf98576a",
+          "bytes": 4840
+        }
+      }
+    },
+    "limits": [
+      "Individual primary/diagnostic samples are not a ten-pair qualifying cohort.",
+      "Combined0601 timing uses the90004-byte client before the equivalent f1cbdcc023 serialization cleanup.",
+      "No production serve-authentication, real-account signup, native client, all-false or broader foreground qualification is established by these continued samples."
+    ],
+    "benchmark": {
+      "retainedRoot": "ccheever@100.85.211.16:/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition",
+      "harness": "acquisition-sub3-bearer-20260912.mjs",
+      "workload": {
+        "messages": 10008,
+        "conversations": 100,
+        "initialReceived": 4450,
+        "initialUnreceived": 5558,
+        "messageHash": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "fixtureHash": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+        "applicationRowsBeforeAndAfterBearerSetup": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937"
+      },
+      "samples": [
+        {
+          "artifact": "evidence/sub3-20260912-bearer-baseline-01.json",
+          "variant": "current main owner/client/compiler",
+          "inboxMs": 1062.65,
+          "contentMs": 15477.35,
+          "ackMs": 27587.73,
+          "fullMs": 27629.13,
+          "reopenMs": 6605.93
+        },
+        {
+          "artifact": "evidence/sub3-20260912-bearer-native-01.json",
+          "variant": "native8 owner; current main client/compiler",
+          "inboxMs": 1112.32,
+          "contentMs": 15504.51,
+          "ackMs": 25241.55,
+          "fullMs": 25283.28
+        },
+        {
+          "artifact": "evidence/sub3-20260912-bearer-combined0601-01.json",
+          "variant": "native8 owner;0601 client; current main compiler",
+          "inboxMs": 1082.22,
+          "contentMs": 15481.8,
+          "ackMs": 24803.23,
+          "fullMs": 24847.46,
+          "reopenMs": 6277.51,
+          "diagnostic": "Client90004 bytes before final equivalent encoding cleanup; not final compliant artifact timing"
+        }
+      ],
+      "reportedControlsForAllThree": {
+        "contentHash": true,
+        "receiptCustody": true,
+        "firstOfflineQueries": true,
+        "physicalReopen": true,
+        "receivedAfter": 10008,
+        "unreceivedAfter": 0,
+        "ownerStopExit": 0,
+        "ownerPidAbsent": true
+      },
+      "profile": {
+        "prefix": "evidence/sub3-20260912-bearer-profile-baseline-02",
+        "instrumentedFullMs": 28662,
+        "sampledMs": 28664,
+        "idleMs": 9938,
+        "gcMs": 1341,
+        "interpretation": "Inclusive carrier update, identity sync, row/index and network times overlap. Instrumented run is separate from primary samples."
+      },
+      "failedSetupAttempts": [
+        "baseline-01 missing sibling media helper; no timing",
+        "baseline-02 obsolete browser persona header refused by CORS;180-second timeout is setup failure; stop passed",
+        "startup-01 helper refused old generation; ordinary owner adoption fixes setup without changing application rows",
+        "profile-baseline-01 script path error before browser; retained separately"
+      ]
+    }
   }
 }
