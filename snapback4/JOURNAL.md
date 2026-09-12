@@ -573,3 +573,27 @@ the hub run's to catch, and the run record will say whether they did.
   packages, proves them from an installed consumer (`snapback4 --version`
   runs; the mock client works) and publishes the platform package first.
   Versions move together: 0.0.2 (the Cargo workspace too).
+
+## 2026-09-12 — snapback4@0.0.2 on npm; the Clique run packet
+
+- **Published** `snapback4@0.0.2` and `snapback4-darwin-arm64@0.0.2`
+  (`scripts/publish.mjs`: the release binary in the platform package, both
+  packed, an installed consumer runs `snapback4 --version` and the mock
+  client, then the platform package publishes first). Cold from the
+  registry: `npm install snapback4@0.0.2`, `npx snapback4 init`, `check`,
+  `guide`, `dev`, one query — the published surface a fresh agent gets.
+  The README is now the start packet: the whole surface on one page (the
+  shape of an app, Quarry, sync, the client and the card, React, sign-in,
+  the mock, development, the wire, release, Expo, and what is not in this
+  release).
+- **The Clique run packet** (`~/clique-sb4-20260912/`): the repository's
+  instrument (brief, contract, protocol, schema, fixtures, UI kit,
+  choreography, grader, metering, observability) at the commit in
+  `INSTRUMENT_COMMIT`, read-only, with an `ENVIRONMENT.md` overlay that
+  strikes media (avatars, photo/video messages, view-once, backgrounds,
+  simulator artifacts) and scheduled server-side work (the digest; expiry
+  enforced at read time) — as commissioned: "skip media and jobs, astra
+  medium". One lane, `astra-snapback4`, codex `gpt-6-astra` at medium,
+  ports 49200–49219 (49100–49102 are held by a stale Snapback 2 lane, not
+  mine to kill). Phases: the continuous session M1 → M2 → M3 → M4 → M5 →
+  M6 → M8; a fresh other-family grade; M7; the record.
