@@ -21,10 +21,12 @@ test("real owner ordinary private bytes are cacheable only with owner revalidati
     assert.equal(posted.state, "committed");
     const url = (await client.assetUrl(photo))!;
     const preflight = await fetch(url, { method: "OPTIONS", headers: {
-      Origin: "http://client.example", "Access-Control-Request-Method": "GET",
-      "Access-Control-Request-Headers": "cache-control,x-snapback-as",
+      Origin: "http://localhost:5173", "Access-Control-Request-Method": "GET",
+      "Access-Control-Request-Headers": "cache-control",
     } });
     assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), "http://localhost:5173");
+    assert.ok(!preflight.headers.get("Access-Control-Allow-Headers")?.toLowerCase().includes("x-snapback-as"));
     assert.ok(preflight.headers.get("Access-Control-Allow-Headers")?.toLowerCase().split(/,\s*/).includes("cache-control"));
     const headers = await client.assetHeaders();
     const response = await fetch(url, { headers });

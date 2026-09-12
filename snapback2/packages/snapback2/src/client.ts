@@ -490,7 +490,8 @@ class Client implements SnapbackClient {
         if (!this.authorityCurrent(authority)) return undefined;
         this.patchSnapshot({ connection: this.transportFailureState() });
         if (this.offlineRuntime) return undefined;
-        if (!lastPair) return connected ? { state: "hydrating", live: false, connection: "offline" } : undefined;
+        if (connected) return { state: "hydrating", live: false, connection: "offline" };
+        if (!lastPair) return undefined;
         return "data" in lastPair
           ? { state: "stale", live: false, since: Date.now(), seq: lastPair.seq, data: lastPair.data }
           : { state: "stale", live: false, since: Date.now(), seq: lastPair.seq };
