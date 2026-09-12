@@ -732,6 +732,8 @@ class ScaleOwnerCustody:
         for child in owner["descendants"].values():
             child.close()
 
+    # @ref LLP 1002#5-the-owner — graceful shutdown uses the exact owner's
+    # authenticated control route; pidfds bind any later escalation.
     def _stop_owner(self, owner: dict, reason: str) -> None:
         table = _process_table()
         identity = owner["identity"]

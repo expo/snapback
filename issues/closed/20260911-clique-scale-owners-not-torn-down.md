@@ -30,53 +30,84 @@ This ticket is harness + host hygiene, not an engine bound.
 
 ## Resolution
 
-The maintained next-run Linux launcher now enables Linux child-subreaper
-custody before it starts the model actor. It automatically recognizes the
-ordinary launch shape used by both affected runs (`snapback2 dev --project
-replays/scale...` or another lane-relative project component containing
-`scale`). A process is claimed only when all three facts agree: its live
-ancestry reaches the current actor or the current wrapper adopted it, its
-Linux PID/start-time identity is newer than the actor, and its exact PID and
-project match that project's `.snapback/owner.json`. A path or process-name
-match alone grants no ownership.
+The maintained next-run Linux launcher creates a unique custody run identity
+and fingerprints pre-existing terminals before it starts the model actor, then
+enables Linux child-subreaper custody. `launch.py` and `launch_m7.py` both wire
+this in before actor spawn. URL-environment scrubbing, the preparation/run-root
+lock, and lane-relative scale isolation remain intact.
 
-Fresh canonical `scale-replay.json` / `scale-replay-failure.json` terminals
-and the existing lane-authored `evidence/scale*/result.json` pass/fail shape
-trigger an authenticated `/control/stop`. Actor exit and INT/TERM/HUP take the
-same cleanup path. The wrapper records the owner and every descendant's exact
-PID/start-time identity before stopping, verifies the recorded compiler
-worker and owner exited, verifies the owner's port closed, and escalates only
-those unchanged recorded identities if graceful stop fails. A cleanup failure
-turns an otherwise successful actor exit nonzero. URL-environment scrubbing,
-the preparation/run-root lock, and lane-relative scale isolation remain in
-the same maintained helpers.
+Every future M6/M8 owner now goes through the executable
+`run_support.py scale-attempt` boundary. It writes a one-shot association
+sidecar and puts the current run, milestone, ATTEMPT, project, exact result
+path, association ID, and sidecar digest in the environment inherited by the
+real `snapback2 dev` owner. `bind-result` atomically adds only that association
+to the existing canonical or raw result object. `render.py` puts both commands
+in every generated builder prompt. The custodian accepts the association only
+when the live actor-descended/adopted process, its project/PID in
+`.snapback/owner.json`, its environment, and the immutable sidecar all agree.
+An owner launched through the old unassociated path is stopped immediately
+and makes the launcher fail with an actionable diagnostic; omission cannot
+silently recreate the leak.
+
+The wrapper watches only the result path declared by that exact owner. A
+terminal must carry the matching association envelope and validate as the
+complete current `snapback.full-journey-scale-replay.v1` plus digest-bound
+receipt, `snapback.full-journey-scale-replay-failure.v1`, or the full existing
+raw replay report (`pass`, start/end, actions, fixture hash, excluded probe
+time). Canonical final-attempt numbering must equal ATTEMPT. Generic
+`pass`/`state`, malformed/unsupported, stale pre-actor, unrelated, and
+cross-attempt copied/touched results cannot stop an owner. A current valid
+result written before owner discovery remains pending and is consumed only
+after its association is proved. Failure on one attempt releases only its
+owner; a retry has a distinct attempt association.
+
+Every claimed owner and descendant is opened with Linux `pidfd_open`; `/proc`
+start identity and pidfd fdinfo are revalidated after the handle opens.
+Waiting and escalation use the bound pidfd only, never a check-then-`kill`
+numeric-PID fallback. Graceful cleanup still uses the exact owner's
+authenticated `/control/stop`, then verifies owner/compiler exit and port
+closure. Actor exit and INT/TERM/HUP attempt every proved owner cleanup even
+when an earlier HTTP/process/port proof fails, then report the aggregate
+failures. All pidfds close after successful cleanup or final shutdown.
 
 `linux-runner/README.md` now gives operators a read-only candidate listing for
 old `snapback2-client-owner-*` and `replays/scale*` processes, followed by an
 explicit selected-PID `kill` example and an identity recheck. It explicitly
 forbids piping a pattern into `kill`, `pkill`, or `killall`.
 
-Targeted Linux regression evidence:
+Targeted Linux regression evidence after the review repair:
 
 - `python3 -m unittest benchmarks/tools/social-messenger/linux-runner/test_prepare.py`
-  passed 8/8. It covers canonical verification success, raw verification
-  failure, actor exit, actor SIGTERM, compiler-worker exit, port closure,
-  PID/start-time custody, and classification relative to the lane (so a
-  packet name containing `scale` cannot claim the ordinary dev owner).
-- A real lifecycle-only M6 dry run used the warm debug binary, pinned
+  passed 15/15 in 5.963 seconds. It covers the actual public
+  `scale-attempt`/`bind-result` commands and generated-prompt hookup; two
+  simultaneous M6/M8 owners with independent raw/canonical completion; a
+  valid result copied from the other simultaneous owner; failed attempt then
+  retry; pre-actor/touched, malformed, unsupported, and unrelated results;
+  result-before-discovery; actor fast exit and SIGTERM; unchanged/default
+  launch refusal; compiler/port disappearance; pidfd binding/signaling under
+  simulated PID reuse; and first-cleanup failure followed by successful
+  second-owner cleanup.
+- A new real lifecycle-only M6 proof at exact source commit `882be6429` used
+  the warm debug binary, pinned
   `/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node` (v24.18.0), the
   current bundled compiler, a copied minimal Quarry fixture, and one fresh
   temporary `replays/scale-m6-small` project. `check` and detached `dev`
   succeeded at generation
   `d2f63fd8b9d065252b75f4e55efdfa5f783efbf77251d2c4933166f58a0b76ec`.
-  Custody recorded owner PID 2811007/start 154178318 and compiler-worker PID
-  2811008/start 154178318 on port 36567, observed the canonical successful
-  scale terminal, received HTTP 200 from the owner's stop control, and then
-  recorded both processes absent, no forced signals, and the port closed.
-  Evidence remains at `/tmp/clique-scale-lifecycle-lrwevdjm/`. This proves the
-  real lifecycle with a successful scale terminal; it claims zero fixture
-  actions and does not substitute for or rerun the historical 167,244-action
-  performance result.
+  The public adapter bound one full raw report with `actions: 0` to M6 attempt
+  1. Custody recorded owner PID 3128211/start 154504670 and compiler-worker PID
+  3128212/start 154504671 on port 38589, matched exactly one associated
+  terminal, received HTTP 200 from the authentic owner stop control, used no
+  forced signal, and recorded both processes absent and the port closed.
+  Evidence remains at `/tmp/clique-scale-r2-proof-KWtuQUhA/`: `summary.json`
+  SHA-256 `95d294c424eecf803df261a1d03bad4dab439072500e8c721367c9259a9a4316`,
+  custody JSONL SHA-256
+  `4dc755fe62faf578c764129c6c590784795158257a5de06fd345e751819af830`.
+  This is a real owner/compiler lifecycle proof with zero fixture actions; it
+  is not a full benchmark or performance result.
+- The earlier proof at `/tmp/clique-scale-lifecycle-lrwevdjm/` remains
+  unchanged as recoverable evidence for the first implementation. Its old PIDs
+  2811007/2811008 were not signaled during this repair.
 
 No retained active run packet, frozen benchmark run, unrelated owner, or old
 ticket PID was modified or signaled.
