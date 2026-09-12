@@ -536,3 +536,84 @@ test("cancelling replay during its trust read preserves the last unspent refusal
     } finally {release.resolve();await retry?.catch(()=>undefined);await client.close();await carrier.cleanup();}
   }
 });
+
+// @ref LLP 1023.002#a--a-small-reproduction-matrix-on-current-source — a
+// configured durable caller must not fall through plain transport before auth.
+test("fresh unbound bearer restoration cannot bypass durable admission after a transport cut", async () => {
+  const carrier = (await carriers())[0]!;
+  const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  const requests: string[] = [];
+  const owner = fakeOwner();
+  const client = createClient({ url: "http://restoration-custody.test", token: "fresh-bearer",
+    offline: { store: carrier.factory() }, fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      requests.push(path);
+      if (path === "/api/auth/me") { entered.resolve(); await release.promise; throw new TypeError("restoration network cut"); }
+      return owner.fetch(input, init);
+    } });
+  let returned = false;
+  const mutation = client.mutation(api.messages.send as any, post("must have custody")).then(result => { returned = true; return result; });
+  try {
+    await entered.promise;
+    assert.equal(returned, false, "a fresh mutation waits while initial bearer restoration is pending");
+    assert.equal((client as any).offlineRuntime.principal, undefined);
+    release.resolve();
+    const result = await mutation;
+    assert.equal(result.state, "rejected");
+    assert.equal(requests.includes("/api/mutation"), false, "failed restoration cannot turn a configured durable client into a plain client");
+  } finally { release.resolve(); await client.close(); await carrier.cleanup(); }
+});
+
+for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage of ["replay", "tail"] as const) {
+  test(`${format} FIFO ${stage} expiry seals both admitted intents until sign-in resumes them in order`, async context => {
+    const root = await tempRoot(), factory = fileRangeStore(root), owner = fakeOwner();
+    context.after(() => rm(root, { recursive: true, force: true }));
+    let token: string | null = "token-a";
+    const store = { load: () => token, save: (value: string | null) => { token = value; },
+      loadPrincipalBinding: () => token ? ({ token, principal: "dev:alice" }) : null, savePrincipal: () => undefined };
+    await seededStore(factory);
+    let mode: "transport" | "expiry" | "recovery" = "transport";
+    const replays: string[] = [];
+    const terminal = (intent?: string) => format === "HTTP 401" ? Response.json({ code: "E_AUTH_SESSION", family: "auth", message: "expired" }, { status: 401 })
+      : Response.json({ state: stage === "replay" ? "rejected" : "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth/session", ...(intent ? { intent } : {}) });
+    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+      fetch: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/mutation") {
+          replays.push(String(init?.body));
+          if (mode === "transport") return new Response("cut", { status: 503 });
+          if (mode === "expiry" && stage === "replay") return terminal(JSON.parse(String(init?.body)).replay.intent);
+        }
+        if (mode === "expiry" && stage === "tail" && path === "/api/query") return terminal();
+        return owner.fetch(input, init);
+      } });
+    try {
+      await client.ready; await client.auth.me(); await client.outbox.settled();
+      const older = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "older durable intent" });
+      assert.equal(older.state, "queued");
+      const queued = await client.outbox.entries();
+      assert.equal(queued.length, 1); assert.equal(queued[0].state, "queued");
+      mode = "expiry";
+      const interrupted = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "new admitted intent" });
+      await assertRefused(Promise.resolve(interrupted),
+        (error: any) => error.code === "E_AUTH_SESSION", "FIFO session death is not an older intent's ordinary refusal");
+      assert.ok(interrupted.intent, "a refused wait preserves this call's admitted identity for work lookup; never submit a fresh duplicate");
+      assert.notEqual(interrupted.intent, queued[0].intent, "the refusal names this admitted call, not the FIFO head that expired");
+      await assert.rejects(client.outbox.settled(), (error: any) => error.code === "E_AUTH_SESSION");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
+      assert.equal(client.snapshot.auth.state, "anonymous"); assert.equal(store.load(), null);
+      assert.equal((await client.outbox.status()).reason, "sealed");
+      assert.equal(replays.length, 2); assert.equal(replays[1], replays[0]);
+      mode = "recovery";
+      await client.auth.login({ email: "alice@example.com", password: "password" }); await client.online();
+      assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
+      assert.equal(replays[2], replays[0], "recovery must retry the exact older envelope");
+      assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["older durable intent", "new admitted intent"],
+        "expiry refuses the call but cannot discard admitted bytes; fresh sign-in resumes FIFO");
+      assert.equal(owner.messages.size, 2, "a tail failure after commit still executes each admitted intent only once");
+      assert.equal(store.load(), "token-alice");
+      const original = (await client.outbox.entries()).find(entry => entry.intent === interrupted.intent);
+      assert.equal(original?.state, "committed", "recovery finds the original identity without submitting fresh bytes");
+    } finally { await client.close(); }
+  });
+}

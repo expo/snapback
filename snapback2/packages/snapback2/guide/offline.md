@@ -1,6 +1,6 @@
 # Offline
 
-`offline.store` is a factory of stores with `open()`. Call its builder:
+Pass the store factory:
 
 ```js
 import { createClient } from "snapback2/client";
@@ -11,10 +11,9 @@ const client = createClient({
 });
 ```
 
-Requires IndexedDB and Web Locks. Expo `<SnapbackProvider url persona
-offline>` from `snapback2/react-native` owns its client, with SQLite and secure
-token custody by default. `startOffline` on either provider/client preserves
-the startup transport cut; `online()` or explicit recovery reconnects.
+Web requires IndexedDB and Web Locks. Expo `<SnapbackProvider url persona
+offline>` from `snapback2/react-native` owns SQLite and secure tokens.
+`startOffline` preserves the startup cut; `online()` or recovery reconnects.
 
 Expiry seals; session change wipes. One writer/account; web followers read live,
 submit inbox rows once their account is established, and inherit the writer queue on closure. Uploads,
@@ -24,20 +23,18 @@ await `online()`. Queued writes survive; held reads/`offline()` bypass startup a
 
 ## Drain
 
-`observe`/`useQuery` with `{ drain: true }` page then tail. The returned page
-must be a certified ascending append log (`after c first N`, N <=50), with one
-Cursor argument through aliases/shapes/branches. Auxiliary reads add no coverage.
-Each delivery carries one durable page; edits/removals append events. Other shapes
-refuse E_OFFLINE_RESUME (`unsupported-log`). `next` pages older newest-first
+`observe`/`useQuery` with `{ drain: true }` page then tail. Requires a certified ascending append log (`after c first N`, N <=50), with
+one Cursor argument. Auxiliary reads add no coverage. Edits/removals append events;
+other shapes refuse E_OFFLINE_RESUME (`unsupported-log`). `next` pages older newest-first
 results. `caughtUp`: exhausted; `live`: tail active.
 Offline drains need held eligibility; repeated cursors refuse. Offline keeps its watermark. Covered reads are exact; others partial.
 
 ## Recovery
 
 Admitted offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO.
-A non-writer tab must establish its account (sign in), then inserts a durable `inbox` row
-and resolves `{ state: "queued", intent: "inbox:<key>", ids: [] }`;
-the writer admits rows in order. Follower status: `forwarding` or
+After sign-in a follower persists `{ state: "queued", intent: "inbox:<key>", ids: [] }`;
+the writer admits its inbox rows in order. Durable clients refuse before custody
+when account restoration failed; they never fall back to plain transport. Follower status: `forwarding` or
 `writer-unresponsive` (ready), `inbox-full`, `follower` (no route).
 
 `useMutation(op).can`/`useOutbox().can`: send/action/reason from
@@ -50,20 +47,17 @@ Use the composer's mutation `can`: text, edit and media need different ID slices
 Render its reason; `can.action === "connect"`
 offers **Sync now**: await `useOutbox().recover()` (headless:
 `client.outbox.recover()`). It returns `{ settlement: { stopped, remaining } }`
-or `{ refusal }`. Keep drafts/attachments on refusal; never guess a queue count. Admission and a subscribed
-selected operation acquire missing capacity through one bounded resume flight;
-`can`/snapshot reads do no I/O. After recovery, let the user submit;
-never auto-resubmit refusals or poll `online()`.
+or `{ refusal }`. Keep drafts/attachments on refusal; never guess a queue count. Admission/subscribed operations acquire capacity through one bounded resume;
+`can`/snapshot reads do no I/O. Never auto-resubmit refusals or poll `online()`.
 One automatic attempt per opportunity, with a 10-second deadline; an explicit
 offline cut forbids automatic networking until `online()`.
 `outbox.observe(op?)` feeds hooks with `entries`, `work`, `can`, and status.
 Each `work` item has `{ entry, label, dismissible }`; `getWork(intent)` also
 resolves follower aliases. `useMutation(op).last` stays the immediate result;
 its `work` tracks that intent through replay and disappears on compaction.
-Discharged successes compact automatically; unresolved successes and failures
-stay dismissible. Queued work is dismissible only after the owner refused its
-last replay as bad input or schema; another replay durably clears that before
-sending, and in-flight or unknown outcomes cannot be dismissed. `status.blocked`
+Discharged successes compact; unresolved successes/failures stay dismissible.
+Queued work is dismissible only after bad-input/schema replay refusal. Replay
+clears that before sending; unknown/in-flight outcomes cannot be dismissed. `status.blocked`
 names the refused head (label and item Dismiss agree). `dismiss` returns the
 bytes to re-author; FIFO continues on either tab, and a follower's result is
 recoverable once by its alias after a takeover or reopen. Older snapshots expose
@@ -72,13 +66,20 @@ Committed does not mean shown: query `items` need the target's observation
 through commit; `arrived`/global sequence cannot substitute. Expose failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
-Online writes queue before replay. Their promise resolves their result;
-`outbox.settled()` waits for the whole queue. Session expiry refuses the call
-but seals admitted bytes for replay after sign-in.
+Online writes also queue before replay; `settled()` waits for the whole queue.
+A rejected wait carrying `intent` may still own queued work: expiry seals it.
+Sign in as the same account, then find that intent via `outbox.observe().getWork`;
+never submit a fresh duplicate. Work is unreadable while sealed.
+
+Keep the provider above routes; unmount screen observers, not the client.
+For settings, `const result = await run(args)`: on `rejected`, retain input and
+show the refusal; on `queued`, show pending before navigating; on `committed`,
+navigate. Admission means the atomic carrier transaction completed, not request
+success. Reopen preserves admitted work; unloading before admission may lose it.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
 queued bytes. A real reconnect can start bounded recovery; retry stopped work
-with explicit recovery. Each recovery call owns a 10-second wait while sharing
-resume/drain work. Timeout returns E_TRANSPORT; work keeps its custody. Closing,
+with explicit recovery. Recovery shares resume/drain work; each wait has a 10-second deadline.
+Timeout returns E_TRANSPORT without losing custody. Closing,
 going offline, takeover, or changing account ends the wait before further
 partition reads. Followers refresh their inbox; recovery never takes a writer
 lock or clears another tab’s offline cut.
@@ -95,10 +96,8 @@ lock or clears another tab’s offline cut.
 | `order` | Device ledger FIFO position. Other devices have their own order. |
 | `response` | The terminal result. A committed `response.seq` is the owner's commit sequence; rejection includes its refusal. |
 | `ids`, `targets` | Reserved IDs and certified semantic targets. Use `mutationTarget(op, table)` rather than indexing `ids`. |
-| `createdAt`, `updatedAt` | Device timestamps; never use them to enforce a server edit/expiry window. |
+| `createdAt`, `updatedAt` | Device timestamps, not server edit/expiry authority. |
 | `inbox` | Follower alias key; admission and later compaction preserve it atomically with the ledger. |
-
-Server edit windows use Quarry `now`.
 
 ## Resume
 
@@ -112,9 +111,6 @@ E_OFFLINE_RESUME: rewrite an unsupported log as a direct ascending `after c firs
 page (N <= 50); `online()` may retry mounted-limit once, not an unsupported log.
 E_OFFLINE_RESET: reset answers/facts, keep outbox and delivered-history bodies anchored by held delivered events; removed events still evict. Fetch program, re-resume.
 A mounted drain restarts once at null. E_AUTH_SESSION seals; E_OFFLINE_AUTHORITY keeps coverage.
-
-Legacy `{c:null}` keys require a cold store for this pre-release.
-No migration/merge; preserve old stores for queued-work recovery.
 
 ## Grants and bytes
 

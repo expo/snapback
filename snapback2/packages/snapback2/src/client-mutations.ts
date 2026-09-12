@@ -3,7 +3,7 @@ import { submitMutation, type DrainResult } from "./client-outbox.js";
 import type { ClientInbox } from "./client-inbox.js";
 import { prepareRecovery, type RecoveryClient } from "./client-recovery.js";
 import type { JsonRequestOptions } from "./client-wire.js";
-import { copyRefusal, followerRefusal, isRefusalError, isTerminalSession, RefusalError } from "./client-wire.js";
+import { toRefusal, followerRefusal, isRefusalError, isTerminalSession, RefusalError } from "./client-wire.js";
 import { withMutationUploads, type Authority, type UploadHost } from "./client-upload.js";
 import { referenceName, type Op } from "./api.js";
 import { mutationPresentation } from "./mutation-targets.js";
@@ -41,6 +41,7 @@ export async function performMutation<Args, Result>(
     return host.trackWrite(() => host.inbox.mutation(op, args, presentation), true);
   }
   return host.trackWrite(async () => {
+    let admitted: string | undefined;
     try {
       const result = await withMutationUploads(host, op, args, authority,
         () => host.manifestFor(authority), async (mutationArgs, onCustody, expectedGeneration) => {
@@ -63,6 +64,7 @@ export async function performMutation<Args, Result>(
               catch (error) { checkProgram(); throw error; }
               checkProgram();
             },
+            onAdmitted: intent => { admitted = intent; },
             onCustody: kind => {
               host.ensureAuthority(authority);
               if (!offline && host.forcedOffline) throw new RefusalError({ code: "E_OFFLINE", family: "offline", message: "the client went offline before this write was admitted", guide: "offline" });
@@ -88,6 +90,9 @@ export async function performMutation<Args, Result>(
       if (isRefusalError(error) && isTerminalSession(error.envelope)) {
         await host.terminalRefusal(authority, error.envelope, { preserveVerdict: true });
       }
+      // This rejects the caller's wait, not the admitted intent. The ledger
+      // remains authoritative after same-account recovery, including expiry.
+      if (admitted) return { state: "rejected", ...toRefusal(error), intent: admitted };
       throw error;
     }
   });

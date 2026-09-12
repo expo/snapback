@@ -1434,50 +1434,7 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
   });
 }
 
-for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage of ["replay", "tail"] as const) {
-  test(`${format} FIFO ${stage} expiry seals both admitted intents until sign-in resumes them in order`, async context => {
-    const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
-    await seededStore(factory);
-    let mode: "transport" | "expiry" | "recovery" = "transport";
-    const replays: string[] = [];
-    const terminal = (intent?: string) => format === "HTTP 401" ? refusal("E_AUTH_SESSION")
-      : json({ state: stage === "replay" ? "rejected" : "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth/session", ...(intent ? { intent } : {}) });
-    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
-      fetch: async (input, init) => {
-        const path = new URL(String(input)).pathname;
-        if (path === "/api/mutation") {
-          replays.push(String(init?.body));
-          if (mode === "transport") return new Response("cut", { status: 503 });
-          if (mode === "expiry" && stage === "replay") return terminal(JSON.parse(String(init?.body)).replay.intent);
-        }
-        if (mode === "expiry" && stage === "tail" && path === "/api/query") return terminal();
-        return owner.fetch(input, init);
-      } });
-    try {
-      await client.ready; await client.auth.me(); await client.outbox.settled();
-      const older = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "older durable intent" });
-      assert.equal(older.state, "queued");
-      const queued = await client.outbox.entries();
-      assert.equal(queued.length, 1); assert.equal(queued[0].state, "queued");
-      mode = "expiry";
-      await assertRefused(client.mutation(api.messages.send, { conversationId: "conversation-1", body: "new admitted intent" }),
-        (error: any) => error.code === "E_AUTH_SESSION", "FIFO session death is not an older intent's ordinary refusal");
-      await assert.rejects(client.outbox.settled(), (error: any) => error.code === "E_AUTH_SESSION");
-      assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
-      assert.equal(client.snapshot.auth.state, "anonymous"); assert.equal(store.load(), null);
-      assert.equal((await client.outbox.status()).reason, "sealed");
-      assert.equal(replays.length, 2); assert.equal(replays[1], replays[0]);
-      mode = "recovery";
-      await client.auth.login({ email: "alice@example.com", password: "password" }); await client.online();
-      assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
-      assert.equal(replays[2], replays[0], "recovery must retry the exact older envelope");
-      assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["older durable intent", "new admitted intent"],
-        "expiry refuses the call but cannot discard admitted bytes; fresh sign-in resumes FIFO");
-      assert.equal(owner.messages.size, 2, "a tail failure after commit still executes each admitted intent only once");
-      assert.equal(store.load(), "token-alice");
-    } finally { await client.close(); }
-  });
-}
+
 
 
 test("typed HTTP 200 resume expiry seals queued custody and retries the exact envelope after login", async context => {

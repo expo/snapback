@@ -77,6 +77,8 @@ export interface SubmitMutationOptions {
   failure(error: unknown): Error;
   drain(): Promise<{ stopped: boolean }>;
   onCustody?(kind: "wire" | "outbox"): void;
+  /** After atomic carrier completion, retain this call's public identity through a refused wait. */
+  onAdmitted?(intent: string): void;
   prepare?(op: string): Promise<void>;
   /** The writer admits every inbox row durable before this write, so a local write never overtakes them (LLP 1018.004 §4). */
   admitInbox?(): Promise<{ stopped?: string; op?: string } | void>;
@@ -105,7 +107,10 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   // A follower tab never sends plain bytes: a write landing ahead of the writer
   // tab's queued intents would invert their order when that queue is inherited.
   if (runtime?.following) throw followerRefusal();
-  if (!runtime || runtime.principal === undefined) return plain();
+  if (!runtime) return plain();
+  // @ref LLP 1023.002#a--a-small-reproduction-matrix-on-current-source —
+  // failed bearer restoration is not permission to bypass configured custody.
+  if (runtime.principal === undefined) throw options.failure(new Error("durable partition is not open; finish signing in before submitting this write"));
   const admitInbox = async () => {
     let gate = await options.admitInbox?.();
     if (gate?.stopped && !options.offline && options.prepare) {
@@ -123,11 +128,15 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
     if (!options.offline) await options.prepare?.(options.op);
     await admitInbox(); // A follower may have become durable while capacity was in flight.
     let custody = false;
-    const admit = () => runtime.outbox.enqueue(
+    const admit = async () => {
+      const entry = await runtime.outbox.enqueue(
       { op: options.op, args: options.args, expectedGeneration: options.expectedGeneration, issuedSeq: runtime.seq, presentation: options.presentation },
       ids => runtime.predict(options.op, options.args, ids),
-      () => { options.onCustody?.("outbox"); custody = true; },
-    );
+        () => { options.onCustody?.("outbox"); custody = true; },
+      );
+      options.onAdmitted?.(entry.intent);
+      return entry;
+    };
     try {
       return await admit();
     } catch (error) {
