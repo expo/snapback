@@ -408,7 +408,7 @@ fn connected_expiry_sweep_terminates_a_stream_with_short_remaining_session_life(
             );
             assert_eq!(result.status, 200, "{}", result.body);
         };
-        advance(30_i64 * 24 * 60 * 60 * 1000 - 5000);
+        advance(24_i64 * 60 * 60 * 1000 - 5000);
         let mut stream = Sse::live_bearer(port, token);
         stream.event();
         assert_eq!(count(port, principal), 1);
