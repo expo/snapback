@@ -190,6 +190,19 @@ fn h1_a_non_uniform_scan_is_capped_whatever_the_meter_found() {
     }
 }
 
+/// The compiler says which pages are never complete, and why, before any
+/// data exists; the chat schema's pages are all decided by their prefixes.
+#[test]
+fn h1_check_notes_a_page_that_is_never_complete() {
+    let notes = snapback4_lang::compile(&[("schema.q".to_owned(), NOTES.to_owned())]);
+    assert!(notes.diagnostics.is_empty(), "{:?}", notes.diagnostics);
+    let messages: Vec<String> = notes.notes.iter().map(|n| n.message.clone()).collect();
+    assert!(messages.iter().any(|m| m.contains("query feed") && m.contains("never `complete`") && m.contains(".owner")), "{messages:?}");
+    assert!(!messages.iter().any(|m| m.contains("query theirs")), "a prefix that pins the rule's column is decided: {messages:?}");
+    let chat = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
+    assert!(chat.notes.is_empty(), "{:?}", chat.notes.iter().map(|n| n.message.clone()).collect::<Vec<_>>());
+}
+
 /// H4: a point read of an absent row and of a hidden one cost the same.
 #[test]
 fn h4_a_miss_and_a_hidden_hit_cost_the_same() {

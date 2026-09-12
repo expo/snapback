@@ -597,3 +597,27 @@ the hub run's to catch, and the run record will say whether they did.
   ports 49200–49219 (49100–49102 are held by a stale Snapback 2 lane, not
   mine to kill). Phases: the continuous session M1 → M2 → M3 → M4 → M5 →
   M6 → M8; a fresh other-family grade; M7; the record.
+
+## 2026-09-12 — `check` says which pages are never complete; the loop-bar harness
+
+- **`N_NEVER_COMPLETE`** (`bind/mod.rs`, `ir::scans`): after binding, the
+  compiler runs the engine's own `scan_visibility` over every page scan;
+  a scan whose read rule reads a column the prefix does not pin is noted
+  at the operation's site with the rule, the unpinned columns and the
+  rewrite (`by byOwner: owner, at, id`, or read it on the device). Notes
+  are not errors: `check` prints them after `ok`, `--json` carries them.
+  The chat schema has none; the reviews' `notes` schema has one (a test).
+- The `sync` guide card said "must contain the matching disjunct"; the
+  validator requires the rule to be exactly the audience. The Clique lane
+  noticed the difference in its first minutes and chose the stricter
+  README. The card now says what the validator does.
+- **The loop bar** (`loopbar/brief.md`, `loopbar/run.mjs`): the reduced
+  Clique M1–M3 brief for a fresh agent on the published pin (accounts and
+  profiles, posts and the follow graph, messaging core; React web; no
+  media, no search), with the four-part proof (`check`, a fixture under
+  `snapback4 test`, an HTTP acceptance script, a build) and the run log's
+  `start=`/`green=` clock. The runner launches N serial codex sessions,
+  verifies the proof independently, counts attributed correction loops,
+  and records `metrics/loopbar.jsonl` with `bar: true` when a run is green
+  within 1,200 s with at most one `snapback4-defect` loop. It runs when
+  the machine is quiet: after the Clique lane.

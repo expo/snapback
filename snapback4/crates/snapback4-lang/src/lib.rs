@@ -26,7 +26,7 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
         documents.push(document);
     }
     if !diagnostics.is_empty() {
-        return Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics };
+        return Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
     }
     bind(documents)
 }

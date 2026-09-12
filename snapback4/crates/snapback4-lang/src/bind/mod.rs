@@ -16,6 +16,9 @@ pub struct Bound {
     pub programs: Vec<BoundProgram>,
     pub personas: Vec<String>,
     pub diagnostics: Vec<Diagnostic>,
+    /// Facts the compiler can state that are not errors: a page that is
+    /// never `complete` because its read rule is not decided by its prefix.
+    pub notes: Vec<Diagnostic>,
 }
 
 pub fn bind(documents: Vec<Document>) -> Bound {
@@ -37,5 +40,42 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
-    Bound { schema, programs, personas, diagnostics }
+    let notes = completeness_notes(&schema, &programs);
+    Bound { schema, programs, personas, diagnostics, notes }
+}
+
+/// A scan whose read rule reads a column the prefix does not pin is
+/// `complete: false` on the server whatever it finds (LLP 3000 §7,
+/// completeness is a class): say so at compile time, with the index that
+/// would decide it, as Snapback 2's structural facts did.
+fn completeness_notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
+    let mut notes = Vec::new();
+    for bound in programs {
+        for scan in snapback4_core::ir::scans(&bound.program) {
+            let Some(table) = schema.table(&scan.table) else { continue };
+            if table.rules.read.is_uniformly_readable() {
+                continue;
+            }
+            let visibility = snapback4_core::engine::rules::scan_visibility(schema, scan);
+            if visibility.uniform {
+                continue;
+            }
+            let Some(index) = table.index(&scan.index) else { continue };
+            let pinned: std::collections::BTreeSet<String> = index.columns().into_iter().take(scan.prefix.len()).collect();
+            let mut used = std::collections::BTreeSet::new();
+            table.rules.read.fields(&mut used);
+            let unpinned: Vec<String> = used.difference(&pinned).cloned().collect();
+            let leading = unpinned.iter().map(|c| c.as_str()).chain(index.columns().iter().skip(scan.prefix.len()).map(String::as_str).map(|s| Box::leak(s.to_owned().into_boxed_str()) as &str)).collect::<Vec<_>>().join(", ");
+            notes.push(
+                Diagnostic::new(
+                    &bound.site,
+                    "N_NEVER_COMPLETE",
+                    format!("{} {}: the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
+                    format!("scan by an index leading with {leading} (`by by{}: {leading}`), or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>()),
+                )
+                .guide("reads"),
+            );
+        }
+    }
+    notes
 }

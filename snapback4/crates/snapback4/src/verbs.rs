@@ -93,9 +93,12 @@ pub fn check(options: &Options) -> i32 {
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "ms": elapsed.as_millis() }));
     } else {
-        println!("check: ok — {} tables ({synced} synced), {} operations, no problems, {:.1} ms", bound.schema.tables.len(), bound.programs.len(), elapsed.as_secs_f64() * 1000.0);
+        println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0);
+        for note in &bound.notes {
+            println!("note: {note}\n");
+        }
     }
     if options.flags.contains_key("cost") {
         for program in &bound.programs {
