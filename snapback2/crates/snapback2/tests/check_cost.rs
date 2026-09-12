@@ -319,14 +319,22 @@ table messages:
     let pooled_query = format!("{}  return page\n", query.split("  return page").next().unwrap().replace("query searchAll(", "query search("));
     fs::write(project.path.join("snapback/messages.q"), query).unwrap();
     let mut previous = None;
-    for (edited, page, expected) in [(false, 20, 4_188_952), (true, 20, 4_199_688), (true, 19, 4_110_036)] {
+    // First-image pooling now admits the original 2,000-character body with
+    // either schema. Widen only this stress declaration to straddle the unchanged
+    // closure ceiling; the optional field still does not enter the projection.
+    for (width, edited, page, expected) in [
+        (2000, false, 20, 2_138_917), (2000, true, 20, 2_144_285),
+        (6205, false, 20, 4_190_957), (6205, true, 20, 4_196_325),
+        (6205, true, 19, 4_149_760),
+    ] {
+        let schema = schema.replace("body: text <=2000", &format!("body: text <={width}"));
         fs::write(project.path.join("snapback/schema.q"), if edited {
             schema.replace("  edited: bool ?", "  edited: bool ?\n  editedAt: time ?")
         } else { schema.to_owned() }).unwrap();
         fs::write(project.path.join("snapback/messages.q"), format!("{}\n{pooled_query}", query.replace("last 20", &format!("last {page}")))).unwrap();
         let ordinary = project.run(&["check", "--json"]);
         let inspected = project.run(&["check", "--cost", "messages.searchAll", "--json"]);
-        assert_eq!(ordinary.status.success(), !edited || page == 19);
+        assert_eq!(ordinary.status.success(), width == 2000 || !edited || page == 19);
         assert_eq!(inspected.status.success(), ordinary.status.success());
         let report = json_stdout(&inspected);
         let certificate = &report["results"][0]["certificate"];
@@ -343,13 +351,22 @@ table messages:
             assert_eq!(certificate["max_steps"], old["max_steps"]);
             assert_eq!(certificate["max_rule_probes"], old["max_rule_probes"]);
             let field = terms.iter().find(|t| t["meter"] == "closure bytes" && t["source"].as_str().unwrap().contains("messages.editedAt")).unwrap();
-            assert_eq!(term_value(field), 244 * 44, "{field}");
-            assert!(field["source"].as_str().unwrap().contains("244 × messages.editedAt (44 bytes each; 12 field-name/framing + max(time 32, null reserve 8))"), "{field}");
-            assert_eq!(field["site"], "snapback/messages.q:2:10");
+            assert_eq!(term_value(field), 122 * 44, "{field}");
+            assert!(field["source"].as_str().unwrap().contains("122 × messages.editedAt (44 bytes each; 12 field-name/framing + max(time 32, null reserve 8))"), "{field}");
+            // The row pool can combine read sites; preserve the actual source
+            // descriptor instead of attributing that pooled field to one read.
+            let ranges = terms.iter().find(|t| t["meter"] == "closure bytes"
+                && t["source"].as_str().unwrap().contains("messages.searchAll.1 × 100 ranges")).unwrap();
+            assert_eq!(report["sources"][ranges["site"].as_str().unwrap()]["line"], 3);
             let prose = String::from_utf8_lossy(&project.run(&["check", "--cost", "messages.searchAll"]).stdout).into_owned();
-            assert!(prose.lines().any(|line| line.starts_with("  snapback/messages.q:2 244 × messages.editedAt")), "{prose}");
-            let refusal = &report["results"][0]["errors"][0];
-            assert!(refusal["rewrite"].as_str().unwrap().contains("valid continuation that the client follows"));
+            assert!(prose.contains("122 × messages.editedAt"), "{prose}");
+            assert!(prose.contains("snapback/messages.q:3"), "{prose}");
+            if width == 6205 {
+                let refusal = &report["results"][0]["errors"][0];
+                assert_eq!(refusal["code"], "E_BOUND");
+                assert!(refusal["message"].as_str().unwrap().contains("closure bytes 4196325 exceeds ceiling 4194304"));
+                assert!(refusal["rewrite"].as_str().unwrap().contains("valid continuation that the client follows"));
+            }
             let pooled = json_stdout(&project.run(&["check", "--cost", "messages.search", "--json"]));
             let certificate = &pooled["results"][0]["certificate"];
             let terms = certificate["cost_terms"].as_array().unwrap();

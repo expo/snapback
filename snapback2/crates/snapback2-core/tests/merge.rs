@@ -1231,3 +1231,57 @@ fn constructed_merge_output_and_receipt_obey_their_separate_byte_bounds() {
         assert!(cursor.is_some());
     }
 }
+
+
+// @ref LLP 1023.001#c--choose-a-complete-form-in-this-order — pooled receipt
+// diagnostics keep the executed smaller-page repair only for one owning merge.
+#[test]
+fn pooled_merge_refusal_keeps_continuation_only_for_an_unambiguous_page() {
+    let (mut schema, program) = fixture(100, 20);
+    schema.tables.get_mut("posts").unwrap().columns
+        .insert("body".into(), ColumnType::Text { max: 3000 });
+    for extra in ["none", "scan", "merge", "noncursor", "summary"] {
+        let mut candidate = program.clone();
+        let Stmt::Return(Expr::Merge(first)) = &mut candidate.body[0] else { unreachable!() };
+        match extra {
+            "scan" => {
+                let mut scan = first.lanes[0].scan.clone();
+                scan.site = "other".into();
+                scan.merge_site = None;
+                candidate.body.insert(0, Stmt::Const { name: "other".into(), value: Expr::Scan(scan) });
+            }
+            "merge" => {
+                let mut second = first.clone();
+                second.site = "other".into();
+                for lane in &mut second.lanes {
+                    lane.scan.site = format!("other-{}", lane.scan.site);
+                    lane.scan.merge_site = Some(second.site.clone());
+                    if let Some(source) = &mut lane.source { source.site = format!("other-{}", source.site); }
+                }
+                candidate.body.insert(0, Stmt::Const { name: "other".into(), value: Expr::Merge(second) });
+            }
+            "noncursor" => {
+                for lane in &mut first.lanes { lane.scan.opaque_cursor = false; lane.scan.after = None; }
+            }
+            "summary" => {
+                let page = Expr::Merge(first.clone());
+                candidate.body = vec![
+                    Stmt::Const { name: "page".into(), value: page },
+                    Stmt::Return(Expr::Builtin { builtin: Builtin::Count, args: vec![var("page")] }),
+                ];
+            }
+            _ => {}
+        }
+        let certificate = Checker::new(&schema, Ceilings::default()).check(&candidate).unwrap();
+        let refused = Checker::new(&schema, Ceilings {
+            closure_bytes: certificate.max_closure_bytes - 1, ..Ceilings::default()
+        }).inspect(&candidate);
+        let refusal = refused.errors.iter().find(|e| e.message.starts_with("closure bytes")).unwrap();
+        assert_eq!(refusal.rewrite.contains("valid continuation that the client follows"), extra == "none", "{extra}: {refusal:?}");
+        for term in &certificate.cost_terms {
+            if term.meter == "closure bytes" && term.source.contains("posts.body") {
+                assert!(term.site.is_none(), "pooled field acquired an invented read site: {term:?}");
+            }
+        }
+    }
+}

@@ -428,7 +428,7 @@ fn nonuniform_budget_filler_has_a_uniformity_repair() {
 }
 
 #[test]
-fn retained_merge_page_keeps_the_structural_closure_repair() {
+fn retained_merge_summary_does_not_invent_a_page_continuation_repair() {
     let schema = schema();
     let mut lane = scan("messages", 1100);
     lane.merge_site = Some("retained.merge".into());
@@ -473,11 +473,12 @@ fn retained_merge_page_keeps_the_structural_closure_repair() {
     assert!(
         closure
             .message
-            .contains("merge retained.merge: emitted page"),
+            .contains("pooled merge closure: emitted page"),
         "{closure}"
     );
     assert!(
-        closure.rewrite.starts_with("structural repair"),
+        closure.rewrite.starts_with("reduce the widest nested collection"),
         "{closure}"
     );
+    assert!(!closure.rewrite.contains("valid continuation"), "{closure}");
 }

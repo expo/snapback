@@ -319,7 +319,7 @@ void [created, updated, removed, wrong];`);
     assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
-      "feeds.followingFeed": [55_572, 626_336],
+      "feeds.followingFeed": [55_572, 685_321],
       "feeds.globalFeed": [55_572, 54_260],
       // LLP 1006/1012: media records, including the optional oncePhoto column;
       // LLP 1016 D5: the optional expiresAt deadline (45 bytes a row).

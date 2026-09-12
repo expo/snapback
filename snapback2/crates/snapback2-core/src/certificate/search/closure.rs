@@ -63,6 +63,7 @@ pub(crate) fn estimate(
     let mut pools = BTreeMap::<String, u64>::new();
     let mut covered_rules = BTreeSet::new();
     let mut counted_merges = BTreeSet::new();
+    let mut pageable_pool = None;
     for plan in &plans {
         let Some(site) = merges.get(&plan.site) else {
             continue;
@@ -88,6 +89,13 @@ pub(crate) fn estimate(
             heads.saturating_mul(site.take + 3)
         };
         *pools.entry(plan.table().into()).or_default() += count;
+        if plans.len() == 1 && site.uniform && site.take > 1
+            && plan.lanes.iter().all(|lane| lane.scan.opaque_cursor)
+            && super::super::page::result_pages(schema, program).is_ok_and(|pages|
+                !pages.is_empty() && pages.values().all(|page| page.site == plan.site))
+        {
+            pageable_pool = Some((plan.table(), count));
+        }
         counted_merges.extend(site.lane_sites.iter().cloned());
         // The independently certified canonical plan uses the discovered membership
         // rows themselves as its rule witnesses, so those images already belong to the pool.
@@ -288,9 +296,14 @@ pub(crate) fn estimate(
         let envelope = reference_bytes(schema, &table) + 8;
         let bytes = count.saturating_mul(row + envelope);
         metadata = metadata.saturating_add(bytes);
+        // @ref LLP 1023.001#c--choose-a-complete-form-in-this-order
+        // A sole delivered pageable merge may suggest continuation only while it owns
+        // this entire pool. Other reads/rule witnesses or another merge make
+        // that repair ambiguous. Keep pooled fields free of invented read sites.
+        let merge = if pageable_pool == Some((table.as_str(), count)) { "merge page: " } else { "" };
         children.push(ByteShape::repeated(
             bytes,
-            format!("{count} pooled {table} first images with table/id envelopes"),
+            format!("{merge}{count} pooled {table} first images with table/id envelopes"),
             count,
             ByteShape::group(row + envelope, format!("{table} first-image custody"), vec![
                 row_shape(schema, &table),
@@ -317,14 +330,7 @@ pub(crate) fn estimate(
         if search {
             "search closure: whole row pool and actual issuing metadata".to_owned()
         } else if !plans.is_empty() {
-            format!(
-                "merge {}: emitted page, heads and lookahead; whole row pool and actual issuing metadata",
-                plans
-                    .iter()
-                    .map(|plan| plan.site.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
+            "pooled merge closure: emitted page, heads and lookahead; whole row pool and actual issuing metadata".to_owned()
         } else {
             "maintained-address closure: whole row pool and actual issuing metadata".to_owned()
         },

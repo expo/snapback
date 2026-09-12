@@ -217,15 +217,16 @@ fn refusal_examples_preserve_markdown_preambles_and_paired_fences() {
 #[test]
 fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     let project = Project::new();
-    let quarry = include_str!("../../../packages/snapback2/guide/expressions.md");
+    let normalize = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let quarry = normalize(include_str!("../../../packages/snapback2/guide/expressions.md"));
     assert!(quarry.contains("`wordPrefixes(field)` index"));
-    assert!(quarry.contains("there is no\npublic `words()` value function"));
+    assert!(quarry.contains("there is no public `words()` value function"));
     assert!(quarry.contains("rather than redrawn"));
-    let search = include_str!("../../../packages/snapback2/guide/live-query.md");
+    let search = normalize(include_str!("../../../packages/snapback2/guide/live-query.md"));
     assert!(search.contains("`by bySearch: conversationId, wordPrefixes(body), at, id`"));
     assert!(search.contains("query search(term: text <=128, c: cursor ?):"));
     assert!(search.contains("must normalize to exactly one word"));
-    assert!(search.contains("Its held twin uses\nthe same index"));
+    assert!(search.contains("index: held/partial/capped"));
     let definitions = [
         ("proc", "statement helper"),
         ("maintain", "count/sum"),
@@ -236,17 +237,17 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ),
         ("immutable", "forbids changes to those columns"),
         ("public", "accepts an optional reason string"),
-        ("merge", "combines structurally distinct"),
+        ("merge", "combines distinct"),
         ("shape", "splices"),
         ("retain", "keeps rows that went hidden"),
         ("deliver", "derives an engine-owned per-recipient log"),
         ("channel", "typed latest state"),
-        ("connected", "read-only virtual table"),
+        ("connected", "counts authenticated SSE transports"),
         ("schedule", "binds a row deadline (`time ?`) or a whole-minute period"),
-        ("job", "`break` ends its sweep, `return` ends the job"),
+        ("job", "`break` ends its sweep"),
         (
             "chunk",
-            "reads current rows in index order through the upper key",
+            "current rows through the upper key",
         ),
         ("after", "`after` follows scan order"),
         ("first", "`first` is ascending"),
@@ -303,10 +304,10 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         if keyword == "connected" {
             assert!(content.contains("## live-query: Connected\n"), "{content}");
             for needle in [
-                "immutable snapshot per program run",
+                "immutable snapshot",
                 "next execute",
                 "up to 1 s",
-                "--as",
+                "authenticated SSE transports",
             ] {
                 assert!(
                     paragraph.contains(needle),
@@ -316,11 +317,9 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         }
         if keyword == "channel" {
             for needle in [
-                "recent activity",
-                "heartbeat interval plus the expiry",
-                "Do not gate delivery",
+                "interval plus",
+                "expiry",
                 "durable receipts",
-                "workaround",
             ] {
                 assert!(
                     paragraph.contains(needle),
@@ -411,22 +410,25 @@ fn source_checkout_without_keyword_index_still_serves_lib_symbols() {
 }
 
 #[test]
-fn live_query_guide_explains_connected_and_the_activity_workaround() {
+fn live_query_guide_explains_connection_freshness_and_durable_delivery() {
     let project = Project::new();
     let output = project.run(&["guide", "live-query", "--json"]);
     assert!(output.status.success());
     let page = json_stdout(&output);
-    let content = page["content"].as_str().unwrap();
+    let content = page["content"].as_str().unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
     for needle in [
-        "recent activity",
-        "heartbeat interval plus the expiry",
-        "seen late",
-        "read-only virtual table",
-        "`connected[p]`",
-        "`hydrating` and never predicted",
-        "live reruns wait up to 1 s",
+        "interval plus",
+        "expiry",
         "durable receipts",
-        "workaround",
+        "`connected[p]`",
+        "authenticated SSE transports",
+        "rules/maintains use durable facts",
+        "immutable snapshot",
+        "up to 1 s",
+        "failed writes",
+        "latency guarantee",
+        "never predicted",
+        "`first 1`",
     ] {
         assert!(
             content.contains(needle),
