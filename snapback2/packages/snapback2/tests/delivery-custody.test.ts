@@ -103,7 +103,9 @@ for (const mode of ['missing', 'exhausted'] as const) test(`${mode} acknowledgem
   const status = await r.outbox.status();
   assert.equal(status.reason, mode === 'missing' ? 'grant-missing' : 'ids-exhausted');
   assert.equal(status.remaining,2,'product intent plus unadmitted acknowledgement batch');
-  assert.deepEqual((await r.outbox.queued())[0],product);
+  const savedProduct = (await r.outbox.queued())[0];
+  assert(Number.isSafeInteger(savedProduct.order) && savedProduct.order > 0, 'carrier assigns durable FIFO order');
+  assert.deepEqual(savedProduct,{...product,order:savedProduct.order});
   // Hold the product write while verifying the empty-intent admission path independently.
   await r.store.commit({outbox:{put:[{...product,state:'committed'}]}});
   const stopped = await drainOutbox({ runtime:r,json:async()=>{throw new Error('no request');},shape:(m:string)=>new Error(m),failure:(e:Error)=>e });
@@ -199,7 +201,9 @@ test('acknowledgements never renew the fence or erase queued product writes; two
     const bounds = await r.store.outbox.bounds(); await r.store.commit({ bounds: { ...bounds, 'messages.send': 0 } });
     const product = await r.outbox.enqueue({ op:'messages.send',args:{ body:'keep me' },issuedSeq:1 });
     await accept(r); const entries = await r.outbox.queued();
-    assert.equal(entries.length,2); assert.deepEqual(entries[0],product); assert.equal(entries[1].op,ackOp);
+    assert.equal(entries.length,2); assert.deepEqual(entries[0],{...product,order:entries[0].order}); assert.equal(entries[1].op,ackOp);
+    assert(Number.isSafeInteger(entries[0].order) && entries[0].order > 0, 'carrier assigns durable FIFO order');
+    assert(entries[0].order < entries[1].order, 'acknowledgement stays behind the admitted product write');
     assert.equal(await r.outbox.canReplay(entries[1]),false);
     let calls = 0;
     const result = await drainOutbox({ runtime:r,json:async () => { calls++; throw new Error('must not send'); },shape:(m:string)=>new Error(m),failure:(e:Error)=>e });
