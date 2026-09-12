@@ -188,7 +188,9 @@ export function createClient(options: ClientOptions): Client {
       entry.resolve({ state: "sent", id: entry.id, seq: at });
       for (const watch of watches.values()) void refresh(watch);
     } else {
-      entry.resolve({ state: "failed", id: entry.id, why: (json.why as Refusal) ?? offline() });
+      // A 400 carries `denied` (an input or auth refusal), a judged write
+      // carries `why`; neither is the link's fault.
+      entry.resolve({ state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } });
     }
     return true;
   }
