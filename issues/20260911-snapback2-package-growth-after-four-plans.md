@@ -114,3 +114,9 @@ The final cancellation-boundary repair adds five runtime bytes and ten bytes
 to each public closure relative to the full loop record above. The final runtime
 record is in `twin.jsonl`; public closures use the exact canonical
 `packagedEntryBytes` implementation on the final package build.
+
+The subsequent foreground admission repair adds **85 bytes to each public
+closure**, producing **142,894 / 152,823 / 156,316 / 89,995** gzip bytes. Its
+network recovery module is outside the unchanged canonical local-runtime graph,
+so runtime delta is zero. The same pinned canonical measurement was used;
+neither the public growth guard nor runtime target is met or rebaselined.

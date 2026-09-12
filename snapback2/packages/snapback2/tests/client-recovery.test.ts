@@ -75,6 +75,152 @@ test("concurrent pristine admissions coalesce acquisition and reserve distinct s
   } finally { await f.close(); }
 });
 
+for (const joined of [false, true]) test(`foreground admission ${joined ? "joining general recovery" : "starting capacity recovery"} does not wait for older replay`, async () => {
+  const resumeSent = gate(), resumeRelease = gate(), replaySent = gate(), replayRelease = gate(), demanded = gate();
+  let hold = false, original: any, write: Promise<any> | undefined, sync: Promise<any> | undefined;
+  const requests: any[] = [];
+  const f = await fixture({ facts: true, fetch: owner => async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (hold && path === "/api/resume") { resumeSent.resolve(); await resumeRelease.promise; }
+    if (path === "/api/mutation") {
+      const body = JSON.parse(String(init?.body)); requests.push(body);
+      if (hold && body.replay?.intent === original.intent) { replaySent.resolve(); await replayRelease.promise; }
+    }
+    return owner.fetch(input, init);
+  } });
+  try {
+    f.owner.state.failAfterCommit = 1;
+    assert.equal((await f.client.mutation(api.messages.send, args("older"))).state, "queued");
+    original = (await f.client.outbox.entries())[0];
+    const ledger = f.client.offlineRuntime.outbox, old = await ledger.grant();
+    await ledger.adopt({ ...old, id: engineId(9000), from: engineId(9000), used: old.count });
+    hold = true;
+    if (joined) {
+      sync = f.client.performResume(await f.client.operationAuthority(false)); await resumeSent.promise;
+      const resume = f.client.performResume.bind(f.client);
+      f.client.performResume = (authority: any, demand?: string) => {
+        if (demand === "messages.send") demanded.resolve();
+        return resume(authority, demand);
+      };
+    }
+    write = f.client.mutation(api.messages.send, args("foreground"));
+    if (joined) await demanded.promise; else await resumeSent.promise;
+    sync = f.client.online();
+    let completed = false; void sync!.then(() => { completed = true; }, () => { completed = true; });
+    resumeRelease.resolve(); await replaySent.promise;
+    assert.equal((await ledger.status("messages.send")).ready, true);
+    await until(async () => (await ledger.queued()).some((entry: any) => entry.args.body === "foreground"));
+    assert.equal(completed, false, "online still waits for the ordinary recovery verdict");
+    assert.ok(f.client.resumeFlight, "admission does not cancel or clear the recovery owner");
+    const queued = await ledger.queued();
+    assert.deepEqual(queued.map((entry: any) => entry.args.body), ["older", "foreground"]);
+    assert.deepEqual(queued[0].ids, original.ids);
+    assert.equal(queued[0].grant, original.grant);
+    assert.deepEqual(requests[1], requests[0], "the older retry preserves its exact wire envelope");
+    assert.equal(requests.length, 2, "the foreground cannot send past held older replay");
+    replayRelease.resolve();
+    assert.equal((await write).state, "committed"); await sync;
+    assert.deepEqual(f.owner.executions.map(entry => (entry.args as any).body), ["older", "foreground"]);
+  } finally {
+    resumeRelease.resolve(); replayRelease.resolve();
+    await Promise.allSettled([write, sync].filter(Boolean)); await f.close();
+  }
+});
+
+for (const boundary of ["offline", "close", "login", "reset", "read-error"] as const) test(`foreground readiness ${boundary} cannot release a stale admission waiter`, async () => {
+  const replaySent = gate(), replayRelease = gate(), readyRead = gate(), readyRelease = gate();
+  let hold = false, original: any, write: Promise<any> | undefined;
+  const f = await fixture({ facts: true, bearer: boundary === "login", fetch: owner => async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (hold && path === "/api/mutation" && JSON.parse(String(init?.body)).replay?.intent === original.intent) {
+      replaySent.resolve(); await replayRelease.promise;
+    }
+    if (path === "/api/auth/login") return Response.json({ viewer: "dev:bob", token: "token-bob", kind: "user", authEpoch: 8 });
+    return owner.fetch(input, init);
+  } });
+  try {
+    f.owner.state.failAfterCommit = 1;
+    assert.equal((await f.client.mutation(api.messages.send, args("older"))).state, "queued");
+    original = (await f.client.outbox.entries())[0];
+    const runtime = f.client.offlineRuntime, ledger = runtime.outbox, old = await ledger.grant();
+    await ledger.adopt({ ...old, id: engineId(9000), from: engineId(9000), used: old.count });
+    const status = ledger.status.bind(ledger), subscribe = ledger.subscribe.bind(ledger);
+    let watched = 0, readsHeld = true;
+    ledger.subscribe = (callback: () => void) => { watched++; const stop = subscribe(callback); return () => { watched--; stop(); }; };
+    ledger.status = async (op?: string) => {
+      const value = await status(op);
+      if (readsHeld && op === "messages.send" && value.ready) {
+        readyRead.resolve(); await readyRelease.promise;
+        if (boundary === "read-error") throw new Error("transient readiness read failure");
+      }
+      return value;
+    };
+    hold = true;
+    write = f.client.mutation(api.messages.send, args("foreground"));
+    await readyRead.promise; await replaySent.promise;
+    if (boundary === "reset") await runtime.resetCoverage(7);
+    else if (boundary === "login") await f.client.auth.login({ email: "bob@example.com", password: "test" });
+    else if (boundary !== "read-error") await f.client[boundary]();
+    readyRelease.resolve(); await flush();
+    if (boundary === "reset" || boundary === "read-error") {
+      assert.equal((await ledger.queued()).some((entry: any) => entry.args.body === "foreground"), false,
+        "neither an incomplete reset nor a failed advisory read releases admission");
+      readsHeld = false; replayRelease.resolve();
+      assert.equal((await write).state, "committed");
+      assert.equal(runtime.resetNeeded, false);
+    } else {
+      const result = await write;
+      assert.equal(result.state, "rejected"); assert.equal(result.intent, undefined);
+      assert.equal(f.owner.executions.length, 1, "late readiness never creates a foreground owner request");
+    }
+    await flush();
+    assert.equal(watched, 0, "the temporary readiness listener and terminal slot retire");
+  } finally {
+    readyRelease.resolve(); replayRelease.resolve();
+    await Promise.allSettled([write].filter(Boolean)); await f.close();
+  }
+});
+
+test("foreground readiness does not reserve capacity consumed before enqueue", async () => {
+  const replaySent = gate(), replayRelease = gate(), consumed = gate();
+  let hold = false, original: any, write: Promise<any> | undefined;
+  const f = await fixture({ facts: true, fetch: owner => async (input, init) => {
+    if (hold && new URL(String(input)).pathname === "/api/mutation"
+      && JSON.parse(String(init?.body)).replay?.intent === original.intent) { replaySent.resolve(); await replayRelease.promise; }
+    return owner.fetch(input, init);
+  } });
+  try {
+    f.owner.state.failAfterCommit = 1;
+    assert.equal((await f.client.mutation(api.messages.send, args("older"))).state, "queued");
+    original = (await f.client.outbox.entries())[0];
+    const ledger = f.client.offlineRuntime.outbox, old = await ledger.grant();
+    await ledger.adopt({ ...old, id: engineId(9000), from: engineId(9000), used: old.count });
+    const enqueue = ledger.enqueue.bind(ledger);
+    let consume = true, exhausted: string | undefined;
+    ledger.enqueue = async (input: any, ...rest: any[]) => {
+      if (input.args.body === "foreground" && consume) {
+        consume = false;
+        const grant = await ledger.grant(); exhausted = grant.id;
+        await ledger.write(() => f.carrier.commit({ grants: { current: grant.id, put: [{ ...grant, used: grant.count }] } }));
+        try { return await enqueue(input, ...rest); } finally { consumed.resolve(); }
+      }
+      return enqueue(input, ...rest);
+    };
+    hold = true; write = f.client.mutation(api.messages.send, args("foreground"));
+    await replaySent.promise; await consumed.promise;
+    assert.deepEqual((await ledger.queued()).map((entry: any) => entry.intent), [original.intent]);
+    replayRelease.resolve();
+    const result = await write;
+    assert.equal(result.state, "rejected"); assert.equal(result.code, "E_OFFLINE_ID_BLOCK");
+    assert.equal(result.intent, undefined, "the finite same-demand attempt preserves a pristine refusal");
+    await until(() => !f.client.resumeFlight);
+    assert.equal((await f.client.mutation(api.messages.send, args("foreground"))).state, "committed");
+    const entry = (await ledger.entries()).find((entry: any) => entry.args.body === "foreground");
+    assert.notEqual(entry.grant, exhausted, "the pristine retry reserves a new grant, never exhausted IDs");
+    assert.deepEqual(f.owner.executions.map(entry => (entry.args as any).body), ["older", "foreground"]);
+  } finally { replayRelease.resolve(); await Promise.allSettled([write].filter(Boolean)); await f.close(); }
+});
+
 test("pure snapshots do no I/O; first selected subscription heals disabled sending, including an idle expired grant", async () => {
   const f = await fixture({ facts: true });
   let detach: (() => void) | undefined;

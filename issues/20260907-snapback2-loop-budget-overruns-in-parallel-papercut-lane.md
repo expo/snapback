@@ -355,3 +355,32 @@ The canonical raw record carries the private qualification copy's inherited
 Git SHA `dd629ae33`; its source manifest and context explicitly bind `b5c73f084`.
 The [acquisition record](../snapback2/metrics/acquisition-20260911.json) retains
 the binding, byte-growth red, passing functional phases, and failing budgets.
+
+## Bounded bulk acquisition verification — 2026-09-11
+
+The final bounded-batch implementation and cancellation repair pass the complete
+Snapback2 test script on EPYC in **54.79 seconds**: 1,138 native tests, 1,423
+package tests, compiler/evaluator phases and doctests pass. This is one passing
+script duration, not qualification of the complete five-check budget. Earlier
+failed runs, their setup omissions, real regressions and subsequent repairs are
+retained with the final source preflight in the acquisition evidence.
+
+The canonical loop separately passes consumer verification (13.320 seconds),
+project check (0.433), both doctor samples (0.433/0.028), incremental rebuild
+(2.490), warm build (37.51) and init-to-dev (0.829). It still exits nonzero for
+the existing package-growth guards. Its source precedes the final
+cancellation-only guard; final package bytes were measured separately using
+the canonical closure function. No sample or byte baseline was replaced.
+These observations do not establish the cause of prior timing failures or
+close the changed-binary macOS qualification described above.
+
+The final V6 foreground repair passes a fresh complete-script run in
+**105.234 seconds**, so the duration is again above the 60-second budget.
+All **1,431 package tests and 1,138 native tests** pass, as do compiler,
+evaluator and doctests. The final source manifest was checked at all 1,144
+entries before execution. The qualification copy rebuilds native artifacts
+(20.55 seconds before parallel phases); native phase duration is 81 seconds,
+package 48, compiler 40, evaluator 6 and doctests 14. Phases overlap and must
+not be summed. This is not a matched experiment attributing timing growth to
+the small client recovery repair. Both actual runs remain in the record; no
+rerun replaces the 105.234-second budget failure or raises the limit.

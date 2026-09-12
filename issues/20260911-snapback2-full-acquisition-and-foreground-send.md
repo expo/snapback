@@ -129,3 +129,50 @@ a same-source control shows material observer cost, which must not be attributed
 to product improvement. The final endpoint uses public settlement, performs
 the first offline queries inside timing, and validates the full physical row
 hash and acknowledgement custody afterward. Any mismatch invalidates a sample.
+
+The final ten-pair V4 cohort records full acquisition at **33.788 → 28.434
+seconds** (descriptive medians over all ten times per variant). Candidate range
+is 27.908–28.670 seconds. All 20 exact content, receipt, first offline query and
+physical-reopen checks pass, and all frozen inputs are unchanged. Required
+owner-stop commands return exit 1 in candidate pairs 4 and 9, so strict cohort
+qualification remains false. Original stderr was not retained; later process
+absence does not establish why the commands failed. Both samples and the
+original rejected analysis remain in the evidence.
+
+Durable-content median is 33.297 → 16.148 seconds and physical reopen is
+11.008 → 6.596 seconds. First mounted inbox regresses from 1.105 to 1.616
+seconds; do not hide that behind the total-time improvement. Final V5 is a
+separate source snapshot with the cancellation repair and intervening upstream
+integration. It is not the source of the 20-run cohort.
+
+**Remaining:** reach 2–3 seconds without omitting receipt mutations or first-use
+work; reduce first-view delay; diagnose and retain failed owner-stop controls;
+qualify foreground, retained heap, bearer UI and native behavior at their stated
+scopes. The measured residual is client preparation plus ordinary receipt
+mutation execution. Larger transport batches alone are insufficient. The
+[research](../llp/1018.008.007-affordable-offline-acquisition.research.md)
+and `boundedBulk20260911` evidence retain the actual performance and its limits.
+
+## Foreground admission repair and final controls — 2026-09-11
+
+Immediate first-delivery sends exposed a ten-second pre-custody timeout in V4
+and V5. A usable grant had already become durable, but preparation awaited
+general recovery's continually refilled acknowledgement replay. V6 separates
+that admission wait from full recovery, preserving atomic capacity reservation,
+authority, older durable intents and FIFO. The general `online()` verdict still
+waits for its complete recovery; advisory readiness does not reserve IDs.
+
+All three repaired browser controls admit durably in **596–686 ms** and return
+committed in **2.50–3.09 seconds**, with exactly one native send row each.
+The third still fails cleanup with `E_OWNER_STOP_TIMEOUT`; the harness now
+retains stdout, stderr, command duration and immediate process status. Its
+reported two-second timeout and 287.6 ms observed command duration need
+investigation; subsequent PID absence does not turn it into a pass. The older
+status-only failures remain unexplained and are not assigned this cause.
+
+The separate final V6 full-acquisition/reopen smoke passes in **28.509 seconds**,
+with all exact content, receipt, first-use and stop checks passing. This closes
+the reproduced pre-custody stall at the tested scope. Broader foreground latency,
+first-inbox responsiveness, shutdown reliability and the **2–3-second full
+acquisition goal** remain open. All earlier failed controls and their source
+identities are retained in the acquisition record.
