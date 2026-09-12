@@ -1,0 +1,25 @@
+{
+  "version": "clique-raw-codex-retention.v1",
+  "phase": "astra-snapback3-builder",
+  "rootThreadId": "01a09623-87dd-7d72-910f-980bf77e3862",
+  "lane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3",
+  "startedEpoch": 1789225305,
+  "endedEpoch": 1789229467,
+  "freshRolloutCandidates": 1,
+  "selectedTreeEntries": 1,
+  "rootFound": true,
+  "rawRetention": "root-and-reachable-descendants",
+  "tokenAccounting": "raw-retained-not-joined",
+  "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller",
+  "entries": [
+    {
+      "index": 0,
+      "nativeSessionId": "01a09623-87dd-7d72-910f-980bf77e3862",
+      "parentThreadId": null,
+      "threadSource": "user",
+      "cwd": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3",
+      "relativePath": "native/codex/astra-snapback3-builder/rollout-2026-09-12T17-01-46-01a09623-87dd-7d72-910f-980bf77e3862.jsonl",
+      "sha256": "3e7a602974684deef0b9cdecec89d7ea6186b78489f06c77a606781755b29e80"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "scope": "measurement harness only",
+  "error": "CDP Profiler.stop returns {profile}; helper wrongly read nodes on wrapper after recording raw profile. Corrected destructuring for single retry.",
+  "retainedEvidence": [
+    "run.json",
+    "browser-main-thread.cpuprofile",
+    "owner.stdout.log",
+    "owner.stderr.log"
+  ],
+  "currentScriptSha256": "67a0c235f464ed5bef8b26a2ca28310d8d589af119b7a9b9f6cdd3a58b2adf9f",
+  "retryUses": "fresh isolated seeded DB and fresh persistent browser profile"
+}

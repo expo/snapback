@@ -1,0 +1,9 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_SYNTAX snapback/messages.q:45:58: expected "{", got "by"
+-- fix this Quarry declaration and rerun snapback3 check
+
+E_QUARRY_SYNTAX snapback/messages.q:47:58: expected newline, got "by"
+-- fix this Quarry declaration and rerun snapback3 check

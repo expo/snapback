@@ -1,0 +1,63 @@
+{
+  "schema": "snapback3-focused-m7-grader-model-attestation.v1",
+  "source": "private native Claude JSONL terminal result and assistant event metadata; raw stream remains private",
+  "launcherRequestedModel": "claude-opus-5",
+  "sessionId": "f88a92fc-02bb-4764-b844-35f45162ab74",
+  "result": {
+    "subtype": "success",
+    "isError": false,
+    "durationMs": 1184295,
+    "durationApiMs": 1011255,
+    "numTurns": 82,
+    "totalCostUsd": 6.452555
+  },
+  "assistantEvents": {
+    "count": 128,
+    "models": {
+      "claude-opus-5": 128
+    },
+    "contentBlockTypes": {
+      "text": 2,
+      "tool_use": 81,
+      "thinking": 45
+    }
+  },
+  "terminalModelUsage": {
+    "claude-opus-5": {
+      "inputTokens": 156,
+      "outputTokens": 71595,
+      "thinkingTokens": 14525,
+      "cacheCreationInputTokens": 162224,
+      "cacheReadInputTokens": 7288440,
+      "webSearchRequests": 0,
+      "costUSD": 6.4487749999999995
+    },
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 3690,
+      "outputTokens": 18,
+      "thinkingTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "cacheReadInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.00378
+    }
+  },
+  "attributionQualification": "Every one of the 128 assistant events was identified as claude-opus-5. No assistant event or assistant content/tool block was attributed to Haiku. Haiku appears only in the terminal aggregate usage map; the preserved evidence does not identify its purpose, so none is inferred.",
+  "billingQualification": "Values are the native terminal result aggregates; no billing is inferred from cache counters.",
+  "nativeInit": {
+    "eventCount": 1,
+    "model": "claude-opus-5",
+    "sessionId": "f88a92fc-02bb-4764-b844-35f45162ab74",
+    "cwd": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-grade",
+    "tools": [
+      "Bash",
+      "Edit",
+      "Read"
+    ],
+    "mcpServers": [],
+    "permissionMode": "bypassPermissions",
+    "apiKeySource": "ANTHROPIC_API_KEY",
+    "claudeCodeVersion": "2.1.268",
+    "outputStyle": "default"
+  }
+}

@@ -1,0 +1,15 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_UNKNOWN snapback/schema.q:30:3: unknown table declaration index
+-- remove this unknown table declaration
+
+E_QUARRY_UNKNOWN snapback/schema.q:44:3: unknown table declaration index
+-- remove this unknown table declaration
+
+E_QUARRY_UNKNOWN snapback/schema.q:56:3: unknown table declaration index
+-- remove this unknown table declaration
+
+E_QUARRY_UNKNOWN snapback/schema.q:68:3: unknown table declaration index
+-- remove this unknown table declaration

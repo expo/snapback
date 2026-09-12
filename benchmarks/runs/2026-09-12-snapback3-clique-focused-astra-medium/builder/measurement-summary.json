@@ -1,0 +1,721 @@
+{
+  "epoch": 1789228838025,
+  "series": "evidence/acquisition-1789227775383",
+  "rows": [
+    {
+      "file": "evidence/acquisition-1789227775383/u0001-1.json",
+      "actor": "u0001",
+      "repetition": 1,
+      "status": "timeout",
+      "error": "Error: page.evaluate: Target page, context or browser has been closed",
+      "totalOnlineWallMs": 180007,
+      "deadlineOverrunMs": 7,
+      "acquisitionLoopMs": 179122,
+      "authRestoreMs": 169,
+      "firstInboxViewportMs": 601,
+      "firstHistoryViewportMs": 885,
+      "acquiredFixtureIds": 42900,
+      "authorizedFixtureIds": 100000,
+      "extraIds": [],
+      "fullFixtureVerified": false,
+      "allPagesOfflineVerified": false,
+      "idbFixtureIds": null,
+      "progress": [
+        {
+          "mark": 30000,
+          "elapsed": 30177,
+          "status": "running",
+          "count": 10500,
+          "pages": 125,
+          "foreground": {
+            "start": 569.5,
+            "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+            "durable": 584.2000000476837,
+            "settled": 774.3000001907349,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+                "replyTo": null,
+                "senderId": "dev:u0001",
+                "serverTimestamp": 1789227887371,
+                "text": "Foreground acquisition 21fac831-0f93-49e1-a879-03f1c97beb31",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+                  "table": "messages"
+                }
+              ],
+              "intent": "55430deb-8e29-47c2-a3c3-14fb5615fc4d",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 17,
+              "state": "committed"
+            }
+          }
+        },
+        {
+          "mark": 60000,
+          "elapsed": 60037,
+          "status": "running",
+          "count": 18500,
+          "pages": 205,
+          "foreground": {
+            "start": 569.5,
+            "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+            "durable": 584.2000000476837,
+            "settled": 774.3000001907349,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+                "replyTo": null,
+                "senderId": "dev:u0001",
+                "serverTimestamp": 1789227887371,
+                "text": "Foreground acquisition 21fac831-0f93-49e1-a879-03f1c97beb31",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+                  "table": "messages"
+                }
+              ],
+              "intent": "55430deb-8e29-47c2-a3c3-14fb5615fc4d",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 17,
+              "state": "committed"
+            }
+          }
+        }
+      ],
+      "lastProgress": {
+        "elapsed": 179040,
+        "count": 42800,
+        "pages": 448
+      },
+      "completedHttpBytes": 81145651,
+      "dataEventBytes": 81283861,
+      "requests": 467,
+      "lastHttpResponseSinceFirstRequestMs": 179781.4569999464,
+      "lastDurableWriteFromAcquisitionStartMs": 179041.29999995232,
+      "peakSampledHeapDuringAcquisitionBytes": 433455256,
+      "lastSampledHeapAtAcquisitionEndBytes": 290474768,
+      "longTaskCount": 437,
+      "longTaskTotalMs": 33848,
+      "indexedDBEstimatedBytes": 6541472,
+      "indexedDBLogicalJsonBytes": null,
+      "offlineReopenToFirstQueryMs": null,
+      "foreground": {
+        "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+        "localDurabilityMs": 14.700000047683716,
+        "settlementMs": 204.80000019073486,
+        "serverState": "committed",
+        "recipientFetchedEpoch": 1789227887815,
+        "viewportObservedEpoch": 1789227887920,
+        "viewportBox": {
+          "x": 320,
+          "y": 202,
+          "width": 640,
+          "height": 64
+        }
+      },
+      "instrumentationIncluded": true
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0001-2.json",
+      "actor": "u0001",
+      "repetition": 2,
+      "status": "timeout",
+      "error": "Error: page.evaluate: Target page, context or browser has been closed",
+      "totalOnlineWallMs": 181863,
+      "deadlineOverrunMs": 1863,
+      "acquisitionLoopMs": 180937,
+      "authRestoreMs": 217,
+      "firstInboxViewportMs": 643,
+      "firstHistoryViewportMs": 926,
+      "acquiredFixtureIds": 42500,
+      "authorizedFixtureIds": 100000,
+      "extraIds": [],
+      "fullFixtureVerified": false,
+      "allPagesOfflineVerified": false,
+      "idbFixtureIds": null,
+      "progress": [
+        {
+          "mark": 30000,
+          "elapsed": 30043,
+          "status": "running",
+          "count": 10800,
+          "pages": 128,
+          "foreground": {
+            "start": 604.9000000953674,
+            "id": "b297ceab-e581-4784-b082-1143f6884295",
+            "durable": 612.5,
+            "settled": 818.7000000476837,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "b297ceab-e581-4784-b082-1143f6884295",
+                "replyTo": null,
+                "senderId": "dev:u0001",
+                "serverTimestamp": 1789228069366,
+                "text": "Foreground acquisition b297ceab-e581-4784-b082-1143f6884295",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "b297ceab-e581-4784-b082-1143f6884295",
+                  "table": "messages"
+                }
+              ],
+              "intent": "c41f22d6-2388-4f12-99e3-2e5597e51fce",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 18,
+              "state": "committed"
+            }
+          }
+        },
+        {
+          "mark": 60000,
+          "elapsed": 60280,
+          "status": "running",
+          "count": 18700,
+          "pages": 207,
+          "foreground": {
+            "start": 604.9000000953674,
+            "id": "b297ceab-e581-4784-b082-1143f6884295",
+            "durable": 612.5,
+            "settled": 818.7000000476837,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "b297ceab-e581-4784-b082-1143f6884295",
+                "replyTo": null,
+                "senderId": "dev:u0001",
+                "serverTimestamp": 1789228069366,
+                "text": "Foreground acquisition b297ceab-e581-4784-b082-1143f6884295",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "b297ceab-e581-4784-b082-1143f6884295",
+                  "table": "messages"
+                }
+              ],
+              "intent": "c41f22d6-2388-4f12-99e3-2e5597e51fce",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 18,
+              "state": "committed"
+            }
+          }
+        }
+      ],
+      "lastProgress": {
+        "elapsed": 180437,
+        "count": 42500,
+        "pages": 445
+      },
+      "completedHttpBytes": 80496335,
+      "dataEventBytes": 80652992,
+      "requests": 463,
+      "lastHttpResponseSinceFirstRequestMs": 179822.48699991032,
+      "lastDurableWriteFromAcquisitionStartMs": 179029.79999995232,
+      "peakSampledHeapDuringAcquisitionBytes": 453011448,
+      "lastSampledHeapAtAcquisitionEndBytes": 453011448,
+      "longTaskCount": 441,
+      "longTaskTotalMs": 34411,
+      "indexedDBEstimatedBytes": 6451408,
+      "indexedDBLogicalJsonBytes": null,
+      "offlineReopenToFirstQueryMs": null,
+      "foreground": {
+        "id": "b297ceab-e581-4784-b082-1143f6884295",
+        "localDurabilityMs": 7.599999904632568,
+        "settlementMs": 213.79999995231628,
+        "serverState": "committed",
+        "recipientFetchedEpoch": 1789228069802,
+        "viewportObservedEpoch": 1789228069913,
+        "viewportBox": {
+          "x": 320,
+          "y": 202,
+          "width": 640,
+          "height": 64
+        }
+      },
+      "instrumentationIncluded": true
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0001-3.json",
+      "actor": "u0001",
+      "repetition": 3,
+      "status": "timeout",
+      "error": "Error: page.evaluate: Target page, context or browser has been closed",
+      "totalOnlineWallMs": 181906,
+      "deadlineOverrunMs": 1906,
+      "acquisitionLoopMs": 181029,
+      "authRestoreMs": 150,
+      "firstInboxViewportMs": 593,
+      "firstHistoryViewportMs": 877,
+      "acquiredFixtureIds": 42900,
+      "authorizedFixtureIds": 100000,
+      "extraIds": [],
+      "fullFixtureVerified": false,
+      "allPagesOfflineVerified": false,
+      "idbFixtureIds": null,
+      "progress": [
+        {
+          "mark": 30000,
+          "elapsed": 30063,
+          "status": "running",
+          "count": 10600,
+          "pages": 126,
+          "foreground": {
+            "start": 550.5999999046326,
+            "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+            "durable": 561.7999999523163,
+            "settled": 754.7999999523163,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+                "replyTo": null,
+                "senderId": "dev:u0001",
+                "serverTimestamp": 1789228251768,
+                "text": "Foreground acquisition ca1d55a6-2506-4582-9371-3036eb03b1f0",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+                  "table": "messages"
+                }
+              ],
+              "intent": "d453be66-67b7-46e4-a766-865661ca2f31",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 19,
+              "state": "committed"
+            }
+          }
+        },
+        {
+          "mark": 60000,
+          "elapsed": 60281,
+          "status": "running",
+          "count": 18600,
+          "pages": 206,
+          "foreground": {
+            "start": 550.5999999046326,
+            "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+            "durable": 561.7999999523163,
+            "settled": 754.7999999523163,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+                "replyTo": null,
+                "senderId": "dev:u0001",
+                "serverTimestamp": 1789228251768,
+                "text": "Foreground acquisition ca1d55a6-2506-4582-9371-3036eb03b1f0",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+                  "table": "messages"
+                }
+              ],
+              "intent": "d453be66-67b7-46e4-a766-865661ca2f31",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 19,
+              "state": "committed"
+            }
+          }
+        }
+      ],
+      "lastProgress": {
+        "elapsed": 180528,
+        "count": 42900,
+        "pages": 449
+      },
+      "completedHttpBytes": 81257251,
+      "dataEventBytes": 81412824,
+      "requests": 467,
+      "lastHttpResponseSinceFirstRequestMs": 179831.1920000706,
+      "lastDurableWriteFromAcquisitionStartMs": 179114.29999995232,
+      "peakSampledHeapDuringAcquisitionBytes": 447537392,
+      "lastSampledHeapAtAcquisitionEndBytes": 283787880,
+      "longTaskCount": 448,
+      "longTaskTotalMs": 34902,
+      "indexedDBEstimatedBytes": 6575075,
+      "indexedDBLogicalJsonBytes": null,
+      "offlineReopenToFirstQueryMs": null,
+      "foreground": {
+        "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+        "localDurabilityMs": 11.200000047683716,
+        "settlementMs": 204.20000004768372,
+        "serverState": "committed",
+        "recipientFetchedEpoch": 1789228252240,
+        "viewportObservedEpoch": 1789228252331,
+        "viewportBox": {
+          "x": 320,
+          "y": 202,
+          "width": 640,
+          "height": 64
+        }
+      },
+      "instrumentationIncluded": true
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0500-1.json",
+      "actor": "u0500",
+      "repetition": 1,
+      "status": "complete",
+      "error": null,
+      "totalOnlineWallMs": 33573,
+      "deadlineOverrunMs": 0,
+      "acquisitionLoopMs": 32649,
+      "authRestoreMs": 158,
+      "firstInboxViewportMs": 624,
+      "firstHistoryViewportMs": 924,
+      "acquiredFixtureIds": 10000,
+      "authorizedFixtureIds": 10000,
+      "extraIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2"
+      ],
+      "fullFixtureVerified": true,
+      "allPagesOfflineVerified": true,
+      "idbFixtureIds": 10000,
+      "progress": [
+        {
+          "mark": 30000,
+          "elapsed": 30132,
+          "status": "running",
+          "count": 10013,
+          "pages": 142,
+          "foreground": {
+            "start": 574.0999999046326,
+            "id": "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+            "durable": 579.2000000476837,
+            "settled": 798.7000000476837,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+                "replyTo": null,
+                "senderId": "dev:u0500",
+                "serverTimestamp": 1789227776623,
+                "text": "Foreground acquisition c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+                  "table": "messages"
+                }
+              ],
+              "intent": "5ec5f6d7-4cdd-4761-9217-6c2197d45b17",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 14,
+              "state": "committed"
+            }
+          }
+        }
+      ],
+      "lastProgress": {
+        "elapsed": 32649,
+        "count": 10013,
+        "pages": 152
+      },
+      "completedHttpBytes": 27837686,
+      "dataEventBytes": 28076579,
+      "requests": 166,
+      "lastHttpResponseSinceFirstRequestMs": 33281.21899999678,
+      "lastDurableWriteFromAcquisitionStartMs": 32539.800000190735,
+      "peakSampledHeapDuringAcquisitionBytes": 227397896,
+      "lastSampledHeapAtAcquisitionEndBytes": 122383180,
+      "longTaskCount": 146,
+      "longTaskTotalMs": 10384,
+      "indexedDBEstimatedBytes": 3961192,
+      "indexedDBLogicalJsonBytes": 3888222,
+      "offlineReopenToFirstQueryMs": 765,
+      "foreground": {
+        "id": "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "localDurabilityMs": 5.1000001430511475,
+        "settlementMs": 224.60000014305115,
+        "serverState": "committed",
+        "recipientFetchedEpoch": 1789227777207,
+        "viewportObservedEpoch": 1789227777268,
+        "viewportBox": {
+          "x": 320,
+          "y": 192,
+          "width": 640,
+          "height": 64
+        }
+      },
+      "instrumentationIncluded": true
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0500-2.json",
+      "actor": "u0500",
+      "repetition": 2,
+      "status": "complete",
+      "error": null,
+      "totalOnlineWallMs": 34096,
+      "deadlineOverrunMs": 0,
+      "acquisitionLoopMs": 33219,
+      "authRestoreMs": 193,
+      "firstInboxViewportMs": 593,
+      "firstHistoryViewportMs": 877,
+      "acquiredFixtureIds": 10000,
+      "authorizedFixtureIds": 10000,
+      "extraIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5"
+      ],
+      "fullFixtureVerified": true,
+      "allPagesOfflineVerified": true,
+      "idbFixtureIds": 10000,
+      "progress": [
+        {
+          "mark": 30000,
+          "elapsed": 30204,
+          "status": "running",
+          "count": 10014,
+          "pages": 140,
+          "foreground": {
+            "start": 552.8000001907349,
+            "id": "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+            "durable": 560.1000001430511,
+            "settled": 753.9000000953674,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+                "replyTo": null,
+                "senderId": "dev:u0500",
+                "serverTimestamp": 1789227812819,
+                "text": "Foreground acquisition dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+                  "table": "messages"
+                }
+              ],
+              "intent": "757798ea-9ed0-4568-9e2e-a708f06acb55",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 15,
+              "state": "committed"
+            }
+          }
+        }
+      ],
+      "lastProgress": {
+        "elapsed": 33219,
+        "count": 10014,
+        "pages": 152
+      },
+      "completedHttpBytes": 27857085,
+      "dataEventBytes": 28114509,
+      "requests": 166,
+      "lastHttpResponseSinceFirstRequestMs": 33838.24099996127,
+      "lastDurableWriteFromAcquisitionStartMs": 33134.09999990463,
+      "peakSampledHeapDuringAcquisitionBytes": 248513820,
+      "lastSampledHeapAtAcquisitionEndBytes": 199641780,
+      "longTaskCount": 155,
+      "longTaskTotalMs": 11130,
+      "indexedDBEstimatedBytes": 3964574,
+      "indexedDBLogicalJsonBytes": 3888779,
+      "offlineReopenToFirstQueryMs": 796,
+      "foreground": {
+        "id": "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "localDurabilityMs": 7.299999952316284,
+        "settlementMs": 201.09999990463257,
+        "serverState": "committed",
+        "recipientFetchedEpoch": 1789227813305,
+        "viewportObservedEpoch": 1789227813419,
+        "viewportBox": {
+          "x": 320,
+          "y": 192,
+          "width": 640,
+          "height": 64
+        }
+      },
+      "instrumentationIncluded": true
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0500-3.json",
+      "actor": "u0500",
+      "repetition": 3,
+      "status": "complete",
+      "error": null,
+      "totalOnlineWallMs": 34571,
+      "deadlineOverrunMs": 0,
+      "acquisitionLoopMs": 33646,
+      "authRestoreMs": 230,
+      "firstInboxViewportMs": 659,
+      "firstHistoryViewportMs": 925,
+      "acquiredFixtureIds": 10000,
+      "authorizedFixtureIds": 10000,
+      "extraIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886"
+      ],
+      "fullFixtureVerified": true,
+      "allPagesOfflineVerified": true,
+      "idbFixtureIds": 10000,
+      "progress": [
+        {
+          "mark": 30000,
+          "elapsed": 30128,
+          "status": "running",
+          "count": 10015,
+          "pages": 139,
+          "foreground": {
+            "start": 596.4000000953674,
+            "id": "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+            "durable": 603.8000001907349,
+            "settled": 795.6000001430511,
+            "receipt": {
+              "data": {
+                "conversationId": "g0001",
+                "edited": false,
+                "id": "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+                "replyTo": null,
+                "senderId": "dev:u0500",
+                "serverTimestamp": 1789227849616,
+                "text": "Foreground acquisition a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+                "tombstone": false
+              },
+              "effects": [
+                {
+                  "id": "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+                  "table": "messages"
+                }
+              ],
+              "intent": "000814ed-3da2-4ea8-91ef-1257ef2c42dd",
+              "program": {
+                "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+                "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+              },
+              "seq": 16,
+              "state": "committed"
+            }
+          }
+        }
+      ],
+      "lastProgress": {
+        "elapsed": 33646,
+        "count": 10015,
+        "pages": 152
+      },
+      "completedHttpBytes": 27876484,
+      "dataEventBytes": 28134156,
+      "requests": 166,
+      "lastHttpResponseSinceFirstRequestMs": 34045.829999959096,
+      "lastDurableWriteFromAcquisitionStartMs": 33282.5,
+      "peakSampledHeapDuringAcquisitionBytes": 235037180,
+      "lastSampledHeapAtAcquisitionEndBytes": 219085640,
+      "longTaskCount": 153,
+      "longTaskTotalMs": 11006,
+      "indexedDBEstimatedBytes": 3956526,
+      "indexedDBLogicalJsonBytes": 3889336,
+      "offlineReopenToFirstQueryMs": 816,
+      "foreground": {
+        "id": "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+        "localDurabilityMs": 7.400000095367432,
+        "settlementMs": 199.20000004768372,
+        "serverState": "committed",
+        "recipientFetchedEpoch": 1789227850070,
+        "viewportObservedEpoch": 1789227850167,
+        "viewportBox": {
+          "x": 320,
+          "y": 192,
+          "width": 640,
+          "height": 64
+        }
+      },
+      "instrumentationIncluded": true
+    }
+  ],
+  "methodNotes": [
+    "Serial fresh-storage browser contexts. One app SDK client; separate recipient reader.",
+    "Viewport times are driver upper bounds after scrolling and two animation frames, not compositor tracing.",
+    "HTTP bytes count completed requests; data-event bytes separately include streamed payload. Do not add these overlapping measures.",
+    "Heap is sampled every 500ms, includes app and instrumentation, and is not forced-GC retained heap.",
+    "IDB estimated physical usage is navigator.storage.estimate; logical bytes are direct UTF-8 JSON serialization of IDB records.",
+    "The legacy acquisition.lastFetched/lastDurable fields are resource-publication timestamps. Actual public-adapter write timing is separate; no unmeasured HTTP/SDK/persistence/render split is inferred.",
+    "Full hub acquisition failed at the 180-second whole-attempt watchdog; partial IDs are not full acquisition.",
+    "Earlier DOM-only paint labels are corrected in measurement-corrections.json; every earlier attempt is retained."
+  ]
+}

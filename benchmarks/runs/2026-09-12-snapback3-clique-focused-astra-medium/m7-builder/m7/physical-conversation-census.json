@@ -1,0 +1,63 @@
+{
+  "at": 1789232847.2236378,
+  "readOnly": true,
+  "rows": [
+    {
+      "Row": {
+        "id": {
+          "Id": "d-alice-bob"
+        },
+        "kind": {
+          "String": "dm"
+        },
+        "messageCount": {
+          "Int": 18
+        },
+        "name": {
+          "String": "d-alice-bob"
+        },
+        "owner": {
+          "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+        }
+      }
+    },
+    {
+      "Row": {
+        "id": {
+          "Id": "g-starter"
+        },
+        "kind": {
+          "String": "group"
+        },
+        "messageCount": {
+          "Int": 11
+        },
+        "name": {
+          "String": "Weekend Plans"
+        },
+        "owner": {
+          "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+        }
+      }
+    },
+    {
+      "Row": {
+        "id": {
+          "Id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f"
+        },
+        "kind": {
+          "String": "group"
+        },
+        "messageCount": {
+          "Int": 3
+        },
+        "name": {
+          "String": "M7 bounds controls"
+        },
+        "owner": {
+          "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+        }
+      }
+    }
+  ]
+}

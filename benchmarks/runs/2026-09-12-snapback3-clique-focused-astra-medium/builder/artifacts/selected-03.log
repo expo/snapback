@@ -1,0 +1,80 @@
+m8-a02 Cannot read properties of undefined (reading 'likesReceived')
+[
+  {
+    "id": "m3-a01",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a13",
+    "status": "pass"
+  },
+  {
+    "id": "membership-authorization",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a14",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a01",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a03",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a04",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a02",
+    "status": "fail",
+    "error": "TypeError: Cannot read properties of undefined (reading 'likesReceived')"
+  },
+  {
+    "id": "s3-resource-independence-denied",
+    "status": "pass"
+  },
+  {
+    "id": "stale-account-and-rapid-navigation",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a05",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a06",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a15",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a01",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a03",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a17",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a07",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a16",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a18",
+    "status": "pass"
+  }
+]

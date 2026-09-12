@@ -1,0 +1,45 @@
+{
+  "schema": "snapback3-focused-m7-grader-preterminal-comparison.v1",
+  "classification": "read-only coordinator observation outside the independent grade",
+  "source": "packet/coordinator-observations/m7-grader-preterminal-1789234200",
+  "filesCompared": [
+    {
+      "path": "probes/poll-browser.mjs",
+      "preterminalSha256": "0c7e501db51ea56a40d45f5243e468d3c7d3524588cc404dd2d4c7756c4f67bd",
+      "finalSha256": "0c7e501db51ea56a40d45f5243e468d3c7d3524588cc404dd2d4c7756c4f67bd",
+      "same": true
+    },
+    {
+      "path": "probes/poll-offline.mjs",
+      "preterminalSha256": "0bac6a2c9447a85f117dd285f6b83b9a8dad22ef3931ddf789e516ce92f23d12",
+      "finalSha256": "0bac6a2c9447a85f117dd285f6b83b9a8dad22ef3931ddf789e516ce92f23d12",
+      "same": true
+    },
+    {
+      "path": "probes/snapcmp.mjs",
+      "preterminalSha256": "9e3c2b2541e95cd8618daa8c5c74ba66cd1fb5e9660583ca5dafb719b19a3c0d",
+      "finalSha256": "9e3c2b2541e95cd8618daa8c5c74ba66cd1fb5e9660583ca5dafb719b19a3c0d",
+      "same": true
+    },
+    {
+      "path": "results/poll-browser-grader.json",
+      "preterminalSha256": "c5a25e2e1f90c186d86f83d07afdc96f1f49e95d35fb3c7a9e35dff95e75f1cb",
+      "finalSha256": "c5a25e2e1f90c186d86f83d07afdc96f1f49e95d35fb3c7a9e35dff95e75f1cb",
+      "same": true
+    },
+    {
+      "path": "results/poll-offline-grader.json",
+      "preterminalSha256": "c5c0a941dd497e850223b9a49f723e96a9c597e316f0f9442b494b04ca0b11df",
+      "finalSha256": "c5c0a941dd497e850223b9a49f723e96a9c597e316f0f9442b494b04ca0b11df",
+      "same": true
+    },
+    {
+      "path": "results/snapshot-comparison-independent.json",
+      "preterminalSha256": "d75e7c1368d55e42571f9cfcd4d0c989b6c62581b9c74aa3a5fd8542d1c33586",
+      "finalSha256": "d75e7c1368d55e42571f9cfcd4d0c989b6c62581b9c74aa3a5fd8542d1c33586",
+      "same": true
+    }
+  ],
+  "allSame": true,
+  "supplementDecision": "No overwritten evidence was found. The six preterminal files are byte-identical to final grader files, so this collection preserves the coordinator manifest and this comparison record without duplicating the files."
+}

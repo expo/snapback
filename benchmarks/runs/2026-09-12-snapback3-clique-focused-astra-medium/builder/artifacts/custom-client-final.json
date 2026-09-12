@@ -1,0 +1,58 @@
+{
+  "principal": {
+    "id": "user:5ocYUJT7yml-j2a-NgjSvA",
+    "kind": "user",
+    "name": "alice@example.com"
+  },
+  "inboxPages": [
+    {
+      "c": null,
+      "next": null,
+      "count": 2,
+      "seq": 272
+    }
+  ],
+  "historyPages": [
+    {
+      "c": null,
+      "next": null,
+      "count": 38,
+      "seq": 272
+    }
+  ],
+  "receipt": {
+    "data": {
+      "conversationId": "d-alice-bob",
+      "edited": false,
+      "id": "3a896b86-21e1-421b-b10a-2f32d6659cdf",
+      "replyTo": null,
+      "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+      "serverTimestamp": 1789226814716,
+      "text": "Custom API demo 3a896b86-21e1-421b-b10a-2f32d6659cdf",
+      "tombstone": false
+    },
+    "effects": [
+      {
+        "id": "3a896b86-21e1-421b-b10a-2f32d6659cdf",
+        "table": "messages"
+      }
+    ],
+    "intent": "d2435626-f610-464f-9487-ddff838aa878",
+    "program": {
+      "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+      "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+    },
+    "seq": 273,
+    "state": "committed"
+  },
+  "received": {
+    "conversationId": "d-alice-bob",
+    "edited": false,
+    "id": "3a896b86-21e1-421b-b10a-2f32d6659cdf",
+    "replyTo": null,
+    "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+    "serverTimestamp": 1789226814716,
+    "text": "Custom API demo 3a896b86-21e1-421b-b10a-2f32d6659cdf",
+    "tombstone": false
+  }
+}

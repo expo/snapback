@@ -1,0 +1,47 @@
+[
+  {
+    file: 'evidence/acquisition-1789226390051/u0500-1.json',
+    exact: true,
+    extras: 1
+  },
+  {
+    file: 'evidence/acquisition-1789226390051/u0500-2.json',
+    exact: true,
+    extras: 2
+  },
+  {
+    file: 'evidence/acquisition-1789226390051/u0500-3.json',
+    exact: true,
+    extras: 3
+  },
+  {
+    file: 'evidence/acquisition-1789226894877/u0500-1.json',
+    exact: true,
+    extras: 6
+  },
+  {
+    file: 'evidence/acquisition-1789226894877/u0500-2.json',
+    exact: true,
+    extras: 7
+  },
+  {
+    file: 'evidence/acquisition-1789226894877/u0500-3.json',
+    exact: true,
+    extras: 8
+  },
+  {
+    file: 'evidence/acquisition-1789227775383/u0500-1.json',
+    exact: true,
+    extras: 13
+  },
+  {
+    file: 'evidence/acquisition-1789227775383/u0500-2.json',
+    exact: true,
+    extras: 14
+  },
+  {
+    file: 'evidence/acquisition-1789227775383/u0500-3.json',
+    exact: true,
+    extras: 15
+  }
+]

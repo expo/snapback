@@ -1,0 +1,7 @@
+{
+  "m1": {
+    "pass": false,
+    "receipt": "evidence/m1-suite.json",
+    "outcomeClass": "platform"
+  }
+}

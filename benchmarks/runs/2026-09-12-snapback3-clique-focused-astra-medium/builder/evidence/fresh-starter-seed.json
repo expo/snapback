@@ -1,0 +1,11 @@
+{
+  "start": 1789226870704,
+  "end": 1789226870731,
+  "scope": "starter text projection; public mutations; avatar omitted, six media posts converted",
+  "principals": {},
+  "receipts": [
+    {
+      "error": "SnapbackError: fetch failed"
+    }
+  ]
+}

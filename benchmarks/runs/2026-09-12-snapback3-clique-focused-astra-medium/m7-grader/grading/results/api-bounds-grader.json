@@ -1,0 +1,317 @@
+{
+ "url": "http://127.0.0.1:54901",
+ "checks": [
+  {
+   "id": "setup.group",
+   "expectation": "created group for bounds",
+   "result": "committed",
+   "detail": {
+    "state": "committed",
+    "code": null,
+    "data": {
+     "id": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "kind": "group",
+     "messageCount": 0,
+     "name": "Grader bounds",
+     "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "opId": "4fb75ec9-03b9-4ed2-958f-ce531d9cd46b"
+   }
+  },
+  {
+   "id": "m7-a02.question-200-accepted",
+   "expectation": "committed",
+   "result": "pass",
+   "detail": {
+    "state": "committed",
+    "code": null,
+    "data": {
+     "conversationId": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "edited": false,
+     "id": "4b5c7a9e-befc-40c6-9361-a263d06e22c7",
+     "replyTo": null,
+     "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+     "serverTimestamp": 1789234156289,
+     "text": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+     "tombstone": false,
+     "type": "poll"
+    },
+    "opId": "aee40851-5991-4ccf-8b6a-50ab556d32ef"
+   }
+  },
+  {
+   "id": "m7-a02.question-201-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "threw",
+    "code": "SnapbackError: E_INPUT: polls.create.question exceeds text max 200",
+    "opId": "66304861-94bf-456e-bfcf-583ec401cdc2"
+   }
+  },
+  {
+   "id": "m7-a02.option-51-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "threw",
+    "code": "SnapbackError: E_INPUT: polls.create.optionA exceeds text max 50",
+    "opId": "90654649-f3f6-4f5a-88ae-b1f54d7413f2"
+   }
+  },
+  {
+   "id": "m7-a02.empty-question-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "threw",
+    "code": "SnapbackError: E_INPUT: arg question is shorter than text min 1",
+    "opId": "2f32afa3-fc05-4778-b008-1218e9f77bd0"
+   }
+  },
+  {
+   "id": "m7-a02.one-option-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "threw",
+    "code": "SnapbackError: E_INPUT: arg optionB must be text",
+    "opId": "9f848347-c4fb-420b-bfa1-dba1f914a854"
+   }
+  },
+  {
+   "id": "m7-a02.four-options-accepted",
+   "expectation": "committed",
+   "result": "pass",
+   "detail": {
+    "state": "committed",
+    "code": null,
+    "data": {
+     "conversationId": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "edited": false,
+     "id": "535288a2-203f-4c07-9ae1-950321386477",
+     "replyTo": null,
+     "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+     "serverTimestamp": 1789234156296,
+     "text": "four options",
+     "tombstone": false,
+     "type": "poll"
+    },
+    "opId": "88211129-5fac-48fa-92fc-47a93591e52f"
+   }
+  },
+  {
+   "id": "m7-a02.d-without-c-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "rejected",
+    "code": "BAD_OPTIONS",
+    "data": null,
+    "opId": "9082a32e-7ad3-46cf-a243-0e851d48fd59"
+   }
+  },
+  {
+   "id": "m7-a02.dm-poll-rejected",
+   "expectation": "rejected (group only)",
+   "result": "pass",
+   "detail": {
+    "state": "rejected",
+    "code": "GROUP_ONLY",
+    "data": null,
+    "opId": "89a92760-07b7-4cd9-893f-2f632ca91735"
+   }
+  },
+  {
+   "id": "setup.vote-poll",
+   "expectation": " committed",
+   "result": "committed",
+   "detail": {
+    "state": "committed",
+    "code": null,
+    "data": {
+     "conversationId": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "edited": false,
+     "id": "0a7a16ae-e978-485b-94a4-50775d954d35",
+     "replyTo": null,
+     "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+     "serverTimestamp": 1789234156306,
+     "text": "vote bounds",
+     "tombstone": false,
+     "type": "poll"
+    },
+    "opId": "9b157c2d-aeb3-4ba8-9e07-ce067491bd31"
+   }
+  },
+  {
+   "id": "m7-a04.invalid-option-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "rejected",
+    "code": "BAD_OPTION",
+    "data": null,
+    "opId": "c9fbd7db-5c5d-47ca-aa97-ca6e63d937a8"
+   }
+  },
+  {
+   "id": "m7-a04.unknown-option-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "rejected",
+    "code": "BAD_OPTION",
+    "data": null,
+    "opId": "d399a44d-1f82-4790-bcfb-c66ad558e0b4"
+   }
+  },
+  {
+   "id": "m7-a05.nonmember-vote-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "rejected",
+    "code": "NOT_FOUND",
+    "data": null,
+    "opId": "20f5f1a2-3fa7-482a-a06e-9f9636813aff"
+   }
+  },
+  {
+   "id": "m7-a05.nonmember-read-rejected",
+   "expectation": "rejected/incomplete",
+   "result": "pass",
+   "detail": {
+    "ok": true,
+    "complete": false
+   }
+  },
+  {
+   "id": "m7-a05.nonmember-create-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "rejected",
+    "code": "NOT_MEMBER",
+    "data": null,
+    "opId": "346e989a-58e9-4e31-8506-9d28b9a08cd3"
+   }
+  },
+  {
+   "id": "m7-a05.unauthenticated-rejected",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "status": 401,
+    "body": "{\"error\":{\"code\":\"S3_AUTH\",\"message\":\"Sign in before accessing application data.\"}}"
+   }
+  },
+  {
+   "id": "m7-a03.tally-after-bob-a",
+   "expectation": "a=1",
+   "result": "{\"a\":1,\"b\":0}",
+   "detail": {
+    "a": 1,
+    "b": 0,
+    "c": 0,
+    "d": 0,
+    "mine": null,
+    "poll": {
+     "conversationId": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "id": "0a7a16ae-e978-485b-94a4-50775d954d35",
+     "messageId": "0a7a16ae-e978-485b-94a4-50775d954d35",
+     "optionA": "A",
+     "optionB": "B",
+     "optionC": null,
+     "optionD": null,
+     "question": "vote bounds"
+    }
+   }
+  },
+  {
+   "id": "m7-a03.tally-after-bob-change-b",
+   "expectation": "a=0,b=1",
+   "result": "{\"a\":0,\"b\":1}",
+   "detail": {
+    "a": 0,
+    "b": 1,
+    "c": 0,
+    "d": 0,
+    "mine": null,
+    "poll": {
+     "conversationId": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "id": "0a7a16ae-e978-485b-94a4-50775d954d35",
+     "messageId": "0a7a16ae-e978-485b-94a4-50775d954d35",
+     "optionA": "A",
+     "optionB": "B",
+     "optionC": null,
+     "optionD": null,
+     "question": "vote bounds"
+    }
+   }
+  },
+  {
+   "id": "m7-a06.repeat-same-option-no-increment",
+   "expectation": "a=0,b=1",
+   "result": "{\"a\":0,\"b\":1}",
+   "detail": {
+    "a": 0,
+    "b": 1,
+    "c": 0,
+    "d": 0,
+    "mine": null,
+    "poll": {
+     "conversationId": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "id": "0a7a16ae-e978-485b-94a4-50775d954d35",
+     "messageId": "0a7a16ae-e978-485b-94a4-50775d954d35",
+     "optionA": "A",
+     "optionB": "B",
+     "optionC": null,
+     "optionD": null,
+     "question": "vote bounds"
+    }
+   }
+  },
+  {
+   "id": "m7-a08.count-forward-and-retry",
+   "expectation": "before=3 after=4 afterRetry=4",
+   "result": "pass",
+   "detail": {
+    "s0": {
+     "id": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "kind": "group",
+     "messageCount": 3,
+     "name": "Grader bounds",
+     "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "s1": {
+     "id": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "kind": "group",
+     "messageCount": 4,
+     "name": "Grader bounds",
+     "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "s2": {
+     "id": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+     "kind": "group",
+     "messageCount": 4,
+     "name": "Grader bounds",
+     "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "m1state": "committed",
+    "m2state": "rejected",
+    "m2code": "E_CONSTRAINT"
+   }
+  },
+  {
+   "id": "m7-a07.backfill-rejects-initialized",
+   "expectation": "rejected",
+   "result": "pass",
+   "detail": {
+    "state": "rejected",
+    "code": "ALREADY_MIGRATED",
+    "data": null,
+    "opId": "b7728b7d-6b6f-4d4b-b9c4-80f554507456"
+   }
+  }
+ ]
+}

@@ -1,0 +1,8 @@
+{
+  "recordedEpoch": 1789227146.538,
+  "ownerStartEpoch": 1789225850.716,
+  "readyFileMtimeEpoch": 1789225862.4585466,
+  "elapsedMs": 11742.546630859375,
+  "provenance": "Owner start was logged at spawn; ready endpoint file filesystem mtime is an indirect readiness boundary, not a separately instrumented engine-only seed timer. Includes compile/certification/startup/seed. Loader authoring and JS preparation remain builder work.",
+  "preparationArtifact": "artifacts/fixture/seed-preparation.json"
+}

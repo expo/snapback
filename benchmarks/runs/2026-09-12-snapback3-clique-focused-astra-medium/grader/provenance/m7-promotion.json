@@ -1,0 +1,30 @@
+{
+  "promotedEpoch": 1789232057,
+  "activeLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3",
+  "preservedContinuousLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-continuous-retained",
+  "inputBeforeSha256": "7ed61735abdb869a42b6aa5f6a064a0ac9f6187929cb67f24373759544f59bce",
+  "inputSha256": "648a5dc5dfd782b2ce51d4692d8cad2b520354a49b1b1c5ec3e159f294edd223",
+  "correctedSnapshotPaths": [
+    {
+      "from": "m7-preparation/pre-m7-alice.json",
+      "to": "m7-baseline/pre-m7-alice.json"
+    },
+    {
+      "from": "m7-preparation/pre-m7-bob.json",
+      "to": "m7-baseline/pre-m7-bob.json"
+    },
+    {
+      "from": "m7-preparation/pre-m7-carol.json",
+      "to": "m7-baseline/pre-m7-carol.json"
+    }
+  ],
+  "permissionNormalization": {
+    "entries": 0,
+    "scope": "actor non-dependency files/directories are owner-writable; symlinks and node_modules not traversed; bytes unchanged except input path metadata"
+  },
+  "databaseHashesVerified": true,
+  "baselineHashesVerified": true,
+  "ports54900Through54903Free": true,
+  "prechangeSnapshotUnchanged": true,
+  "migrationRun": false
+}

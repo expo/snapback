@@ -1,0 +1,54 @@
+page 1 distinct first/last id pairs {('mg0001-00001', 'mg0001-00200')} all 200 rows True requests>=1 True
+page 50 distinct first/last id pairs {('mg0001-09801', 'mg0001-10000')} all 200 rows True requests>=1 True
+failures 0 ratio 0.577796468136749
+
+=== storage (grading copies, post-stop builder files) ===
+scale file 113262592 wal 0 page_size 4096 page_count 27652 pages*size 113262592
+    ('rows', 30523392, 113580)
+    ('_commits', 23511040, 21)
+    ('index_entries_lookup', 20717568, 220455)
+    ('index_entries', 18948096, 225067)
+    ('sqlite_autoindex_index_entries_1', 9179136, 220455)
+    ('index_entries_by_row', 6844416, 220455)
+    ('sqlite_autoindex_rows_1', 3264512, 106148)
+    ('_principals', 45056, 1018)
+    ('sqlite_autoindex__principals_1', 24576, 1009)
+    ('_operation_intents', 20480, 21)
+    ('_meta', 20480, 14)
+    ('sqlite_schema', 16384, 49)
+main file 1732608 wal 0 page_size 4096 page_count 423 pages*size 1732608
+    ('_commits', 761856, 782)
+    ('_operation_intents', 368640, 695)
+    ('index_entries_lookup', 102400, 454)
+    ('index_entries', 98304, 476)
+    ('rows', 69632, 181)
+    ('sqlite_autoindex__operation_intents_1', 53248, 607)
+    ('sqlite_autoindex_index_entries_1', 32768, 454)
+    ('index_entries_by_row', 32768, 454)
+    ('_meta', 20480, 14)
+    ('sqlite_schema', 16384, 49)
+    ('sqlite_autoindex_rows_1', 16384, 166)
+    ('_sessions', 12288, 88)
+starter file 512000 wal 0 page_size 4096 page_count 125 pages*size 512000
+    ('_commits', 61440, 91)
+    ('_operation_intents', 57344, 90)
+    ('index_entries_lookup', 53248, 275)
+    ('index_entries', 53248, 286)
+    ('rows', 32768, 88)
+    ('sqlite_autoindex_index_entries_1', 24576, 275)
+    ('index_entries_by_row', 20480, 275)
+    ('sqlite_schema', 16384, 49)
+    ('_meta', 16384, 12)
+    ('sqlite_autoindex_rows_1', 12288, 82)
+    ('sqlite_autoindex__operation_intents_1', 12288, 78)
+    ('sqlite_sequence', 4096, 1)
+
+=== builder storage evidence ===
+evidence/storage-scale.json 17642 {"epoch": 1789228982.107221, "path": "artifacts/scale-app/.snapback3/store.sqlite", "scope": "messaging projection + starter social, with recorded diagnostic mutations; no full-social-scale claim", "inspection": "read-only SQLite; no explicit checkpoint, vacuum or compaction", "files": {"artifacts/scale-app/.snapback3/store.sqlite": 113209344, "artifacts/scale-app/.snapback3/store.sqlite-wal": 112908632, "artifacts/scale-app/.snapback3/store.sqlite-shm": 32768}, "schema": [{"type": "table", "name": "_asset_views", "table": "_asset_views", "sql": "CREATE TABLE _asset_views (\n                asset_id TEXT NOT NULL,\n                principal TEXT NOT NULL,\n                at INTEGER NOT NULL,\n                PRIMARY KEY (asset_id, principal)\n             )", "rows": 0}, {"type": "table", "name": "_assets", "table": "_assets", "sql": "CREATE TABLE _assets (\n                id TEXT PRIM
+
+evidence/storage-main.json 17531 {"epoch": 1789228982.2183867, "path": ".snapback3/store.sqlite", "scope": "messaging projection + starter social, with recorded diagnostic mutations; no full-social-scale claim", "inspection": "read-only SQLite; no explicit checkpoint, vacuum or compaction", "files": {".snapback3/store.sqlite": 1433600, ".snapback3/store.sqlite-wal": 4152992, ".snapback3/store.sqlite-shm": 32768}, "schema": [{"type": "table", "name": "_asset_views", "table": "_asset_views", "sql": "CREATE TABLE _asset_views (\n                asset_id TEXT NOT NULL,\n                principal TEXT NOT NULL,\n                at INTEGER NOT NULL,\n                PRIMARY KEY (asset_id, principal)\n             )", "rows": 0}, {"type": "table", "name": "_assets", "table": "_assets", "sql": "CREATE TABLE _assets (\n                id TEXT PRIMARY KEY,\n                state TEXT NOT NULL CHECK(state IN ('receiving', 'ready',
+
+evidence/storage-starter.json 17475 {"epoch": 1789228982.2419264, "path": "artifacts/starter-app/.snapback3/store.sqlite", "scope": "messaging projection + starter social, with recorded diagnostic mutations; no full-social-scale claim", "inspection": "read-only SQLite; no explicit checkpoint, vacuum or compaction", "files": {"artifacts/starter-app/.snapback3/store.sqlite": 487424, "artifacts/starter-app/.snapback3/store.sqlite-wal": 4144752, "artifacts/starter-app/.snapback3/store.sqlite-shm": 32768}, "schema": [{"type": "table", "name": "_asset_views", "table": "_asset_views", "sql": "CREATE TABLE _asset_views (\n                asset_id TEXT NOT NULL,\n                principal TEXT NOT NULL,\n                at INTEGER NOT NULL,\n                PRIMARY KEY (asset_id, principal)\n             )", "rows": 0}, {"type": "table", "name": "_assets", "table": "_assets", "sql": "CREATE TABLE _assets (\n                id TEXT 
+
+evidence/storage-before-stop.json 521 {"epoch": 1789228707446, "files": [{"path": ".snapback3/store.sqlite", "bytes": 1433600}, {"path": ".snapback3/store.sqlite-wal", "bytes": 4152992}, {"path": ".snapback3/store.sqlite-shm", "bytes": 32768}, {"path": "artifacts/scale-app/.snapback3/store.sqlite", "bytes": 113209344}, {"path": "artifacts/scale-app/.snapback3/store.sqlite-wal", "bytes": 112908632}, {"path": "artifacts/starter-app/.snapback3/store.sqlite", "bytes": 487424}, {"path": "artifacts/starter-app/.snapback3/store.sqlite-wal", "bytes": 4144752}]}
+

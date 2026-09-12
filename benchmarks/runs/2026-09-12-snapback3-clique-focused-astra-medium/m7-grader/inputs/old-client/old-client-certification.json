@@ -1,0 +1,71 @@
+{
+  "at": 1789230880467,
+  "scope": "Read-only certification of original durable operation in its closed persistent profile; no new send",
+  "originalOperationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+  "profile": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare/m7-preparation/old-client-profile",
+  "origin": "http://127.0.0.1:54910",
+  "controllerPid": 1632422,
+  "playwright": "1.62.1",
+  "offlineContext": true,
+  "browserProcesses": [
+    "1632434 1632422 /home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --user-data-dir=/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare/m7-preparation/old-client-profile --remote-debugging-pipe about:blank"
+  ],
+  "observation": {
+    "network": {
+      "failed": true,
+      "error": "TypeError: Failed to fetch"
+    },
+    "navigatorOnline": true,
+    "pending": {
+      "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+      "op": "messages.send",
+      "args": {
+        "conversationId": "d-alice-bob",
+        "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+        "replyTo": null,
+        "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+      },
+      "status": "queued"
+    },
+    "historyIds": [
+      "sm0001",
+      "sm0002",
+      "sm0003",
+      "sm0004",
+      "sm0005",
+      "sm0006"
+    ],
+    "journal": {
+      "keys": [
+        "id",
+        "principal",
+        "body",
+        "status",
+        "createdAt"
+      ],
+      "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+      "status": "queued"
+    }
+  },
+  "failedApiRequests": [
+    {
+      "path": "/api/manifest",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "path": "/api/read",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "path": "/api/health",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "path": "/api/read",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    }
+  ],
+  "remainingMatchingProcesses": [],
+  "status": "ready-offline-not-reconnected",
+  "finishedAt": 1789230880892
+}

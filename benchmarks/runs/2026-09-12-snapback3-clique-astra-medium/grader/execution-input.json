@@ -1,0 +1,21 @@
+{
+  "schema": "snapback3-clique-execution-input.v1",
+  "sourceRunRecordSha256": "d9cfd685b91f241486feadde63c1b6ce2dd69235e47dbc3d9ae11136408024a2",
+  "builderExit": 0,
+  "startedEpoch": 1789222650,
+  "endedEpoch": 1789223595,
+  "m1": {
+    "milestone": "m1",
+    "start": 1789222660,
+    "end": 1789223246,
+    "status": "aborted",
+    "reason": "Pre-cap stop: confirmed unavailable platform media capability prevents mandatory M1 avatar upload; no permitted replacement backend. All remaining continuous milestones depend transitively on M1.",
+    "firstGreenAt": null,
+    "failedPrerequisites": [],
+    "capExhausted": false
+  },
+  "remainingContinuous": "blocked-by-M1",
+  "m7": "not-run; M6 prerequisite not green",
+  "narrativesAndAssessmentExcluded": true,
+  "runRecordExcluded": "Contains builder notes/narrative pointers; grade from preserved execution receipts and this factual input."
+}

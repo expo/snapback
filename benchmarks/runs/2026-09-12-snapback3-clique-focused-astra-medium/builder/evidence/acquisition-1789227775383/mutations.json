@@ -1,0 +1,32 @@
+[
+  {
+    "actor": "u0500",
+    "id": "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+    "conversationId": "g0001"
+  },
+  {
+    "actor": "u0500",
+    "id": "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+    "conversationId": "g0001"
+  },
+  {
+    "actor": "u0500",
+    "id": "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+    "conversationId": "g0001"
+  },
+  {
+    "actor": "u0001",
+    "id": "21fac831-0f93-49e1-a879-03f1c97beb31",
+    "conversationId": "g0001"
+  },
+  {
+    "actor": "u0001",
+    "id": "b297ceab-e581-4784-b082-1143f6884295",
+    "conversationId": "g0001"
+  },
+  {
+    "actor": "u0001",
+    "id": "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+    "conversationId": "g0001"
+  }
+]

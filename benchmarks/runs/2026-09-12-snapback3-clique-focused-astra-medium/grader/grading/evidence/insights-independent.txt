@@ -1,0 +1,13 @@
+===== main alice user:5ocYUJT7yml-j2a-NgjSvA
+postEntities 4 ['sp0001', 'sp0002', 'sp0003', 'sr0003'] topLevel 3 ['sp0001', 'sp0002', 'sp0003'] replies ['sr0003']
+likesReceived 3 [('sp0001', 20708), ('sp0001', 20708), ('sp0002', 20708)]
+repostsReceived 1 repliesReceived 1 ['sr0001'] followers 4 following 2
+post days {20708: 4} like days {20708: 3}
+min/max post serverTimestamp 1789225568567 1789225568658
+===== starter alice user:yPESCpaBcw5cjFZxlVklwQ
+postEntities 4 ['sp0001', 'sp0002', 'sp0003', 'sr0003'] topLevel 3 ['sp0001', 'sp0002', 'sp0003'] replies ['sr0003']
+likesReceived 2 [('sp0001', 20708), ('sp0001', 20708)]
+repostsReceived 1 repliesReceived 1 ['sr0001'] followers 4 following 2
+post days {20708: 4} like days {20708: 2}
+min/max post serverTimestamp 1789226888144 1789226888231
+todayEpochDay 20708

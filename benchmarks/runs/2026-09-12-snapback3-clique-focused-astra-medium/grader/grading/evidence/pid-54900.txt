@@ -1,0 +1,17 @@
+node:fs:559
+  return binding.open(
+                 ^
+
+Error: EACCES: permission denied, open 'evidence/server-54900.log'
+    at Object.openSync (node:fs:559:18)
+    at file:///home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-grade/scripts/start-owned.mjs:5:14
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -13,
+  code: 'EACCES',
+  syscall: 'open',
+  path: 'evidence/server-54900.log'
+}
+
+Node.js v24.13.1

@@ -1,0 +1,50 @@
+{
+  "httpAlice": {
+    "loginStatus": 200,
+    "hasToken": true,
+    "inboxStatus": 200,
+    "inboxKeys": [
+      "authority",
+      "data",
+      "generation",
+      "next",
+      "planHash",
+      "protocol",
+      "receipt",
+      "rows",
+      "schemaHash",
+      "seq",
+      "state",
+      "validator"
+    ],
+    "conversations": [
+      "d-alice-bob",
+      "g-starter"
+    ],
+    "dmPages": [
+      {
+        "c": null,
+        "count": 92,
+        "next": null
+      }
+    ],
+    "dmMessageIds": 92,
+    "dmUnique": 1,
+    "starterIdsPresent": false
+  },
+  "sdkScale": {
+    "conversationPages": 2,
+    "conversationCount": 100,
+    "uniqueConversations": 100,
+    "messagePages": 51,
+    "pageSizes": [
+      200,
+      19
+    ],
+    "messageIds": 10019,
+    "unique": 10019,
+    "duplicates": 0,
+    "missingFixture": 0,
+    "extra": 19
+  }
+}

@@ -1,0 +1,9 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_UNSUPPORTED snapback/conversations.q:8:98: where is not part of the Snapback 2 platform
+-- use an index whose prefix pins the predicate, a table invariant (after insert <- exists ...), or merge for a fan-in feed
+
+E_QUARRY_UNSUPPORTED snapback/conversations.q:9:96: where is not part of the Snapback 2 platform
+-- use an index whose prefix pins the predicate, a table invariant (after insert <- exists ...), or merge for a fan-in feed

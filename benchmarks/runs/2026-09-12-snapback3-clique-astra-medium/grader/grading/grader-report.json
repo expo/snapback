@@ -1,0 +1,752 @@
+{
+  "reportVersion": 1,
+  "lane": {
+    "backend": "snapback3-0.0.1-experimental.0",
+    "runRecordPath": "execution-input.json (original run-record.json excluded from the grading copy; sourceRunRecordSha256 d9cfd685b91f241486feadde63c1b6ce2dd69235e47dbc3d9ae11136408024a2)",
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "snapback3-clique-20260912",
+    "probeSetSha256": "none-uncommitted"
+  },
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5",
+    "sameFamilyGraded": false,
+    "calibrationPassed": false,
+    "sessionOutcome": "completed",
+    "rerunsUsed": 1,
+    "contaminated": false
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase3-m1-web | grading/probe-m1-web.json m1-a01; grading/shot-01-postsignup.png"
+    },
+    "m1-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase3-m1-web | grading/probe-m1-web.json m1-a02 (auth form gone, profile-completion form visible)"
+    },
+    "m1-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase3-m1-web | grading/probe-m1-web.json m1-a03; grading/shot-03-duphandle.png (visible error \"E_CONSTRAINT: sealed unique conflict on profiles.byHandle\")",
+      "note": "The app takes the handle in the mandatory post-signup profile step, not on the signup form; the observable (duplicate handle rejected with a visible error) is genuinely enforced server-side by snapback/schema.q unique byHandle. Precondition: an existing persona handle, which only exists after the explicitly nonconforming `--diagnostic-text-only` seed."
+    },
+    "m1-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase3-m1-web | grading/probe-m1-web.json m1-a04; grading/shot-05-dupemail.png (visible error \"E_AUTH_EMAIL_TAKEN\")"
+    },
+    "m1-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase3-choreo | grading/choreo-graderrun1..7.jsonl assertion \"session-persists-on-relaunch\" passed in 7/7 grader harness runs"
+    },
+    "m1-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase3-choreo | grading/choreo-graderrun3,6,7.jsonl assertion \"logout-remains-signed-out-on-relaunch\" passed; runs 1,2,4,5 failed",
+      "note": "Intermittent: passed in 3 of 7 grader harness runs (and in the lane receipt). Failures only occurred on back-to-back harness invocations; after a ~2 min quiescence the segment reproduced green. Scored pass on the reproducible clean-condition behaviour; the intermittency is filed as defect d-01."
+    },
+    "m1-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase3-api | grading/probe-m1a07.json (query 200 before logout, 401 E_AUTH_SESSION after logout with the same bearer token)"
+    },
+    "m1-a08": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase3-m1-web | grading/probe-m1-web.json m1-a08 (display name and bio present after save and after reload); grading/shot-04-profile.png"
+    },
+    "m1-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "bestOf3Ms": [
+        101,
+        97.4,
+        87.2
+      ],
+      "evidence": "trace.md#phase3-choreo | grading/choreo-graderrun7.jsonl assertion \"profile-edit-live-visibility\" 3/3 attempts passed; other client observed the new display name and bio without manual refresh"
+    },
+    "m1-a10": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#phase3-media | grading/probe-m1-web.json avatarProbe (0 file inputs; avatar control shows \"Avatar upload is unavailable: this Snapback 3 runtime does not support media.\"); grading/probe-media independent `snapback3 check` returns S3_CAPABILITY_UNAVAILABLE for an `image` column",
+      "note": "Independently confirmed platform limit: the installed snapback3@0.0.1-experimental.0 runtime slice refuses media columns. The assertion is still not passed."
+    },
+    "m1-a11": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#phase3-media | grading/probe-m1-web.json m1-a11probe (0 <img> elements on the profile; initials placeholder only); grading/shot-04-profile.png"
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "trace.md#phase3-source | snapback/schema.q line 1 `use identity password` (built-in auth); node_modules/snapback3/dist/native/linux-x64/snapback3-worker contains argon2-0.5.3 and the credential template `$argon2id$v=19$m=19456,t=2,p=1`"
+    },
+    "m1-a13": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "trace.md#phase3-source | no fixture password byte-string found in .snapback3/store.sqlite(+wal), dist web bundle, or lane logs; 39 argon2id hash records found in persistence"
+    },
+    "m2-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a02": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a08": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a10": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a11": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a12": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a13": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a14": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a15": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a16": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a17": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a18": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a19": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a20": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a21": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a22": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a23": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a24": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a25": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a26": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m2-a27": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m2` exits 1 with \"m2: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m2` exits 1 with \"blocked-by-M1; no segment installed\"; no M2 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a05": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a08": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a09": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a10": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a11": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a12": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a13": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a14": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m3-a15": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m3` exits 1 with \"m3: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m3` exits 1 with \"blocked-by-M1; no segment installed\"; no M3 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a07": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a08": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a10": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a11": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m4-a12": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m4` exits 1 with \"m4: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m4` exits 1 with \"blocked-by-M1; no segment installed\"; no M4 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a01": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a02": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a03": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a05": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a06": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a08": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a10": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a11": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m5-a12": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m5` exits 1 with \"m5: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m5` exits 1 with \"blocked-by-M1; no segment installed\"; no M5 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a08": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a10": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a11": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a12": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m6-a13": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m6` exits 1 with \"m6: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m6` exits 1 with \"blocked-by-M1; no segment installed\"; no M6 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "suiteResult": null,
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m7` exits 1 with \"m7: blocked-by-M1; no passing assertions claimed\"; `npm run seed -- --segment m7` exits 1 with \"blocked-by-M1; no segment installed\"; no M7 surface, coverage entry, or choreography receipt exists in the lane"
+    },
+    "m7-a09": {
+      "result": "not-applicable",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace.md#phase1-blocked | no milestone was ever green (M1 aborted, M2-M8 never attempted), so the conditional regression assertion has no subject",
+      "note": "Run-scope-conditional per the report schema: not-applicable where no milestone was previously green."
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "honest",
+    "sampledAssertionIds": [
+      "m1-a01",
+      "m1-a02",
+      "m1-a03",
+      "m1-a04",
+      "m1-a08",
+      "m1-a10",
+      "m1-a11"
+    ],
+    "dishonestMilestones": [],
+    "detail": "All seven M1 suite-required mappings in evidence/m1-coverage.json were sampled (the manifest covers exactly the seven suite-required M1 IDs and no others). scripts/acceptance.mjs derives the required-ID list from the frozen instrument/schema/social-messenger/assertions.json and asserts the coverage keys equal it, so the manifest cannot silently under-declare. I re-executed the five mapped passing observables independently with my own Playwright script and reproduced every one (grading/probe-m1-web.json), and I reproduced the builder suite verbatim (grading/acceptance-run2.log): a01,a02,a03,a04,a08 pass, a10,a11 fail. No mapping claims a pass the observable does not support. Two honesty notes that do not rise to dishonest: (1) the m1-a10/m1-a11 \"tests\" are constant fail records pushed by scripts/acceptance.mjs rather than executed avatar attempts - they declare failure, so no green is bought by them, and I confirmed the underlying platform limit myself; (2) m1-a03 maps to duplicate-handle rejection at the mandatory post-signup profile step rather than on the signup form, which is where this app takes the handle, and it depends on a persona handle existing from the explicitly nonconforming --diagnostic-text-only seed. M2-M8 produced no suite pass to verify."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "major",
+      "milestone": "M1",
+      "summary": "Log out can silently do nothing: the Settings log-out handler is `await client.auth.logout(); router.replace('/')` with no try/catch and no error surface, so any failure of the logout call leaves the user on the Settings screen with no feedback. The lane's own choreography assertion \"logout-remains-signed-out-on-relaunch\" failed in 4 of 7 grader harness runs (runs 1,2,4,5), always on back-to-back invocations; it reproduced green after a ~2 minute quiescence (runs 3,6,7).",
+      "evidence": "grading/choreo-graderrun1.jsonl..choreo-graderrun7.jsonl (STRUCTURED CHOREOGRAPHY MISS: locator.waitFor timeout 10000ms waiting for sm-auth-email after clicking sm-settings-logout); source: src/screens.tsx, `export function Settings(...)` log-out onPress handler",
+      "relatedAssertionIds": [
+        "m1-a06"
+      ]
+    },
+    {
+      "id": "d-02",
+      "severity": "major",
+      "milestone": "M1",
+      "summary": "The documented setup sequence is not reproducible as written: the backend rate-limits authentication to ~4 attempts per rolling minute, and running `npm run seed -- --segment m1 --diagnostic-text-only` immediately followed by `npm run acceptance -- --milestone m1` (the order README.md gives) makes all five otherwise-passing M1 assertions fail. Neither scripts/seed.mjs nor scripts/acceptance.mjs retries or backs off, and the seed aborted twice with \"Too many authentication attempts. Wait a minute and try again.\" before a third attempt succeeded.",
+      "evidence": "grading/acceptance-run1.log (a01-a04,a08 all time out; grading/acceptance-run1.png shows the app still on the sign-in screen), grading/seed-retry.log, grading/probe-ratelimit.mjs output (HTTP 429 on the 5th /api/auth/login within a minute), grading/acceptance-run2.log (identical command passes after a cooldown)",
+      "relatedAssertionIds": [
+        "m1-a01",
+        "m1-a02",
+        "m1-a03",
+        "m1-a04",
+        "m1-a08"
+      ]
+    },
+    {
+      "id": "d-03",
+      "severity": "minor",
+      "milestone": "M1",
+      "summary": "Raw backend error identifiers are shown to end users instead of human-readable messages, e.g. \"Error: E_CONSTRAINT: sealed unique conflict on profiles.byHandle\" for a taken handle and \"SnapbackError: E_AUTH_EMAIL_TAKEN: email is already registered\" for a taken e-mail.",
+      "evidence": "grading/probe-m1-web.json (m1-a03.visibleError, m1-a04.visibleError); grading/shot-03-duphandle.png, grading/shot-05-dupemail.png; source: src/screens.tsx Auth/Editor `setError(String(e))`",
+      "relatedAssertionIds": [
+        "m1-a03",
+        "m1-a04"
+      ]
+    },
+    {
+      "id": "d-04",
+      "severity": "minor",
+      "milestone": "M1",
+      "summary": "Dead UI affordances present real-looking but inert controls: the home screen renders Following/Global/Trending tabs wired to `onChange={()=>{}}` (clicking changes nothing), and another user's profile renders a Follow button wired to `onPressFollow={()=>{}}` with hard-coded \"0 Followers / 0 Following\" counts that are literals, not data.",
+      "evidence": "grading/probe-home.json (tabClickChangedAnything:false, followButtonPresent:true, followerCount \"0 Followers\"); grading/shot-home.png, grading/shot-otherprofile.png; source: src/screens.tsx Home (`<FeedTabs active=\"following\" onChange={()=>{}}/>`) and Profile (`followerCount:0,followingCount:0`, `onPressFollow={()=>{}}`)",
+      "relatedAssertionIds": []
+    },
+    {
+      "id": "d-05",
+      "severity": "minor",
+      "milestone": "M1",
+      "summary": "The two failing M1 assertions are recorded by constant rather than by execution: scripts/acceptance.mjs pushes hard-coded `{pass:false,outcomeClass:\"platform\",error:\"S3_CAPABILITY_UNAVAILABLE...\"}` records for m1-a10/m1-a11, and scripts/seed.mjs throws a lane-authored S3_CAPABILITY_UNAVAILABLE string for `profile-set` before calling the backend. The conclusion is correct - I reproduced the runtime refusal independently - but the receipts' error text is lane-authored, not backend-returned, so the receipts do not by themselves evidence the platform limit they assert.",
+      "evidence": "source: scripts/acceptance.mjs (`for(const id of ['m1-a10','m1-a11'])results.push(...)`), scripts/seed.mjs (`if(!diagnostic)throw Error('S3_CAPABILITY_UNAVAILABLE: profile-set requires avatar media...')`); independent confirmation in grading/probe-media (snapback3 check on a schema with an `image` column returns S3_CAPABILITY_UNAVAILABLE)",
+      "relatedAssertionIds": [
+        "m1-a10",
+        "m1-a11"
+      ]
+    },
+    {
+      "id": "d-06",
+      "severity": "minor",
+      "milestone": null,
+      "summary": "The lane's retained record-validation receipt shows the run record does not satisfy the frozen composed run-record schema: typingObservationBoundaryVersion, orientation, observabilityProtocol, efficiencyScorecardEligibility, suiteStatusLinkage and meteringProvenance are all missing. The receipt attributes this to the absent grading session, but most of those fields do not depend on a grading session.",
+      "evidence": "evidence/record-validation.json (composedPass:false, eight composedErrors). The run record itself was excluded from the grading copy, so this is reported from the retained receipt only.",
+      "relatedAssertionIds": []
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": {
+      "score": 10,
+      "anchorsCited": "Brief O1 anchors: '30: core features partially work; several checklist items fail. 60: M1-M4 solid, later milestones patchy or failed on cap. 90: every in-scope milestone green, including platform-proof artifacts.' Scored below the 30 anchor. applicability.json O1 rule: every milestone of the run's scope stays in the denominator; non-green milestones score their checklists as not passed.",
+      "justification": "Full-run scope, so the denominator is all 119 frozen assertions (M1-M8). 11 pass, all of them in M1 (m1-a01..a09, a12, a13); m1-a10/a11 fail because the installed runtime refuses media columns, which I confirmed independently. M2-M8 contribute 0 of 106: `npm run acceptance -- --milestone m2..m8` exits 1 with blocked-by-M1, `npm run seed` refuses every later segment, scripts/custom-client-demo.mjs does not exist, there is no scale-replay adapter, and no M2-M8 coverage entry or choreography receipt exists. That is 11/119 = 9.2%. The 30 anchor's 'core features partially work' overstates this lane: the core features of a social messenger (posts, feeds, messaging) do not exist at all, and the built surface is one account/profile screen set whose avatar half fails. Credit above zero is warranted because M1's account, session, profile-edit, live two-client profile visibility, server-side revocation and password-storage obligations all genuinely pass under independent execution."
+    },
+    "O2": {
+      "score": 45,
+      "anchorsCited": "Brief O2 anchors: '30: multiple high-severity defects in core flows. 60: a few medium defects off the happy path. 90: only cosmetic nits.' Interpolated between the 30 and 60 anchors.",
+      "justification": "Two major defects and four minor ones beyond the checklist (see the defect list). d-01 is in a core flow - logging out can silently do nothing because the handler has no error path - and reproduced as a failure in 4 of 7 runs of the lane's own harness. d-02 makes the documented setup sequence non-reproducible: following README.md's own order, every otherwise-passing M1 assertion failed until a rate-limit cooldown. Those two are not quite 'multiple high-severity defects in core flows' (nothing crashed, no wrong data was served, and both reproduce green under clean conditions), but they are more than 'a few medium defects off the happy path'. The remaining findings are user-facing polish (raw error identifiers, inert tabs and Follow button with literal 0 counts) and receipt-quality issues (constant-valued failure records, non-conforming run record). Placement is tempered in both directions: the graded surface is one screen set, so there was little territory in which to find defects."
+    },
+    "O3": null,
+    "O4": null,
+    "O5": null
+  },
+  "timingRecords": [
+    {
+      "subject": "m1-a09",
+      "measurementsMs": [
+        101,
+        97.4,
+        87.2
+      ],
+      "bestMs": 87.2,
+      "boundMs": null,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "grading/trace.md",
+  "notes": "Wave-level deviations recorded by the run wrapper, not by the frozen protocol. (1) No holdout probe set was committed for this wave, so execution-order phase 4 was skipped, wave.probeSetSha256 is the sentinel string 'none-uncommitted', and probeResults is deliberately empty; no probes were invented. O3's applicability predicate (M6 green plus M1-M5 attempted) fails here anyway, so the missing probe set does not change O3's null. (2) The grading family has not passed the calibration gate, so grader.calibrationPassed is false and this grade is labelled uncalibrated-grader; sameFamilyGraded is false. (3) Timing-sensitive checks were judged best-of-3 with host load recorded beside each measurement in trace.md (`uptime` load average 0.27-1.70 across the session; the machine is shared). SCHEMA SPLIT: the frozen assertions.json contains 119 assertions (its own README says 116 and its counts block omits three M2 assertions; M2 actually carries 27). The frozen grader-report schema's assertionResults key pattern admits only ^m[1-7]-a[0-9]{2}$, so the 18 M8 assertions cannot be expressed here and are recorded, with identical status and evidence, in grading/m8-supplement.json. All 18 are not-run. O1's denominator above is the full 119 including M8; nothing was dropped. NO WEIGHTED TOTAL is computed or reported (three of five O-dimensions are null, and the frozen prompt forbids totals, efficiency statistics and cross-lane comparison in any case). O3 is null because M6 is not green and no holdout probes exist. O4 is null because M6 is not green; separately, Apple native simulator proof is unavailable on this Ubuntu x86_64 host, artifacts/native-status.json records m6/m8 simulator status as unavailable/not-run, and the lane's artifacts/m1-ios Expo/Hermes export is explicitly not accepted as native proof. O5 is null because the scale replay was never attempted: no adapter exists (m6-a13 not built), so applicability.json's replay-attempted predicate is unmet. Cap enforcement was prompt-only and native usage is unjoined, so no efficiency or comparative-win claim is available or made. execution-input.json records M1 aborted (pre-cap, platform media capability), all remaining continuous milestones blocked-by-M1, and M7 not-run; I found nothing contradicting that."
+}

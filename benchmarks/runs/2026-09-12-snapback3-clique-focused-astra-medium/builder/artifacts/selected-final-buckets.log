@@ -1,0 +1,93 @@
+m6-a01,m6-a03,m8-a17 locator.waitFor: Timeout 12000ms exceeded.
+Call log:
+[2m  - waiting for getByTestId('history-status').filter({ hasText: 'History ready' }) to be visible[22m
+
+m6-a07,m8-a16,m8-a18 expect(received).toHaveLength(expected)
+
+Expected length: 2
+Received length: 1
+Received array:  [{"ids": ["68b3cbf9-bb0c-4f00-96bb-ad3b9f73d413", "817e2929-afc4-4bc1-aed3-0bdcdfed7f75"], "reopen": false}]
+[
+  {
+    "id": "m3-a01",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a13",
+    "status": "pass"
+  },
+  {
+    "id": "membership-authorization",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a14",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a01",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a03",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a04",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a02",
+    "status": "pass"
+  },
+  {
+    "id": "s3-resource-independence-denied",
+    "status": "pass"
+  },
+  {
+    "id": "stale-account-and-rapid-navigation",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a05",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a06",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a15",
+    "status": "pass"
+  },
+  {
+    "id": "m6-a01",
+    "status": "fail",
+    "error": "TimeoutError: locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('history-status').filter({ hasText: 'History ready' }) to be visible\u001b[22m\n"
+  },
+  {
+    "id": "m6-a03",
+    "status": "fail",
+    "error": "TimeoutError: locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('history-status').filter({ hasText: 'History ready' }) to be visible\u001b[22m\n"
+  },
+  {
+    "id": "m8-a17",
+    "status": "fail",
+    "error": "TimeoutError: locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('history-status').filter({ hasText: 'History ready' }) to be visible\u001b[22m\n"
+  },
+  {
+    "id": "m6-a07",
+    "status": "fail",
+    "error": "Error: expect(received).toHaveLength(expected)\n\nExpected length: 2\nReceived length: 1\nReceived array:  [{\"ids\": [\"68b3cbf9-bb0c-4f00-96bb-ad3b9f73d413\", \"817e2929-afc4-4bc1-aed3-0bdcdfed7f75\"], \"reopen\": false}]"
+  },
+  {
+    "id": "m8-a16",
+    "status": "fail",
+    "error": "Error: expect(received).toHaveLength(expected)\n\nExpected length: 2\nReceived length: 1\nReceived array:  [{\"ids\": [\"68b3cbf9-bb0c-4f00-96bb-ad3b9f73d413\", \"817e2929-afc4-4bc1-aed3-0bdcdfed7f75\"], \"reopen\": false}]"
+  },
+  {
+    "id": "m8-a18",
+    "status": "fail",
+    "error": "Error: expect(received).toHaveLength(expected)\n\nExpected length: 2\nReceived length: 1\nReceived array:  [{\"ids\": [\"68b3cbf9-bb0c-4f00-96bb-ad3b9f73d413\", \"817e2929-afc4-4bc1-aed3-0bdcdfed7f75\"], \"reopen\": false}]"
+  }
+]

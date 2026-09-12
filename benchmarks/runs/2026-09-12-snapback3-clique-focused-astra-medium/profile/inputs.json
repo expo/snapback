@@ -1,0 +1,198 @@
+{
+  "sourceManifestSha256": "0c7209793b26dc00f634e57c7eeb2c57e4685a587322e8be94486357239605b3",
+  "assetSupplementManifestSha256": "aa1e0a0432602df18a63e90689d99022434957378e5f42bba05cc07e9efaea09",
+  "seedSha256": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2",
+  "fixedPackageSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+  "fixedPackageVerifiedFiles": 108,
+  "dependenciesCopiedFrom": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-grade/node_modules",
+  "packageLockSha256": "6ef4c3f3db4ed656e421d20b8318eb590227ac7490fb648524f4b1bb6d140355",
+  "files": [
+    {
+      "path": "app/_layout.tsx",
+      "bytes": 339,
+      "sha256": "e89f7869515aa9214d7daa0e0af465567c309bc2e5cb08a40b560af36e1a5c47"
+    },
+    {
+      "path": "app/index.tsx",
+      "bytes": 133,
+      "sha256": "fe67a8f6dcc3f8266bfe33bf383f792771a8d42fd2742980e066a3335fdc6424"
+    },
+    {
+      "path": "app/profile/[handle].tsx",
+      "bytes": 270,
+      "sha256": "4bb9ac38aaff46bd139d6e3d21cd64cfd514a9d8930064c43b6566f5cf72d19a"
+    },
+    {
+      "path": "app/profile/edit.tsx",
+      "bytes": 139,
+      "sha256": "ba07b912339a96bb0c860452deecca2fcd56bab2900a0361305ffef0fbe6dd9f"
+    },
+    {
+      "path": "app/settings.tsx",
+      "bytes": 149,
+      "sha256": "aa112eecba1a84de559892534a9606e186a19489e5b46442a988c91202b6fc26"
+    },
+    {
+      "path": "src/acquire.ts",
+      "bytes": 2876,
+      "sha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4"
+    },
+    {
+      "path": "src/chat.tsx",
+      "bytes": 7908,
+      "sha256": "e9d8d1b9543b2546637a2f3a5007af1730b7a267528dde836fb24a76c26dd4cb"
+    },
+    {
+      "path": "src/client.tsx",
+      "bytes": 1482,
+      "sha256": "85d46218c7624043ad592df92c90abf1923df2bf6674379c42cec32d434098d6"
+    },
+    {
+      "path": "src/screens.tsx",
+      "bytes": 4024,
+      "sha256": "b91273365e9d2843b5dc64c18db24638869f7bd2212f61a4b9bbf71cc604b1d4"
+    },
+    {
+      "path": "snapback/conversations.q",
+      "bytes": 1207,
+      "sha256": "e79c85672489da38a994ae4fc1a370216191599f7cbcb683df145ed7873cedc2"
+    },
+    {
+      "path": "snapback/messages.q",
+      "bytes": 2868,
+      "sha256": "5f7a71a6fbcf9910d9641cc38232b046f9dd38faf95b9fcdf70d6a59372fa8c2"
+    },
+    {
+      "path": "snapback/profiles.q",
+      "bytes": 436,
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685"
+    },
+    {
+      "path": "snapback/schema.q",
+      "bytes": 3577,
+      "sha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017"
+    },
+    {
+      "path": "snapback/seed.ts",
+      "bytes": 19296652,
+      "sha256": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2"
+    },
+    {
+      "path": "snapback/social.q",
+      "bytes": 2465,
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15"
+    },
+    {
+      "path": "dist/_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js",
+      "bytes": 1352985,
+      "sha256": "593a46784348afe0435a00760401f2b7a1a17280ed14d0b9262c1f673ee4ba29"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png",
+      "bytes": 9456,
+      "sha256": "6deca32b56b97fa1fa87facd6996b46cc45190a553400e7febdf1d2093099b57"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png",
+      "bytes": 469,
+      "sha256": "c15ec72a74d13957211808313d5c35deb7f7606c6d22dbddceb0000d4e0547ad"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png",
+      "bytes": 138,
+      "sha256": "a69a2edb5b6c60b8433d5b6d23c69f520ccd8a602f3f60e7996e489718bc175c"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png",
+      "bytes": 188,
+      "sha256": "708a79cf561b8a2a4850ce0254584d3a5231046be08fb7fadf4b6edfdb31178b"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png",
+      "bytes": 364,
+      "sha256": "27f4d229d440925bf7212d5dfffa45d596b2c7b3bb2905c96b839b2081a1dbeb"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png",
+      "bytes": 653,
+      "sha256": "9adb8c5efca932e2b732b293da813bd2e31952263056bce9e2517fec0f0b6a76"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png",
+      "bytes": 207,
+      "sha256": "84cf5eb3b20250f69e0e4733beb4da5f417f0682892a5ad1b5e62570753c21b1"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png",
+      "bytes": 220,
+      "sha256": "d03a5cd7a66ef10c5147916f9d5878b2d0a0a5ad46f405a31cd9967efaa55afd"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@2x.png",
+      "bytes": 334,
+      "sha256": "ab5613d2ce70fa67c5926e831353664945199fc195fa6fe76c5fe3cec452e31a"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@3x.png",
+      "bytes": 502,
+      "sha256": "c4e54e6a0a7de636aa153378fbc62ea4a41695bfedf807f90df7b18ffd733f67"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@4x.png",
+      "bytes": 645,
+      "sha256": "c86bb485eee687e06c500fc4234f51a6784b4530c2ae11d0c76481110bce3105"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png",
+      "bytes": 141,
+      "sha256": "b1bc1810ca23e2c38cd76971c43591d726161061240d8b792b05757196ddb528"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@2x.png",
+      "bytes": 201,
+      "sha256": "cbdf9213e55f65c48d076acd8423b7c9aee4f1b81101ff6c95a38c4cd8a86461"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@3x.png",
+      "bytes": 266,
+      "sha256": "d05c9d30d79f45a78e5585a2e7ec67c6a06a883dd9137e1d5059e8c87b33ce76"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@4x.png",
+      "bytes": 332,
+      "sha256": "2325c53a73e54c438cbbc60dffdd8b513d471ba42e2f56713ef404b95e0ca1fc"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png",
+      "bytes": 928,
+      "sha256": "5d075e0c287c4f4441b5b5c8fc7ea5cd27c11bb617ecea09755955bcb1889083"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png",
+      "bytes": 465,
+      "sha256": "acf691957a3bcce7d195856dce98a5cf14dce10bea28aa5c10b3550c078e23b5"
+    },
+    {
+      "path": "dist/assets/node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png",
+      "bytes": 4752,
+      "sha256": "efc79da3c4c97dfb1571bff6202958ab0529c5aa31e8392600578b3e359d1447"
+    },
+    {
+      "path": "dist/index.html",
+      "bytes": 1173,
+      "sha256": "63c1d0db3319de77f0552bf654803dcb6b3793a2857119fcf0ac195c9f618cbf"
+    },
+    {
+      "path": "dist/metadata.json",
+      "bytes": 49,
+      "sha256": "aa5f19cc84d41c0f8c70ececb2bc82e863227ea1e121632aca879eb616056991"
+    },
+    {
+      "path": "dist/sw.js",
+      "bytes": 2558,
+      "sha256": "88f8360236163c25726bff5a3c889f9c980d0f199dc8e40c98f17f686dc448a3"
+    }
+  ],
+  "expectedIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+  "expectedIds": 10000
+}

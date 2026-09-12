@@ -1,0 +1,111 @@
+{
+  "segment": "m1",
+  "installed": false,
+  "diagnostic": true,
+  "receipts": [
+    {
+      "actor": "alice",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:9Id1Jzo7JboaZAHHGVqUKg"
+    },
+    {
+      "actor": "alice",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    },
+    {
+      "actor": "bob",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:6f_nkXHPoQcyfsIBhHIcMg"
+    },
+    {
+      "actor": "bob",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    },
+    {
+      "actor": "carol",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:-NDJp0kcDFeM1WDg7t0dFA"
+    },
+    {
+      "actor": "carol",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    },
+    {
+      "actor": "dave",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:2sYG8W_ji5w3sWvkVGn2Cw"
+    },
+    {
+      "actor": "dave",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    },
+    {
+      "actor": "erin",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:oWn-0t4f7AwVvYEt9cnH4Q"
+    },
+    {
+      "actor": "erin",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    },
+    {
+      "actor": "frank",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:eu25SXhpLmJV7uhb6ZFJ4w"
+    },
+    {
+      "actor": "frank",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    },
+    {
+      "actor": "grace",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:cRk0Ex3PnfuEiKhblQ1xIg"
+    },
+    {
+      "actor": "grace",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    },
+    {
+      "actor": "henry",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:nCa5WkTZKSM9tjFgxtEooA"
+    },
+    {
+      "actor": "henry",
+      "verb": "profile-set",
+      "settled": false,
+      "diagnosticTextOnly": true,
+      "omitted": "avatar"
+    }
+  ]
+}

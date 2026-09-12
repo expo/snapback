@@ -1,0 +1,287 @@
+{
+  "epoch": 1789228816.3478625,
+  "mode": "read-only",
+  "logicalAppRows": [
+    {
+      "table": "conversations",
+      "rows": 1002,
+      "serializedDataBytes": 106636
+    },
+    {
+      "table": "follows",
+      "rows": 12,
+      "serializedDataBytes": 1126
+    },
+    {
+      "table": "likes",
+      "rows": 8,
+      "serializedDataBytes": 1125
+    },
+    {
+      "table": "members",
+      "rows": 2053,
+      "serializedDataBytes": 262824
+    },
+    {
+      "table": "messages",
+      "rows": 100033,
+      "serializedDataBytes": 25331344
+    },
+    {
+      "table": "posts",
+      "rows": 28,
+      "serializedDataBytes": 6298
+    },
+    {
+      "table": "profiles",
+      "rows": 1008,
+      "serializedDataBytes": 278185
+    },
+    {
+      "table": "reactions",
+      "rows": 2000,
+      "serializedDataBytes": 306500
+    },
+    {
+      "table": "reposts",
+      "rows": 4,
+      "serializedDataBytes": 481
+    }
+  ],
+  "logicalAppIndexes": [
+    {
+      "table": "conversations",
+      "index": "byId",
+      "entries": 1002,
+      "logicalTextBytesExcludingSQLiteFraming": 34098
+    },
+    {
+      "table": "follows",
+      "index": "byId",
+      "entries": 12,
+      "logicalTextBytesExcludingSQLiteFraming": 621
+    },
+    {
+      "table": "follows",
+      "index": "byPair",
+      "entries": 12,
+      "logicalTextBytesExcludingSQLiteFraming": 765
+    },
+    {
+      "table": "follows",
+      "index": "byTarget",
+      "entries": 12,
+      "logicalTextBytesExcludingSQLiteFraming": 897
+    },
+    {
+      "table": "follows",
+      "index": "byUser",
+      "entries": 12,
+      "logicalTextBytesExcludingSQLiteFraming": 871
+    },
+    {
+      "table": "likes",
+      "index": "byAuthor",
+      "entries": 8,
+      "logicalTextBytesExcludingSQLiteFraming": 622
+    },
+    {
+      "table": "likes",
+      "index": "byDay",
+      "entries": 8,
+      "logicalTextBytesExcludingSQLiteFraming": 774
+    },
+    {
+      "table": "likes",
+      "index": "byId",
+      "entries": 8,
+      "logicalTextBytesExcludingSQLiteFraming": 436
+    },
+    {
+      "table": "likes",
+      "index": "byPair",
+      "entries": 8,
+      "logicalTextBytesExcludingSQLiteFraming": 468
+    },
+    {
+      "table": "members",
+      "index": "byId",
+      "entries": 2053,
+      "logicalTextBytesExcludingSQLiteFraming": 119134
+    },
+    {
+      "table": "members",
+      "index": "byPair",
+      "entries": 2053,
+      "logicalTextBytesExcludingSQLiteFraming": 123240
+    },
+    {
+      "table": "members",
+      "index": "byUser",
+      "entries": 2053,
+      "logicalTextBytesExcludingSQLiteFraming": 188976
+    },
+    {
+      "table": "messages",
+      "index": "byConversation",
+      "entries": 100033,
+      "logicalTextBytesExcludingSQLiteFraming": 8864272
+    },
+    {
+      "table": "messages",
+      "index": "byId",
+      "entries": 100033,
+      "logicalTextBytesExcludingSQLiteFraming": 4462676
+    },
+    {
+      "table": "posts",
+      "index": "byAuthor",
+      "entries": 28,
+      "logicalTextBytesExcludingSQLiteFraming": 1456
+    },
+    {
+      "table": "posts",
+      "index": "byDay",
+      "entries": 28,
+      "logicalTextBytesExcludingSQLiteFraming": 1988
+    },
+    {
+      "table": "posts",
+      "index": "byId",
+      "entries": 28,
+      "logicalTextBytesExcludingSQLiteFraming": 812
+    },
+    {
+      "table": "posts",
+      "index": "byParentAuthor",
+      "entries": 28,
+      "logicalTextBytesExcludingSQLiteFraming": 1190
+    },
+    {
+      "table": "profiles",
+      "index": "byHandle",
+      "entries": 1008,
+      "logicalTextBytesExcludingSQLiteFraming": 41316
+    },
+    {
+      "table": "profiles",
+      "index": "byId",
+      "entries": 1008,
+      "logicalTextBytesExcludingSQLiteFraming": 53412
+    },
+    {
+      "table": "profiles",
+      "index": "byOwner",
+      "entries": 1008,
+      "logicalTextBytesExcludingSQLiteFraming": 48372
+    },
+    {
+      "table": "reactions",
+      "index": "byActor",
+      "entries": 2000,
+      "logicalTextBytesExcludingSQLiteFraming": 142000
+    },
+    {
+      "table": "reactions",
+      "index": "byId",
+      "entries": 2000,
+      "logicalTextBytesExcludingSQLiteFraming": 84000
+    },
+    {
+      "table": "reactions",
+      "index": "byMessage",
+      "entries": 2000,
+      "logicalTextBytesExcludingSQLiteFraming": 146000
+    },
+    {
+      "table": "reactions",
+      "index": "byOwn",
+      "entries": 2000,
+      "logicalTextBytesExcludingSQLiteFraming": 159000
+    },
+    {
+      "table": "reactions",
+      "index": "byScope",
+      "entries": 2000,
+      "logicalTextBytesExcludingSQLiteFraming": 166000
+    },
+    {
+      "table": "reposts",
+      "index": "byAuthor",
+      "entries": 4,
+      "logicalTextBytesExcludingSQLiteFraming": 316
+    },
+    {
+      "table": "reposts",
+      "index": "byId",
+      "entries": 4,
+      "logicalTextBytesExcludingSQLiteFraming": 226
+    },
+    {
+      "table": "reposts",
+      "index": "byPair",
+      "entries": 4,
+      "logicalTextBytesExcludingSQLiteFraming": 242
+    }
+  ],
+  "commits": [
+    {
+      "kind": "mutation",
+      "program": "messages.send",
+      "rows": 18,
+      "writesBytes": 252
+    },
+    {
+      "kind": "seed",
+      "program": "seed",
+      "rows": 1,
+      "writesBytes": 134
+    }
+  ],
+  "commitColumnBytes": [
+    {
+      "kind": "mutation",
+      "rows": 18,
+      "touchedBytes": 5796,
+      "writesBytes": 252,
+      "scopeTouchesBytes": 36
+    },
+    {
+      "kind": "seed",
+      "rows": 1,
+      "touchedBytes": 23473604,
+      "writesBytes": 134,
+      "scopeTouchesBytes": 2
+    }
+  ],
+  "principalKinds": {
+    "persona": 1008,
+    "system": 1
+  },
+  "reactionVerification": {
+    "fieldMismatches": [],
+    "status": "pass",
+    "expected": 2000,
+    "actual": 2000,
+    "idMismatch": [],
+    "example": {
+      "Row": {
+        "conversationId": {
+          "Id": "g0001"
+        },
+        "emoji": {
+          "String": "\u2764\ufe0f"
+        },
+        "id": {
+          "Id": "mx-000001"
+        },
+        "messageId": {
+          "Id": "mg0001-00001"
+        },
+        "userId": {
+          "Id": "dev:u0008"
+        }
+      }
+    }
+  }
+}

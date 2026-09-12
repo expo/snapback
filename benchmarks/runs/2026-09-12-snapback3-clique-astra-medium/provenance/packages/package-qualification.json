@@ -1,0 +1,28 @@
+{
+  "archive": "/home/ccheever/snapback3-clique-20260912/source/snapback3/.snapback3/packages/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+  "experimental": true,
+  "host": "linux-x64",
+  "node": "v24.13.1",
+  "sourceSha256": "a81bc0eaebf9173a5682557ba39c6edb7ea9a100a2a3267dfad646a5f4ac80ab",
+  "nativeSha256": "84a92c534121379d674b7a201aee2db34f8d6f8dd3cdfb7d2cd45574924e0ed3",
+  "bytes": 4556473,
+  "unpackedBytes": 12942125,
+  "sha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+  "smoke": {
+    "ok": true,
+    "host": "linux-x64",
+    "node": "v24.13.1",
+    "freshExternalInstall": true,
+    "workerOverride": false,
+    "certifiedOperations": 2,
+    "strictTypeImports": [
+      "snapback3",
+      "snapback3/client",
+      "snapback3/react",
+      "snapback3/compiler"
+    ],
+    "devHealth": true,
+    "seededQuery": true,
+    "settledMutation": true
+  }
+}

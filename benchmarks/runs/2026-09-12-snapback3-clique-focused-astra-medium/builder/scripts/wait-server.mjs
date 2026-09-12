@@ -1,0 +1,1 @@
+const url=process.argv[2]??'http://127.0.0.1:54900';let ok=false;for(let i=0;i<100;i++){try{const r=await fetch(url);if(r.ok){ok=true;break}}catch{}await new Promise(r=>setTimeout(r,100));}if(!ok)throw Error('Owner not ready: '+url);

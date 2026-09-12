@@ -1,0 +1,236 @@
+{
+ "url": "http://127.0.0.1:54901",
+ "steps": [
+  {
+   "t": 1789234091392,
+   "name": "bob-before-offline",
+   "s": [
+    {
+     "options": [
+      {
+       "id": "a",
+       "selected": "true",
+       "busy": "false",
+       "count": 1
+      },
+      {
+       "id": "b",
+       "selected": "false",
+       "busy": "false",
+       "count": 1
+      }
+     ],
+     "total": "2 votes"
+    }
+   ]
+  },
+  {
+   "t": 1789234096941,
+   "name": "bob-offline-vote-b",
+   "pending": [
+    {
+     "id": "251794fe-c566-484d-8ebd-05284d6dcea5",
+     "op": "polls.vote",
+     "args": {
+      "optionId": "b",
+      "pollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987"
+     }
+    }
+   ],
+   "state": [
+    {
+     "options": [
+      {
+       "id": "a",
+       "selected": "false",
+       "busy": "false",
+       "count": 1
+      },
+      {
+       "id": "b",
+       "selected": "true",
+       "busy": "true",
+       "count": 1
+      }
+     ],
+     "total": "2 votes"
+    }
+   ],
+   "status": "offline"
+  },
+  {
+   "t": 1789234102057,
+   "name": "reopen-offline",
+   "reopen": "ok",
+   "shell": true,
+   "pending": [
+    {
+     "id": "251794fe-c566-484d-8ebd-05284d6dcea5",
+     "op": "polls.vote",
+     "args": {
+      "optionId": "b",
+      "pollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987"
+     }
+    }
+   ],
+   "sameOperationId": true,
+   "originalOpId": "251794fe-c566-484d-8ebd-05284d6dcea5"
+  },
+  {
+   "t": 1789234110061,
+   "name": "after-reconnect",
+   "pending": []
+  },
+  {
+   "t": 1789234113369,
+   "name": "tally-after-reconnect",
+   "s": [
+    {
+     "options": [
+      {
+       "id": "a",
+       "selected": "false",
+       "busy": "false",
+       "count": 0
+      },
+      {
+       "id": "b",
+       "selected": "true",
+       "busy": "false",
+       "count": 2
+      }
+     ],
+     "total": "2 votes"
+    }
+   ]
+  },
+  {
+   "t": 1789234116407,
+   "name": "repeat-same-option",
+   "s": [
+    {
+     "options": [
+      {
+       "id": "a",
+       "selected": "false",
+       "busy": "false",
+       "count": 0
+      },
+      {
+       "id": "b",
+       "selected": "true",
+       "busy": "false",
+       "count": 2
+      }
+     ],
+     "total": "2 votes"
+    }
+   ],
+   "pending": []
+  }
+ ],
+ "results": {
+  "beforeOffline": [
+   {
+    "options": [
+     {
+      "id": "a",
+      "selected": "true",
+      "busy": "false",
+      "count": 1
+     },
+     {
+      "id": "b",
+      "selected": "false",
+      "busy": "false",
+      "count": 1
+     }
+    ],
+    "total": "2 votes"
+   }
+  ],
+  "offlineStatus": "offline",
+  "offlinePending": [
+   {
+    "id": "251794fe-c566-484d-8ebd-05284d6dcea5",
+    "op": "polls.vote",
+    "args": {
+     "optionId": "b",
+     "pollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987"
+    }
+   }
+  ],
+  "offlinePollState": [
+   {
+    "options": [
+     {
+      "id": "a",
+      "selected": "false",
+      "busy": "false",
+      "count": 1
+     },
+     {
+      "id": "b",
+      "selected": "true",
+      "busy": "true",
+      "count": 1
+     }
+    ],
+    "total": "2 votes"
+   }
+  ],
+  "reopenOffline": "ok",
+  "shellRestoredOffline": true,
+  "pendingAfterReopenOffline": [
+   {
+    "id": "251794fe-c566-484d-8ebd-05284d6dcea5",
+    "op": "polls.vote",
+    "args": {
+     "optionId": "b",
+     "pollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987"
+    }
+   }
+  ],
+  "sameOperationId": true,
+  "pendingAfterReconnect": [],
+  "tallyAfterReconnect": [
+   {
+    "options": [
+     {
+      "id": "a",
+      "selected": "false",
+      "busy": "false",
+      "count": 0
+     },
+     {
+      "id": "b",
+      "selected": "true",
+      "busy": "false",
+      "count": 2
+     }
+    ],
+    "total": "2 votes"
+   }
+  ],
+  "tallyAfterRepeat": [
+   {
+    "options": [
+     {
+      "id": "a",
+      "selected": "false",
+      "busy": "false",
+      "count": 0
+     },
+     {
+      "id": "b",
+      "selected": "true",
+      "busy": "false",
+      "count": 2
+     }
+    ],
+    "total": "2 votes"
+   }
+  ],
+  "pendingAfterRepeat": []
+ }
+}

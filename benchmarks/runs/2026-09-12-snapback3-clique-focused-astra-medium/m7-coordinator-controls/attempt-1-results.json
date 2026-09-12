@@ -1,0 +1,41 @@
+{
+  "kind": "separate coordinator diagnostic; not a new grade",
+  "startedEpochMs": 1789236474616,
+  "operationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+  "messageId": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+  "processes": [
+    {
+      "pid": 1787901,
+      "ppid": 1787893,
+      "startTick": "159539290",
+      "state": "R",
+      "role": "owner-54910"
+    },
+    {
+      "pid": 1788083,
+      "ppid": 1787893,
+      "startTick": "159540316",
+      "state": "R",
+      "role": "owner-54903"
+    }
+  ],
+  "oldClient": [],
+  "polls": [],
+  "failures": [
+    {
+      "phase": "old-client",
+      "error": {
+        "code": "Error",
+        "message": "Owner readiness timeout"
+      }
+    },
+    {
+      "phase": "poll-query",
+      "error": {
+        "code": "Error",
+        "message": "Owner readiness timeout"
+      }
+    }
+  ],
+  "finishedEpochMs": 1789236495113
+}

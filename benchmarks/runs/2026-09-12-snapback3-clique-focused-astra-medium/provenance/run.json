@@ -1,0 +1,84 @@
+{
+  "run": "snapback3-clique-focused-20260912",
+  "userDirection": "Run selected Clique scenarios for client-coordination and performance; unrelated media/avatar milestones do not gate them",
+  "status": "continuous-grading-and-m7-fixture-preparation",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "packageSource": "409954115f151a72dd95e897c5f00f36877f11e0",
+  "host": "ccheever@100.65.137.99",
+  "packet": "/home/ccheever/snapback3-clique-focused-20260912/packet",
+  "ports": [
+    54900,
+    54919
+  ],
+  "actorCapacity": {
+    "focusedBuilder": 1,
+    "priorIndependentGrader": 1,
+    "heavyBuild": 1
+  },
+  "createdEpoch": 1789224993,
+  "promptSha256": "895e01052a56534220703a66a15d3ba533e659cac5ea7fced153f428a35dbaaf",
+  "scopeSha256": "98ad61d33e321f5106a346edcd3ad449b60a042911cf853656c24613d9cd1c0d",
+  "preparation": "packet/preflight/preparation.json",
+  "foregroundSession": 50017,
+  "actorPid": 1489254,
+  "wrapperPid": 1489253,
+  "startedEpoch": 1789225305,
+  "startedAt": "2026-09-12T15:01:45Z",
+  "threadId": "01a09623-87dd-7d72-910f-980bf77e3862",
+  "lastCheckpointAt": "2026-09-12T16:12:48.234358+00:00",
+  "continuousStatus": "completed",
+  "checkpointsCompleted": 2,
+  "checkpointsTotal": 6,
+  "independentFixtureOracle": "oracle/oracle.json",
+  "m7PreparationAudit": "m7-preparation-audit.md",
+  "publicReport": "benchmarks/runs/2026-09-12-snapback3-clique-focused-astra-medium/README.md",
+  "observations": {
+    "scope": "builder measurements, provisional pending independent audit",
+    "probe10000MessageAcquisitionMs": [
+      32649,
+      33219,
+      33646
+    ],
+    "earlierProbeSetsRetained": true,
+    "hub": "multiple 180-second timeouts; improved cutoff captured about42400 of100000 messages, not only setup stalls",
+    "offline": "passing and failing build iterations retained; later complete selected suite passes are provisional",
+    "measurementCorrections": [
+      "complete:false paginated fresh data workaround",
+      "DOM presence relabeled; viewport/RAF reruns",
+      "last sampled heap is not steady-state retained heap",
+      "whole-attempt cutoff and partial progress retention"
+    ]
+  },
+  "endedEpoch": 1789229467,
+  "elapsedSeconds": 4162,
+  "continuousBuilderResult": {
+    "selectedPass": 25,
+    "selectedFail": 1,
+    "acquisitionAttemptsRetained": 24,
+    "assessment": "builder-reported; independent audit pending"
+  },
+  "checkpointDefinition": [
+    "fixed package and frozen selected scope",
+    "continuous builder completed and retained",
+    "continuous independent assessment",
+    "fresh M7 builder completed and retained",
+    "M7 independent assessment",
+    "public report, LLP/diary, scoped landing"
+  ],
+  "lastJudgmentTickAt": "2026-09-12T16:14:41.941405+00:00",
+  "etaMinutes": [
+    60,
+    110
+  ],
+  "continuousGrader": {
+    "foregroundSession": 19528,
+    "pid": 1606961,
+    "wrapperPid": 1606960,
+    "startedEpoch": 1789229964,
+    "model": "claude-opus-5",
+    "promptSha256": "03bff7b01b224bd6175818221aa200b3d582ec58fcc28094c961d31d1253bb70",
+    "executionInputSha256": "0b618dedfdcb33ec10b7afc0a2b75f84ec66ecb5e0f74551c4c17d61fc737fbd",
+    "snapshotManifestSha256": "0c7209793b26dc00f634e57c7eeb2c57e4685a587322e8be94486357239605b3"
+  }
+}

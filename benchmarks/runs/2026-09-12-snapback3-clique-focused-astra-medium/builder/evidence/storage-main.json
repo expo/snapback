@@ -1,0 +1,707 @@
+{
+  "epoch": 1789228982.2183867,
+  "path": ".snapback3/store.sqlite",
+  "scope": "messaging projection + starter social, with recorded diagnostic mutations; no full-social-scale claim",
+  "inspection": "read-only SQLite; no explicit checkpoint, vacuum or compaction",
+  "files": {
+    ".snapback3/store.sqlite": 1433600,
+    ".snapback3/store.sqlite-wal": 4152992,
+    ".snapback3/store.sqlite-shm": 32768
+  },
+  "schema": [
+    {
+      "type": "table",
+      "name": "_asset_views",
+      "table": "_asset_views",
+      "sql": "CREATE TABLE _asset_views (\n                asset_id TEXT NOT NULL,\n                principal TEXT NOT NULL,\n                at INTEGER NOT NULL,\n                PRIMARY KEY (asset_id, principal)\n             )",
+      "rows": 0
+    },
+    {
+      "type": "table",
+      "name": "_assets",
+      "table": "_assets",
+      "sql": "CREATE TABLE _assets (\n                id TEXT PRIMARY KEY,\n                state TEXT NOT NULL CHECK(state IN ('receiving', 'ready', 'failed')),\n                kind TEXT NOT NULL CHECK(kind IN ('image', 'video')),\n                type TEXT,\n                bytes INTEGER CHECK(bytes IS NULL OR bytes >= 0),\n                width INTEGER CHECK(width IS NULL OR width > 0),\n                height INTEGER CHECK(height IS NULL OR height > 0),\n                duration INTEGER CHECK(duration IS NULL OR duration > 0),\n                created_by TEXT NOT NULL,\n                created_at INTEGER NOT NULL,\n                released_at INTEGER,\n                staged_bytes INTEGER NOT NULL DEFAULT 0 CHECK(staged_bytes >= 0),\n                reclaiming INTEGER NOT NULL DEFAULT 0 CHECK(reclaiming IN (0, 1)),\n                locator_table TEXT,\n                locator_row TEXT,\n                locator_column TEXT,\n                CHECK(\n                    (locator_table IS NULL AND locator_row IS NULL AND locator_column IS NULL) OR\n                    (locator_table IS NOT NULL AND locator_row IS NOT NULL AND locator_column IS NOT NULL)\n                )\n             )",
+      "rows": 0
+    },
+    {
+      "type": "table",
+      "name": "_client_intents",
+      "table": "_client_intents",
+      "sql": "CREATE TABLE _client_intents (\n                principal TEXT NOT NULL,\n                intent TEXT NOT NULL,\n                request_digest TEXT NOT NULL,\n                response TEXT NOT NULL,\n                seq INTEGER NOT NULL,\n                at INTEGER NOT NULL,\n                PRIMARY KEY (principal, intent)\n             )",
+      "rows": 0
+    },
+    {
+      "type": "index",
+      "name": "_client_intents_at",
+      "table": "_client_intents",
+      "sql": "CREATE INDEX _client_intents_at ON _client_intents(at)"
+    },
+    {
+      "type": "table",
+      "name": "_commits",
+      "table": "_commits",
+      "sql": "CREATE TABLE _commits (\n                seq INTEGER PRIMARY KEY,\n                at INTEGER NOT NULL,\n                program TEXT NOT NULL,\n                principal TEXT NOT NULL,\n                kind TEXT NOT NULL,\n                by TEXT,\n                touched TEXT NOT NULL,\n                writes TEXT NOT NULL,\n                emits INTEGER NOT NULL\n             , scope_touches TEXT NOT NULL DEFAULT '[]', job TEXT, job_chunk TEXT, schedule TEXT)",
+      "rows": 537
+    },
+    {
+      "type": "table",
+      "name": "_credentials",
+      "table": "_credentials",
+      "sql": "CREATE TABLE _credentials (\n                principal TEXT PRIMARY KEY,\n                email TEXT NOT NULL UNIQUE,\n                hash TEXT NOT NULL\n             )",
+      "rows": 8
+    },
+    {
+      "type": "table",
+      "name": "_grant_slices",
+      "table": "_grant_slices",
+      "sql": "CREATE TABLE _grant_slices (\n                grant_id TEXT NOT NULL,\n                principal TEXT NOT NULL,\n                intent TEXT NOT NULL,\n                offset INTEGER NOT NULL,\n                count INTEGER NOT NULL CHECK(count > 0),\n                PRIMARY KEY (grant_id, intent)\n             )",
+      "rows": 0
+    },
+    {
+      "type": "index",
+      "name": "_grant_slices_extent",
+      "table": "_grant_slices",
+      "sql": "CREATE INDEX _grant_slices_extent\n                ON _grant_slices(grant_id, offset, count)"
+    },
+    {
+      "type": "table",
+      "name": "_grants",
+      "table": "_grants",
+      "sql": "CREATE TABLE _grants (\n                id TEXT PRIMARY KEY,\n                principal TEXT NOT NULL,\n                [from] TEXT NOT NULL,\n                count INTEGER NOT NULL CHECK(count > 0),\n                minted_at INTEGER NOT NULL,\n                expires_at INTEGER NOT NULL\n             )",
+      "rows": 0
+    },
+    {
+      "type": "index",
+      "name": "_grants_principal_expiry",
+      "table": "_grants",
+      "sql": "CREATE INDEX _grants_principal_expiry\n                ON _grants(principal, expires_at)"
+    },
+    {
+      "type": "table",
+      "name": "_jobs",
+      "table": "_jobs",
+      "sql": "CREATE TABLE _jobs (\n        id TEXT PRIMARY KEY, name TEXT NOT NULL, source TEXT, program_hash TEXT NOT NULL,\n        generation TEXT NOT NULL, args TEXT NOT NULL, state TEXT NOT NULL,\n        sweep INTEGER NOT NULL, upper_key TEXT, cursor TEXT, chunks INTEGER NOT NULL,\n        rows_written TEXT NOT NULL, enqueued_by TEXT NOT NULL, created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL, finished_at INTEGER, last_error TEXT)",
+      "rows": 0
+    },
+    {
+      "type": "index",
+      "name": "_jobs_state_created",
+      "table": "_jobs",
+      "sql": "CREATE INDEX _jobs_state_created ON _jobs(state, created_at)"
+    },
+    {
+      "type": "table",
+      "name": "_meta",
+      "table": "_meta",
+      "sql": "CREATE TABLE _meta (\n                key TEXT PRIMARY KEY,\n                value TEXT NOT NULL\n             )",
+      "rows": 12
+    },
+    {
+      "type": "table",
+      "name": "_operation_intents",
+      "table": "_operation_intents",
+      "sql": "CREATE TABLE _operation_intents (\n                principal TEXT NOT NULL,\n                intent TEXT NOT NULL,\n                request_digest TEXT NOT NULL,\n                response TEXT NOT NULL,\n                seq INTEGER NOT NULL,\n                at INTEGER NOT NULL,\n                PRIMARY KEY (principal, intent)\n             )",
+      "rows": 545
+    },
+    {
+      "type": "table",
+      "name": "_outbox",
+      "table": "_outbox",
+      "sql": "CREATE TABLE _outbox (\n                id TEXT PRIMARY KEY,\n                seq INTEGER NOT NULL,\n                effect TEXT NOT NULL,\n                payload TEXT NOT NULL,\n                state TEXT NOT NULL,\n                attempts INTEGER NOT NULL,\n                next_at INTEGER NOT NULL,\n                last_error TEXT,\n                result TEXT,\n                then_op TEXT,\n                generation TEXT,\n                then_seq INTEGER,\n                created_at INTEGER NOT NULL,\n                updated_at INTEGER NOT NULL\n             )",
+      "rows": 0
+    },
+    {
+      "type": "index",
+      "name": "_outbox_state_next_at",
+      "table": "_outbox",
+      "sql": "CREATE INDEX _outbox_state_next_at\n                ON _outbox(state, next_at)"
+    },
+    {
+      "type": "table",
+      "name": "_principals",
+      "table": "_principals",
+      "sql": "CREATE TABLE _principals (\n                id TEXT PRIMARY KEY,\n                kind TEXT NOT NULL,\n                name TEXT,\n                created_at INTEGER NOT NULL\n             )",
+      "rows": 10
+    },
+    {
+      "type": "table",
+      "name": "_search_nodes",
+      "table": "_search_nodes",
+      "sql": "CREATE TABLE _search_nodes (\n        node INTEGER PRIMARY KEY, table_name TEXT NOT NULL, index_name TEXT NOT NULL,\n        parent INTEGER NOT NULL, scalar INTEGER NOT NULL, refs INTEGER NOT NULL, depth INTEGER NOT NULL,\n        UNIQUE(table_name,index_name,parent,scalar))",
+      "rows": 0
+    },
+    {
+      "type": "table",
+      "name": "_search_postings",
+      "table": "_search_postings",
+      "sql": "CREATE TABLE _search_postings (\n        table_name TEXT NOT NULL, index_name TEXT NOT NULL, row_id TEXT NOT NULL, node INTEGER NOT NULL,\n        c0 TEXT,c1 TEXT,c2 TEXT,c3 TEXT,c4 TEXT,c5 TEXT,c6 TEXT,c7 TEXT,\n        PRIMARY KEY(table_name,index_name,row_id,node)) WITHOUT ROWID",
+      "rows": 0
+    },
+    {
+      "type": "index",
+      "name": "_search_postings_by_row",
+      "table": "_search_postings",
+      "sql": "CREATE INDEX _search_postings_by_row ON _search_postings(table_name,row_id,index_name,node)"
+    },
+    {
+      "type": "index",
+      "name": "_search_postings_lookup",
+      "table": "_search_postings",
+      "sql": "CREATE INDEX _search_postings_lookup ON _search_postings(\n        table_name,index_name,c0,c1,c2,c3,c4,c5,c6,c7,row_id,node)"
+    },
+    {
+      "type": "table",
+      "name": "_sessions",
+      "table": "_sessions",
+      "sql": "CREATE TABLE _sessions (\n                auth_epoch INTEGER PRIMARY KEY AUTOINCREMENT,\n                token_digest BLOB NOT NULL UNIQUE\n                    CHECK(typeof(token_digest) = 'blob' AND length(token_digest) = 32),\n                principal TEXT NOT NULL,\n                kind TEXT NOT NULL,\n                created_at INTEGER NOT NULL,\n                expires_at INTEGER NOT NULL\n             )",
+      "rows": 82
+    },
+    {
+      "type": "table",
+      "name": "_timers",
+      "table": "_timers",
+      "sql": "CREATE TABLE _timers (\n        id TEXT PRIMARY KEY, schedule TEXT NOT NULL, row_id TEXT, at INTEGER NOT NULL,\n        period_start INTEGER, generation TEXT NOT NULL)",
+      "rows": 0
+    },
+    {
+      "type": "index",
+      "name": "_timers_at",
+      "table": "_timers",
+      "sql": "CREATE INDEX _timers_at ON _timers(at,id)"
+    },
+    {
+      "type": "index",
+      "name": "_timers_schedule_row",
+      "table": "_timers",
+      "sql": "CREATE INDEX _timers_schedule_row ON _timers(schedule,row_id)"
+    },
+    {
+      "type": "table",
+      "name": "index_entries",
+      "table": "index_entries",
+      "sql": "CREATE TABLE index_entries (\n                table_name TEXT NOT NULL,\n                index_name TEXT NOT NULL,\n                row_id TEXT NOT NULL,\n                c0 TEXT, c1 TEXT, c2 TEXT, c3 TEXT,\n                c4 TEXT, c5 TEXT, c6 TEXT, c7 TEXT,\n                PRIMARY KEY (table_name, index_name, row_id)\n             )",
+      "rows": 436
+    },
+    {
+      "type": "index",
+      "name": "index_entries_by_row",
+      "table": "index_entries",
+      "sql": "CREATE INDEX index_entries_by_row ON index_entries(table_name, row_id)"
+    },
+    {
+      "type": "index",
+      "name": "index_entries_lookup",
+      "table": "index_entries",
+      "sql": "CREATE INDEX index_entries_lookup ON index_entries(\n                table_name, index_name, c0, c1, c2, c3, c4, c5, c6, c7, row_id\n             )"
+    },
+    {
+      "type": "table",
+      "name": "rows",
+      "table": "rows",
+      "sql": "CREATE TABLE rows (\n                table_name TEXT NOT NULL,\n                row_id TEXT NOT NULL,\n                data TEXT NOT NULL,\n                PRIMARY KEY (table_name, row_id)\n             )",
+      "rows": 157
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__asset_views_1",
+      "table": "_asset_views",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__assets_1",
+      "table": "_assets",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__client_intents_1",
+      "table": "_client_intents",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__credentials_1",
+      "table": "_credentials",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__credentials_2",
+      "table": "_credentials",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__grant_slices_1",
+      "table": "_grant_slices",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__grants_1",
+      "table": "_grants",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__jobs_1",
+      "table": "_jobs",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__meta_1",
+      "table": "_meta",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__operation_intents_1",
+      "table": "_operation_intents",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__outbox_1",
+      "table": "_outbox",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__principals_1",
+      "table": "_principals",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__search_nodes_1",
+      "table": "_search_nodes",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__sessions_1",
+      "table": "_sessions",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex__timers_1",
+      "table": "_timers",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex_index_entries_1",
+      "table": "index_entries",
+      "sql": null
+    },
+    {
+      "type": "index",
+      "name": "sqlite_autoindex_rows_1",
+      "table": "rows",
+      "sql": null
+    },
+    {
+      "type": "table",
+      "name": "sqlite_sequence",
+      "table": "sqlite_sequence",
+      "sql": "CREATE TABLE sqlite_sequence(name,seq)",
+      "rows": 1
+    }
+  ],
+  "physical": [
+    {
+      "name": "_asset_views",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_assets",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_client_intents",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_client_intents_at",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_commits",
+      "pages": 166,
+      "bytes": 679936,
+      "payloadBytes": 555097,
+      "unusedBytes": 119128
+    },
+    {
+      "name": "_credentials",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 1164,
+      "unusedBytes": 2884
+    },
+    {
+      "name": "_grant_slices",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_grant_slices_extent",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_grants",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_grants_principal_expiry",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_jobs",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_jobs_state_created",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_meta",
+      "pages": 5,
+      "bytes": 20480,
+      "payloadBytes": 8757,
+      "unusedBytes": 11615
+    },
+    {
+      "name": "_operation_intents",
+      "pages": 81,
+      "bytes": 331776,
+      "payloadBytes": 302031,
+      "unusedBytes": 25337
+    },
+    {
+      "name": "_outbox",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_outbox_state_next_at",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_principals",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 529,
+      "unusedBytes": 3519
+    },
+    {
+      "name": "_search_nodes",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_search_postings",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_search_postings_by_row",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_search_postings_lookup",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_sessions",
+      "pages": 3,
+      "bytes": 12288,
+      "payloadBytes": 6709,
+      "unusedBytes": 5216
+    },
+    {
+      "name": "_timers",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_timers_at",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "_timers_schedule_row",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "index_entries",
+      "pages": 23,
+      "bytes": 94208,
+      "payloadBytes": 70253,
+      "unusedBytes": 21267
+    },
+    {
+      "name": "index_entries_by_row",
+      "pages": 7,
+      "bytes": 28672,
+      "payloadBytes": 22532,
+      "unusedBytes": 4752
+    },
+    {
+      "name": "index_entries_lookup",
+      "pages": 24,
+      "bytes": 98304,
+      "payloadBytes": 71433,
+      "unusedBytes": 24995
+    },
+    {
+      "name": "rows",
+      "pages": 16,
+      "bytes": 65536,
+      "payloadBytes": 50495,
+      "unusedBytes": 13980
+    },
+    {
+      "name": "sqlite_autoindex__asset_views_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__assets_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__client_intents_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__credentials_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 247,
+      "unusedBytes": 3817
+    },
+    {
+      "name": "sqlite_autoindex__credentials_2",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 163,
+      "unusedBytes": 3901
+    },
+    {
+      "name": "sqlite_autoindex__grant_slices_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__grants_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__jobs_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__meta_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 264,
+      "unusedBytes": 3788
+    },
+    {
+      "name": "sqlite_autoindex__operation_intents_1",
+      "pages": 12,
+      "bytes": 49152,
+      "payloadBytes": 37477,
+      "unusedBytes": 9900
+    },
+    {
+      "name": "sqlite_autoindex__outbox_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__principals_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 270,
+      "unusedBytes": 3788
+    },
+    {
+      "name": "sqlite_autoindex__search_nodes_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex__sessions_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 2951,
+      "unusedBytes": 891
+    },
+    {
+      "name": "sqlite_autoindex__timers_1",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 0,
+      "unusedBytes": 4088
+    },
+    {
+      "name": "sqlite_autoindex_index_entries_1",
+      "pages": 8,
+      "bytes": 32768,
+      "payloadBytes": 26291,
+      "unusedBytes": 5077
+    },
+    {
+      "name": "sqlite_autoindex_rows_1",
+      "pages": 4,
+      "bytes": 16384,
+      "payloadBytes": 7854,
+      "unusedBytes": 8015
+    },
+    {
+      "name": "sqlite_schema",
+      "pages": 4,
+      "bytes": 16384,
+      "payloadBytes": 9142,
+      "unusedBytes": 6881
+    },
+    {
+      "name": "sqlite_sequence",
+      "pages": 1,
+      "bytes": 4096,
+      "payloadBytes": 13,
+      "unusedBytes": 4071
+    }
+  ],
+  "applicationRows": [
+    {
+      "table": "conversations",
+      "rows": 2,
+      "serializedJsonBytes": 273
+    },
+    {
+      "table": "follows",
+      "rows": 12,
+      "serializedJsonBytes": 2280
+    },
+    {
+      "table": "likes",
+      "rows": 9,
+      "serializedJsonBytes": 2115
+    },
+    {
+      "table": "members",
+      "rows": 5,
+      "serializedJsonBytes": 1129
+    },
+    {
+      "table": "messages",
+      "rows": 84,
+      "serializedJsonBytes": 25086
+    },
+    {
+      "table": "posts",
+      "rows": 28,
+      "serializedJsonBytes": 6891
+    },
+    {
+      "table": "profiles",
+      "rows": 8,
+      "serializedJsonBytes": 2809
+    },
+    {
+      "table": "reactions",
+      "rows": 2,
+      "serializedJsonBytes": 470
+    },
+    {
+      "table": "reads",
+      "rows": 3,
+      "serializedJsonBytes": 769
+    },
+    {
+      "table": "reposts",
+      "rows": 4,
+      "serializedJsonBytes": 860
+    }
+  ],
+  "pageSize": 4096,
+  "pageCount": 389,
+  "freelistCount": 0
+}

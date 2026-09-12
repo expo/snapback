@@ -1,0 +1,1 @@
+{"extends":"expo/tsconfig.base","compilerOptions":{"strict":true},"include":["app/**/*.tsx","src/**/*.tsx",".snapback3/build/api.d.ts"]}

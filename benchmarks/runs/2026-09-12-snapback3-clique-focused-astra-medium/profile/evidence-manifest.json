@@ -1,0 +1,50 @@
+{
+  "createdEpochMs": 1789232572436,
+  "scope": "Private isolated instrumented diagnostic, never a normal repeat or M7 result",
+  "files": {
+    "diagnostic.json": {
+      "sha256": "3f9169b592d71e44aaca2ba2df97b6b8611ff04e48bae6503eb5ca6e457aebfd",
+      "bytes": 42755
+    },
+    "README.md": {
+      "sha256": "d5b129471d1f3eb2d2418de7b40331076e96eca7298430cb71fe5997334e0288",
+      "bytes": 7588
+    },
+    "run.json": {
+      "sha256": "4433e2877dc06c695b0fa5580c0ef53abe6d53484a5e122737780911c6c679ca",
+      "bytes": 351861
+    },
+    "profile.mjs": {
+      "sha256": "67a0c235f464ed5bef8b26a2ca28310d8d589af119b7a9b9f6cdd3a58b2adf9f",
+      "bytes": 12345
+    },
+    "analyze-profile.mjs": {
+      "sha256": "3e4cd3589cf1792f614beeb141095df5c49d919110bef15f38b999b509beeeb6",
+      "bytes": 6109
+    },
+    "summarize.py": {
+      "sha256": "cb4679403397daf8e5a1b3ae2ac7145c10365864c6237a1f5076cf420c44b80e",
+      "bytes": 10045
+    },
+    "inputs.json": {
+      "sha256": "bbf8ec23f6c3f530661f26b254c9350a79644318a827e63d21597f64032dce61",
+      "bytes": 8026
+    },
+    "browser-main-thread.cpuprofile": {
+      "sha256": "131d69cbd75d42125e1e36838770bf222fb4f71253e462c8c8fa5d19771af02d",
+      "bytes": 1647855
+    },
+    "top-self-time-functions.json": {
+      "sha256": "7808812c8a99629aa4c3ce6eff8a87ec1c128f33c7c252efcb11f8d412c360e7",
+      "bytes": 492694
+    },
+    "acquired-ids.json": {
+      "sha256": "0c7bc8a0bbd35fbb710f0a2d9be96905e83f8a0e213cabc873e3c9eeb70c1453",
+      "bytes": 150002
+    },
+    "expected-u0500-ids.json": {
+      "sha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+      "bytes": 150001
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "snapback3-focused-m7-builder-provenance.v1",
+  "scope": {
+    "path": "../SCOPE.md",
+    "sha256": "98ad61d33e321f5106a346edcd3ad449b60a042911cf853656c24613d9cd1c0d"
+  },
+  "package": {
+    "archiveSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "verifiedPayloadFiles": 108,
+    "rootAndCustomClientExact": true
+  },
+  "instrument": {
+    "files": 185,
+    "validatedSnapshotReceiptSha256": "d07aa646d3901c104ffd362d85cf77ba6b257a043017e0aaf0878dbf5b664eff",
+    "fileHashListSha256": "b183d949bb4c5871747afb92f0eccb153c813765037507ef4d888f76a6da07a6",
+    "commitRecordSha256": "2761ad434c14d7abba841b904e0cbca3dbf4d887269a4cb2eed80f942fbf1605"
+  },
+  "preparation": {
+    "fixturePreparationSha256": "7f79d335b09453ef36272785d5992d989c8c99653452a19fafec5bce984789d9",
+    "stagingReceiptSha256": "d73dd18be2c67ea0c31a32ef12ad442de76252112385d592e4c133efac8f49d6",
+    "promotionReceiptSha256": "bdb70707e6a7fe8dfd4c72713d5a6a2a43c805cd798ffc867cddbd5cf90d6a83",
+    "prechangeManifestSha256": "817681b532a9a2e01a1931942e1af57706b2b878b705cb4a3cddb3b834bf7fde"
+  },
+  "finalFreeze": {
+    "receiptSha256": "59abcc4424ae7f0bd1b8dbc7ca1c41205176d4142d648bba217a39e39994c133",
+    "snapshotManifestSha256": "98d6a0e2125833d4b330adc6be21963e4d1cd3ea4a02c269832f81210c2be6ea",
+    "snapshotContentDigestSha256": "1224fb48d2711fdedcc96083987c0f8c95ae2770aaf359108aafbaf7de84dea1",
+    "snapshotFiles": 322,
+    "snapshotBytes": 11601404
+  },
+  "oldClientPrivate": {
+    "profileArchiveSha256": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+    "profileArchiveManifestSha256": "dff1fd459d86f22eb0953bd7e4bbcc6222b90706bd1c9cbcd058bc4cdcedafa9",
+    "certificationSha256": "2dae411fcfe91227c3131c45cd2d66a78b8d7d504f0ab0bfc6e6ee2b9db77be1",
+    "journalSha256": "8c56fda7de29708196d32ae3dc790aaea72e533faf9046595363a3065f6d4730",
+    "publicContents": false
+  },
+  "m7Outputs": {
+    "finalM7Sha256": "c44cc9aaf82e3b467dca8f8a3874d9905efd2aa81ca7d619b2cf48b479d58399",
+    "selectedResultsSha256": "f93597cc9928ce66ab4b30737f4c3c9e188bbb6f8496886d05650e25a3f3d47e",
+    "evidenceManifestSha256": "64be549cb8d6ae9325fd4759b48cd1ebd615073f1d2f0b8311929e57bfb41018",
+    "updatedBuildManifestSha256": "cffe39d896d50059114aa7aaecbd24fe4d57212a876c0642e55f9ead5d4fca48"
+  }
+}

@@ -1,0 +1,1 @@
+{"expo":{"name":"Clique","slug":"clique","scheme":"clique","plugins":["expo-router"],"web":{"bundler":"metro","output":"single"},"ios":{"bundleIdentifier":"dev.diagnostic.clique"}}}

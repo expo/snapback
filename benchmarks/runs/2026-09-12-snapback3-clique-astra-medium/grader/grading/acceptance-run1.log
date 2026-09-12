@@ -1,0 +1,25 @@
+
+> astra-snapback3@1.0.0 acceptance
+> node scripts/acceptance.mjs --milestone m1
+
+m1-a01 TimeoutError: locator.waitFor: Timeout 10000ms exceeded.
+Call log:
+  - waiting for getByTestId('sm-profile-save') to be visible
+
+m1-a02 AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 0
+
+m1-a03 TimeoutError: locator.fill: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByTestId('sm-profile-field-displayname')
+
+m1-a08 TimeoutError: locator.fill: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByTestId('sm-profile-field-handle')
+
+m1-a04 TimeoutError: locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByTestId('sm-settings-logout')
+
+{"pass":false,"results":[{"id":"m1-a01","pass":false,"error":"TimeoutError: locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-profile-save') to be visible\n"},{"id":"m1-a02","pass":false,"error":"AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 0\n"},{"id":"m1-a03","pass":false,"error":"TimeoutError: locator.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-profile-field-displayname')\n"},{"id":"m1-a08","pass":false,"error":"TimeoutError: locator.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-profile-field-handle')\n"},{"id":"m1-a04","pass":false,"error":"TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-settings-logout')\n"},{"id":"m1-a10","pass":false,"outcomeClass":"platform","error":"S3_CAPABILITY_UNAVAILABLE: runtime refuses image columns; evidence/m1-media-check.json"},{"id":"m1-a11","pass":false,"outcomeClass":"platform","error":"S3_CAPABILITY_UNAVAILABLE: runtime refuses image columns; evidence/m1-media-check.json"}]}

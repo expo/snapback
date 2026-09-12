@@ -1,0 +1,28 @@
+{
+  "sdkSourceMapSha256": "d19404ffed501740dd5a4944d94d83f4b2acd094ab79b1ec7af33297f5ff951d",
+  "sdkBundleSha256": "d4385e49591a449c3d2fdca8c2dc7c8752e79e8cb21ec69f59c6ce7437fb5628",
+  "sourceExcerpts": [
+    {
+      "path": "../../../../../packages/snapback3/src/client.ts",
+      "sourceSha256": "5f2c5b583afeb2740529d1a7705e4d86a3b87125cfca7b2c2d7bde4c4fae58dd",
+      "startLine": 199,
+      "text": "  /** Dismiss a terminal result after its recoverable input has been handled.\n   * Unknown and parked operations cannot be discarded through this method. */\n  async dismissOperation(id: string): Promise<void> {\n    await this.ready;\n    const entry = this.journal.get(id);\n    if (!entry || entry.principal !== this.session?.principal.id) throw new SnapbackError('S3_OPERATION_UNKNOWN', 'This operation is not available to this account.');\n    if (!entry.receipt) throw new SnapbackError('S3_OPERATION_PENDING', 'This operation has no terminal result yet.');\n    const dismissed: StoredOperation = { ...entry, dismissed: true };\n    await this.persist({ operations: [dismissed] });\n    this.journal.set(id, dismissed); this.publish();\n  }\n"
+    }
+  ],
+  "guideObservation": {
+    "repositoryPath": "snapback3/guide.md",
+    "sha256": "ce787c06b38fdb6a46b18ddd67c34935443e41faad08f57964c046a898682d17",
+    "startLine": 123,
+    "text": "Do not call `mutate` again merely because a reply is late: that requests a new\noperation. Let the original recover. `client.operation(id)` finds saved work;\n`client.dismissOperation(id)` acknowledges terminal or parked work after the app\nhas preserved any user input it needs. A changed account seals retained operation\nhandles, hides its data, and leaves its saved work recoverable under that account.\n\nDraft retention is application policy. Commonroom persists drafts and edit bases"
+  },
+  "graderHelperHashes": [
+    {
+      "path": "m7-grader/grading/probes/old-client.mjs",
+      "sha256": "a120152551e126a55ce8b75a779a647eca2fce8657baefb8d70fa304789aea7d"
+    },
+    {
+      "path": "m7-grader/grading/probes/api-bounds.mjs",
+      "sha256": "fc4b350a19ec2a66907946668141457233247ab2e05939dcc56e798c0da19e58"
+    }
+  ]
+}

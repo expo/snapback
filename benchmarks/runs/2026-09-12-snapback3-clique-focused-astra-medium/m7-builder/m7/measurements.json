@@ -1,0 +1,235 @@
+{
+  "measuredAtEpoch": 1789233024.151414,
+  "startEpoch": 1789232160.8988051,
+  "elapsedSeconds": 863.2526090145111,
+  "tokenUse": "unavailable; no authenticated token cap or usage measurement",
+  "authoringBoundaries": {
+    "firstCheckStartMs": 1789232268556,
+    "certifiedCheckEndMs": 1789232310354,
+    "migrationStartMs": 1789232357074,
+    "migrationEndMs": 1789232357766,
+    "firstPollBrowserStartMs": 1789232555327,
+    "correctedPollBrowserEndMs": 1789232597253,
+    "shutdownEndEpoch": 1789232847.1367455
+  },
+  "commandDurations": [
+    {
+      "label": "check-01",
+      "ms": 504,
+      "exitCode": 1
+    },
+    {
+      "label": "check-02",
+      "ms": 583,
+      "exitCode": 1
+    },
+    {
+      "label": "check-03",
+      "ms": 570,
+      "exitCode": 0
+    },
+    {
+      "label": "wait-owner-01",
+      "ms": 473,
+      "exitCode": 0
+    },
+    {
+      "label": "migrate-01",
+      "ms": 739,
+      "exitCode": 1
+    },
+    {
+      "label": "post-alice",
+      "ms": 349,
+      "exitCode": 0
+    },
+    {
+      "label": "post-bob",
+      "ms": 354,
+      "exitCode": 0
+    },
+    {
+      "label": "post-carol",
+      "ms": 335,
+      "exitCode": 0
+    },
+    {
+      "label": "verify-migration",
+      "ms": 1228,
+      "exitCode": 0
+    },
+    {
+      "label": "compare-snapshots",
+      "ms": 26,
+      "exitCode": 0
+    },
+    {
+      "label": "typecheck-01",
+      "ms": 299,
+      "exitCode": 0
+    },
+    {
+      "label": "build-web-01",
+      "ms": 2136,
+      "exitCode": 0
+    },
+    {
+      "label": "build-shell-01",
+      "ms": 39,
+      "exitCode": 0
+    },
+    {
+      "label": "poll-browser-01",
+      "ms": 13575,
+      "exitCode": 0
+    },
+    {
+      "label": "poll-browser-02",
+      "ms": 5860,
+      "exitCode": 0
+    },
+    {
+      "label": "poll-api-01",
+      "ms": 620,
+      "exitCode": 0
+    },
+    {
+      "label": "regression-selected-01",
+      "ms": 10244,
+      "exitCode": 0
+    },
+    {
+      "label": "custom-client-install",
+      "ms": 746,
+      "exitCode": 0
+    },
+    {
+      "label": "regression-controls-01",
+      "ms": 2500,
+      "exitCode": 0
+    },
+    {
+      "label": "custom-client-check",
+      "ms": 437,
+      "exitCode": 0
+    },
+    {
+      "label": "documented-client-demo",
+      "ms": 280,
+      "exitCode": 0
+    },
+    {
+      "label": "final-api-audit",
+      "ms": 443,
+      "exitCode": 0
+    },
+    {
+      "label": "shutdown",
+      "ms": 1029,
+      "exitCode": 0
+    },
+    {
+      "label": "storage-final",
+      "ms": 25,
+      "exitCode": 0
+    }
+  ],
+  "authoringAndCorrection": {
+    "compilerAttempts": 3,
+    "compilerFailures": 2,
+    "backendCorrectionRounds": 2,
+    "migrationBackfillMutationsAttempted": 2,
+    "migrationBackfillMutationsCommitted": 2,
+    "failedBackfillChunks": 0,
+    "reducedBackfillChunks": 0,
+    "migrationDriverPostCommitCensusFailures": 1,
+    "browserAttempts": 2,
+    "firstBrowserAssertionFailures": 2,
+    "browserDriverCorrectionRounds": 1,
+    "appCorrectionsAfterFirstBrowser": 0,
+    "delegatedAgents": 0,
+    "platformPatches": 0,
+    "newServers": 1,
+    "newServerWorkers": 1
+  },
+  "authoredFiles": [
+    {
+      "path": "snapback/polls.q",
+      "lines": 23,
+      "bytes": 2164
+    },
+    {
+      "path": "src/chat.tsx",
+      "lines": 178,
+      "bytes": 10684
+    },
+    {
+      "path": "m7/command.mjs",
+      "lines": 3,
+      "bytes": 469
+    },
+    {
+      "path": "m7/migrate.mjs",
+      "lines": 3,
+      "bytes": 1396
+    },
+    {
+      "path": "m7/verify-migration.mjs",
+      "lines": 4,
+      "bytes": 1070
+    },
+    {
+      "path": "m7/poll-browser.mjs",
+      "lines": 22,
+      "bytes": 6317
+    },
+    {
+      "path": "m7/poll-api.mjs",
+      "lines": 19,
+      "bytes": 5633
+    },
+    {
+      "path": "m7/final-api-audit.mjs",
+      "lines": 6,
+      "bytes": 1992
+    },
+    {
+      "path": "m7/start-owner.mjs",
+      "lines": 2,
+      "bytes": 523
+    },
+    {
+      "path": "m7/poll-browser-attempt-01.mjs",
+      "lines": 22,
+      "bytes": 7503
+    },
+    {
+      "path": "m7/stop-owner.py",
+      "lines": 20,
+      "bytes": 1196
+    },
+    {
+      "path": "m7/compare-snapshots.py",
+      "lines": 36,
+      "bytes": 3123
+    },
+    {
+      "path": "m7/collect-final.py",
+      "lines": 36,
+      "bytes": 8474
+    }
+  ],
+  "appBuild": [
+    {
+      "url": "/_expo/static/js/web/entry-61bbab2af9602bcf8a604b838e01cda7.js",
+      "sha256": "31d843a553cbc145fb9f2db961509c1edd06da7f9d88dfbcabf1c130dc8bc4d5",
+      "bytes": 1354979,
+      "servedEqualsDisk": true
+    }
+  ],
+  "snapshotComparisonRows": 42,
+  "regressionsEligible": 25,
+  "regressionsPassed": 25,
+  "storage": "m7/storage-final.json",
+  "storageBoundary": "No explicit vacuum/checkpoint/compaction; before/after owner-shutdown bytes in shutdown.json; no large-fixture benchmark repeated."
+}

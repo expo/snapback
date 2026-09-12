@@ -1,0 +1,56 @@
+[
+  {
+    "iteration": 1,
+    "reachedAuthScreen": true,
+    "err": "",
+    "visibleText": "Clique | Clique | Sign in | Don't have an account? Sign up",
+    "url": "/",
+    "lastApi": [
+      "200 /api/operation/d4f4cd9f-0149-42d6-8ef2-02d30fd1b00a",
+      "200 /api/mutation",
+      "200 /api/events",
+      "200 /api/read",
+      "200 /api/manifest",
+      "200 /api/events",
+      "200 /api/manifest",
+      "200 /api/auth/logout"
+    ],
+    "consoleErrors": []
+  },
+  {
+    "iteration": 2,
+    "reachedAuthScreen": true,
+    "err": "",
+    "visibleText": "Clique | Clique | Sign in | Don't have an account? Sign up",
+    "url": "/",
+    "lastApi": [
+      "200 /api/operation/709616bf-ab3d-4c41-aee2-880008fca19c",
+      "200 /api/mutation",
+      "200 /api/events",
+      "200 /api/read",
+      "200 /api/manifest",
+      "200 /api/events",
+      "200 /api/manifest",
+      "200 /api/auth/logout"
+    ],
+    "consoleErrors": []
+  },
+  {
+    "iteration": 3,
+    "reachedAuthScreen": true,
+    "err": "",
+    "visibleText": "Clique | Clique | Sign in | Don't have an account? Sign up",
+    "url": "/",
+    "lastApi": [
+      "200 /api/operation/153ccfab-a11e-4a35-907b-3fba0625157f",
+      "200 /api/mutation",
+      "200 /api/events",
+      "200 /api/read",
+      "200 /api/manifest",
+      "200 /api/events",
+      "200 /api/manifest",
+      "200 /api/auth/logout"
+    ],
+    "consoleErrors": []
+  }
+]

@@ -1,0 +1,2 @@
+import {spawn} from 'node:child_process';import fs from 'node:fs';
+const log=fs.openSync('m7/owner.log','a');const args=['node_modules/snapback3/dist/cli.mjs','serve','.','--port','54900'];const p=spawn(process.execPath,args,{stdio:['ignore',log,log],detached:true});const r={pid:p.pid,args,epoch:Date.now()/1000};fs.appendFileSync('m7/owned-pids.jsonl',JSON.stringify(r)+'\n');fs.appendFileSync('m7/run-log.md',`\n${r.epoch}: owner PID ${p.pid}, command ${process.execPath} ${args.join(' ')}\n`);p.unref();console.log(r);

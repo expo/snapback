@@ -1,0 +1,216 @@
+{
+ "origin": "http://127.0.0.1:54910",
+ "phases": [
+  {
+   "t": 1789234318592,
+   "name": "navigated",
+   "phase": "reconnect",
+   "nav": "ok"
+  },
+  {
+   "t": 1789234324605,
+   "name": "shell",
+   "hasClient": true,
+   "title": "Clique",
+   "authForm": false,
+   "convInput": true
+  },
+  {
+   "t": 1789234324608,
+   "name": "pending-initial",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ],
+   "hasOriginal": true
+  },
+  {
+   "t": 1789234328614,
+   "name": "poll-0",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234332623,
+   "name": "poll-1",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234336630,
+   "name": "poll-2",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234340638,
+   "name": "poll-3",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234344644,
+   "name": "poll-4",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234348649,
+   "name": "poll-5",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234352655,
+   "name": "poll-6",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234356663,
+   "name": "poll-7",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  },
+  {
+   "t": 1789234364788,
+   "name": "after-reload",
+   "status": "online",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ]
+  }
+ ],
+ "finalPending": [
+  {
+   "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+   "op": "messages.send",
+   "args": {
+    "conversationId": "d-alice-bob",
+    "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+    "replyTo": null,
+    "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+   },
+   "state": null
+  }
+ ],
+ "expected": {
+  "operationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+  "messageId": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+ }
+}

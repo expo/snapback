@@ -1,0 +1,5 @@
+
+> astra-snapback3@1.0.0 seed
+> node scripts/seed.mjs --segment m1 --diagnostic-text-only
+
+SnapbackError: Too many authentication attempts. Wait a minute and try again.

@@ -1,0 +1,5 @@
+{
+  "at": 1789231612.9381082,
+  "scope": "coordinator file-copy preparation, no runtime started",
+  "error": "Readonly frozen-directory modes inherited by shutil.copytree prevented static-asset overlay. Repaired copied directory modes before overlay; fail-fast prevented any launch."
+}

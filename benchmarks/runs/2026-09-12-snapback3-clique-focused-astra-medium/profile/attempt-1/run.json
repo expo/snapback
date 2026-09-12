@@ -1,0 +1,6413 @@
+{
+  "kind": "independent instrumented CPU-attribution diagnostic; never a normal timing repeat",
+  "actor": "u0500",
+  "expectedMessages": 10000,
+  "origin": "http://127.0.0.1:54905",
+  "startedEpochMs": 1789231790350,
+  "controllerPid": 1656632,
+  "node": "v24.13.1",
+  "playwright": "1.62.1",
+  "clkTck": 100,
+  "phases": [
+    {
+      "name": "owner-seeded-ready",
+      "epochMs": 1789231802277
+    },
+    {
+      "name": "app-loaded",
+      "epochMs": 1789231802676,
+      "browser": {
+        "epochMs": 1789231802675,
+        "timeOrigin": 1789231802444.9,
+        "now": 230.70000004768372
+      }
+    },
+    {
+      "name": "authenticated",
+      "epochMs": 1789231802821,
+      "browser": {
+        "epochMs": 1789231802820,
+        "timeOrigin": 1789231802444.9,
+        "now": 375.90000009536743
+      }
+    },
+    {
+      "name": "first-inbox-driver-paint-boundary",
+      "epochMs": 1789231802917,
+      "browser": {
+        "epochMs": 1789231802917,
+        "timeOrigin": 1789231802444.9,
+        "now": 472.2999999523163
+      }
+    },
+    {
+      "name": "first-history-driver-paint-boundary",
+      "epochMs": 1789231803218,
+      "browser": {
+        "epochMs": 1789231803217,
+        "timeOrigin": 1789231802444.9,
+        "now": 772.5
+      }
+    },
+    {
+      "name": "authored-acquisition-started",
+      "epochMs": 1789231803224,
+      "browser": {
+        "epochMs": 1789231803224,
+        "timeOrigin": 1789231802444.9,
+        "now": 779.4000000953674
+      }
+    },
+    {
+      "name": "authored-acquisition-observed-end",
+      "epochMs": 1789231827509,
+      "browser": {
+        "epochMs": 1789231827508,
+        "timeOrigin": 1789231802444.9,
+        "now": 25063.5
+      }
+    }
+  ],
+  "processes": [
+    {
+      "pid": 1656632,
+      "startTicks": "159070834",
+      "userTicks": 32,
+      "systemTicks": 6,
+      "rssPages": 33197,
+      "state": "R",
+      "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node diagnostic/profile.mjs ",
+      "firstSeenEpochMs": 1789231790357,
+      "role": "diagnostic-controller"
+    },
+    {
+      "pid": 1656651,
+      "startTicks": "159070864",
+      "userTicks": 0,
+      "systemTicks": 0,
+      "rssPages": 192,
+      "state": "R",
+      "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node node_modules/snapback3/dist/cli.mjs dev . --host 127.0.0.1 --port 54905 ",
+      "firstSeenEpochMs": 1789231790358,
+      "role": "node-owner"
+    },
+    {
+      "pid": 1656679,
+      "startTicks": "159071159",
+      "userTicks": 789,
+      "systemTicks": 94,
+      "rssPages": 153102,
+      "state": "S",
+      "command": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/node_modules/snapback3/dist/native/linux-x64/snapback3-worker --project /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/runtime-1656651-dc5fc561-2a7b-44e1-87a3-75383e024b8c.json --database /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/store.sqlite --dev --seed /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/seed-1656651-dc5fc561-2a7b-44e1-87a3-75383e024b8c.json ",
+      "firstSeenEpochMs": 1789231802277,
+      "role": "rust-worker"
+    },
+    {
+      "pid": 1657007,
+      "startTicks": "159072058",
+      "userTicks": 3,
+      "systemTicks": 5,
+      "rssPages": 20352,
+      "state": "S",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --enable-precise-memory-info --user-data-dir=/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/diagnostic/browser-profile --remote-debugging-pipe about:blank ",
+      "firstSeenEpochMs": 1789231802423,
+      "role": "chromium"
+    },
+    {
+      "pid": 1657009,
+      "startTicks": "159072060",
+      "userTicks": 0,
+      "systemTicks": 1,
+      "rssPages": 10560,
+      "state": "S",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-zygote-sandbox --no-sandbox --headless ",
+      "firstSeenEpochMs": 1789231802423,
+      "role": "chromium"
+    },
+    {
+      "pid": 1657026,
+      "startTicks": "159072062",
+      "userTicks": 1,
+      "systemTicks": 1,
+      "rssPages": 13476,
+      "state": "S",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=gpu-process --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless --ozone-platform=headless --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,17570977338438996178,13279991669420570447,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,Https ",
+      "firstSeenEpochMs": 1789231802423,
+      "role": "chromium"
+    },
+    {
+      "pid": 1657010,
+      "startTicks": "159072060",
+      "userTicks": 0,
+      "systemTicks": 1,
+      "rssPages": 10560,
+      "state": "S",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-sandbox --headless ",
+      "firstSeenEpochMs": 1789231802423,
+      "role": "chromium"
+    },
+    {
+      "pid": 1657033,
+      "startTicks": "159072063",
+      "userTicks": 1,
+      "systemTicks": 1,
+      "rssPages": 18119,
+      "state": "S",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=renderer --headless=old --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-precise-memory-info --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4 --time-ticks-at-unix-epoch=-1787641081713607 --launch-time-ticks=1590720634743 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,17570977338438996178,13279991669420570447,262144 --e ",
+      "firstSeenEpochMs": 1789231802423,
+      "role": "chromium"
+    }
+  ],
+  "samples": [
+    {
+      "label": "before-profiler-start",
+      "epochStart": 1789231802434,
+      "epochEnd": 1789231802437,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 59,
+          "systemTicks": 8,
+          "rssPages": 33965,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 484,
+          "systemTicks": 72,
+          "rssPages": 215890,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 789,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 3,
+          "systemTicks": 6,
+          "rssPages": 20352,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 1,
+          "systemTicks": 1,
+          "rssPages": 13476,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1,
+          "systemTicks": 1,
+          "rssPages": 18119,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590720.7226,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 2,
+        "Frames": 1,
+        "JSEventListeners": 0,
+        "LayoutObjects": 4,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 8,
+        "Resources": 0,
+        "ContextLifecycleStateObservers": 2,
+        "V8PerContextDatas": 2,
+        "WorkerGlobalScopes": 0,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 2,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 0,
+        "LayoutCount": 0,
+        "RecalcStyleCount": 0,
+        "LayoutDuration": 0,
+        "RecalcStyleDuration": 0,
+        "DevToolsCommandDuration": 0.000088,
+        "ScriptDuration": 0,
+        "V8CompileDuration": 0,
+        "TaskDuration": 0.000113,
+        "TaskOtherDuration": 0.000025,
+        "ThreadTime": 0.000203,
+        "ProcessTime": 0.02,
+        "JSHeapUsedSize": 531792,
+        "JSHeapTotalSize": 1048576,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.651577,
+        "NavigationStart": 1590720.63431
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231802441,
+      "epochEnd": 1789231802444,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 59,
+          "systemTicks": 8,
+          "rssPages": 33965,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 484,
+          "systemTicks": 72,
+          "rssPages": 215890,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 789,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 3,
+          "systemTicks": 6,
+          "rssPages": 20352,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 1,
+          "systemTicks": 1,
+          "rssPages": 13476,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1,
+          "systemTicks": 1,
+          "rssPages": 18503,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590720.729277,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 2,
+        "Frames": 1,
+        "JSEventListeners": 0,
+        "LayoutObjects": 4,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 8,
+        "Resources": 0,
+        "ContextLifecycleStateObservers": 2,
+        "V8PerContextDatas": 2,
+        "WorkerGlobalScopes": 0,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 2,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 0,
+        "LayoutCount": 0,
+        "RecalcStyleCount": 0,
+        "LayoutDuration": 0,
+        "RecalcStyleDuration": 0,
+        "DevToolsCommandDuration": 0.003425,
+        "ScriptDuration": 0,
+        "V8CompileDuration": 0,
+        "TaskDuration": 0.003464,
+        "TaskOtherDuration": 0.000039,
+        "ThreadTime": 0.003593,
+        "ProcessTime": 0.02,
+        "JSHeapUsedSize": 531804,
+        "JSHeapTotalSize": 1048576,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.651577,
+        "NavigationStart": 1590720.63431
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231802943,
+      "epochEnd": 1789231802945,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 67,
+          "systemTicks": 9,
+          "rssPages": 34349,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 492,
+          "systemTicks": 73,
+          "rssPages": 216466,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 790,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 14,
+          "systemTicks": 19,
+          "rssPages": 23321,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 3,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 69,
+          "systemTicks": 21,
+          "rssPages": 40614,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590721.231246,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 333,
+        "LayoutObjects": 564,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 626,
+        "Resources": 23,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 2,
+        "ArrayBufferContents": 14,
+        "LayoutCount": 10,
+        "RecalcStyleCount": 15,
+        "LayoutDuration": 0.033615,
+        "RecalcStyleDuration": 0.002709,
+        "DevToolsCommandDuration": 0.020868,
+        "ScriptDuration": 0.185513,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 0.351646,
+        "TaskOtherDuration": 0.108263,
+        "ThreadTime": 0.31854,
+        "ProcessTime": 0.9,
+        "JSHeapUsedSize": 14394796,
+        "JSHeapTotalSize": 27901952,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "before-authored-acquisition",
+      "epochStart": 1789231803218,
+      "epochEnd": 1789231803220,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 69,
+          "systemTicks": 10,
+          "rssPages": 34349,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 493,
+          "systemTicks": 73,
+          "rssPages": 216658,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 792,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 18,
+          "systemTicks": 21,
+          "rssPages": 23705,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 113,
+          "systemTicks": 29,
+          "rssPages": 47482,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590721.506399,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1551,
+        "LayoutObjects": 4787,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4852,
+        "Resources": 24,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 2,
+        "ArrayBufferContents": 28,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.026186,
+        "ScriptDuration": 0.271592,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 0.530536,
+        "TaskOtherDuration": 0.175895,
+        "ThreadTime": 0.488065,
+        "ProcessTime": 1.42,
+        "JSHeapUsedSize": 26701172,
+        "JSHeapTotalSize": 46137344,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231803444,
+      "epochEnd": 1789231803446,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 70,
+          "systemTicks": 10,
+          "rssPages": 34349,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 493,
+          "systemTicks": 74,
+          "rssPages": 216658,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 796,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 22,
+          "systemTicks": 24,
+          "rssPages": 23705,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 169,
+          "systemTicks": 36,
+          "rssPages": 53187,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590721.732285,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1533,
+        "LayoutObjects": 4787,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4852,
+        "Resources": 24,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 18,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.027682,
+        "ScriptDuration": 0.327701,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 0.696948,
+        "TaskOtherDuration": 0.284702,
+        "ThreadTime": 0.651138,
+        "ProcessTime": 2.05,
+        "JSHeapUsedSize": 32810972,
+        "JSHeapTotalSize": 63438848,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231803946,
+      "epochEnd": 1789231803948,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 71,
+          "systemTicks": 10,
+          "rssPages": 34349,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 494,
+          "systemTicks": 74,
+          "rssPages": 216850,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 801,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 36,
+          "systemTicks": 30,
+          "rssPages": 24089,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 249,
+          "systemTicks": 50,
+          "rssPages": 66897,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590722.234383,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1551,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 26,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 18,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.027769,
+        "ScriptDuration": 0.487797,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 1.019352,
+        "TaskOtherDuration": 0.446923,
+        "ThreadTime": 0.977699,
+        "ProcessTime": 2.99,
+        "JSHeapUsedSize": 50572608,
+        "JSHeapTotalSize": 115081216,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231804449,
+      "epochEnd": 1789231804451,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 72,
+          "systemTicks": 10,
+          "rssPages": 34349,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 496,
+          "systemTicks": 75,
+          "rssPages": 217234,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 808,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 53,
+          "systemTicks": 38,
+          "rssPages": 23863,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 307,
+          "systemTicks": 61,
+          "rssPages": 72228,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590722.737009,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1569,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 29,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 20,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.027886,
+        "ScriptDuration": 0.602961,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 1.285686,
+        "TaskOtherDuration": 0.597976,
+        "ThreadTime": 1.25963,
+        "ProcessTime": 3.69,
+        "JSHeapUsedSize": 75927936,
+        "JSHeapTotalSize": 133693440,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231804951,
+      "epochEnd": 1789231804953,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 73,
+          "systemTicks": 10,
+          "rssPages": 34349,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 497,
+          "systemTicks": 75,
+          "rssPages": 217426,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 816,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 67,
+          "systemTicks": 45,
+          "rssPages": 24439,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 364,
+          "systemTicks": 69,
+          "rssPages": 78167,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590723.239111,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1587,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 32,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 26,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028002,
+        "ScriptDuration": 0.74962,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 1.567002,
+        "TaskOtherDuration": 0.732517,
+        "ThreadTime": 1.556326,
+        "ProcessTime": 4.33,
+        "JSHeapUsedSize": 106462580,
+        "JSHeapTotalSize": 152440832,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231805452,
+      "epochEnd": 1789231805454,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 74,
+          "systemTicks": 10,
+          "rssPages": 34349,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 499,
+          "systemTicks": 75,
+          "rssPages": 217618,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 822,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 83,
+          "systemTicks": 52,
+          "rssPages": 24224,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 417,
+          "systemTicks": 77,
+          "rssPages": 85645,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590723.740461,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1605,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 35,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 24,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.02811,
+        "ScriptDuration": 0.884954,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 1.861774,
+        "TaskOtherDuration": 0.891847,
+        "ThreadTime": 1.86592,
+        "ProcessTime": 4.94,
+        "JSHeapUsedSize": 117069816,
+        "JSHeapTotalSize": 176033792,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231805955,
+      "epochEnd": 1789231805957,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 75,
+          "systemTicks": 11,
+          "rssPages": 34108,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 500,
+          "systemTicks": 76,
+          "rssPages": 218002,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 829,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 101,
+          "systemTicks": 59,
+          "rssPages": 23432,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 493,
+          "systemTicks": 84,
+          "rssPages": 88316,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590724.242638,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1539,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 24,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 23,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028217,
+        "ScriptDuration": 1.014644,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 2.163318,
+        "TaskOtherDuration": 1.063594,
+        "ThreadTime": 2.179152,
+        "ProcessTime": 5.77,
+        "JSHeapUsedSize": 49805976,
+        "JSHeapTotalSize": 167120896,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231806457,
+      "epochEnd": 1789231806459,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 76,
+          "systemTicks": 11,
+          "rssPages": 34108,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 502,
+          "systemTicks": 76,
+          "rssPages": 218386,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 834,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 117,
+          "systemTicks": 65,
+          "rssPages": 24200,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 539,
+          "systemTicks": 88,
+          "rssPages": 89276,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590724.744685,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1557,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 27,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 29,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028318,
+        "ScriptDuration": 1.147008,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 2.446995,
+        "TaskOtherDuration": 1.214806,
+        "ThreadTime": 2.481077,
+        "ProcessTime": 6.27,
+        "JSHeapUsedSize": 89730816,
+        "JSHeapTotalSize": 172625920,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231806959,
+      "epochEnd": 1789231806961,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 77,
+          "systemTicks": 11,
+          "rssPages": 34108,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 503,
+          "systemTicks": 76,
+          "rssPages": 218578,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 840,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "R"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 137,
+          "systemTicks": 73,
+          "rssPages": 23793,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 589,
+          "systemTicks": 93,
+          "rssPages": 89852,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590725.246666,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1575,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 30,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 24,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028429,
+        "ScriptDuration": 1.283534,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 2.723404,
+        "TaskOtherDuration": 1.354578,
+        "ThreadTime": 2.775338,
+        "ProcessTime": 6.82,
+        "JSHeapUsedSize": 90899216,
+        "JSHeapTotalSize": 172625920,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231807461,
+      "epochEnd": 1789231807468,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 78,
+          "systemTicks": 11,
+          "rssPages": 34108,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 504,
+          "systemTicks": 76,
+          "rssPages": 218770,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 845,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 154,
+          "systemTicks": 82,
+          "rssPages": 23582,
+          "state": "R"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 638,
+          "systemTicks": 99,
+          "rssPages": 90991,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590725.753668,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1593,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 33,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 26,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028526,
+        "ScriptDuration": 1.413881,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 3.013409,
+        "TaskOtherDuration": 1.514139,
+        "ThreadTime": 3.083439,
+        "ProcessTime": 7.41,
+        "JSHeapUsedSize": 109167164,
+        "JSHeapTotalSize": 174858240,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231807968,
+      "epochEnd": 1789231807970,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 78,
+          "systemTicks": 11,
+          "rssPages": 34108,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 506,
+          "systemTicks": 77,
+          "rssPages": 218962,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 852,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 172,
+          "systemTicks": 90,
+          "rssPages": 24158,
+          "state": "R"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 694,
+          "systemTicks": 106,
+          "rssPages": 92875,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590726.255941,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1611,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 36,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 28,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028624,
+        "ScriptDuration": 1.547318,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 3.288251,
+        "TaskOtherDuration": 1.655446,
+        "ThreadTime": 3.375803,
+        "ProcessTime": 8,
+        "JSHeapUsedSize": 144524560,
+        "JSHeapTotalSize": 193736704,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231808470,
+      "epochEnd": 1789231808472,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 79,
+          "systemTicks": 11,
+          "rssPages": 34300,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 508,
+          "systemTicks": 77,
+          "rssPages": 219154,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 859,
+          "systemTicks": 94,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 190,
+          "systemTicks": 98,
+          "rssPages": 23753,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15780,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 737,
+          "systemTicks": 112,
+          "rssPages": 98021,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590726.757907,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1629,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 38,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 28,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028724,
+        "ScriptDuration": 1.656126,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 3.551229,
+        "TaskOtherDuration": 1.809516,
+        "ThreadTime": 3.657006,
+        "ProcessTime": 8.49,
+        "JSHeapUsedSize": 172788800,
+        "JSHeapTotalSize": 212094976,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231808972,
+      "epochEnd": 1789231808974,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 80,
+          "systemTicks": 11,
+          "rssPages": 34492,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 509,
+          "systemTicks": 78,
+          "rssPages": 219538,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 866,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 205,
+          "systemTicks": 105,
+          "rssPages": 24521,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 811,
+          "systemTicks": 117,
+          "rssPages": 98858,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590727.259841,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1545,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 25,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 32,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.028858,
+        "ScriptDuration": 1.771827,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 3.84404,
+        "TaskOtherDuration": 1.986492,
+        "ThreadTime": 3.966634,
+        "ProcessTime": 9.28,
+        "JSHeapUsedSize": 57229740,
+        "JSHeapTotalSize": 208814080,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231809474,
+      "epochEnd": 1789231809479,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 81,
+          "systemTicks": 12,
+          "rssPages": 34492,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 511,
+          "systemTicks": 78,
+          "rssPages": 220114,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 874,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 219,
+          "systemTicks": 112,
+          "rssPages": 23733,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 857,
+          "systemTicks": 122,
+          "rssPages": 99622,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590727.765368,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1563,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 28,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 30,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029017,
+        "ScriptDuration": 1.907095,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 4.147754,
+        "TaskOtherDuration": 2.154779,
+        "ThreadTime": 4.281285,
+        "ProcessTime": 9.82,
+        "JSHeapUsedSize": 73424720,
+        "JSHeapTotalSize": 208814080,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231809980,
+      "epochEnd": 1789231809982,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 82,
+          "systemTicks": 12,
+          "rssPages": 34684,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 512,
+          "systemTicks": 78,
+          "rssPages": 220690,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 881,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 238,
+          "systemTicks": 120,
+          "rssPages": 23513,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 905,
+          "systemTicks": 127,
+          "rssPages": 100390,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590728.268305,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1581,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 31,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 38,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029113,
+        "ScriptDuration": 2.049205,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 4.422568,
+        "TaskOtherDuration": 2.287387,
+        "ThreadTime": 4.571162,
+        "ProcessTime": 10.32,
+        "JSHeapUsedSize": 110928384,
+        "JSHeapTotalSize": 208814080,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231810482,
+      "epochEnd": 1789231810484,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 83,
+          "systemTicks": 12,
+          "rssPages": 35068,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 513,
+          "systemTicks": 79,
+          "rssPages": 221074,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 888,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "R"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 253,
+          "systemTicks": 128,
+          "rssPages": 23705,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 948,
+          "systemTicks": 132,
+          "rssPages": 101152,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590728.770373,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1593,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 34,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 32,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029221,
+        "ScriptDuration": 2.174405,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 4.705254,
+        "TaskOtherDuration": 2.444765,
+        "ThreadTime": 4.870946,
+        "ProcessTime": 10.8,
+        "JSHeapUsedSize": 129844844,
+        "JSHeapTotalSize": 208814080,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231810985,
+      "epochEnd": 1789231810987,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 84,
+          "systemTicks": 12,
+          "rssPages": 35260,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 515,
+          "systemTicks": 79,
+          "rssPages": 221650,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 893,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 275,
+          "systemTicks": 137,
+          "rssPages": 23683,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 991,
+          "systemTicks": 137,
+          "rssPages": 102496,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590729.272997,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1611,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 36,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 36,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029341,
+        "ScriptDuration": 2.268601,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 4.970812,
+        "TaskOtherDuration": 2.616007,
+        "ThreadTime": 5.156029,
+        "ProcessTime": 11.28,
+        "JSHeapUsedSize": 153563132,
+        "JSHeapTotalSize": 209883136,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231811487,
+      "epochEnd": 1789231811489,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 85,
+          "systemTicks": 13,
+          "rssPages": 35260,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 516,
+          "systemTicks": 80,
+          "rssPages": 222418,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 901,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 290,
+          "systemTicks": 144,
+          "rssPages": 24259,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1032,
+          "systemTicks": 142,
+          "rssPages": 103648,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590729.77474,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1629,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 39,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 40,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029471,
+        "ScriptDuration": 2.401131,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 5.239359,
+        "TaskOtherDuration": 2.751894,
+        "ThreadTime": 5.441967,
+        "ProcessTime": 11.74,
+        "JSHeapUsedSize": 173730384,
+        "JSHeapTotalSize": 217485312,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231811989,
+      "epochEnd": 1789231811991,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 85,
+          "systemTicks": 13,
+          "rssPages": 35452,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 517,
+          "systemTicks": 80,
+          "rssPages": 222994,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 908,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 308,
+          "systemTicks": 150,
+          "rssPages": 23675,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1082,
+          "systemTicks": 149,
+          "rssPages": 108447,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590730.277099,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1641,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 42,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 42,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029632,
+        "ScriptDuration": 2.530866,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 5.53252,
+        "TaskOtherDuration": 2.915159,
+        "ThreadTime": 5.750396,
+        "ProcessTime": 12.32,
+        "JSHeapUsedSize": 188657028,
+        "JSHeapTotalSize": 240164864,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231812491,
+      "epochEnd": 1789231812493,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 86,
+          "systemTicks": 13,
+          "rssPages": 35452,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 519,
+          "systemTicks": 80,
+          "rssPages": 223378,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 915,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "R"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 323,
+          "systemTicks": 156,
+          "rssPages": 24443,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1164,
+          "systemTicks": 157,
+          "rssPages": 107920,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590730.778816,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1545,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 26,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 40,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029749,
+        "ScriptDuration": 2.659402,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 5.846783,
+        "TaskOtherDuration": 3.100769,
+        "ThreadTime": 6.078237,
+        "ProcessTime": 13.21,
+        "JSHeapUsedSize": 69909296,
+        "JSHeapTotalSize": 233869312,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231812993,
+      "epochEnd": 1789231812995,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 86,
+          "systemTicks": 14,
+          "rssPages": 35644,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 520,
+          "systemTicks": 81,
+          "rssPages": 223954,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 921,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 342,
+          "systemTicks": 165,
+          "rssPages": 24043,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1211,
+          "systemTicks": 162,
+          "rssPages": 108494,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590731.281106,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1569,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 29,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 49,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.029873,
+        "ScriptDuration": 2.789732,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 6.12563,
+        "TaskOtherDuration": 3.249162,
+        "ThreadTime": 6.373763,
+        "ProcessTime": 13.73,
+        "JSHeapUsedSize": 112973372,
+        "JSHeapTotalSize": 233869312,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231813496,
+      "epochEnd": 1789231813498,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 87,
+          "systemTicks": 14,
+          "rssPages": 35644,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 521,
+          "systemTicks": 81,
+          "rssPages": 224146,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 928,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "R"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 356,
+          "systemTicks": 172,
+          "rssPages": 24036,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1267,
+          "systemTicks": 166,
+          "rssPages": 109262,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590731.784024,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1587,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 33,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 45,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.030013,
+        "ScriptDuration": 2.954184,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 6.426405,
+        "TaskOtherDuration": 3.385345,
+        "ThreadTime": 6.687876,
+        "ProcessTime": 14.33,
+        "JSHeapUsedSize": 112630824,
+        "JSHeapTotalSize": 233869312,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231813998,
+      "epochEnd": 1789231814000,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 87,
+          "systemTicks": 14,
+          "rssPages": 35836,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 523,
+          "systemTicks": 82,
+          "rssPages": 224530,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 934,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 375,
+          "systemTicks": 181,
+          "rssPages": 24420,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1311,
+          "systemTicks": 173,
+          "rssPages": 109838,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590732.286167,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1611,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 36,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 56,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.030156,
+        "ScriptDuration": 3.09124,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 6.69628,
+        "TaskOtherDuration": 3.518021,
+        "ThreadTime": 6.974385,
+        "ProcessTime": 14.84,
+        "JSHeapUsedSize": 147182164,
+        "JSHeapTotalSize": 233869312,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231814500,
+      "epochEnd": 1789231814502,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 88,
+          "systemTicks": 14,
+          "rssPages": 36028,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 524,
+          "systemTicks": 82,
+          "rssPages": 224914,
+          "state": "R"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 941,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 395,
+          "systemTicks": 189,
+          "rssPages": 24202,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1358,
+          "systemTicks": 178,
+          "rssPages": 110798,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590732.787961,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1629,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 40,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 54,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.030272,
+        "ScriptDuration": 3.249071,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 6.992066,
+        "TaskOtherDuration": 3.65586,
+        "ThreadTime": 7.283704,
+        "ProcessTime": 15.36,
+        "JSHeapUsedSize": 173303920,
+        "JSHeapTotalSize": 233869312,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231815002,
+      "epochEnd": 1789231815004,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 89,
+          "systemTicks": 15,
+          "rssPages": 36028,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 525,
+          "systemTicks": 82,
+          "rssPages": 225298,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 947,
+          "systemTicks": 95,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 410,
+          "systemTicks": 197,
+          "rssPages": 24778,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1409,
+          "systemTicks": 185,
+          "rssPages": 111717,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590733.289981,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1653,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 43,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 57,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.030389,
+        "ScriptDuration": 3.386922,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 7.269947,
+        "TaskOtherDuration": 3.795773,
+        "ThreadTime": 7.578223,
+        "ProcessTime": 15.94,
+        "JSHeapUsedSize": 185670892,
+        "JSHeapTotalSize": 246190080,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231815504,
+      "epochEnd": 1789231815506,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 89,
+          "systemTicks": 15,
+          "rssPages": 36220,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 534,
+          "systemTicks": 85,
+          "rssPages": 194291,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 952,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 427,
+          "systemTicks": 205,
+          "rssPages": 24181,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1456,
+          "systemTicks": 193,
+          "rssPages": 118629,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590733.792036,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1671,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 46,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 58,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.03056,
+        "ScriptDuration": 3.529815,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 7.561889,
+        "TaskOtherDuration": 3.944651,
+        "ThreadTime": 7.883798,
+        "ProcessTime": 16.49,
+        "JSHeapUsedSize": 204023216,
+        "JSHeapTotalSize": 271622144,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231816006,
+      "epochEnd": 1789231816008,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 90,
+          "systemTicks": 15,
+          "rssPages": 36412,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 535,
+          "systemTicks": 86,
+          "rssPages": 194483,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 960,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 438,
+          "systemTicks": 212,
+          "rssPages": 24563,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1539,
+          "systemTicks": 198,
+          "rssPages": 117903,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590734.293933,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1545,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 26,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 48,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.030685,
+        "ScriptDuration": 3.683541,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 7.891778,
+        "TaskOtherDuration": 4.120689,
+        "ThreadTime": 8.224237,
+        "ProcessTime": 17.37,
+        "JSHeapUsedSize": 81482308,
+        "JSHeapTotalSize": 254181376,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231816508,
+      "epochEnd": 1789231816510,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 90,
+          "systemTicks": 16,
+          "rssPages": 36412,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 537,
+          "systemTicks": 86,
+          "rssPages": 194675,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 965,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 460,
+          "systemTicks": 222,
+          "rssPages": 24155,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1588,
+          "systemTicks": 204,
+          "rssPages": 118287,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590734.796341,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1569,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 29,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 47,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.0308,
+        "ScriptDuration": 3.817688,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 8.171162,
+        "TaskOtherDuration": 4.265811,
+        "ThreadTime": 8.519999,
+        "ProcessTime": 17.92,
+        "JSHeapUsedSize": 101888096,
+        "JSHeapTotalSize": 254181376,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231817011,
+      "epochEnd": 1789231817013,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 91,
+          "systemTicks": 16,
+          "rssPages": 36604,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 538,
+          "systemTicks": 86,
+          "rssPages": 194867,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 973,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 474,
+          "systemTicks": 228,
+          "rssPages": 23750,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1642,
+          "systemTicks": 208,
+          "rssPages": 119240,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590735.299078,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1587,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 33,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 55,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.030919,
+        "ScriptDuration": 3.989293,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 8.46902,
+        "TaskOtherDuration": 4.391945,
+        "ThreadTime": 8.830496,
+        "ProcessTime": 18.5,
+        "JSHeapUsedSize": 121197436,
+        "JSHeapTotalSize": 254181376,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231817513,
+      "epochEnd": 1789231817514,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 92,
+          "systemTicks": 16,
+          "rssPages": 36796,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 539,
+          "systemTicks": 87,
+          "rssPages": 195059,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 978,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 495,
+          "systemTicks": 237,
+          "rssPages": 24326,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1688,
+          "systemTicks": 214,
+          "rssPages": 119624,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590735.800427,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1611,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 36,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 62,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.03103,
+        "ScriptDuration": 4.127925,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 8.746682,
+        "TaskOtherDuration": 4.530864,
+        "ThreadTime": 9.125108,
+        "ProcessTime": 19.02,
+        "JSHeapUsedSize": 162140132,
+        "JSHeapTotalSize": 254181376,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231818014,
+      "epochEnd": 1789231818023,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 93,
+          "systemTicks": 16,
+          "rssPages": 36796,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 540,
+          "systemTicks": 87,
+          "rssPages": 195251,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 985,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 511,
+          "systemTicks": 244,
+          "rssPages": 23731,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1732,
+          "systemTicks": 218,
+          "rssPages": 120579,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590736.308718,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1629,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 40,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 58,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031147,
+        "ScriptDuration": 4.285318,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 9.047387,
+        "TaskOtherDuration": 4.674059,
+        "ThreadTime": 9.438828,
+        "ProcessTime": 19.55,
+        "JSHeapUsedSize": 163746180,
+        "JSHeapTotalSize": 254181376,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231818523,
+      "epochEnd": 1789231818531,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 93,
+          "systemTicks": 16,
+          "rssPages": 36988,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 541,
+          "systemTicks": 87,
+          "rssPages": 195635,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 991,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 525,
+          "systemTicks": 252,
+          "rssPages": 24305,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1782,
+          "systemTicks": 223,
+          "rssPages": 121347,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590736.817461,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1653,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 43,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 61,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031257,
+        "ScriptDuration": 4.45195,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 9.341975,
+        "TaskOtherDuration": 4.801905,
+        "ThreadTime": 9.749825,
+        "ProcessTime": 20.1,
+        "JSHeapUsedSize": 189278072,
+        "JSHeapTotalSize": 254967808,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231819032,
+      "epochEnd": 1789231819034,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 94,
+          "systemTicks": 16,
+          "rssPages": 37180,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 543,
+          "systemTicks": 87,
+          "rssPages": 195827,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 998,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 546,
+          "systemTicks": 261,
+          "rssPages": 23907,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1830,
+          "systemTicks": 229,
+          "rssPages": 122307,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590737.319817,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1677,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 47,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 73,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031379,
+        "ScriptDuration": 4.591851,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 9.617127,
+        "TaskOtherDuration": 4.937034,
+        "ThreadTime": 10.040448,
+        "ProcessTime": 20.59,
+        "JSHeapUsedSize": 229950560,
+        "JSHeapTotalSize": 274366464,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231819534,
+      "epochEnd": 1789231819536,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 95,
+          "systemTicks": 16,
+          "rssPages": 37180,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 544,
+          "systemTicks": 88,
+          "rssPages": 196019,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1004,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 561,
+          "systemTicks": 267,
+          "rssPages": 24483,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1917,
+          "systemTicks": 235,
+          "rssPages": 124747,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590737.822347,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1539,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 24,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 42,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031491,
+        "ScriptDuration": 4.735278,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 9.945846,
+        "TaskOtherDuration": 5.122214,
+        "ThreadTime": 10.382178,
+        "ProcessTime": 21.52,
+        "JSHeapUsedSize": 73401068,
+        "JSHeapTotalSize": 274104320,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231820037,
+      "epochEnd": 1789231820039,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 95,
+          "systemTicks": 16,
+          "rssPages": 37372,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 545,
+          "systemTicks": 88,
+          "rssPages": 196211,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1012,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 579,
+          "systemTicks": 274,
+          "rssPages": 23703,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 1966,
+          "systemTicks": 240,
+          "rssPages": 125111,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590738.325126,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1557,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 28,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 50,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031629,
+        "ScriptDuration": 4.897873,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 10.235814,
+        "TaskOtherDuration": 5.249449,
+        "ThreadTime": 10.686276,
+        "ProcessTime": 22.07,
+        "JSHeapUsedSize": 88364180,
+        "JSHeapTotalSize": 274890752,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231820539,
+      "epochEnd": 1789231820541,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 96,
+          "systemTicks": 16,
+          "rssPages": 37564,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 546,
+          "systemTicks": 89,
+          "rssPages": 196595,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1018,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 597,
+          "systemTicks": 282,
+          "rssPages": 24073,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2013,
+          "systemTicks": 245,
+          "rssPages": 125687,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590738.827095,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1581,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 31,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 49,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031746,
+        "ScriptDuration": 5.045103,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 10.528584,
+        "TaskOtherDuration": 5.394872,
+        "ThreadTime": 10.995549,
+        "ProcessTime": 22.58,
+        "JSHeapUsedSize": 116783760,
+        "JSHeapTotalSize": 274890752,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231821041,
+      "epochEnd": 1789231821046,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 97,
+          "systemTicks": 17,
+          "rssPages": 37564,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 547,
+          "systemTicks": 89,
+          "rssPages": 196787,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1025,
+          "systemTicks": 96,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 614,
+          "systemTicks": 289,
+          "rssPages": 24265,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2060,
+          "systemTicks": 249,
+          "rssPages": 126647,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590739.332379,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1599,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 35,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 53,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031874,
+        "ScriptDuration": 5.195423,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 10.815923,
+        "TaskOtherDuration": 5.531763,
+        "ThreadTime": 11.296728,
+        "ProcessTime": 23.12,
+        "JSHeapUsedSize": 130069992,
+        "JSHeapTotalSize": 274890752,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231821547,
+      "epochEnd": 1789231821552,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 97,
+          "systemTicks": 17,
+          "rssPages": 37756,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 548,
+          "systemTicks": 89,
+          "rssPages": 196979,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1031,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 635,
+          "systemTicks": 299,
+          "rssPages": 24057,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2107,
+          "systemTicks": 254,
+          "rssPages": 127415,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590739.838375,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1623,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 38,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 56,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.031984,
+        "ScriptDuration": 5.337181,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 11.096452,
+        "TaskOtherDuration": 5.670424,
+        "ThreadTime": 11.594772,
+        "ProcessTime": 23.64,
+        "JSHeapUsedSize": 151690204,
+        "JSHeapTotalSize": 274890752,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231822053,
+      "epochEnd": 1789231822055,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 98,
+          "systemTicks": 17,
+          "rssPages": 37948,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 556,
+          "systemTicks": 90,
+          "rssPages": 193955,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1039,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 646,
+          "systemTicks": 306,
+          "rssPages": 24441,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2155,
+          "systemTicks": 258,
+          "rssPages": 128183,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590740.341409,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1647,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 42,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 68,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.032101,
+        "ScriptDuration": 5.506111,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 11.386906,
+        "TaskOtherDuration": 5.791831,
+        "ThreadTime": 11.899069,
+        "ProcessTime": 24.13,
+        "JSHeapUsedSize": 197091156,
+        "JSHeapTotalSize": 274890752,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231822556,
+      "epochEnd": 1789231822558,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 98,
+          "systemTicks": 17,
+          "rssPages": 37948,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 557,
+          "systemTicks": 90,
+          "rssPages": 194339,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1044,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 667,
+          "systemTicks": 316,
+          "rssPages": 24224,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2203,
+          "systemTicks": 263,
+          "rssPages": 128951,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590740.844266,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1665,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 45,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 64,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.032214,
+        "ScriptDuration": 5.633615,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 11.657186,
+        "TaskOtherDuration": 5.934494,
+        "ThreadTime": 12.187191,
+        "ProcessTime": 24.66,
+        "JSHeapUsedSize": 211775008,
+        "JSHeapTotalSize": 274890752,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231823057,
+      "epochEnd": 1789231823059,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 99,
+          "systemTicks": 18,
+          "rssPages": 38140,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 559,
+          "systemTicks": 90,
+          "rssPages": 194723,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1052,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 679,
+          "systemTicks": 323,
+          "rssPages": 24608,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2255,
+          "systemTicks": 267,
+          "rssPages": 129911,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590741.345567,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1683,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 49,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 75,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.032338,
+        "ScriptDuration": 5.803716,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 11.957195,
+        "TaskOtherDuration": 6.064278,
+        "ThreadTime": 12.50041,
+        "ProcessTime": 25.23,
+        "JSHeapUsedSize": 233467780,
+        "JSHeapTotalSize": 289046528,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231823560,
+      "epochEnd": 1789231823564,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 100,
+          "systemTicks": 18,
+          "rssPages": 38332,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 560,
+          "systemTicks": 91,
+          "rssPages": 194915,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1058,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 702,
+          "systemTicks": 331,
+          "rssPages": 24193,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2335,
+          "systemTicks": 274,
+          "rssPages": 127337,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590741.850397,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1551,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 26,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 44,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.032447,
+        "ScriptDuration": 5.93616,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 12.266993,
+        "TaskOtherDuration": 6.241523,
+        "ThreadTime": 12.825011,
+        "ProcessTime": 26.12,
+        "JSHeapUsedSize": 70221268,
+        "JSHeapTotalSize": 285376512,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231824064,
+      "epochEnd": 1789231824066,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 100,
+          "systemTicks": 18,
+          "rssPages": 38524,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 562,
+          "systemTicks": 91,
+          "rssPages": 195299,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1065,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 715,
+          "systemTicks": 339,
+          "rssPages": 23977,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2389,
+          "systemTicks": 277,
+          "rssPages": 127913,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590742.352466,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1569,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 30,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 48,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.032563,
+        "ScriptDuration": 6.101559,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 12.566946,
+        "TaskOtherDuration": 6.375961,
+        "ThreadTime": 13.137605,
+        "ProcessTime": 26.67,
+        "JSHeapUsedSize": 98801188,
+        "JSHeapTotalSize": 285376512,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231824567,
+      "epochEnd": 1789231824569,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 101,
+          "systemTicks": 18,
+          "rssPages": 38716,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 563,
+          "systemTicks": 91,
+          "rssPages": 195491,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1071,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 735,
+          "systemTicks": 348,
+          "rssPages": 24553,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2434,
+          "systemTicks": 281,
+          "rssPages": 128681,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590742.855264,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1593,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 33,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 59,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.03267,
+        "ScriptDuration": 6.238206,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 12.83316,
+        "TaskOtherDuration": 6.505421,
+        "ThreadTime": 13.421838,
+        "ProcessTime": 27.15,
+        "JSHeapUsedSize": 130125780,
+        "JSHeapTotalSize": 285376512,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231825070,
+      "epochEnd": 1789231825073,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 101,
+          "systemTicks": 19,
+          "rssPages": 38716,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 564,
+          "systemTicks": 92,
+          "rssPages": 195683,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1077,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 751,
+          "systemTicks": 356,
+          "rssPages": 24348,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2484,
+          "systemTicks": 286,
+          "rssPages": 129257,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590743.358761,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1611,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 36,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 55,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.032841,
+        "ScriptDuration": 6.406849,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 13.138773,
+        "TaskOtherDuration": 6.64222,
+        "ThreadTime": 13.740751,
+        "ProcessTime": 27.7,
+        "JSHeapUsedSize": 151575968,
+        "JSHeapTotalSize": 285376512,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231825573,
+      "epochEnd": 1789231825575,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 102,
+          "systemTicks": 19,
+          "rssPages": 38908,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 565,
+          "systemTicks": 92,
+          "rssPages": 196067,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1082,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 767,
+          "systemTicks": 363,
+          "rssPages": 24732,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2533,
+          "systemTicks": 290,
+          "rssPages": 130025,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590743.860886,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1635,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 40,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 58,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.032993,
+        "ScriptDuration": 6.551641,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 13.430429,
+        "TaskOtherDuration": 6.788932,
+        "ThreadTime": 14.048756,
+        "ProcessTime": 28.23,
+        "JSHeapUsedSize": 187616716,
+        "JSHeapTotalSize": 285376512,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231826074,
+      "epochEnd": 1789231826076,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 103,
+          "systemTicks": 19,
+          "rssPages": 39100,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 572,
+          "systemTicks": 93,
+          "rssPages": 193903,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1090,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 784,
+          "systemTicks": 370,
+          "rssPages": 24521,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2582,
+          "systemTicks": 294,
+          "rssPages": 130985,
+          "state": "R"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590744.362376,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1659,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 44,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 70,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.033141,
+        "ScriptDuration": 6.709122,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 13.7159,
+        "TaskOtherDuration": 6.916774,
+        "ThreadTime": 14.347546,
+        "ProcessTime": 28.76,
+        "JSHeapUsedSize": 204518156,
+        "JSHeapTotalSize": 285376512,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231826577,
+      "epochEnd": 1789231826579,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 103,
+          "systemTicks": 19,
+          "rssPages": 39100,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 573,
+          "systemTicks": 93,
+          "rssPages": 194095,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1095,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 798,
+          "systemTicks": 379,
+          "rssPages": 24905,
+          "state": "R"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2631,
+          "systemTicks": 298,
+          "rssPages": 131753,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590744.865445,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1677,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 48,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 68,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.033245,
+        "ScriptDuration": 6.871451,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 14.013181,
+        "TaskOtherDuration": 7.051622,
+        "ThreadTime": 14.661376,
+        "ProcessTime": 29.29,
+        "JSHeapUsedSize": 230745992,
+        "JSHeapTotalSize": 285376512,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "interval",
+      "epochStart": 1789231827081,
+      "epochEnd": 1789231827083,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 104,
+          "systemTicks": 19,
+          "rssPages": 39100,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 573,
+          "systemTicks": 93,
+          "rssPages": 194095,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1096,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 803,
+          "systemTicks": 382,
+          "rssPages": 24496,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2649,
+          "systemTicks": 300,
+          "rssPages": 130597,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590745.368797,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1683,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 48,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 66,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.033358,
+        "ScriptDuration": 6.919347,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 14.099101,
+        "TaskOtherDuration": 7.089533,
+        "ThreadTime": 14.757196,
+        "ProcessTime": 29.49,
+        "JSHeapUsedSize": 224775708,
+        "JSHeapTotalSize": 288784384,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    },
+    {
+      "label": "after-acquisition-before-inspection",
+      "epochStart": 1789231827582,
+      "epochEnd": 1789231827585,
+      "processes": [
+        {
+          "pid": 1656632,
+          "startTicks": "159070834",
+          "userTicks": 104,
+          "systemTicks": 19,
+          "rssPages": 39292,
+          "state": "R"
+        },
+        {
+          "pid": 1656651,
+          "startTicks": "159070864",
+          "userTicks": 573,
+          "systemTicks": 93,
+          "rssPages": 194095,
+          "state": "S"
+        },
+        {
+          "pid": 1656679,
+          "startTicks": "159071159",
+          "userTicks": 1096,
+          "systemTicks": 97,
+          "rssPages": 153102,
+          "state": "S"
+        },
+        {
+          "pid": 1657007,
+          "startTicks": "159072058",
+          "userTicks": 803,
+          "systemTicks": 382,
+          "rssPages": 24496,
+          "state": "S"
+        },
+        {
+          "pid": 1657009,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657026,
+          "startTicks": "159072062",
+          "userTicks": 4,
+          "systemTicks": 2,
+          "rssPages": 15554,
+          "state": "S"
+        },
+        {
+          "pid": 1657010,
+          "startTicks": "159072060",
+          "userTicks": 0,
+          "systemTicks": 1,
+          "rssPages": 10560,
+          "state": "S"
+        },
+        {
+          "pid": 1657033,
+          "startTicks": "159072063",
+          "userTicks": 2650,
+          "systemTicks": 302,
+          "rssPages": 130597,
+          "state": "S"
+        }
+      ],
+      "metrics": {
+        "Timestamp": 1590745.87073,
+        "AudioHandlers": 0,
+        "AudioWorkletProcessors": 0,
+        "Documents": 1,
+        "Frames": 1,
+        "JSEventListeners": 1683,
+        "LayoutObjects": 4771,
+        "MediaKeySessions": 0,
+        "MediaKeys": 0,
+        "Nodes": 4825,
+        "Resources": 48,
+        "ContextLifecycleStateObservers": 7,
+        "V8PerContextDatas": 3,
+        "WorkerGlobalScopes": 1,
+        "UACSSResources": 0,
+        "RTCPeerConnections": 0,
+        "ResourceFetchers": 3,
+        "AdSubframes": 0,
+        "DetachedScriptStates": 0,
+        "ArrayBufferContents": 66,
+        "LayoutCount": 12,
+        "RecalcStyleCount": 18,
+        "LayoutDuration": 0.047825,
+        "RecalcStyleDuration": 0.00836,
+        "DevToolsCommandDuration": 0.03399,
+        "ScriptDuration": 6.919373,
+        "V8CompileDuration": 0.000678,
+        "TaskDuration": 14.099985,
+        "TaskOtherDuration": 7.089759,
+        "ThreadTime": 14.766907,
+        "ProcessTime": 29.52,
+        "JSHeapUsedSize": 224781660,
+        "JSHeapTotalSize": 288784384,
+        "FirstMeaningfulPaint": 0,
+        "DomContentLoaded": 1590720.896086,
+        "NavigationStart": 1590720.731226
+      }
+    }
+  ],
+  "network": [],
+  "errors": [
+    {
+      "scope": "run",
+      "error": "TypeError: Cannot read properties of undefined (reading 'length')"
+    }
+  ],
+  "ownerCommand": [
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "node_modules/snapback3/dist/cli.mjs",
+    "dev",
+    ".",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "54905"
+  ],
+  "initialHealth": {
+    "ok": true,
+    "pid": 1656679,
+    "seq": 1,
+    "version": "0.0.1"
+  },
+  "browserProfile": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/diagnostic/browser-profile",
+  "intervalBefore": {
+    "label": "before-profiler-start",
+    "epochStart": 1789231802434,
+    "epochEnd": 1789231802437,
+    "processes": [
+      {
+        "pid": 1656632,
+        "startTicks": "159070834",
+        "userTicks": 59,
+        "systemTicks": 8,
+        "rssPages": 33965,
+        "state": "R"
+      },
+      {
+        "pid": 1656651,
+        "startTicks": "159070864",
+        "userTicks": 484,
+        "systemTicks": 72,
+        "rssPages": 215890,
+        "state": "S"
+      },
+      {
+        "pid": 1656679,
+        "startTicks": "159071159",
+        "userTicks": 789,
+        "systemTicks": 94,
+        "rssPages": 153102,
+        "state": "S"
+      },
+      {
+        "pid": 1657007,
+        "startTicks": "159072058",
+        "userTicks": 3,
+        "systemTicks": 6,
+        "rssPages": 20352,
+        "state": "S"
+      },
+      {
+        "pid": 1657009,
+        "startTicks": "159072060",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10560,
+        "state": "S"
+      },
+      {
+        "pid": 1657026,
+        "startTicks": "159072062",
+        "userTicks": 1,
+        "systemTicks": 1,
+        "rssPages": 13476,
+        "state": "S"
+      },
+      {
+        "pid": 1657010,
+        "startTicks": "159072060",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10560,
+        "state": "S"
+      },
+      {
+        "pid": 1657033,
+        "startTicks": "159072063",
+        "userTicks": 1,
+        "systemTicks": 1,
+        "rssPages": 18119,
+        "state": "S"
+      }
+    ],
+    "metrics": {
+      "Timestamp": 1590720.7226,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 2,
+      "Frames": 1,
+      "JSEventListeners": 0,
+      "LayoutObjects": 4,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 8,
+      "Resources": 0,
+      "ContextLifecycleStateObservers": 2,
+      "V8PerContextDatas": 2,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 2,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 0,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 0,
+      "LayoutDuration": 0,
+      "RecalcStyleDuration": 0,
+      "DevToolsCommandDuration": 0.000088,
+      "ScriptDuration": 0,
+      "V8CompileDuration": 0,
+      "TaskDuration": 0.000113,
+      "TaskOtherDuration": 0.000025,
+      "ThreadTime": 0.000203,
+      "ProcessTime": 0.02,
+      "JSHeapUsedSize": 531792,
+      "JSHeapTotalSize": 1048576,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1590720.651577,
+      "NavigationStart": 1590720.63431
+    }
+  },
+  "profilerStartBracket": {
+    "before": 1789231802437,
+    "after": 1789231802441
+  },
+  "acquisitionBefore": {
+    "label": "before-authored-acquisition",
+    "epochStart": 1789231803218,
+    "epochEnd": 1789231803220,
+    "processes": [
+      {
+        "pid": 1656632,
+        "startTicks": "159070834",
+        "userTicks": 69,
+        "systemTicks": 10,
+        "rssPages": 34349,
+        "state": "R"
+      },
+      {
+        "pid": 1656651,
+        "startTicks": "159070864",
+        "userTicks": 493,
+        "systemTicks": 73,
+        "rssPages": 216658,
+        "state": "S"
+      },
+      {
+        "pid": 1656679,
+        "startTicks": "159071159",
+        "userTicks": 792,
+        "systemTicks": 94,
+        "rssPages": 153102,
+        "state": "S"
+      },
+      {
+        "pid": 1657007,
+        "startTicks": "159072058",
+        "userTicks": 18,
+        "systemTicks": 21,
+        "rssPages": 23705,
+        "state": "S"
+      },
+      {
+        "pid": 1657009,
+        "startTicks": "159072060",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10560,
+        "state": "S"
+      },
+      {
+        "pid": 1657026,
+        "startTicks": "159072062",
+        "userTicks": 4,
+        "systemTicks": 2,
+        "rssPages": 15780,
+        "state": "S"
+      },
+      {
+        "pid": 1657010,
+        "startTicks": "159072060",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10560,
+        "state": "S"
+      },
+      {
+        "pid": 1657033,
+        "startTicks": "159072063",
+        "userTicks": 113,
+        "systemTicks": 29,
+        "rssPages": 47482,
+        "state": "S"
+      }
+    ],
+    "metrics": {
+      "Timestamp": 1590721.506399,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 1,
+      "Frames": 1,
+      "JSEventListeners": 1551,
+      "LayoutObjects": 4787,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 4852,
+      "Resources": 24,
+      "ContextLifecycleStateObservers": 7,
+      "V8PerContextDatas": 3,
+      "WorkerGlobalScopes": 1,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 3,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 2,
+      "ArrayBufferContents": 28,
+      "LayoutCount": 12,
+      "RecalcStyleCount": 18,
+      "LayoutDuration": 0.047825,
+      "RecalcStyleDuration": 0.00836,
+      "DevToolsCommandDuration": 0.026186,
+      "ScriptDuration": 0.271592,
+      "V8CompileDuration": 0.000678,
+      "TaskDuration": 0.530536,
+      "TaskOtherDuration": 0.175895,
+      "ThreadTime": 0.488065,
+      "ProcessTime": 1.42,
+      "JSHeapUsedSize": 26701172,
+      "JSHeapTotalSize": 46137344,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1590720.896086,
+      "NavigationStart": 1590720.731226
+    }
+  },
+  "samplerStoppedEpochMs": 1789231827582,
+  "intervalAfter": {
+    "label": "after-acquisition-before-inspection",
+    "epochStart": 1789231827582,
+    "epochEnd": 1789231827585,
+    "processes": [
+      {
+        "pid": 1656632,
+        "startTicks": "159070834",
+        "userTicks": 104,
+        "systemTicks": 19,
+        "rssPages": 39292,
+        "state": "R"
+      },
+      {
+        "pid": 1656651,
+        "startTicks": "159070864",
+        "userTicks": 573,
+        "systemTicks": 93,
+        "rssPages": 194095,
+        "state": "S"
+      },
+      {
+        "pid": 1656679,
+        "startTicks": "159071159",
+        "userTicks": 1096,
+        "systemTicks": 97,
+        "rssPages": 153102,
+        "state": "S"
+      },
+      {
+        "pid": 1657007,
+        "startTicks": "159072058",
+        "userTicks": 803,
+        "systemTicks": 382,
+        "rssPages": 24496,
+        "state": "S"
+      },
+      {
+        "pid": 1657009,
+        "startTicks": "159072060",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10560,
+        "state": "S"
+      },
+      {
+        "pid": 1657026,
+        "startTicks": "159072062",
+        "userTicks": 4,
+        "systemTicks": 2,
+        "rssPages": 15554,
+        "state": "S"
+      },
+      {
+        "pid": 1657010,
+        "startTicks": "159072060",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10560,
+        "state": "S"
+      },
+      {
+        "pid": 1657033,
+        "startTicks": "159072063",
+        "userTicks": 2650,
+        "systemTicks": 302,
+        "rssPages": 130597,
+        "state": "S"
+      }
+    ],
+    "metrics": {
+      "Timestamp": 1590745.87073,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 1,
+      "Frames": 1,
+      "JSEventListeners": 1683,
+      "LayoutObjects": 4771,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 4825,
+      "Resources": 48,
+      "ContextLifecycleStateObservers": 7,
+      "V8PerContextDatas": 3,
+      "WorkerGlobalScopes": 1,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 3,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 66,
+      "LayoutCount": 12,
+      "RecalcStyleCount": 18,
+      "LayoutDuration": 0.047825,
+      "RecalcStyleDuration": 0.00836,
+      "DevToolsCommandDuration": 0.03399,
+      "ScriptDuration": 6.919373,
+      "V8CompileDuration": 0.000678,
+      "TaskDuration": 14.099985,
+      "TaskOtherDuration": 7.089759,
+      "ThreadTime": 14.766907,
+      "ProcessTime": 29.52,
+      "JSHeapUsedSize": 224781660,
+      "JSHeapTotalSize": 288784384,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1590720.896086,
+      "NavigationStart": 1590720.731226
+    }
+  },
+  "profilerStopBracket": {
+    "before": 1789231827585,
+    "after": 1789231827697
+  },
+  "status": "diagnostic-failed",
+  "beforeStopProcesses": [
+    {
+      "pid": 1656632,
+      "startTicks": "159070834",
+      "userTicks": 117,
+      "systemTicks": 21,
+      "rssPages": 42252,
+      "state": "R"
+    },
+    {
+      "pid": 1656651,
+      "startTicks": "159070864",
+      "userTicks": 573,
+      "systemTicks": 93,
+      "rssPages": 194095,
+      "state": "S"
+    },
+    {
+      "pid": 1656679,
+      "startTicks": "159071159",
+      "userTicks": 1096,
+      "systemTicks": 97,
+      "rssPages": 153102,
+      "state": "S"
+    },
+    {
+      "pid": 1657007,
+      "startTicks": "159072058",
+      "userTicks": 806,
+      "systemTicks": 383,
+      "rssPages": 24968,
+      "state": "S"
+    },
+    {
+      "pid": 1657009,
+      "startTicks": "159072060",
+      "userTicks": 0,
+      "systemTicks": 1,
+      "rssPages": 10560,
+      "state": "S"
+    },
+    {
+      "pid": 1657026,
+      "startTicks": "159072062",
+      "userTicks": 4,
+      "systemTicks": 2,
+      "rssPages": 15554,
+      "state": "S"
+    },
+    {
+      "pid": 1657010,
+      "startTicks": "159072060",
+      "userTicks": 0,
+      "systemTicks": 1,
+      "rssPages": 10560,
+      "state": "S"
+    },
+    {
+      "pid": 1657033,
+      "startTicks": "159072063",
+      "userTicks": 2653,
+      "systemTicks": 304,
+      "rssPages": 129990,
+      "state": "S"
+    }
+  ],
+  "stoppedOwnedProcesses": [
+    {
+      "pid": 1656651,
+      "role": "node-owner",
+      "originalStartTicks": "159070864",
+      "sameProcessPresent": false
+    },
+    {
+      "pid": 1656679,
+      "role": "rust-worker",
+      "originalStartTicks": "159071159",
+      "sameProcessPresent": false
+    },
+    {
+      "pid": 1657007,
+      "role": "chromium",
+      "originalStartTicks": "159072058",
+      "sameProcessPresent": false
+    },
+    {
+      "pid": 1657009,
+      "role": "chromium",
+      "originalStartTicks": "159072060",
+      "sameProcessPresent": false
+    },
+    {
+      "pid": 1657026,
+      "role": "chromium",
+      "originalStartTicks": "159072062",
+      "sameProcessPresent": false
+    },
+    {
+      "pid": 1657010,
+      "role": "chromium",
+      "originalStartTicks": "159072060",
+      "sameProcessPresent": false
+    },
+    {
+      "pid": 1657033,
+      "role": "chromium",
+      "originalStartTicks": "159072063",
+      "sameProcessPresent": false
+    }
+  ],
+  "finishedEpochMs": 1789231827998,
+  "controllerFinishedByNaturalExit": true
+}

@@ -1,0 +1,72 @@
+{
+  "actor": {
+    "model": "gpt-6-astra",
+    "reasoningEffort": "medium",
+    "rootThreadId": "01a09623-87dd-7d72-910f-980bf77e3862"
+  },
+  "billingInterpretation": "None. Cached input tokens are preserved exactly as reported and are not subtracted, repriced, or converted into a billing estimate.",
+  "builderReportedCounts": {
+    "acquisitionAttemptsRetained": 24,
+    "qualification": "Builder-reported; independent continuous grading was still running when this public collection was prepared.",
+    "selectedFail": 1,
+    "selectedPass": 25
+  },
+  "clock": {
+    "builderRecordedCombinedElapsedSeconds": 4131.105,
+    "builderRecordedFinalHandoffEpoch": 1789229443.105,
+    "builderRecordedWorkStartEpoch": 1789225312,
+    "launcherElapsedSeconds": 4162,
+    "launcherEndedEpoch": 1789229467,
+    "launcherStartedEpoch": 1789225305,
+    "qualification": "Launcher elapsed is the independently retained foreground process interval. Builder-recorded combined elapsed includes dependency installation, authoring, repairs, retained attempts, measurements, and handoff. Prelaunch packet/seed-copy preparation is outside both clocks."
+  },
+  "nativeTrace": {
+    "bytes": 3289920,
+    "eventCounts": {
+      "custom_tool_call": 140,
+      "custom_tool_call_output": 140,
+      "event_msg": 497,
+      "item_completed": 353,
+      "reasoning": 168,
+      "response_item": 475,
+      "session_meta": 1,
+      "task_complete": 1,
+      "task_started": 1,
+      "token_count": 142,
+      "token_usage_record": 141,
+      "turn_context": 1,
+      "world_state": 1
+    },
+    "lines": 1116,
+    "privatePath": "native/codex/astra-snapback3-builder/rollout-2026-09-12T17-01-46-01a09623-87dd-7d72-910f-980bf77e3862.jsonl",
+    "rootFound": true,
+    "selectedTreeEntries": 1,
+    "sha256": "3e7a602974684deef0b9cdecec89d7ea6186b78489f06c77a606781755b29e80"
+  },
+  "reportedLastTurn": {
+    "cacheWriteInputTokens": 0,
+    "cachedInputTokens": 224000,
+    "inputTokens": 225431,
+    "modelContextWindow": 258400,
+    "outputTokens": 533,
+    "reasoningOutputTokens": 405,
+    "totalTokens": 225964
+  },
+  "reportedThreadTotal": {
+    "cacheWriteInputTokens": 0,
+    "cachedInputTokens": 18139648,
+    "inputTokens": 18471459,
+    "outputTokens": 104619,
+    "reasoningOutputTokens": 45234,
+    "totalTokens": 18576078
+  },
+  "schema": "snapback3-clique-focused-actor-accounting.v1",
+  "transportCorroboration": {
+    "bytes": 829091,
+    "lines": 347,
+    "privatePath": "logs/astra-snapback3-builder.ndjson",
+    "sha256": "6d3b1b81352d2bff989b65ea7aa237996adfe714b8d6f4b68086f07300accb85",
+    "turnCompleted": 1,
+    "usageMatchesNativeThreadTotal": true
+  }
+}

@@ -1,0 +1,2185 @@
+{
+  "excluded": [
+    {
+      "bytes": 2558,
+      "path": "dist/sw.js",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1352985,
+      "path": "dist/_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 49,
+      "path": "dist/metadata.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1173,
+      "path": "dist/index.html",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 12533,
+      "path": "scripts/write-final-report.mjs",
+      "reason": "narrative-generator-redundant-with-retained-report"
+    },
+    {
+      "bytes": 38354,
+      "path": "choreography/control-lane.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 17876,
+      "path": "choreography/README.md",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8969,
+      "path": "choreography/startup.test.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 117581,
+      "path": "choreography/choreography.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 6793,
+      "path": "choreography/setup-identity.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 9,
+      "path": "choreography/VERSION",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8543,
+      "path": "choreography/w9-coterie-browser.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8601,
+      "path": "choreography/w9-native-host.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8809,
+      "path": "choreography/RUNBOOK.md",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 10723,
+      "path": "choreography/receipts-format.md",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4167,
+      "path": "choreography/setup-identity.schema.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 302,
+      "path": "choreography/package.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 44163,
+      "path": "choreography/self-test.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8903,
+      "path": "choreography/simulator.md",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 3803,
+      "path": "choreography/w9-host-preflight.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 27080,
+      "path": "choreography/receipts.schema.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1433600,
+      "path": ".snapback3/store.sqlite",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4382,
+      "path": ".snapback3/build/api.d.ts",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 48829,
+      "path": ".snapback3/build/project.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4152992,
+      "path": ".snapback3/store.sqlite-wal",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 32768,
+      "path": ".snapback3/store.sqlite-shm",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 0,
+      "path": "instrument",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 85141,
+      "path": "metering/r2-cell-admission.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 3424,
+      "path": "metering/r2-cell-signal.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1938,
+      "path": "metering/r2-execution-environment.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 19996,
+      "path": "metering/r2-finalize-retained-familiar.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 14675,
+      "path": "metering/r2-host-lock.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 19791,
+      "path": "metering/README.md",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 552,
+      "path": "metering/sources.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 19143,
+      "path": "metering/joiner.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8798,
+      "path": "metering/boundaries.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 675,
+      "path": "metering/adapters/unavailable.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 3525,
+      "path": "metering/adapters/claude-session.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 9836,
+      "path": "metering/adapters/codex-session.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 2126,
+      "path": "metering/campaign-identity.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 27094,
+      "path": "metering/r2-finalized-cell.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4863,
+      "path": "metering/r2-private-paths.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4067,
+      "path": "metering/finalization-diagnostics.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 55673,
+      "path": "metering/manifest.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 5734,
+      "path": "metering/scale-replay-evidence.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1885,
+      "path": "metering/coverage-manifest.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8456,
+      "path": "metering/record-composer.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 37056,
+      "path": "metering/observations.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 82829,
+      "path": "metering/r2-cell-driver.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1898,
+      "path": "metering/meter.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1047,
+      "path": "metering/jsonl.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 49738,
+      "path": "metering/r2-finalize-existing.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 227100,
+      "path": "metering/test/metering.test.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 59670,
+      "path": "metering/test/metering-portability.test.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 56189,
+      "path": "metering/test/fixtures/real-codex-0149-zero-delta.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 240,
+      "path": "metering/test/fixtures/real-opus-shorthand-lane-observation.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 32007,
+      "path": "metering/test/fixtures/real-codex-r3-compaction-recap.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 3632,
+      "path": "metering/test/fixtures/instrument-0.3.6.manifest.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1612,
+      "path": "metering/test/fixtures/real-codex-tree-subagent.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1728,
+      "path": "metering/test/fixtures/real-claude-tree-manifest.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 260,
+      "path": "metering/test/fixtures/real-familiar-transition-observation.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 183,
+      "path": "metering/test/fixtures/first-product-edit.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 778,
+      "path": "metering/test/fixtures/boundaries.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1248,
+      "path": "metering/test/fixtures/real-grok-clique-explicit-suite-finalization.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 753,
+      "path": "metering/test/fixtures/receipts-m2.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 901,
+      "path": "metering/test/fixtures/setup-identity-0.3.7.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 671,
+      "path": "metering/test/fixtures/real-claude-tree-parent.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 359,
+      "path": "metering/test/fixtures/real-familiar-orphaned-correction.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 3632,
+      "path": "metering/test/fixtures/instrument-0.3.7.manifest.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 237,
+      "path": "metering/test/fixtures/non-green-receipt.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 557,
+      "path": "metering/test/fixtures/post-terminal-channel.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1527,
+      "path": "metering/test/fixtures/claude-session.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1177,
+      "path": "metering/test/fixtures/receipts-m1.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1614,
+      "path": "metering/test/fixtures/real-codex-tree-parent.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4201,
+      "path": "metering/test/fixtures/real-claude-tree-descendant.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 455,
+      "path": "metering/test/fixtures/real-claude-tree-boundaries.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1012,
+      "path": "metering/test/fixtures/non-green-boundaries.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1616,
+      "path": "metering/test/fixtures/real-grok-clique-familiar-suite-finalization.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 203,
+      "path": "metering/test/fixtures/real-claude-tree-receipt.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 816,
+      "path": "metering/test/fixtures/real-codex-aggregate-only-token-count.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 798,
+      "path": "metering/test/fixtures/real-opus-coterie-familiar-after-boundary-semantic.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 8399,
+      "path": "metering/test/fixtures/REAL_LOG_PROVENANCE.md",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1127,
+      "path": "metering/test/fixtures/real-codex-r3-contradictory-token-count.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1402,
+      "path": "metering/test/fixtures/unavailable-manifest.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1804,
+      "path": "metering/test/fixtures/codex-rollout.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1277,
+      "path": "metering/test/fixtures/real-grok-coterie-familiar-after-boundary-telemetry.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 817,
+      "path": "metering/test/fixtures/real-codex-familiar-compaction-recap.jsonl",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 28458,
+      "path": "metering/test/r3-packet.test.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1202,
+      "path": "metering/mutation-guard.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 2419,
+      "path": "metering/counts.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 14521,
+      "path": "metering/codex-native-evidence.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 43744,
+      "path": "metering/lane-controller.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 2369,
+      "path": "metering/journey-contract.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 10533,
+      "path": "metering/watchdog.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1320001,
+      "path": "artifacts/fixture/u0001-ids.json",
+      "reason": "generated-full-100k-row-fixture-data"
+    },
+    {
+      "bytes": 15286324,
+      "path": "artifacts/fixture/projected.jsonl",
+      "reason": "generated-full-100k-row-fixture-data"
+    },
+    {
+      "bytes": 13792,
+      "path": "artifacts/project-seed.ts",
+      "reason": "generated-full-100k-row-seed"
+    },
+    {
+      "bytes": 0,
+      "path": "artifacts/scale-app/dist",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 436,
+      "path": "artifacts/scale-app/snapback/profiles.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 19296652,
+      "path": "artifacts/scale-app/snapback/seed.ts",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1207,
+      "path": "artifacts/scale-app/snapback/conversations.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 2465,
+      "path": "artifacts/scale-app/snapback/social.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 3577,
+      "path": "artifacts/scale-app/snapback/schema.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 2868,
+      "path": "artifacts/scale-app/snapback/messages.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 113209344,
+      "path": "artifacts/scale-app/.snapback3/store.sqlite",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4382,
+      "path": "artifacts/scale-app/.snapback3/build/api.d.ts",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 48829,
+      "path": "artifacts/scale-app/.snapback3/build/project.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 112908632,
+      "path": "artifacts/scale-app/.snapback3/store.sqlite-wal",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 32768,
+      "path": "artifacts/scale-app/.snapback3/store.sqlite-shm",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 912,
+      "path": "artifacts/clean-client/scripts/api-lib.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 922,
+      "path": "artifacts/clean-client/scripts/custom-client-demo.mjs",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 305336,
+      "path": "artifacts/clean-client/package-lock.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1274,
+      "path": "artifacts/clean-client/package.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 0,
+      "path": "artifacts/starter-app/dist",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 436,
+      "path": "artifacts/starter-app/snapback/profiles.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 1207,
+      "path": "artifacts/starter-app/snapback/conversations.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 2465,
+      "path": "artifacts/starter-app/snapback/social.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 3577,
+      "path": "artifacts/starter-app/snapback/schema.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 2868,
+      "path": "artifacts/starter-app/snapback/messages.q",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 487424,
+      "path": "artifacts/starter-app/.snapback3/store.sqlite",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4382,
+      "path": "artifacts/starter-app/.snapback3/build/api.d.ts",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 48829,
+      "path": "artifacts/starter-app/.snapback3/build/project.json",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 4144752,
+      "path": "artifacts/starter-app/.snapback3/store.sqlite-wal",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 32768,
+      "path": "artifacts/starter-app/.snapback3/store.sqlite-shm",
+      "reason": "not-selected-publicly"
+    },
+    {
+      "bytes": 15314364,
+      "path": "evidence/server-message-timestamps.jsonl",
+      "reason": "generated-100k-row-timestamp-data"
+    }
+  ],
+  "included": [
+    {
+      "bytes": 10933,
+      "path": "builder/.expo/dev/logs/export.log",
+      "reason": "build-export-log"
+    },
+    {
+      "bytes": 9343,
+      "path": "builder/API.md",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 2968,
+      "path": "builder/BUILD.md",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 552,
+      "path": "builder/FINAL-builder.md",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 2855,
+      "path": "builder/HANDOFF.md",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 182,
+      "path": "builder/app.json",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 339,
+      "path": "builder/app/_layout.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 133,
+      "path": "builder/app/index.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 270,
+      "path": "builder/app/profile/[handle].tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 139,
+      "path": "builder/app/profile/edit.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 149,
+      "path": "builder/app/settings.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 1451,
+      "path": "builder/artifacts/acquisition-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 667,
+      "path": "builder/artifacts/acquisition-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 172,
+      "path": "builder/artifacts/acquisition-cutoff-capture.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 732,
+      "path": "builder/artifacts/acquisition-final.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 915,
+      "path": "builder/artifacts/acquisition-id-audit.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 789,
+      "path": "builder/artifacts/acquisition-viewport.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 8504,
+      "path": "builder/artifacts/bound-builtins.ts",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1147,
+      "path": "builder/artifacts/browser-smoke-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 8704,
+      "path": "builder/artifacts/build-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-03.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-04.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-05.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-06.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-07.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-08.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1709,
+      "path": "builder/artifacts/build-09.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1879,
+      "path": "builder/artifacts/build-delivery.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 24395,
+      "path": "builder/artifacts/catalog.ts",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 351,
+      "path": "builder/artifacts/check-01.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 351,
+      "path": "builder/artifacts/check-02.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 530,
+      "path": "builder/artifacts/check-03.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 530,
+      "path": "builder/artifacts/check-04.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 997,
+      "path": "builder/artifacts/check-05.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1536,
+      "path": "builder/artifacts/check-06.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-07.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 245,
+      "path": "builder/artifacts/check-08.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-09.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-10.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 514,
+      "path": "builder/artifacts/check-11.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 481,
+      "path": "builder/artifacts/check-12.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 214,
+      "path": "builder/artifacts/check-13.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 4148,
+      "path": "builder/artifacts/check-14.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-15.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-16.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-17.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 853,
+      "path": "builder/artifacts/check-18.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 322,
+      "path": "builder/artifacts/check-19.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-20.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-21.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-22.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 352,
+      "path": "builder/artifacts/check-final.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1647,
+      "path": "builder/artifacts/clean-client-install.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 5156,
+      "path": "builder/artifacts/controls-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1313,
+      "path": "builder/artifacts/controls-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 4643,
+      "path": "builder/artifacts/controls-final.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1437,
+      "path": "builder/artifacts/custom-client-01.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1437,
+      "path": "builder/artifacts/custom-client-clean.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1437,
+      "path": "builder/artifacts/custom-client-final.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 136,
+      "path": "builder/artifacts/fixture/alice-ids.json",
+      "reason": "fixture-evidence"
+    },
+    {
+      "bytes": 136,
+      "path": "builder/artifacts/fixture/bob-ids.json",
+      "reason": "fixture-evidence"
+    },
+    {
+      "bytes": 82,
+      "path": "builder/artifacts/fixture/carol-ids.json",
+      "reason": "fixture-evidence"
+    },
+    {
+      "bytes": 1100,
+      "path": "builder/artifacts/fixture/independent-verification.json",
+      "reason": "fixture-evidence"
+    },
+    {
+      "bytes": 2509,
+      "path": "builder/artifacts/fixture/projection-manifest.json",
+      "reason": "fixture-evidence"
+    },
+    {
+      "bytes": 591,
+      "path": "builder/artifacts/fixture/seed-preparation.json",
+      "reason": "fixture-evidence"
+    },
+    {
+      "bytes": 150001,
+      "path": "builder/artifacts/fixture/u0500-ids.json",
+      "reason": "fixture-evidence"
+    },
+    {
+      "bytes": 8,
+      "path": "builder/artifacts/foreground-recipient-verification.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/fresh-starter-export-retry.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 487629,
+      "path": "builder/artifacts/fresh-starter-export.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 33,
+      "path": "builder/artifacts/fresh-starter-seed-retry.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 744,
+      "path": "builder/artifacts/fresh-starter-seed.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 174,
+      "path": "builder/artifacts/hub-partial-offline.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1430,
+      "path": "builder/artifacts/install-test-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 3027,
+      "path": "builder/artifacts/install-test.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/like-day-repair.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 669,
+      "path": "builder/artifacts/measurement-summary.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1647,
+      "path": "builder/artifacts/npm-ci.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 18657,
+      "path": "builder/artifacts/package-http.ts",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 339,
+      "path": "builder/artifacts/paging-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 53527,
+      "path": "builder/artifacts/parser.ts",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 29,
+      "path": "builder/artifacts/prepare-scale-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 2074,
+      "path": "builder/artifacts/projection-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 33,
+      "path": "builder/artifacts/seed-starter-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 3659,
+      "path": "builder/artifacts/selected-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1286,
+      "path": "builder/artifacts/selected-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1182,
+      "path": "builder/artifacts/selected-03.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 2186,
+      "path": "builder/artifacts/selected-04.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1024,
+      "path": "builder/artifacts/selected-explicit-acquisition.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 2760,
+      "path": "builder/artifacts/selected-final-buckets.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1024,
+      "path": "builder/artifacts/selected-final.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 1024,
+      "path": "builder/artifacts/selected-observed-retries.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 2180,
+      "path": "builder/artifacts/server-fixture-verification.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 59,
+      "path": "builder/artifacts/shell-build-01.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 59,
+      "path": "builder/artifacts/shell-build-02.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 59,
+      "path": "builder/artifacts/shell-build-03.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 59,
+      "path": "builder/artifacts/shell-build-04.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 59,
+      "path": "builder/artifacts/shell-build-final.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 59,
+      "path": "builder/artifacts/shell-delivery.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 2717,
+      "path": "builder/artifacts/smoke-delivery.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 162206,
+      "path": "builder/artifacts/snapshot-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/snapshot-03.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/snapshot-alice.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/snapshot-bob.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/snapshot-carol.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/snapshot-final.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 16259,
+      "path": "builder/artifacts/source-freeze.json",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 50,
+      "path": "builder/artifacts/typecheck-01.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/typecheck-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/typecheck-03.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 51,
+      "path": "builder/artifacts/typecheck-delivery.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 345,
+      "path": "builder/artifacts/typecheck-final-02.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/typecheck-final-03.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 51,
+      "path": "builder/artifacts/typecheck-final-handoff.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 0,
+      "path": "builder/artifacts/typecheck-final.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 51,
+      "path": "builder/artifacts/typecheck-formatted.log",
+      "reason": "attempt-log-result-or-package-inspection"
+    },
+    {
+      "bytes": 2200,
+      "path": "builder/closing-essay.md",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 2,
+      "path": "builder/evidence/acquisition-1789226123409/mutations.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 11100,
+      "path": "builder/evidence/acquisition-1789226123409/u0001-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 332,
+      "path": "builder/evidence/acquisition-1789226123409/u0001-2-interrupted.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 11102,
+      "path": "builder/evidence/acquisition-1789226123409/u0500-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 11103,
+      "path": "builder/evidence/acquisition-1789226123409/u0500-2.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 11103,
+      "path": "builder/evidence/acquisition-1789226123409/u0500-3.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 557,
+      "path": "builder/evidence/acquisition-1789226390051/mutations.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2027334,
+      "path": "builder/evidence/acquisition-1789226390051/u0001-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 28128,
+      "path": "builder/evidence/acquisition-1789226390051/u0001-1.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 124762,
+      "path": "builder/evidence/acquisition-1789226390051/u0001-2.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 52524,
+      "path": "builder/evidence/acquisition-1789226390051/u0001-3.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 338772,
+      "path": "builder/evidence/acquisition-1789226390051/u0500-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38995,
+      "path": "builder/evidence/acquisition-1789226390051/u0500-1.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 339145,
+      "path": "builder/evidence/acquisition-1789226390051/u0500-2.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38995,
+      "path": "builder/evidence/acquisition-1789226390051/u0500-2.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 339869,
+      "path": "builder/evidence/acquisition-1789226390051/u0500-3.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38995,
+      "path": "builder/evidence/acquisition-1789226390051/u0500-3.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 668,
+      "path": "builder/evidence/acquisition-1789226894877/mutations.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 190018,
+      "path": "builder/evidence/acquisition-1789226894877/u0001-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 190298,
+      "path": "builder/evidence/acquisition-1789226894877/u0001-2.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 190575,
+      "path": "builder/evidence/acquisition-1789226894877/u0001-3.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2769143,
+      "path": "builder/evidence/acquisition-1789226894877/u0500-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38995,
+      "path": "builder/evidence/acquisition-1789226894877/u0500-1.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2772950,
+      "path": "builder/evidence/acquisition-1789226894877/u0500-2.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38995,
+      "path": "builder/evidence/acquisition-1789226894877/u0500-2.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2776872,
+      "path": "builder/evidence/acquisition-1789226894877/u0500-3.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38995,
+      "path": "builder/evidence/acquisition-1789226894877/u0500-3.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 113,
+      "path": "builder/evidence/acquisition-1789227560621/mutations.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 8252999,
+      "path": "builder/evidence/acquisition-1789227560621/u0001-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 668,
+      "path": "builder/evidence/acquisition-1789227775383/mutations.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 8394758,
+      "path": "builder/evidence/acquisition-1789227775383/u0001-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 8350531,
+      "path": "builder/evidence/acquisition-1789227775383/u0001-2.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 8417416,
+      "path": "builder/evidence/acquisition-1789227775383/u0001-3.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2803185,
+      "path": "builder/evidence/acquisition-1789227775383/u0500-1.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 56158,
+      "path": "builder/evidence/acquisition-1789227775383/u0500-1.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2807661,
+      "path": "builder/evidence/acquisition-1789227775383/u0500-2.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 56170,
+      "path": "builder/evidence/acquisition-1789227775383/u0500-2.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2811636,
+      "path": "builder/evidence/acquisition-1789227775383/u0500-3.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 56383,
+      "path": "builder/evidence/acquisition-1789227775383/u0500-3.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 15545,
+      "path": "builder/evidence/acquisition-id-audit.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 77149,
+      "path": "builder/evidence/alice-final-snapshot.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 42077,
+      "path": "builder/evidence/alice-handoff.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 14526,
+      "path": "builder/evidence/alice-snapshot-initial.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 39833,
+      "path": "builder/evidence/alice-snapshot-populated.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 555,
+      "path": "builder/evidence/api-doc-variation.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 56890,
+      "path": "builder/evidence/bob-final-snapshot.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 33784,
+      "path": "builder/evidence/bob-handoff.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 7268,
+      "path": "builder/evidence/carol-final-snapshot.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 7268,
+      "path": "builder/evidence/carol-handoff.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 5155,
+      "path": "builder/evidence/controls-1789226452045.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 1312,
+      "path": "builder/evidence/controls-1789226813606.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 4642,
+      "path": "builder/evidence/controls-1789226968820.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 27029,
+      "path": "builder/evidence/foreground-recipient-verification.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 8793,
+      "path": "builder/evidence/fresh-starter-alice.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 8646,
+      "path": "builder/evidence/fresh-starter-bob.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 5438,
+      "path": "builder/evidence/fresh-starter-carol.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 201,
+      "path": "builder/evidence/fresh-starter-counts.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 84891,
+      "path": "builder/evidence/fresh-starter-seed-retry.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 249,
+      "path": "builder/evidence/fresh-starter-seed.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 16057,
+      "path": "builder/evidence/hub-partial-offline.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 36942,
+      "path": "builder/evidence/insights-1789226008650.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 36942,
+      "path": "builder/evidence/insights-1789226294603.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 36942,
+      "path": "builder/evidence/insights-1789226377897.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 36942,
+      "path": "builder/evidence/insights-1789226847528.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 36942,
+      "path": "builder/evidence/insights-1789227259288.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 36942,
+      "path": "builder/evidence/insights-1789227393135.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 36942,
+      "path": "builder/evidence/insights-1789227471847.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 29175,
+      "path": "builder/evidence/instrument-observed-hashes.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 674,
+      "path": "builder/evidence/measurement-corrections.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 5920,
+      "path": "builder/evidence/measurement-transfer-sizes.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 168,
+      "path": "builder/evidence/package-sha256.txt",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 233311,
+      "path": "builder/evidence/paging-1789228475274.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 57031,
+      "path": "builder/evidence/paging-1789228475274.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2005,
+      "path": "builder/evidence/pipeline-intervals.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 502,
+      "path": "builder/evidence/scale-load-boundary.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 10496,
+      "path": "builder/evidence/selected-1789225932867.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 20276,
+      "path": "builder/evidence/selected-1789226008650.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 30202,
+      "path": "builder/evidence/selected-1789226294603.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 19605,
+      "path": "builder/evidence/selected-1789226377897.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 39699,
+      "path": "builder/evidence/selected-1789226847528.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38577,
+      "path": "builder/evidence/selected-1789227259288.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 48202,
+      "path": "builder/evidence/selected-1789227393135.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 56310,
+      "path": "builder/evidence/selected-1789227471847.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 423,
+      "path": "builder/evidence/selected-attempt-corrections.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 1959,
+      "path": "builder/evidence/server-54900.log",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 157,
+      "path": "builder/evidence/server-54901.log",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 63,
+      "path": "builder/evidence/server-54902.log",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 2587,
+      "path": "builder/evidence/server-fixture-verification.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 688,
+      "path": "builder/evidence/server-pids.jsonl",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 1591,
+      "path": "builder/evidence/server-stop.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 38595,
+      "path": "builder/evidence/smoke-initial.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 37618,
+      "path": "builder/evidence/smoke.png",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 11536,
+      "path": "builder/evidence/starter-like-day-repair.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 84891,
+      "path": "builder/evidence/starter-seed-1789225567766.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 753,
+      "path": "builder/evidence/stopped-verification.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 685,
+      "path": "builder/evidence/storage-before-stop.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 6121,
+      "path": "builder/evidence/storage-detail.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 21495,
+      "path": "builder/evidence/storage-main.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 21578,
+      "path": "builder/evidence/storage-scale.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 21383,
+      "path": "builder/evidence/storage-starter.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 5920,
+      "path": "builder/evidence/transfer-sizes.json",
+      "reason": "builder-evidence"
+    },
+    {
+      "bytes": 12622,
+      "path": "builder/final-report.md",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 25975,
+      "path": "builder/measurement-summary.json",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 305336,
+      "path": "builder/package-lock.json",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 1274,
+      "path": "builder/package.json",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 6896,
+      "path": "builder/run-log.md",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 3924,
+      "path": "builder/scripts/acceptance.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 2359,
+      "path": "builder/scripts/add-social.py",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 912,
+      "path": "builder/scripts/api-lib.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 2174,
+      "path": "builder/scripts/audit-acquisition-ids.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1147,
+      "path": "builder/scripts/auth-probe.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 746,
+      "path": "builder/scripts/browser-smoke.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 5708,
+      "path": "builder/scripts/build-schema.py",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1020,
+      "path": "builder/scripts/build-shell.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 615,
+      "path": "builder/scripts/choreography.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 4058,
+      "path": "builder/scripts/collect-results.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 4140,
+      "path": "builder/scripts/controls-check.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 922,
+      "path": "builder/scripts/custom-client-demo.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 401,
+      "path": "builder/scripts/format-source.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1264,
+      "path": "builder/scripts/freeze-artifact.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 713,
+      "path": "builder/scripts/latest-from-api-doc.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 10946,
+      "path": "builder/scripts/measure-acquisition.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 4618,
+      "path": "builder/scripts/measurement-summary.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 3615,
+      "path": "builder/scripts/paging-measure.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1953,
+      "path": "builder/scripts/partial-offline-probe.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 2869,
+      "path": "builder/scripts/prepare-scale.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 3735,
+      "path": "builder/scripts/project-fixture.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 905,
+      "path": "builder/scripts/refresh-starter-like-days.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 400,
+      "path": "builder/scripts/restart-owned.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 2533,
+      "path": "builder/scripts/seed-starter.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 2043,
+      "path": "builder/scripts/seed.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 10057,
+      "path": "builder/scripts/selected-checks.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 567,
+      "path": "builder/scripts/server.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1532,
+      "path": "builder/scripts/setup-identity.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 962,
+      "path": "builder/scripts/size-report.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1529,
+      "path": "builder/scripts/snapshot-export.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 730,
+      "path": "builder/scripts/start-owned.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1827,
+      "path": "builder/scripts/stop-owned.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 2559,
+      "path": "builder/scripts/storage-detail.py",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1505,
+      "path": "builder/scripts/storage-inspect.py",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 2747,
+      "path": "builder/scripts/verify-projection.py",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 1535,
+      "path": "builder/scripts/verify-recipient.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 3390,
+      "path": "builder/scripts/verify-server-fixture.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 234,
+      "path": "builder/scripts/wait-server.mjs",
+      "reason": "builder-script-or-test"
+    },
+    {
+      "bytes": 79473,
+      "path": "builder/selected-results.json",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 1207,
+      "path": "builder/snapback/conversations.q",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2868,
+      "path": "builder/snapback/messages.q",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 436,
+      "path": "builder/snapback/profiles.q",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 3577,
+      "path": "builder/snapback/schema.q",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2465,
+      "path": "builder/snapback/social.q",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2876,
+      "path": "builder/src/acquire.ts",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 7908,
+      "path": "builder/src/chat.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 1482,
+      "path": "builder/src/client.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 4024,
+      "path": "builder/src/screens.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 137,
+      "path": "builder/tsconfig.json",
+      "reason": "root-source-report-evidence"
+    },
+    {
+      "bytes": 8633,
+      "path": "builder/ui/NEUTRALITY.md",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 5892,
+      "path": "builder/ui/README.md",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 9,
+      "path": "builder/ui/VERSION",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 828554,
+      "path": "builder/ui/assets/clique-logo.png",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 836,
+      "path": "builder/ui/index.ts",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 131543,
+      "path": "builder/ui/package-lock.json",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 691,
+      "path": "builder/ui/package.json",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 13988,
+      "path": "builder/ui/screens.md",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 4535,
+      "path": "builder/ui/src/AuthForm.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2285,
+      "path": "builder/ui/src/Avatar.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 4067,
+      "path": "builder/ui/src/ChatListRow.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 15598,
+      "path": "builder/ui/src/ChatSettingsForm.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 7557,
+      "path": "builder/ui/src/Composer.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 9654,
+      "path": "builder/ui/src/FeedCard.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2454,
+      "path": "builder/ui/src/FeedTabs.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 3580,
+      "path": "builder/ui/src/InsightsBarList.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2060,
+      "path": "builder/ui/src/InsightsSummary.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 11076,
+      "path": "builder/ui/src/MessageBubble.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 5401,
+      "path": "builder/ui/src/PollCompose.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 4617,
+      "path": "builder/ui/src/PollDisplay.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 11497,
+      "path": "builder/ui/src/ProfileForm.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 1998,
+      "path": "builder/ui/src/QuotedReply.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 3159,
+      "path": "builder/ui/src/ReactionPicker.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 1729,
+      "path": "builder/ui/src/ReceiptTicks.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 6284,
+      "path": "builder/ui/src/SearchBar.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2351,
+      "path": "builder/ui/src/TrendingRow.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 2625,
+      "path": "builder/ui/src/TypingIndicator.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 1060,
+      "path": "builder/ui/src/linkify.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 1935,
+      "path": "builder/ui/src/tokens.ts",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 596,
+      "path": "builder/ui/src/webSemantics.ts",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 3001,
+      "path": "builder/ui/test/observability-contract.test.mjs",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 862,
+      "path": "builder/ui/test/quoted-reply.test.mjs",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 7757,
+      "path": "builder/ui/test/rn-web-consumer.test.mjs",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 4786,
+      "path": "builder/ui/test/rn-web-consumer.tsx",
+      "reason": "builder-source"
+    },
+    {
+      "bytes": 483,
+      "path": "builder/ui/tsconfig.json",
+      "reason": "builder-source"
+    }
+  ],
+  "policyNotes": [
+    "No node_modules or .git content existed in the private builder snapshot by freeze policy.",
+    "Database files, exported dist bundles, raw model traces, and generated full 100k-row fixture/seed data are private-only.",
+    "All 24 retained acquisition attempt JSON files and all 65 builder evidence .log files are included.",
+    "The snapshot dependency filter also omitted 18 delivered static Expo assets at dist/assets/node_modules; a separately verified private supplement preserves them without changing the original snapshot."
+  ],
+  "schema": "snapback3-clique-focused-public-selection.v1",
+  "source": "private immutable builder snapshot",
+  "staticAssetSupplement": {
+    "affectedFrozenExclusion": "**/node_modules/**",
+    "bytes": 20261,
+    "files": 18,
+    "localPrivateArchiveSha256": "47a71b814caea902f5564c819e5a625d2052ec7ceeca1b252669b961b421c5fc",
+    "omittedDeliveredPath": "dist/assets/node_modules",
+    "originalSnapshotUnchanged": true,
+    "publicContent": "manifest/provenance only; static assets remain private",
+    "remoteManifestSha256": "aa1e0a0432602df18a63e90689d99022434957378e5f42bba05cc07e9efaea09",
+    "sourceFreezeSha256": "4538b941ad5e0bbb32c37e9906b114380b3a4f4a8365f3dfff41ff5048596608"
+  }
+}

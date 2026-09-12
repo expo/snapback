@@ -1,0 +1,51 @@
+{
+  "status": "private-closed-old-client-held-outside-actor",
+  "createdEpochMs": 1789231870738,
+  "sourceProfile": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare/m7-preparation/old-client-profile",
+  "actorAccess": false,
+  "archive": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-old-client-profile-private.tar.gz",
+    "bytes": 2236074,
+    "sha256": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+    "gzipValid": true
+  },
+  "sourceManifest": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare/m7-preparation/old-client-profile-manifest.private.json",
+    "bytes": 28464,
+    "sha256": "c94076d817bd1004c134954b7d44e3d6745ad385894866934fa9302f4b51fad5",
+    "fileCount": 125,
+    "verificationProblems": []
+  },
+  "identity": {
+    "origin": "http://127.0.0.1:54910",
+    "operationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+    "messageId": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+    "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382",
+    "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+    "intentBodySha256": "f4c689237949c897dea1081aafd436375d946e302d013bd1d0171a9647a04c15",
+    "persistedStatus": "queued"
+  },
+  "supportingRecordHashes": {
+    "old-client-certification.json": {
+      "bytes": 3768,
+      "sha256": "2dae411fcfe91227c3131c45cd2d66a78b8d7d504f0ab0bfc6e6ee2b9db77be1"
+    },
+    "old-client-control.json": {
+      "bytes": 7004,
+      "sha256": "2b15e968afa3a3fe57d3b1c25490da3d64eb226ee6b6e5e7ea24dbe0886e9f3f"
+    },
+    "old-client-journal.json": {
+      "bytes": 770,
+      "sha256": "8c56fda7de29708196d32ae3dc790aaea72e533faf9046595363a3065f6d4730"
+    },
+    "old-client-server-absence.json": {
+      "bytes": 973,
+      "sha256": "890b0fab4f25761fcf2a397179d1c4430b900522f1f06a138cffaacdf0b78139"
+    },
+    "old-client-profile-manifest.private.json": {
+      "bytes": 28464,
+      "sha256": "c94076d817bd1004c134954b7d44e3d6745ad385894866934fa9302f4b51fad5"
+    }
+  },
+  "custody": "Profile remains closed and private. It is excluded from the fresh actor lane and may only be used later by the independent coordinator check described in the preparation handoff."
+}

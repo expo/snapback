@@ -1,0 +1,15 @@
+{"actor":"u0500","repetition":1,"status":"failed","error":"TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inbox-status').filter({ hasText: 'Inbox ready' }) to be visible\u001b[22m\n","acquisitionMs":null}
+{"actor":"u0500","repetition":2,"status":"failed","error":"TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inbox-status').filter({ hasText: 'Inbox ready' }) to be visible\u001b[22m\n","acquisitionMs":null}
+{"actor":"u0500","repetition":3,"status":"failed","error":"TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inbox-status').filter({ hasText: 'Inbox ready' }) to be visible\u001b[22m\n","acquisitionMs":null}
+{"actor":"u0001","repetition":1,"status":"failed","error":"TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inbox-status').filter({ hasText: 'Inbox ready' }) to be visible\u001b[22m\n","acquisitionMs":null}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+browserContext.close: Protocol error (Target.disposeBrowserContext): Failed to find context with id 7442FE992A27178C87541A97CBC6DF74
+    at async file:///home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3/scripts/measure-acquisition.mjs:14:119 {
+  log: [],
+  name: 'Error'
+}
+
+Node.js v24.13.1

@@ -1,0 +1,30 @@
+{
+  "m1-a01": "pass",
+  "m1-a02": "pass",
+  "avatarProbe": {
+    "fileInputs": 0,
+    "avatarErr": "Avatar upload is unavailable: this Snapback 3 runtime does not support media."
+  },
+  "m1-a03": {
+    "visibleError": "Error: E_CONSTRAINT: sealed unique conflict on profiles.byHandle",
+    "stillOnForm": true
+  },
+  "m1-a08": {
+    "afterSaveHasName": true,
+    "afterSaveHasBio": true,
+    "afterReloadHasName": true,
+    "afterReloadHasBio": true
+  },
+  "m1-a11probe": {
+    "imgTags": 0,
+    "profileText": "GP | Edit profile | Grader Probe | @grader224439968 | grader bio check | 0 Followers | 0 Following | Back to feed"
+  },
+  "m1-a04": {
+    "visibleError": "SnapbackError: E_AUTH_EMAIL_TAKEN: email is already registered"
+  },
+  "shortPassword": "SnapbackError: E_AUTH_PASSWORD_WEAK: password must contain at least 8 characters and at most 256 UTF-8 bytes",
+  "pageErrors": [
+    "console:Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "console:Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ]
+}

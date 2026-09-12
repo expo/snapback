@@ -1,0 +1,12 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_SYNTAX snapback/conversations.q:10:31: expected expression, got "="
+-- fix this Quarry declaration and rerun snapback3 check
+
+E_QUARRY_SYNTAX snapback/conversations.q:11:1: expected expression, got "<indent>"
+-- fix this Quarry declaration and rerun snapback3 check
+
+E_QUARRY_SYNTAX snapback/conversations.q:12:3: unexpected top-level "return"
+-- fix this Quarry declaration and rerun snapback3 check

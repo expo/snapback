@@ -1,0 +1,972 @@
+{
+  "status": "complete-exact-10000-instrumented",
+  "scope": "Independent performance attribution diagnostic only; never mixed into normal benchmark repetitions or treated as M7 evidence.",
+  "attempt": 2,
+  "priorPartialAttempt": "attempt-1/",
+  "actor": "u0500",
+  "expectedMessages": 10000,
+  "verification": {
+    "expected": 10000,
+    "observed": 10000,
+    "unique": 10000,
+    "missing": [],
+    "extras": []
+  },
+  "source": {
+    "sourceManifestSha256": "0c7209793b26dc00f634e57c7eeb2c57e4685a587322e8be94486357239605b3",
+    "assetSupplementManifestSha256": "aa1e0a0432602df18a63e90689d99022434957378e5f42bba05cc07e9efaea09",
+    "seedSha256": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2",
+    "fixedPackageSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "fixedPackageVerifiedFiles": 108,
+    "dependenciesCopiedFrom": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-grade/node_modules",
+    "packageLockSha256": "6ef4c3f3db4ed656e421d20b8318eb590227ac7490fb648524f4b1bb6d140355",
+    "files": [
+      {
+        "path": "app/_layout.tsx",
+        "bytes": 339,
+        "sha256": "e89f7869515aa9214d7daa0e0af465567c309bc2e5cb08a40b560af36e1a5c47"
+      },
+      {
+        "path": "app/index.tsx",
+        "bytes": 133,
+        "sha256": "fe67a8f6dcc3f8266bfe33bf383f792771a8d42fd2742980e066a3335fdc6424"
+      },
+      {
+        "path": "app/profile/[handle].tsx",
+        "bytes": 270,
+        "sha256": "4bb9ac38aaff46bd139d6e3d21cd64cfd514a9d8930064c43b6566f5cf72d19a"
+      },
+      {
+        "path": "app/profile/edit.tsx",
+        "bytes": 139,
+        "sha256": "ba07b912339a96bb0c860452deecca2fcd56bab2900a0361305ffef0fbe6dd9f"
+      },
+      {
+        "path": "app/settings.tsx",
+        "bytes": 149,
+        "sha256": "aa112eecba1a84de559892534a9606e186a19489e5b46442a988c91202b6fc26"
+      },
+      {
+        "path": "src/acquire.ts",
+        "bytes": 2876,
+        "sha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4"
+      },
+      {
+        "path": "src/chat.tsx",
+        "bytes": 7908,
+        "sha256": "e9d8d1b9543b2546637a2f3a5007af1730b7a267528dde836fb24a76c26dd4cb"
+      },
+      {
+        "path": "src/client.tsx",
+        "bytes": 1482,
+        "sha256": "85d46218c7624043ad592df92c90abf1923df2bf6674379c42cec32d434098d6"
+      },
+      {
+        "path": "src/screens.tsx",
+        "bytes": 4024,
+        "sha256": "b91273365e9d2843b5dc64c18db24638869f7bd2212f61a4b9bbf71cc604b1d4"
+      },
+      {
+        "path": "snapback/conversations.q",
+        "bytes": 1207,
+        "sha256": "e79c85672489da38a994ae4fc1a370216191599f7cbcb683df145ed7873cedc2"
+      },
+      {
+        "path": "snapback/messages.q",
+        "bytes": 2868,
+        "sha256": "5f7a71a6fbcf9910d9641cc38232b046f9dd38faf95b9fcdf70d6a59372fa8c2"
+      },
+      {
+        "path": "snapback/profiles.q",
+        "bytes": 436,
+        "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685"
+      },
+      {
+        "path": "snapback/schema.q",
+        "bytes": 3577,
+        "sha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017"
+      },
+      {
+        "path": "snapback/seed.ts",
+        "bytes": 19296652,
+        "sha256": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2"
+      },
+      {
+        "path": "snapback/social.q",
+        "bytes": 2465,
+        "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15"
+      },
+      {
+        "path": "dist/_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js",
+        "bytes": 1352985,
+        "sha256": "593a46784348afe0435a00760401f2b7a1a17280ed14d0b9262c1f673ee4ba29"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png",
+        "bytes": 9456,
+        "sha256": "6deca32b56b97fa1fa87facd6996b46cc45190a553400e7febdf1d2093099b57"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png",
+        "bytes": 469,
+        "sha256": "c15ec72a74d13957211808313d5c35deb7f7606c6d22dbddceb0000d4e0547ad"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png",
+        "bytes": 138,
+        "sha256": "a69a2edb5b6c60b8433d5b6d23c69f520ccd8a602f3f60e7996e489718bc175c"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png",
+        "bytes": 188,
+        "sha256": "708a79cf561b8a2a4850ce0254584d3a5231046be08fb7fadf4b6edfdb31178b"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png",
+        "bytes": 364,
+        "sha256": "27f4d229d440925bf7212d5dfffa45d596b2c7b3bb2905c96b839b2081a1dbeb"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png",
+        "bytes": 653,
+        "sha256": "9adb8c5efca932e2b732b293da813bd2e31952263056bce9e2517fec0f0b6a76"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png",
+        "bytes": 207,
+        "sha256": "84cf5eb3b20250f69e0e4733beb4da5f417f0682892a5ad1b5e62570753c21b1"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png",
+        "bytes": 220,
+        "sha256": "d03a5cd7a66ef10c5147916f9d5878b2d0a0a5ad46f405a31cd9967efaa55afd"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@2x.png",
+        "bytes": 334,
+        "sha256": "ab5613d2ce70fa67c5926e831353664945199fc195fa6fe76c5fe3cec452e31a"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@3x.png",
+        "bytes": 502,
+        "sha256": "c4e54e6a0a7de636aa153378fbc62ea4a41695bfedf807f90df7b18ffd733f67"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@4x.png",
+        "bytes": 645,
+        "sha256": "c86bb485eee687e06c500fc4234f51a6784b4530c2ae11d0c76481110bce3105"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png",
+        "bytes": 141,
+        "sha256": "b1bc1810ca23e2c38cd76971c43591d726161061240d8b792b05757196ddb528"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@2x.png",
+        "bytes": 201,
+        "sha256": "cbdf9213e55f65c48d076acd8423b7c9aee4f1b81101ff6c95a38c4cd8a86461"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@3x.png",
+        "bytes": 266,
+        "sha256": "d05c9d30d79f45a78e5585a2e7ec67c6a06a883dd9137e1d5059e8c87b33ce76"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@4x.png",
+        "bytes": 332,
+        "sha256": "2325c53a73e54c438cbbc60dffdd8b513d471ba42e2f56713ef404b95e0ca1fc"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png",
+        "bytes": 928,
+        "sha256": "5d075e0c287c4f4441b5b5c8fc7ea5cd27c11bb617ecea09755955bcb1889083"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png",
+        "bytes": 465,
+        "sha256": "acf691957a3bcce7d195856dce98a5cf14dce10bea28aa5c10b3550c078e23b5"
+      },
+      {
+        "path": "dist/assets/node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png",
+        "bytes": 4752,
+        "sha256": "efc79da3c4c97dfb1571bff6202958ab0529c5aa31e8392600578b3e359d1447"
+      },
+      {
+        "path": "dist/index.html",
+        "bytes": 1173,
+        "sha256": "63c1d0db3319de77f0552bf654803dcb6b3793a2857119fcf0ac195c9f618cbf"
+      },
+      {
+        "path": "dist/metadata.json",
+        "bytes": 49,
+        "sha256": "aa5f19cc84d41c0f8c70ececb2bc82e863227ea1e121632aca879eb616056991"
+      },
+      {
+        "path": "dist/sw.js",
+        "bytes": 2558,
+        "sha256": "88f8360236163c25726bff5a3c889f9c980d0f199dc8e40c98f17f686dc448a3"
+      }
+    ],
+    "expectedIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "expectedIds": 10000
+  },
+  "commands": [
+    "cd /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile",
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node diagnostic/profile.mjs",
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node diagnostic/analyze-profile.mjs",
+    "python3 diagnostic/summarize.py"
+  ],
+  "ownerCommand": [
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "node_modules/snapback3/dist/cli.mjs",
+    "dev",
+    ".",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "54905"
+  ],
+  "instrumentation": {
+    "playwright": "1.62.1",
+    "node": "v24.13.1",
+    "profilerSamplingIntervalMicroseconds": 1000,
+    "heapSampleIntervalTargetMs": 500,
+    "mainPageCDP": true,
+    "backgroundContext": "Fresh private persistent Chromium profile; untouched authored UI and acquisition helper, normal SDK/HTTP/IDB, no foreground send.",
+    "cpuMethod": "Per-process Linux /proc utime+stime at profiler boundary brackets; CLK_TCK=100; all relevant PIDs were present at both boundaries. Main-thread CPU samples are not exact clock accounting."
+  },
+  "timing": {
+    "authoredAcquisitionWallMs": 23665.5,
+    "browserCpuProfileIntervalMs": 25100.818,
+    "procSamplingWallMs": 25127,
+    "profileStartBracket": {
+      "before": 1789231941359,
+      "after": 1789231941363
+    },
+    "profileStopBracket": {
+      "before": 1789231966483,
+      "after": 1789231966593
+    },
+    "procStartSample": {
+      "start": 1789231941356,
+      "end": 1789231941359
+    },
+    "procEndSample": {
+      "start": 1789231966481,
+      "end": 1789231966483
+    },
+    "phases": [
+      {
+        "name": "owner-seeded-ready",
+        "epochMs": 1789231941208
+      },
+      {
+        "name": "app-loaded",
+        "epochMs": 1789231941609,
+        "browser": {
+          "epochMs": 1789231941608,
+          "timeOrigin": 1789231941367.4,
+          "now": 241.10000014305115
+        }
+      },
+      {
+        "name": "authenticated",
+        "epochMs": 1789231941748,
+        "browser": {
+          "epochMs": 1789231941747,
+          "timeOrigin": 1789231941367.4,
+          "now": 379.90000009536743
+        }
+      },
+      {
+        "name": "first-inbox-driver-paint-boundary",
+        "epochMs": 1789231941845,
+        "browser": {
+          "epochMs": 1789231941845,
+          "timeOrigin": 1789231941367.4,
+          "now": 477.7999999523163
+        }
+      },
+      {
+        "name": "first-history-driver-paint-boundary",
+        "epochMs": 1789231942162,
+        "browser": {
+          "epochMs": 1789231942161,
+          "timeOrigin": 1789231941367.4,
+          "now": 794.2000000476837
+        }
+      },
+      {
+        "name": "authored-acquisition-started",
+        "epochMs": 1789231942167,
+        "browser": {
+          "epochMs": 1789231942167,
+          "timeOrigin": 1789231941367.4,
+          "now": 800
+        }
+      },
+      {
+        "name": "authored-acquisition-observed-end",
+        "epochMs": 1789231966454,
+        "browser": {
+          "epochMs": 1789231966453,
+          "timeOrigin": 1789231941367.4,
+          "now": 25086
+        }
+      }
+    ],
+    "pages": 151,
+    "conversations": 100
+  },
+  "cpu": {
+    "processDeltas": [
+      {
+        "pid": 1660548,
+        "role": "diagnostic-controller",
+        "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node diagnostic/profile.mjs ",
+        "userSeconds": 0.58,
+        "systemSeconds": 0.09,
+        "totalSeconds": 0.67
+      },
+      {
+        "pid": 1660557,
+        "role": "node-owner",
+        "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node node_modules/snapback3/dist/cli.mjs dev . --host 127.0.0.1 --port 54905 ",
+        "userSeconds": 0.86,
+        "systemSeconds": 0.22,
+        "totalSeconds": 1.08
+      },
+      {
+        "pid": 1660713,
+        "role": "rust-worker",
+        "command": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/node_modules/snapback3/dist/native/linux-x64/snapback3-worker --project /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/runtime-1660557-122aee03-0a20-4e57-8df2-91e2302b1961.json --database /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/store.sqlite --dev --seed /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/seed-1660557-122aee03-0a20-4e57-8df2-91e2302b1961.json ",
+        "userSeconds": 3.19,
+        "systemSeconds": 0.03,
+        "totalSeconds": 3.22
+      },
+      {
+        "pid": 1661189,
+        "role": "chromium",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --enable-precise-memory-info --user-data-dir=/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/diagnostic/browser-profile --remote-debugging-pipe about:blank ",
+        "userSeconds": 8.32,
+        "systemSeconds": 3.7,
+        "totalSeconds": 12.02
+      },
+      {
+        "pid": 1661191,
+        "role": "chromium",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-zygote-sandbox --no-sandbox --headless ",
+        "userSeconds": 0.0,
+        "systemSeconds": 0.0,
+        "totalSeconds": 0.0
+      },
+      {
+        "pid": 1661208,
+        "role": "chromium",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=gpu-process --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless --ozone-platform=headless --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,12420519676910356968,7412298615793970697,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsU ",
+        "userSeconds": 0.04,
+        "systemSeconds": 0.01,
+        "totalSeconds": 0.05
+      },
+      {
+        "pid": 1661192,
+        "role": "chromium",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-sandbox --headless ",
+        "userSeconds": 0.0,
+        "systemSeconds": 0.0,
+        "totalSeconds": 0.0
+      },
+      {
+        "pid": 1661213,
+        "role": "chromium",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=renderer --headless=old --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-precise-memory-info --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4 --time-ticks-at-unix-epoch=-1787641081713606 --launch-time-ticks=1590859564163 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,12420519676910356968,7412298615793970697,262144 --en ",
+        "userSeconds": 25.4,
+        "systemSeconds": 3.1,
+        "totalSeconds": 28.5
+      }
+    ],
+    "browserCDPMetricsDeltaSeconds": {
+      "TaskDuration": 14.138212000000001,
+      "ScriptDuration": 6.780134,
+      "TaskOtherDuration": 7.269936,
+      "LayoutDuration": 0.045004,
+      "RecalcStyleDuration": 0.008254,
+      "ThreadTime": 14.822998,
+      "ProcessTime": 28.5,
+      "DevToolsCommandDuration": 0.034197
+    },
+    "selfTimeCategoriesSampleWeightedMs": {
+      "engine idle samples": 10929.571,
+      "engine garbage collector samples": 1333.838,
+      "engine native/program unattributed samples": 939.812,
+      "other framework/helper bundle JavaScript": 2692.467000000003,
+      "SDK persistence JavaScript": 687.952,
+      "SDK evaluator/value/index code": 2111.02,
+      "React core/rendering": 2831.6730000000025,
+      "SDK hash/UTF-8 primitives": 617.129,
+      "SDK source-unmapped": 2330.037000000001,
+      "SDK protocol validation": 319.907,
+      "other target/native/unmapped": 136.40200000000002,
+      "authored app/UI/instrumentation": 111.56699999999998,
+      "SDK client/resource orchestration": 58.19
+    },
+    "topSelfTimeFunctions": [
+      {
+        "functionName": "(idle)",
+        "bundleLine": 0,
+        "bundleColumn": -1,
+        "sampleWeightedSelfMs": 10929.571,
+        "category": "engine idle samples",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "(garbage collector)",
+        "bundleLine": 0,
+        "bundleColumn": -1,
+        "sampleWeightedSelfMs": 1333.838,
+        "category": "engine garbage collector samples",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "(program)",
+        "bundleLine": 0,
+        "bundleColumn": -1,
+        "sampleWeightedSelfMs": 939.812,
+        "category": "engine native/program unattributed samples",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "e",
+        "bundleLine": 54,
+        "bundleColumn": 53,
+        "sampleWeightedSelfMs": 551.945,
+        "category": "other framework/helper bundle JavaScript",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "e.onsuccess",
+        "bundleLine": 859,
+        "bundleColumn": 134151,
+        "sampleWeightedSelfMs": 519.984,
+        "category": "SDK persistence JavaScript",
+        "source": "../../../../../packages/snapback3/src/resource/storage.ts",
+        "sourceLine": 119,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "Qt",
+        "bundleLine": 859,
+        "bundleColumn": 50855,
+        "sampleWeightedSelfMs": 424.628,
+        "category": "SDK evaluator/value/index code",
+        "source": "../../../../../packages/evaluator/src/value-runtime.ts",
+        "sourceLine": 258,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "h",
+        "bundleLine": 116,
+        "bundleColumn": 2572,
+        "sampleWeightedSelfMs": 397.767,
+        "category": "other framework/helper bundle JavaScript",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "bo",
+        "bundleLine": 164,
+        "bundleColumn": 54781,
+        "sampleWeightedSelfMs": 397.421,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "A",
+        "bundleLine": 859,
+        "bundleColumn": 1174,
+        "sampleWeightedSelfMs": 330.506,
+        "category": "SDK hash/UTF-8 primitives",
+        "source": "../../../../../packages/evaluator/src/hash.ts",
+        "sourceLine": 9,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "Bi",
+        "bundleLine": 859,
+        "bundleColumn": 70351,
+        "sampleWeightedSelfMs": 323.472,
+        "category": "SDK source-unmapped",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "ut",
+        "bundleLine": 859,
+        "bundleColumn": 49640,
+        "sampleWeightedSelfMs": 292.165,
+        "category": "SDK evaluator/value/index code",
+        "source": "../../../../../packages/evaluator/src/value-runtime.ts",
+        "sourceLine": 185,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "so",
+        "bundleLine": 164,
+        "bundleColumn": 53463,
+        "sampleWeightedSelfMs": 264.483,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "ze",
+        "bundleLine": 859,
+        "bundleColumn": 47261,
+        "sampleWeightedSelfMs": 199.281,
+        "category": "SDK evaluator/value/index code",
+        "source": "../../../../../packages/evaluator/src/value-runtime.ts",
+        "sourceLine": 37,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "e.createElement",
+        "bundleLine": 38,
+        "bundleColumn": 5381,
+        "sampleWeightedSelfMs": 192.278,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "Xo",
+        "bundleLine": 164,
+        "bundleColumn": 61544,
+        "sampleWeightedSelfMs": 191.307,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "Ff",
+        "bundleLine": 164,
+        "bundleColumn": 146068,
+        "sampleWeightedSelfMs": 189.043,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "",
+        "bundleLine": 859,
+        "bundleColumn": 134188,
+        "sampleWeightedSelfMs": 181.114,
+        "category": "SDK source-unmapped",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "Yr",
+        "bundleLine": 164,
+        "bundleColumn": 34507,
+        "sampleWeightedSelfMs": 174.21,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "write",
+        "bundleLine": 859,
+        "bundleColumn": 133917,
+        "sampleWeightedSelfMs": 167.968,
+        "category": "SDK persistence JavaScript",
+        "source": "../../../../../packages/snapback3/src/resource/storage.ts",
+        "sourceLine": 110,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "gi",
+        "bundleLine": 859,
+        "bundleColumn": 68279,
+        "sampleWeightedSelfMs": 142.497,
+        "category": "SDK source-unmapped",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "d",
+        "bundleLine": 859,
+        "bundleColumn": 2019,
+        "sampleWeightedSelfMs": 139.05,
+        "category": "SDK hash/UTF-8 primitives",
+        "source": "../../../../../packages/evaluator/src/hash.ts",
+        "sourceLine": 60,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "",
+        "bundleLine": 859,
+        "bundleColumn": 50947,
+        "sampleWeightedSelfMs": 138.185,
+        "category": "SDK source-unmapped",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "Mn",
+        "bundleLine": 164,
+        "bundleColumn": 16992,
+        "sampleWeightedSelfMs": 137.173,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "",
+        "bundleLine": 102,
+        "bundleColumn": 232,
+        "sampleWeightedSelfMs": 136.115,
+        "category": "other framework/helper bundle JavaScript",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "os",
+        "bundleLine": 859,
+        "bundleColumn": 122770,
+        "sampleWeightedSelfMs": 135.917,
+        "category": "SDK protocol validation",
+        "source": "../../../../../packages/snapback3/src/resource/protocol.ts",
+        "sourceLine": 139,
+        "sourceMappingIsInference": true
+      },
+      {
+        "functionName": "l",
+        "bundleLine": 132,
+        "bundleColumn": 455,
+        "sampleWeightedSelfMs": 127.446,
+        "category": "other framework/helper bundle JavaScript",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "hs",
+        "bundleLine": 859,
+        "bundleColumn": 123081,
+        "sampleWeightedSelfMs": 126.79,
+        "category": "SDK source-unmapped",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "v",
+        "bundleLine": 164,
+        "bundleColumn": 47898,
+        "sampleWeightedSelfMs": 121.042,
+        "category": "React core/rendering",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "",
+        "bundleLine": 110,
+        "bundleColumn": 1328,
+        "sampleWeightedSelfMs": 114.596,
+        "category": "other framework/helper bundle JavaScript",
+        "source": null,
+        "sourceLine": null,
+        "sourceMappingIsInference": false
+      },
+      {
+        "functionName": "E",
+        "bundleLine": 859,
+        "bundleColumn": 3031,
+        "sampleWeightedSelfMs": 110.03,
+        "category": "SDK hash/UTF-8 primitives",
+        "source": "../../../../../packages/evaluator/src/hash.ts",
+        "sourceLine": 103,
+        "sourceMappingIsInference": true
+      }
+    ]
+  },
+  "heap": {
+    "peakSampledBytes": 244180040,
+    "endBeforeForcedGCBytes": 110288960,
+    "endAfterForcedGCBytes": 51219144,
+    "samplerStoppedEpochMs": 1789231966481,
+    "beforeForcedGCEpochMs": 1789231966627,
+    "forcedGC": {
+      "before": 1789231966627,
+      "after": 1789231966762
+    },
+    "afterForcedGCEpochMs": 1789231966764,
+    "inspectionStartedEpochMs": 1789231966764,
+    "samples": 52,
+    "invariant": "Periodic sampler stopped; end heap and forced-GC heap measured before acquisition-ID/storage summary inspection. No measurement getAll or JSON serialization of IDB used. Original app acquisition.ids/pages/storageTimings arrays remain unchanged and included in heap."
+  },
+  "persistence": {
+    "source": "Authored src/client.tsx adapter delegates to SDK storage unchanged; timing starts before awaited storage.write and ends after resolution.",
+    "acquisitionOverlappingWriteCalls": 151,
+    "sumAwaitedWriteMs": 8037.199998140335,
+    "unionClippedToAcquisitionMs": 8037.199998140335,
+    "medianAwaitedWriteMs": 50.59999990463257,
+    "p95AwaitedWriteMs": 66.79999995231628,
+    "maxAwaitedWriteMs": 75.29999995231628,
+    "sumPatchRowCounts": 85697,
+    "maxPatchRowCount": 704,
+    "interpretation": "Awaited write spans include JavaScript cloning/iteration, IndexedDB transaction scheduling and completion wait. They overlap CPU and other activity; do not subtract them from wall time or call them pure disk time. Only 687.952ms of sampled direct self time was source-matched to storage.ts; nested/native/persistence work is not fully attributed."
+  },
+  "network": {
+    "scope": "Main-page CDP Network events. Does not instrument service-worker or all browser-process traffic. Request metadata omits auth headers and bodies. Completed /api/read entries are inside the CPU profile interval.",
+    "requestPaths": {
+      "/": 1,
+      "/_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js": 1,
+      "/api/manifest": 2,
+      "/api/auth/persona": 1,
+      "/api/events": 2,
+      "/api/read": 151
+    },
+    "completedApiReadsWithinProfile": 151,
+    "apiReadEncodedBytes": 25072206,
+    "allCompletedMainPageEncodedBytes": 26971543,
+    "apiReadMedianElapsedMs": 25.47300001606345,
+    "apiReadP95ElapsedMs": 33.35499996319413,
+    "apiReadSumElapsedMs": 4153.455000836402,
+    "interpretation": "Request wall spans include server/transport/browser scheduling and may overlap other intervals. No RTT, native-server stack attribution or disk claim."
+  },
+  "longTasks": {
+    "count": 146,
+    "totalMs": 8741,
+    "maxMs": 91
+  },
+  "files": {
+    "profile.mjs": {
+      "sha256": "67a0c235f464ed5bef8b26a2ca28310d8d589af119b7a9b9f6cdd3a58b2adf9f",
+      "bytes": 12345
+    },
+    "analyze-profile.mjs": {
+      "sha256": "3e4cd3589cf1792f614beeb141095df5c49d919110bef15f38b999b509beeeb6",
+      "bytes": 6109
+    },
+    "summarize.py": {
+      "sha256": "cb4679403397daf8e5a1b3ae2ac7145c10365864c6237a1f5076cf420c44b80e",
+      "bytes": 10045
+    },
+    "inputs.json": {
+      "sha256": "bbf8ec23f6c3f530661f26b254c9350a79644318a827e63d21597f64032dce61",
+      "bytes": 8026
+    },
+    "run.json": {
+      "sha256": "4433e2877dc06c695b0fa5580c0ef53abe6d53484a5e122737780911c6c679ca",
+      "bytes": 351861
+    },
+    "browser-main-thread.cpuprofile": {
+      "sha256": "131d69cbd75d42125e1e36838770bf222fb4f71253e462c8c8fa5d19771af02d",
+      "bytes": 1647855
+    },
+    "top-self-time-functions.json": {
+      "sha256": "7808812c8a99629aa4c3ce6eff8a87ec1c128f33c7c252efcb11f8d412c360e7",
+      "bytes": 492694
+    },
+    "acquired-ids.json": {
+      "sha256": "0c7bc8a0bbd35fbb710f0a2d9be96905e83f8a0e213cabc873e3c9eeb70c1453",
+      "bytes": 150002
+    },
+    "expected-u0500-ids.json": {
+      "sha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+      "bytes": 150001
+    },
+    "attempt-1/run.json": {
+      "sha256": "f016b4cc20629bbce56dd93a89f6829d863c5293d7a6981884f2c5528efcd11a",
+      "bytes": 173597
+    },
+    "attempt-1/browser-main-thread.cpuprofile": {
+      "sha256": "a3005a90ef0c5474f23cefcd4b9da4bc92f2751d8dadc2d7f080ab0c9ab7949c",
+      "bytes": 1546218
+    },
+    "attempt-1/harness-error.json": {
+      "sha256": "eedc36edb3d0fae1192576a0ec1f7c787fbe6797eaeb2279ff1b3368cc3acca3",
+      "bytes": 504
+    },
+    "preparation-error.json": {
+      "sha256": "570bd37bcb52d197d0a4e3cd71b5ef4245eda08be25080c07c1b956060aa7d1f",
+      "bytes": 286
+    }
+  },
+  "cleanup": {
+    "allRecordedOwnerWorkerChromiumProcessesStopped": true,
+    "controllerExited": true,
+    "portsConfirmedFree": [
+      54905,
+      54906
+    ],
+    "recordedProcesses": [
+      {
+        "pid": 1660548,
+        "startTicks": "159084707",
+        "userTicks": 31,
+        "systemTicks": 7,
+        "rssPages": 33243,
+        "state": "R",
+        "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node diagnostic/profile.mjs ",
+        "firstSeenEpochMs": 1789231929087,
+        "role": "diagnostic-controller"
+      },
+      {
+        "pid": 1660557,
+        "startTicks": "159084737",
+        "userTicks": 0,
+        "systemTicks": 0,
+        "rssPages": 192,
+        "state": "R",
+        "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node node_modules/snapback3/dist/cli.mjs dev . --host 127.0.0.1 --port 54905 ",
+        "firstSeenEpochMs": 1789231929087,
+        "role": "node-owner"
+      },
+      {
+        "pid": 1660713,
+        "startTicks": "159085030",
+        "userTicks": 798,
+        "systemTicks": 92,
+        "rssPages": 152094,
+        "state": "S",
+        "command": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/node_modules/snapback3/dist/native/linux-x64/snapback3-worker --project /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/runtime-1660557-122aee03-0a20-4e57-8df2-91e2302b1961.json --database /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/store.sqlite --dev --seed /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/seed-1660557-122aee03-0a20-4e57-8df2-91e2302b1961.json ",
+        "firstSeenEpochMs": 1789231941208,
+        "role": "rust-worker"
+      },
+      {
+        "pid": 1661189,
+        "startTicks": "159085951",
+        "userTicks": 3,
+        "systemTicks": 6,
+        "rssPages": 20544,
+        "state": "S",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --enable-precise-memory-info --user-data-dir=/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/diagnostic/browser-profile --remote-debugging-pipe about:blank ",
+        "firstSeenEpochMs": 1789231941345,
+        "role": "chromium"
+      },
+      {
+        "pid": 1661191,
+        "startTicks": "159085953",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10368,
+        "state": "S",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-zygote-sandbox --no-sandbox --headless ",
+        "firstSeenEpochMs": 1789231941345,
+        "role": "chromium"
+      },
+      {
+        "pid": 1661208,
+        "startTicks": "159085955",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 14261,
+        "state": "S",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=gpu-process --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless --ozone-platform=headless --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,12420519676910356968,7412298615793970697,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsU ",
+        "firstSeenEpochMs": 1789231941345,
+        "role": "chromium"
+      },
+      {
+        "pid": 1661192,
+        "startTicks": "159085953",
+        "userTicks": 0,
+        "systemTicks": 1,
+        "rssPages": 10368,
+        "state": "S",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-sandbox --headless ",
+        "firstSeenEpochMs": 1789231941345,
+        "role": "chromium"
+      },
+      {
+        "pid": 1661213,
+        "startTicks": "159085956",
+        "userTicks": 1,
+        "systemTicks": 1,
+        "rssPages": 17735,
+        "state": "S",
+        "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=renderer --headless=old --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-precise-memory-info --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4 --time-ticks-at-unix-epoch=-1787641081713606 --launch-time-ticks=1590859564163 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,12420519676910356968,7412298615793970697,262144 --en ",
+        "firstSeenEpochMs": 1789231941345,
+        "role": "chromium"
+      }
+    ],
+    "stoppedStates": [
+      {
+        "pid": 1660557,
+        "role": "node-owner",
+        "originalStartTicks": "159084737",
+        "sameProcessPresent": false
+      },
+      {
+        "pid": 1660713,
+        "role": "rust-worker",
+        "originalStartTicks": "159085030",
+        "sameProcessPresent": false
+      },
+      {
+        "pid": 1661189,
+        "role": "chromium",
+        "originalStartTicks": "159085951",
+        "sameProcessPresent": false
+      },
+      {
+        "pid": 1661191,
+        "role": "chromium",
+        "originalStartTicks": "159085953",
+        "sameProcessPresent": false
+      },
+      {
+        "pid": 1661208,
+        "role": "chromium",
+        "originalStartTicks": "159085955",
+        "sameProcessPresent": false
+      },
+      {
+        "pid": 1661192,
+        "role": "chromium",
+        "originalStartTicks": "159085953",
+        "sameProcessPresent": false
+      },
+      {
+        "pid": 1661213,
+        "role": "chromium",
+        "originalStartTicks": "159085956",
+        "sameProcessPresent": false
+      }
+    ]
+  },
+  "limitations": [
+    "One successfully instrumented run, with profiler/metrics/process sampling overhead and a prior failed measurement-helper attempt; not a distribution or ordinary latency result.",
+    "First helper saved valid raw CPU data but mistook CDP Profiler.stop wrapper for its profile payload. That partial evidence is preserved; one retry corrected only helper code and used fresh profile/fresh seeded DB.",
+    "Frozen-directory mode overlay correction occurred before any runtime launch and is recorded as coordinator preparation error.",
+    "Metro emitted no source map. SDK frame/source correspondence uses unique literal/property signature matching against the installed bundle and its map; mappings are labeled inference. 2330.037ms of SDK self samples remain unmapped.",
+    "Direct self samples and source categories are not inclusive costs; compiler-generated helpers, native code, structured clone, IndexedDB backend and OS scheduling are not fully separated. Hash module includes UTF-8 length/encoding, so its category is not solely cryptographic hashing.",
+    "React core/rendering frames are identified from actual React module source; other framework/helper JavaScript remains separate. No residual/subtraction is labeled as render, network or disk cost.",
+    "Heap samples are JS heap only, not total browser RSS or allocation flamegraph. Forced GC is explicitly a separate post-acquisition intervention and does not establish ordinary retained memory.",
+    "No foreground send, cold-backfill cache requalification, M7 action, model launch, product patch or grader-state update was performed."
+  ]
+}

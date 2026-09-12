@@ -1,0 +1,12 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_TYPE snapback/messages.q:18:105: + requires present numeric operands; got int and int
+-- use present int, decimal, or money values
+
+E_QUARRY_UNKNOWN snapback/polls.q:20:23: messages.byId expects messages for id, got polls
+-- messages.byId.id requires messages; received polls; candidate indexes: messages.byId (id: messages)
+
+E_QUARRY_TYPE snapback/polls.q:8:105: + requires present numeric operands; got int and int
+-- use present int, decimal, or money values

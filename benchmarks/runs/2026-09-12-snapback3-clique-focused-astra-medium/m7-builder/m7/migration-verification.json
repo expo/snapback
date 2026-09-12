@@ -1,0 +1,66 @@
+{
+  "at": 1789232386091,
+  "seedConversationIds": [
+    "d-alice-bob",
+    "g-starter"
+  ],
+  "personas": [
+    {
+      "actor": "alice",
+      "ids": [
+        "d-alice-bob",
+        "g-starter"
+      ]
+    },
+    {
+      "actor": "bob",
+      "ids": [
+        "d-alice-bob",
+        "g-starter"
+      ]
+    },
+    {
+      "actor": "carol",
+      "ids": [
+        "g-starter"
+      ]
+    },
+    {
+      "actor": "dave",
+      "ids": []
+    },
+    {
+      "actor": "erin",
+      "ids": []
+    },
+    {
+      "actor": "frank",
+      "ids": []
+    },
+    {
+      "actor": "grace",
+      "ids": []
+    },
+    {
+      "actor": "henry",
+      "ids": []
+    }
+  ],
+  "union": [
+    {
+      "id": "d-alice-bob",
+      "kind": "dm",
+      "messageCount": 6,
+      "name": "d-alice-bob",
+      "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    {
+      "id": "g-starter",
+      "kind": "group",
+      "messageCount": 9,
+      "name": "Weekend Plans",
+      "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+  ],
+  "pass": true
+}

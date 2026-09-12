@@ -1,0 +1,16 @@
+{
+  "segment": "m1",
+  "installed": false,
+  "diagnostic": false,
+  "receipts": [
+    {
+      "actor": "alice",
+      "verb": "register",
+      "settled": true,
+      "principal": "user:9Id1Jzo7JboaZAHHGVqUKg"
+    },
+    {
+      "error": "Error: S3_CAPABILITY_UNAVAILABLE: profile-set requires avatar media. Replay stopped at first unsupported action; segment not installed."
+    }
+  ]
+}

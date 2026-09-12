@@ -1,0 +1,22 @@
+{
+  "atEpoch": 1789223707,
+  "manifestSha256": "628d29ed56de4c8355161ff7161ee557ebe9ad73e5698f63232009b946c490d3",
+  "manifestEntries": 212,
+  "packageFilesVerified": 108,
+  "platformMismatches": [],
+  "frozenInstrumentVerified": 185,
+  "kitCopyMismatches": [],
+  "gradeExclusions": [
+    "FINAL-builder.md",
+    "FINAL-m7.md",
+    "builder-assessment.json",
+    "diary.md",
+    "essay.md",
+    "final-report.md",
+    "run-log.md",
+    "run-record.json",
+    "evidence/correction-01.md (builder correction narrative)"
+  ],
+  "snapshot": "/home/ccheever/snapback3-clique-20260912/packet/snapshots/builder-final",
+  "gradeCopy": "/home/ccheever/snapback3-clique-20260912/packet/lanes/astra-snapback3-grade"
+}

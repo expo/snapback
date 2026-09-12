@@ -1,0 +1,134 @@
+{
+  "epoch": 1789226991017,
+  "sdk": {
+    "scope": "Installed SDK client and React entry files, raw uncompressed bytes; excludes React peer dependencies and native/compiler/owner artifacts; not tree-shaken app contribution",
+    "files": [
+      {
+        "path": "node_modules/snapback3/dist/client.mjs",
+        "bytes": 164808,
+        "sha256": "d4385e49591a449c3d2fdca8c2dc7c8752e79e8cb21ec69f59c6ce7437fb5628"
+      },
+      {
+        "path": "node_modules/snapback3/dist/react.mjs",
+        "bytes": 867,
+        "sha256": "143a844451b6a924b4f2e247633f3bbacb2c93813e2a7feb1b35c30862078bef"
+      }
+    ]
+  },
+  "app": {
+    "scope": "All final exported static assets including service worker; raw disk bytes, distinct from actual network transfer and SDK closure",
+    "totalBytes": 1377026,
+    "files": [
+      {
+        "path": "index.html",
+        "bytes": 1173,
+        "sha256": "63c1d0db3319de77f0552bf654803dcb6b3793a2857119fcf0ac195c9f618cbf"
+      },
+      {
+        "path": "metadata.json",
+        "bytes": 49,
+        "sha256": "aa5f19cc84d41c0f8c70ececb2bc82e863227ea1e121632aca879eb616056991"
+      },
+      {
+        "path": "sw.js",
+        "bytes": 2558,
+        "sha256": "88f8360236163c25726bff5a3c889f9c980d0f199dc8e40c98f17f686dc448a3"
+      },
+      {
+        "path": "_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js",
+        "bytes": 1352985,
+        "sha256": "593a46784348afe0435a00760401f2b7a1a17280ed14d0b9262c1f673ee4ba29"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png",
+        "bytes": 9456,
+        "sha256": "6deca32b56b97fa1fa87facd6996b46cc45190a553400e7febdf1d2093099b57"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png",
+        "bytes": 469,
+        "sha256": "c15ec72a74d13957211808313d5c35deb7f7606c6d22dbddceb0000d4e0547ad"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png",
+        "bytes": 138,
+        "sha256": "a69a2edb5b6c60b8433d5b6d23c69f520ccd8a602f3f60e7996e489718bc175c"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png",
+        "bytes": 188,
+        "sha256": "708a79cf561b8a2a4850ce0254584d3a5231046be08fb7fadf4b6edfdb31178b"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png",
+        "bytes": 364,
+        "sha256": "27f4d229d440925bf7212d5dfffa45d596b2c7b3bb2905c96b839b2081a1dbeb"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png",
+        "bytes": 465,
+        "sha256": "acf691957a3bcce7d195856dce98a5cf14dce10bea28aa5c10b3550c078e23b5"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png",
+        "bytes": 4752,
+        "sha256": "efc79da3c4c97dfb1571bff6202958ab0529c5aa31e8392600578b3e359d1447"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png",
+        "bytes": 653,
+        "sha256": "9adb8c5efca932e2b732b293da813bd2e31952263056bce9e2517fec0f0b6a76"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png",
+        "bytes": 207,
+        "sha256": "84cf5eb3b20250f69e0e4733beb4da5f417f0682892a5ad1b5e62570753c21b1"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png",
+        "bytes": 220,
+        "sha256": "d03a5cd7a66ef10c5147916f9d5878b2d0a0a5ad46f405a31cd9967efaa55afd"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@2x.png",
+        "bytes": 334,
+        "sha256": "ab5613d2ce70fa67c5926e831353664945199fc195fa6fe76c5fe3cec452e31a"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@3x.png",
+        "bytes": 502,
+        "sha256": "c4e54e6a0a7de636aa153378fbc62ea4a41695bfedf807f90df7b18ffd733f67"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@4x.png",
+        "bytes": 645,
+        "sha256": "c86bb485eee687e06c500fc4234f51a6784b4530c2ae11d0c76481110bce3105"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png",
+        "bytes": 141,
+        "sha256": "b1bc1810ca23e2c38cd76971c43591d726161061240d8b792b05757196ddb528"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@2x.png",
+        "bytes": 201,
+        "sha256": "cbdf9213e55f65c48d076acd8423b7c9aee4f1b81101ff6c95a38c4cd8a86461"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@3x.png",
+        "bytes": 266,
+        "sha256": "d05c9d30d79f45a78e5585a2e7ec67c6a06a883dd9137e1d5059e8c87b33ce76"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7@4x.png",
+        "bytes": 332,
+        "sha256": "2325c53a73e54c438cbbc60dffdd8b513d471ba42e2f56713ef404b95e0ca1fc"
+      },
+      {
+        "path": "assets/node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png",
+        "bytes": 928,
+        "sha256": "5d075e0c287c4f4441b5b5c8fc7ea5cd27c11bb617ecea09755955bcb1889083"
+      }
+    ]
+  }
+}

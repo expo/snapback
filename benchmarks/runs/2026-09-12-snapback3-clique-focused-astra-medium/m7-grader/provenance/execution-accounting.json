@@ -1,0 +1,36 @@
+{
+  "schema": "snapback3-focused-m7-grader-execution-accounting.v1",
+  "frozenBuilderSelection": {
+    "pass": 25,
+    "fail": 1,
+    "source": "inputs/pre-m7-selected-results.json",
+    "qualification": "Builder-owned input status; not independent grade authority."
+  },
+  "independentRerun": {
+    "selectedChecks": {
+      "pass": 19,
+      "source": "grading/results/suite/selected-1789234192869.json"
+    },
+    "controls": {
+      "pass": 3,
+      "source": "grading/results/suite/controls-1789234219364.json"
+    },
+    "customClient": {
+      "pass": 3,
+      "source": "grading/results/custom-api-results-grader.json"
+    },
+    "totalPassStatuses": 25
+  },
+  "mutationSeparation": "Independent probes and reruns mutated only isolated grading/app-final, grading/app-premig, and grading/app-oldclient database copies. These effects are separate from the immutable supplied pre/post snapshots and builder status inputs; the mutated databases remain private.",
+  "attemptAccounting": {
+    "retainedShellInvocationFailures": 2,
+    "shellFailure": "timeout command argument-order error; later direct interpreter invocations are separate attempts",
+    "retainedBrowserWaitTimeouts": 1,
+    "browserTimeoutEvidence": "grading/results/poll-browser-grader.json step wait-10-failed (30 seconds)",
+    "retainedFatalProbeResults": 1,
+    "fatalProbeEvidence": "grading/results/poll-browser-grader.json fatal field",
+    "retainedLockedDatabaseAttempt": "grading/logs/census-final.err",
+    "qualification": "None of these failed, timeout, or fatal attempt events is counted as a pass. The report records later observations and independent assertion verdicts separately; raw attempt evidence remains unchanged."
+  },
+  "snapshotComparatorRaw": "grading/results/snapshot-comparison-independent.json remains byte-exact with pass=false and its object-principal false difference. No public repair or reinterpretation was applied."
+}

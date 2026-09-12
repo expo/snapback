@@ -1,0 +1,10 @@
+{
+  "milestone": "m1",
+  "start": 1789222660,
+  "end": 1789223246,
+  "status": "aborted",
+  "reason": "Pre-cap stop: confirmed unavailable platform media capability prevents mandatory M1 avatar upload; no permitted replacement backend. All remaining continuous milestones depend transitively on M1.",
+  "firstGreenAt": null,
+  "failedPrerequisites": [],
+  "capExhausted": false
+}

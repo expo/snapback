@@ -1,0 +1,179 @@
+{
+  "at": 1789232751643,
+  "results": [
+    {
+      "id": "m6-a10",
+      "status": "pass",
+      "scope": "Node headless custom SDK from separate local npm install; not native",
+      "evidence": {
+        "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+        "operationId": "835b8497-cf43-4310-9909-a35c4cb02b12",
+        "receipt": {
+          "data": {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+            "replyTo": "sm0001",
+            "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+            "serverTimestamp": 1789232751618,
+            "text": "M7 separate npm custom-client regression",
+            "tombstone": false,
+            "type": null
+          },
+          "effects": [
+            {
+              "id": "d-alice-bob",
+              "table": "conversations"
+            },
+            {
+              "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+              "table": "messages"
+            }
+          ],
+          "intent": "835b8497-cf43-4310-9909-a35c4cb02b12",
+          "program": {
+            "planHash": "8555576ef42ed48622be8695c7d26aa26d166db4fad2b3e1eb5f2aecf5ff3405",
+            "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+          },
+          "seq": 114,
+          "state": "committed"
+        },
+        "inboxPages": [
+          {
+            "cursor": null,
+            "next": null,
+            "seq": 113,
+            "rows": 3
+          }
+        ],
+        "historyPages": [
+          {
+            "cursor": null,
+            "next": null,
+            "seq": 113,
+            "rows": 16
+          }
+        ],
+        "recipientPages": [
+          {
+            "cursor": null,
+            "next": null,
+            "seq": 114,
+            "rows": 17
+          }
+        ],
+        "recipientMessage": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+          "replyTo": "sm0001",
+          "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+          "serverTimestamp": 1789232751618,
+          "text": "M7 separate npm custom-client regression",
+          "tombstone": false,
+          "type": null
+        }
+      }
+    },
+    {
+      "id": "m6-a11",
+      "status": "pass",
+      "scope": "Node headless custom SDK from separate local npm install; not native",
+      "evidence": {
+        "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+        "operationId": "835b8497-cf43-4310-9909-a35c4cb02b12",
+        "receipt": {
+          "data": {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+            "replyTo": "sm0001",
+            "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+            "serverTimestamp": 1789232751618,
+            "text": "M7 separate npm custom-client regression",
+            "tombstone": false,
+            "type": null
+          },
+          "effects": [
+            {
+              "id": "d-alice-bob",
+              "table": "conversations"
+            },
+            {
+              "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+              "table": "messages"
+            }
+          ],
+          "intent": "835b8497-cf43-4310-9909-a35c4cb02b12",
+          "program": {
+            "planHash": "8555576ef42ed48622be8695c7d26aa26d166db4fad2b3e1eb5f2aecf5ff3405",
+            "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+          },
+          "seq": 114,
+          "state": "committed"
+        },
+        "inboxPages": [
+          {
+            "cursor": null,
+            "next": null,
+            "seq": 113,
+            "rows": 3
+          }
+        ],
+        "historyPages": [
+          {
+            "cursor": null,
+            "next": null,
+            "seq": 113,
+            "rows": 16
+          }
+        ],
+        "recipientPages": [
+          {
+            "cursor": null,
+            "next": null,
+            "seq": 114,
+            "rows": 17
+          }
+        ],
+        "recipientMessage": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+          "replyTo": "sm0001",
+          "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+          "serverTimestamp": 1789232751618,
+          "text": "M7 separate npm custom-client regression",
+          "tombstone": false,
+          "type": null
+        }
+      }
+    },
+    {
+      "id": "m6-a12",
+      "status": "pass",
+      "scope": "builder-authored API documentation variation on current known latest message; not independent grader proof",
+      "expectedFrom": "m7/poll-browser-attempt-01.json count-forward-text receipt",
+      "snapshot": {
+        "data": [
+          {
+            "conversationId": "g-starter",
+            "edited": false,
+            "id": "533d0fc0-4ac5-4e00-b399-9b7c677f9baf",
+            "replyTo": null,
+            "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+            "serverTimestamp": 1789232557885,
+            "text": "M7 canonical text after poll",
+            "tombstone": false,
+            "type": null
+          }
+        ],
+        "status": "ready",
+        "complete": false,
+        "fresh": true,
+        "next": null,
+        "seq": 114
+      }
+    }
+  ]
+}

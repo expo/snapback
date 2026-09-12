@@ -1,0 +1,6 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_TYPE snapback/conversations.q:10:64: ordered comparison > requires present operands
+-- assert optional operands before comparing them

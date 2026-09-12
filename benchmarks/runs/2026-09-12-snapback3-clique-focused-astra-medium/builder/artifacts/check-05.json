@@ -1,0 +1,18 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_TYPE snapback/messages.q:23:151: conditional returns disagree: time and int
+-- return the same value type from every branch
+
+E_QUARRY_TYPE snapback/messages.q:29:151: conditional returns disagree: time and int
+-- return the same value type from every branch
+
+E_QUARRY_TYPE snapback/schema.q:30:3: cursor at snapback/conversations.q:2:39 uses members.byUser, which is not a total order (it neither ends in id nor is unique)
+-- by byUser: userId, conversationId, id
+
+E_QUARRY_UNKNOWN snapback/schema.q:32:91: rule terms cannot follow nested field chains; use a direct .field or exists/created probe
+-- rule terms cannot follow nested field chains; use a direct .field or exists/created probe
+
+E_QUARRY_TYPE snapback/schema.q:44:3: cursor at snapback/messages.q:2:56 uses messages.byConversation, which is not a total order (it neither ends in id nor is unique)
+-- by byConversation: conversationId, serverTimestamp, id

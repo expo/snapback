@@ -1,0 +1,10 @@
+{
+  "recordedEpoch": 1789227757831,
+  "affectedDirectories": [
+    "acquisition-1789226123409",
+    "acquisition-1789226390051",
+    "acquisition-1789226894877",
+    "acquisition-1789227560621"
+  ],
+  "correction": "Before the viewport-confirmed series, firstUsefulHistoryPaint and foreground.visibleObservation were DOM-presence upper bounds, not proven in-viewport paints. Screenshots showed history below viewport. Preserve the original fields and qualify them; do not use those values as verified visual latency. Acquisition ID, HTTP, heap, persistence and offline verification evidence is otherwise retained. An additional full 3+3 viewport-confirmed series follows."
+}

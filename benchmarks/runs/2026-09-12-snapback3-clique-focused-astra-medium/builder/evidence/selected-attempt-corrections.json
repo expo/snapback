@@ -1,0 +1,7 @@
+{
+  "epoch": 1789229372937,
+  "affected": [
+    "evidence/selected-1789226377897.json"
+  ],
+  "correction": "Earlier generic terminal-receipt checks that ran after an offline-round failure do not prove receipt progression for that failed round. Their raw output is retained but is not accepted as passing evidence for m6-a07/m8-a16/m8-a18. The final driver requires both completed offline rounds before those assertions."
+}

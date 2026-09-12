@@ -1,0 +1,50 @@
+[
+  {
+    "id": "distinct-server-fetched-viewed-receipts",
+    "status": "fail",
+    "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 1789226814431\nReceived: 1789226814716\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+  },
+  {
+    "id": "populated-reaction-own-state",
+    "status": "pass",
+    "evidence": {
+      "data": [
+        {
+          "conversationId": "d-alice-bob",
+          "emoji": "❤️",
+          "id": "s3-59c02e2b7cc5bb2ef8b7a79432d15240e9b10cb29c1f95f968d3b49d0d2a7f13-0000",
+          "messageId": "sm0001",
+          "userId": "user:XTNBcyFxnMjJ5OJJsSUfcQ"
+        },
+        {
+          "conversationId": "d-alice-bob",
+          "emoji": "👍",
+          "id": "s3-d15e3f3c7b7f45d2e363e53a4f08b8fe7429ca4b1256d2da0d0b7d38c20bf57f-0000",
+          "messageId": "sm0001",
+          "userId": "user:5ocYUJT7yml-j2a-NgjSvA"
+        }
+      ],
+      "samples": [
+        {
+          "complete": true,
+          "status": "ready",
+          "seq": 277
+        }
+      ]
+    }
+  },
+  {
+    "id": "delayed-old-account-response-fenced",
+    "status": "pass",
+    "evidence": {
+      "data": [],
+      "samples": [
+        {
+          "complete": true,
+          "status": "ready",
+          "seq": 277
+        }
+      ]
+    }
+  }
+]

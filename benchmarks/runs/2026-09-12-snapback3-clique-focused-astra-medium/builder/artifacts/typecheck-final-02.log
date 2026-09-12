@@ -1,0 +1,4 @@
+src/acquire.ts(4,333): error TS2488: Type 'any[] | undefined' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/acquire.ts(4,427): error TS18048: 's.data' is possibly 'undefined'.
+src/acquire.ts(4,658): error TS18048: 's.data' is possibly 'undefined'.
+src/acquire.ts(4,788): error TS18048: 's.data' is possibly 'undefined'.

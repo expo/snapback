@@ -1,0 +1,42 @@
+{
+  "at": 1789230881509,
+  "manifest": [
+    {
+      "persona": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "rows": 16,
+      "visible": 15,
+      "edited": 1,
+      "tombstones": 1,
+      "reactionRows": 4,
+      "ownReceiptRows": 7,
+      "quotedMessages": 6,
+      "file": "pre-m7-alice.json"
+    },
+    {
+      "persona": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "rows": 16,
+      "visible": 15,
+      "edited": 1,
+      "tombstones": 1,
+      "reactionRows": 4,
+      "ownReceiptRows": 5,
+      "quotedMessages": 6,
+      "file": "pre-m7-bob.json"
+    },
+    {
+      "persona": "carol",
+      "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+      "rows": 10,
+      "visible": 9,
+      "edited": 1,
+      "tombstones": 1,
+      "reactionRows": 2,
+      "ownReceiptRows": 4,
+      "quotedMessages": 3,
+      "file": "pre-m7-carol.json"
+    }
+  ],
+  "nonemptyAssertionsPassed": true
+}

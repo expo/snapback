@@ -1,0 +1,165 @@
+{
+  "schema": "social-messenger.grader-report.m8-supplement.v1",
+  "reason": "The frozen grader-report.schema.json restricts assertionResults keys to ^m[1-7]-a[0-9]{2}$, so the frozen assertion manifest's 18 M8 assertions cannot be written into grader-report.json. The frozen bytes of both files are preserved; M8 results live here instead and are counted in O1's denominator in grader-report.json.",
+  "lane": "astra-snapback3-grade",
+  "wave": "snapback3-clique-20260912",
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "milestoneStatus": "never-attempted (blocked-by-M1; execution-input.json records M1 aborted and all remaining continuous milestones blocked)",
+  "assertionResults": {
+    "m8-a01": {
+      "result": "not-run",
+      "executor": "suite-required",
+      "greenRequired": true,
+      "method": "builder-suite",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "Alice's Insights screen shows the six lifetime totals (posts, likes received, reposts received, replies received, followers, following) matching the seeded content."
+    },
+    "m8-a02": {
+      "result": "not-run",
+      "executor": "choreo",
+      "greenRequired": true,
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "After Bob likes one of Alice's posts, a refresh of Alice's Insights increments her likes-received total."
+    },
+    "m8-a03": {
+      "result": "not-run",
+      "executor": "suite-required",
+      "greenRequired": true,
+      "method": "builder-suite",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "The 7-day activity breakdown buckets a post created today under today (server-time UTC day boundaries)."
+    },
+    "m8-a04": {
+      "result": "not-run",
+      "executor": "suite-required",
+      "greenRequired": true,
+      "method": "builder-suite",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "Days with no activity render as zero, not omitted."
+    },
+    "m8-a05": {
+      "result": "not-run",
+      "executor": "suite-required",
+      "greenRequired": true,
+      "method": "builder-suite",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "Trending ranks the post with the most likes in the trailing 24 h first."
+    },
+    "m8-a06": {
+      "result": "not-run",
+      "executor": "suite-required",
+      "greenRequired": true,
+      "method": "builder-suite",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "An older heavily-liked post (>24 h) is absent from Trending."
+    },
+    "m8-a07": {
+      "result": "not-run",
+      "executor": "suite-required",
+      "greenRequired": true,
+      "method": "builder-suite",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "A like-count tie in Trending breaks newest-first."
+    },
+    "m8-a08": {
+      "result": "not-run",
+      "executor": "grader",
+      "greenRequired": true,
+      "method": "api",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "Under the shortened digest config with every client closed, seeded activity produces exactly one logged digest payload per active user, with correct newFollowers, newPostsInFollowing, unreadMessages, and unreadChats counts."
+    },
+    "m8-a09": {
+      "result": "not-run",
+      "executor": "grader",
+      "greenRequired": true,
+      "method": "api",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "A persona with no activity in the period receives no digest."
+    },
+    "m8-a10": {
+      "result": "not-run",
+      "executor": "grader",
+      "greenRequired": true,
+      "method": "api",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "A following period with no new activity emits no digest."
+    },
+    "m8-a11": {
+      "result": "not-run",
+      "executor": "grader",
+      "greenRequired": true,
+      "method": "api",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "A backend restart mid-period does not double-emit any user's digest (exactly one digest per user per period)."
+    },
+    "m8-a12": {
+      "result": "not-run",
+      "executor": "grader",
+      "greenRequired": true,
+      "method": "api",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "Activity in a chat the target user is not a member of never contributes to that user's digest counts."
+    },
+    "m8-a13": {
+      "result": "not-run",
+      "executor": "choreo",
+      "greenRequired": true,
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "With Alice signed in on two clients, a message sent on client 1 appears on client 2 live."
+    },
+    "m8-a14": {
+      "result": "not-run",
+      "executor": "choreo",
+      "greenRequired": true,
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "Opening the conversation on client 1 clears the unread indication on client 2 (cross-device read state)."
+    },
+    "m8-a15": {
+      "result": "not-run",
+      "executor": "choreo",
+      "greenRequired": true,
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "With both of Alice's clients warm-offline, each composes one message in the same chat; on reconnect both settle in server-arrival order with no loss and no duplicates."
+    },
+    "m8-a16": {
+      "result": "not-run",
+      "executor": "choreo",
+      "greenRequired": true,
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "After the dual-offline reconnect the flushed messages' receipts advance normally."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "executor": "choreo",
+      "greenRequired": false,
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "Compose offline; kill and relaunch the app still offline: the queued messages render as pending (the offline queue is durable across restart)."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "executor": "choreo",
+      "greenRequired": false,
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#phase1-blocked | `npm run acceptance -- --milestone m8` exits 1 with \"m8: blocked-by-M1; no passing assertions claimed\"; no Insights, Trending, digest or multi-device surface exists in app/ or src/; artifacts/native-status.json records the m8 iOS-simulator artifact as unavailable/not-run on this Linux host",
+      "text": "On reconnect after the offline restart, the queued messages flush in order and reach 'read' normally."
+    }
+  },
+  "counts": {
+    "total": 18,
+    "pass": 0,
+    "fail": 0,
+    "notRun": 18,
+    "notApplicable": 0
+  }
+}

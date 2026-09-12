@@ -1,0 +1,20 @@
+{
+  "start": 1789225850161,
+  "end": 1789225850653,
+  "seedTimestampProvenance": "Loader-assigned authoritative seed timestamps, 1 ms spacing ending at preparation clock; NOT fixture documentary times or public mutation throughput",
+  "base": 1789225750320,
+  "seedEnd": 1789225850335,
+  "counts": {
+    "profiles": 1008,
+    "conversations": 1002,
+    "members": 2053,
+    "messages": 100015,
+    "reads": 0,
+    "reactions": 2000,
+    "posts": 28,
+    "follows": 12,
+    "likes": 8,
+    "reposts": 4
+  },
+  "seedSha256": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2"
+}

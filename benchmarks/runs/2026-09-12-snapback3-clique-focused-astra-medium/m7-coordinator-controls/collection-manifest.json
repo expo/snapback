@@ -1,0 +1,59 @@
+{
+  "schema": "snapback3-m7-coordinator-controls-public.v1",
+  "scope": "Bounded post-grader coordinator observations; not a new grade",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3995,
+      "sha256": "d928e9480ee40f7bf8299f7ad8872cfa657da7497b5edf289ad7e5de1b16a51d"
+    },
+    {
+      "path": "attempt-1-cleanup.json",
+      "bytes": 483,
+      "sha256": "43d39996058529954b366f89fb6d6b2e97606f2256db7d85b9d75241e3fb771a"
+    },
+    {
+      "path": "attempt-1-results.json",
+      "bytes": 887,
+      "sha256": "5c58835bcb26fa13042fa76925b316253f2c57e2c93cfba16d8a713c16ad244a"
+    },
+    {
+      "path": "cleanup.json",
+      "bytes": 2210,
+      "sha256": "e72148c74ed67b1a3cd8e58cf88fc8b12766bccdda2ebb8d225b16433a5b9a96"
+    },
+    {
+      "path": "inputs.json",
+      "bytes": 10546,
+      "sha256": "71a09478bc85a928ecd68404a7897cc233ac425da3925f0f7283b02852723f99"
+    },
+    {
+      "path": "probe-attempt-1.mjs",
+      "bytes": 7071,
+      "sha256": "493d940a42cb2c18a64cc6637ca29b01a2b34f9705e5c99622c5fdf6a2b31e86"
+    },
+    {
+      "path": "probe.mjs",
+      "bytes": 7109,
+      "sha256": "9aceeb65d781c79dce070bf00a51fda3c080da6aba290abd8ab731ee72f3c4c2"
+    },
+    {
+      "path": "results.json",
+      "bytes": 9434,
+      "sha256": "f3e411b812fd573dfa5a5616e48d2656d55399f1ca21523a4b4937f489fb4893"
+    },
+    {
+      "path": "source-facts.json",
+      "bytes": 2187,
+      "sha256": "984f45d92b18bf92f4b92c74fa622b5522310aed4731f1b1e16aaeb1d7ee26c8"
+    }
+  ],
+  "validation": {
+    "probeMatchesExecutedInput": true,
+    "copiedSourceHashesMatch": true,
+    "highConfidenceSecretScanMatches": 0,
+    "markdownLinksResolve": true,
+    "resultAssertions": true
+  },
+  "privateCustody": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-coordinator-controls-20260912"
+}

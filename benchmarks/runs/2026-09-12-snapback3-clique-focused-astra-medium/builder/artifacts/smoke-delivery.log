@@ -1,0 +1,116 @@
+{
+  errors: [],
+  text: 's\n' +
+    'Dual offline 1789227259288 false 0\n' +
+    '1789227265286\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227259288 false 1\n' +
+    '1789227265608\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Alice live 1789227393135\n' +
+    '1789227394846\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'U\n' +
+    'user:XTNBcyFxnMjJ5OJJsSUfcQ\n' +
+    'Bob live 1789227393135\n' +
+    '1789227395100\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Same account 1789227393135\n' +
+    '1789227395291\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'U\n' +
+    'user:XTNBcyFxnMjJ5OJJsSUfcQ\n' +
+    'Unread probe 1789227393135\n' +
+    '1789227396108\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Ancillary failure 1789227393135\n' +
+    '1789227397794\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227393135 false 0\n' +
+    '1789227399471\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227393135 false 1\n' +
+    '1789227399834\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227393135 true 0\n' +
+    '1789227401992\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227393135 true 1\n' +
+    '1789227403387\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Alice live 1789227471847\n' +
+    '1789227473695\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'U\n' +
+    'user:XTNBcyFxnMjJ5OJJsSUfcQ\n' +
+    'Bob live 1789227471847\n' +
+    '1789227474015\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Same account 1789227471847\n' +
+    '1789227474179\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'U\n' +
+    'user:XTNBcyFxnMjJ5OJJsSUfcQ\n' +
+    'Unread probe 1789227471847\n' +
+    '1789227475028\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Ancillary failure 1789227471847\n' +
+    '1789227477169\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227471847 false 0\n' +
+    '1789227479190\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227471847 false 1\n' +
+    '1789227479519\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227471847 true 0\n' +
+    '1789227481403\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Dual offline 1789227471847 true 1\n' +
+    '1789227482796\n' +
+    '✓✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'Custom API demo ff26ec19-8bef-4523-8a8f-65f6f11ddd74\n' +
+    '1789228580565\n' +
+    '✓\n' +
+    'Reply\n' +
+    'Reactions\n' +
+    'First history\n' +
+    'Refresh history\n' +
+    '↑'
+}

@@ -1,0 +1,65 @@
+{
+  "version": "snapback3-focused-preparation.v1",
+  "readyForPromptInjection": true,
+  "actorLaunched": false,
+  "scope": "seeded-code-focused-continuation",
+  "sourcePacket": "/home/ccheever/snapback3-clique-20260912/packet",
+  "lane": "astra-snapback3",
+  "portBand": [
+    54900,
+    54919
+  ],
+  "instrumentFiles": 185,
+  "selectedSeedFiles": 54,
+  "noDependenciesInstalled": true,
+  "emptyAtPreparation": [
+    "logs",
+    "prompts",
+    "native/codex",
+    "lanes/astra-snapback3/evidence",
+    "lanes/astra-snapback3/artifacts"
+  ],
+  "verified": {
+    "privatePackage": {
+      "path": "packages/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+      "bytes": 4556473,
+      "sha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e"
+    },
+    "launcher": {
+      "path": "scripts/launch.py",
+      "bytes": 13252,
+      "sha256": "5c8999630fb3e50fbdbc11273e3d8754b74adbf9986368599cb2121692b78cf9"
+    },
+    "runSupport": {
+      "path": "scripts/run_support.py",
+      "bytes": 50468,
+      "sha256": "248ed69af6b86e9f2f5bda0adc902cd4e93218c9c8a4c2bd356fb478edae333d"
+    },
+    "publicGuide": {
+      "path": "product-docs/guide.md",
+      "bytes": 7724,
+      "sha256": "ce787c06b38fdb6a46b18ddd67c34935443e41faad08f57964c046a898682d17"
+    },
+    "publicReadme": {
+      "path": "product-docs/README.md",
+      "bytes": 4899,
+      "sha256": "b4f1216b00925cde5749ea54282f3106f89336bebfdcb5fe40817da550c5ba55"
+    },
+    "originalBuilderManifest": {
+      "path": "preflight/original-builder-final.manifest.json",
+      "bytes": 33317,
+      "sha256": "628d29ed56de4c8355161ff7161ee557ebe9ad73e5698f63232009b946c490d3"
+    },
+    "selectedSourceManifest": {
+      "path": "preflight/seed-source-selection.json",
+      "bytes": 9255,
+      "sha256": "a7341f00c56c2f9f02162152ac4297fbad6c82b12057df2e9d76d8ee47d1b95f"
+    },
+    "portReservation": {
+      "path": "preflight/capacity-and-port-reservation.json",
+      "bytes": 2602,
+      "sha256": "c8c7cabd8d43cfb0243e4c491d0f41d321dc7bb7964cb120dd475d2ec961ea12"
+    }
+  },
+  "recordedAt": "2026-09-12T14:55:34Z"
+}

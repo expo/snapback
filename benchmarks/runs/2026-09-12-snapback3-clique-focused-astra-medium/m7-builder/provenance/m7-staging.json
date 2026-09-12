@@ -1,0 +1,95 @@
+{
+  "status": "ready-for-coordinator-promotion-and-m7-prompt",
+  "ready": true,
+  "createdEpochMs": 1789231871196,
+  "sourceLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare",
+  "stagedLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-staged",
+  "m7Input": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-staged/m7-input.json",
+    "bytes": 12399,
+    "sha256": "7ed61735abdb869a42b6aa5f6a064a0ac9f6187929cb67f24373759544f59bce"
+  },
+  "fixtureReceiptSha256": "7f79d335b09453ef36272785d5992d989c8c99653452a19fafec5bce984789d9",
+  "database": {
+    "applicationSeq": 15,
+    "files": [
+      {
+        "path": ".snapback3/store.sqlite",
+        "bytes": 405504,
+        "sha256": "79dc997ef76cbe47a689f612ef88bc89a2e21a361460aa4e58dca2acb07d1487",
+        "inode": 96867262,
+        "device": 66310
+      },
+      {
+        "path": ".snapback3/store.sqlite-shm",
+        "bytes": 32768,
+        "sha256": "94f17bd265590cf6dbb049295fb5d296d97cbfe6bc1fa2dbb0e8ca75d25c1660",
+        "inode": 96867266,
+        "device": 66310
+      },
+      {
+        "path": ".snapback3/store.sqlite-wal",
+        "bytes": 49472,
+        "sha256": "c0568d69af5afbb9bf66770cbbee96ada98399568e1f79f6d07885060e54ae52",
+        "inode": 96867267,
+        "device": 66310
+      }
+    ],
+    "stageProblems": []
+  },
+  "preparedSource": {
+    "files": 200,
+    "manifestSha256": "745ce2551f75d77bb38873faaea66c5cc57c9b5e379b8bc0abfe443f70a8b909",
+    "stageProblems": [],
+    "snapshotProblems": []
+  },
+  "fixedPackage": {
+    "archiveSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "payloadFiles": 108,
+    "problems": []
+  },
+  "staticAssets": {
+    "files": 18,
+    "bytes": 20261,
+    "stageProblems": [],
+    "snapshotProblems": []
+  },
+  "priorBuilderSelectedResult": {
+    "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+    "stageProblems": []
+  },
+  "dependencies": {
+    "fileCount": 34596,
+    "symlinkCount": 46,
+    "bytes": 430790750,
+    "contentSymlinkDigestSha256": "3b81ead33df5ddcff478a512e144d2abdd29ee4b31d0b76d6470cd5733d9476a",
+    "sourceDigestSha256": "3b81ead33df5ddcff478a512e144d2abdd29ee4b31d0b76d6470cd5733d9476a",
+    "exactCopy": true
+  },
+  "snapshot": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-prechange",
+    "manifestSha256": "817681b532a9a2e01a1931942e1af57706b2b878b705cb4a3cddb3b834bf7fde",
+    "contentSymlinkDigestSha256": "560077b3f6f1b30da01feb9b1ce62fb88fb277b90d21743d8f2cf9da544e4d6c",
+    "fileCount": 228,
+    "bytes": 5115081,
+    "immutable": true,
+    "topLevelDependencyRootAbsent": true
+  },
+  "oldClientPrivate": {
+    "archivePath": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-old-client-profile-private.tar.gz",
+    "archiveSha256": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+    "manifestPath": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-old-client-profile-private.manifest.json",
+    "manifestSha256": "dff1fd459d86f22eb0953bd7e4bbcc6222b90706bd1c9cbcd058bc4cdcedafa9",
+    "actorAccess": false
+  },
+  "excluded": [
+    "private credential issuance files",
+    "closed browser profile",
+    "failed preparation databases/archives",
+    "old builder narratives",
+    "all grades"
+  ],
+  "brokenRelativeSymlinks": [],
+  "processOrServerLaunches": 0,
+  "mutationsOrMigrations": 0
+}

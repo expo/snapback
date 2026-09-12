@@ -1,0 +1,90 @@
+{
+  "schema": "snapback3-focused-continuous-grader-model-attestation.v1",
+  "launcherRequestedModel": "claude-opus-5",
+  "launcherCommand": [
+    "/home/ccheever/.local/bin/claude",
+    "-p",
+    "--bare",
+    "--dangerously-skip-permissions",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--model",
+    "claude-opus-5",
+    "--tools",
+    "Bash,Read,Write,Edit,Glob,Grep"
+  ],
+  "rawTransport": {
+    "public": false,
+    "privateCustody": true,
+    "bytes": 1006838,
+    "sha256": "98e2b509ce5b487dfc0f5925385ea0cfbca401874745989a0f03104f3f3a0ea3",
+    "eventCounts": {
+      "system": 292,
+      "assistant": 138,
+      "user": 88,
+      "tool_progress": 5,
+      "result": 1
+    },
+    "resultSubtype": "success",
+    "isError": false,
+    "durationMs": 1361161,
+    "durationApiMs": 1111628,
+    "turns": 89
+  },
+  "observedAssistantMessageModels": [
+    "claude-opus-5"
+  ],
+  "resultUsage": {
+    "inputTokens": 162,
+    "cacheCreationInputTokens": 184176,
+    "cacheReadInputTokens": 7681462,
+    "outputTokens": 85588,
+    "thinkingTokens": 20098,
+    "serviceTier": "standard",
+    "webSearchRequests": 0,
+    "webFetchRequests": 0
+  },
+  "aggregateModelUsage": {
+    "claude-opus-5": {
+      "inputTokens": 162,
+      "cacheCreationInputTokens": 184176,
+      "cacheReadInputTokens": 7681462,
+      "outputTokens": 85588,
+      "thinkingTokens": 20098
+    },
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 2815,
+      "cacheCreationInputTokens": 0,
+      "cacheReadInputTokens": 0,
+      "outputTokens": 19,
+      "thinkingTokens": 0
+    }
+  },
+  "interpretation": "All 138 assistant events name claude-opus-5 and contain 2 text, 48 thinking, and 88 tool-use blocks attributed to that model. No assistant event or content/tool-use block is attributed to Claude Haiku 4.5. Haiku appears only as a small terminal aggregate modelUsage entry; its purpose is not established. Session identifier and raw stream remain private.",
+  "assistantIdentityAudit": {
+    "auditedEpochMs": 1789232889953,
+    "evidenceScope": "Native terminal result modelUsage plus assistant event message.model and content-block type metadata only. Message text, thinking text, and tool arguments were not inspected.",
+    "assistantEvents": 138,
+    "assistantEventsMissingModel": 0,
+    "assistantEventsByModel": {
+      "claude-opus-5": 138
+    },
+    "contentBlockTypesByModel": {
+      "claude-opus-5": {
+        "text": 2,
+        "thinking": 48,
+        "tool_use": 88
+      }
+    },
+    "claudeHaiku45": {
+      "terminalAggregateUsageEntryPresent": true,
+      "assistantEventsAttributed": 0,
+      "textBlocksAttributed": 0,
+      "thinkingBlocksAttributed": 0,
+      "toolUseBlocksAttributed": 0,
+      "classification": "aggregate-only in the inspected evidence"
+    },
+    "conclusion": "No assistant event, assistant content block, or tool-use block is attributed to Claude Haiku 4.5. Haiku appears only in the terminal aggregate modelUsage map. The evidence does not identify its purpose."
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "principal": {
+    "id": "user:qaozGeVVhk11WPsju8lZuQ",
+    "kind": "user",
+    "name": "alice@example.com"
+  },
+  "inboxPages": [
+    {
+      "c": null,
+      "next": null,
+      "count": 3,
+      "seq": 114
+    }
+  ],
+  "historyPages": [
+    {
+      "c": null,
+      "next": null,
+      "count": 17,
+      "seq": 114
+    }
+  ],
+  "receipt": {
+    "data": {
+      "conversationId": "d-alice-bob",
+      "edited": false,
+      "id": "2ad416a2-5642-4958-966d-d547906b2fd6",
+      "replyTo": null,
+      "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+      "serverTimestamp": 1789232751934,
+      "text": "Custom API demo 2ad416a2-5642-4958-966d-d547906b2fd6",
+      "tombstone": false,
+      "type": null
+    },
+    "effects": [
+      {
+        "id": "d-alice-bob",
+        "table": "conversations"
+      },
+      {
+        "id": "2ad416a2-5642-4958-966d-d547906b2fd6",
+        "table": "messages"
+      }
+    ],
+    "intent": "b75a01e9-c8c5-4676-bf9b-288dc9d05b44",
+    "program": {
+      "planHash": "8555576ef42ed48622be8695c7d26aa26d166db4fad2b3e1eb5f2aecf5ff3405",
+      "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+    },
+    "seq": 115,
+    "state": "committed"
+  },
+  "received": {
+    "conversationId": "d-alice-bob",
+    "edited": false,
+    "id": "2ad416a2-5642-4958-966d-d547906b2fd6",
+    "replyTo": null,
+    "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+    "serverTimestamp": 1789232751934,
+    "text": "Custom API demo 2ad416a2-5642-4958-966d-d547906b2fd6",
+    "tombstone": false,
+    "type": null
+  }
+}

@@ -1,0 +1,5 @@
+
+> astra-snapback3@1.0.0 seed
+> node scripts/seed.mjs --segment m1
+
+Error: S3_CAPABILITY_UNAVAILABLE: profile-set requires avatar media. Replay stopped at first unsupported action; segment not installed.

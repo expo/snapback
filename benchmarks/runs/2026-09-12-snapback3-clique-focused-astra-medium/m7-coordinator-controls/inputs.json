@@ -1,0 +1,205 @@
+{
+  "createdEpochMs": 1789236575396,
+  "sourceSnapshot": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-grader-final",
+  "sourceFreezeSha256": "d87d660bf53fec44c49450bf893e34e26af88300bf805b87a5fea82c0ba7d68d",
+  "sourceManifestSha256": "549b277cb8d7843a4b71b7455a078b563f5bd8ce8fca7aef28eefd502b503525",
+  "copies": [
+    {
+      "source": "grading/app-oldclient/app.json",
+      "target": "app-oldclient/app.json",
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1",
+      "copySha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1"
+    },
+    {
+      "source": "grading/app-oldclient/package.json",
+      "target": "app-oldclient/package.json",
+      "sha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "copySha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da"
+    },
+    {
+      "source": "grading/app-oldclient/tsconfig.json",
+      "target": "app-oldclient/tsconfig.json",
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86",
+      "copySha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86"
+    },
+    {
+      "source": "grading/app-oldclient/snapback/profiles.q",
+      "target": "app-oldclient/snapback/profiles.q",
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685",
+      "copySha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685"
+    },
+    {
+      "source": "grading/app-oldclient/snapback/seed.ts",
+      "target": "app-oldclient/snapback/seed.ts",
+      "sha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27",
+      "copySha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27"
+    },
+    {
+      "source": "grading/app-oldclient/snapback/polls.q",
+      "target": "app-oldclient/snapback/polls.q",
+      "sha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148",
+      "copySha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148"
+    },
+    {
+      "source": "grading/app-oldclient/snapback/conversations.q",
+      "target": "app-oldclient/snapback/conversations.q",
+      "sha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e",
+      "copySha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e"
+    },
+    {
+      "source": "grading/app-oldclient/snapback/social.q",
+      "target": "app-oldclient/snapback/social.q",
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15",
+      "copySha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15"
+    },
+    {
+      "source": "grading/app-oldclient/snapback/schema.q",
+      "target": "app-oldclient/snapback/schema.q",
+      "sha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179",
+      "copySha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179"
+    },
+    {
+      "source": "grading/app-oldclient/snapback/messages.q",
+      "target": "app-oldclient/snapback/messages.q",
+      "sha256": "c323f3f216cc9566d3b91141b98de8fc2382fa50621c93a6d6869bf396dd92f5",
+      "copySha256": "c323f3f216cc9566d3b91141b98de8fc2382fa50621c93a6d6869bf396dd92f5"
+    },
+    {
+      "source": "grading/app-oldclient/.snapback3/store.sqlite",
+      "target": "app-oldclient/.snapback3/store.sqlite",
+      "sha256": "cc32f01474c079b40f3b080c70a55cb615353b3b80689dbc92e7aa94b773d313",
+      "copySha256": "cc32f01474c079b40f3b080c70a55cb615353b3b80689dbc92e7aa94b773d313"
+    },
+    {
+      "source": "grading/app-oldclient/.snapback3/store.sqlite-wal",
+      "target": "app-oldclient/.snapback3/store.sqlite-wal",
+      "sha256": "4bcc9612684572092bb202baf9961e9f30267a5b07de347831b74e39cfb6ad3d",
+      "copySha256": "4bcc9612684572092bb202baf9961e9f30267a5b07de347831b74e39cfb6ad3d"
+    },
+    {
+      "source": "grading/app-oldclient/.snapback3/store.sqlite-shm",
+      "target": "app-oldclient/.snapback3/store.sqlite-shm",
+      "sha256": "130a345c143d8406c89145d40e8c7942896e40f58d9dd206937c69a465497f04",
+      "copySha256": "130a345c143d8406c89145d40e8c7942896e40f58d9dd206937c69a465497f04"
+    },
+    {
+      "source": "grading/app-oldclient/.snapback3/build/api.d.ts",
+      "target": "app-oldclient/.snapback3/build/api.d.ts",
+      "sha256": "2c3fbad4d13e590bbfaf3bb1b901fee110c3377cedc106e0f3ac1fb760b654dd",
+      "copySha256": "2c3fbad4d13e590bbfaf3bb1b901fee110c3377cedc106e0f3ac1fb760b654dd"
+    },
+    {
+      "source": "grading/app-oldclient/.snapback3/build/project.json",
+      "target": "app-oldclient/.snapback3/build/project.json",
+      "sha256": "0f5d23c232dda5537232aaddde9225ab1cc27fbf4d0ec4b177ca87914099f420",
+      "copySha256": "0f5d23c232dda5537232aaddde9225ab1cc27fbf4d0ec4b177ca87914099f420"
+    },
+    {
+      "source": "grading/app-final/app.json",
+      "target": "app-final/app.json",
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1",
+      "copySha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1"
+    },
+    {
+      "source": "grading/app-final/package.json",
+      "target": "app-final/package.json",
+      "sha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "copySha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da"
+    },
+    {
+      "source": "grading/app-final/tsconfig.json",
+      "target": "app-final/tsconfig.json",
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86",
+      "copySha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86"
+    },
+    {
+      "source": "grading/app-final/snapback/profiles.q",
+      "target": "app-final/snapback/profiles.q",
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685",
+      "copySha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685"
+    },
+    {
+      "source": "grading/app-final/snapback/seed.ts",
+      "target": "app-final/snapback/seed.ts",
+      "sha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27",
+      "copySha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27"
+    },
+    {
+      "source": "grading/app-final/snapback/polls.q",
+      "target": "app-final/snapback/polls.q",
+      "sha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148",
+      "copySha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148"
+    },
+    {
+      "source": "grading/app-final/snapback/conversations.q",
+      "target": "app-final/snapback/conversations.q",
+      "sha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e",
+      "copySha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e"
+    },
+    {
+      "source": "grading/app-final/snapback/social.q",
+      "target": "app-final/snapback/social.q",
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15",
+      "copySha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15"
+    },
+    {
+      "source": "grading/app-final/snapback/schema.q",
+      "target": "app-final/snapback/schema.q",
+      "sha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179",
+      "copySha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179"
+    },
+    {
+      "source": "grading/app-final/snapback/messages.q",
+      "target": "app-final/snapback/messages.q",
+      "sha256": "c323f3f216cc9566d3b91141b98de8fc2382fa50621c93a6d6869bf396dd92f5",
+      "copySha256": "c323f3f216cc9566d3b91141b98de8fc2382fa50621c93a6d6869bf396dd92f5"
+    },
+    {
+      "source": "grading/app-final/.snapback3/store.sqlite",
+      "target": "app-final/.snapback3/store.sqlite",
+      "sha256": "caecba2faa52fd6a96d9f13aaade8978c919f990fcf734993cca14e6ba82bccd",
+      "copySha256": "caecba2faa52fd6a96d9f13aaade8978c919f990fcf734993cca14e6ba82bccd"
+    },
+    {
+      "source": "grading/app-final/.snapback3/store.sqlite-wal",
+      "target": "app-final/.snapback3/store.sqlite-wal",
+      "sha256": "4573c802bc4828691c2cc66e39133d9a7e72dc745e925a460061eeba4fdc0be4",
+      "copySha256": "4573c802bc4828691c2cc66e39133d9a7e72dc745e925a460061eeba4fdc0be4"
+    },
+    {
+      "source": "grading/app-final/.snapback3/store.sqlite-shm",
+      "target": "app-final/.snapback3/store.sqlite-shm",
+      "sha256": "221efdc77ea33f82fadaecacec1c7b6a055e53fc13146fbf61b1153e0c5df791",
+      "copySha256": "221efdc77ea33f82fadaecacec1c7b6a055e53fc13146fbf61b1153e0c5df791"
+    },
+    {
+      "source": "grading/app-final/.snapback3/build/api.d.ts",
+      "target": "app-final/.snapback3/build/api.d.ts",
+      "sha256": "2c3fbad4d13e590bbfaf3bb1b901fee110c3377cedc106e0f3ac1fb760b654dd",
+      "copySha256": "2c3fbad4d13e590bbfaf3bb1b901fee110c3377cedc106e0f3ac1fb760b654dd"
+    },
+    {
+      "source": "grading/app-final/.snapback3/build/project.json",
+      "target": "app-final/.snapback3/build/project.json",
+      "sha256": "0f5d23c232dda5537232aaddde9225ab1cc27fbf4d0ec4b177ca87914099f420",
+      "copySha256": "0f5d23c232dda5537232aaddde9225ab1cc27fbf4d0ec4b177ca87914099f420"
+    }
+  ],
+  "dependencyRoot": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-grade",
+  "commands": [],
+  "profileFileCount": 154,
+  "profileTreeDigestConvention": "SHA256 of compact JSON sorted path and sha256 entries",
+  "profileTreeSha256": "827f2c2c578ed61edd57d46f1dcaa3ff012a766055d4a86eab6da324e70481b6",
+  "probeSha256": "9aceeb65d781c79dce070bf00a51fda3c080da6aba290abd8ab731ee72f3c4c2",
+  "boundsInputSha256": "0b84613987764c8c1638855a248462b131860667f0f39a94e783f866bdedeadd",
+  "fixedSdkSha256": "d4385e49591a449c3d2fdca8c2dc7c8752e79e8cb21ec69f59c6ce7437fb5628",
+  "node": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+  "preflight": {
+    "uptime": "20:07:40 up 18 days, 11:09, 16 users,  load average: 0.58, 0.54, 0.49",
+    "memory": "               total        used        free      shared  buff/cache   available\nMem:          257430       10072        4199           9      247139      247357\nSwap:          32767          69       32698\n",
+    "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/nvme0n1p4  1.7T  1.4T  271G  84% /\n",
+    "ports": "State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess\n"
+  },
+  "attempt": 2,
+  "priorAttempt": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-coordinator-controls-20260912-attempt-1"
+}

@@ -1,0 +1,439 @@
+[
+  {
+    "id": "canonical-counts-before-controls",
+    "status": "pass",
+    "evidence": {
+      "id": "g-starter",
+      "kind": "group",
+      "messageCount": 11,
+      "name": "Weekend Plans",
+      "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+  },
+  {
+    "id": "unauthenticated-query-vote",
+    "status": "pass",
+    "evidence": [
+      {
+        "status": 401,
+        "value": {
+          "error": {
+            "code": "S3_AUTH",
+            "message": "Sign in before accessing application data."
+          }
+        }
+      },
+      {
+        "status": 401,
+        "value": {
+          "error": {
+            "code": "S3_AUTH",
+            "message": "Sign in before accessing application data."
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "nonmember-query-vote-create",
+    "status": "pass",
+    "evidence": {
+      "inbox": [],
+      "denied": {
+        "status": "denied",
+        "complete": false,
+        "fresh": true,
+        "seq": 42,
+        "error": {
+          "code": "NOT_MEMBER",
+          "name": "SnapbackError"
+        }
+      },
+      "vote": {
+        "code": "NOT_FOUND",
+        "family": "rule",
+        "guide": "rule/runtime",
+        "intent": "72919b1f-f760-4c11-a188-9f8c654dbe00",
+        "message": "E_REQUIRE:NOT_FOUND: program requirement failed",
+        "rewrite": "fix the rejected mutation input and retry",
+        "rule": "NOT_FOUND",
+        "seq": 42,
+        "site": "snapback/polls.q:18:27",
+        "state": "rejected"
+      },
+      "create": {
+        "code": "NOT_MEMBER",
+        "family": "rule",
+        "guide": "rule/runtime",
+        "intent": "ad8efb7d-974d-495c-be7a-cbec877f7524",
+        "message": "E_REQUIRE:NOT_MEMBER: program requirement failed",
+        "rewrite": "fix the rejected mutation input and retry",
+        "rule": "NOT_MEMBER",
+        "seq": 42,
+        "site": "snapback/polls.q:2:3",
+        "state": "rejected"
+      }
+    }
+  },
+  {
+    "id": "exact-original-vote-replay",
+    "status": "pass",
+    "evidence": {
+      "originalRequest": {
+        "actor": "alice",
+        "url": "http://127.0.0.1:54900/api/mutation",
+        "body": {
+          "args": {
+            "optionId": "b",
+            "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+          },
+          "intent": "eabf3753-6ae1-4308-9f9b-af8f30a12db6",
+          "op": "polls.vote",
+          "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "at": 1789232568193
+      },
+      "records": [
+        {
+          "status": 200,
+          "value": {
+            "data": true,
+            "intent": "eabf3753-6ae1-4308-9f9b-af8f30a12db6",
+            "program": {
+              "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+              "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+            },
+            "seq": 30,
+            "state": "committed"
+          }
+        },
+        {
+          "status": 200,
+          "value": {
+            "data": true,
+            "intent": "eabf3753-6ae1-4308-9f9b-af8f30a12db6",
+            "program": {
+              "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+              "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+            },
+            "seq": 30,
+            "state": "committed"
+          }
+        }
+      ],
+      "tally": {
+        "a": 0,
+        "b": 2,
+        "c": 0,
+        "d": 0,
+        "mine": "b",
+        "poll": {
+          "conversationId": "g-starter",
+          "id": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+          "messageId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+          "optionA": "A",
+          "optionB": "B",
+          "optionC": null,
+          "optionD": null,
+          "question": "Where shall we meet?"
+        }
+      }
+    }
+  },
+  {
+    "id": "reject-question201",
+    "status": "pass",
+    "evidence": {
+      "state": "client-rejected",
+      "error": "SnapbackError: E_INPUT: polls.create.question exceeds text max 200"
+    }
+  },
+  {
+    "id": "reject-option51",
+    "status": "pass",
+    "evidence": {
+      "state": "client-rejected",
+      "error": "SnapbackError: E_INPUT: polls.create.optionA exceeds text max 50"
+    }
+  },
+  {
+    "id": "reject-emptyQuestion",
+    "status": "pass",
+    "evidence": {
+      "state": "client-rejected",
+      "error": "SnapbackError: E_INPUT: arg question is shorter than text min 1"
+    }
+  },
+  {
+    "id": "reject-oneOption",
+    "status": "pass",
+    "evidence": {
+      "state": "client-rejected",
+      "error": "SnapbackError: E_INPUT: arg optionB must be text"
+    }
+  },
+  {
+    "id": "reject-zeroOptions",
+    "status": "pass",
+    "evidence": {
+      "state": "client-rejected",
+      "error": "SnapbackError: E_INPUT: arg optionA must be text"
+    }
+  },
+  {
+    "id": "reject-gapOptions",
+    "status": "pass",
+    "evidence": {
+      "code": "BAD_OPTIONS",
+      "family": "rule",
+      "guide": "rule/runtime",
+      "intent": "a4102981-bf93-41af-b66f-e7157b1c0681",
+      "message": "E_REQUIRE:BAD_OPTIONS: program requirement failed",
+      "rewrite": "fix the rejected mutation input and retry",
+      "rule": "BAD_OPTIONS",
+      "seq": 42,
+      "site": "snapback/polls.q:4:3",
+      "state": "rejected"
+    }
+  },
+  {
+    "id": "reject-dmPoll",
+    "status": "pass",
+    "evidence": {
+      "code": "GROUP_ONLY",
+      "family": "rule",
+      "guide": "rule/runtime",
+      "intent": "c8628a05-cb61-45a1-a68b-58a0c9e41192",
+      "message": "E_REQUIRE:GROUP_ONLY: program requirement failed",
+      "rewrite": "fix the rejected mutation input and retry",
+      "rule": "GROUP_ONLY",
+      "seq": 42,
+      "site": "snapback/polls.q:3:3",
+      "state": "rejected"
+    }
+  },
+  {
+    "id": "reject-option-outside-poll",
+    "status": "pass",
+    "evidence": [
+      {
+        "code": "BAD_OPTION",
+        "family": "rule",
+        "guide": "rule/runtime",
+        "intent": "f260eafa-9a7f-49cd-8117-7641573162ff",
+        "message": "E_REQUIRE:BAD_OPTION: program requirement failed",
+        "rewrite": "fix the rejected mutation input and retry",
+        "rule": "BAD_OPTION",
+        "seq": 42,
+        "site": "snapback/polls.q:21:3",
+        "state": "rejected"
+      },
+      {
+        "code": "BAD_OPTION",
+        "family": "rule",
+        "guide": "rule/runtime",
+        "intent": "c94bd2d3-5cd6-4071-af01-bf3110c3369f",
+        "message": "E_REQUIRE:BAD_OPTION: program requirement failed",
+        "rewrite": "fix the rejected mutation input and retry",
+        "rule": "BAD_OPTION",
+        "seq": 42,
+        "site": "snapback/polls.q:21:3",
+        "state": "rejected"
+      },
+      {
+        "code": "BAD_OPTION",
+        "family": "rule",
+        "guide": "rule/runtime",
+        "intent": "1f141ea7-651d-4868-b63e-427b0a7e54eb",
+        "message": "E_REQUIRE:BAD_OPTION: program requirement failed",
+        "rewrite": "fix the rejected mutation input and retry",
+        "rule": "BAD_OPTION",
+        "seq": 42,
+        "site": "snapback/polls.q:21:3",
+        "state": "rejected"
+      }
+    ]
+  },
+  {
+    "id": "backfill-is-once",
+    "status": "pass",
+    "evidence": {
+      "code": "ALREADY_MIGRATED",
+      "family": "rule",
+      "guide": "rule/runtime",
+      "intent": "0aac2c72-1893-43aa-aa47-735c27925691",
+      "message": "E_REQUIRE:ALREADY_MIGRATED: program requirement failed",
+      "rewrite": "fix the rejected mutation input and retry",
+      "rule": "ALREADY_MIGRATED",
+      "seq": 42,
+      "site": "snapback/conversations.q:29:3",
+      "state": "rejected"
+    }
+  },
+  {
+    "id": "bounds-control-conversation",
+    "status": "pass",
+    "evidence": {
+      "rows": [
+        {
+          "args": {
+            "id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+            "conversationId": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+            "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+            "optionA": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "optionB": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "optionC": null,
+            "optionD": null
+          },
+          "created": {
+            "data": {
+              "conversationId": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+              "edited": false,
+              "id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+              "replyTo": null,
+              "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+              "serverTimestamp": 1789232671469,
+              "text": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+              "tombstone": false,
+              "type": "poll"
+            },
+            "effects": [
+              {
+                "id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+                "table": "conversations"
+              },
+              {
+                "id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+                "table": "messages"
+              },
+              {
+                "id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+                "table": "polls"
+              }
+            ],
+            "intent": "4275d626-ff7a-4796-8c6a-96655ea70d20",
+            "program": {
+              "planHash": "2cef3843980e9d226ff08db4cf307ea8b2622416c723526db8b9b0e484c46589",
+              "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+            },
+            "seq": 44,
+            "state": "committed"
+          }
+        },
+        {
+          "args": {
+            "id": "082365bc-c358-4679-8dc8-9803f2aba929",
+            "conversationId": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+            "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+            "optionA": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "optionB": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "optionC": "cccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "optionD": null
+          },
+          "created": {
+            "data": {
+              "conversationId": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+              "edited": false,
+              "id": "082365bc-c358-4679-8dc8-9803f2aba929",
+              "replyTo": null,
+              "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+              "serverTimestamp": 1789232671474,
+              "text": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+              "tombstone": false,
+              "type": "poll"
+            },
+            "effects": [
+              {
+                "id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+                "table": "conversations"
+              },
+              {
+                "id": "082365bc-c358-4679-8dc8-9803f2aba929",
+                "table": "messages"
+              },
+              {
+                "id": "082365bc-c358-4679-8dc8-9803f2aba929",
+                "table": "polls"
+              }
+            ],
+            "intent": "ae5e56bd-887d-4efa-9174-5d6dba8519ae",
+            "program": {
+              "planHash": "2cef3843980e9d226ff08db4cf307ea8b2622416c723526db8b9b0e484c46589",
+              "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+            },
+            "seq": 45,
+            "state": "committed"
+          }
+        },
+        {
+          "args": {
+            "id": "f33216e7-4cb7-49c8-8437-9a669f423990",
+            "conversationId": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+            "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+            "optionA": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "optionB": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "optionC": "cccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "optionD": "dddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "created": {
+            "data": {
+              "conversationId": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+              "edited": false,
+              "id": "f33216e7-4cb7-49c8-8437-9a669f423990",
+              "replyTo": null,
+              "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+              "serverTimestamp": 1789232671479,
+              "text": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+              "tombstone": false,
+              "type": "poll"
+            },
+            "effects": [
+              {
+                "id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+                "table": "conversations"
+              },
+              {
+                "id": "f33216e7-4cb7-49c8-8437-9a669f423990",
+                "table": "messages"
+              },
+              {
+                "id": "f33216e7-4cb7-49c8-8437-9a669f423990",
+                "table": "polls"
+              }
+            ],
+            "intent": "0605b069-b3ba-4776-8e3b-e0149825f96e",
+            "program": {
+              "planHash": "2cef3843980e9d226ff08db4cf307ea8b2622416c723526db8b9b0e484c46589",
+              "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+            },
+            "seq": 46,
+            "state": "committed"
+          }
+        }
+      ],
+      "settings": {
+        "data": {
+          "id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+          "kind": "group",
+          "messageCount": 3,
+          "name": "M7 bounds controls",
+          "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+        },
+        "status": "ready",
+        "complete": true,
+        "fresh": true,
+        "next": null,
+        "seq": 46
+      }
+    }
+  },
+  {
+    "id": "reject-fifth-option",
+    "status": "pass",
+    "evidence": {
+      "state": "client-rejected",
+      "error": "SnapbackError: polls.create.optionE: unknown argument"
+    }
+  }
+]

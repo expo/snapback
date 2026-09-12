@@ -1,0 +1,5 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+{"generation":"5615937618d6b7d89adba91864d2ae7691d611da93c86598f52a0d06c64d4fcc","ok":true,"operations":3,"schemaHash":"38ba629905d4f5ed5f052ef64ad0d5992ab71e637f1bc2e9e90d4490a74741c2","root":"/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3","compileMs":20.24}

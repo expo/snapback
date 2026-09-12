@@ -1,0 +1,40 @@
+{
+  "milestone": "m1",
+  "recordedAt": "2026-09-12T14:24:47.487Z",
+  "pass": false,
+  "coverage": "m1-coverage.json",
+  "results": [
+    {
+      "id": "m1-a01",
+      "pass": true
+    },
+    {
+      "id": "m1-a02",
+      "pass": true
+    },
+    {
+      "id": "m1-a03",
+      "pass": true
+    },
+    {
+      "id": "m1-a08",
+      "pass": true
+    },
+    {
+      "id": "m1-a04",
+      "pass": true
+    },
+    {
+      "id": "m1-a10",
+      "pass": false,
+      "outcomeClass": "platform",
+      "error": "S3_CAPABILITY_UNAVAILABLE: runtime refuses image columns; evidence/m1-media-check.json"
+    },
+    {
+      "id": "m1-a11",
+      "pass": false,
+      "outcomeClass": "platform",
+      "error": "S3_CAPABILITY_UNAVAILABLE: runtime refuses image columns; evidence/m1-media-check.json"
+    }
+  ]
+}

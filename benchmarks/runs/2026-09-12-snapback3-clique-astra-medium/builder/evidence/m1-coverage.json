@@ -1,0 +1,30 @@
+{
+  "m1-a01": {
+    "test": "scripts/acceptance.mjs#m1-a01",
+    "status": "pass"
+  },
+  "m1-a02": {
+    "test": "scripts/acceptance.mjs#m1-a02",
+    "status": "pass"
+  },
+  "m1-a03": {
+    "test": "scripts/acceptance.mjs#m1-a03",
+    "status": "pass"
+  },
+  "m1-a04": {
+    "test": "scripts/acceptance.mjs#m1-a04",
+    "status": "pass"
+  },
+  "m1-a08": {
+    "test": "scripts/acceptance.mjs#m1-a08",
+    "status": "pass"
+  },
+  "m1-a10": {
+    "test": "scripts/acceptance.mjs#m1-a10",
+    "status": "fail"
+  },
+  "m1-a11": {
+    "test": "scripts/acceptance.mjs#m1-a11",
+    "status": "fail"
+  }
+}

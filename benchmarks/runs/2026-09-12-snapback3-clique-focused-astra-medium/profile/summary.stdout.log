@@ -1,0 +1,125 @@
+{
+  "sha256": "3f9169b592d71e44aaca2ba2df97b6b8611ff04e48bae6503eb5ca6e457aebfd",
+  "timing": 23665.5,
+  "cpu": [
+    {
+      "pid": 1660548,
+      "role": "diagnostic-controller",
+      "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node diagnostic/profile.mjs ",
+      "userSeconds": 0.58,
+      "systemSeconds": 0.09,
+      "totalSeconds": 0.67
+    },
+    {
+      "pid": 1660557,
+      "role": "node-owner",
+      "command": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node node_modules/snapback3/dist/cli.mjs dev . --host 127.0.0.1 --port 54905 ",
+      "userSeconds": 0.86,
+      "systemSeconds": 0.22,
+      "totalSeconds": 1.08
+    },
+    {
+      "pid": 1660713,
+      "role": "rust-worker",
+      "command": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/node_modules/snapback3/dist/native/linux-x64/snapback3-worker --project /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/runtime-1660557-122aee03-0a20-4e57-8df2-91e2302b1961.json --database /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/store.sqlite --dev --seed /home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/.snapback3/build/seed-1660557-122aee03-0a20-4e57-8df2-91e2302b1961.json ",
+      "userSeconds": 3.19,
+      "systemSeconds": 0.03,
+      "totalSeconds": 3.22
+    },
+    {
+      "pid": 1661189,
+      "role": "chromium",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --no-sandbox --enable-precise-memory-info --user-data-dir=/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile/diagnostic/browser-profile --remote-debugging-pipe about:blank ",
+      "userSeconds": 8.32,
+      "systemSeconds": 3.7,
+      "totalSeconds": 12.02
+    },
+    {
+      "pid": 1661191,
+      "role": "chromium",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-zygote-sandbox --no-sandbox --headless ",
+      "userSeconds": 0.0,
+      "systemSeconds": 0.0,
+      "totalSeconds": 0.0
+    },
+    {
+      "pid": 1661208,
+      "role": "chromium",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=gpu-process --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless --ozone-platform=headless --use-angle=swiftshader-webgl --enable-unsafe-swiftshader --gpu-preferences=YAAAAAAAAAAgAAAEAAAAAAAAAAAAAGAASAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --field-trial-handle=3,i,12420519676910356968,7412298615793970697,262144 --enable-features=CDPScreenshotNewSurface --disable-features=AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,BlockOriginHeaderModificationOnRedirect,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsU ",
+      "userSeconds": 0.04,
+      "systemSeconds": 0.01,
+      "totalSeconds": 0.05
+    },
+    {
+      "pid": 1661192,
+      "role": "chromium",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=zygote --no-sandbox --headless ",
+      "userSeconds": 0.0,
+      "systemSeconds": 0.0,
+      "totalSeconds": 0.0
+    },
+    {
+      "pid": 1661213,
+      "role": "chromium",
+      "command": "/home/ccheever/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell --type=renderer --headless=old --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-precise-memory-info --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=4 --time-ticks-at-unix-epoch=-1787641081713606 --launch-time-ticks=1590859564163 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,12420519676910356968,7412298615793970697,262144 --en ",
+      "userSeconds": 25.4,
+      "systemSeconds": 3.1,
+      "totalSeconds": 28.5
+    }
+  ],
+  "metrics": {
+    "TaskDuration": 14.138212000000001,
+    "ScriptDuration": 6.780134,
+    "TaskOtherDuration": 7.269936,
+    "LayoutDuration": 0.045004,
+    "RecalcStyleDuration": 0.008254,
+    "ThreadTime": 14.822998,
+    "ProcessTime": 28.5,
+    "DevToolsCommandDuration": 0.034197
+  },
+  "heap": {
+    "peakSampledBytes": 244180040,
+    "endBeforeForcedGCBytes": 110288960,
+    "endAfterForcedGCBytes": 51219144,
+    "samplerStoppedEpochMs": 1789231966481,
+    "beforeForcedGCEpochMs": 1789231966627,
+    "forcedGC": {
+      "before": 1789231966627,
+      "after": 1789231966762
+    },
+    "afterForcedGCEpochMs": 1789231966764,
+    "inspectionStartedEpochMs": 1789231966764,
+    "samples": 52,
+    "invariant": "Periodic sampler stopped; end heap and forced-GC heap measured before acquisition-ID/storage summary inspection. No measurement getAll or JSON serialization of IDB used. Original app acquisition.ids/pages/storageTimings arrays remain unchanged and included in heap."
+  },
+  "network": {
+    "scope": "Main-page CDP Network events. Does not instrument service-worker or all browser-process traffic. Request metadata omits auth headers and bodies. Completed /api/read entries are inside the CPU profile interval.",
+    "requestPaths": {
+      "/": 1,
+      "/_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js": 1,
+      "/api/manifest": 2,
+      "/api/auth/persona": 1,
+      "/api/events": 2,
+      "/api/read": 151
+    },
+    "completedApiReadsWithinProfile": 151,
+    "apiReadEncodedBytes": 25072206,
+    "allCompletedMainPageEncodedBytes": 26971543,
+    "apiReadMedianElapsedMs": 25.47300001606345,
+    "apiReadP95ElapsedMs": 33.35499996319413,
+    "apiReadSumElapsedMs": 4153.455000836402,
+    "interpretation": "Request wall spans include server/transport/browser scheduling and may overlap other intervals. No RTT, native-server stack attribution or disk claim."
+  },
+  "persistence": {
+    "source": "Authored src/client.tsx adapter delegates to SDK storage unchanged; timing starts before awaited storage.write and ends after resolution.",
+    "acquisitionOverlappingWriteCalls": 151,
+    "sumAwaitedWriteMs": 8037.199998140335,
+    "unionClippedToAcquisitionMs": 8037.199998140335,
+    "medianAwaitedWriteMs": 50.59999990463257,
+    "p95AwaitedWriteMs": 66.79999995231628,
+    "maxAwaitedWriteMs": 75.29999995231628,
+    "sumPatchRowCounts": 85697,
+    "maxPatchRowCount": 704,
+    "interpretation": "Awaited write spans include JavaScript cloning/iteration, IndexedDB transaction scheduling and completion wait. They overlap CPU and other activity; do not subtract them from wall time or call them pure disk time. Only 687.952ms of sampled direct self time was source-matched to storage.ts; nested/native/persistence work is not fully attributed."
+  }
+}

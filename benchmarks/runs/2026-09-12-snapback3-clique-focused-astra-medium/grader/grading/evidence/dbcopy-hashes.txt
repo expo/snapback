@@ -1,0 +1,4 @@
+5e54e65acee47343bcd106b110812b3992834e102184dbd480a7383a283b56c4  grading/dbcopy/scale.sqlite
+a4a8a750a529e9a6a2832fbf82e58f12a225f1aeb071898b5f262f235615754c  grading/dbcopy/main.sqlite
+247df1241c713e4705750728a48840f1e1a9d541e33911013723dbc6c0b5af8f  grading/dbcopy/starter.sqlite
+scale copy removed after hashing (113MB duplicate; reproducible by re-copying artifacts/scale-app/.snapback3/store.sqlite)

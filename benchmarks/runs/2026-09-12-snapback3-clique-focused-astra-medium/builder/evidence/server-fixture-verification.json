@@ -1,0 +1,75 @@
+{
+  "start": 1789228575974,
+  "method": "Independent authorized HTTP owner query traversal; not browser acquisition timing",
+  "personas": {
+    "u0500": {
+      "conversations": 100,
+      "messageCount": 10018,
+      "fixtureMessages": 10000,
+      "missing": [],
+      "unexpectedFixture": [],
+      "extras": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+        "21fac831-0f93-49e1-a879-03f1c97beb31",
+        "b297ceab-e581-4784-b082-1143f6884295",
+        "ca1d55a6-2506-4582-9371-3036eb03b1f0"
+      ],
+      "duplicates": 0
+    },
+    "u0001": {
+      "conversations": 1000,
+      "messageCount": 100018,
+      "fixtureMessages": 100000,
+      "missing": [],
+      "unexpectedFixture": [],
+      "extras": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+        "21fac831-0f93-49e1-a879-03f1c97beb31",
+        "b297ceab-e581-4784-b082-1143f6884295",
+        "ca1d55a6-2506-4582-9371-3036eb03b1f0"
+      ],
+      "duplicates": 0
+    },
+    "alice": {
+      "conversations": 2,
+      "messageCount": 15,
+      "fixtureMessages": 15,
+      "missing": [],
+      "unexpectedFixture": [],
+      "extras": [],
+      "duplicates": 0
+    }
+  },
+  "mismatches": [],
+  "uniqueObserved": 100033,
+  "end": 1789228582100,
+  "status": "pass"
+}

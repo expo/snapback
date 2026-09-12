@@ -1,0 +1,10 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+const base='http://127.0.0.1:54800';
+const call=async(path,body,token)=>{let r=await fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(body)});return {status:r.status,body:await r.json()}};
+const short=await call('/api/auth/signup',{email:`short${Date.now()}@example.com`,password:'seven77'});assert.notEqual(short.status,200);
+const auth=await call('/api/auth/signup',{email:`revoke${Date.now()}@example.com`,password:'ProbePassword!2026'});assert.equal(auth.status,200);
+const session=auth.body;assert.ok(session.expiresAt>Date.now());
+assert.equal((await call('/api/query',{op:'profiles.mine',args:{}},session.token)).status,200);
+assert.equal((await call('/api/auth/logout',{},session.token)).status,200);
+const denied=await call('/api/query',{op:'profiles.mine',args:{}},session.token);assert.notEqual(denied.status,200);
+fs.writeFileSync('evidence/auth-probe.json',JSON.stringify({shortPasswordDenied:short,sessionHasFutureExpiry:true,logoutRevokes:denied,pass:true},null,2)+'\n');

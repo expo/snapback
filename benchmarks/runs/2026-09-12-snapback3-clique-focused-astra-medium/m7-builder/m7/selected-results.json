@@ -1,0 +1,541 @@
+{
+  "createdEpoch": 1789233024.1507945,
+  "scope": "focused M7 text/web subset",
+  "fullMilestoneGreen": false,
+  "weightedScore": null,
+  "nativeProof": false,
+  "assertions": {
+    "m7-a01": {
+      "status": "pass",
+      "scope": "group polls; text/web; server and frozen compose UI bounds",
+      "evidence": [
+        "m7/poll-browser-attempt-01.json",
+        "m7/poll-api-results.json"
+      ]
+    },
+    "m7-a02": {
+      "status": "pass",
+      "scope": "Alice/Bob/Carol live browser tallies; one ordinary client each",
+      "evidence": [
+        "m7/poll-browser-results.json"
+      ]
+    },
+    "m7-a03": {
+      "status": "pass",
+      "scope": "one changeable vote per principal; Alice and Bob A->B",
+      "finalTally": {
+        "a": 0,
+        "b": 2,
+        "total": 2
+      },
+      "evidence": [
+        "m7/poll-browser-results.json",
+        "m7/final-api-audit.json"
+      ]
+    },
+    "m7-a04": {
+      "status": "pass",
+      "scope": "same-state fresh calls and exact original HTTP intent replay",
+      "evidence": [
+        "m7/poll-api-results.json",
+        "m7/poll-browser-results.json"
+      ]
+    },
+    "m7-a05": {
+      "status": "pass",
+      "scope": "web only: actual offline network failure; both pages closed/reopened; original durable operation IDs recovered and committed",
+      "evidence": [
+        "m7/poll-browser-results.json",
+        "m7/final-api-audit.json"
+      ]
+    },
+    "m7-a06": {
+      "status": "pass",
+      "scope": "all 2 existing conversations in same DB; stored field; tombstone excluded; expiry omitted",
+      "initialCounts": {
+        "d-alice-bob": 6,
+        "g-starter": 9
+      },
+      "evidence": [
+        "m7/migration.json",
+        "m7/migration-verification.json",
+        "m7/physical-conversation-census.json"
+      ]
+    },
+    "m7-a07": {
+      "status": "pass",
+      "scope": "transactional text/poll insert increments and chat-settings display; no expiry/public-delete workflow claimed",
+      "canonicalGroupCounts": [
+        9,
+        10,
+        11
+      ],
+      "evidence": [
+        "m7/poll-browser-attempt-01.json",
+        "m7/final-api-audit.json"
+      ]
+    },
+    "m7-a08": {
+      "status": "pass",
+      "scope": "42 persona-visible preexisting rows; all required text/reaction/receipt fields and null media references; actual media/expiry omitted",
+      "snapshotCoverage": {
+        "at": 1789232429.8120542,
+        "requiredFields": [
+          "id",
+          "conversationId",
+          "senderId",
+          "serverTimestamp",
+          "type",
+          "text",
+          "caption",
+          "mediaReference",
+          "edited",
+          "tombstone",
+          "replyTo",
+          "reactions",
+          "ownMessageReceiptState"
+        ],
+        "personas": [
+          {
+            "actor": "alice",
+            "counts": {
+              "rows": 16,
+              "visible": 15,
+              "edited": 1,
+              "tombstones": 1,
+              "reactions": 4,
+              "mine": 2,
+              "ownReceipts": 7,
+              "populatedFetched": 7,
+              "populatedViewed": 7,
+              "quotes": 6
+            },
+            "comparedIds": [
+              "sm-m7-tombstone-control",
+              "sm0001",
+              "sm0002",
+              "sm0003",
+              "sm0004",
+              "sm0005",
+              "sm0006",
+              "sm0007",
+              "sm0008",
+              "sm0009",
+              "sm0010",
+              "sm0011",
+              "sm0012",
+              "sm0013",
+              "sm0014",
+              "sm0015"
+            ],
+            "allRequiredControlsPopulated": true
+          },
+          {
+            "actor": "bob",
+            "counts": {
+              "rows": 16,
+              "visible": 15,
+              "edited": 1,
+              "tombstones": 1,
+              "reactions": 4,
+              "mine": 1,
+              "ownReceipts": 5,
+              "populatedFetched": 5,
+              "populatedViewed": 5,
+              "quotes": 6
+            },
+            "comparedIds": [
+              "sm-m7-tombstone-control",
+              "sm0001",
+              "sm0002",
+              "sm0003",
+              "sm0004",
+              "sm0005",
+              "sm0006",
+              "sm0007",
+              "sm0008",
+              "sm0009",
+              "sm0010",
+              "sm0011",
+              "sm0012",
+              "sm0013",
+              "sm0014",
+              "sm0015"
+            ],
+            "allRequiredControlsPopulated": true
+          },
+          {
+            "actor": "carol",
+            "counts": {
+              "rows": 10,
+              "visible": 9,
+              "edited": 1,
+              "tombstones": 1,
+              "reactions": 2,
+              "mine": 1,
+              "ownReceipts": 4,
+              "populatedFetched": 4,
+              "populatedViewed": 4,
+              "quotes": 3
+            },
+            "comparedIds": [
+              "sm-m7-tombstone-control",
+              "sm0007",
+              "sm0008",
+              "sm0009",
+              "sm0010",
+              "sm0011",
+              "sm0012",
+              "sm0013",
+              "sm0014",
+              "sm0015"
+            ],
+            "allRequiredControlsPopulated": true
+          }
+        ],
+        "coverageFailures": [],
+        "differences": [],
+        "pass": true
+      },
+      "evidence": [
+        "m7/post-m7-alice.json",
+        "m7/post-m7-bob.json",
+        "m7/post-m7-carol.json",
+        "m7/snapshot-comparison.json"
+      ]
+    },
+    "m7-a09": {
+      "status": "pass",
+      "scope": "25 previously passing builder-selected web/text assertions; no full milestone/native claim; prior failures retained",
+      "regressionComparison": "m7/regression-comparison.json",
+      "evidence": [
+        "m7/regression-selected.json",
+        "m7/regression-controls.json",
+        "m7/custom-api-results.json",
+        "m7/final-api-audit.json"
+      ]
+    }
+  },
+  "selectedAssertions": [
+    {
+      "id": "m7-a01",
+      "status": "pass",
+      "scope": "group polls; text/web; server and frozen compose UI bounds",
+      "evidence": [
+        "m7/poll-browser-attempt-01.json",
+        "m7/poll-api-results.json"
+      ]
+    },
+    {
+      "id": "m7-a02",
+      "status": "pass",
+      "scope": "Alice/Bob/Carol live browser tallies; one ordinary client each",
+      "evidence": [
+        "m7/poll-browser-results.json"
+      ]
+    },
+    {
+      "id": "m7-a03",
+      "status": "pass",
+      "scope": "one changeable vote per principal; Alice and Bob A->B",
+      "finalTally": {
+        "a": 0,
+        "b": 2,
+        "total": 2
+      },
+      "evidence": [
+        "m7/poll-browser-results.json",
+        "m7/final-api-audit.json"
+      ]
+    },
+    {
+      "id": "m7-a04",
+      "status": "pass",
+      "scope": "same-state fresh calls and exact original HTTP intent replay",
+      "evidence": [
+        "m7/poll-api-results.json",
+        "m7/poll-browser-results.json"
+      ]
+    },
+    {
+      "id": "m7-a05",
+      "status": "pass",
+      "scope": "web only: actual offline network failure; both pages closed/reopened; original durable operation IDs recovered and committed",
+      "evidence": [
+        "m7/poll-browser-results.json",
+        "m7/final-api-audit.json"
+      ]
+    },
+    {
+      "id": "m7-a06",
+      "status": "pass",
+      "scope": "all 2 existing conversations in same DB; stored field; tombstone excluded; expiry omitted",
+      "initialCounts": {
+        "d-alice-bob": 6,
+        "g-starter": 9
+      },
+      "evidence": [
+        "m7/migration.json",
+        "m7/migration-verification.json",
+        "m7/physical-conversation-census.json"
+      ]
+    },
+    {
+      "id": "m7-a07",
+      "status": "pass",
+      "scope": "transactional text/poll insert increments and chat-settings display; no expiry/public-delete workflow claimed",
+      "canonicalGroupCounts": [
+        9,
+        10,
+        11
+      ],
+      "evidence": [
+        "m7/poll-browser-attempt-01.json",
+        "m7/final-api-audit.json"
+      ]
+    },
+    {
+      "id": "m7-a08",
+      "status": "pass",
+      "scope": "42 persona-visible preexisting rows; all required text/reaction/receipt fields and null media references; actual media/expiry omitted",
+      "snapshotCoverage": {
+        "at": 1789232429.8120542,
+        "requiredFields": [
+          "id",
+          "conversationId",
+          "senderId",
+          "serverTimestamp",
+          "type",
+          "text",
+          "caption",
+          "mediaReference",
+          "edited",
+          "tombstone",
+          "replyTo",
+          "reactions",
+          "ownMessageReceiptState"
+        ],
+        "personas": [
+          {
+            "actor": "alice",
+            "counts": {
+              "rows": 16,
+              "visible": 15,
+              "edited": 1,
+              "tombstones": 1,
+              "reactions": 4,
+              "mine": 2,
+              "ownReceipts": 7,
+              "populatedFetched": 7,
+              "populatedViewed": 7,
+              "quotes": 6
+            },
+            "comparedIds": [
+              "sm-m7-tombstone-control",
+              "sm0001",
+              "sm0002",
+              "sm0003",
+              "sm0004",
+              "sm0005",
+              "sm0006",
+              "sm0007",
+              "sm0008",
+              "sm0009",
+              "sm0010",
+              "sm0011",
+              "sm0012",
+              "sm0013",
+              "sm0014",
+              "sm0015"
+            ],
+            "allRequiredControlsPopulated": true
+          },
+          {
+            "actor": "bob",
+            "counts": {
+              "rows": 16,
+              "visible": 15,
+              "edited": 1,
+              "tombstones": 1,
+              "reactions": 4,
+              "mine": 1,
+              "ownReceipts": 5,
+              "populatedFetched": 5,
+              "populatedViewed": 5,
+              "quotes": 6
+            },
+            "comparedIds": [
+              "sm-m7-tombstone-control",
+              "sm0001",
+              "sm0002",
+              "sm0003",
+              "sm0004",
+              "sm0005",
+              "sm0006",
+              "sm0007",
+              "sm0008",
+              "sm0009",
+              "sm0010",
+              "sm0011",
+              "sm0012",
+              "sm0013",
+              "sm0014",
+              "sm0015"
+            ],
+            "allRequiredControlsPopulated": true
+          },
+          {
+            "actor": "carol",
+            "counts": {
+              "rows": 10,
+              "visible": 9,
+              "edited": 1,
+              "tombstones": 1,
+              "reactions": 2,
+              "mine": 1,
+              "ownReceipts": 4,
+              "populatedFetched": 4,
+              "populatedViewed": 4,
+              "quotes": 3
+            },
+            "comparedIds": [
+              "sm-m7-tombstone-control",
+              "sm0007",
+              "sm0008",
+              "sm0009",
+              "sm0010",
+              "sm0011",
+              "sm0012",
+              "sm0013",
+              "sm0014",
+              "sm0015"
+            ],
+            "allRequiredControlsPopulated": true
+          }
+        ],
+        "coverageFailures": [],
+        "differences": [],
+        "pass": true
+      },
+      "evidence": [
+        "m7/post-m7-alice.json",
+        "m7/post-m7-bob.json",
+        "m7/post-m7-carol.json",
+        "m7/snapshot-comparison.json"
+      ]
+    },
+    {
+      "id": "m7-a09",
+      "status": "pass",
+      "scope": "25 previously passing builder-selected web/text assertions; no full milestone/native claim; prior failures retained",
+      "regressionComparison": "m7/regression-comparison.json",
+      "evidence": [
+        "m7/regression-selected.json",
+        "m7/regression-controls.json",
+        "m7/custom-api-results.json",
+        "m7/final-api-audit.json"
+      ]
+    }
+  ],
+  "canonicalBrowserSegment": {
+    "run": false,
+    "verdict": null,
+    "reason": "Authored selected web driver uses unchanged frozen PollCompose/PollDisplay semantics; no combined canonical verdict claimed."
+  },
+  "attempts": {
+    "firstBrowser": "m7/poll-browser-attempt-01.json",
+    "correctedSamePollBrowser": "m7/poll-browser-results.json",
+    "api": "m7/poll-api-results.json",
+    "compiler": [
+      "m7/check-01.log",
+      "m7/check-02.log",
+      "m7/check-03.log"
+    ],
+    "migration": "m7/migration.json"
+  },
+  "compatibility": {
+    "oldClientObserved": false,
+    "originalPrivateProfileAccessed": false,
+    "terminalReceiptContract": "recoverable across schema/program change",
+    "uncommittedOldIdentityContract": "parked for review under public guide; not automatic compatibility",
+    "automaticOldClientSuccessClaimed": false
+  },
+  "responsibilities": {
+    "ordinaryClientsPerAppPage": 1,
+    "addedAuthenticatedAppReaders": 0,
+    "addedCustomAppCaches": 0,
+    "addedAppMutationRetryLoops": 0,
+    "addedAppManualReconciliation": 0,
+    "addedOperationalBackfillDrivers": 1,
+    "backfillLimit": "reject >=201 visible messages; both actual conversations under limit",
+    "addedPendingVotePresentation": 1,
+    "existingResponsibilities": "IndexedDB timing adapter, app-shell service worker, acquisition coordination, test observation refresh retries are inherited; not new M7 capabilities"
+  },
+  "omissions": [
+    "media/expiry lifecycle",
+    "native Apple proof",
+    "full Clique dependency DAG/milestone suites",
+    "withheld old-client independent control outcome",
+    "repair of prior HTTP-batch ancillary resource failure"
+  ],
+  "finalCountsAfterRecordedIndependentControls": [
+    {
+      "id": "d-alice-bob",
+      "field": 18,
+      "visible": 18,
+      "stored": 18,
+      "ids": [
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006",
+        "b89948cc-91b7-4542-912a-1bbe87bfcc7e",
+        "9e94d962-6b3b-44f9-b879-3883f49a423d",
+        "a3ee2a35-f7fe-45a4-a72c-abb7541b0743",
+        "0f5f1d07-c387-4fea-bee0-894be3d522e6",
+        "89e7f6c1-fcab-4427-9069-f32c25816bee",
+        "0132f65c-d6ce-42ea-a2b6-a788fee96320",
+        "4db6093d-4ed3-4b8f-8c6a-f9ed63f3dd41",
+        "ec746685-b96d-44c5-b162-31669d273bdb",
+        "d7838c8b-1ad7-4aa4-a652-c62ae8cd4abc",
+        "da630167-e8a0-4045-88e6-410accfeead9",
+        "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+        "2ad416a2-5642-4958-966d-d547906b2fd6"
+      ]
+    },
+    {
+      "id": "g-starter",
+      "field": 11,
+      "visible": 11,
+      "stored": 12,
+      "ids": [
+        "sm0007",
+        "sm0008",
+        "sm0009",
+        "sm0010",
+        "sm0011",
+        "sm0012",
+        "sm0013",
+        "sm0014",
+        "sm0015",
+        "sm-m7-tombstone-control",
+        "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "533d0fc0-4ac5-4e00-b399-9b7c677f9baf"
+      ]
+    },
+    {
+      "id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+      "field": 3,
+      "visible": 3,
+      "stored": 3,
+      "ids": [
+        "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+        "082365bc-c358-4679-8dc8-9803f2aba929",
+        "f33216e7-4cb7-49c8-8437-9a669f423990"
+      ]
+    }
+  ],
+  "shutdown": "m7/shutdown.json"
+}

@@ -1,0 +1,44 @@
+{
+  "kind": "read-only coordinator observation of nonterminal grader artifacts",
+  "observedEpoch": 1789234238.0314698,
+  "notAGradingVerdict": true,
+  "notSuppliedToActors": true,
+  "files": [
+    {
+      "path": "results/snapshot-comparison-independent.json",
+      "bytes": 3148,
+      "sha256": "d75e7c1368d55e42571f9cfcd4d0c989b6c62581b9c74aa3a5fd8542d1c33586",
+      "sourceMtimeNs": 1789233873537286941
+    },
+    {
+      "path": "probes/snapcmp.mjs",
+      "bytes": 2669,
+      "sha256": "9e3c2b2541e95cd8618daa8c5c74ba66cd1fb5e9660583ca5dafb719b19a3c0d",
+      "sourceMtimeNs": 1789233873514286997
+    },
+    {
+      "path": "results/poll-browser-grader.json",
+      "bytes": 6091,
+      "sha256": "c5a25e2e1f90c186d86f83d07afdc96f1f49e95d35fb3c7a9e35dff95e75f1cb",
+      "sourceMtimeNs": 1789234021648929064
+    },
+    {
+      "path": "probes/poll-browser.mjs",
+      "bytes": 8813,
+      "sha256": "0c7e501db51ea56a40d45f5243e468d3c7d3524588cc404dd2d4c7756c4f67bd",
+      "sourceMtimeNs": 1789233978910032253
+    },
+    {
+      "path": "results/poll-offline-grader.json",
+      "bytes": 3924,
+      "sha256": "c5c0a941dd497e850223b9a49f723e96a9c597e316f0f9442b494b04ca0b11df",
+      "sourceMtimeNs": 1789234116444700384
+    },
+    {
+      "path": "probes/poll-offline.mjs",
+      "bytes": 4345,
+      "sha256": "0bac6a2c9447a85f117dd285f6b83b9a8dad22ef3931ddf789e516ce92f23d12",
+      "sourceMtimeNs": 1789234090111763882
+    }
+  ]
+}
