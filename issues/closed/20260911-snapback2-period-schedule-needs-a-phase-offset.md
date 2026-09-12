@@ -1,10 +1,10 @@
 # `schedule … every` cannot express the brief's 08:00 UTC daily digest
 
-**Status:** Open
+**Status:** Resolved (2026-09-11)
 **Priority:** P2
 **Date:** 2026-09-11
 **Systems:** Snapback 2 schedules (LLP 1016 D5, `snapback2-core/src/store_timers.rs`, `guide schedule`), Clique M8 digest
-**Related:** [closed/20260911-snapback2-schedule-install-offset-and-digest-restart.md](./closed/20260911-snapback2-schedule-install-offset-and-digest-restart.md); `rules/NOT-DOING.md` ("one `schedule` kind"; no cron/calendar syntax); [0.0.25 run](../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
+**Related:** [closed/20260911-snapback2-schedule-install-offset-and-digest-restart.md](./20260911-snapback2-schedule-install-offset-and-digest-restart.md); `rules/NOT-DOING.md` ("one `schedule` kind"; no cron/calendar syntax); [0.0.25 run](../../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
 
 ## Symptom
 
@@ -53,3 +53,23 @@ Decide one of these and record it in `guide schedule` and LLP 1016 D5:
   passes with a nonzero offset if option 1 is chosen.
 - No calendar, weekday or local-zone syntax is added; `E_SCHEDULE_DURATION`
   still names the accepted forms.
+
+## Resolution — 2026-09-11
+
+Selected option 2: retain the grammar and pave a persisted UTC row clock.
+The first screen of `guide schedule` points daily-at-08:00 builders to the
+compiled `armDailyDigest(utcHour)` / `utcDigestSweep(clockId, cutoff)` recipe.
+LLP 1016 D5 now distinguishes midnight `every 24h` from this configured form.
+The clock initializes once, passes its stored cutoff to a durable job, and
+advances by one day only after the recipient/cleanup chunks finish. Unique
+recipient/cutoff receipts deduplicate logical emission; a cutoff guard stops
+stale jobs advancing newer clocks. The guide states missed-day catch-up,
+parked versus cancelled recovery, source-bucket alignment and provider
+idempotency obligations; the example counters are explicitly illustrative.
+
+Validation: all six existing compiler schedule checks pass, including exact
+guide snippets lowering/certifying with the fixture. The real-owner
+`configured_utc_row_digest_survives_restart_and_catches_up_without_duplicate_emission`
+passes: 08:00 phase survives stop/start, four missed days complete, a zero
+profile emits nothing, and replay neither duplicates emission nor moves the
+new deadline. No calendar/phase grammar or NOT-DOING trade was added.

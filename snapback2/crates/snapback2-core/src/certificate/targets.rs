@@ -5,7 +5,7 @@ use crate::schema::{IndexComponent, Schema};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TargetSource {
     NewId(u64),
@@ -66,6 +66,7 @@ impl Fact {
 struct Analysis {
     env: BTreeMap<String, Fact>,
     primary_indexes: BTreeSet<(String, String)>,
+    created: BTreeSet<(String, TargetSource)>,
     next: Option<u64>,
     targets: BTreeMap<(String, TargetKind), MutationTarget>,
     unknown_effects: bool,
@@ -174,12 +175,27 @@ impl Analysis {
                 }
                 Stmt::Insert { table, row } => {
                     let row = self.expr(row);
-                    self.add(table, TargetKind::Create, row.field("id"), guard);
+                    let id = row.field("id");
+                    self.add(table, TargetKind::Create, id.clone(), guard);
+                    if guard.is_none() {
+                        if let Fact::Id(source) = id {
+                            self.created.insert((table.clone(), source));
+                        }
+                    }
                 }
                 Stmt::Update { table, key, patch } => {
                     let key = self.expr(key);
                     self.expr(patch);
-                    self.add(table, TargetKind::Update, key, guard);
+                    // @ref LLP 1018.003.001#3-semantic-mutation-targets — a
+                    // straight-line refinement of the exact row just inserted
+                    // remains one create target; its write site and authority
+                    // are still certified independently.
+                    let refines_create = guard.is_none()
+                        && matches!(&key, Fact::Id(source)
+                            if self.created.contains(&(table.clone(), source.clone())));
+                    if !refines_create {
+                        self.add(table, TargetKind::Update, key, guard);
+                    }
                 }
                 Stmt::Delete { table, key } => {
                     let key = self.expr(key);
@@ -280,6 +296,7 @@ impl Analysis {
         Self {
             env: self.env.clone(),
             primary_indexes: self.primary_indexes.clone(),
+            created: self.created.clone(),
             next: self.next,
             ..Self::default()
         }

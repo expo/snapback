@@ -1,17 +1,7 @@
 # Fan-out
 
-`E_STRUCTURAL_FANOUT` needs a complete loop, argument, or `cap` bound. Caps
-reject rows; use merge/jobs for uncapped scope.
-
-## Hub envelopes
-
-| refusal | legal form |
-|---|---|
-| follows 1,000 | heads 20 + points |
-| chats 1,000 | all scope pages + pager |
-| rich 50 | rich pages + raw 50 |
-| digest | cells + job chunks |
-| backfill 100 | chunks 25 to `done` |
+`E_STRUCTURAL_FANOUT` needs a complete bound. Caps reject excess rows;
+use merge/jobs for uncapped scope.
 
 ## 1,000-follow feed
 
@@ -71,11 +61,15 @@ query conversationMessageSearch(conversation: conversations, term: text <=128, c
   return messages[conversation, term] after c last 1 by bySearch
 ```
 
-Copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts` for
-both queries, captured term, branded cursors, `(at,id)` Unicode scalar order,
-pages and issues. Recreate after term/membership changes; never mount 1,000 live
-shapes. The chat template includes writes/revocation. Reads use current
-membership; scope/message snapshots exclude concurrent changes.
+Copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts`:
+opaque cursors, `(at,id)` scalar order, pages/issues. Recreate on term/membership
+changes. Current-member reads have separate snapshots; never mount 1,000 live shapes.
+
+This interim client N-way merge costs scope pages + one head per chat + refills.
+Frozen Clique hub: 1,000 chats, 100,015 messages; `busy` matches only the final
+scope slice. First 20: **1,030 HTTP queries, 669/616 ms localhost** (EPYC,
+0.0.25, concurrency 16); absent term: 1,010/576 ms. Later pages refill.
+Counts grow with memberships; one-lane search remains open (LLP 1024).
 
 ## Rich rows and jobs
 
