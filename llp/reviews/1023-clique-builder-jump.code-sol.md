@@ -123,3 +123,35 @@ The change preserves unsupported-language refusal and diagnostic identity, restr
 Review was limited to the inline evidence; I did not run tests. The reported full-script failure and pending frozen benchmark remain external qualification caveats.
 
 Disposition: the material channel-rule finding was accepted and fixed at `237f6575f6`; mutation advice now requires an insert/update/delete effect, and existing diagnostics cover both channel positions. Round 2 leaves no material finding.
+
+
+## Public point coverage and diagnostic follow-up — 2026-09-12
+
+Candidate: `2d847b7e9ef794ba5860742376f482f470123d39`; reviewed delta against
+`00a22325e2`. Fresh independent Sol review, requested
+`gpt-5.6-sol` at xhigh; no peer reviews or benchmark narratives
+in the inline source packet. Prompt SHA-256:
+`3f018bfb0e7d6e581e86dbd755ae9e3e14b6929a565ac9ca3d87ff888a16ed75`.
+CLI exited 0 and retained stream audit found zero tool events.
+The returned stream does not independently attest the requested model.
+Final text SHA-256: `3b1a6e6d26d2a57626c9b93476882ab3219b5788be1e4dd975dc1657c061d3e5`.
+
+### Actual returned review
+
+VERDICT: READY
+
+No material correctness, authority, stale-data, or compatibility problems found in the supplied delta.
+
+Nonblocking observations:
+
+- `quarry/bound-schema.ts:325-328` directs users to “guide rules,” but `quarry/diagnostics.ts:66-80` still assigns `E_QUARRY_UNKNOWN` the structured guide `quarry/names`. Consider routing this diagnostic to the rules guide and testing `diagnostic.guide`.
+- The measured runtime is 89,898 bytes gzip—only 102 bytes below the 90,000-byte ceiling and still above the 80,000-byte target (`llp/1012-local-first-v1.spec.md:669-671,690-699`). The pending integrated script and production-package measurements remain necessary before shipment.
+
+### Disposition
+
+READY accepted for the reviewed source delta; integrated full-script and
+production-package qualification remain separate requirements. Keep the
+80,000-byte target open. The optional structured guide route, broader Public
+IR coverage and helper/test cleanup are not claimed in this literal-Allow
+repair. No pooled fallback or negative authority guard is weakened to address
+those observations. No additional product changes are selected for this round.
