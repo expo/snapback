@@ -1,0 +1,17 @@
+{
+  "sha": "4229f3143917c24a9b7374a334b4010b1762cc2f",
+  "packageVersion": "0.0.29",
+  "collector": "unchanged scripts/measure.mjs packagedEntryBytes",
+  "byte_format": "packaged-esm-closure-gzip-v1",
+  "toolchain": {
+    "node": "v24.18.0",
+    "esbuild": "0.25.9",
+    "gzipLevel": 9
+  },
+  "client_gzip_bytes": 142989,
+  "react_gzip_bytes": 152942,
+  "expo_gzip_bytes": 156395,
+  "runtime_gzip_bytes": 89843,
+  "runtime_ceiling": 90000,
+  "runtime_target": 80000
+}

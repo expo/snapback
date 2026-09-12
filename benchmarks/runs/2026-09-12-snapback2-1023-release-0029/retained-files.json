@@ -1,0 +1,62 @@
+{
+  "at": 1789191454.8535109,
+  "files": [
+    {
+      "file": "final-publication-artifacts.json",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/final-publication-artifacts.json",
+      "sha256": "c51d2e03016431f5b0cc53379c1a0816eb0d513a208f19b06a3f5dde6636614f",
+      "bytes": 8520
+    },
+    {
+      "file": "publication-final29.json",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/publication-final29.json",
+      "sha256": "4f79d2158e0ec7490834185132f0f1697bc1332a0df1683f2df08b68cbb42a70",
+      "bytes": 483
+    },
+    {
+      "file": "registry-final29.json",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/registry-final29.json",
+      "sha256": "e84e41876bc4a6f65ed76d12e3512bab8aa3bd22b393ecd53c066b5f9551e0a3",
+      "bytes": 1436
+    },
+    {
+      "file": "registry-final29-attempt2.json",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/registry-final29-attempt2.json",
+      "sha256": "57e3d394da22bc054bc857db3156feb67ef9228e6abd7aa2c8921b2836e35c20",
+      "bytes": 1278
+    },
+    {
+      "file": "delivery-push-retry.json",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/delivery-push-retry.json",
+      "sha256": "fe717ec57826694252073e1bd3aca4a2cc63b9e06c46ec397e71dae971a6c855",
+      "bytes": 289
+    },
+    {
+      "file": "final29-canonical.json",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/darwin-publication/final29-canonical.json",
+      "sha256": "ea9815bb6badf32448f198c9239dfbeb4ef3808d74c6bbaf304e4ee8529e6883",
+      "bytes": 386
+    },
+    {
+      "file": "publication-final29.log.gz",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/publication-final29.log",
+      "sha256": "2000f58dc9c3664a9a0ff0593b03ed4b6ffc4bc88244740514560da684fe7e4a",
+      "uncompressed_sha256": "26d80327412f94092694c12a5679b5bfedbbea5398d6d0b972b52418a09feb4e",
+      "bytes": 3764
+    },
+    {
+      "file": "delivery-push-retry.log.gz",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/delivery-push-retry.log",
+      "sha256": "6e22dff6b06a7ca5fd776915e3c03255292675cad7dfe3d034b3159d0aa9ff96",
+      "uncompressed_sha256": "a5797d4157a0099aa27fded93490980727b079db29d2152dfbdf91b9c0cfd973",
+      "bytes": 1757
+    },
+    {
+      "file": "final29-canonical.log.gz",
+      "original_path": "/Users/ccheever/projects/snapback-1023-20260912/darwin-publication/final29-canonical.log",
+      "sha256": "49de8f6dcab2eccd6a340ffd59b9ce1e5887a188ba2b0099f80c5e5413e3540c",
+      "uncompressed_sha256": "f0ebb1f1adc4ba93c7c6b0edbc3ff9cb04d0208b4fe04c904fdcc565839875a5",
+      "bytes": 1691
+    }
+  ]
+}

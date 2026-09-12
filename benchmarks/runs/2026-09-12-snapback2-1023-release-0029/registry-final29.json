@@ -1,0 +1,33 @@
+{
+  "at": 1789190664.4412339,
+  "version": "0.0.29",
+  "all_verified": false,
+  "results": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "exit": 0,
+      "ready": true,
+      "observed": {
+        "version": "0.0.29",
+        "dist.integrity": "sha512-TYc62FlvmlkAK0uXcVxXWNxqLiXAbm+6RwE1VoKrm4lBnCbAa/8R+oXReMH0plM+sqJlofzmSjepd572HvXKXA=="
+      },
+      "expected_integrity": "sha512-TYc62FlvmlkAK0uXcVxXWNxqLiXAbm+6RwE1VoKrm4lBnCbAa/8R+oXReMH0plM+sqJlofzmSjepd572HvXKXA=="
+    },
+    {
+      "name": "snapback2-linux-x64",
+      "exit": 0,
+      "ready": true,
+      "observed": {
+        "version": "0.0.29",
+        "dist.integrity": "sha512-q1UIB5dayQavSDC1dIJftcwTNr0O6IOR6/KS5GeQx10xbJW+u01H34qtB/yI/6/XE6DHzUdOdD2ek9AXAQCB5A=="
+      },
+      "expected_integrity": "sha512-q1UIB5dayQavSDC1dIJftcwTNr0O6IOR6/KS5GeQx10xbJW+u01H34qtB/yI/6/XE6DHzUdOdD2ek9AXAQCB5A=="
+    },
+    {
+      "name": "snapback2",
+      "exit": 1,
+      "ready": false,
+      "error": "npm error code E404\nnpm error 404 No match found for version 0.0.29\nnpm error 404\nnpm error 404  The requested resource 'snapback2@0.0.29' could not be found or you do not have permission to access it.\nnpm error 404\nnpm error 404 Note that you can also install from a\nnpm error 404 tarball, folder, http url, or git url.\nnpm error A complete log of this run can be found in: /Users/ccheever/.npm/_logs/2026-09-12T05_24_24_178Z-debug-0.log\n"
+    }
+  ]
+}

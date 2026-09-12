@@ -1,0 +1,9 @@
+{
+  "action": "push integrated run HEAD:main",
+  "source": "394ac17802f93983628c602f0f5e54670ecf5d64",
+  "previous_attempt": "pre-push missing acorn, no remote change; root frozen deps installed",
+  "started": 1789190028.0151548,
+  "pid": 48100,
+  "exit": 0,
+  "ended": 1789190037.028685
+}

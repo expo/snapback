@@ -1,0 +1,693 @@
+{
+  "origin": "/home/ccheever/snapback-1023-20260912/qualification-complete/loop-before.jsonl",
+  "selection": "bf650aebb, 13dc20058d, 900bbd9a90 and latest accepted baseline",
+  "rows": [
+    {
+      "at": "2026-09-09T18:12:53.625Z",
+      "sha": "bf650aebb",
+      "steps": {
+        "warm_build_s": {
+          "seconds": 0.13,
+          "ok": true
+        },
+        "package_build_s": {
+          "seconds": 1.441,
+          "ok": true
+        },
+        "package_bytes_s": {
+          "seconds": 0.185,
+          "ok": true
+        },
+        "boot_s": {
+          "seconds": 0.132,
+          "ok": true,
+          "samples": [
+            {
+              "seconds": 0.132,
+              "ok": true
+            },
+            {
+              "seconds": 0.028,
+              "ok": true
+            }
+          ]
+        },
+        "incremental_build_s": {
+          "seconds": 2.26,
+          "ok": true
+        },
+        "consumer_smoke_s": {
+          "seconds": 18.96,
+          "ok": true
+        },
+        "check_s": {
+          "seconds": 0.096,
+          "ok": true
+        },
+        "check_project_s": {
+          "seconds": 0.394,
+          "ok": true
+        },
+        "dev_boot_s": {
+          "seconds": 0.469,
+          "ok": true
+        },
+        "dev_stop_s": {
+          "seconds": 0.223,
+          "ok": true
+        },
+        "dev_cleanup_s": {
+          "seconds": 0.004,
+          "ok": true
+        },
+        "debug_binary_stat_s": {
+          "seconds": 0,
+          "ok": true
+        },
+        "init_to_dev_s": {
+          "seconds": 0.747,
+          "ok": true
+        },
+        "init_dev_stop_s": {
+          "seconds": 0.207,
+          "ok": true
+        },
+        "init_cleanup_s": {
+          "seconds": 0.005,
+          "ok": true
+        }
+      },
+      "client_gzip_bytes": 136547,
+      "react_gzip_bytes": 146166,
+      "expo_gzip_bytes": 149836,
+      "runtime_gzip_bytes": 84580,
+      "warm_build_s": 0.13,
+      "package_build_s": 1.441,
+      "byte_measurement": {
+        "values": {
+          "client_gzip_bytes": 136547,
+          "react_gzip_bytes": 146166,
+          "expo_gzip_bytes": 149836,
+          "runtime_gzip_bytes": 84580
+        },
+        "toolchain": {
+          "node": "v24.18.0",
+          "esbuild": "0.25.9",
+          "gzipLevel": 9
+        },
+        "format": "packaged-esm-closure-gzip-v1",
+        "ok": true
+      },
+      "byte_toolchain": {
+        "node": "v24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9
+      },
+      "byte_format": "packaged-esm-closure-gzip-v1",
+      "package_bytes_s": 0.185,
+      "boot_s": 0.132,
+      "doctor_samples_s": [
+        {
+          "seconds": 0.132,
+          "ok": true
+        },
+        {
+          "seconds": 0.028,
+          "ok": true
+        }
+      ],
+      "doctor_ms": 28.676625,
+      "incremental_build_s": 2.26,
+      "consumer_smoke_s": 18.96,
+      "consumer": [
+        {
+          "name": "install tarballs",
+          "seconds": 0.9053781249999993,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 1.1860357079999995,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.028958209000000353,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.031206791999999952,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.3548201250000002,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.3562158329999993,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 1.6756026249999996,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.20252150000000074,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.07881929200000014,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 0.9483873339999991,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.21586275000000024,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 0.5047319580000003,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 0.4928603340000009,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 0.6395645829999994,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 0.5385175420000015,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "blocked",
+          "blocked": "effects"
+        },
+        {
+          "name": "chat test",
+          "seconds": 9.537015792000002,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.1901331250000003,
+          "ok": true
+        }
+      ],
+      "check_s": 0.096,
+      "check_project_s": 0.394,
+      "dev_boot_s": 0.469,
+      "dev_stop_s": 0.223,
+      "dev_cleanup_s": 0.004,
+      "debug_binary_bytes": 49320280,
+      "release_binary_bytes": 15601760,
+      "debug_binary_stat_s": 0,
+      "init_to_dev_s": 0.747,
+      "init_dev_stop_s": 0.207,
+      "init_cleanup_s": 0.005,
+      "production_binary_bytes": 3778848,
+      "byte_baseline_accepted": true
+    },
+    {
+      "at": "2026-09-12T00:14:49.985Z",
+      "sha": "900bbd9a90",
+      "steps": {
+        "warm_build_s": {
+          "seconds": 28.65,
+          "ok": true
+        },
+        "package_build_s": {
+          "seconds": 1.603,
+          "ok": true
+        },
+        "package_bytes_s": {
+          "seconds": 0.195,
+          "ok": true
+        },
+        "boot_s": {
+          "seconds": 0.311,
+          "ok": true,
+          "samples": [
+            {
+              "seconds": 0.311,
+              "ok": true
+            },
+            {
+              "seconds": 0.03,
+              "ok": true
+            }
+          ]
+        },
+        "incremental_build_s": {
+          "seconds": 3.16,
+          "ok": true
+        },
+        "consumer_smoke_s": {
+          "seconds": 13.2,
+          "ok": true
+        },
+        "check_s": {
+          "seconds": 0.105,
+          "ok": true
+        },
+        "check_project_s": {
+          "seconds": 0.419,
+          "ok": true
+        },
+        "dev_boot_s": {
+          "seconds": 0.443,
+          "ok": true
+        },
+        "dev_stop_s": {
+          "seconds": 0.205,
+          "ok": true
+        },
+        "dev_cleanup_s": {
+          "seconds": 0.003,
+          "ok": true
+        },
+        "debug_binary_stat_s": {
+          "seconds": 0,
+          "ok": true
+        },
+        "init_to_dev_s": {
+          "seconds": 0.784,
+          "ok": true
+        },
+        "init_dev_stop_s": {
+          "seconds": 0.179,
+          "ok": true
+        },
+        "init_cleanup_s": {
+          "seconds": 0.013,
+          "ok": true
+        }
+      },
+      "client_gzip_bytes": 140961,
+      "react_gzip_bytes": 150838,
+      "expo_gzip_bytes": 154335,
+      "runtime_gzip_bytes": 89305,
+      "warm_build_s": 28.65,
+      "package_build_s": 1.603,
+      "byte_measurement": {
+        "values": {
+          "client_gzip_bytes": 140961,
+          "react_gzip_bytes": 150838,
+          "expo_gzip_bytes": 154335,
+          "runtime_gzip_bytes": 89305
+        },
+        "toolchain": {
+          "node": "v24.18.0",
+          "esbuild": "0.25.9",
+          "gzipLevel": 9
+        },
+        "format": "packaged-esm-closure-gzip-v1",
+        "ok": true
+      },
+      "byte_toolchain": {
+        "node": "v24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9
+      },
+      "byte_format": "packaged-esm-closure-gzip-v1",
+      "package_bytes_s": 0.195,
+      "boot_s": 0.311,
+      "doctor_samples_s": [
+        {
+          "seconds": 0.311,
+          "ok": true
+        },
+        {
+          "seconds": 0.03,
+          "ok": true
+        }
+      ],
+      "doctor_ms": 30.358875,
+      "incremental_build_s": 3.16,
+      "consumer_smoke_s": 13.2,
+      "consumer": [
+        {
+          "name": "install tarballs",
+          "seconds": 1.184565208,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 0.277474457999997,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.029394167000005838,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.03792216699999699,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.4565625419999997,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.42678225000000386,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 1.1662367079999967,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.19637254100000429,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.08781054099999892,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 0.6254977500000023,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.13615008300000045,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 0.5261758750000008,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 0.593401082999997,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 0.6822300840000025,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 0.6836975000000021,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "blocked",
+          "blocked": "a sent message notifies the recipient, effects"
+        },
+        {
+          "name": "chat test",
+          "seconds": 4.6005990419999945,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.17000387500000216,
+          "ok": true
+        }
+      ],
+      "check_s": 0.105,
+      "check_project_s": 0.419,
+      "dev_boot_s": 0.443,
+      "dev_stop_s": 0.205,
+      "dev_cleanup_s": 0.003,
+      "debug_binary_bytes": 53769576,
+      "release_binary_bytes": 16703120,
+      "debug_binary_stat_s": 0,
+      "init_to_dev_s": 0.784,
+      "init_dev_stop_s": 0.179,
+      "init_cleanup_s": 0.013,
+      "production_binary_bytes": 2179696,
+      "byte_baseline_accepted": false
+    },
+    {
+      "at": "2026-09-12T03:14:42.652Z",
+      "sha": "13dc20058d",
+      "steps": {
+        "warm_build_s": {
+          "seconds": 38.63,
+          "ok": true
+        },
+        "package_build_s": {
+          "seconds": 1.796,
+          "ok": true
+        },
+        "package_bytes_s": {
+          "seconds": 0.202,
+          "ok": true
+        },
+        "boot_s": {
+          "seconds": 0.309,
+          "ok": true,
+          "samples": [
+            {
+              "seconds": 0.309,
+              "ok": true
+            },
+            {
+              "seconds": 0.027,
+              "ok": true
+            }
+          ]
+        },
+        "incremental_build_s": {
+          "seconds": 2.19,
+          "ok": true
+        },
+        "consumer_smoke_s": {
+          "seconds": 12.33,
+          "ok": true
+        },
+        "check_s": {
+          "seconds": 0.11,
+          "ok": true
+        },
+        "check_project_s": {
+          "seconds": 0.402,
+          "ok": true
+        },
+        "dev_boot_s": {
+          "seconds": 0.44,
+          "ok": true
+        },
+        "dev_stop_s": {
+          "seconds": 0.204,
+          "ok": true
+        },
+        "dev_cleanup_s": {
+          "seconds": 0.003,
+          "ok": true
+        },
+        "debug_binary_stat_s": {
+          "seconds": 0,
+          "ok": true
+        },
+        "init_to_dev_s": {
+          "seconds": 0.78,
+          "ok": true
+        },
+        "init_dev_stop_s": {
+          "seconds": 0.207,
+          "ok": true
+        },
+        "init_cleanup_s": {
+          "seconds": 0.04,
+          "ok": true
+        }
+      },
+      "client_gzip_bytes": 143053,
+      "react_gzip_bytes": 152966,
+      "expo_gzip_bytes": 156459,
+      "runtime_gzip_bytes": 89981,
+      "warm_build_s": 38.63,
+      "package_build_s": 1.796,
+      "byte_measurement": {
+        "values": {
+          "client_gzip_bytes": 143053,
+          "react_gzip_bytes": 152966,
+          "expo_gzip_bytes": 156459,
+          "runtime_gzip_bytes": 89981
+        },
+        "toolchain": {
+          "node": "v24.18.0",
+          "esbuild": "0.25.9",
+          "gzipLevel": 9
+        },
+        "format": "packaged-esm-closure-gzip-v1",
+        "ok": true
+      },
+      "byte_toolchain": {
+        "node": "v24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9
+      },
+      "byte_format": "packaged-esm-closure-gzip-v1",
+      "package_bytes_s": 0.202,
+      "boot_s": 0.309,
+      "doctor_samples_s": [
+        {
+          "seconds": 0.309,
+          "ok": true
+        },
+        {
+          "seconds": 0.027,
+          "ok": true
+        }
+      ],
+      "doctor_ms": 27.282542,
+      "incremental_build_s": 2.19,
+      "consumer_smoke_s": 12.33,
+      "consumer": [
+        {
+          "name": "install tarballs",
+          "seconds": 1.056724792000001,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 0.2597987079999948,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.02505004100000224,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.032355042000002866,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.3911232079999972,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.3770445409999957,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 1.122094707999997,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.19700045899999533,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.07923858299999847,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 0.5724509159999943,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.16749066599999787,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 0.5519784170000057,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 0.516885374999998,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 0.6597459170000002,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 0.5256312499999986,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "blocked",
+          "blocked": "a sent message notifies the recipient, effects"
+        },
+        {
+          "name": "chat test",
+          "seconds": 4.226416333000001,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.24938874999999824,
+          "ok": true
+        }
+      ],
+      "check_s": 0.11,
+      "check_project_s": 0.402,
+      "dev_boot_s": 0.44,
+      "dev_stop_s": 0.204,
+      "dev_cleanup_s": 0.003,
+      "debug_binary_bytes": 54342632,
+      "release_binary_bytes": 16831648,
+      "debug_binary_stat_s": 0,
+      "init_to_dev_s": 0.78,
+      "init_dev_stop_s": 0.207,
+      "init_cleanup_s": 0.04,
+      "production_binary_bytes": 2179696,
+      "byte_baseline_accepted": false
+    }
+  ]
+}

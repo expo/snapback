@@ -1,0 +1,47 @@
+{
+  "recordedPids": [
+    3361717,
+    3361771,
+    3424008,
+    3438239,
+    3438240,
+    3441855,
+    3441856,
+    3442170,
+    3453637,
+    3453693
+  ],
+  "aliveRecordedPids": [],
+  "ownersBefore": [
+    " 193099       1  193038 Mon Sep  7 22:21:43 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-T85bug --foreground --port 0",
+    " 234557       1  233709 Mon Sep  7 23:19:49 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-Q8OJWk --foreground --port 0",
+    " 283488       1  282374 Tue Sep  8 00:44:31 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-wNY6h6 --foreground --port 0",
+    " 283554       1  282374 Tue Sep  8 00:44:31 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-20idiA --foreground --port 0",
+    " 285051       1  282374 Tue Sep  8 00:44:37 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-W485Aq --foreground --port 41123",
+    " 285354       1  285293 Tue Sep  8 00:45:24 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-c8L3P9 --foreground --port 0",
+    " 291907       1  291740 Tue Sep  8 01:04:47 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-RqH90h --foreground --port 0",
+    " 312570       1  311189 Tue Sep  8 01:50:10 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-LJvCZH --foreground --port 0",
+    " 312591       1  311189 Tue Sep  8 01:50:10 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-Hq9saE --foreground --port 0",
+    " 340165       1  340047 Tue Sep  8 01:59:00 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-Hqrfle --foreground --port 0",
+    " 437825       1  436124 Tue Sep  8 05:32:32 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-J4Y8qj --foreground --port 0",
+    " 450852       1  449786 Tue Sep  8 05:54:56 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-hjxIqT --foreground --port 0",
+    " 458594       1  458389 Tue Sep  8 05:59:42 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-ZCdw0c --foreground --port 0",
+    " 466333       1  466283 Tue Sep  8 06:01:00 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-xF5Gww --foreground --port 0"
+  ],
+  "ownersAfter": [
+    " 193099       1  193038 Mon Sep  7 22:21:43 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-T85bug --foreground --port 0",
+    " 234557       1  233709 Mon Sep  7 23:19:49 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-Q8OJWk --foreground --port 0",
+    " 283488       1  282374 Tue Sep  8 00:44:31 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-wNY6h6 --foreground --port 0",
+    " 283554       1  282374 Tue Sep  8 00:44:31 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-20idiA --foreground --port 0",
+    " 285051       1  282374 Tue Sep  8 00:44:37 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-W485Aq --foreground --port 41123",
+    " 285354       1  285293 Tue Sep  8 00:45:24 2026 /home/ccheever/lanes/authtail/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-c8L3P9 --foreground --port 0",
+    " 291907       1  291740 Tue Sep  8 01:04:47 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-RqH90h --foreground --port 0",
+    " 312570       1  311189 Tue Sep  8 01:50:10 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-LJvCZH --foreground --port 0",
+    " 312591       1  311189 Tue Sep  8 01:50:10 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-Hq9saE --foreground --port 0",
+    " 340165       1  340047 Tue Sep  8 01:59:00 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-Hqrfle --foreground --port 0",
+    " 437825       1  436124 Tue Sep  8 05:32:32 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-J4Y8qj --foreground --port 0",
+    " 450852       1  449786 Tue Sep  8 05:54:56 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-hjxIqT --foreground --port 0",
+    " 458594       1  458389 Tue Sep  8 05:59:42 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-ZCdw0c --foreground --port 0",
+    " 466333       1  466283 Tue Sep  8 06:01:00 2026 /home/ccheever/lanes/enginefix/snapback2/target/debug/snapback2 dev --project /tmp/snapback2-client-owner-xF5Gww --foreground --port 0"
+  ]
+}

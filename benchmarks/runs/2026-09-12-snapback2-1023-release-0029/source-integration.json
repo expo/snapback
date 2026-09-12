@@ -1,0 +1,19 @@
+{
+  "qualified_source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+  "landed_source": "394ac17802f93983628c602f0f5e54670ecf5d64",
+  "observed_at": 1789191786.0636952,
+  "command": [
+    "git",
+    "diff",
+    "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+    "394ac17802f93983628c602f0f5e54670ecf5d64",
+    "--name-only",
+    "--",
+    "snapback2"
+  ],
+  "changed_paths": [
+    "snapback2/metrics/loop.jsonl"
+  ],
+  "conclusion": "Snapback2 product sources identical; retained publication metrics differ",
+  "source_packet_sha256sums_sha256": "c143ab4bbcdeb8db9c981eff018313d76aad74c8425035cb762c5fafc2ba731d"
+}

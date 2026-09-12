@@ -1,0 +1,17 @@
+{
+  "pid": 76369,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "node",
+    "scripts/publish.mjs",
+    "--stage-only",
+    "--platform-artifact",
+    "/Users/ccheever/projects/snapback-1023-20260912/darwin-publication/linux-final29/resume.json"
+  ],
+  "started": 1789190335.039917,
+  "source": "394ac17802f93983628c602f0f5e54670ecf5d64",
+  "exit": 0,
+  "ended": 1789190368.574861
+}

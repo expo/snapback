@@ -1,0 +1,302 @@
+{
+  "source": "394ac17802f93983628c602f0f5e54670ecf5d64",
+  "canonical_shim_integrity": "sha512-Se/02S1ykudrlA84ascUqpFui2Zfo9pYtavUIw71cBBgvBMk8mWrkgKTIj/J8rL4kUpu2AX7NGOmldP79TJqgw==",
+  "platformQualifications": {
+    "snapback2-linux-x64": {
+      "format": 1,
+      "name": "snapback2-linux-x64",
+      "version": "0.0.29",
+      "integrity": "sha512-q1UIB5dayQavSDC1dIJftcwTNr0O6IOR6/KS5GeQx10xbJW+u01H34qtB/yI/6/XE6DHzUdOdD2ek9AXAQCB5A==",
+      "shimIntegrity": "sha512-Se/02S1ykudrlA84ascUqpFui2Zfo9pYtavUIw71cBBgvBMk8mWrkgKTIj/J8rL4kUpu2AX7NGOmldP79TJqgw==",
+      "mediaDigest": "dc143dae684f7966843a869c6e38d05baed596fb7c9627e8e832f9c0cd9ec1e0",
+      "host": {
+        "platform": "linux",
+        "arch": "x64"
+      },
+      "consumer": {
+        "verdict": "pass",
+        "steps": [
+          {
+            "name": "install tarballs",
+            "ok": true
+          },
+          {
+            "name": "platform README guidance",
+            "ok": true
+          },
+          {
+            "name": "doctor",
+            "ok": true
+          },
+          {
+            "name": "guide auth",
+            "ok": true
+          },
+          {
+            "name": "public client and React exports",
+            "ok": true
+          },
+          {
+            "name": "todos init",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev public-wrapper recovery",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev recovery stop",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev owner+worker cleanup",
+            "ok": true
+          },
+          {
+            "name": "todos check",
+            "ok": true
+          },
+          {
+            "name": "todos React bundle",
+            "ok": true
+          },
+          {
+            "name": "todos dev",
+            "ok": true
+          },
+          {
+            "name": "React live query round trip",
+            "ok": true
+          },
+          {
+            "name": "todos receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "todos test",
+            "ok": true
+          },
+          {
+            "name": "todos stop",
+            "ok": true
+          },
+          {
+            "name": "chat init",
+            "ok": true
+          },
+          {
+            "name": "chat check",
+            "ok": true
+          },
+          {
+            "name": "chat React bundle",
+            "ok": true
+          },
+          {
+            "name": "chat dev",
+            "ok": true
+          },
+          {
+            "name": "chat receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "chat test",
+            "ok": true
+          },
+          {
+            "name": "chat stop",
+            "ok": true
+          }
+        ]
+      }
+    },
+    "snapback2-darwin-arm64": {
+      "format": 1,
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.29",
+      "integrity": "sha512-TYc62FlvmlkAK0uXcVxXWNxqLiXAbm+6RwE1VoKrm4lBnCbAa/8R+oXReMH0plM+sqJlofzmSjepd572HvXKXA==",
+      "shimIntegrity": "sha512-Se/02S1ykudrlA84ascUqpFui2Zfo9pYtavUIw71cBBgvBMk8mWrkgKTIj/J8rL4kUpu2AX7NGOmldP79TJqgw==",
+      "mediaDigest": "57fb7dfc0d7e4b40bf56af895c813efd5380517748b9f2a1485019a14154e349",
+      "host": {
+        "platform": "darwin",
+        "arch": "arm64"
+      },
+      "consumer": {
+        "verdict": "pass",
+        "steps": [
+          {
+            "name": "install tarballs",
+            "ok": true
+          },
+          {
+            "name": "platform README guidance",
+            "ok": true
+          },
+          {
+            "name": "doctor",
+            "ok": true
+          },
+          {
+            "name": "guide auth",
+            "ok": true
+          },
+          {
+            "name": "public client and React exports",
+            "ok": true
+          },
+          {
+            "name": "todos init",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev public-wrapper recovery",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev recovery stop",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev owner+worker cleanup",
+            "ok": true
+          },
+          {
+            "name": "todos check",
+            "ok": true
+          },
+          {
+            "name": "todos React bundle",
+            "ok": true
+          },
+          {
+            "name": "todos dev",
+            "ok": true
+          },
+          {
+            "name": "React live query round trip",
+            "ok": true
+          },
+          {
+            "name": "todos receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "todos test",
+            "ok": true
+          },
+          {
+            "name": "todos stop",
+            "ok": true
+          },
+          {
+            "name": "chat init",
+            "ok": true
+          },
+          {
+            "name": "chat check",
+            "ok": true
+          },
+          {
+            "name": "chat React bundle",
+            "ok": true
+          },
+          {
+            "name": "chat dev",
+            "ok": true
+          },
+          {
+            "name": "chat receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "chat test",
+            "ok": true
+          },
+          {
+            "name": "chat stop",
+            "ok": true
+          }
+        ]
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.29",
+      "tarball": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/snapback2-darwin-arm64-0.0.29.tgz",
+      "integrity": "sha512-TYc62FlvmlkAK0uXcVxXWNxqLiXAbm+6RwE1VoKrm4lBnCbAa/8R+oXReMH0plM+sqJlofzmSjepd572HvXKXA==",
+      "sha256": "4abb7317f61c065d3d0b20ab91da728ea37965a46f338965600df4ea28a78b11",
+      "bytes": 5357571
+    },
+    {
+      "name": "snapback2-linux-x64",
+      "version": "0.0.29",
+      "tarball": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/snapback2-linux-x64-0.0.29.tgz",
+      "integrity": "sha512-q1UIB5dayQavSDC1dIJftcwTNr0O6IOR6/KS5GeQx10xbJW+u01H34qtB/yI/6/XE6DHzUdOdD2ek9AXAQCB5A==",
+      "sha256": "1abc233bb3c7cb10d7c5d6639b56af67ae407194f35ec1dfb8f2bdf04bd75364",
+      "bytes": 22207236
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.29",
+      "tarball": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/snapback2-0.0.29.tgz",
+      "integrity": "sha512-Se/02S1ykudrlA84ascUqpFui2Zfo9pYtavUIw71cBBgvBMk8mWrkgKTIj/J8rL4kUpu2AX7NGOmldP79TJqgw==",
+      "sha256": "7145038e61818186d405a887e0b33b3edb0c60d30e0cc5b684075fadad791e45",
+      "bytes": 1388029
+    }
+  ]
+}

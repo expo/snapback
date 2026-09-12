@@ -1,0 +1,37 @@
+{
+  "at": 1789191132.6268191,
+  "version": "0.0.29",
+  "all_verified": true,
+  "results": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "exit": 0,
+      "expected_integrity": "sha512-TYc62FlvmlkAK0uXcVxXWNxqLiXAbm+6RwE1VoKrm4lBnCbAa/8R+oXReMH0plM+sqJlofzmSjepd572HvXKXA==",
+      "observed": {
+        "version": "0.0.29",
+        "dist.integrity": "sha512-TYc62FlvmlkAK0uXcVxXWNxqLiXAbm+6RwE1VoKrm4lBnCbAa/8R+oXReMH0plM+sqJlofzmSjepd572HvXKXA=="
+      },
+      "ready": true
+    },
+    {
+      "name": "snapback2-linux-x64",
+      "exit": 0,
+      "expected_integrity": "sha512-q1UIB5dayQavSDC1dIJftcwTNr0O6IOR6/KS5GeQx10xbJW+u01H34qtB/yI/6/XE6DHzUdOdD2ek9AXAQCB5A==",
+      "observed": {
+        "version": "0.0.29",
+        "dist.integrity": "sha512-q1UIB5dayQavSDC1dIJftcwTNr0O6IOR6/KS5GeQx10xbJW+u01H34qtB/yI/6/XE6DHzUdOdD2ek9AXAQCB5A=="
+      },
+      "ready": true
+    },
+    {
+      "name": "snapback2",
+      "exit": 0,
+      "expected_integrity": "sha512-Se/02S1ykudrlA84ascUqpFui2Zfo9pYtavUIw71cBBgvBMk8mWrkgKTIj/J8rL4kUpu2AX7NGOmldP79TJqgw==",
+      "observed": {
+        "version": "0.0.29",
+        "dist.integrity": "sha512-Se/02S1ykudrlA84ascUqpFui2Zfo9pYtavUIw71cBBgvBMk8mWrkgKTIj/J8rL4kUpu2AX7NGOmldP79TJqgw=="
+      },
+      "ready": true
+    }
+  ]
+}

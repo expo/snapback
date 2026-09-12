@@ -1,0 +1,18 @@
+{
+  "source": "394ac17802f93983628c602f0f5e54670ecf5d64",
+  "version": "0.0.29",
+  "started": 1789190506.7398138,
+  "action": "publish qualified Darwin/Linux native artifacts and canonical snapback2 shim",
+  "pid": 89566,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "node",
+    "scripts/publish.mjs",
+    "--platform-artifact",
+    "/Users/ccheever/projects/snapback-1023-20260912/darwin-publication/linux-final29/resume.json"
+  ],
+  "exit": 0,
+  "ended": 1789190541.5772932
+}

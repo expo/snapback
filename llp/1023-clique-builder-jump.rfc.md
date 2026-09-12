@@ -5,7 +5,7 @@
 **Systems:** Snapback 2 query publication and freshness, certified read envelopes, durable browser mutations, packaged guide and React/Expo examples; Clique benchmark interpretation
 **Author:** Grok 4.6, for Charlie Cheever
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (Codex / GPT-6 Astra: final source review and full-suite evidence; inherited byte refusals; separately selected fresh instrument; retain unmet digest requirement and publication/benchmark limits)
+**Revised:** 2026-09-12 (Codex / GPT-6 Astra: source landed and 0.0.29 published with both platform qualifications; fresh instrument frozen before launch; retain inherited byte refusals and unmet digest requirement)
 **Related:** LLP 1000, LLP 1001, LLP 1010, LLP 1012, LLP 1018.003, LLP 1018.004, LLP 1018.007.000, LLP 1018.008.007.002, LLP 1019, LLP 1020; [residual assessment](./1018.008.009-residual-ergonomic-gaps.research.md); [query plan](./1023.000-one-query-story.plan.md), [scale plan](./1023.001-hub-scale-certified-reads.plan.md), [write plan](./1023.002-web-writes-that-survive-the-browser.plan.md)
 
 ## Summary
@@ -31,9 +31,12 @@ Charlie Cheever commissioned implementation on 2026-09-12 after a panel sanity
 check, delegating the decision that the plans are directionally solid to Codex.
 Implementation owner: Codex, with Astra coding agents in existing named
 Snapback 2 lanes. The children now record their source outcomes and scoped
-qualification below. The parent remains **Accepted, not complete**: the digest
-final-emission requirement remains unmet. The residual research is context,
-not a fourth implementation work order.
+qualification below. The reviewed source landed at `394ac17802`, and all
+three `0.0.29` packages are published with verified registry integrity and
+29 installed-consumer checks on each native platform. The parent remains
+**Accepted, not complete**: the digest final-emission requirement remains unmet
+and fresh Clique evidence is still outstanding. The residual research is
+context, not a fourth implementation work order.
 
 ## Evidence and what it establishes
 
@@ -213,9 +216,10 @@ Exact final-time digest eligibility remains unmet, including deletion,
 membership and expiry changes after accumulation. The bounded scale lane
 records that gap; it does not satisfy the original complete-digest outcome.
 The other source corrections pass the complete suite, and both independent
-code reviewers return READY on `cee80bc1d`. Final package qualification,
-publication and the separately frozen fresh Clique wave remain distinct work;
-no score target, forced refusal or enlarged ceiling substitutes for them.
+code reviewers return READY on `cee80bc1d` and the later guide integration.
+Final package qualification and publication are complete as recorded below;
+the separately frozen fresh Clique wave remains outstanding. No score target,
+forced refusal or enlarged ceiling substitutes for the digest requirement.
 
 [Review and dispositions](./reviews/1023-clique-builder-jump.gpt.md).
 
@@ -316,10 +320,11 @@ Both [Sol](./reviews/1023-clique-builder-jump.code-sol.md) and
 Darwin 0.0.28 staging passed on `cee80bc1d` in 165.43 seconds, with production
 Hermes/media and the installed todo/chat consumers. That is retained evidence,
 not the release artifact: a concurrent release reserved that version. Final
-0.0.29 platform qualification and publication remain pending. The prepared
-fresh diagnostic packet on EPYC has not launched (estimated run: 7–12 hours),
-so there is no fresh independently graded M1–M8 claim. Passing source checks
-or an earlier native stage does not establish that result.
+0.0.29 platform qualification and publication were still pending at that
+checkpoint; their completed record is below. The then-prepared diagnostic
+packet on EPYC had not launched (the serial estimate was 7–12 hours).
+Passing source checks or an earlier native stage does not establish a fresh
+independently graded M1–M8 result.
 
 
 ### Final combined qualification and measurement — 2026-09-12
@@ -380,3 +385,34 @@ Source review is complete: both independent reviewers issued READY for
 59-byte reserved-binding restoration states the existing compiler rule and
 is covered by the repaired guide assertions. No material product finding
 remains in the implemented scope. The digest gap remains explicit.
+
+### Publication and fresh wave
+
+The reviewed source landed on `origin/main` as
+`394ac17802f93983628c602f0f5e54670ecf5d64`. The existing publisher completed
+at **2026-09-12 05:22:21 UTC**, exit 0, publishing `snapback2`,
+`snapback2-darwin-arm64` and `snapback2-linux-x64` at **0.0.29** in 34.8 seconds.
+All three registry versions and exact staged SHA-512 integrities were verified
+at **05:32:12 UTC**. npm's earlier pending umbrella-package response remains
+recorded; no republish was attempted during asynchronous processing.
+
+Both Darwin arm64 and Linux x64 passed **29/29 installed-consumer checks**
+with production Hermes and media against the same final canonical shim.
+Its tarball SHA-256 is
+`7145038e61818186d405a887e0b33b3edb0c60d30e0cc5b684075fadad791e45`.
+The platform receipts, full artifact hashes, publisher output and registry
+observations are retained in the
+[release evidence](../benchmarks/runs/2026-09-12-snapback2-1023-release-0029/README.md).
+Staging and exact registry integrity establish the published package identity;
+they do not stand in for a completed fresh Clique run.
+
+The fresh diagnostic wave uses the frozen 0.3.8-m8 instrument above, with
+`gpt-6-astra` at medium on EPYC and `grok-4.6` at xhigh on the separate
+Ryzen 5 3600 host. Separate hosts prevent the two browser runs sharing ports
+or owner processes; their different hardware prevents a matched timing
+comparison. Each build is followed by fresh `claude-opus-5` grading and fresh
+M7. Builders receive the normal task, instrument and installed package only.
+The earlier serial host plan is retained as preparation history. These are
+N=1 diagnostic cells: prompt-only caps, unjoined raw usage, no held-out probes
+or calibration, and no Apple-native witness remain explicit limits. No new score
+or strict M1–M8 qualification is claimed before those phases finish.

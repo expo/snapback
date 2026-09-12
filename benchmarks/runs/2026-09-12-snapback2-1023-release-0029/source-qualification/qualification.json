@@ -1,0 +1,328 @@
+{
+  "schema": 1,
+  "kind": "retained-source-qualification",
+  "createdAt": "2026-09-12T05:41:01.774275+00:00",
+  "qualifiedSource": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+  "landedSourceReportedByRoot": "394ac17802",
+  "landedSourceQualification": "The source test binds 75ee; root owns semantic integration mapping and publication SRI evidence. No claim this packet ran tests at 394ac17802.",
+  "release": "0.0.29",
+  "host": "EPYC expose-builder-pixel (100.65.137.99)",
+  "finalSuite": {
+    "command": "bash snapback2/scripts/test.sh",
+    "cwd": "/home/ccheever/lanes/askslice",
+    "environment": {
+      "SNAPBACK2_NODE": "/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node",
+      "RUSTUP_TOOLCHAIN": "1.97.0",
+      "CARGO_BUILD_JOBS": "4"
+    },
+    "started": "2026-09-12T05:03:54Z",
+    "ended": "2026-09-12T05:04:52Z",
+    "wallSeconds": 58,
+    "exit": 0,
+    "package": {
+      "passed": 1450,
+      "failed": 0
+    },
+    "compiler": {
+      "passed": 318,
+      "failed": 0
+    },
+    "native": {
+      "passed": 1199,
+      "failed": 0,
+      "split": "1192 standard + 7 priority tests; skip counts in each partition are not failures"
+    },
+    "evaluator": {
+      "corpusChecked": 293,
+      "nodeCasesPassed": 266,
+      "serverOnly": 27,
+      "failed": 0,
+      "bunCasesPassed": 266
+    },
+    "doctests": "passed",
+    "finalPackageArtifactVerification": "passed",
+    "log": "raw/qualification29/final/test.log.gz",
+    "context": "raw/qualification29/final/before.log.gz"
+  },
+  "preservedQualificationFailures": [
+    {
+      "source": "4229f3143917c24a9b7374a334b4010b1762cc2f",
+      "exit": 1,
+      "log": "raw/qualification29/test.log.gz",
+      "failure": "Two native guide tests exposed imported main 4a4249 wording drift. Other full-script groups passed. The first repair then exposed an actual missing reserved-binding rule. No failing run has been relabeled green."
+    },
+    {
+      "source": "4229f3143917c24a9b7374a334b4010b1762cc2f plus pending test-only changes",
+      "exit": 100,
+      "log": "raw/qualification29/guide-repaired.log.gz",
+      "passed": 13,
+      "failed": 1,
+      "failure": "Reserved bindings shape/fn/proc/cursor absent from grammar.md; rule restored in 75ee, then 14/14 guide and final full suite passed."
+    },
+    {
+      "source": "66ca5809feb6c83390a36bbbcebf38d43c8d10a3",
+      "exit": 1,
+      "log": "raw/qualification-final/test.log.gz",
+      "failure": "Earlier introduced compiler schema-fence inventory, native guide wording and three template contract checks. Repairs integrated before cee80; retained unchanged."
+    }
+  ],
+  "guideAndSelfTests": {
+    "guide": {
+      "exit": 0,
+      "passed": 14,
+      "failed": 0,
+      "log": "raw/qualification29/guide-final.log.gz"
+    },
+    "package": {
+      "exit": 0,
+      "log": "raw/qualification29/package-selftest.log.gz",
+      "guideBytes": 98237,
+      "guideCap": 98304
+    },
+    "measurementSelfTest": {
+      "exit": 0,
+      "log": "raw/qualification29/measurement-selftest.log.gz",
+      "note": "Deliberately simulated refusals in this self-test are expected controls; command exit is 0."
+    }
+  },
+  "bytes": {
+    "source": "4229f3143917c24a9b7374a334b4010b1762cc2f",
+    "pendingDeltaAtCollection": "Test/guide edits only; runtime unchanged through 75ee",
+    "record": "raw/qualification29/canonical-bytes.json",
+    "runtimeRecord": "raw/qualification29/runtime-bytes.json",
+    "client": 142989,
+    "react": 152942,
+    "expo": 156395,
+    "runtime": 89843,
+    "runtimeCeiling": 90000,
+    "runtimeCeilingPassed": true,
+    "runtimeTarget": 80000,
+    "runtimeTargetReached": false,
+    "toolchain": {
+      "node": "v24.18.0",
+      "esbuild": "0.25.9",
+      "gzipLevel": 9
+    }
+  },
+  "fullMeasurement": {
+    "source": "cee80bc1d056f3a23087ceb338da41cc156776de",
+    "command": "node scripts/measure.mjs --check",
+    "cwd": "/home/ccheever/lanes/askslice/snapback2",
+    "exit": 1,
+    "log": "raw/qualification-complete/measure.log.gz",
+    "row": "raw/qualification-complete/loop-appended.jsonl",
+    "status": "FAILED",
+    "failedComparisons": [
+      "client_gzip_bytes",
+      "react_gzip_bytes",
+      "expo_gzip_bytes",
+      "runtime_gzip_bytes"
+    ],
+    "reason": "All four exceed the last accepted baseline by more than 1%.",
+    "acceptedBaseline": {
+      "sha": "bf650aebb",
+      "at": "2026-09-09T18:12:53.625Z",
+      "client": 136547,
+      "react": 146166,
+      "expo": 149836,
+      "runtime": 84580
+    },
+    "baselineChanged": false,
+    "appendedRowAcceptedAsBaseline": false,
+    "timedChecks": "passed",
+    "consumerScope": "Development consumer with effects disabled; chat notification receipt remains explicitly blocked in the raw metric row. This is not production media/notification publication proof.",
+    "inheritedAttribution": {
+      "record": "derived/comparable-loop-rows.json",
+      "initialComparable": "900bbd9a90",
+      "latestImportedMainComparable": "13dc20058d",
+      "latestImportedMainAt": "2026-09-12T03:14:42.652Z",
+      "latestImportedMainBytes": {
+        "client": 143053,
+        "react": 152966,
+        "expo": 156459,
+        "runtime": 89981
+      },
+      "currentMinusLatestInherited": {
+        "client": -64,
+        "react": -24,
+        "expo": -64,
+        "runtime": -138
+      },
+      "conclusion": "The four historical +1% failures already occur in recorded imported-main rows; this does not turn the final measure exit into a pass."
+    }
+  },
+  "sourceEvidence": [
+    {
+      "claim": "Full-media enriched 500-follow+self feed, ordered pages, all 1000 memberships and final-slice search, 125-message rich history and continuation, ties/dedup, cursor separation, revocation/invalidation, warm/cold held reads",
+      "source": "snapback2/packages/snapback2/tests/real-owner.test.ts",
+      "sourceLines": [
+        447,
+        707
+      ],
+      "test": "hub guide reaches final membership slice and rich history online and warm/cold offline",
+      "execution": [
+        {
+          "line": 2883,
+          "text": "\u2714 hub guide reaches final membership slice and rich history online and warm/cold offline (26612.912421ms)"
+        },
+        {
+          "line": 2884,
+          "text": "\u2139 1000 memberships (100 groups+900 DMs), 99 empty slices, final-slice match, 125 tied-time messages; warm/cold held reads"
+        }
+      ]
+    },
+    {
+      "claim": "Author CRUD creates/deletes the post/head pair atomically, preserves the head on edit, and rejects foreign edits/removal without changing either row",
+      "source": "snapback2/packages/snapback2/tests/real-owner.test.ts",
+      "sourceLines": [
+        567,
+        594
+      ],
+      "execution": "Included within the passing final hub test, not a separate printed test name."
+    },
+    {
+      "claim": "Digest remains unresolved: with clients closed, accumulated 500 contributions remain 500 after contributing post deletion, maintained count becomes 0, and owner restart leaves job done",
+      "source": "snapback2/packages/snapback2/tests/real-owner.test.ts",
+      "sourceLines": [
+        708,
+        741
+      ],
+      "execution": [
+        {
+          "line": 2885,
+          "text": "\u2139 digest GAP: clients closed; completed 500-follow accumulation retains deleted contribution after owner restart"
+        }
+      ],
+      "status": "NEGATIVE ELIGIBILITY WITNESS; NOT completed digest or final-emission validation",
+      "unfulfilledDigestRequirements": [
+        "complete scheduled digest over full population",
+        "final per-user authorization and expiry",
+        "period boundary/zero-empty suppression",
+        "final emission across repeated chunks and restart/logical-once"
+      ]
+    },
+    {
+      "claim": "Due timers are capped at 64 before a job chunk; queue emptiness is not established, so timer-maintained expiry cannot prove final-time eligibility",
+      "source": [
+        "snapback2/crates/snapback2/src/writer_timers.rs:13",
+        "snapback2/crates/snapback2/src/writer_jobs.rs:105"
+      ],
+      "status": "Source-level counterexample; no runtime expiry success asserted"
+    },
+    {
+      "claim": "Compact digest final population cost probe refuses with E_BOUND",
+      "log": "raw/scale/digest-compact.log.gz",
+      "status": "REFUSED historical probe; not current-source success"
+    },
+    {
+      "claim": "Nonuniform fanout refusal and pasted repairs",
+      "source": "snapback2/packages/compiler/src/quarry-fanout-checks.ts:137",
+      "execution": [
+        {
+          "line": 2204,
+          "text": "PASS Quarry fanout uncapped refuses and its pasted repair certifies"
+        },
+        {
+          "line": 2205,
+          "text": "PASS Quarry fanout below cap refuses and its pasted repair certifies"
+        },
+        {
+          "line": 2206,
+          "text": "PASS Quarry fanout let-bound uncapped refuses and its pasted repair certifies"
+        },
+        {
+          "line": 2207,
+          "text": "PASS Quarry fanout nonuniform rule refuses and its pasted repair certifies"
+        },
+        {
+          "line": 2208,
+          "text": "PASS Quarry fanout cursor refuses and its pasted repair certifies"
+        },
+        {
+          "line": 2209,
+          "text": "PASS Quarry fanout nonuniform elsewhere refuses and its pasted repair certifies"
+        }
+      ]
+    },
+    {
+      "claim": "Separate constructed output/receipt bounds, conservative hidden-majority 500 lanes, duplicate prefixes and ambiguous continuation negatives",
+      "source": [
+        "snapback2/crates/snapback2-core/tests/merge.rs:161",
+        "snapback2/crates/snapback2-core/tests/merge.rs:484",
+        "snapback2/crates/snapback2-core/tests/merge.rs:1178",
+        "snapback2/crates/snapback2-core/tests/merge.rs:1239"
+      ],
+      "execution": "Included in final native workspace pass; detailed earlier controls retained under raw/closure-review and raw/qualification."
+    },
+    {
+      "claim": "Actual bounded stress crosses unchanged closure ceiling and admits after smaller page; actual body<=2000 program remains admitted",
+      "source": "snapback2/crates/snapback2/tests/check_cost.rs:227",
+      "execution": "Included in final native workspace pass; detailed earlier result retained in raw/qualification/tests-repaired-native-final.log.gz"
+    },
+    {
+      "claim": "Admitted mutation survives token-clear/sealing cleanup failures; same-account recovery preserves identity and executes once",
+      "source": "snapback2/packages/snapback2/tests/outbox-custody.test.ts:680",
+      "execution": [
+        {
+          "line": 2686,
+          "text": "\u2714 terminal token clear failure preserves durable admission and same-account recovery (33.780556ms)"
+        },
+        {
+          "line": 2687,
+          "text": "\u2714 terminal typed seal failure preserves durable admission and same-account recovery (26.821429ms)"
+        },
+        {
+          "line": 2688,
+          "text": "\u2714 terminal raw seal failure preserves durable admission and same-account recovery (31.364937ms)"
+        },
+        {
+          "line": 2689,
+          "text": "\u2714 terminal unexpected cleanup failure preserves durable admission and same-account recovery (27.111283ms)"
+        }
+      ],
+      "earlierRed": "raw/web-cleanup/baseline.log.gz",
+      "earlierGreen": "raw/web-cleanup/fixed.log.gz"
+    },
+    {
+      "claim": "Observed owner exit is terminal while genuinely running owner still refuses at unchanged deadline",
+      "earlierRed": "raw/scale-stop/old-wait-control.log.gz",
+      "earlierGreen": "raw/scale-stop/fixed-wait-control.log.gz",
+      "execution": "Final workspace suite includes existing native owner tests. Historical deterministic control logs remain separate."
+    }
+  ],
+  "scopedEarlierChecks": {
+    "refs": {
+      "exit": 0,
+      "log": "raw/qualification/refs-repaired.log.gz"
+    },
+    "caps": {
+      "exit": 1,
+      "log": "raw/qualification/caps-repaired.log.gz",
+      "status": "FAILED inherited Snapback1 cap",
+      "detail": "crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs 1504 lines; 205 oversize files against 204 baseline. Snapback2 scoped source remained under 1500. Not rerun at 75ee."
+    }
+  },
+  "cleanup": {
+    "record": "derived/closeout-audit.json",
+    "recordedPidCount": 75,
+    "aliveRecordedPids": [],
+    "laneExecutableProcesses": [],
+    "laneClean": true,
+    "branchPreserved": "llp-ship/1023-20260912/qualification-complete",
+    "noBranchesOrClaimsRemoved": true
+  },
+  "custody": {
+    "rawLogs": "Lossless gzip level 9 with mtime=0; files.json records compressed and original SHA-256, size and exact origin. JSON/JSONL/exit records retained as plain text.",
+    "sourceExcerpts": "Git show at qualified source; original paths, line ranges and whole-file hashes recorded. They are code/text, not application data directories.",
+    "historicalLogs": "Earlier red and green logs remain distinct. Where a historical log lacks embedded SHA, its origin is preserved without inventing a source stamp; final claims bind the 75ee full suite.",
+    "excluded": [
+      "credentials",
+      "application stores/databases/uploads",
+      "binaries",
+      "tarballs",
+      "git bundles",
+      "benchmark runs"
+    ],
+    "noNewExecution": "Read-only remote copies and local evidence creation only. No tests, builds, measurements, benchmarks or gates were launched for packet collection."
+  }
+}
