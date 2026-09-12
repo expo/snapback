@@ -1,14 +1,12 @@
 import { RowImage } from './row-image';
 export { immutable } from './row-image';
 import { ReadableDirectory } from './held-directory';
-import { canonicalSchemaJson } from './certificate-identity';
 import { CoverageIndex, prepareRange } from './coverage';
 import { fail, EvalError } from './errors';
-import { sha256 } from './hash';
 import { HeldIndex, components, ordinaryColumns, preparePrefix, scalarAtoms } from './index-store';
 import type { SearchExecution } from './search-runtime';
 import { Runner } from './runner';
-import { asString, field, fieldOrNull, canonicalJson, wireJson, validateInputs } from './value-runtime';
+import { asString, field, fieldOrNull, canonicalJson, wireJson, validateInputs, schemaDigest } from './value-runtime';
 import type { LogicalIndexAtom } from './search-key';
 import type { ClosureReceipt, Context, Execution, LocalExecution, Trace, TraceRange, Value } from './types';
 
@@ -27,7 +25,7 @@ export class ClientStore {
   private readonly schemaHash: string;
   private directories = new Map<any, ReadableDirectory>();
   constructor(readonly schema: any, receipt: ClosureReceipt = empty(), private readonly options: ClientStoreOptions = {}) {
-    this.schemaHash = sha256(canonicalSchemaJson(schema));
+    this.schemaHash = schemaDigest(schema);
     this.readableTables = new Set(options.readable ?? []);
     for (const [table, definition] of Object.entries<any>(schema.tables)) {
       this.tables.set(table, new Map());
