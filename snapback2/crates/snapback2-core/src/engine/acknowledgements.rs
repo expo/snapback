@@ -141,6 +141,13 @@ mod tests {
         let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
         let replay = crate::offline::ReplayCommit { grant: "grant".into(), offset: 0, count: 51, intent: "grant:0".into(),
             request_digest: "d".repeat(64), trace: Default::default(), at: 1 };
+        let before = engine.store.commit_seq().unwrap();
+        let native = engine.acquire_receipts(&program, &certificate,
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::from([("events".into(),
+                Value::Array(vec![event.field("id").unwrap().clone()]))])), "messages", &d).unwrap_err();
+        assert_eq!(native.code(), if failure == "malformed" { "E_FIELD" } else { "E_RULE" });
+        assert_eq!(engine.store.commit_seq().unwrap(), before);
+        assert_eq!(engine.rows("deliveriesReceipts").unwrap()[0].field("received").unwrap(), &Value::Bool(false));
         let result = engine.execute_replay(&program, &certificate, Context::mutation(Actor::user("u1").unwrap(),
             BTreeMap::from([("events".into(), Value::Array(vec![event.field("id").unwrap().clone()]))])), &replay).unwrap();
         assert!(matches!(&result.state, ExecutionState::Rejected { code, .. } if code == if failure == "malformed" { "E_FIELD" } else { "E_RULE" }), "{result:?}");

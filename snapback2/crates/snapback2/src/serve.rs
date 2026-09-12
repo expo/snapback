@@ -581,6 +581,7 @@ fn handle(
         ("POST", "/api/auth/asset-session") => {
             call_json(request, &context, Action::AssetSession { identity }, 200)
         }
+        ("POST", "/api/acquire") => call_json(request, &context, Action::Acquire { body, identity }, 200),
         ("POST", "/api/query") if body.get("batch").is_some() => call_json(
             request,
             &context,

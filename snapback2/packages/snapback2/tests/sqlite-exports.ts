@@ -1,4 +1,6 @@
 export { nodeSqliteDriver } from "../src/store/sqlite-node.js";
+export { NativeCustody, nativeIndexedDB } from '../src/native-custody.js';
+export { encodeCursor } from '../../evaluator/src/cursor.js';
 export { sqliteRangeStore, SqliteBackend, inProcessLocks } from "../src/store/sqlite.js";
 export { projectState, unprojectState } from "../src/store/projection.js";
 export { runSqliteDriverConformance } from "../src/store/sqlite-driver.conformance.js";

@@ -496,7 +496,7 @@ fn delivery_state(state: &ExecutionState) -> Result<DeliveryState, DeliveryProje
     }
 }
 
-fn row_pool(
+pub(crate) fn row_pool(
     execution: &Execution,
     schema: &crate::Schema,
 ) -> Result<Vec<DeliveryRow>, DeliveryProjectionError> {
@@ -608,7 +608,7 @@ fn pooled_value(
     })
 }
 
-fn delivery_range(range: &ReceiptRange) -> DeliveryRange {
+pub(crate) fn delivery_range(range: &ReceiptRange) -> DeliveryRange {
     DeliveryRange {
         site: range.site.clone(),
         table: range.table.clone(),
@@ -639,7 +639,7 @@ fn delivery_range(range: &ReceiptRange) -> DeliveryRange {
     }
 }
 
-fn delivery_verdict(verdict: &Verdict) -> DeliveryVerdict {
+pub(crate) fn delivery_verdict(verdict: &Verdict) -> DeliveryVerdict {
     DeliveryVerdict {
         rule_hash: verdict.rule_hash.clone(),
         pinned_inputs_digest: verdict.pinned_inputs_digest.clone(),

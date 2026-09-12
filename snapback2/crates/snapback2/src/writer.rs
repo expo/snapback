@@ -28,6 +28,8 @@ mod writer_assets;
 mod writer_auth;
 #[path = "writer_batch.rs"]
 mod writer_batch;
+#[path = "writer_acquire.rs"]
+mod writer_acquire;
 #[path = "writer_bindings.rs"]
 mod writer_bindings;
 pub(crate) use writer_bindings::close_effects_epoch;
@@ -196,6 +198,10 @@ pub enum Action {
         replay: Option<Json>,
     },
     QueryBatch {
+        body: Json,
+        identity: Identity,
+    },
+    Acquire {
         body: Json,
         identity: Identity,
     },
@@ -678,6 +684,7 @@ impl State {
                 Ok(response)
             }
             Action::QueryBatch { body, identity } => self.query_batch(body, identity),
+            Action::Acquire { body, identity } => self.acquire(body, identity),
             Action::ReplayBatch { body, identity } => self.replay_batch(body, identity),
             Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {

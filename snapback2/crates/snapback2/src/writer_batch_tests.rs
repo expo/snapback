@@ -190,6 +190,200 @@ fn drop_state(state: State) {
     std::fs::remove_dir_all(root).unwrap();
 }
 
+fn native_request(state: &State, after: Json, receipts: Json) -> Json {
+    json!({"protocol":1,"generation":state.runtime().generation().program_hash(),
+        "schemaHash":state.runtime().generation().schema().hash(),"authEpoch":0,
+        "log":"events","after":after,"receipts":receipts,"pages":8})
+}
+
+fn native_ids(response: &Json) -> Vec<Json> {
+    response["pages"].as_array().unwrap().iter().flat_map(|page|
+        page["events"].as_array().unwrap().iter().map(|event| event["id"].clone())).collect()
+}
+
+fn native_receipt(state: &mut State, id: &Json) -> Value {
+    let program = Program { name: "oracle".into(), kind: ProgramKind::Query,
+        args: BTreeMap::new(), read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Get(snapback2_core::Read { site:"oracle".into(),
+            table:"eventsReceipts".into(),index:"byId".into(),key:vec![Expr::Literal(Value::Id(id.as_str().unwrap().into()))],
+            provenance:KeyProvenance::Const }))] };
+    state.runtime_mut().read_operator(&program, BTreeMap::new(), snapback2_core::OperatorId("test".into()), 0).unwrap().result
+}
+
+fn native_write(state: &mut State, statement: Stmt) -> Execution {
+    state.runtime_mut().execute_adhoc(&Program { name:"test.write".into(), kind:ProgramKind::Mutation,
+        args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![statement] },
+        Context::mutation(Actor::persona("alice").unwrap(),BTreeMap::new())).unwrap()
+}
+
+#[test]
+fn native_acquisition_pages_are_contiguous_current_and_pooled_once() {
+    let mut state = fixture(101, 20);
+    let mut after = Json::Null;
+    let mut events = BTreeSet::new();
+    let seq = state.runtime().store().commit_seq().unwrap();
+    loop {
+        let request = native_request(&state, after.clone(), json!([]));
+        let response = state.acquire(request, alice()).unwrap();
+        assert!(response.get("error").is_none(), "{response}");
+        assert_eq!(response["seq"], seq);
+        assert!(serde_json::to_vec(&response).unwrap().len() <= 1_048_576);
+        let rows = response["rows"].as_array().unwrap();
+        let mut keys = BTreeSet::new();
+        for row in rows { assert!(keys.insert((row["table"].to_string(),row["id"].to_string()))); }
+        for page in response["pages"].as_array().unwrap() {
+            assert_eq!(page["after"], after);
+            assert!(page["events"].as_array().unwrap().len() <= 50);
+            for event in page["events"].as_array().unwrap() {
+                assert!(events.insert(event["id"].to_string()));
+                assert_eq!(event["disposition"], "present");
+                assert!(rows.iter().any(|row| row["table"] == "messages" && row["id"] == event["row"]));
+            }
+            after = page["cursor"].clone();
+            assert_ne!(after, Json::Null);
+            assert_eq!(page["next"], if page["exhausted"] == true { Json::Null } else { after.clone() });
+        }
+        if response["more"] == false { break; }
+    }
+    assert_eq!(events.len(), 101);
+    let request = native_request(&state, after.clone(), json!([]));
+    let empty = state.acquire(request, alice()).unwrap();
+    assert!(native_ids(&empty).is_empty());
+    assert_eq!(empty["pages"][0]["cursor"], after);
+    assert_eq!(empty["pages"][0]["exhausted"], true);
+    let request = native_request(&state, Json::Null, json!([]));
+    assert!(native_ids(&state.acquire(request, Identity::Persona("bob".into())).unwrap()).is_empty());
+    drop_state(state);
+}
+
+#[test]
+fn native_acquisition_lost_reply_and_reopen_preserve_first_receipt_commit() {
+    let mut state = fixture(2, 1);
+    let request = native_request(&state, Json::Null, json!([]));
+    let read = state.acquire(request, alice()).unwrap();
+    let ids = native_ids(&read);
+    let packet = json!([{"id":"stable-packet","events":ids}]);
+    let request = native_request(&state, read["pages"][0]["cursor"].clone(), packet);
+    let first = state.acquire(request.clone(), alice()).unwrap();
+    assert_eq!(first["receipts"][0]["state"], "complete");
+    let committed = first["receipts"][0]["seq"].as_u64().unwrap();
+    assert_eq!(native_receipt(&mut state, &ids[0]).field("seq").unwrap(), &Value::Int(committed as i64));
+    assert_eq!(native_receipt(&mut state, &ids[1]).field("received").unwrap(), &Value::Bool(true));
+    let commits = state.runtime().store().commits_since(committed - 1, 1).unwrap();
+    assert_eq!(commits[0].kind, "receipt");
+    assert_eq!(commits[0].writes["eventsReceipts"], 2);
+    assert!(state.runtime().store().stored_client_intent("dev:alice", "stable-packet").unwrap().is_none());
+    let path = state.root.join("receipt-reopen.sqlite");
+    state.runtime().store().snapshot_to(&path).unwrap();
+    let generation = state.runtime().generation().clone();
+    state.runtime = Some(Runtime::open(snapback2_core::Store::open(&path).unwrap(), generation).unwrap());
+    let retried = state.acquire(request, alice()).unwrap();
+    assert_eq!(retried["receipts"], first["receipts"]);
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), committed);
+    assert_eq!(native_receipt(&mut state, &ids[0]).field("seq").unwrap(), &Value::Int(committed as i64));
+    drop_state(state);
+}
+
+#[test]
+fn native_acquisition_packet_refusal_rolls_back_prior_receipts_and_deletion_remains_visible() {
+    let mut state = fixture(2, 1);
+    let request = native_request(&state, Json::Null, json!([]));
+    let read = state.acquire(request, alice()).unwrap();
+    let ids = native_ids(&read);
+    let deleted_row = read["pages"][0]["events"][1]["row"].as_str().unwrap().to_owned();
+    let deleted = native_write(&mut state, Stmt::Delete { table:"messages".into(),key:Expr::Literal(Value::Id(deleted_row.clone())) });
+    assert!(matches!(deleted.state, ExecutionState::Committed { .. }));
+    let before = state.runtime().store().commit_seq().unwrap();
+    let request = native_request(&state, Json::Null, json!([{"id":"atomic","events":ids}]));
+    let result = state.acquire(request, alice()).unwrap();
+    assert_eq!(result["receipts"][0]["state"], "rejected");
+    assert_eq!(result["receipts"][0]["code"], "E_RULE");
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), before);
+    assert_eq!(native_receipt(&mut state, &ids[0]).field("received").unwrap(), &Value::Bool(false));
+    let events = result["pages"].as_array().unwrap().iter().flat_map(|p| p["events"].as_array().unwrap()).collect::<Vec<_>>();
+    assert!(events.iter().any(|event| event["row"] == deleted_row && event["disposition"] == "unavailable"));
+    assert!(events.iter().any(|event| event["row"] == deleted_row && event["disposition"] == "removed"));
+    assert!(!result["rows"].as_array().unwrap().iter().any(|row| row["table"] == "messages" && row["id"] == deleted_row));
+    let reinsert = native_write(&mut state, Stmt::Insert { table:"messages".into(), row:Expr::Literal(object([
+        ("id",Value::Id(deleted_row)),("group",Value::Id("group".into())),("body",Value::String("replacement".into()))])) });
+    assert!(matches!(reinsert.state,ExecutionState::Rejected { ref code, .. } if code == "E_DELIVER_INCARNATION"));
+    let request = native_request(&state, Json::Null, json!([{"id":"retry-first","events":[ids[0]]}]));
+    assert_eq!(state.acquire(request, alice()).unwrap()["receipts"][0]["state"], "complete");
+    drop_state(state);
+}
+
+#[test]
+fn native_acquisition_current_membership_and_identity_fences_precede_writes() {
+    let mut state = fixture(2, 1);
+    let request = native_request(&state, Json::Null, json!([]));
+    let ids = native_ids(&state.acquire(request.clone(), alice()).unwrap());
+    assert_eq!(state.acquire(request.clone(), Identity::Anonymous).unwrap_err().code,"E_AUTH_REQUIRED");
+    let mut forged = request.clone(); forged["log"] = json!("messages");
+    assert_eq!(state.acquire(forged, alice()).unwrap_err().code,"E_INPUT");
+    for field in ["generation","schemaHash","authEpoch"] {
+        let mut stale = request.clone(); stale[field] = if field == "authEpoch" { json!(99) } else { json!("stale") };
+        assert_eq!(state.acquire(stale, alice()).unwrap_err().code,"E_OFFLINE_RESUME");
+    }
+    let mut cursor = request.clone(); cursor["after"] = json!("not-a-cursor");
+    cursor["receipts"] = json!([{"id":"no-write","events":ids}]);
+    assert_eq!(state.acquire(cursor, alice()).unwrap_err().code,"E_INPUT");
+    assert_eq!(native_receipt(&mut state, &ids[0]).field("received").unwrap(), &Value::Bool(false));
+    state.execute("members.remove",json!({}),alice(),Some(ProgramKind::Mutation),OfflineOptions::default(),None).unwrap();
+    let mut departed = request; departed["receipts"] = json!([{"id":"departed","events":ids}]);
+    let response = state.acquire(departed, alice()).unwrap();
+    assert_eq!(response["receipts"][0]["code"],"E_RULE");
+    assert_eq!(native_receipt(&mut state, &ids[0]).field("received").unwrap(), &Value::Bool(false));
+    drop_state(state);
+}
+
+#[test]
+fn native_acquisition_current_body_rules_disclose_verdicts_without_private_inputs() {
+    use snapback2_core::{RuleExpr, RuleTerm};
+    let mut project = project();
+    let members = project.schema.tables.get_mut("members").unwrap();
+    members.rules.read = RuleExpr::Deny;
+    members.indexes.get_mut("byGroup").unwrap().unique = true;
+    project.schema.tables.get_mut("messages").unwrap().rules.read = RuleExpr::Exists {
+        table:"members".into(),index:"byGroup".into(),
+        key:vec![RuleTerm::Field("group".into()),RuleTerm::Viewer],provenance:KeyProvenance::Shape,
+    };
+    let d = project.schema.tables["messages"].deliver.clone().unwrap();
+    project.schema.tables.insert("eventsReceipts".into(),delivery::receipts_table(&project.schema,"messages",&d).unwrap());
+    let mut state = state_with("native-private-rules",project);
+    state.runtime_mut().seed(&[
+        ("groups".into(),object([("id",Value::Id("group".into()))])),
+        ("members".into(),object([("id",Value::Id("membership".into())),("group",Value::Id("group".into())),("principal",Value::Id("dev:alice".into()))])),
+        ("messages".into(),object([("id",Value::Id("body".into())),("group",Value::Id("group".into())),("body",Value::String("private".into()))])),
+    ]).unwrap();
+    let request = native_request(&state,Json::Null,json!([]));
+    let first = state.acquire(request.clone(),alice()).unwrap();
+    assert_eq!(first["pages"][0]["events"][0]["disposition"],"present");
+    assert!(!first["pages"][0]["receipt"]["verdicts"].as_array().unwrap().is_empty());
+    assert!(first["rows"].as_array().unwrap().iter().all(|row| row["table"] != "members"));
+    state.execute("members.remove",json!({}),alice(),Some(ProgramKind::Mutation),OfflineOptions::default(),None).unwrap();
+    let second = state.acquire(request,alice()).unwrap();
+    assert_eq!(second["pages"][0]["events"][0]["disposition"],"unavailable");
+    assert!(second["rows"].as_array().unwrap().iter().all(|row| row["table"] != "members" && row["table"] != "messages"));
+    drop_state(state);
+}
+
+#[test]
+fn native_acquisition_receipt_and_page_turns_obey_the_same_unit_fairness() {
+    let mut state = fixture(2,1);
+    let request = native_request(&state,Json::Null,json!([]));
+    let ids = native_ids(&state.acquire(request.clone(),alice()).unwrap());
+    let mut receipts = request.clone();
+    receipts["receipts"] = json!([{"id":"first","events":[ids[0]]},{"id":"second","events":[ids[1]]}]);
+    let limited = state.acquire_with_work(receipts,alice(),Duration::ZERO).unwrap();
+    assert_eq!(limited["receipts"].as_array().unwrap().len(),1);
+    assert!(limited["pages"].as_array().unwrap().is_empty());
+    assert_eq!(limited["more"],true);
+    assert_eq!(native_receipt(&mut state,&ids[1]).field("received").unwrap(),&Value::Bool(false));
+    let progress = state.acquire_with_work(request,alice(),Duration::ZERO).unwrap();
+    assert_eq!(native_ids(&progress).len(),2,"a receipt-free turn always completes its first bounded page");
+    drop_state(state);
+}
+
 #[test]
 fn query_batch_preserves_exact_same_commit_pages_and_continuation() {
     let mut state = fixture(101, 1);

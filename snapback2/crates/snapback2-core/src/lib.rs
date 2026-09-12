@@ -1,6 +1,7 @@
 //! Snapback 2 data plane: bounded data programs (LLP 0329.014.004), seeded from
 //! spike S1 (`spikes/bounded-programs/`, LLP 0329.014 §8). No JS engine lives here.
 mod assets;
+pub mod acquisition;
 pub mod assets_ledger;
 mod bounds;
 mod cap;

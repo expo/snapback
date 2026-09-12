@@ -1481,3 +1481,4 @@ export function createClient(options: CreateClientOptions): SnapbackClient {
 }
 
 export type { ObservePages, ObservedPages, PageSnapshot, ItemPageSnapshot } from "./client-pages.js";
+export { NativeAcquisitionClient } from './native-acquisition.js';

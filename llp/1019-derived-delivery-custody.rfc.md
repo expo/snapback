@@ -5,7 +5,7 @@
 **Systems:** the engine's schema, writer, and row-change lifecycle (`snapback2/crates/snapback2-core/src/{schema,successor,timers}.rs`, `engine/{mod,runner_ops,timers}.rs`, `snapback2/crates/snapback2/src/{writer_resume,writer_replay,writer_ledger}.rs`), the certificate (`certificate.rs`, `certificate/page.rs`, `certificate_policy/{fanout,visibility}.rs`), the Quarry front end (`snapback2/packages/compiler/src/quarry/{parser,catalog,bound-schema,bound-project}.ts`), the evaluator twin and range store (`snapback2/packages/evaluator/src/{certificate-identity,runner}.ts`, `snapback2/packages/snapback2/src/{drain,offline,delivery-acknowledgements}.ts`, `store/range-store.ts`), the `chat` template and its seed and tests, the guide (`deliver.md`, `offline.md`, `successor.md` for the successor rules, `quarry.md`, `grammar.md`), `guide/families.source.json`
 **Author:** Claude (Fable 5.1), for the author
 **Date:** 2026-09-09
-**Revised:** 2026-09-11 (incremental receipt index, bounded pending selector and effect-free acknowledgement settlement); 2026-09-10 (revision (d), from the custody-a r2 reviews: the bootstrap bound is summed over every log one installation bootstraps; the audience bound is read loudly and the manifest never publishes `deliver` without it; the D2 handoff on the bound being an estimate; the Summary no longer says `A` refuses a successor; the runtime ceiling is 85,000); 2026-09-10 (revision (c), from the custody-a r1 reviews and the orchestrator's rulings: the audience bound `A` is engine-recorded — `max(target cap, largest stored delivered audience)`, recomputed at every installation, persisted as an engine fact, shown in the manifest, outside the schema hash — so lowering the cap is admitted and `E_SUCCESSOR_AUDIENCE` is deleted; the pinned group is the cap whose `by` equals the prefix and the cap needs its enforcement index at the compiler too; `bootstrap` is a trailing word, bounded to 8,192 events (`E_SUCCESSOR_BOOTSTRAP`), and its incarnation convention is recorded; event identity carries a per-commit ordinal; the raw-schema codes keep their families and page on `check --ir`; §2 lists `audience: int`; §8 lists `to`; `tombstones` stays until D6 with its deletion set recorded; the log materializes before maintains); 2026-09-10 (revision (b): P0 decided — native derived writes at the shared row-change lifecycle; the log's `byRow` index becomes `(row, kind, recipient)` and historical fan-out seeks `(row, 'delivered')`; the raw `Engine::seed` fixture helper is closed for delivered tables; install/bootstrap/remove and twin identity notes from the spike folded into §2, §3, §7); 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1019-derived-delivery-custody.r1-astra.md`, returned NOT READY with seven blocking findings, all folded: the log is durable custody, not a rebuildable projection; a served cursor is not a receipt, so receipts are opt-in and built from durable client acknowledgements; the historical audience carries its own bound and successor admission; the log's authorization is table-wide and receipts are a separate engine-owned table; edits append `changed` events (LLP 1012 requires them); joiners read prior history from the content table, which the brief requires; three evidence sentences corrected. Both spelling questions and the update question are resolved by the review's rulings)
+**Revised:** 2026-09-12 (isolated native acquisition architecture restart; unproven 2–3-second target); 2026-09-11 (incremental receipt index, bounded pending selector and effect-free acknowledgement settlement); 2026-09-10 (revision (d), from the custody-a r2 reviews: the bootstrap bound is summed over every log one installation bootstraps; the audience bound is read loudly and the manifest never publishes `deliver` without it; the D2 handoff on the bound being an estimate; the Summary no longer says `A` refuses a successor; the runtime ceiling is 85,000); 2026-09-10 (revision (c), from the custody-a r1 reviews and the orchestrator's rulings: the audience bound `A` is engine-recorded — `max(target cap, largest stored delivered audience)`, recomputed at every installation, persisted as an engine fact, shown in the manifest, outside the schema hash — so lowering the cap is admitted and `E_SUCCESSOR_AUDIENCE` is deleted; the pinned group is the cap whose `by` equals the prefix and the cap needs its enforcement index at the compiler too; `bootstrap` is a trailing word, bounded to 8,192 events (`E_SUCCESSOR_BOOTSTRAP`), and its incarnation convention is recorded; event identity carries a per-commit ordinal; the raw-schema codes keep their families and page on `check --ir`; §2 lists `audience: int`; §8 lists `to`; `tombstones` stays until D6 with its deletion set recorded; the log materializes before maintains); 2026-09-10 (revision (b): P0 decided — native derived writes at the shared row-change lifecycle; the log's `byRow` index becomes `(row, kind, recipient)` and historical fan-out seeks `(row, 'delivered')`; the raw `Engine::seed` fixture helper is closed for delivered tables; install/bootstrap/remove and twin identity notes from the spike folded into §2, §3, §7); 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1019-derived-delivery-custody.r1-astra.md`, returned NOT READY with seven blocking findings, all folded: the log is durable custody, not a rebuildable projection; a served cursor is not a receipt, so receipts are opt-in and built from durable client acknowledgements; the historical audience carries its own bound and successor admission; the log's authorization is table-wide and receipts are a separate engine-owned table; edits append `changed` events (LLP 1012 requires them); joiners read prior history from the content table, which the brief requires; three evidence sentences corrected. Both spelling questions and the update question are resolved by the review's rulings)
 **Related:** LLP 1012 §3 (the model on one page; the per-recipient log as a program shape; §3's implementation record on current-member fan-out), §5 (retention, revocation, the fence; swap rules 1–4), §"resume" (events for edits and removals; the last tail is live), ruling 2 ("copy the answers, not the mailbox"); LLP 1001 §4 (successors; queued intents across generations) and §"containment"; LLP 1018.003 §3 (`tombstones`) and §5 (the thread projection); LLP 1018.006 (declared partial custody: the thread's fallback); LLP 1017 (cap; the certified fan-out; nonuniform scans and the reserve); LLP 1016 D5 (schedules on the owner's clock); LLP 1011 revision "one spelling" (the word inventory; row reads versus maintain's scalar reads); LLP 1020 §A3 and §"What this does not do" (projection ownership does not cover custody); LLP 1021 (sibling); `issues/20260906-snapback2-no-delivered-ack-primitive-from-the-delivery-log.md`; `benchmarks/briefs/social-messenger.md` M3 (recipient set at send time; full prior history on join; departed members keep history), M5, M6
 
 ## Summary
@@ -676,3 +676,58 @@ evidence.
 - 2026-09-10 — D6 fix round r3 (lane `custody-c2`, base `cc64186513`, committed `5e5e63663e`): §5/§7/Acceptance 2–3 and LLP 1012 §8 reset amendment — custody survives reset; program adoption drops only retained content images incompatible with its differing schema, preserving anchors/fitting bodies and strict cold corruption checks; prepared anchors survive reset. SSE authority proof rejects terminal/wrong-child denial and terminal/refused barriers; offline screen fetch records every attempt; clock reset supplies schema with explicit-swap precedence. Tests: 36 all-carrier adoption/control cases, departed-null owner extension, clock-schema regression, five-case SSE negative control; six named package files 407/407, blocking package 1179/1179, fleet Rust 1105 passed/4 skipped (local two owner-stop sandbox artifacts), local compiler 298/298, evaluator 266/266, Hermes 32/32. Closures **140,696 /150,432 /154,035** within custody maxima; runtime **86,538/90,000**; canonical measurement functional/timing steps pass, historical byte baseline comparisons remain red. Reports: `REPORT-custody-c2.md`, `reports/final-custody-c2.md` § Fix round r3 include whole-package results and baseline-proven residuals. RFC Status unchanged.
 
 - 2026-09-10 — D6 LANDED (lane `custody-c2`, orchestrator): three fix rounds; the blind reviews `custody-c2-r3-{grok,codex}` both LAND WITH FIXES with no blocking defect (r2: grok's blocker was the `offline-bytes` fixture pinning the deleted per-swap retention map, paid before the reviews finished; codex's were the incompatible-image wedge and the SSE terminal flag, paid in r3). Folded at landing: the old-edit test records every request before asserting no transport; the init count comment; this document's Systems line names `deliver.md`; the lane report's head. Host `custody-c2-m4` at `5e5e63663e` green on every test (package 1179/0, Rust 1104/1104, evaluator 266/266, compiler 298/298); closures **140,696 / 150,432 / 154,035** within the custody maxima, runtime **86,538 / 90,000**; the four package reds outside the blocking list verified failing at `origin/main` (inherited). Checked at landing: adoption's `prepareWireRow` without fact-image `known` keys cannot drop a fitting row (keys gate proof identity, not validity). Residuals — mounted-Thread Acceptance 2, the manifest-only-schema reset end to end, Carol offline after paging, a successor that adds `retain` and narrows in one install, an actual clock-reset custody run, interrupted adoption with byte custody on the three carriers, LLP 1011 B5 wording, LLP 1012's length, the four inherited reds — in `issues/20260910-snapback2-custody-c2-review-residuals.md`. Status → Implemented (D1–D6).
+
+
+## Native acquisition restart
+
+**Isolated experiment, 2026-09-12; implementer: Codex acquisition lane.**
+The author's architecture-restart commission permits replacing acquisition's
+receipt machinery. It does not change the product fact that received means
+authorized content reached durable client custody.
+
+`POST /api/acquire` protocol 1 binds `generation`, `schemaHash`, `authEpoch`,
+one canonical generated `log`, and its opaque `after` cursor. It accepts up
+to sixteen receipt packets, each at most fifty event IDs, and executes at
+most eight packets followed by at most eight fifty-event pages. A turn checks
+the 20 ms fairness target between complete bounded units. After a response
+with no pages, the client sends a receipt-free turn to prevent page starvation
+without adding an extra owner unit after the cutoff. The serialized response
+is at most 1 MiB.
+Private schema-derived page certificates are built with the generation, not
+compiled during acquisition. Ordinary program ceilings remain unchanged.
+
+Rows are pooled once per response. Each page reports its input cursor, actual
+last-scanned cursor (also at exhaustion), continuation, event IDs/content IDs,
+explicit `present`, `unavailable` or `removed` disposition, and genuine rule
+evidence. Unavailable content preserves previously earned delivered history;
+a removal erases its body. The existing retired-ID rule prevents a removed
+incarnation being replaced under the same content ID. The server checks
+current body authorization and recipient identity. An authored lookalike log
+cannot enter this endpoint.
+
+A client persists a stable packet ID and its exact bounded event list in the
+same transaction as the disclosed bodies. Only then can it submit the packet.
+The native kernel validates each event, current body/receipt authorization,
+original receipt and bounded current membership, and executes false-to-true
+updates through the full row-change lifecycle: constraints, maintains, indexes,
+commit records and invalidation remain authoritative. Fifty-event packet
+refusal rolls back the packet. An already-received receipt is a no-op; its
+first received sequence never changes. A no-op packet need not create a commit.
+
+Packets are idempotent state-transition commands, not ordinary product intents.
+There are no ACK grants, ID slices, client-intent terminals, prediction traces,
+OCC preimages or effect fingerprints. User mutations keep their existing FIFO,
+OCC and durable historical terminals. A lost successful reply leaves the native
+packet queued for retry. After later membership/session changes, a retry can
+receive a current refusal rather than its historical reply: the durable true
+receipt and first sequence remain true. A native refusal is bookkeeping and
+never a rejected product mutation. A response suffix error carries already
+committed packet completions; the client durably consumes those before
+surfacing the suffix refusal.
+
+The old 201 ordinary ACK-terminal oracle (89 empty, 111 by fifty effects, one by
+eight) is deliberately retired for this experiment. Its replacement compares
+every frozen receipt row: exactly 5,558 false-to-true transitions, all 10,008
+true at completion, no true-to-false transition, and every originally true
+row's first sequence unchanged. The fixture, full message hash, body-before-ACK,
+authorization, rollback, lost-reply and physical-reopen obligations remain.

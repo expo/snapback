@@ -52,6 +52,8 @@ pub struct Generation {
     table_read_certificates: BTreeMap<String, RuleCertificate>,
     #[serde(skip_serializing)]
     timer_bindings: BTreeMap<String, crate::timers::TimerCertificates>,
+    #[serde(skip_serializing)]
+    pub(crate) acquisition_bindings: BTreeMap<String, Result<(Program, Certificate), CheckError>>,
     channel_certificates: BTreeMap<String, ChannelCertificates>,
     effects: BTreeMap<String, EffectDecl>,
 }
@@ -498,6 +500,7 @@ impl Generation {
                 digest(&(schema.hash(), certified_programs, bindings))
             };
             Ok(Self {
+                acquisition_bindings: crate::acquisition::certify(&schema, &ceilings),
                 schema,
                 programs,
                 program_hash,

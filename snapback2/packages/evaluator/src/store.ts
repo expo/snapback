@@ -2,6 +2,8 @@ import { RowImage } from './row-image';
 export { immutable } from './row-image';
 import { ReadableDirectory } from './held-directory';
 import { CoverageIndex, prepareRange } from './coverage';
+import { NativeCoverage, type NativeLogCoverage } from './native-coverage';
+export type { NativeLogCoverage } from './native-coverage';
 import { fail, EvalError } from './errors';
 import { HeldIndex, components, ordinaryColumns, preparePrefix, scalarAtoms } from './index-store';
 import type { SearchExecution } from './search-runtime';
@@ -20,6 +22,7 @@ export class ClientStore {
   private tables = new Map<string, Map<string, Value>>();
   private indexes = new Map<string, HeldIndex>();
   private facts: CoverageIndex;
+  private native?: NativeCoverage;
   private readonly readableTables: Set<string>;
   private journal?: Map<string, { table: string; id: string; row: Value | null }>;
   private readonly schemaHash: string;
@@ -39,6 +42,15 @@ export class ClientStore {
     this.setReceipt('seed', receipt, options.program);
   }
   readable(table: string): boolean { return this.readableTables.has(table); }
+  // @ref LLP 1012#native-acquisition-restart — validated transport commits rows before admitting contiguous recipient-log coverage.
+  admitNativeCoverage(page: NativeLogCoverage): void {
+    if (this.journal) fail('E_INPUT', 'native coverage cannot be admitted during prediction');
+    (this.native ??= new NativeCoverage(this.schema)).admit(page);
+  }
+  validateNativeCoverage(pages: NativeLogCoverage[]): void {
+    if (this.journal) fail('E_INPUT', 'native coverage cannot be validated during prediction');
+    (this.native ?? new NativeCoverage(this.schema)).validate(pages);
+  }
   setReceipt(owner: string, receipt?: ClosureReceipt, program?: any, issuedKeys?: Parameters<CoverageIndex['set']>[3], pool?: Set<string>): boolean {
     const changed = this.facts.set(owner, this.checkedReceipt(receipt,pool), program, issuedKeys);
     this.touchProofs(changed); return changed.length > 0;
@@ -91,6 +103,7 @@ export class ClientStore {
       this.facts = old; this.rollback(); throw error;
     } finally { this.directories = directories; }
     const touched = this.journal; this.journal = undefined;
+    this.native = undefined;
     // Existing directory objects/indexes survive; all notifications see final facts and rows.
     for (const r of touched.values()) this.touchRows(r.table,r.row,this.byId(r.table,r.id));
     this.touchProofs(changes); this.touchProofs(old.authorityOwners());
@@ -119,7 +132,9 @@ export class ClientStore {
   }
   private rollback(): void {
     const journal = this.journal!; this.journal = undefined;
-    for (const r of journal.values()) { if (r.row) this.put(r.table, r.row); else this.remove(r.table, r.id); }
+    const native = this.native; this.native = undefined;
+    try { for (const r of journal.values()) { if (r.row) this.put(r.table, r.row); else this.remove(r.table, r.id); } }
+    finally { this.native = native; }
   }
   reexecute(program: any, context: Context, certificate: any = null, search?: SearchExecution): LocalExecution {
     validateInputs(this.schema, program, context.args);
@@ -127,16 +142,20 @@ export class ClientStore {
     let execution: Execution;
     try { execution = runner.execute(program); }
     catch (error) {
-      if (error instanceof EvalError) { error.trace = runner.trace; error.partialSites = this.uncoveredSites(runner.trace, runner.coverageMisses(), program, runner.search); }
+      if (error instanceof EvalError) { error.trace = runner.trace; error.partialSites = this.uncoveredSites(runner.trace, runner.coverageMisses(), program, runner.search, context.viewer); }
       throw error;
     }
-    const partialSites = this.uncoveredSites(execution.trace, runner.coverageMisses(), program, runner.search);
+    const partialSites = this.uncoveredSites(execution.trace, runner.coverageMisses(), program, runner.search, context.viewer);
     if (partialSites.length) execution.next = null;
     return { state: partialSites.length ? 'partial' : 'fresh', partialSites, execution };
   }
-  uncoveredSites(trace: Trace, misses: string[] = [], program?: any, search?: SearchExecution): string[] {
+  uncoveredSites(trace: Trace, misses: string[] = [], program?: any, search?: SearchExecution, nativeViewer?: string): string[] {
     const partial = new Set(misses);
-    for (const r of trace.ranges) if (!this.facts.covers(r, prepareRange(this.schema, r, program, search))) partial.add(r.site);
+    for (const r of trace.ranges) {
+      const logical = prepareRange(this.schema, r, program, search);
+      if (!this.facts.covers(r, logical) && !(program?.kind === 'Query' && nativeViewer !== undefined
+        && this.native?.covers(r, logical, nativeViewer))) partial.add(r.site);
+    }
     // @ref LLP 1012#6-reads-offline — public group exhaustion proves this read's null, not primary/rule authority.
     for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) {
       const table = this.schema.tables[a.table];
@@ -151,7 +170,8 @@ export class ClientStore {
     const definition = this.schema.tables?.[table]?.indexes?.[index];
     if (!definition || key.length !== ordinaryColumns(definition).length) fail('E_TYPE', 'point requires a complete ordinary index key');
     const prefix = preparePrefix(this.schema, table, index, scalarAtoms(key), []);
-    return this.seek(table, index, prefix, null, null, null, 'Asc').next().value ?? null;
+    for (const row of this.seek(table, index, prefix, null, null, null, 'Asc')) return row;
+    return null;
   }
   index(table: string, index: string): HeldIndex {
     const held = this.indexes.get(JSON.stringify([table, index]));
@@ -181,7 +201,7 @@ export class ClientStore {
     for (const name of Object.keys(this.schema.tables[table].indexes)) this.index(table, name).putPrepared(id, value, RowImage.keys(value)[name]);
     rows.set(id, value);
     if (changed) {
-      if (!this.journal) this.facts.changed(table, id);
+      if (!this.journal) { this.facts.changed(table, id); this.native?.changed(table, old, value); }
       this.touchRows(table, old, value);
     }
     return changed;
@@ -191,7 +211,7 @@ export class ClientStore {
     this.record(table, id);
     for (const name of Object.keys(this.schema.tables[table].indexes)) this.index(table, name).remove(id);
     this.tables.get(table)!.delete(id);
-    if (!this.journal) this.facts.changed(table, id);
+    if (!this.journal) { this.facts.changed(table, id); this.native?.changed(table, old, null); }
     this.touchRows(table, old, null);
     return old;
   }

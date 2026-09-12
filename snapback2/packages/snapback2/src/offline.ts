@@ -1,4 +1,6 @@
 import { defined, operationArgs, queryArgs } from "./store/canonical.js";
+// Prototype bytes are charged to the same frozen complete-runtime roots.
+export { NativeAcquisitionClient } from './native-acquisition.js';
 import type { QueryInputChange } from "./store/query-inputs.js";
 import { isSha256 } from "../../evaluator/src/hash.js";
 import { decodeHeldProgram, queryClock } from "./held-program.js";
