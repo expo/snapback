@@ -991,8 +991,14 @@ impl Runtime {
         certificate: &Certificate,
         context: Context,
     ) -> Result<Execution, RuntimeError> {
+        let principal = (program.kind == ProgramKind::Query).then(|| context.viewer().to_owned());
         match self.engine.execute(program, certificate, context) {
-            Ok(execution) => Ok(execution),
+            Ok(mut execution) => {
+                if let Some(principal) = principal {
+                    self.redact_consumed_images(&mut execution, &principal)?;
+                }
+                Ok(execution)
+            }
             Err(error) if program.kind == ProgramKind::Mutation => {
                 if let Some(code) = rejection_code(&error) {
                     Ok(Execution {

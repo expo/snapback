@@ -272,6 +272,11 @@ impl State {
             self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
         }
         result.map_err(|error| Refusal::from_runtime(&error))?;
+        // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — same-seq per-principal publication.
+        let clients = self.live.iter()
+            .filter(|(_, client)| client.context.viewer() == principal)
+            .map(|(id, _)| *id).collect::<Vec<_>>();
+        let _ = self.rerun_live(&clients, false);
         Ok(json!(null))
     }
 
@@ -679,6 +684,130 @@ mod tests {
                 })
                 .is_ok()
         );
+        drop(state);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction —
+    // view ledger writes have no row commit, but must replace old query validators.
+    #[test]
+    fn once_consumption_republishes_only_this_principals_live_and_conditional_query() {
+        let root = once_root("query-publication");
+        let (mut state, id) = once_state(&root);
+        let mut project = state.compiled.project.clone();
+        project.programs.push(Program {
+            name: "media.view".into(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::from([("rowId".into(), ArgType::Id)]),
+            read_time_granularity_ms: None,
+            body: vec![
+                Stmt::Let {
+                    name: "row".into(),
+                    value: Expr::Get(snapback2_core::Read {
+                        site: "view.row".into(),
+                        table: "media".into(),
+                        index: "byId".into(),
+                        key: vec![Expr::Variable("rowId".into())],
+                        provenance: snapback2_core::KeyProvenance::Arg,
+                    }),
+                },
+                Stmt::Return(Expr::Object(BTreeMap::from([
+                    ("row".into(), Expr::Variable("row".into())),
+                    (
+                        "alias".into(),
+                        Expr::Field {
+                            base: Box::new(Expr::Variable("row".into())),
+                            name: "photo".into(),
+                        },
+                    ),
+                ]))),
+            ],
+        });
+        let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+        state
+            .runtime_mut()
+            .apply_successor(generation.clone())
+            .unwrap();
+        state.compiled.project = project;
+        state.compiled.generation = generation;
+        let query = |state: &mut State, user: &str, validator: Option<String>| {
+            state
+                .execute(
+                    "media.view",
+                    json!({"rowId":"row1"}),
+                    Identity::Persona(user.into()),
+                    Some(ProgramKind::Query),
+                    crate::writer::writer_offline::OfflineOptions {
+                        receipt: true,
+                        validator,
+                        ..Default::default()
+                    },
+                    None,
+                )
+                .unwrap()
+        };
+        let open = |state: &mut State, user: &str| {
+            let (events, receiver) = crate::writer::sse_queue();
+            state
+                .subscribe(
+                    "media.view".into(),
+                    json!({"rowId":"row1"}),
+                    Identity::Persona(user.into()),
+                    crate::writer::writer_offline::OfflineOptions {
+                        receipt: true,
+                        ..Default::default()
+                    },
+                    events,
+                )
+                .unwrap();
+            let frame = receiver.recv_timeout(Duration::ZERO).unwrap().data;
+            (receiver, frame)
+        };
+        let (alice, before) = open(&mut state, "alice");
+        let (bob, other) = open(&mut state, "bob");
+        assert_eq!(before["data"]["alias"]["id"], id);
+        assert_eq!(
+            query(
+                &mut state,
+                "alice",
+                Some(before["validator"].as_str().unwrap().into())
+            )["state"],
+            "unchanged"
+        );
+        state.asset_consume(&id, "dev:alice").unwrap();
+        let live = alice.recv_timeout(Duration::ZERO).unwrap().data;
+        assert_eq!(live["seq"], before["seq"]);
+        assert_eq!(live["data"], json!({"row":null,"alias":null}));
+        assert!(
+            bob.recv_timeout(Duration::ZERO).is_err(),
+            "another principal was republished"
+        );
+        assert_eq!(state.last_live_dispatch_work, 1);
+        let conditional = query(
+            &mut state,
+            "alice",
+            Some(before["validator"].as_str().unwrap().into()),
+        );
+        assert_eq!(conditional["state"], "complete");
+        assert_eq!(conditional["data"], live["data"]);
+        assert_eq!(conditional["rows"], before["rows"]);
+        assert_eq!(
+            query(
+                &mut state,
+                "alice",
+                Some(conditional["validator"].as_str().unwrap().into())
+            )["state"],
+            "unchanged"
+        );
+        assert_eq!(
+            query(
+                &mut state,
+                "bob",
+                Some(other["validator"].as_str().unwrap().into())
+            )["state"],
+            "unchanged"
+        );
+        assert_eq!(query(&mut state, "bob", None)["data"]["alias"]["id"], id);
         drop(state);
         std::fs::remove_dir_all(root).unwrap();
     }
