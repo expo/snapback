@@ -281,7 +281,11 @@ observability protocol, suite linkage, and the complete claimed-or-non-claimed
 shape. A current/R2 record cannot become legacy-compatible by coordinated
 deletion/downgrade of optional markers or by substituting explicit
 `social-messenger@0.3.2-m8` while retaining a current protocol, orientation
-pin, or choreography version.
+pin, or choreography version. A physical R2 root selects retained validation
+only when its frozen instrument manifest and hash-bound record base agree on
+the same retained pin, manifest digest, version tuple, harness identity,
+orientation identity, and setup identity when present. Record declarations
+alone cannot downgrade a current physical root.
 
 ## Watchdog contract
 

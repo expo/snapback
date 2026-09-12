@@ -2726,23 +2726,56 @@ test("retained 0.3.3 R2 provenance remains valid under its own implicit-v1 pin",
 test("physical retained 0.3.6 identity stays historical while downgraded and mixed pins fail closed", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "retained-036-physical-root-")));
   try {
+    const instrumentBytes = await readFile(new URL(
+      "benchmarks/tools/social-messenger/metering/test/fixtures/instrument-0.3.6.manifest.json",
+      ROOT,
+    ));
+    const instrument = JSON.parse(instrumentBytes);
+    assert.equal(instrument.instrumentPin, "social-messenger@0.3.6-m8");
+    assert.equal(
+      sha256(instrumentBytes),
+      "sha256:ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623",
+      "the retained identity fixture is the exact f40559f 0.3.6 freeze manifest",
+    );
+    await writeFile(join(root, "instrument.manifest.json"), instrumentBytes);
     await mkdir(join(root, "events"));
     await writeFile(join(root, "events/codex-rollout.jsonl"), "\n");
-    await writeFile(join(root, "metering-manifest.json"), "{}\n");
 
     const retained = composedRecord({
       capFamily: "gpt-frontier",
       source: "codex-rollout-token-count",
       metered: true,
     });
-    retained.socialMessenger.instrumentVersion = "social-messenger@0.3.6-m8";
+    retained.harness.environment = {
+      ...(retained.harness.environment ?? {}),
+      instrument: instrument.instrumentPin,
+    };
+    retained.socialMessenger.instrumentVersion = instrument.instrumentPin;
     retained.socialMessenger.typingObservationBoundaryVersion = "v2";
-    retained.socialMessenger.orientation.instrument.pin = "social-messenger@0.3.6-m8";
-    retained.socialMessenger.orientation.instrument.versions.choreography = "0.3.6-m8";
+    retained.socialMessenger.orientation.instrument.pin = instrument.instrumentPin;
+    retained.socialMessenger.orientation.instrument.manifest = {
+      path: "instrument.manifest.json",
+      sha256: sha256(instrumentBytes).replace(/^sha256:/u, ""),
+    };
+    retained.socialMessenger.orientation.instrument.versions = instrument.versions;
+    retained.socialMessenger.setup = JSON.parse(await readFile(new URL(
+      "benchmarks/runs/2026-08-29-0317-wave5-matched/cells/sol-explicit-0129-036-admitted2/receipts/setup-identity.json",
+      ROOT,
+    ), "utf8"));
+    assert.equal(retained.socialMessenger.setup.instrumentPin, instrument.instrumentPin);
+    const recordBaseBytes = Buffer.from(`${JSON.stringify(retained, null, 2)}\n`);
+    await writeFile(join(root, "record-base.json"), recordBaseBytes);
+    await writeFile(join(root, "metering-manifest.json"), `${JSON.stringify({
+      driver: { id: "social-messenger-full-journey-native-cli-driver.v1" },
+      recordBase: {
+        path: "record-base.json",
+        sha256: sha256(recordBaseBytes),
+      },
+    }, null, 2)}\n`);
     assert.deepEqual(
       validateSocialMessengerRecordSemantics(retained, { artifactRoot: root }),
       [],
-      "physical campaign files must not relabel a known retained instrument as current",
+      "a hash-bound physical base and the exact frozen 0.3.6 manifest select historical validation",
     );
 
     const mixedCurrentMarker = structuredClone(retained);
@@ -2754,6 +2787,7 @@ test("physical retained 0.3.6 identity stays historical while downgraded and mix
     );
 
     for (const instrumentVersion of [
+      "social-messenger@0.3.3-m8",
       "social-messenger@0.3.2-m8",
       "social-messenger@unknown",
     ]) {
@@ -2847,6 +2881,28 @@ test("migrated current R2 complete replay rejects coordinated quantitative fabri
 
     const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
     assert.deepEqual(composedErrors(record, root), []);
+    const coordinatedRetainedRelabel = structuredClone(record);
+    coordinatedRetainedRelabel.harness.environment.instrument = "social-messenger@0.3.6-m8";
+    coordinatedRetainedRelabel.socialMessenger.instrumentVersion = "social-messenger@0.3.6-m8";
+    coordinatedRetainedRelabel.socialMessenger.orientation.instrument.pin =
+      "social-messenger@0.3.6-m8";
+    coordinatedRetainedRelabel.socialMessenger.orientation.instrument.manifest.sha256 =
+      "ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623";
+    coordinatedRetainedRelabel.socialMessenger.orientation.instrument.versions = {
+      schema: "0.3.0-m8",
+      ui: "0.3.2-m8",
+      choreography: "0.3.6-m8",
+    };
+    coordinatedRetainedRelabel.socialMessenger.setup.instrumentPin =
+      "social-messenger@0.3.6-m8";
+    assert.match(
+      validateSocialMessengerRecordSemantics(
+        coordinatedRetainedRelabel,
+        { artifactRoot: root },
+      ).join("\n"),
+      /complete hash-bound native metering replay/u,
+      "coordinated record declarations cannot downgrade a physical current root",
+    );
     const mutations = [
       ["milestone tokens", (value) => { value.socialMessenger.milestones.M1.authoring.tokens.input += 1; }],
       ["total tokens", (value) => { value.tokens.input += 1; }],

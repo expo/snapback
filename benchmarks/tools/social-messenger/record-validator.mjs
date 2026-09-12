@@ -155,30 +155,84 @@ function parseArtifactJson(errors, loaded, path) {
   }
 }
 
-function physicalCurrentR2Identity(artifactRoot) {
-  if (!artifactRoot) return false;
-  // The retained native stream plus the R2 join manifest are physical campaign
-  // identity. Treat malformed metadata as current-R2 too, so record-declared
-  // versions cannot downgrade out of the complete replay validator.
-  if (
-    existsSync(resolve(artifactRoot, "events/codex-rollout.jsonl"))
-    && existsSync(resolve(artifactRoot, "metering-manifest.json"))
-  ) return true;
-  for (const name of ["metering-manifest.json", "instrument.manifest.json"]) {
-    try {
-      const value = JSON.parse(readFileSync(resolve(artifactRoot, name), "utf8"));
-      if (
-        value?.driver?.id === "social-messenger-r2-native-cli-driver.v1"
-        || value?.driver?.id === "social-messenger-full-journey-native-cli-driver.v1"
-        || value?.instrumentPin === CURRENT_INSTRUMENT_PIN
-        || /^2026-08-23-r2-published-0125\//u.test(value?.laneRunId ?? "")
-      ) return true;
-    } catch {
-      // Absence is ordinary for legacy/additive records. The physical R2
-      // identity above still routes malformed current evidence fail-closed.
-    }
+function readPhysicalJson(artifactRoot, relativePath) {
+  try {
+    const absolute = resolve(artifactRoot, relativePath);
+    if (!inside(artifactRoot, absolute) || lstatSync(absolute).isSymbolicLink()) return null;
+    const canonical = realpathSync(absolute);
+    if (!inside(realpathSync(artifactRoot), canonical) || !statSync(canonical).isFile()) return null;
+    const contents = readFileSync(canonical);
+    return { contents, value: JSON.parse(contents.toString("utf8")) };
+  } catch {
+    return null;
   }
-  return false;
+}
+
+function retainedPhysicalInstrumentPin(artifactRoot, instrument, metering) {
+  const pin = instrument?.value?.instrumentPin;
+  if (
+    instrument?.value?.schemaVersion !== "benchmark-instrument-snapshot.v1"
+    || !RETAINED_INSTRUMENT_PINS.has(pin)
+  ) return null;
+  const versions = instrument.value.versions;
+  if (
+    !versions
+    || typeof versions !== "object"
+    || pin !== `social-messenger@${versions.choreography}`
+  ) return null;
+
+  const recordBaseDescriptor = metering?.value?.recordBase;
+  if (
+    !recordBaseDescriptor
+    || typeof recordBaseDescriptor.path !== "string"
+    || recordBaseDescriptor.path.length === 0
+    || isAbsolute(recordBaseDescriptor.path)
+    || !SHA256.test(recordBaseDescriptor.sha256 ?? "")
+  ) return null;
+  const recordBase = readPhysicalJson(artifactRoot, recordBaseDescriptor.path);
+  if (recordBase === null || sha256(recordBase.contents) !== recordBaseDescriptor.sha256) return null;
+
+  const baseExtension = recordBase.value?.socialMessenger;
+  const orientation = baseExtension?.orientation?.instrument;
+  const physicalPins = [
+    recordBase.value?.harness?.environment?.instrument,
+    baseExtension?.instrumentVersion,
+    orientation?.pin,
+  ];
+  if (baseExtension?.setup !== undefined) physicalPins.push(baseExtension.setup?.instrumentPin);
+  const manifestDigest = sha256(instrument.contents).replace(/^sha256:/u, "");
+  if (
+    physicalPins.some((value) => value !== pin)
+    || orientation?.manifest?.path !== "instrument.manifest.json"
+    || orientation?.manifest?.sha256 !== manifestDigest
+    || !sameJson(orientation?.versions, versions)
+  ) return null;
+  return pin;
+}
+
+function physicalR2Identity(artifactRoot) {
+  if (!artifactRoot) return { present: false, retainedPin: null };
+  const metering = readPhysicalJson(artifactRoot, "metering-manifest.json");
+  const instrument = readPhysicalJson(artifactRoot, "instrument.manifest.json");
+  // The native stream, R2 join manifest, frozen instrument, and hash-bound
+  // record base form one physical campaign identity. A record-declared
+  // retained pin can select historical validation only when that complete
+  // physical tuple names the same retained instrument. Missing, malformed,
+  // conflicting, and current tuples remain on the current fail-closed path.
+  const present = (
+    existsSync(resolve(artifactRoot, "events/codex-rollout.jsonl"))
+      && existsSync(resolve(artifactRoot, "metering-manifest.json"))
+  ) || (
+    metering?.value?.driver?.id === "social-messenger-r2-native-cli-driver.v1"
+    || metering?.value?.driver?.id === "social-messenger-full-journey-native-cli-driver.v1"
+    || instrument?.value?.instrumentPin === CURRENT_INSTRUMENT_PIN
+    || /^2026-08-23-r2-published-0125\//u.test(metering?.value?.laneRunId ?? "")
+  );
+  if (!present) return { present: false, retainedPin: null };
+  return {
+    present: true,
+    retainedPin: retainedPhysicalInstrumentPin(artifactRoot, instrument, metering),
+  };
 }
 
 function codexCliVersion(errors, records, nativeSessionId, path) {
@@ -1215,11 +1269,11 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   const errors = [];
   const extension = record?.socialMessenger;
   if (extension === null || typeof extension !== "object") return errors;
-  const physicalCurrentIdentity = physicalCurrentR2Identity(artifactRoot);
+  const physicalIdentity = physicalR2Identity(artifactRoot);
   const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN
     || (
-      physicalCurrentIdentity
-      && !RETAINED_INSTRUMENT_PINS.has(extension.instrumentVersion)
+      physicalIdentity.present
+      && physicalIdentity.retainedPin !== extension.instrumentVersion
     );
   const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION
     && !RETAINED_INSTRUMENT_PINS.has(extension.instrumentVersion);
@@ -1368,7 +1422,7 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
     extension.firstProductEdit?.orientationTokens,
     "$/socialMessenger/firstProductEdit/orientationTokens",
   );
-  if (currentInstrument && physicalCurrentR2Identity(artifactRoot)) {
+  if (currentInstrument && physicalIdentity.present) {
     validateCurrentMeteringProvenance(errors, record, extension, artifactRoot);
   }
   // @ref LLP 0201#d2--quantitative-instrument — current records either bind

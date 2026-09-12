@@ -59,11 +59,15 @@ Evidence:
   preflight; it does not claim a product-backend M3 rerun.
 - Lane setup and snapshot validation: 12/12 pass; the resolved immutable
   snapshot reports pin `social-messenger@0.3.7-m8`, manifest SHA-256
-  `565273b97d8acfe8a657b3655a20d4295ba59b1e7221cad28e2715cf43740923`,
+  `8ecb92f4ee859296fb9c0da6ffdb0329af581bd31f603b64e1e6f77c84ac2f41`,
   and rejects digest drift.
 - Choreography startup tests: 8/8 pass. Observability tests: 3/3 pass.
 - Metering, retained-record compatibility, materialization, and record
-  validation tests: 119/119 pass with loader-injection variables scrubbed as
-  required by the harness. This includes a physical-root regression proving
-  retained `0.3.6-m8` stays historical while mixed-current, downgraded, and
-  unknown pins remain fail-closed.
+  validation tests: 142/142 pass with loader-injection variables scrubbed as
+  required by the harness. The retained identity regression uses the exact
+  `f40559f` `0.3.6-m8` manifest, a real retained `0.3.6-m8` setup identity,
+  and a coherent hash-bound physical record base. It proves that physical
+  `0.3.6-m8` and `0.3.3-m8` roots stay historical while a fully coordinated
+  record-declared `0.3.7-m8` to `0.3.6-m8` relabel remains on complete current
+  replay; mismatched-retained, downgraded, unknown, and mixed-current pins
+  remain fail-closed.

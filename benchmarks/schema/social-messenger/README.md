@@ -60,8 +60,8 @@ for `runRecordSchema` and `runRecordExtensionSchema` in the frozen
   and substituting explicit `0.3.2-m8` or `0.3.3-m8` on an otherwise-current
   record is invalid. Historical `0.3.2-m8` records remain valid only with that
   explicit legacy marker set; retained `0.3.3-m8` records remain boundary-v1,
-  and retained `0.3.4-m8` records remain bound to their own identity. Neither
-  can aggregate with current records.
+  while retained `0.3.4-m8` and `0.3.6-m8` records remain bound to their own
+  physical identity. None can aggregate with current records.
   The extension stays at version
   `2`, so retained records are never rewritten.
 - `run-record.schema.json` — the complete composed record schema. It restricts
