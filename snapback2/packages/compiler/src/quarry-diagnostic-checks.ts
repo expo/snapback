@@ -2,7 +2,7 @@ import { deepStrictEqual } from "node:assert";
 import { readdir } from "node:fs/promises";
 import { lowerProject } from "./project";
 import type { FrontendDiagnostic } from "./ir";
-import { assert, occurrences, withProject, type Test } from "./quarry-check-helpers";
+import { assert, compileInline, occurrences, withProject, type Test } from "./quarry-check-helpers";
 
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — independent
 // refusals survive frontend recovery; failed bindings do not acquire a type.
@@ -360,6 +360,43 @@ table todos:
 ];
 
 export function registerQuarryDiagnosticChecks(test: Test): void {
+  test("rule comparison advice preserves read authority and distinguishes write preconditions", () => {
+    for (const op of ["<", "<=", ">", ">="]) {
+      for (const effect of ["read", "insert", "update", "delete"]) {
+        const source = `table rows:
+  owner: principal
+  expiresAt: time ?
+  ${effect} <- .owner = viewer and (.expiresAt = null or .expiresAt ${op} now)
+`;
+        const result = compileInline([{ fileName: "snapback/schema.q", source }]);
+        assert(!result.ok, `${effect} ${op} unexpectedly compiled`);
+        assert(result.diagnostics.length === 1, JSON.stringify(result));
+        const diagnostic = result.diagnostics[0]!;
+        assert(diagnostic.code === "E_QUARRY_UNKNOWN" && diagnostic.family === "quarry", JSON.stringify(diagnostic));
+        assert(diagnostic.site.startsWith("snapback/schema.q:4:"), diagnostic.site);
+        assert(diagnostic.message.includes(`rule vocabulary has eq/ne but not ${op}`), diagnostic.message);
+        if (effect === "read") {
+          assert(diagnostic.rewrite.includes("mutation require cannot enforce read authorization"), diagnostic.rewrite);
+          assert(diagnostic.rewrite.includes("guide rules"), diagnostic.rewrite);
+          assert(!diagnostic.rewrite.includes("move the bounded comparison"), diagnostic.rewrite);
+        } else {
+          assert(diagnostic.rewrite.includes("move the bounded comparison into a mutation require"), diagnostic.rewrite);
+        }
+      }
+    }
+    const supported = compileInline([{ fileName: "snapback/schema.q", source: `table rows:
+  owner: principal
+  value: int
+  read <- .owner = viewer
+  insert <- .owner = viewer
+` }, { fileName: "snapback/rows.q", source: `mutation add(value: int):
+  require value > 0 else POSITIVE_REQUIRED
+  return insert rows { owner: viewer, value }
+` }]);
+    assert(supported.ok, JSON.stringify(supported));
+    assert(supported.project.programs[0]!.body.some(statement => typeof statement === "object" && "Require" in statement),
+      "the supported write comparison lost its mutation precondition");
+  });
   registerDiagnosticFixChecks(test);
   for (const c of quarryDiagnosticCases) test(`Quarry diagnostic recovery: ${c.name}`, async () => {
     await withProject({ "snapback/schema.q": c.schema ?? diagnosticSchema, "snapback/todos.q": c.source }, async root => {
