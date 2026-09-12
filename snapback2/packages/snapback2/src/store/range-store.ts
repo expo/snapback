@@ -3,7 +3,7 @@ import { applyDeliveryAcknowledgements, applyOutboxSwap, DeliveryAcknowledgement
   acknowledgementWithoutTail, acknowledgementForReplay, AcknowledgementTailRequired } from "../delivery-acknowledgements.js";
 import { admittedMutationTargets } from '../mutation-targets.js';
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
-import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
+import { RowImage, ImageKeys, immutable, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
 import { CarrierIndex } from "./carrier-index.js";
 import { queryClock } from '../held-program.js';
 import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransaction, negativeProof, proofSlots,
@@ -11,7 +11,7 @@ import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransa
   imageSlots, extentSlots, extentMeaning, FACT_FORMAT, type FactProof, type PreparedImage } from './fact-integrity.js';
 import { extentContains, rangeMeaningKey, type FactImage, type FactExtent, type ExtentProof, type ExtentCondition } from './extent-facts.js';
 import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
-import { changesQueryInputs, outboxOrder, itemEntry, type QueryInputChange } from "./query-inputs.js";
+import { changesQueryInputs, outboxOrder, type QueryInputChange } from "./query-inputs.js";
 import { compactSuccesses } from "./success-compaction.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
@@ -480,7 +480,10 @@ export class PersistentRangeStore implements RangeStore {
     },
     compactedThrough: () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
-    itemEntries: () => this.read(() => { this.ensureUnsealed(); return outboxOrder(this.state.outbox).map(itemEntry); }),
+    // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work —
+    // Freeze each COW-owned version once; public ledger reads still detach.
+    itemEntries: () => this.read(() => { this.ensureUnsealed();
+      return outboxOrder(this.state.outbox).map(entry => Object.isFrozen(entry) ? entry : immutable(entry)); }),
     queued: () => this.readOutbox(state => outboxOrder(state.outbox, true)),
     queuedInfo: () => this.readOutbox(state => outboxOrder(state.outbox, true)
       .map(({ intent, state, grant, createdAt, reason, refusal }) => ({ intent, state, grant, createdAt, reason, refusal }))),
