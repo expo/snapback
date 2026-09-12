@@ -1,0 +1,37 @@
+{
+  "at": 1789210703.233827,
+  "qualifiedProduct": "d251e00dae743cc214fd70dcebb2fedb7341222e",
+  "sharedShim": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ==",
+  "platforms": {
+    "snapback2-linux-x64": {
+      "integrity": "sha512-JztKQakdlRyFWv8saP5pHNJZ08xsaejFi+F7ZJ821xgHx3IIFrcU/Xdyv2ZihA9DJ3cLj+ZHC7CI93b7YqXEdA==",
+      "checks": 29,
+      "mediaDigest": "5ce3e5799d804fa7c205678fb993e115f1198f28b0eab531d08a3a80cfecb4f0"
+    },
+    "snapback2-darwin-arm64": {
+      "integrity": "sha512-EaV22pnqRbIoLT92JQDt8o4H50eq1b7Fl+7soB7ffjmYr70cC+MO9C99WUjinFjgK9mZj+7ckmw93SbGzJswHw==",
+      "checks": 29,
+      "mediaDigest": "0d57cb7c510500b1f2acb5c2a49e67415c4f878098cbb04c41b9f5ed15290805"
+    }
+  },
+  "artifacts": {
+    "snapback2-darwin-arm64": {
+      "integrity": "sha512-EaV22pnqRbIoLT92JQDt8o4H50eq1b7Fl+7soB7ffjmYr70cC+MO9C99WUjinFjgK9mZj+7ckmw93SbGzJswHw==",
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.31/snapback2-darwin-arm64-0.0.31.tgz",
+      "bytes": 5358189,
+      "sha256": "0e1214e6ed3d715a2895de61f7d176a99e5fb1e2b7abf46932bd51638404c835"
+    },
+    "snapback2-linux-x64": {
+      "integrity": "sha512-JztKQakdlRyFWv8saP5pHNJZ08xsaejFi+F7ZJ821xgHx3IIFrcU/Xdyv2ZihA9DJ3cLj+ZHC7CI93b7YqXEdA==",
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.31/snapback2-linux-x64-0.0.31.tgz",
+      "bytes": 22207920,
+      "sha256": "ecc7bececd8440b88947e7e70d0f029af8e8c48c73d84316328e8526b775ea8e"
+    },
+    "snapback2": {
+      "integrity": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ==",
+      "path": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.31/snapback2-0.0.31.tgz",
+      "bytes": 1393882,
+      "sha256": "6b11923d0d5c8aa6b28264beee08b790c33bdd21ada3d476628acce69fad4d5a"
+    }
+  }
+}

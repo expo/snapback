@@ -1,0 +1,28 @@
+{
+  "started": 1789210739.1134028,
+  "landedSource": "cc40e2b78e08b1c0ae91aba464903c4a519aa96e",
+  "qualifiedProduct": "d251e00dae743cc214fd70dcebb2fedb7341222e",
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "node",
+    "scripts/publish.mjs",
+    "--platform-artifact",
+    "/Users/ccheever/projects/snapback-1023-20260912/darwin-publication/linux-funded31/resume.json"
+  ],
+  "sharedShim": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ==",
+  "pid": 55235,
+  "childBirth": {
+    "pid": 55235,
+    "started": "Sat Sep 12 03:58:59 2026"
+  },
+  "processGroup": 55235,
+  "childExit": 0,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789210895.4762082,
+  "exit": 0,
+  "remainingGroupMembers": []
+}

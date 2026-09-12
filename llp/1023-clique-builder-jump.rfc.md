@@ -5,7 +5,7 @@
 **Systems:** Snapback 2 query publication and freshness, certified read envelopes, durable browser mutations, packaged guide and React/Expo examples; Clique benchmark interpretation
 **Author:** Grok 4.6, for Charlie Cheever
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (Codex / GPT-6 Astra: source landed and 0.0.29 published with both platform qualifications; fresh instrument frozen before launch; reconcile subsequent 0.0.30 digest completion and retain unmet byte target)
+**Revised:** 2026-09-12 (Codex / GPT-6 Astra: source landed and 0.0.29 published with both platform qualifications; fresh instrument frozen before launch; retain 0.0.30 digest and 0.0.31 read-repair publication, with unmet byte and fresh-outcome limits)
 **Related:** LLP 1000, LLP 1001, LLP 1010, LLP 1012, LLP 1018.003, LLP 1018.004, LLP 1018.007.000, LLP 1018.008.007.002, LLP 1019, LLP 1020; [residual assessment](./1018.008.009-residual-ergonomic-gaps.research.md); [query plan](./1023.000-one-query-story.plan.md), [scale plan](./1023.001-hub-scale-certified-reads.plan.md), [write plan](./1023.002-web-writes-that-survive-the-browser.plan.md)
 
 ## Summary
@@ -36,8 +36,9 @@ three `0.0.29` packages are published with verified registry integrity and
 29 installed-consumer checks on each native platform. The parent remains
 **Accepted, not complete**: fresh Clique evidence is still outstanding and the
 80,000-byte target remains unmet. The fresh wave also reproduced a durable
-mixed-row/zero-count read defect. Its focused repair, independent reviews and
-complete script pass; final production-package qualification is in progress below.
+mixed-row/zero-count read defect. Its independently reviewed and qualified
+repair is published in 0.0.31, with both platform consumers and registry
+integrities verified below.
 The separate 0.0.30 follow-up below completes
 the exact digest recipe. The residual research is context, not a fourth
 implementation work order.
@@ -508,3 +509,19 @@ work and raw measurements remain. Linux staging of that content passes all 29
 production installed-consumer checks in 255.66 seconds. Final shared-shim
 Darwin qualification and publication remain pending. The existing acquisition
 plan records the budget trade; no runtime allocation is raised.
+
+### Read-repair publication — 0.0.31
+
+The source follow-up landed at `cc40e2b78e` and published all three 0.0.31
+packages at 11:01:35 UTC. Registry verification at 11:03:56 UTC matches the
+qualified native and shared-shim integrities. Both platforms pass 29 production
+installed-consumer checks. The immutable package cut is `d251e00dae` at
+89,993 runtime bytes; later schema-digest reuse on main is outside that cut
+and its combined 89,983-byte measurement remains separate evidence.
+
+All three child plans now record implemented source scope. The parent remains
+Accepted: the 80,000-byte objective is unmet, and the frozen 0.0.29 wave retains
+its second reader and other measured failures. The repaired package was not
+substituted into those builders, graders or fresh M7 sessions. The
+[release record](../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/README.md)
+retains actual reviews, rejected bytes, qualification, publication and scope.
