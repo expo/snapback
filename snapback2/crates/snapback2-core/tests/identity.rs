@@ -438,3 +438,16 @@ fn assert_files_omit(path: &Path, needle: &[u8]) {
         );
     }
 }
+
+#[test]
+fn oversized_passwords_are_refused_before_kdf() {
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation(true, false)).unwrap();
+    let before = snapback2_core::identity::password_verification_calls();
+    for password in ["x".repeat(257), "é".repeat(129)] {
+        assert!(matches!(runtime.signup("max@example.com", &password, 1), Err(IdentityError::PasswordWeak)));
+        assert!(matches!(runtime.login("max@example.com", &password, 1), Err(IdentityError::Invalid)));
+    }
+    assert_eq!(snapback2_core::identity::password_verification_calls(), before);
+    runtime.signup("max@example.com", &"é".repeat(128), 1).unwrap();
+    runtime.login("max@example.com", &"é".repeat(128), 2).unwrap();
+}

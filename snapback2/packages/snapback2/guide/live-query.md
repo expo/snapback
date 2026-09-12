@@ -20,7 +20,7 @@ failure: `client/E_CLIENT`. These are non-retryable. Mutation calls without dura
 never resubmit automatically; a lost/invalid response may follow a commit.
 `client.query()` retries retryable transport failures with backoff, up to three attempts.
 One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes
-reconnect through SSE.
+reconnect through SSE with fresh snapshots, never Last-Event-ID replay.
 Identical operation plus canonical arguments share one logical subscription,
 including across hooks. A client admits at most 256 distinct live shapes; child
 257 refuses with `E_OWNER_BUSY`, `site: client.subscribe`, and leaves the 256

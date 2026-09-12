@@ -65,6 +65,18 @@ impl Drop for ConnectedStream {
         }
     }
 }
+fn wait_control(answer: mpsc::Receiver<Result<Json, Refusal>>) -> Result<Json, Refusal> {
+    answer
+        .recv_timeout(Duration::from_millis(250))
+        .unwrap_or_else(|_| {
+            Err(Refusal::owner(
+                "E_OWNER_BUSY",
+                "live control did not settle",
+                "reconnect the live stream",
+            ))
+        })
+}
+
 fn invalid(message: &str) -> Refusal {
     Refusal::input(message, "use the installed client's live transport")
 }
@@ -94,15 +106,7 @@ pub(super) fn handle(
                 match connection.commands.try_send(Command { body, reply }) {
                     Ok(()) => {
                         let _ = connection.wake.try_send(());
-                        answer
-                            .recv_timeout(Duration::from_secs(10))
-                            .unwrap_or_else(|_| {
-                                Err(Refusal::owner(
-                                    "E_OWNER_BUSY",
-                                    "live control did not settle",
-                                    "reconnect the live stream",
-                                ))
-                            })
+                        wait_control(answer)
                     }
                     Err(_) => Err(Refusal::owner(
                         "E_OWNER_BUSY",
@@ -159,12 +163,8 @@ pub(super) fn handle(
         },
     );
     let mut children = BTreeMap::<String, Child>::new();
+    let cors = security::cors_lines(&request, &context.mode);
     let mut writer = request.into_writer();
-    let cors = if context.mode == "dev" {
-        "Access-Control-Allow-Origin: *\r\n"
-    } else {
-        ""
-    };
     let mut release_reply = None;
     let run = (|| -> std::io::Result<()> {
         write!(
@@ -392,10 +392,19 @@ mod tests {
         streams.wake_all();
 
         for receiver in ready {
-            assert_eq!(
-                receiver.recv_timeout(Duration::from_millis(100)),
-                Ok(())
-            );
+            assert_eq!(receiver.recv_timeout(Duration::from_millis(100)), Ok(()));
         }
+    }
+}
+
+#[cfg(test)]
+mod admission_tests {
+    use super::*;
+    #[test]
+    fn hung_control_releases_worker_within_one_second() {
+        let (_peer, answer) = mpsc::sync_channel(1);
+        let started = std::time::Instant::now();
+        assert_eq!(wait_control(answer).unwrap_err().code, "E_OWNER_BUSY");
+        assert!(started.elapsed() < Duration::from_secs(1));
     }
 }

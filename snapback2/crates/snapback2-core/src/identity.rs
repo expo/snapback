@@ -154,7 +154,7 @@ pub struct SessionAuthority {
 pub enum IdentityError {
     #[error("E_AUTH_EMAIL_TAKEN: email is already registered")]
     EmailTaken,
-    #[error("E_AUTH_PASSWORD_WEAK: password must contain at least 8 characters")]
+    #[error("E_AUTH_PASSWORD_WEAK: password must contain at least 8 characters and at most 256 UTF-8 bytes")]
     PasswordWeak,
     #[error("E_AUTH_RESERVED: system is the owner, not a development persona")]
     ReservedSystem,
@@ -177,7 +177,7 @@ impl Runtime {
         password: &str,
         now: i64,
     ) -> Result<Session, IdentityError> {
-        if password.chars().count() < 8 {
+        if password.len() > 256 || password.chars().count() < 8 {
             return Err(IdentityError::PasswordWeak);
         }
         if !self.generation.schema().auth.password {
@@ -222,7 +222,7 @@ impl Runtime {
         password: &str,
         now: i64,
     ) -> Result<Session, IdentityError> {
-        if !self.generation.schema().auth.password {
+        if password.len() > 256 || !self.generation.schema().auth.password {
             return Err(IdentityError::Invalid);
         }
         let email = normalize_email(email);

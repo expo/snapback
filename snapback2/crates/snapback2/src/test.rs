@@ -444,7 +444,7 @@ fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
                 owner,
                 "POST",
                 "/control/why",
-                json!({ "op": name, "args": generated, "as": persona }),
+                json!({ "op": name, "args": generated, "as": persona, "queryOnly": false }),
             );
             match response {
                 Ok(response) if response.status < 400 => {

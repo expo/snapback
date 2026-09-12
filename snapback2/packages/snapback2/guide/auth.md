@@ -54,7 +54,10 @@ Metadata errors set `lastRefusal`; initial errors reject
 for account transitions. Same-principal login revalidates coverage and keeps queued
 writes. Built-in stores bind principal to token; custom stores
 need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold reads.
-No login rate limit. Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
+Password auth allows two concurrent attempts, eight per account, sixteen per IP
+and thirty-two per owner in sixty seconds; `E_AUTH_RATE_LIMIT` (429) means wait
+sixty seconds. Passwords require eight characters and at most 256 UTF-8 bytes.
+Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
 
 Signup authenticates before profile creation; missing profiles need onboarding.
 Each successful signup response also installs the first replay grant, so a

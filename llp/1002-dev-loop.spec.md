@@ -423,14 +423,26 @@ declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: n
 
 ## 4. The wire
 
-HTTP/1.1, JSON bodies, `Content-Type: application/json`; CORS `*` in `dev`
-mode with preflight methods `GET, POST, OPTIONS` (cross-origin SSE needs
-`GET`). The allowed request headers are `Authorization`, `Content-Type`, and
-`X-Snapback-As`; `X-Snapback-Control` is deliberately excluded, so a web page
-cannot preflight access to the local control capability. Every refusal on every route — including a rejected mutation and a
-channel refusal — carries the full envelope below; `guide` and `family` are
-required fields in the client's public types as well as in its validator. Authentication: `Authorization: Bearer <token>`; in `dev` mode
-`X-Snapback-As: <name>` selects a persona (created on first use; §1.6).
+HTTP/1.1, JSON bodies, `Content-Type: application/json`. Development CORS
+reflects only literal loopback origins; other browser origins are refused before
+body parsing or identity lookup. Allowed preflight headers are `Authorization`,
+`Content-Type`, and `Cache-Control`; persona and control headers are excluded.
+Browser requests (`Origin` or `Sec-Fetch-Site`) cannot select personas, including
+same-origin browser requests. Local CLI/journey requests retain first-use
+`X-Snapback-As` personas; `serve` refuses them. Every refusal carries the full
+envelope below. Authentication uses a case-insensitive `Bearer` scheme.
+Request lines and individual headers are bounded to 16 KiB before allocation;
+aggregate headers are bounded to 64 KiB (414/431). JSON bodies retain the 1 MiB
+bound. A connection-thread creation failure sheds that connection, preserving
+the owner's listener. The control secret uses constant-time byte comparison. The parser caps
+connection-reader threads and pending connections at 128, uses five-second idle
+read/write timeouts, and sheds individual allocation/spawn failures. Asset GETs
+share the four-worker media/upload class, preserving the JSON pool.
+Password inputs are at most 256 UTF-8 bytes (signup still requires eight
+characters). Password HTTP routes admit at most two concurrent attempts,
+eight per normalized account, sixteen per IP, and thirty-two per owner within
+sixty seconds; denied admission returns `E_AUTH_RATE_LIMIT`/429 before the KDF.
+Unknown-email and wrong-password attempts retain the same dummy-hash work.
 
 | route | body → response |
 |---|---|
@@ -452,9 +464,13 @@ required fields in the client's public types as well as in its validator. Authen
 public client multiplexes query and channel subscriptions on one SSE connection
 per client and authority. `POST /api/live` opens it and first emits
 `data: {"session":"<random capability>"}`. `POST /api/live/control` carries
-`{ session, add: [{ id, path, lastEventId? }], remove: [id] }`, or
+`{ session, add: [{ id, path }], remove: [id] }`, or
 `{ session, close: true }`; it returns `{ ok: true }`. Controls require the
-same bearer/persona as the connection. Every child is independently admitted by
+same bearer/persona as the connection. Reconnection creates fresh replaceable
+query/channel snapshots; Last-Event-ID is not a resume protocol and the client
+does not send it. Existing held receipts remain visible during reconnection.
+Live control waits at most 250 ms before E_OWNER_BUSY; it does not pin a worker
+for ten seconds. Every child is independently admitted by
 the existing owner query/channel action; the stream capability grants no data
 authority. A child path is only a query or channel subscription path, including
 its existing receipt/validator arguments.
@@ -561,6 +577,9 @@ that never touches the served generation; `test`'s rules check uses it),
 
 Clock advances are non-negative. A negative `advanceMs` is refused before the
 owner changes its offset, sweeps sessions, or reruns live state.
+
+`POST /control/why` defaults `queryOnly` to true. Only the protected
+trace-harvest harness opts into mutation execution with `queryOnly: false`.
 
 ## 5. The owner
 

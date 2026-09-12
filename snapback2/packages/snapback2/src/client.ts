@@ -489,8 +489,7 @@ class Client implements SnapbackClient {
         if (!this.authorityCurrent(authority)) return undefined;
         this.patchSnapshot({ connection: this.transportFailureState() });
         if (this.offlineRuntime) return undefined;
-        if (connected) return { state: "hydrating", live: false, connection: "offline" };
-        if (!lastPair) return undefined;
+        if (!lastPair) return connected ? { state: "hydrating", live: false, connection: "offline" } : undefined;
         return "data" in lastPair
           ? { state: "stale", live: false, since: Date.now(), seq: lastPair.seq, data: lastPair.data }
           : { state: "stale", live: false, since: Date.now(), seq: lastPair.seq };
@@ -954,9 +953,9 @@ class Client implements SnapbackClient {
     this.ensureAuthority(authority);
     if (this.forcedOffline) throw offlineNetworkRefusal();
     const headers = this.headers(authority, true);
-    if (lastEventId !== undefined) headers.set("Last-Event-ID", lastEventId);
+    // Live deliveries replace snapshots; the owner has no event-id resume contract.
     try {
-      const response = await this.live.open(path, lastEventId, signal, headers, async () => { await this.expireSession(authority); });
+      const response = await this.live.open(path, undefined, signal, headers, async () => { await this.expireSession(authority); });
       this.ensureAuthority(authority);
       throwIfAborted(signal);
       this.patchSnapshot({ connection: "connected" });

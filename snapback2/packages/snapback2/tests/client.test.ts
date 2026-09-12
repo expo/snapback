@@ -705,7 +705,7 @@ test("heartbeat comments reset the stream idle deadline", async (context) => {
   value.close();
 });
 
-test("subscription reconnect reports stale, resumes with Last-Event-ID, then reports a live receipt", async (context) => {
+test("subscription reconnect reports stale, then a fresh snapshot without event-id resume", async (context) => {
   if (externalUrl) return context.skip("owner process control is supplied in the second integration round");
   const value = client();
   await value.auth.guest();
@@ -720,7 +720,7 @@ test("subscription reconnect reports stale, resumes with Last-Event-ID, then rep
   const resumed = await sub.until((delivery) => delivery.state === "complete" && delivery.live, 4_000);
   assert.equal(resumed.state, "complete");
   assert.equal(resumed.live, true);
-  assert.ok(owner.lastEventIds.includes(String(initialSeq)));
+  assert.equal(owner.lastEventIds.length, 0);
   sub.close();
 });
 
