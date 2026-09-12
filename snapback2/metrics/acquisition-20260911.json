@@ -11821,6 +11821,2565 @@
         "endpointQualification": "The frozen 89,994-byte benchmark client is retained in both pair arms. Current merged client needs a separately identified endpoint sample.",
         "resolution": "Union of independent LLP continuation paragraphs; no executable conflict resolution."
       }
+    },
+    "mergedClientObservation": {
+      "experiment": "sub3-20260912-bearer-merged-main-01",
+      "variant": "current-merged-client89983-tcp-nodelay",
+      "startedAt": "2026-09-12T11:17:03.417Z",
+      "finishedAt": "2026-09-12T11:17:41.687Z",
+      "instrumented": false,
+      "firstInboxMs": 1321.670153,
+      "coldSyncedMs": 15297.625799999998,
+      "ackCompleteMs": 21002.033603,
+      "completeAcquisitionMs": 21044.204182999998,
+      "primaryPass": true,
+      "contentPass": true,
+      "ackPostPass": true,
+      "fullRowHashPass": true,
+      "ownerReceipts": {
+        "total": 10008,
+        "received": 10008,
+        "unreceived": 0
+      },
+      "stop": 0,
+      "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+      "runtimeSha": "9dccf5d90f4a6225ee83d5271d2a662880181a0d352553a58e6640360853db2e",
+      "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+      "appSha": "384115544e132f7c58fe837948e1c7dd7e5aa08461416d389f2772892d3247e4",
+      "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+      "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+      "error": null,
+      "primaryError": null,
+      "runtimeGzipBytes": 89983,
+      "runtimeCeilingPass": true,
+      "publicationQualified": false,
+      "cohortQualified": false,
+      "resultSha256": "63af598a4f594200442576cf4646e6ce2109e4f2f1c263be4fe1e67371c309b8",
+      "moduleHashes": {
+        "dist/client-runtime.mjs": "9dccf5d90f4a6225ee83d5271d2a662880181a0d352553a58e6640360853db2e",
+        "dist/image-runtime.mjs": "ef83e0972649ae35a1c0f5b7d9a1d0fb937d76f9f539e991e64917a70a24da32"
+      },
+      "firstUsePass": true,
+      "firstOfflineHistoryMs": 1.5,
+      "firstOfflineSearchMs": 1.7999992370605469,
+      "reopenPass": true,
+      "reopenMs": 6088.035868999996,
+      "reopenIdentityPass": true,
+      "messageCount": 10008,
+      "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+      "fixtureRowsUnchangedDuringSetup": true,
+      "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+      "ownerPidGone": true,
+      "ownerStopMs": 172.68636900000274,
+      "freshTerminalCount": 201,
+      "freshTerminalHistogram": [
+        {
+          "state": "committed",
+          "effects": 0,
+          "count": 89
+        },
+        {
+          "state": "committed",
+          "effects": 8,
+          "count": 1
+        },
+        {
+          "state": "committed",
+          "effects": 50,
+          "count": 111
+        }
+      ],
+      "freshActualEffects": 5558,
+      "exactAcknowledgementWorkloadPass": true,
+      "clientSource": "eb5b464893bce21a6c1e96db0e2b6bbad3ff2b53",
+      "clientArchiveSha256": "11e57883b41247d4c0bc4f8dd0ac4510dbbc7974a1bb2dbbcf8da920628562ae",
+      "nativeSource": "cf84b1ff129d670fd2408f4bc51be24924fc77b3",
+      "nativeLinuxSource": "78f14dfa633b1e67832b86bd91ed848a630008f2",
+      "scope": "Single noninstrumented primary observation of current merged client. Full frozen 10008-message endpoint, ordinary bearer setup, native TCP owner, fixed compiler and media helper. Not a qualifying cohort or publication claim.",
+      "precedingFrozenClientComparison": {
+        "experiment": "sub3-20260912-bearer-tcp-nodelay-01",
+        "fullEndpointMs": 20839.43948,
+        "differenceMs": 204.7647029999971,
+        "scope": "Descriptive cross-client observation only; no isolated improvement claim."
+      },
+      "observedChromeProcessesAfterShutdown": 0
+    },
+    "postTcpAttribution": {
+      "scope": "Read-only diagnosis, no endpoint speedup claim. Frozen pre-merge 89994-byte client for CPU/transaction timing; merged 89983-byte client for later write-value classification. All full workload controls pass.",
+      "cpuAndTransactionControls": {
+        "experiment": "sub3-20260912-bearer-tcp-idb-profile-01",
+        "variant": "DIAGNOSTIC-tcp-nodelay-prior89994-schema-client",
+        "startedAt": "2026-09-12T11:09:55.300Z",
+        "finishedAt": "2026-09-12T11:10:33.610Z",
+        "instrumented": true,
+        "firstInboxMs": 1123.490718,
+        "coldSyncedMs": 15474.853661,
+        "ackCompleteMs": 20766.823944999996,
+        "completeAcquisitionMs": 20814.093501000003,
+        "primaryPass": true,
+        "contentPass": true,
+        "ackPostPass": true,
+        "fullRowHashPass": true,
+        "ownerReceipts": {
+          "total": 10008,
+          "received": 10008,
+          "unreceived": 0
+        },
+        "stop": 0,
+        "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+        "runtimeSha": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+        "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+        "appSha": "1a5fbe8f6a8709beb3b7b529f021808128fede601733ba08cd2a1634844c3e44",
+        "harnessSha256": "df84e664fe194d1f927fd5dc3028e6e7b8d9cf6a065f47bea146bc2e89894d84",
+        "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+        "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+        "error": null,
+        "primaryError": null,
+        "runtimeGzipBytes": 89994,
+        "runtimeCeilingPass": true,
+        "publicationQualified": false,
+        "cohortQualified": false,
+        "resultSha256": "1ffdb0ad50b7494ff67e29cb25876639b8b608a7bb8d23062cc11515672b54c1",
+        "moduleHashes": {
+          "dist/client-runtime.mjs": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+          "dist/image-runtime.mjs": "406704207ccdf13d5d657abb5b44983b789c64bc66b4a4a1d74560576ec247ca"
+        },
+        "firstUsePass": true,
+        "firstOfflineHistoryMs": 1.6999988555908203,
+        "firstOfflineSearchMs": 2.3000011444091797,
+        "reopenPass": true,
+        "reopenMs": 6099.724490999997,
+        "reopenIdentityPass": true,
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "fixtureRowsUnchangedDuringSetup": true,
+        "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+        "ownerPidGone": true,
+        "ownerStopMs": 177.18342299999495,
+        "freshTerminalCount": 201,
+        "freshTerminalHistogram": [
+          {
+            "state": "committed",
+            "effects": 0,
+            "count": 89
+          },
+          {
+            "state": "committed",
+            "effects": 8,
+            "count": 1
+          },
+          {
+            "state": "committed",
+            "effects": 50,
+            "count": 111
+          }
+        ],
+        "freshActualEffects": 5558,
+        "exactAcknowledgementWorkloadPass": true,
+        "clientSource": "5fa5726bdc",
+        "clientArchiveSha256": "6428112397b0bdbd643f12ab9a53bba21433f8f285bdc0ace8a54b34c4e24ff9",
+        "nativeSource": "cf84b1ff129d670fd2408f4bc51be24924fc77b3",
+        "nativeLinuxSource": "78f14dfa633b1e67832b86bd91ed848a630008f2",
+        "clientScope": "Frozen prior 89994-byte schema client, not current merged client qualification.",
+        "idbSummaryPath": "/tmp/acquisition-20260912-tcp-idb-summary.json",
+        "idbSummarySha256": "00294af3710713017a90d6b40597e7029a2495964e541b67587026d7a14a97cc",
+        "observedChromeProcessesAfterShutdown": 0
+      },
+      "cpu": {
+        "profileSha256": "502aefd04c9b7ce74079d71d7cfdbe29b7c3ddfc100da5222acea1a31848774e",
+        "sourceMapSha256": "a816c736a33278f6fd2c9ad605510a86497d1af87980e525eee4bae6527444be",
+        "durationMs": 20912.618,
+        "sampledMs": 20911.374,
+        "sampleCount": 19884,
+        "limits": "Sampled CPU attribution; inclusive values overlap and are not additive. No operation counts or new-row versus replacement classification."
+      },
+      "cpuModuleSelfTop20": [
+        {
+          "source": "(idle)",
+          "ms": 6870.715
+        },
+        {
+          "source": "packages/evaluator/src/value-runtime.ts",
+          "ms": 1600.861
+        },
+        {
+          "source": "packages/evaluator/src/row-image.ts",
+          "ms": 1365.93
+        },
+        {
+          "source": "packages/evaluator/src/hash.ts",
+          "ms": 1135.523
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/swap-journal.ts",
+          "ms": 1088.314
+        },
+        {
+          "source": "(program)",
+          "ms": 900.559
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/canonical.ts",
+          "ms": 783.026
+        },
+        {
+          "source": "put",
+          "ms": 749.426
+        },
+        {
+          "source": "(garbage collector)",
+          "ms": 718.927
+        },
+        {
+          "source": "packages/evaluator/src/index-store.ts",
+          "ms": 618.076
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/range-store.ts",
+          "ms": 492.394
+        },
+        {
+          "source": "IDBObjectStore.<computed>",
+          "ms": 451.798
+        },
+        {
+          "source": "packages/evaluator/src/posting-tree.ts",
+          "ms": 419.617
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/metadata.ts",
+          "ms": 300.757
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/fact-integrity.ts",
+          "ms": 286.849
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/client-outbox-observed.ts",
+          "ms": 223.262
+        },
+        {
+          "source": "packages/evaluator/src/slot-tree.ts",
+          "ms": 215.598
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/portable-node_modules/react-dom/cjs/react-dom-client.production.js",
+          "ms": 194.885
+        },
+        {
+          "source": "packages/evaluator/src/unicode.ts",
+          "ms": 190.619
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/offline-protocol.ts",
+          "ms": 187.272
+        }
+      ],
+      "cpuInclusiveTop12": [
+        {
+          "source": "(root)",
+          "ms": 20911.374
+        },
+        {
+          "source": "(idle)",
+          "ms": 6870.715
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/range-store.ts:711 (anonymous)",
+          "ms": 4324.123
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/range-store.ts:863 applySwap",
+          "ms": 2995.297
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/range-store.ts:931 applyCoverage",
+          "ms": 2937.908
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/twin-store.ts:122 syncIdentity",
+          "ms": 2470.941
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/twin-store.ts:212 row",
+          "ms": 1936.762
+        },
+        {
+          "source": "packages/evaluator/src/store.ts:167 put",
+          "ms": 1901.974
+        },
+        {
+          "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/candidate-schema-digest/src/store/indexeddb.ts:287 replace",
+          "ms": 1711.197
+        },
+        {
+          "source": "packages/evaluator/src/index-store.ts:200 putPrepared",
+          "ms": 1666.969
+        },
+        {
+          "source": "packages/evaluator/src/posting-tree.ts:8 change",
+          "ms": 1506.584
+        },
+        {
+          "source": "packages/evaluator/src/posting-tree.ts:6 put",
+          "ms": 1376.146
+        }
+      ],
+      "cpuInstrumenterSelfMs": 451.798,
+      "cpuCaveat": "IDBObjectStore.<computed> is diagnostic overhead, not product self time. Inclusive CPU values and IndexedDB durations overlap; they cannot be summed or treated as an endpoint floor.",
+      "indexedDb": {
+        "totalTransactions": 312,
+        "states": [
+          {
+            "mode": "readonly",
+            "state": "complete",
+            "count": 62
+          },
+          {
+            "mode": "readwrite",
+            "state": "complete",
+            "count": 250
+          }
+        ],
+        "pendingAtCut": 0,
+        "operationsByStore": {
+          "meta": {
+            "put": 70513,
+            "delete": 0,
+            "add": 0,
+            "clear": 0
+          },
+          "rows": {
+            "put": 20333,
+            "delete": 0,
+            "add": 0,
+            "clear": 0
+          },
+          "answers": {
+            "put": 292,
+            "delete": 0,
+            "add": 0,
+            "clear": 0
+          },
+          "outbox": {
+            "put": 313,
+            "delete": 89,
+            "add": 0,
+            "clear": 0
+          }
+        },
+        "writeLifetimes": {
+          "count": 250,
+          "sumMs": 5758.800006866455,
+          "medianMs": 8.299999237060547,
+          "p95Ms": 92.19999885559082,
+          "maxMs": 100.5
+        },
+        "writeLifetimeUnionMs": 5758.800006866455,
+        "afterLastQueued": {
+          "count": 250,
+          "sumMs": 4523.8000202178955,
+          "medianMs": 6.0,
+          "p95Ms": 75.79999923706055,
+          "maxMs": 82.39999961853027
+        },
+        "afterLastQueuedUnionMs": 4523.8000202178955
+      },
+      "mergedWriteDetail": {
+        "controls": {
+          "experiment": "sub3-20260912-bearer-merged-idb-write-detail-01",
+          "variant": "DIAGNOSTIC-current-merged89983-write-detail",
+          "startedAt": "2026-09-12T11:22:24.166Z",
+          "finishedAt": "2026-09-12T11:23:02.049Z",
+          "instrumented": true,
+          "firstInboxMs": 1115.86398,
+          "coldSyncedMs": 15336.706375999998,
+          "ackCompleteMs": 20814.442826,
+          "completeAcquisitionMs": 20856.127365,
+          "primaryPass": true,
+          "contentPass": true,
+          "ackPostPass": true,
+          "fullRowHashPass": true,
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "stop": 0,
+          "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+          "runtimeSha": "9dccf5d90f4a6225ee83d5271d2a662880181a0d352553a58e6640360853db2e",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "appSha": "8a6ae6bafdc14c52724fb8016879459a5a6f1d1f61b5d84327b55ea727fea0b2",
+          "harnessSha256": "7015c1e85f6da1e1c11ba3b20a117b6f8527b1c5d1608d0a9a32f0e4f1601abd",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+          "error": null,
+          "primaryError": null,
+          "runtimeGzipBytes": 89983,
+          "runtimeCeilingPass": true,
+          "publicationQualified": false,
+          "cohortQualified": false,
+          "resultSha256": "5c418020bec2644d18aea4c00026df3e4b5b393cc01edd0b3b57e70522947a9c",
+          "moduleHashes": {
+            "dist/client-runtime.mjs": "9dccf5d90f4a6225ee83d5271d2a662880181a0d352553a58e6640360853db2e",
+            "dist/image-runtime.mjs": "ef83e0972649ae35a1c0f5b7d9a1d0fb937d76f9f539e991e64917a70a24da32"
+          },
+          "firstUsePass": true,
+          "firstOfflineHistoryMs": 1.7000007629394531,
+          "firstOfflineSearchMs": 2.1000003814697266,
+          "reopenPass": true,
+          "reopenMs": 5817.358461000003,
+          "reopenIdentityPass": true,
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fixtureRowsUnchangedDuringSetup": true,
+          "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+          "ownerPidGone": true,
+          "ownerStopMs": 154.70422099999996,
+          "freshTerminalCount": 201,
+          "freshTerminalHistogram": [
+            {
+              "state": "committed",
+              "effects": 0,
+              "count": 89
+            },
+            {
+              "state": "committed",
+              "effects": 8,
+              "count": 1
+            },
+            {
+              "state": "committed",
+              "effects": 50,
+              "count": 111
+            }
+          ],
+          "freshActualEffects": 5558,
+          "exactAcknowledgementWorkloadPass": true,
+          "clientSource": "eb5b464893bce21a6c1e96db0e2b6bbad3ff2b53",
+          "clientArchiveSha256": "11e57883b41247d4c0bc4f8dd0ac4510dbbc7974a1bb2dbbcf8da920628562ae",
+          "nativeSource": "cf84b1ff129d670fd2408f4bc51be24924fc77b3"
+        },
+        "scope": "Current merged 89983-byte client; separately instrumented write-detail diagnostic, no uninstrumented timing or cohort qualification.",
+        "comparison": "Previous observed successfully queued put/add JSON value encoding for the same database/store/key. Delete/clear resets the previous value. First writes are not compared to preexisting disk values. Abort makes unchanged-value classification non-authoritative. JSON encodings are compared exactly, not structural equivalence. In-memory serialization and dictionaries add diagnostic overhead.",
+        "primaryPerformanceEvidence": false,
+        "rawResultPath": "/tmp/acquisition-20260912-merged-idb-write-detail.json",
+        "rawResultSha256": "5c418020bec2644d18aea4c00026df3e4b5b393cc01edd0b3b57e70522947a9c",
+        "observationErrors": 0,
+        "abortedTransactions": 0,
+        "pendingAtCut": 0,
+        "transactionStates": [
+          {
+            "mode": "readonly",
+            "state": "complete",
+            "count": 62
+          },
+          {
+            "mode": "readwrite",
+            "state": "complete",
+            "count": 256
+          }
+        ],
+        "totals": {
+          "puts": 91978,
+          "adds": 0,
+          "deletes": 89,
+          "clears": 0,
+          "uniqueObservedPutKeys": 71532,
+          "firstObservedKeys": 71532,
+          "reintroducedAfterDelete": 0,
+          "repeatedChanged": 15400,
+          "repeatedUnchanged": 5046,
+          "keyUtf8Bytes": 8754736,
+          "valueJsonUtf8Bytes": 33176839,
+          "repeatedUnchangedKeyUtf8Bytes": 512073,
+          "repeatedUnchangedValueJsonUtf8Bytes": 3201389
+        },
+        "unchangedPutPercent": 5.4860945008589015,
+        "unchangedValueBytePercent": 9.649469619453498,
+        "byStore": {
+          "meta": {
+            "puts": 71035,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "uniqueObservedPutKeys": 50912,
+            "firstObservedKeys": 50912,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 15194,
+            "repeatedUnchanged": 4929,
+            "keyUtf8Bytes": 7101413,
+            "valueJsonUtf8Bytes": 12956718,
+            "repeatedUnchangedKeyUtf8Bytes": 505370,
+            "repeatedUnchangedValueJsonUtf8Bytes": 3169856
+          },
+          "rows": {
+            "puts": 20333,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "uniqueObservedPutKeys": 20216,
+            "firstObservedKeys": 20216,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 117,
+            "keyUtf8Bytes": 1542600,
+            "valueJsonUtf8Bytes": 7325290,
+            "repeatedUnchangedKeyUtf8Bytes": 6703,
+            "repeatedUnchangedValueJsonUtf8Bytes": 31533
+          },
+          "answers": {
+            "puts": 297,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "uniqueObservedPutKeys": 203,
+            "firstObservedKeys": 203,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 94,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 92064,
+            "valueJsonUtf8Bytes": 11003784,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0
+          },
+          "outbox": {
+            "puts": 313,
+            "adds": 0,
+            "deletes": 89,
+            "clears": 0,
+            "uniqueObservedPutKeys": 201,
+            "firstObservedKeys": 201,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 112,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 18659,
+            "valueJsonUtf8Bytes": 1891047,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0
+          }
+        },
+        "byTableAndMetaCategory": [
+          {
+            "store": "meta",
+            "category": "rowSeq",
+            "keyShape": "child",
+            "puts": 20333,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 20216,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 74,
+            "repeatedUnchanged": 43,
+            "keyUtf8Bytes": 1908594,
+            "valueJsonUtf8Bytes": 101665,
+            "repeatedUnchangedKeyUtf8Bytes": 3222,
+            "repeatedUnchangedValueJsonUtf8Bytes": 215,
+            "uniqueObservedPutKeys": 20216
+          },
+          {
+            "store": "meta",
+            "category": "deliveryAcks",
+            "keyShape": "child",
+            "puts": 20016,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10008,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 10008,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 2121696,
+            "valueJsonUtf8Bytes": 745100,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 10008
+          },
+          {
+            "store": "meta",
+            "category": "factImages",
+            "keyShape": "child",
+            "puts": 14884,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10108,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 116,
+            "repeatedUnchanged": 4660,
+            "keyUtf8Bytes": 1552545,
+            "valueJsonUtf8Bytes": 9460679,
+            "repeatedUnchangedKeyUtf8Bytes": 489091,
+            "repeatedUnchangedValueJsonUtf8Bytes": 2854370,
+            "uniqueObservedPutKeys": 10108
+          },
+          {
+            "store": "meta",
+            "category": "rowFacts",
+            "keyShape": "child",
+            "puts": 14683,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10108,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 4533,
+            "repeatedUnchanged": 42,
+            "keyUtf8Bytes": 1453785,
+            "valueJsonUtf8Bytes": 1086542,
+            "repeatedUnchangedKeyUtf8Bytes": 3255,
+            "repeatedUnchangedValueJsonUtf8Bytes": 3108,
+            "uniqueObservedPutKeys": 10108
+          },
+          {
+            "store": "rows",
+            "category": "deliveries",
+            "keyShape": "all",
+            "puts": 10066,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10008,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 58,
+            "keyUtf8Bytes": 825412,
+            "valueJsonUtf8Bytes": 3803311,
+            "repeatedUnchangedKeyUtf8Bytes": 4756,
+            "repeatedUnchangedValueJsonUtf8Bytes": 21916,
+            "uniqueObservedPutKeys": 10008
+          },
+          {
+            "store": "rows",
+            "category": "messages",
+            "keyShape": "all",
+            "puts": 10008,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10008,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 700519,
+            "valueJsonUtf8Bytes": 3462674,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 10008
+          },
+          {
+            "store": "outbox",
+            "category": "all",
+            "keyShape": "all",
+            "puts": 313,
+            "adds": 0,
+            "deletes": 89,
+            "clears": 0,
+            "firstObservedKeys": 201,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 112,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 18659,
+            "valueJsonUtf8Bytes": 1891047,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 201
+          },
+          {
+            "store": "answers",
+            "category": "all",
+            "keyShape": "all",
+            "puts": 297,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 203,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 94,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 92064,
+            "valueJsonUtf8Bytes": 11003784,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 203
+          },
+          {
+            "store": "meta",
+            "category": "factExtents",
+            "keyShape": "child",
+            "puts": 297,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 203,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 94,
+            "keyUtf8Bytes": 26136,
+            "valueJsonUtf8Bytes": 1123750,
+            "repeatedUnchangedKeyUtf8Bytes": 8272,
+            "repeatedUnchangedValueJsonUtf8Bytes": 311624,
+            "uniqueObservedPutKeys": 203
+          },
+          {
+            "store": "meta",
+            "category": "extentGuards",
+            "keyShape": "child",
+            "puts": 293,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 203,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 90,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 26077,
+            "valueJsonUtf8Bytes": 24905,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 203
+          },
+          {
+            "store": "meta",
+            "category": "clock",
+            "keyShape": "root",
+            "puts": 212,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 211,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 2756,
+            "valueJsonUtf8Bytes": 602,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "rows",
+            "category": "memberships",
+            "keyShape": "all",
+            "puts": 159,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 100,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 59,
+            "keyUtf8Bytes": 9207,
+            "valueJsonUtf8Bytes": 38787,
+            "repeatedUnchangedKeyUtf8Bytes": 1947,
+            "repeatedUnchangedValueJsonUtf8Bytes": 9617,
+            "uniqueObservedPutKeys": 100
+          },
+          {
+            "store": "meta",
+            "category": "factSlots",
+            "keyShape": "root",
+            "puts": 151,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 60,
+            "repeatedUnchanged": 90,
+            "keyUtf8Bytes": 2567,
+            "valueJsonUtf8Bytes": 867,
+            "repeatedUnchangedKeyUtf8Bytes": 1530,
+            "repeatedUnchangedValueJsonUtf8Bytes": 539,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "rows",
+            "category": "conversations",
+            "keyShape": "all",
+            "puts": 100,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 100,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 7462,
+            "valueJsonUtf8Bytes": 20518,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 100
+          },
+          {
+            "store": "meta",
+            "category": "grants",
+            "keyShape": "child",
+            "puts": 60,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 59,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 4380,
+            "valueJsonUtf8Bytes": 12087,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "compactedThrough",
+            "keyShape": "root",
+            "puts": 44,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 43,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 1056,
+            "valueJsonUtf8Bytes": 220,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "bounds",
+            "keyShape": "child",
+            "puts": 29,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 29,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 1086,
+            "valueJsonUtf8Bytes": 44,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 29
+          },
+          {
+            "store": "meta",
+            "category": "facts",
+            "keyShape": "child",
+            "puts": 3,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 3,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 83,
+            "valueJsonUtf8Bytes": 133,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 3
+          },
+          {
+            "store": "meta",
+            "category": "watermarks",
+            "keyShape": "child",
+            "puts": 2,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 2,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 89,
+            "valueJsonUtf8Bytes": 1331,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 2
+          },
+          {
+            "store": "meta",
+            "category": "state",
+            "keyShape": "legacy",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 7,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "version",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 15,
+            "valueJsonUtf8Bytes": 1,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "sealed",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 14,
+            "valueJsonUtf8Bytes": 5,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "watermarks",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 18,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "deliveryAcks",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 20,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "rowFacts",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 16,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "verdictFacts",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 20,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "factFormat",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 18,
+            "valueJsonUtf8Bytes": 1,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "factImages",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 18,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "factExtents",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 19,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "extentGuards",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 20,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "extentNegative",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 22,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "grants",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 14,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "overlay",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 15,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "overlayMisses",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 21,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "overlayWatermarks",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 25,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "overlayNegatives",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 24,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "bounds",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 14,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "programs",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 16,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "programs",
+            "keyShape": "child",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 85,
+            "valueJsonUtf8Bytes": 398673,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "negative",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 16,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "rowSeq",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 14,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "assets",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 14,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "viewed",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 14,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "onceColumns",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 19,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "onceColumns",
+            "keyShape": "child",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 32,
+            "valueJsonUtf8Bytes": 13,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "currentGrant",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 20,
+            "valueJsonUtf8Bytes": 56,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          },
+          {
+            "store": "meta",
+            "category": "facts",
+            "keyShape": "root",
+            "puts": 1,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 1,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 13,
+            "valueJsonUtf8Bytes": 2,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 1
+          }
+        ],
+        "artifacts": {
+          "harness": {
+            "path": "/tmp/acquisition-sub3-bearer-idb-write-detail-20260912.mjs",
+            "sha256": "7015c1e85f6da1e1c11ba3b20a117b6f8527b1c5d1608d0a9a32f0e4f1601abd"
+          },
+          "profile": {
+            "path": "/tmp/acquisition-20260912-merged-idb-write-detail.cpuprofile",
+            "sha256": "e796ae7a298bf477bcbb9d13682077786fee813b0aebfb67c0115acdab6f9ac8"
+          },
+          "sourceMap": {
+            "path": "/tmp/acquisition-20260912-merged-idb-write-detail.js.map",
+            "sha256": "db111a2c567fd62e71235c248e492065d9eeddb774453ebcebc61a0b5c7b02c2"
+          }
+        }
+      },
+      "findings": [
+        "Every message row has one put: 10008 puts for 10008 unique message keys; duplicate message writes are not the explanation.",
+        "5046 of 91978 puts repeat exactly the previous queued JSON encoding (5.49%); factImages account for 4660 unchanged puts and 2854370 value bytes.",
+        "Only one grant key is observed; its 60 puts all change the previous value. Grant filtering breadth is not an opportunity in this workload."
+      ],
+      "artifacts": [
+        {
+          "path": "/tmp/acquisition-20260912-tcp-idb-summary.json",
+          "bytes": 17522,
+          "sha256": "00294af3710713017a90d6b40597e7029a2495964e541b67587026d7a14a97cc"
+        },
+        {
+          "path": "/tmp/acquisition-20260912-tcp-idb-cpu-summary.json",
+          "bytes": 40990,
+          "sha256": "7f01c0043ea48f61f0a4ab5230453dd8aa2b2aa15ba20098386d2f17c945f6ca"
+        },
+        {
+          "path": "/tmp/acquisition-20260912-merged-idb-write-detail-summary.json",
+          "bytes": 21492,
+          "sha256": "4847db6edd1f1242a508ff23c8bb5d9649208bd1f0c50abc94f4677a7fa2aedc"
+        }
+      ]
+    },
+    "equalImageReferenceIncrement": {
+      "sourceCommit": "3a0b3a88136699764e877c71ea64995f5a8cb3ec",
+      "change": "Cancel only paired old/new reference-count deltas for the same owner/key/digest, while preserving every image preparation call and its order. Already-owned image keys avoid assignment of the same object. Extent accounting, row custody, validation, rollback and final collection are unchanged.",
+      "byteFunding": "Consolidate equivalent one-field cursor descriptor validation. All five roots and the 90000-byte ceiling remain unchanged.",
+      "runtimeMeasurements": {
+        "mergedBaseline": 89983,
+        "rejectedInitial": 90005,
+        "intermediateCursorFunding": 89997,
+        "selectedAndCommitted": 90000,
+        "selectedMinified": 272215,
+        "node": "24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9,
+        "newBaselineAccepted": false
+      },
+      "primaryPair": {
+        "scope": "One adjacent noninstrumented full-endpoint pair. Same frozen10008-message fixture and201 ordinary earned terminals. Fixed native TCP owner/compiler/media/bearer setup/primary harness. All prior samples retained; not qualifying cohort, no speedup claim.",
+        "samples": [
+          {
+            "experiment": "sub3-20260912-bearer-equal-proof-control-01",
+            "variant": "adjacent-control-merged89983-for-equal-proof",
+            "startedAt": "2026-09-12T11:33:04.973Z",
+            "finishedAt": "2026-09-12T11:33:42.378Z",
+            "instrumented": false,
+            "firstInboxMs": 1275.1916959999999,
+            "coldSyncedMs": 15238.983787,
+            "ackCompleteMs": 20155.893057,
+            "completeAcquisitionMs": 20196.641384000002,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "runtimeSha": "9dccf5d90f4a6225ee83d5271d2a662880181a0d352553a58e6640360853db2e",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "324779d8ece299f8fc69ae61b708febc0277c4067e2363343e44af4da766fed8",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "runtimeGzipBytes": 89983,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "d62bce5bbb91f0e984a6dc04e8d9834449992a8748aa905d3be6a060e364c2b7",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "9dccf5d90f4a6225ee83d5271d2a662880181a0d352553a58e6640360853db2e",
+              "dist/image-runtime.mjs": "ef83e0972649ae35a1c0f5b7d9a1d0fb937d76f9f539e991e64917a70a24da32"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.3999996185302734,
+            "firstOfflineSearchMs": 1.7000007629394531,
+            "reopenPass": true,
+            "reopenMs": 6035.446600999996,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 252.06869000000006,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "arm": "control",
+            "clientSource": "eb5b464893bce21a6c1e96db0e2b6bbad3ff2b53",
+            "clientArchiveSha256": "11e57883b41247d4c0bc4f8dd0ac4510dbbc7974a1bb2dbbcf8da920628562ae",
+            "nativeSource": "cf84b1ff129d670fd2408f4bc51be24924fc77b3"
+          },
+          {
+            "experiment": "sub3-20260912-bearer-equal-proof-01",
+            "variant": "adjacent-candidate-equal-proof90000",
+            "startedAt": "2026-09-12T11:34:13.134Z",
+            "finishedAt": "2026-09-12T11:34:50.540Z",
+            "instrumented": false,
+            "firstInboxMs": 1172.7041870000003,
+            "coldSyncedMs": 15215.807137000002,
+            "ackCompleteMs": 20205.325221,
+            "completeAcquisitionMs": 20245.747836000002,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "runtimeSha": "fb78d521bc0011fdff9aa0df8a8826b39f758cb32e99ff2f650c1caacf303f47",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "8f955989d011b4199a09675eb89fbc35cc041998b27ce635dae7f2c009283aba",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "runtimeGzipBytes": 90000,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "c6b4192920d5764f485cbbae1a6f7890a3c1dcf124d65ec6ac978ce3bd0af1f6",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "fb78d521bc0011fdff9aa0df8a8826b39f758cb32e99ff2f650c1caacf303f47",
+              "dist/image-runtime.mjs": "90e10a6b501b420643bcd6335d7c8c2c9c8d4dcdc0085119823b9d15fba72dd8"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.3999996185302734,
+            "firstOfflineSearchMs": 1.8999996185302734,
+            "reopenPass": true,
+            "reopenMs": 5971.943753999996,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 256.1197769999999,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "arm": "candidate",
+            "clientSource": "3a0b3a88136699764e877c71ea64995f5a8cb3ec",
+            "clientArchiveSha256": "7363acfa7131ef35bce55894fc0e53f0891ab8edf637ebfebea26a9e73adeade",
+            "nativeSource": "cf84b1ff129d670fd2408f4bc51be24924fc77b3"
+          }
+        ],
+        "fullEndpointDifferenceMs": 49.10645199999999,
+        "sub3Achieved": false
+      },
+      "writeDiagnostic": {
+        "controls": {
+          "experiment": "sub3-20260912-bearer-equal-proof-idb-write-detail-01",
+          "variant": "DIAGNOSTIC-equal-proof90000-write-detail",
+          "startedAt": "2026-09-12T11:35:54.533Z",
+          "finishedAt": "2026-09-12T11:36:33.008Z",
+          "instrumented": true,
+          "firstInboxMs": 1161.3411800000003,
+          "coldSyncedMs": 15367.552664,
+          "ackCompleteMs": 20940.132707999997,
+          "completeAcquisitionMs": 20979.552558000003,
+          "primaryPass": true,
+          "contentPass": true,
+          "ackPostPass": true,
+          "fullRowHashPass": true,
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "stop": 0,
+          "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+          "runtimeSha": "fb78d521bc0011fdff9aa0df8a8826b39f758cb32e99ff2f650c1caacf303f47",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "appSha": "44777fbbf88bb0d77657fc5aaf7af71db237b44590b17f49250b2dc67ef89909",
+          "harnessSha256": "6035d8db6a86e3432b85e2569426c7687d5bbcf856bd8f20292af1b531c2ff1c",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+          "error": null,
+          "primaryError": null,
+          "runtimeGzipBytes": 90000,
+          "runtimeCeilingPass": true,
+          "publicationQualified": false,
+          "cohortQualified": false,
+          "resultSha256": "85b5e2025a5f1af3134b7e7cded97b54de2937d200832a53c42506ed4088a0a2",
+          "moduleHashes": {
+            "dist/client-runtime.mjs": "fb78d521bc0011fdff9aa0df8a8826b39f758cb32e99ff2f650c1caacf303f47",
+            "dist/image-runtime.mjs": "90e10a6b501b420643bcd6335d7c8c2c9c8d4dcdc0085119823b9d15fba72dd8"
+          },
+          "firstUsePass": true,
+          "firstOfflineHistoryMs": 1.7000007629394531,
+          "firstOfflineSearchMs": 2.6000003814697266,
+          "reopenPass": true,
+          "reopenMs": 6013.704400999999,
+          "reopenIdentityPass": true,
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fixtureRowsUnchangedDuringSetup": true,
+          "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+          "ownerPidGone": true,
+          "ownerStopMs": 313.20126000000164,
+          "freshTerminalCount": 201,
+          "freshTerminalHistogram": [
+            {
+              "state": "committed",
+              "effects": 0,
+              "count": 89
+            },
+            {
+              "state": "committed",
+              "effects": 8,
+              "count": 1
+            },
+            {
+              "state": "committed",
+              "effects": 50,
+              "count": 111
+            }
+          ],
+          "freshActualEffects": 5558,
+          "exactAcknowledgementWorkloadPass": true,
+          "clientSource": "3a0b3a88136699764e877c71ea64995f5a8cb3ec",
+          "clientArchiveSha256": "7363acfa7131ef35bce55894fc0e53f0891ab8edf637ebfebea26a9e73adeade",
+          "nativeSource": "cf84b1ff129d670fd2408f4bc51be24924fc77b3",
+          "observedChromeProcessesAfterShutdown": 0
+        },
+        "scope": "Equal-proof 90000-byte client candidate 3a0b3a88136699764e877c71ea64995f5a8cb3ec; separately instrumented write-detail diagnostic, no uninstrumented timing or cohort qualification.",
+        "comparison": "Previous observed successfully queued put/add JSON value encoding for the same database/store/key. Delete/clear resets the previous value. First writes are not compared to preexisting disk values. Abort makes unchanged-value classification non-authoritative. JSON encodings are compared exactly, not structural equivalence. In-memory serialization and dictionaries add diagnostic overhead.",
+        "primaryPerformanceEvidence": false,
+        "rawResultPath": "/tmp/acquisition-20260912-equal-proof-idb-write-detail.json",
+        "rawResultSha256": "85b5e2025a5f1af3134b7e7cded97b54de2937d200832a53c42506ed4088a0a2",
+        "observationErrors": 0,
+        "abortedTransactions": 0,
+        "pendingAtCut": 0,
+        "transactionStates": [
+          {
+            "mode": "readonly",
+            "state": "complete",
+            "count": 61
+          },
+          {
+            "mode": "readwrite",
+            "state": "complete",
+            "count": 261
+          }
+        ],
+        "totals": {
+          "puts": 87636,
+          "adds": 0,
+          "deletes": 89,
+          "clears": 0,
+          "uniqueObservedPutKeys": 71532,
+          "firstObservedKeys": 71532,
+          "reintroducedAfterDelete": 0,
+          "repeatedChanged": 15716,
+          "repeatedUnchanged": 388,
+          "keyUtf8Bytes": 8296423,
+          "valueJsonUtf8Bytes": 30540061,
+          "repeatedUnchangedKeyUtf8Bytes": 22885,
+          "repeatedUnchangedValueJsonUtf8Bytes": 366062
+        },
+        "byStore": {
+          "meta": {
+            "puts": 66689,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "uniqueObservedPutKeys": 50912,
+            "firstObservedKeys": 50912,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 15504,
+            "repeatedUnchanged": 273,
+            "keyUtf8Bytes": 6640833,
+            "valueJsonUtf8Bytes": 10143537,
+            "repeatedUnchangedKeyUtf8Bytes": 16297,
+            "repeatedUnchangedValueJsonUtf8Bytes": 335072
+          },
+          "rows": {
+            "puts": 20331,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "uniqueObservedPutKeys": 20216,
+            "firstObservedKeys": 20216,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 115,
+            "keyUtf8Bytes": 1542485,
+            "valueJsonUtf8Bytes": 7324747,
+            "repeatedUnchangedKeyUtf8Bytes": 6588,
+            "repeatedUnchangedValueJsonUtf8Bytes": 30990
+          },
+          "answers": {
+            "puts": 303,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "uniqueObservedPutKeys": 203,
+            "firstObservedKeys": 203,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 100,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 94446,
+            "valueJsonUtf8Bytes": 11180730,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0
+          },
+          "outbox": {
+            "puts": 313,
+            "adds": 0,
+            "deletes": 89,
+            "clears": 0,
+            "uniqueObservedPutKeys": 201,
+            "firstObservedKeys": 201,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 112,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 18659,
+            "valueJsonUtf8Bytes": 1891047,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0
+          }
+        },
+        "rowAndProofCategories": [
+          {
+            "store": "rows",
+            "category": "deliveries",
+            "keyShape": "all",
+            "puts": 10065,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10008,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 57,
+            "keyUtf8Bytes": 825330,
+            "valueJsonUtf8Bytes": 3802931,
+            "repeatedUnchangedKeyUtf8Bytes": 4674,
+            "repeatedUnchangedValueJsonUtf8Bytes": 21536,
+            "uniqueObservedPutKeys": 10008
+          },
+          {
+            "store": "rows",
+            "category": "memberships",
+            "keyShape": "all",
+            "puts": 158,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 100,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 58,
+            "keyUtf8Bytes": 9174,
+            "valueJsonUtf8Bytes": 38624,
+            "repeatedUnchangedKeyUtf8Bytes": 1914,
+            "repeatedUnchangedValueJsonUtf8Bytes": 9454,
+            "uniqueObservedPutKeys": 100
+          },
+          {
+            "store": "rows",
+            "category": "messages",
+            "keyShape": "all",
+            "puts": 10008,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10008,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 700519,
+            "valueJsonUtf8Bytes": 3462674,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 10008
+          },
+          {
+            "store": "meta",
+            "category": "factExtents",
+            "keyShape": "child",
+            "puts": 303,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 203,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 100,
+            "keyUtf8Bytes": 26664,
+            "valueJsonUtf8Bytes": 1143616,
+            "repeatedUnchangedKeyUtf8Bytes": 8800,
+            "repeatedUnchangedValueJsonUtf8Bytes": 331490,
+            "uniqueObservedPutKeys": 203
+          },
+          {
+            "store": "meta",
+            "category": "factImages",
+            "keyShape": "child",
+            "puts": 10222,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 10108,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 114,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 1063245,
+            "valueJsonUtf8Bytes": 6605240,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 10108
+          },
+          {
+            "store": "rows",
+            "category": "conversations",
+            "keyShape": "all",
+            "puts": 100,
+            "adds": 0,
+            "deletes": 0,
+            "clears": 0,
+            "firstObservedKeys": 100,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 0,
+            "repeatedUnchanged": 0,
+            "keyUtf8Bytes": 7462,
+            "valueJsonUtf8Bytes": 20518,
+            "repeatedUnchangedKeyUtf8Bytes": 0,
+            "repeatedUnchangedValueJsonUtf8Bytes": 0,
+            "uniqueObservedPutKeys": 100
+          }
+        ],
+        "comparisonToMergedDiagnostic": {
+          "experiment": "sub3-20260912-bearer-merged-idb-write-detail-01",
+          "rawSha256": "5c418020bec2644d18aea4c00026df3e4b5b393cc01edd0b3b57e70522947a9c",
+          "totals": {
+            "puts": 91978,
+            "adds": 0,
+            "deletes": 89,
+            "clears": 0,
+            "uniqueObservedPutKeys": 71532,
+            "firstObservedKeys": 71532,
+            "reintroducedAfterDelete": 0,
+            "repeatedChanged": 15400,
+            "repeatedUnchanged": 5046,
+            "keyUtf8Bytes": 8754736,
+            "valueJsonUtf8Bytes": 33176839,
+            "repeatedUnchangedKeyUtf8Bytes": 512073,
+            "repeatedUnchangedValueJsonUtf8Bytes": 3201389
+          },
+          "byStore": {
+            "meta": {
+              "puts": 71035,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "uniqueObservedPutKeys": 50912,
+              "firstObservedKeys": 50912,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 15194,
+              "repeatedUnchanged": 4929,
+              "keyUtf8Bytes": 7101413,
+              "valueJsonUtf8Bytes": 12956718,
+              "repeatedUnchangedKeyUtf8Bytes": 505370,
+              "repeatedUnchangedValueJsonUtf8Bytes": 3169856
+            },
+            "rows": {
+              "puts": 20333,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "uniqueObservedPutKeys": 20216,
+              "firstObservedKeys": 20216,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 0,
+              "repeatedUnchanged": 117,
+              "keyUtf8Bytes": 1542600,
+              "valueJsonUtf8Bytes": 7325290,
+              "repeatedUnchangedKeyUtf8Bytes": 6703,
+              "repeatedUnchangedValueJsonUtf8Bytes": 31533
+            },
+            "answers": {
+              "puts": 297,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "uniqueObservedPutKeys": 203,
+              "firstObservedKeys": 203,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 94,
+              "repeatedUnchanged": 0,
+              "keyUtf8Bytes": 92064,
+              "valueJsonUtf8Bytes": 11003784,
+              "repeatedUnchangedKeyUtf8Bytes": 0,
+              "repeatedUnchangedValueJsonUtf8Bytes": 0
+            },
+            "outbox": {
+              "puts": 313,
+              "adds": 0,
+              "deletes": 89,
+              "clears": 0,
+              "uniqueObservedPutKeys": 201,
+              "firstObservedKeys": 201,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 112,
+              "repeatedUnchanged": 0,
+              "keyUtf8Bytes": 18659,
+              "valueJsonUtf8Bytes": 1891047,
+              "repeatedUnchangedKeyUtf8Bytes": 0,
+              "repeatedUnchangedValueJsonUtf8Bytes": 0
+            }
+          },
+          "rowAndProofCategories": [
+            {
+              "store": "meta",
+              "category": "factImages",
+              "keyShape": "child",
+              "puts": 14884,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "firstObservedKeys": 10108,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 116,
+              "repeatedUnchanged": 4660,
+              "keyUtf8Bytes": 1552545,
+              "valueJsonUtf8Bytes": 9460679,
+              "repeatedUnchangedKeyUtf8Bytes": 489091,
+              "repeatedUnchangedValueJsonUtf8Bytes": 2854370,
+              "uniqueObservedPutKeys": 10108
+            },
+            {
+              "store": "rows",
+              "category": "deliveries",
+              "keyShape": "all",
+              "puts": 10066,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "firstObservedKeys": 10008,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 0,
+              "repeatedUnchanged": 58,
+              "keyUtf8Bytes": 825412,
+              "valueJsonUtf8Bytes": 3803311,
+              "repeatedUnchangedKeyUtf8Bytes": 4756,
+              "repeatedUnchangedValueJsonUtf8Bytes": 21916,
+              "uniqueObservedPutKeys": 10008
+            },
+            {
+              "store": "rows",
+              "category": "messages",
+              "keyShape": "all",
+              "puts": 10008,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "firstObservedKeys": 10008,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 0,
+              "repeatedUnchanged": 0,
+              "keyUtf8Bytes": 700519,
+              "valueJsonUtf8Bytes": 3462674,
+              "repeatedUnchangedKeyUtf8Bytes": 0,
+              "repeatedUnchangedValueJsonUtf8Bytes": 0,
+              "uniqueObservedPutKeys": 10008
+            },
+            {
+              "store": "meta",
+              "category": "factExtents",
+              "keyShape": "child",
+              "puts": 297,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "firstObservedKeys": 203,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 0,
+              "repeatedUnchanged": 94,
+              "keyUtf8Bytes": 26136,
+              "valueJsonUtf8Bytes": 1123750,
+              "repeatedUnchangedKeyUtf8Bytes": 8272,
+              "repeatedUnchangedValueJsonUtf8Bytes": 311624,
+              "uniqueObservedPutKeys": 203
+            },
+            {
+              "store": "rows",
+              "category": "memberships",
+              "keyShape": "all",
+              "puts": 159,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "firstObservedKeys": 100,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 0,
+              "repeatedUnchanged": 59,
+              "keyUtf8Bytes": 9207,
+              "valueJsonUtf8Bytes": 38787,
+              "repeatedUnchangedKeyUtf8Bytes": 1947,
+              "repeatedUnchangedValueJsonUtf8Bytes": 9617,
+              "uniqueObservedPutKeys": 100
+            },
+            {
+              "store": "rows",
+              "category": "conversations",
+              "keyShape": "all",
+              "puts": 100,
+              "adds": 0,
+              "deletes": 0,
+              "clears": 0,
+              "firstObservedKeys": 100,
+              "reintroducedAfterDelete": 0,
+              "repeatedChanged": 0,
+              "repeatedUnchanged": 0,
+              "keyUtf8Bytes": 7462,
+              "valueJsonUtf8Bytes": 20518,
+              "repeatedUnchangedKeyUtf8Bytes": 0,
+              "repeatedUnchangedValueJsonUtf8Bytes": 0,
+              "uniqueObservedPutKeys": 100
+            }
+          ],
+          "scope": "Same instrumentation except client descriptive labels. Query refresh counts differ with scheduling; aggregate count deltas are descriptive, not fixed-workload operation equivalence. Both full endpoints and acknowledgement work match. Exact unchanged factImages repeats were eliminated; no endpoint speedup claim."
+        },
+        "diagnosticArtifacts": {
+          "harness": {
+            "path": "/tmp/acquisition-sub3-bearer-equal-proof-idb-write-detail-20260912.mjs",
+            "sha256": "6035d8db6a86e3432b85e2569426c7687d5bbcf856bd8f20292af1b531c2ff1c"
+          },
+          "profile": {
+            "host": "450b",
+            "path": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-equal-proof-idb-write-detail-01-cpu.cpuprofile",
+            "sha256": "95dec00e6b99930b778bcebc61c7b8707dc0ab1fb1583a8d3cb8b4bbade53056"
+          },
+          "sourceMap": {
+            "host": "450b",
+            "path": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-equal-proof-idb-write-detail-01-app.js.map",
+            "sha256": "8a23bdce53743d6f5934fa14f184bc786854d90b59126154e88359efd1c3ee14"
+          }
+        }
+      },
+      "decision": "Deliver the small reduction of redundant physical writes. No observed endpoint speedup: one adjacent uninstrumented pair is 20196.641 ms control versus 20245.748 ms candidate, +49.106 ms. No cohort, publication, or sub-three-second qualification.",
+      "diagnosticInterpretation": "Unchanged factImages puts fall from 4660 to zero. Aggregate puts fall from 91978 to 87636 and value JSON bytes from 33176839 to 30540061; timing-dependent answer activity also changes (297 to 303 puts), so aggregate differences are descriptive rather than exact isolated savings.",
+      "verification": {
+        "package": {
+          "passed": 522,
+          "failed": 0,
+          "durationMs": 14374.994375,
+          "command": "Node24.18 --test --test-concurrency=4 --test-timeout=10000 tests/offline-store.test.ts tests/sqlite.test.ts tests/store-review.test.ts tests/store-review-custody.test.ts tests/success-compaction.test.ts tests/twin.test.ts"
+        },
+        "evaluator": {
+          "nativeDifferentialCasesPassed": 266,
+          "serverOnly": 27,
+          "failed": 0,
+          "additional": "Delivery prediction, maintained address, Unicode ordering, key ownership, mutation isolation and rollback controls passed."
+        },
+        "newRegression": "All durable records and query output survive identical retained-proof refresh, synchronous put failure, asynchronous transaction abort, retry and cold reopen. Refreshed image records produce zero puts.",
+        "initialInvocationFailure": "Initial Bun invocation did not run the Node SQLite suite: node:sqlite unavailable, four load errors. Corrected pinned-Node run above passed.",
+        "build": "Final package build passed.",
+        "refs": "466 documents, 8175 refs, zero errors or unchecked refs.",
+        "review": "Independent same-family review of source/test/LLP commit3a0b3a88136699764e877c71ea64995f5a8cb3ec: no material findings."
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/acquisition-20260912-equal-proof-samples.json",
+          "bytes": 6505,
+          "sha256": "3f6f54273b081c00fce41a30c1f4d07e597eaec662fb65d58ad3c3f242f2b2b5"
+        },
+        {
+          "path": "/tmp/acquisition-20260912-equal-proof-idb-summary.json",
+          "bytes": 12174,
+          "sha256": "d4769910671703694c252b52d56d0ba37c7dec3bd15b49d24165264bcd656930"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-build-final.log",
+          "bytes": 277,
+          "sha256": "4212e002c75ed0c7a686723c107fd45bfdf98dedc53d5130aa4d2dcffc778d74"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-tests.log",
+          "bytes": 43656,
+          "sha256": "852164fc45d5e0247b20781e3c56e763bdcb41f9f9aae13afa59bcbb8003fa30"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-tests-initial.log",
+          "bytes": 933,
+          "sha256": "d7f2828fd0a85e3b92f7c20e919db7d21a8cd3e2ffd4833b0fba1f4e5afaaa15"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-evaluator.log",
+          "bytes": 3570,
+          "sha256": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-refs.log",
+          "bytes": 80,
+          "sha256": "161b62ab9fee2937e561dd27c711de16444d9238c4dc2317d1899fac13453ce1"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-bytes-initial.log",
+          "bytes": 2452,
+          "sha256": "9fa17401a6f930ee82d9ae783b5e0d3cc0f9a57247d7f7b29822ed8deebbb5e0"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-bytes-funded.log",
+          "bytes": 2044,
+          "sha256": "02c00b424ff472b39e461fd0862b6808e97c7517305b970ed38f151913137d79"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-bytes-keys.log",
+          "bytes": 2044,
+          "sha256": "d089f7e87c1aa6f58b529144935505ad849641f87cd995f4298e4c7e111af085"
+        },
+        {
+          "path": "/tmp/acquisition-equal-proof-bytes-committed.log",
+          "bytes": 2044,
+          "sha256": "1b8821d89d2c05923a4cc83182ced18636401592a1b4563b7fddc9b284113c96"
+        }
+      ]
+    },
+    "nativePrimaryLookupIncrement": {
+      "sourceCommit": "c87af803f0fbf025e8217dd18bd68e9888ae2016",
+      "integratedCommit": "57b859698c",
+      "review": "Independent same-family source review: no material findings. Integrated executable file is byte-identical to reviewed/tested candidate; only independent LLP paragraphs needed union.",
+      "change": "Use the rows primary key only for the schema-declared unique single-column byId index over an Id column and an Id key, after existing arity and identity validation. Preserve general lookup for every other shape.",
+      "nativeAttribution": {
+        "host": "EPYC100.65.137.99",
+        "base": "78f14dfa633b1e67832b86bd91ed848a630008f2",
+        "sourceEquivalence": "Native source equivalent to delivered eb5b464893 apart from Cargo/package version0.0.30 versus0.0.31.",
+        "aggregate": {
+          "records": 201,
+          "columns": [
+            "calls",
+            "inclusiveNs",
+            "selfNs"
+          ],
+          "stages": {
+            "acknowledge": [
+              10008,
+              72734094,
+              15334915
+            ],
+            "append_commit": [
+              201,
+              35421829,
+              35421829
+            ],
+            "assert_bounds": [
+              201,
+              13446335,
+              13446335
+            ],
+            "canonical_json": [
+              88329,
+              62491510,
+              62491510
+            ],
+            "check_rule": [
+              51148,
+              254628534,
+              25704434
+            ],
+            "digest": [
+              77213,
+              102849112,
+              46702618
+            ],
+            "eval_rule": [
+              45590,
+              228924100,
+              77918026
+            ],
+            "execute_ack": [
+              201,
+              1830396209,
+              14193044
+            ],
+            "fetch_id": [
+              15566,
+              63152948,
+              63152948
+            ],
+            "finish_run": [
+              201,
+              161610131,
+              4291863
+            ],
+            "get_tracked": [
+              40032,
+              857563855,
+              54259155
+            ],
+            "lookup_indexed": [
+              62442,
+              556790900,
+              556790900
+            ],
+            "lookup_raw": [
+              62442,
+              580946310,
+              24155410
+            ],
+            "observable_effects": [
+              201,
+              157318268,
+              52325359
+            ],
+            "record_row": [
+              51237,
+              33627050,
+              33627050
+            ],
+            "record_terminal": [
+              201,
+              24306966,
+              21211646
+            ],
+            "row_digest": [
+              40032,
+              143303699,
+              73133589
+            ],
+            "settle_after_run": [
+              201,
+              207866013,
+              10372848
+            ],
+            "sqlite_commit": [
+              201,
+              137764370,
+              137764370
+            ],
+            "statements_at": [
+              50241,
+              6587729036,
+              185222622
+            ],
+            "update": [
+              10008,
+              387346021,
+              11128853
+            ],
+            "check_constraints": [
+              5558,
+              146244306,
+              31149871
+            ],
+            "deliver_row_change": [
+              5558,
+              398428,
+              398428
+            ],
+            "derive_charge": [
+              5558,
+              246992,
+              246992
+            ],
+            "finish_row_change": [
+              5558,
+              22188875,
+              11005049
+            ],
+            "maintain": [
+              5558,
+              692534,
+              692534
+            ],
+            "maintain_timers": [
+              5558,
+              347863,
+              347863
+            ],
+            "reconcile_row_assets": [
+              5558,
+              811794,
+              811794
+            ],
+            "reindex_replaced_row": [
+              5558,
+              5204008,
+              5204008
+            ],
+            "replace_existing": [
+              5558,
+              259976104,
+              5383748
+            ],
+            "row_sql_update": [
+              5558,
+              67727995,
+              62349440
+            ],
+            "scan_indexed": [
+              16674,
+              172493614,
+              172493614
+            ],
+            "touch_row": [
+              11116,
+              9498009,
+              9498009
+            ],
+            "validate_row": [
+              5558,
+              12165535,
+              12165535
+            ]
+          }
+        },
+        "workload": {
+          "primaryPass": true,
+          "coldSyncedMs": 14322.351089,
+          "completeAcquisitionMs": 16537.082096,
+          "ackEndpoint": {
+            "atMs": 16493.103528,
+            "stopped": false,
+            "remaining": 0,
+            "observation": "public client.outbox.settled; no repeated physical IDB polling"
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "errors": [],
+          "stop": 0,
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+          "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+          "ownerSha": "4ec449d375357559c7a1bfe965b6c63cdd25cca4924e1680f83d9783a7b72b23",
+          "runtimeSha": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "reopenPass": true,
+          "postStopPidGone": true,
+          "scope": "EPYC native instrumentation, Node24.18, unchanged Chromium140.0.7339.186; raw harness instrumented:false describes its client but native owner has aggregate timers. Not a450b performance comparison.",
+          "terminalCounts": {
+            "newTerminals": 201,
+            "effects": 5558,
+            "emptyTerminals": 89
+          }
+        },
+        "scope": "Temporary nested timers, optimized native build, restored source and canonical release binary. Instrumented EPYC timing is not comparable to the Ryzen450b endpoint; inclusive stages overlap.",
+        "failedSetups": [
+          "01: missing persona-helper metadata before navigation, zero acknowledgements.",
+          "02: duplicate React module resolution before acknowledgements, owner stopped with exit0. Resolved packaging using the existing benchmark dependency link; executable sources unchanged."
+        ],
+        "terminalAccounting": "201 new ordinary committed terminals, 89 empty and 5558 actual effects; 146 prior fixture terminals are excluded.",
+        "artifacts": [
+          {
+            "path": "/tmp/acquisition-native-ack-profile/aggregate-03.json",
+            "bytes": 2580,
+            "sha256": "1b76bc308c173109f9193cc0e41e58350f38ba006d24d22d36d71c30bd147108"
+          },
+          {
+            "path": "/tmp/acquisition-native-ack-profile/stages-03.jsonl",
+            "bytes": 231728,
+            "sha256": "2fcf8c07a4176eb3b8870059801ec7e1b7f86c2a64efa97141e3756cedadd965"
+          },
+          {
+            "path": "/tmp/acquisition-native-ack-profile/workload-03.json",
+            "bytes": 1272,
+            "sha256": "cbc19407913c70383c776855f9c4e6a173aa7e417f45db7adfd30273a716cb92"
+          },
+          {
+            "path": "/tmp/acquisition-native-ack-profile/manifest.json",
+            "bytes": 3591,
+            "sha256": "0b2a39c65a97b8951b4a2198ab638bc1b32a04fdae23c6d3464c10d59077d4ab"
+          },
+          {
+            "path": "/tmp/acquisition-native-ack-profile/instrumentation.patch",
+            "bytes": 21259,
+            "sha256": "e904270c6389c1abc3e5ef23d1014830b8eda547bfe2a7d504978d95843a16e4"
+          }
+        ]
+      },
+      "measurement": {
+        "frozenPrimaryLookup": 1,
+        "results": [
+          {
+            "calls": 40032,
+            "direct": false,
+            "ms": 323.95955599999996,
+            "round": 0
+          },
+          {
+            "calls": 40032,
+            "direct": true,
+            "ms": 259.01196,
+            "round": 0
+          },
+          {
+            "calls": 40032,
+            "direct": true,
+            "ms": 258.862066,
+            "round": 1
+          },
+          {
+            "calls": 40032,
+            "direct": false,
+            "ms": 326.115437,
+            "round": 1
+          },
+          {
+            "calls": 40032,
+            "direct": false,
+            "ms": 326.69199100000003,
+            "round": 2
+          },
+          {
+            "calls": 40032,
+            "direct": true,
+            "ms": 259.182856,
+            "round": 2
+          },
+          {
+            "calls": 40032,
+            "direct": true,
+            "ms": 259.200312,
+            "round": 3
+          },
+          {
+            "calls": 40032,
+            "direct": false,
+            "ms": 322.909513,
+            "round": 3
+          },
+          {
+            "calls": 40032,
+            "direct": false,
+            "ms": 322.584506,
+            "round": 4
+          },
+          {
+            "calls": 40032,
+            "direct": true,
+            "ms": 258.720924,
+            "round": 4
+          },
+          {
+            "calls": 40032,
+            "direct": true,
+            "ms": 258.10437,
+            "round": 5
+          },
+          {
+            "calls": 40032,
+            "direct": false,
+            "ms": 322.32068000000004,
+            "round": 5
+          }
+        ],
+        "scope": "read-only warmed40032 actual fixture primary reads, balanced order, full result equality checked before timing; no writes or native acknowledgement execution",
+        "sourceCommit": "c87af803f0fbf025e8217dd18bd68e9888ae2016",
+        "generalMedianMs": 323.4345345,
+        "directMedianMs": 258.937013,
+        "medianReductionMs": 64.4975215
+      },
+      "verification": {
+        "nativePassed": 1210,
+        "configuredSkips": 5,
+        "newDifferentialTests": 3,
+        "nativeExecutionSeconds": 47.058,
+        "nativeBuildSeconds": 7.58,
+        "refs": "466 docs,8175 refs passed",
+        "macOS": "Optional focused test cancelled while a build script stalled at dyld_start before any tests; recorded owned processes stopped. No macOS pass claim."
+      },
+      "interpretation": "64.5ms median saved over40032 actual fixture reads in six balanced release pairs with exact result equality. Small native saving; full acquisition candidate remains unmeasured.",
+      "artifacts": [
+        {
+          "path": "/tmp/acquisition-native-primary-lookup-measurement.json",
+          "bytes": 1589,
+          "sha256": "16c18bef35bdfadfcb6cd488a362ac1256fd655400b8a2267bf9003f8a46a5b5"
+        },
+        {
+          "path": "/tmp/acquisition-native-primary-lookup-linux.log",
+          "bytes": 1550,
+          "sha256": "61d47e351870de355f9b7c7f4b7bd74a026ce17061382a9a19363bf74a8a89fd"
+        },
+        {
+          "path": "/tmp/acquisition-native-primary-lookup-refs.log",
+          "bytes": 80,
+          "sha256": "161b62ab9fee2937e561dd27c711de16444d9238c4dc2317d1899fac13453ce1"
+        },
+        {
+          "path": "/tmp/acquisition-native-primary-lookup-bench.log",
+          "bytes": 1991,
+          "sha256": "91cdfe81163bea9fc29138a099c3e86e5a16d6b4946aa1b400cc728c4675fe47"
+        },
+        {
+          "path": "/tmp/acquisition-native-primary-lookup-bench.rs",
+          "bytes": 2652,
+          "sha256": "5abbde688ad152ee654cf8a0e2f179612be9f148c712c83d178004e93b9b00fa"
+        },
+        {
+          "path": "/tmp/acquisition-native-primary-lookup.patch",
+          "bytes": 9657,
+          "sha256": "ff192557918f348c2b615561e66da13eec3d55a1209f93afc52680000eeb174b"
+        },
+        {
+          "path": "/tmp/acquisition-native-primary-lookup-macos.log",
+          "bytes": 109,
+          "sha256": "482c6279650f7c9496c22132a716cb0f4aa1d30419ac4660a3f3fe70322b501f"
+        },
+        {
+          "path": "/tmp/acquisition-native-primary-lookup-macos-build.sample",
+          "bytes": 951,
+          "sha256": "e0c64b15805354f5cc99db3209527b4f56130d078327e92ac34ade4b283cb890"
+        }
+      ],
+      "publicationQualified": false,
+      "cohortQualified": false
     }
   }
 }
