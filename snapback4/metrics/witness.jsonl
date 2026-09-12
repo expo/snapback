@@ -1,0 +1,1 @@
+{"at":"2026-09-12T12:55:00.000Z","witness":"chromium-indexeddb","chromium":"system chrome","first":{"syncMs":59,"threadRows":50,"threadComplete":true,"next":true,"count":300,"watermark":1,"write":"pending","pendingLocally":true,"localFresh":false},"second":{"rowsInIdbBeforeOpen":305,"reopenMs":4.5,"landed":true,"watermark":2},"ok":true}

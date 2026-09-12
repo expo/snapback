@@ -59,6 +59,7 @@ export function createClient(options: ClientOptions): Client {
   const viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.token ? ("token" as Principal) : null;
   let link: Link = viewer ? "online" : "signed-out";
   let closed = false;
+  const aborter = new AbortController();
   let seq = 0;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
@@ -155,7 +156,7 @@ export function createClient(options: ClientOptions): Client {
         continue;
       }
       try {
-        const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers });
+        const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
         const json = (await response.json()) as { seq: number; tables: string[] };
         if (json.seq > seq) {
           seq = json.seq;
@@ -165,6 +166,7 @@ export function createClient(options: ClientOptions): Client {
           }
         }
       } catch {
+        if (closed) break;
         if (viewer) setLink("offline");
         await new Promise((r) => setTimeout(r, 1000));
       }
@@ -255,6 +257,7 @@ export function createClient(options: ClientOptions): Client {
     viewer: () => viewer,
     async close() {
       closed = true;
+      aborter.abort();
       watches.clear();
       linkListeners.clear();
     },

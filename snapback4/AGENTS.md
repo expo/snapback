@@ -18,6 +18,8 @@ cd apps/chat && bun run dev                            # the app on the real cli
 bun run --cwd packages/snapback4 typecheck   # the contract, the client and the hooks typecheck
 cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
 cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
+node witness/idb.mjs                 # the Chromium witness: the local-first client on IndexedDB (needs Chrome)
+node scripts/measure-client.mjs      # each client tier's bytes on the pinned toolchain → metrics/client.jsonl
 ```
 
 Crates: `snapback4-core` (value model, schema with `sync`, IR, key encoding,

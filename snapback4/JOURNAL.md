@@ -229,3 +229,52 @@ recorded as gaps, not estimated.
   measured alone once the replica lands), production binary 2,010,800 bytes
   with SQLite and the engine inside (PocketBase, the anchor named in LLP
   2000.000 §12, ships ~30 MB).
+
+## 2026-09-12 — week three, day one: the local-first tier on the card
+
+- **The replica store is the server's layout on the device.** `key.ts` is
+  the key encoding byte-for-byte (held to vectors printed by
+  `cargo run -p snapback4-core --example key_vectors`); `store.ts` keeps rows
+  by (table, id) and index entries by `[table.index, key bytes]` — in memory
+  for tests and the twin, in IndexedDB on the web, where a compound key of a
+  string and an ArrayBuffer sorts exactly as the server's B-tree does.
+  Every read is one transaction; every applied page commits with its
+  watermark.
+- **One interpreter, second host.** `interpreter.ts` runs the same IR the
+  server runs (the programs come from `GET /schema`, bound to a generation)
+  over the store: the meter, opaque cursors identical to the server's
+  (`cursor.ts`), rules with probes over the replica, and predictions —
+  a mutation runs locally, its rows render `pending`, unique/cap/immutable
+  refuse typed, maintained counts move with it. A page is `complete`
+  inside the horizon and not at it; an online-only site is never complete.
+  Six interpreter tests on the compiled chat backend pass.
+- **The local-first client (`snapback4/local`)** is the card: `Read` with
+  `fresh` = caught up and online, `since` otherwise; observed reads re-run
+  when an applied batch or a prediction touches their tables; `Write` is
+  `pending` until the outbox lands it, `sent` with the server's sequence, or
+  `failed` with the refusal and its predicted rows withdrawn. A generation
+  change re-bootstraps the partition; the outbox survives it. The chat app
+  runs on it; `snapback4/client` remains the online tier.
+- **Witness:** two devices on one `snapback4 dev`, memory stores: a send
+  reaches the other device through the stream; a device offline renders its
+  queued send `pending` with `since`; back online it lands and both devices
+  hold the server's images; a stranger's local read is `MEMBERSHIP_REQUIRED`.
+  In the blocking suite.
+- **Bytes, one toolchain (Vite 8.3 / rolldown / oxc, React external,
+  gzip-9), `scripts/measure-client.mjs` → `metrics/client.jsonl`:** online
+  tier 3,176 B; local-first tier 13,957 B (interpreter, store, replica,
+  cursors, key). Anchors measured the same way: Convex's React client
+  (`convex@1.45.0`) 21,713 B; PowerSync's web client (`@powersync/web@2.3.1`
+  + react) 3,697,919 B with its wa-sqlite chunks. LLP 3000 §3's two byte
+  gates hold with room; the twin over the replica came in under LLP
+  2000.000 §9's 20 KB, so TypeScript stays on the web.
+- **The Chromium witness (`witness/idb.mjs`)** drives system Chrome through
+  playwright-core on a harness page bundled from the package source against
+  a real `snapback4 dev`: the replica syncs 305 rows into IndexedDB in
+  59 ms, a thread page reads `complete` with a cursor, a send with the link
+  cut is `pending` and the local read says `fresh: false` with `since`; a
+  reload finds the 305 rows in IndexedDB before the client opens, reopens
+  in 4.5 ms, and the queued write lands with the watermark advanced.
+  `metrics/witness.jsonl` carries the line. The playwright Chromium cache
+  is gone from this machine; the witness falls back to `/Applications/
+  Google Chrome.app`.

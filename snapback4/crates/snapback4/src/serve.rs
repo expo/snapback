@@ -161,6 +161,13 @@ fn handle(mut request: Request, shared: &Shared) {
             let tables: Vec<Json> = bound.schema.tables.iter().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
             respond(request, 200, json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *shared.generation.lock().unwrap(), "seq": *shared.seq.lock().unwrap(), "ops": ops, "tables": tables }));
         }
+        (Method::Get, "/schema") => {
+            // The compiled backend a device runs locally: the schema and the
+            // programs' IR, bound to a generation.
+            let bound = shared.bound.lock().unwrap();
+            let programs: Vec<Json> = bound.programs.iter().map(|p| serde_json::to_value(&p.program).unwrap_or(Json::Null)).collect();
+            respond(request, 200, json!({ "generation": *shared.generation.lock().unwrap(), "schema": bound.schema, "programs": programs }));
+        }
         (Method::Get, "/api.ts") => {
             let text = snapback4_lang::emit::typescript(&shared.bound.lock().unwrap());
             let mut response = Response::from_string(text);
