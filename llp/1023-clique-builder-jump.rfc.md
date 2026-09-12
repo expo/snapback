@@ -5,7 +5,7 @@
 **Systems:** Snapback 2 query publication and freshness, certified read envelopes, durable browser mutations, packaged guide and React/Expo examples; Clique benchmark interpretation
 **Author:** Grok 4.6, for Charlie Cheever
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (Codex / GPT-6 Astra: source landed and 0.0.29 published with both platform qualifications; fresh instrument frozen before launch; retain inherited byte refusals and unmet digest requirement)
+**Revised:** 2026-09-12 (Codex / GPT-6 Astra: source landed and 0.0.29 published with both platform qualifications; fresh instrument frozen before launch; reconcile subsequent 0.0.30 digest completion and retain unmet byte target)
 **Related:** LLP 1000, LLP 1001, LLP 1010, LLP 1012, LLP 1018.003, LLP 1018.004, LLP 1018.007.000, LLP 1018.008.007.002, LLP 1019, LLP 1020; [residual assessment](./1018.008.009-residual-ergonomic-gaps.research.md); [query plan](./1023.000-one-query-story.plan.md), [scale plan](./1023.001-hub-scale-certified-reads.plan.md), [write plan](./1023.002-web-writes-that-survive-the-browser.plan.md)
 
 ## Summary
@@ -34,9 +34,10 @@ Snapback 2 lanes. The children now record their source outcomes and scoped
 qualification below. The reviewed source landed at `394ac17802`, and all
 three `0.0.29` packages are published with verified registry integrity and
 29 installed-consumer checks on each native platform. The parent remains
-**Accepted, not complete**: the digest final-emission requirement remains unmet
-and fresh Clique evidence is still outstanding. The residual research is
-context, not a fourth implementation work order.
+**Accepted, not complete**: fresh Clique evidence is still outstanding and the
+80,000-byte target remains unmet. The separate 0.0.30 follow-up below completes
+the exact digest recipe. The residual research is context, not a fourth
+implementation work order.
 
 ## Evidence and what it establishes
 
@@ -212,14 +213,12 @@ needs reassessment; score improvement with wrong data fails the program.
 
 ## Remaining decisions
 
-Exact final-time digest eligibility remains unmet, including deletion,
-membership and expiry changes after accumulation. The bounded scale lane
-records that gap; it does not satisfy the original complete-digest outcome.
-The other source corrections pass the complete suite, and both independent
-code reviewers return READY on `cee80bc1d` and the later guide integration.
-Final package qualification and publication are complete as recorded below;
-the separately frozen fresh Clique wave remains outstanding. No score target,
-forced refusal or enlarged ceiling substitutes for the digest requirement.
+The exact final-time digest recipe is now implemented and published in 0.0.30,
+with the scoped qualification recorded under Subsequent hub completion below.
+The failed 0.0.29 forms remain historical evidence for those candidates. The
+80,000-byte target and the fresh Clique wave remain outstanding. The running
+wave retains its frozen 0.0.29 package and cannot qualify the later recipe;
+source/package checks and final builder outcomes remain separate evidence.
 
 [Review and dispositions](./reviews/1023-clique-builder-jump.gpt.md).
 
