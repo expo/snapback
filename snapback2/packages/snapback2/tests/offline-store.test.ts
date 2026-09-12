@@ -665,9 +665,8 @@ test("offline factory returns fail at setup with the browser spelling, before au
   let requests = 0;
   const options = { url: "http://options.test", fetch: async () => { requests++; throw new Error("unexpected I/O"); } };
   const setupError = (error: unknown) => error instanceof TypeError
-    && /offline\.store must return a RangeStore with open\(\)/.test(error.message)
-    && error.message.includes("store: indexedDbRangeStore()")
-    && error.message.includes("snapback2 guide offline");
+    && /offline\.store must return a store with open\(\)/.test(error.message)
+    && error.message.includes("use indexedDbRangeStore()");
   // The exported builder returns a factory; the client needs the builder's result.
   assert.throws(() => createClient({ ...options, offline: { store: indexedDbRangeStore } } as any), setupError);
   for (const returned of [undefined, null, 1, true, "store", {}, { open: 1 }, Promise.resolve({}), () => ({})]) {

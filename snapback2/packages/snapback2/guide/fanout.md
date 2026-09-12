@@ -1,18 +1,15 @@
 # Fan-out and complete reads
 
-Mutation `for` covers a capped prefix (`E_STRUCTURAL_FANOUT`). The loop,
-argument or schema sets its bound. `cap` refuses excess rows and prices each
-write by that cap. Do not cap followers merely to certify a loop.
-
-Use `merge` for following feeds, `cap` for genuinely limited group membership,
-and a job's `chunk` for a complete pass over an uncapped population. There is
-no synchronous per-write fan-out over an uncappable population.
-`check --cost` explains the actual row widths and repeated reads.
+`E_STRUCTURAL_FANOUT` needs a complete loop/argument/schema bound. A `cap`
+limits rows and prices writes; do not cap followers merely to certify.
+Use `merge` for feeds, caps for bounded groups and job chunks for uncapped
+passes. Synchronous fan-out over uncapped populations is unsupported.
+`check --cost` explains row widths and repeated reads.
 
 ## Following
 
-All 500 follows plus self participate; equal prefixes deduplicate. Reducing
-discovery omits people; reducing pages preserves continuation.
+500 follows plus self; equal prefixes deduplicate. Page fewer rows, not fewer
+people.
 
 ```q
 query followingFeed(c: cursor ?):
@@ -22,14 +19,13 @@ query followingFeed(c: cursor ?):
   return page { post: ., author: profiles[.author] { id, displayName, handle, avatar } }
 ```
 
-For 1,000 follows, merge compact immutable post heads and point-read each
-post. Publish/remove post and head atomically; edits retain the head.
+For 1,000 follows, merge immutable post heads, then point-read posts.
+Publish/remove post and head atomically; edits retain the head.
 
 ## Search grouped by chat
 
-Page all memberships, including empty matches. This reaches the last of
-1,000 chats with bounded subscriptions. Groups follow membership index order,
-without a global message-time ranking or client merge.
+Page every membership, including empty matches. Groups follow membership
+index order through all 1,000 chats.
 
 ```q
 query searchGroups(term: text <=128, membershipCursor: cursor ?):
@@ -41,8 +37,7 @@ query searchGroups(term: text <=128, membershipCursor: cursor ?):
   }
 ```
 
-Outer `next` continues memberships even when all `matches` are empty. Each
-yield retains its own snapshot and receipt:
+Outer `next` advances on empty matches; each yield has its own receipt:
 
 ```js
 async function* groupedSearch(client, term) {
@@ -58,8 +53,8 @@ async function* groupedSearch(client, term) {
 }
 ```
 
-Render nonempty groups. Expansion uses a separate message cursor starting at
-null. Reset both cursors on term changes; current membership rules apply.
+Expand nonempty groups with a separate message cursor, initially null. Reset
+both on term changes; current membership rules apply.
 
 ```q
 query searchChat(conversationId: conversations, term: text <=128, messageCursor: cursor ?):
@@ -67,16 +62,15 @@ query searchChat(conversationId: conversations, term: text <=128, messageCursor:
   return messages[conversationId, term] after messageCursor last 20 by bySearch
 ```
 
-For global message-time order, copy the packaged
-`guide/recipes/global-message-search.ts`. It binds scope/message queries to
-`snapback2/global-search-pager`, captures the term, and retains branded cursors
-and per-scope issues. Recreate on term/membership changes; never mount 1,000
-live shapes. Its scope/message snapshots exclude concurrent changes.
+For global time order, copy `guide/recipes/global-message-search.ts`.
+The bound `snapback2/global-search-pager` captures term, cursors and issues.
+Recreate on term/membership changes; never mount 1,000 live shapes.
+Scope/message snapshots exclude concurrent changes.
 
 ## Rich history
 
-Keep enrichments in small pages. `observePages`/`usePage` and `loadMore()`
-follow valid links and rebuild changed boundaries; pages keep separate snapshots.
+`observePages`/`usePage` and `loadMore()` rebuild changed boundaries;
+pages keep separate snapshots.
 
 ```q
 query richThread(conversationId: conversations, c: cursor ?):
@@ -99,13 +93,11 @@ const history = client.observePages(api.messages.richThread,
   { conversationId }, { items: richItems });
 ```
 
-These sizes qualify this schema only. Complete per-message reactions/receipts
-must fit: the fixture caps reactions and membership at 50. See `guide pagination`
-for source changes and offline continuation.
+Bounds qualify this schema: reactions and membership are capped at 50.
+See `guide pagination` for source changes and offline continuation.
 
 ## Scheduled totals
 
-Jobs walk the population in resumable chunks (`guide job`). System jobs
-bypass viewer rules; chunks see different snapshots. Cached totals cannot
-prove final authorization/expiry: validate eligibility when emitting, or
-preserve it through every contributing mutation. A partial sum is not a digest.
+Jobs resume across snapshots and bypass viewer rules (`guide job`).
+Validate eligibility at emission or preserve it through every contributing
+mutation; a cached partial sum cannot prove authorization/expiry.
