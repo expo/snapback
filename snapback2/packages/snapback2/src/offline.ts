@@ -241,7 +241,7 @@ export class OfflineRuntime {
   /** Bind a returned owner image to its own receipt after admission into this account. */
   async withQueryItems<T extends object>(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, value: T,
     ledger?: { entries: OutboxEntry[]; compactedThrough: number }): Promise<T> {
-    const { entries, compactedThrough } = ledger ?? { entries: await this.itemEntries(), compactedThrough: await this.compactedThrough() };
+    const { entries, compactedThrough } = ledger ?? { entries: await this.itemEntries(true), compactedThrough: await this.compactedThrough() };
     if (accepted.envelope) {
       const inputs = { ...deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries), compactedThrough };
       if (!inputs.selection) {
@@ -268,7 +268,7 @@ export class OfflineRuntime {
     if (this.inboxConnection) return this.inboxCompactedThrough;
     return this.partition === undefined ? 0 : await this.store.outbox.compactedThrough?.() ?? 0;
   }
-  async itemEntries(): Promise<OutboxEntry[]> {
+  async itemEntries(presentation = false): Promise<OutboxEntry[]> {
     const rows = unadmittedRows(this.inboxRowsCache).map(inboxEntry);
     if (this.inboxConnection) {
       const ledger = Object.values(this.inboxLedgerCache).filter((entry) => object(entry) && typeof entry.intent === "string")
@@ -276,7 +276,7 @@ export class OfflineRuntime {
       return [...ledger, ...rows];
     }
     if (this.partition === undefined) return [];
-    try { return [...await this.outbox.entries(), ...rows]; }
+    try { return [...await (presentation && this.store.outbox.itemEntries ? this.store.outbox.itemEntries() : this.outbox.entries()), ...rows]; }
     catch (error) {
       if (error instanceof Error && /sealed/.test(error.message)) return [];
       throw error;

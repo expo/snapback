@@ -11,7 +11,7 @@ import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransa
   imageSlots, extentSlots, extentMeaning, FACT_FORMAT, type FactProof, type PreparedImage } from './fact-integrity.js';
 import { extentContains, rangeMeaningKey, type FactImage, type FactExtent, type ExtentProof, type ExtentCondition } from './extent-facts.js';
 import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
-import { changesQueryInputs, outboxOrder, type QueryInputChange } from "./query-inputs.js";
+import { changesQueryInputs, outboxOrder, itemEntry, type QueryInputChange } from "./query-inputs.js";
 import { compactSuccesses } from "./success-compaction.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
@@ -480,6 +480,7 @@ export class PersistentRangeStore implements RangeStore {
     },
     compactedThrough: () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
+    itemEntries: () => this.read(() => { this.ensureUnsealed(); return outboxOrder(this.state.outbox).map(itemEntry); }),
     queued: () => this.readOutbox(state => outboxOrder(state.outbox, true)),
     queuedInfo: () => this.readOutbox(state => outboxOrder(state.outbox, true)
       .map(({ intent, state, grant, createdAt, reason, refusal }) => ({ intent, state, grant, createdAt, reason, refusal }))),

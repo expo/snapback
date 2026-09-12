@@ -84,6 +84,8 @@ export function blockedStatus(entries: Pick<QueuedInfo, 'intent' | 'state' | 're
 }
 
 export interface OutboxStore {
+  /** Immutable presentation snapshots; public entries still return detached mutable DTOs. */
+  itemEntries?(): Promise<OutboxEntry[]>;
   pendingDeliveryAcks?(limit?: number): Promise<PendingDeliveryAcks>;
   replayBatch?(): Promise<OutboxEntry[]>;
   queued?(): Promise<OutboxEntry[]>;

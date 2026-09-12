@@ -1061,6 +1061,10 @@ test('committed outbox reads detach nested values, preserve missing entries and 
   const pending = { ...entry('one'), args: { nested: [{ value: 'original' }], omitted: undefined } };
   await store.commit({ outbox: { put: [pending] }, bounds: { send: 0 } });
   pending.args.nested[0].value = 'caller changed';
+  const presented = (await store.outbox.itemEntries())[0];
+  assert.strictEqual((await store.outbox.itemEntries())[0], presented, 'unchanged presentations share one immutable record');
+  assert.throws(() => { presented.args.nested[0].value = 'presentation changed'; }, TypeError);
+  assert.throws(() => { presented.ids.push('foreign'); }, TypeError);
   const first = await store.outbox.get('one');
   assert.deepEqual(first.args, { nested: [{ value: 'original' }] });
   first.args.nested[0].value = 'reader changed';
@@ -1077,10 +1081,13 @@ test('committed outbox reads detach nested values, preserve missing entries and 
   assert.deepEqual(await store.outbox.bounds(), { send: 0 });
   fail = true;
   await assert.rejects(store.outbox.put({ ...first, args: { changed: true } }), /failed persistence/);
+  assert.strictEqual((await store.outbox.itemEntries())[0], presented, 'rollback restores the prior presentation identity');
   assert.deepEqual((await store.outbox.get('one')).args, { nested: [{ value: 'original' }] });
   assert.equal((await store.outbox.queuedInfo()).length, 1, 'failed persistence leaves the exact queued count');
   fail = false;
   await store.outbox.put({ ...first, refusal: { code: 'E_INPUT' } });
+  assert.notStrictEqual((await store.outbox.itemEntries())[0], presented);
+  assert.equal(presented.refusal, undefined, 'an older query keeps its original work state');
   assert.equal((await store.outbox.queuedInfo()).length, 1, 'an unspent refusal remains queued');
   await store.outbox.put({ ...first, state: 'committed' });
   assert.equal((await store.outbox.queuedInfo()).length, 0, 'terminal custody is not pending replay');
@@ -1088,6 +1095,7 @@ test('committed outbox reads detach nested values, preserve missing entries and 
   assert.equal((await store.outbox.queuedInfo()).length, 0);
   await store.seal();
   await assert.rejects(store.outbox.all(), /sealed/);
+  await assert.rejects(store.outbox.itemEntries(), /sealed/);
   await assert.rejects(store.outbox.queuedInfo(), /sealed/);
   await store.close();
 });
