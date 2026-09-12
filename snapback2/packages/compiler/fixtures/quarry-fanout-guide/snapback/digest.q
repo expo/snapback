@@ -60,7 +60,7 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
     if run != null and run.status = 'pending' and run.attempt = attempt:
       membership = memberships[contribution.membershipId]
       message = messages[contribution.messageId]
-      if membership != null and membership.principal = target and membership.conversationId = contribution.conversationId and message != null and message.period = period and message.authorId = contribution.sender:
+      if membership != null and membership.principal = target and membership.conversationId = contribution.conversationId and message != null and message.deleted != true and message.period = period and message.authorId = contribution.sender:
         mark = readMarks[contribution.conversationId, target] by byConversationActor
         deadline = message.expiresAt ?? now + 1
         readCutoff = mark.readAt ?? contribution.sentAt - 1
@@ -81,12 +81,23 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
                 update digestRuns[run] { earliestExpiry: message.expiresAt }
   chunk pending in digestRuns[runId] first 1 by byId:
     if pending.status = 'pending' and pending.attempt = attempt:
+      finalWork = insert digestFinalWork { run: pending.id, newPostsInFollowing: pending.newPostsInFollowing }
+      followingCount = digestFollowingCounts[target]
+      if followingCount <= 500:
+        update digestFinalWork[finalWork] { newPostsInFollowing: 0 }
+        followed = follows[target] first 500 by byFollower { followed }
+        for edge in followed:
+          postCount = periodPosts[edge.followed, period]
+          update digestFinalWork[finalWork] { newPostsInFollowing: .newPostsInFollowing + postCount }
+      exactPosts = digestFinalWork[finalWork.id] ! else DIGEST_FINAL_STATE
       periodVersion = digestPeriodVersions[period]
       recipientVersion = digestRecipientVersions[target]
       recipientPeriodVersion = digestRecipientPeriodVersions[target, period]
-      changed = periodVersion != pending.periodRevision or recipientVersion != pending.recipientRevision or recipientPeriodVersion != pending.recipientPeriodRevision
+      broadPostChanged = followingCount > 500 and periodVersion != pending.periodRevision
+      changed = broadPostChanged or recipientVersion != pending.recipientRevision or recipientPeriodVersion != pending.recipientPeriodRevision
       expired = pending.earliestExpiry != null and pending.earliestExpiry <= now
       if changed or expired:
+        delete digestFinalWork[exactPosts]
         update digestRuns[pending] {
           attempt: pending.attempt + 1,
           periodRevision: periodVersion,
@@ -103,12 +114,12 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
         newFollowers = newFollowerPeriodCounts[target, true, period]
         prior = digests[target, period] by byTargetPeriod
         if prior = null:
-          if newFollowers != 0 or pending.newPostsInFollowing != 0 or pending.unreadMessages != 0:
+          if newFollowers != 0 or exactPosts.newPostsInFollowing != 0 or pending.unreadMessages != 0:
             insert digests {
               target,
               period,
               newFollowers,
-              newPostsInFollowing: pending.newPostsInFollowing,
+              newPostsInFollowing: exactPosts.newPostsInFollowing,
               unreadMessages: pending.unreadMessages,
               unreadChats: pending.unreadChats,
             }
@@ -117,7 +128,7 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
               period,
               periodEnd: pending.periodEnd,
               newFollowers,
-              newPostsInFollowing: pending.newPostsInFollowing,
+              newPostsInFollowing: exactPosts.newPostsInFollowing,
               unreadMessages: pending.unreadMessages,
               unreadChats: pending.unreadChats,
             }
@@ -126,13 +137,16 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
               period,
               periodEnd: pending.periodEnd,
               newFollowers,
-              newPostsInFollowing: pending.newPostsInFollowing,
+              newPostsInFollowing: exactPosts.newPostsInFollowing,
               unreadMessages: pending.unreadMessages,
               unreadChats: pending.unreadChats,
             }
+        delete digestFinalWork[exactPosts]
         update digestRuns[pending] { status: 'done', retryAt: null }
 
 schedule digestAttempt on digestRuns at .retryAt if .status = 'pending': digestUser(.id, .target, .period, .attempt)
+-- The minute cadence is this executable example. Production UTC boundaries
+-- use the guide schedule's clock recipe and matching source buckets.
 schedule hubDigest every 1m: queueDigestPeriod(.periodStart, .periodEnd)
 
 job directoryBackfill():

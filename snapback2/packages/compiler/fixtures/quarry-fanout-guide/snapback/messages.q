@@ -28,12 +28,10 @@ mutation edit(messageId: messages, body: text <=2000):
   return null
 
 mutation remove(messageId: messages):
-  message = messages[messageId] ! else NOT_FOUND
-  if message.period != null:
-    for contribution in periodUnread[messageId, viewer] first 50 by byMessageSender:
-      insert digestRecipientPeriodChanges { target: contribution.recipient, period: message.period }
-      delete periodUnread[contribution]
-  delete messages[message]
+  for contribution in periodUnread[messageId, viewer] first 50 by byMessageSender:
+    insert digestRecipientPeriodChanges { target: contribution.recipient, period: contribution.period }
+    delete periodUnread[contribution]
+  delete messages[messageId]
   return null
 
 mutation send(conversationId: conversations, body: text <=2000, expiresAt: time ?, messageId: id ?):
@@ -76,6 +74,8 @@ mutation markRead(conversationId: conversations):
 
 mutation expireDigestMessage(messageId: messages):
   message = messages[messageId] ! else NOT_FOUND
+  deadline = message.expiresAt ! else MESSAGE_NOT_EXPIRING
+  require deadline <= now else MESSAGE_NOT_EXPIRED
   delete messages[message]
   return null
 

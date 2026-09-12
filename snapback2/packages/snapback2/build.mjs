@@ -233,6 +233,10 @@ const guideSource = resolve(here, "guide");
 const guide = resolve(dist, "guide");
 await cp(guideSource, guide, { recursive: true });
 await rm(resolve(guide, "README.md"));
+// The fanout card points at one copyable, compiler-checked project rather than
+// making readers reconstruct the exact digest custody across snippets.
+await cp(resolve(here, "../compiler/fixtures/quarry-fanout-guide"),
+  resolve(guide, "recipes/exact-hub-digest"), { recursive: true });
 let families = [];
 const familyErrors = [];
 try {

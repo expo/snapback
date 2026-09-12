@@ -67,6 +67,9 @@ table digestLogs:
 maintain periodPosts: count posts by author, period
   read <- allow
 
+maintain digestFollowingCounts: count follows by follower
+  read <- deny
+
 maintain newFollowerPeriodCounts: count follows by followed, digestEligible, period
   read <- deny
 
@@ -144,6 +147,16 @@ table digestRuns:
   status: enum('pending', 'done')
   unique byTargetPeriod: target, period
   immutable target, period, periodEnd
+  read <- deny
+  insert <- deny
+  update <- deny
+  delete <- deny
+
+table digestFinalWork:
+  run: digestRuns
+  newPostsInFollowing: int
+  unique byRun: run
+  immutable run
   read <- deny
   insert <- deny
   update <- deny

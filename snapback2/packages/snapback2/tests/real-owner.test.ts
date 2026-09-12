@@ -746,6 +746,12 @@ query postPair(postId: posts):
     assert.equal((await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "read before mark" })).state, "committed");
     assert.equal((await client.mutation(api.messages.markRead, { conversationId: "chat-0998" })).state, "committed");
     assert.equal((await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "unread after mark" })).state, "committed");
+    const currentUnread = await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "not expiring" });
+    assert.equal(currentUnread.state, "committed");
+    const refusedExpiry = await control("/control/execute", { op: "messages.expireDigestMessage",
+      args: { messageId: currentUnread.data.id } });
+    assert.equal(refusedExpiry.state, "rejected", "even the operator cannot fire the timer target without a due deadline");
+    assert.equal(refusedExpiry.code, "MESSAGE_NOT_EXPIRING");
     const removeMe = await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "remove before digest" });
     assert.equal(removeMe.state, "committed");
     assert.equal((await author.mutation(api.messages.remove, { messageId: removeMe.data.id })).state, "committed");
@@ -801,10 +807,12 @@ query postPair(postId: posts):
     // Same-target traffic in the next period uses a distinct revision key and
     // cannot postpone this closed period. The source deletion is an ordinary
     // author operation and must invalidate the partial old-period attempt.
+    const laterIds: string[] = [];
     for (let n = 0; n < 5; n++) {
       const later = await control("/control/execute", { op: "messages.send",
         args: { conversationId: "chat-0998", body: "later period " + n } }, "author");
       assert.equal(later.state, "committed");
+      laterIds.push(later.data.id);
     }
     const removed = await control("/control/execute", { op: "feeds.removePost", args: { postId: "post-0499" } }, "follow0499");
     assert.equal(removed.state, "committed", JSON.stringify(removed));
@@ -833,12 +841,12 @@ query postPair(postId: posts):
     assert.deepEqual(exact.data.emitted, {
       id: exact.data.emitted.id,
       target: "dev:u0001", period: targetPeriod, newFollowers: 1,
-      newPostsInFollowing: 499, unreadMessages: 98, unreadChats: 98,
+      newPostsInFollowing: 499, unreadMessages: 99, unreadChats: 98,
     });
     assert.deepEqual(exact.data.logged, {
       id: exact.data.logged.id,
       target: "dev:u0001", period: targetPeriod, periodEnd: targetPeriod + 60000,
-      newFollowers: 1, newPostsInFollowing: 499, unreadMessages: 98, unreadChats: 98,
+      newFollowers: 1, newPostsInFollowing: 499, unreadMessages: 99, unreadChats: 98,
     });
     assert.equal(exact.data.sourceCount, 0);
     assert.equal(exact.data.run.status, "done");
@@ -863,7 +871,10 @@ query postPair(postId: posts):
     assert.deepEqual(replay.data.emitted, exact.data.emitted, "restart cannot duplicate the target/period receipt");
     const outbox = await control("/control/outbox?limit=200");
     assert.equal(outbox.rows.filter((row: any) => row.effect === "push.digest").length, 1);
-    t.diagnostic("scheduled digest: 500 follows + 1000 memberships, 900 expiries over 64-timer turns, late real-author deletion, same-target later-period traffic, restart retry, one logged effect");
+    assert.equal((await control("/control/execute", { op: "messages.leave", args: { conversationId: "chat-0998" } }, "author")).state, "committed");
+    assert.equal((await control("/control/execute", { op: "messages.remove", args: { messageId: laterIds[0] } }, "author")).state,
+      "committed", "message authors retain delete authority after leaving a conversation");
+    t.diagnostic("scheduled digest: 500 follows + 1000 memberships, 900 expiries over 64-timer turns, late real-author deletion, same-target later-period messages, restart retry, one logged effect");
   } finally {
     stop?.(); await Promise.all([client.close(), author.close()]);
     await hub.close(); await rm(directory, { recursive: true, force: true });
