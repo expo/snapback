@@ -833,6 +833,7 @@ impl Runtime {
     pub fn ensure_persona(&mut self, name: &str, now: i64) -> Result<Principal, IdentityError>;          // stable dev alias; no session side effect
     pub fn persona(&mut self, name: &str, now: i64) -> Result<Session, IdentityError>;                   // fresh finite session for `dev:<name>`
     pub fn authenticate(&self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;        // E_AUTH_SESSION
+    pub fn refresh_session(&mut self, token: &str, now: i64) -> Result<Session, IdentityError>;            // rotates credential, retains principal/epoch
     pub fn logout(&mut self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;          // exact live session, else E_AUTH_SESSION
     pub fn expire_sessions(&mut self, now: i64) -> Result<Vec<SessionAuthority>, IdentityError>;         // delete and return every epoch whose exclusive bound has arrived
     pub fn next_session_expiry(&self) -> Result<Option<i64>, IdentityError>;                              // owner polling deadline
@@ -865,7 +866,17 @@ strictly-increasing, never-reused epoch in that store. A session is valid on
 expired rows are deleted so clock rollback cannot revive them. Logout verifies
 and deletes one exact live epoch; a missing, expired, or already-revoked bearer
 is `E_AUTH_SESSION`, not a successful no-op. Multiple sessions for one
-principal are independent.
+principal are independent. Sessions expire after 24 hours. Explicit refresh atomically
+replaces the digest and renews that deadline, retaining the principal and epoch;
+the prior token immediately fails. Admitted streams and offline custody keep that
+epoch. This reduces a stolen unrefreshed credential's window from thirty days to
+one; an attacker holding a valid credential can also refresh it, so rotation is
+not theft detection. A lost refresh response requires password login again.
+
+A signup email UNIQUE conflict at the credential insert becomes `EmailTaken`,
+including a race after the early existence check; other storage/constraint
+failures remain `Store`. The current exclusive store owner already serializes
+ordinary HTTP signup; this mapping also protects the lower-level insert boundary.
 
 This is a pre-promotion store-format break. `Store::open` accepts only the
 canonical digest-only session schema and refuses an older plaintext-token or

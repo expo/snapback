@@ -243,6 +243,7 @@ class Client implements SnapbackClient {
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
       guest: () => this.session("/api/auth/guest", {}),
       logout: () => this.logout(),
+      refresh: () => this.session("/api/auth/refresh", {}),
       me: () => this.me(),
     };
     this.localReady = this.hydrate(options.token).then(async () => {
@@ -696,7 +697,7 @@ class Client implements SnapbackClient {
   private async session(path: string, input: unknown): Promise<AuthSession> {
     ensureBearerTransition(this, path.slice("/api/auth/".length));
     const session = await this.transition(authority => this.authState.session(path, {
-      request: () => this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, { enforceAuthority: false, terminalSession: "keep" }),
+      request: () => this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, { enforceAuthority: false, terminalSession: path === "/api/auth/refresh" ? "expire" : "keep" }),
       install: async (session, response) => {
         this.offlineRuntime?.noteGrant(response, session.viewer);
         await this.openOffline(session.viewer, true, session.authEpoch);

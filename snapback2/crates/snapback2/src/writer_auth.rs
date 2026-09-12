@@ -6,7 +6,9 @@ use snapback2_core::{IdentityError, Principal, SessionAuthority};
 use std::time::Duration;
 
 const MAX_SESSION_POLL: Duration = Duration::from_secs(1);
-pub(super) const ASSET_CARRIER_LIFETIME_MS: i64 = 30 * 60 * 1_000;
+pub(super) const ASSET_CARRIER_LIFETIME_MS: i64 = 10 * 60 * 1_000;
+const MAX_ASSET_CARRIERS: usize = 1024;
+const MAX_PRINCIPAL_ASSET_CARRIERS: usize = 32;
 
 pub(super) fn actor(principal: &Principal) -> Result<Actor, Refusal> {
     Actor::try_from(principal).map_err(|error| {
@@ -74,6 +76,23 @@ impl SessionFence {
 }
 
 impl State {
+    pub(super) fn refresh_session(&mut self, token: String) -> Result<Json, Refusal> {
+        // Check the owner profile and fence expired sessions before rotation.
+        self.resolve_authority(Identity::Bearer(token.clone()))?;
+        let now = self.now();
+        let session = self
+            .runtime_mut()
+            .refresh_session(&token, now)
+            .map_err(|error| Refusal::from_identity(&error))?;
+        Ok(session_json(
+            &session.token,
+            session.principal.id.as_str(),
+            &session.principal.kind,
+            session.auth_epoch,
+            None,
+        ))
+    }
+
     pub(super) fn resolve_authority(
         &mut self,
         identity: Identity,
@@ -187,6 +206,8 @@ impl State {
     }
 
     pub(super) fn sweep_expired_sessions_at(&mut self, now: i64) -> Result<(), Refusal> {
+        self.asset_carriers
+            .retain(|_, carrier| carrier.expires_at > now);
         let next = self
             .runtime()
             .next_session_expiry()
@@ -270,10 +291,37 @@ impl State {
 
     // @ref LLP 1006#2b-the-session-carrier-author-ruling-2026-09-03 — the
     // opaque in-memory carrier reproduces the exact persona or bearer authority,
-    // expires within thirty minutes, and never outlives its bearer epoch.
+    // expires within ten minutes, and never outlives its bearer epoch.
     pub(super) fn mint_asset_carrier(&mut self, identity: Identity) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
         let now = self.now();
+        self.asset_carriers
+            .retain(|_, carrier| carrier.expires_at > now);
+        // Reuse a usable carrier for this exact authority. Never evict a mounted
+        // player's live credential merely because another caller asks for one.
+        if let Some((token, carrier)) = self.asset_carriers.iter().find(|(_, carrier)| {
+            carrier.authority.principal == authority.principal
+                && carrier.authority.session == authority.session
+                && carrier.expires_at > now.saturating_add(60_000)
+        }) {
+            return Ok(json!({ "token": token, "expiresAt": carrier.expires_at }));
+        }
+        if self.asset_carriers.len() >= MAX_ASSET_CARRIERS
+            || self
+                .asset_carriers
+                .values()
+                .filter(|carrier| carrier.authority.principal.id == authority.principal.id)
+                .count()
+                >= MAX_PRINCIPAL_ASSET_CARRIERS
+        {
+            return Err(Refusal::new(
+                "E_ASSET_NOT_READY",
+                "input",
+                "asset session capacity is full",
+                "retry after an existing asset session expires",
+                "assets/delivery",
+            ));
+        }
         let expires_at = authority
             .session_expires_at
             .unwrap_or(i64::MAX)
@@ -523,6 +571,103 @@ mod tests {
             next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
         };
 
+        let persona_carrier = state
+            .mint_asset_carrier(Identity::Persona("carrier".into()))
+            .unwrap();
+        for _ in 0..2000 {
+            assert_eq!(
+                state
+                    .mint_asset_carrier(Identity::Persona("carrier".into()))
+                    .unwrap()["token"],
+                persona_carrier["token"]
+            );
+        }
+        assert_eq!(state.asset_carriers.len(), 1);
+        let entry = state.asset_carriers.values().next().unwrap().clone();
+        assert!(entry.expires_at <= state.now() + ASSET_CARRIER_LIFETIME_MS);
+        for index in 1..MAX_PRINCIPAL_ASSET_CARRIERS {
+            state.asset_carriers.insert(
+                format!("principal-{index}"),
+                AssetCarrier {
+                    expires_at: state.now() + 30_000,
+                    ..entry.clone()
+                },
+            );
+        }
+        for carrier in state.asset_carriers.values_mut() {
+            carrier.expires_at = unix_millis() + 30_000;
+        }
+        assert_eq!(
+            state
+                .mint_asset_carrier(Identity::Persona("carrier".into()))
+                .unwrap_err()
+                .code,
+            "E_ASSET_NOT_READY"
+        );
+        state.asset_carriers.clear();
+        state
+            .asset_carriers
+            .insert("retained".into(), entry.clone());
+        for index in 1..MAX_ASSET_CARRIERS {
+            state
+                .asset_carriers
+                .insert(format!("capacity-{index}"), entry.clone());
+        }
+        assert_eq!(
+            state
+                .mint_asset_carrier(Identity::Persona("other".into()))
+                .unwrap_err()
+                .code,
+            "E_ASSET_NOT_READY"
+        );
+        assert_eq!(state.asset_carriers.len(), MAX_ASSET_CARRIERS);
+        state.sweep_expired_sessions_at(entry.expires_at).unwrap();
+        assert!(
+            state.asset_carriers.is_empty(),
+            "periodic sweep purges persona carriers without GET"
+        );
+        state.asset_carriers.insert(
+            "expired".into(),
+            AssetCarrier {
+                expires_at: state.now() - 1,
+                ..entry
+            },
+        );
+        state
+            .mint_asset_carrier(Identity::Persona("other".into()))
+            .unwrap();
+        assert!(
+            !state.asset_carriers.contains_key("expired"),
+            "mint purges expired carriers"
+        );
+        state.clock_offset_ms = 60_000;
+        let sibling_carrier = state
+            .mint_asset_carrier(Identity::Bearer(sibling.token.clone()))
+            .unwrap();
+        let rotated = state
+            .handle(Action::Refresh {
+                token: sibling.token.clone(),
+            })
+            .unwrap();
+        assert_eq!(rotated["authEpoch"], sibling.auth_epoch);
+        assert!(
+            state
+                .resolve_authority(Identity::Bearer(sibling.token.clone()))
+                .is_err()
+        );
+        assert_eq!(
+            (state.live.len(), state.channels.len()),
+            (2, 2),
+            "rotation retains admitted stream epochs"
+        );
+        assert!(
+            state
+                .resolve_asset_carrier(sibling_carrier["token"].as_str().unwrap())
+                .unwrap()
+                .is_some()
+        );
+        let rotated_token = rotated["token"].as_str().unwrap().to_owned();
+
         for events in [
             &state.live.get(&1).unwrap().events,
             &state.channels.get(&1).unwrap().events,
@@ -560,9 +705,24 @@ mod tests {
             assert_eq!(event.data["code"], "E_AUTH_SESSION");
         }
         let retained = state
-            .resolve_authority(Identity::Bearer(sibling.token))
+            .resolve_authority(Identity::Bearer(rotated_token.clone()))
             .unwrap();
         assert_eq!(retained.session.unwrap().auth_epoch, sibling.auth_epoch);
+        state
+            .mint_asset_carrier(Identity::Bearer(rotated_token.clone()))
+            .unwrap();
+        state
+            .handle(Action::Logout {
+                token: rotated_token,
+            })
+            .unwrap();
+        assert!(state.asset_carriers.values().all(|carrier| {
+            carrier
+                .authority
+                .session
+                .as_ref()
+                .is_none_or(|session| session.auth_epoch != sibling.auth_epoch)
+        }));
         std::fs::remove_dir_all(asset_root).unwrap();
     }
 }

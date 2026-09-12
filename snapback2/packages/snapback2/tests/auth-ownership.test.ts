@@ -1414,3 +1414,35 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
   assert.equal(views.at(-1)?.data, "new-private");
   await act(async () => { renderer.unmount(); });
 });
+
+
+test("explicit refresh persists new custody and ignores an old in-flight session refusal", async () => {
+  const saved = new Map<string, string>();
+  const store = browserTokenStore({ getItem: key => saved.get(key) ?? null,
+    setItem: (key, value) => { saved.set(key, value); }, removeItem: key => { saved.delete(key); } }, "refresh");
+  store.save("old-token"); store.savePrincipal!("principal-a", "old-token");
+  const oldResponse = delayedJson(401);
+  const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async (input, init) => {
+    const path = pathOf(input);
+    if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "user", authEpoch: 7 });
+    if (path === "/api/auth/refresh") {
+      assert.equal(bearer(init), "Bearer old-token");
+      return json({ token: "new-token", viewer: "principal-a", kind: "user", authEpoch: 7 });
+    }
+    if (path === "/api/query") return bearer(init) === "Bearer old-token" ? oldResponse.response
+      : json({ state: "complete", seq: 1, data: "current", next: null });
+    throw new Error(`unexpected ${path}`);
+  } });
+  await client.ready; await client.auth.me();
+  const old = client.query(api.private.current, {}).catch(error => error);
+  await oldResponse.started;
+  const refreshed = await client.auth.refresh();
+  assert.equal(refreshed.authEpoch, 7);
+  assert.deepEqual(store.loadPrincipalBinding!(), { token: "new-token", principal: "principal-a" });
+  oldResponse.resolve(refusal("E_AUTH_SESSION")); await old;
+  assert.equal(client.snapshot.token, "new-token");
+  assert.equal(client.snapshot.auth.viewer, "principal-a");
+  assert.equal(client.snapshot.auth.authEpoch, 7);
+  assert.equal(client.snapshot.auth.state, "authenticated");
+  await client.close();
+});

@@ -14,8 +14,6 @@ mutation inspect(photo: image <=5000000, clip: video <=50000000):
   return { photo, width: photo.width, clip }
 ```
 
-See `guide quarry` for related topics.
-
 ## Uploads and custody
 
 Pass a browser `File` or Expo `{ uri, fileSize, mimeType }` as a generated
@@ -57,6 +55,6 @@ consumed asset's slot; it never compacts sibling records.
 allowance is already consumed, and `E_OFFLINE_CARRIER` means the durable
 allowance or row custody changed. Do not retry with a new token to bypass them.
 
-Quarry `once` currently applies only to image columns. The native memory video
-player exists, but `video ... once` is refused by the public grammar; a newly
-authored app cannot promise view-once video. Ordinary `AssetVideo` is supported.
+`once` is image-only. Ordinary `AssetVideo` supports video. Video/download URLs
+may carry `?s=` credentials: ten-minute expiry, 1,024-owner cap, current row checks,
+`no-store`/`no-referrer`. URLs are transferable; redact proxy query logs too.

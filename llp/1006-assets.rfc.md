@@ -346,9 +346,11 @@ every public image per-viewer and minutes-lived, which defeated the
 that lands on a `public` row is answered with a redirect to the canonical,
 tokenless URL, so shared caches key on one address.
 
-**Lifetime and rotation.** The carrier lives long enough to cover a paused clip
-— tens of minutes at least, and never past the session — and the SDK
-refreshes it before expiry for *new* URLs only. It never rewrites a mounted
+**Lifetime and rotation.** Carriers expire after ten minutes, never past the
+session. The owner keeps at most 1,024 entries and 32 per principal, reuses an exact-authority carrier
+with over a minute left, and purges expired entries on mint and session sweep.
+Capacity refuses rather than evicting a mounted player's valid URL. The SDK
+refreshes before expiry for *new* URLs only. It never rewrites a mounted
 player's `src`, because that restarts playback; a mounted element keeps the
 token it was given until unmount.
 
@@ -358,7 +360,10 @@ there, and test it); a response to a request that carried one is
 `Cache-Control: no-store` and never `public`; every asset response carries
 `Referrer-Policy: no-referrer`. The token's mechanism (opaque and stored, or
 keyed and stateless) is the implementer's; the contract is the properties
-above.
+above. URL credentials can still leak through history, copied links, or external
+proxy logs; operators must redact query strings there too. The ten-minute bound
+limits exposure, not transferability; it grants only current row-authorized asset
+reads, never mutation/session APIs. Header fetch remains preferred where supported.
 
 ## 3. Authoring surface
 

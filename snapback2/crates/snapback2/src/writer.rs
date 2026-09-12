@@ -249,6 +249,9 @@ pub enum Action {
     Logout {
         token: String,
     },
+    Refresh {
+        token: String,
+    },
     Me {
         identity: Identity,
     },
@@ -757,6 +760,7 @@ impl State {
                     grant,
                 ))
             }
+            Action::Refresh { token } => self.refresh_session(token),
             Action::Logout { token } => {
                 let now = self.now();
                 // Pin expiry cleanup and logout to the same instant so an

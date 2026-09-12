@@ -42,6 +42,7 @@ test("Expo starter account screen uses real signup, login, guest and logout with
     assert.equal(new Headers(init?.headers).get("X-Snapback-As"), null);
     if (path === "/api/auth/me") return Response.json({ code: "E_AUTH_REQUIRED", family: "auth", message: "Sign in", guide: "auth" }, { status: 401 });
     if (path === "/api/auth/logout") return Response.json({ ok: true });
+    if (path === "/api/auth/refresh") return Response.json({ token: "renewed-token", viewer: "account-id", kind: "user" });
     if (path.startsWith("/api/auth/")) {
       const guest = path.endsWith("guest");
       if (!guest) assert.deepEqual(JSON.parse(String(init?.body)), { email: "native@example.test", password: "password" });
@@ -63,11 +64,16 @@ test("Expo starter account screen uses real signup, login, guest and logout with
       await press(action);
       assert.equal(renderer!.root.findByType("Identity").children[0], action === "Continue as guest" ? "guest-id" : "account-id");
       assert.equal(await secure.load(), action === "Continue as guest" ? "guest-token" : "account-token");
+      if (action !== "Continue as guest") {
+        await press("Renew session");
+        assert.equal(await secure.load(), "renewed-token");
+        assert.equal(renderer!.root.findByType("Identity").children[0], "account-id");
+      }
       await press("Log out");
       assert.equal(renderer!.root.findAllByType("Identity").length, 0);
       assert.equal(await secure.load(), null);
     }
-    assert.ok(["signup", "login", "guest", "logout", "me"].every(action => paths.includes(`/api/auth/${action}`)));
+    assert.ok(["signup", "login", "guest", "logout", "me", "refresh"].every(action => paths.includes(`/api/auth/${action}`)));
   } finally { if (renderer) await act(async () => renderer!.unmount()); await client.close(); await rm(bundlePath, { force: true }); }
 });
 

@@ -146,6 +146,7 @@ export interface AuthApi {
   login(input: { email: string; password: string }): Promise<AuthSession>;
   guest(): Promise<AuthSession>;
   logout(): Promise<{ ok: boolean }>;
+  refresh(): Promise<AuthSession>;
   me(): Promise<AuthMe>;
 }
 

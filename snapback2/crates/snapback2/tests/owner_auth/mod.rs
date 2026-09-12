@@ -5,7 +5,7 @@ use super::owner_support::*;
 use super::owner_wire::{Sse, request, status};
 use super::*;
 
-const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
+const SESSION_MILLIS: i64 = 24 * 60 * 60 * 1_000;
 const THREAD_PATH: &str = "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D";
 const TYPING_PATH: &str =
     "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D";

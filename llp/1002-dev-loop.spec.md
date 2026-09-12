@@ -1106,7 +1106,7 @@ other persistent custody by default. The adapter requires a non-empty,
 backend-specific storage key; a client rejects `as` combined with `token` or
 `tokenStore`, so a request never carries ambiguous persona and bearer
 authority; raw requests carrying both are refused too. Persona clients cannot
-run signup, login, guest, or logout bearer transitions. `client.ready` settles the initial load
+run signup, login, guest, refresh, or logout bearer transitions. `client.ready` settles the initial load
 before any query, mutation, subscription, channel action, or `me` request can
 reach the network. Browser storage protects restart continuity, not XSS: code
 executing in the page origin can read a bearer held by browser JavaScript.
@@ -1118,8 +1118,16 @@ The flattened hook and its bearer field are deleted. `useViewer()` reads
 it supplies no additional query or authority and eliminates viewer prop drilling.
 All three starter entrypoints now use bearer sessions, with signup, login,
 guest, logout, a visible who-am-I identity, working/error states, and automatic
-restoration in a compact `Auth.tsx`. Browser storage is explicitly selected and
-backend-keyed; Expo's SecureStore key encodes the complete backend URL. The
+restoration in a compact `Auth.tsx`. Web starters explicitly choose backend-keyed
+`sessionStorage`; Expo uses SecureStore keyed by the complete backend URL. Browser
+JavaScript can still read the bearer: this limits persistence, not XSS. Each starter
+exposes “Renew session” via `client.auth.refresh()` / `actions.refresh`, posting to
+`/api/auth/refresh`. The serialized transition replaces durable token/principal
+binding, keeps principal/epoch custody, and fences late old-token replies. Refresh
+is explicit to avoid concurrent request/duplicate-tab rotation races; other clients
+sharing that old bearer must sign in again. New sessions and refreshes last 24 hours.
+Lost responses or failed durable token saves require login again; guests cannot
+recover an expired/lost session. No HttpOnly-cookie protection is claimed. The
 account boundary keys children by principal and unmounts them after logout.
 A token-bound restoring principal keeps its app mounted during cold offline
 restoration, under the existing SDK held-read/write fences; unbound hydration,
