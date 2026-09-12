@@ -460,7 +460,7 @@ impl<'a> Checker<'a> {
         let max_steps = max_steps.saturating_add(derived.steps);
         let output = OutputEstimator::estimate(self.schema, program);
         let max_output_bytes = output.bytes;
-        let mut closure = RetentionEstimator::estimate(self.schema, program);
+        let mut closure = RetentionEstimator::estimate(self.schema, program, &analyzer.merge_sites);
         for child in &mut closure.children {
             if let Some(merge) = analyzer
                 .merge_sites

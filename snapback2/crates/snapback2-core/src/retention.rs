@@ -323,6 +323,7 @@ struct RetentionAssignmentPrice {
 
 pub(crate) struct RetentionEstimator<'a> {
     schema: &'a Schema,
+    merge_sites: &'a BTreeMap<String, crate::certificate::MergeSite>,
     max_held_bytes: u64,
     peak: Flow,
     has_fixed_width_result: bool,
@@ -330,9 +331,14 @@ pub(crate) struct RetentionEstimator<'a> {
 }
 
 impl<'a> RetentionEstimator<'a> {
-    pub(crate) fn estimate(schema: &'a Schema, program: &Program) -> ByteShape {
+    pub(crate) fn estimate(
+        schema: &'a Schema,
+        program: &Program,
+        merge_sites: &'a BTreeMap<String, crate::certificate::MergeSite>,
+    ) -> ByteShape {
         let mut estimator = Self {
             schema,
+            merge_sites,
             max_held_bytes: 0,
             peak: Flow::default(),
             has_fixed_width_result: false,
@@ -812,35 +818,42 @@ impl<'a> RetentionEstimator<'a> {
                 false,
             ),
             Expr::Merge(merge) => {
-                // @ref LLP 1001#3-read-and-write-states-no-silent-states — the
-                // receipt keeps all stepped heads/lookahead plus discovery's page/halo.
+                let uniform = self
+                    .merge_sites
+                    .get(&merge.site)
+                    .is_some_and(|site| site.uniform);
+                // @ref LLP 1023.001#c--choose-a-complete-form-in-this-order —
+                // uniform merge values contain the returned page, not its receipt
+                // heads. Receipt custody is priced once by the pooled estimator;
+                // shaping/aliasing a page cannot copy its discovery and heads.
                 let flow = Flow::row(
                     &merge.site,
                     merge.table(),
                     declared_serialized_row_max(self.schema, merge.table()),
-                    if crate::certificate::search::disjoint_merge(self.schema, merge) {
-                        merge
-                            .max_lanes()
-                            .saturating_add(merge.take())
-                            .saturating_add(2)
+                    if uniform {
+                        merge.take()
                     } else {
                         merge
                             .max_lanes()
                             .saturating_mul(merge.take().saturating_add(3))
                     },
                 );
-                let flow = merge
-                    .lanes
-                    .iter()
-                    .filter_map(|lane| lane.source.as_ref())
-                    .fold(flow, |flow, source| {
-                        flow.add(Flow::row(
-                            &source.site,
-                            &source.table,
-                            declared_serialized_row_max(self.schema, &source.table),
-                            source.take.maximum().saturating_add(1),
-                        ))
-                    });
+                let flow = if uniform {
+                    flow
+                } else {
+                    merge
+                        .lanes
+                        .iter()
+                        .filter_map(|lane| lane.source.as_ref())
+                        .fold(flow, |flow, source| {
+                            flow.add(Flow::row(
+                                &source.site,
+                                &source.table,
+                                declared_serialized_row_max(self.schema, &source.table),
+                                source.take.maximum().saturating_add(1),
+                            ))
+                        })
+                };
                 (flow, Some(merge.take()), true)
             }
             Expr::Scan(scan) => {

@@ -86,11 +86,13 @@ fn following_twenty_over_five_hundred_follows_is_additive_and_matches_sorted_uni
         .check(&program)
         .unwrap();
     assert_eq!(certificate.max_examined, 502 + 501 + 20 + 2);
-    assert_eq!(certificate.max_closure_bytes, 439_606);
-    assert_eq!(
-        certificate.max_closure_bytes,
-        (501 + 20 + 2) * declared_serialized_row_max(&schema, "posts")
-            + 501 * declared_serialized_row_max(&schema, "follows")
+    // Receipt descriptors, keys and row/halo references participate alongside
+    // the pooled row images. A row-only constant did not bound that wire form.
+    assert!(certificate.max_closure_bytes < Ceilings::default().closure_bytes);
+    assert!(
+        certificate.max_closure_bytes
+            >= (501 + 20 + 2) * declared_serialized_row_max(&schema, "posts")
+                + 501 * declared_serialized_row_max(&schema, "follows")
     );
     let mut engine = Engine::memory(schema.clone()).unwrap();
     let mut all = Vec::new();
@@ -132,6 +134,7 @@ fn following_twenty_over_five_hundred_follows_is_additive_and_matches_sorted_uni
     let posts_budget = merge.max_lanes() + merge.take() + 2;
     let follows_budget = merge.lanes[1].source.as_ref().unwrap().take.maximum() + 1;
     let check_receipt = |execution: &Execution| {
+        assert!(canonical_json(&execution.receipt).len() as u64 <= certificate.max_closure_bytes);
         for (table, budget) in [("posts", posts_budget), ("follows", follows_budget)] {
             let held = execution
                 .receipt
@@ -152,6 +155,116 @@ fn following_twenty_over_five_hundred_follows_is_additive_and_matches_sorted_uni
     assert_eq!(ids(&second.result), expected[20..40]);
     check_trace(&second, &certificate);
     check_receipt(&second);
+}
+
+#[test]
+fn wide_shaped_merge_prices_page_values_separately_from_receipt_heads() {
+    let (mut schema, mut program) = fixture(500, 20);
+    schema
+        .tables
+        .get_mut("posts")
+        .unwrap()
+        .columns
+        .insert("body".into(), ColumnType::Text { max: 800 });
+    let Stmt::Return(page) = program.body.remove(0) else {
+        unreachable!()
+    };
+    program.body = vec![
+        Stmt::Const {
+            name: "page".into(),
+            value: page,
+        },
+        Stmt::Const {
+            name: "alias".into(),
+            value: var("page"),
+        },
+        Stmt::Let {
+            name: "rows".into(),
+            value: Expr::Array(vec![]),
+        },
+        Stmt::For {
+            binding: "entry".into(),
+            domain: LoopDomain::DerivedArray {
+                value: var("alias"),
+                max: 20,
+                bound_source: "alias".into(),
+            },
+            body: vec![Stmt::Push {
+                target: "rows".into(),
+                value: Expr::Object(BTreeMap::from([
+                    ("post".into(), var("entry")),
+                    (
+                        "id".into(),
+                        Expr::Field {
+                            base: Box::new(var("entry")),
+                            name: "id".into(),
+                        },
+                    ),
+                ])),
+            }],
+        },
+        Stmt::Return(var("rows")),
+    ];
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert!(certificate.max_closure_bytes < Ceilings::default().closure_bytes);
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let body = "\u{10000}".repeat(800);
+    for n in 0..500 {
+        let author = format!("{n:04}{}", "a".repeat(131));
+        seed_follow(&mut engine, n, &author);
+        for k in 0..3 {
+            engine
+                .seed(
+                    "posts",
+                    object([
+                        ("id", Value::Id(format!("p{n:04}-{k}{}", "x".repeat(128)))),
+                        ("author", Value::Id(author.clone())),
+                        ("at", Value::Int(((n * 17 + k * 37) % 101) as i64)),
+                        ("body", Value::String(body.clone())),
+                    ]),
+                )
+                .unwrap();
+        }
+    }
+    let mut cursor = None;
+    let mut seen = std::collections::BTreeSet::new();
+    for _ in 0..2 {
+        let result = engine.execute(&program, &certificate, ctx(cursor)).unwrap();
+        assert_eq!(result.result.as_array().unwrap().len(), 20);
+        for row in result.result.as_array().unwrap() {
+            assert_eq!(
+                row.field("post")
+                    .unwrap()
+                    .field("body")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+                body.as_str()
+            );
+            assert!(seen.insert(row.field("id").unwrap().as_str().unwrap().to_owned()));
+        }
+        check_trace(&result, &certificate);
+        assert!(canonical_json(&result.receipt).len() as u64 <= certificate.max_closure_bytes);
+        assert!(canonical_json(&result.result).len() as u64 <= certificate.max_output_bytes);
+        cursor = result.next;
+        assert!(cursor.is_some());
+    }
+    // The correction does not admit an actually oversized row pool.
+    schema
+        .tables
+        .get_mut("posts")
+        .unwrap()
+        .columns
+        .insert("body".into(), ColumnType::Text { max: 4_000 });
+    assert!(
+        Checker::new(&schema, Ceilings::default())
+            .check_all(&program)
+            .unwrap_err()
+            .iter()
+            .any(|error| error.message.starts_with("closure bytes"))
+    );
 }
 
 #[test]

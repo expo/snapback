@@ -41,7 +41,10 @@ pub(crate) fn estimate(
             .and_then(|t| t.index(&scan.index))
             .is_some_and(|i| i.derived_offset().is_some())
     });
-    if !search && !consumes_maintained_domain(schema, program, reads) {
+    if !search
+        && !merges.values().any(|site| site.uniform)
+        && !consumes_maintained_domain(schema, program, reads)
+    {
         return None;
     }
     if reads
@@ -145,15 +148,38 @@ pub(crate) fn estimate(
                     .filter(|b| b.is_some())
                     .count() as u64
             });
-        let references = read
-            .take
-            .saturating_mul(declared_identity_max(schema, &scan.table).saturating_add(1))
-            + reference_bytes(schema, &scan.table);
+        // @ref LLP 1023.001#c--choose-a-complete-form-in-this-order — a lazy
+        // uniform merge retains one head per lane plus page/lookahead advances,
+        // not take references in every lane. Descriptor/halo framing stays per lane.
+        let reference_count = plans
+            .iter()
+            .find_map(|plan| {
+                let site = merges.get(&plan.site)?;
+                if !site.uniform {
+                    return None;
+                }
+                let lane = plan.lanes.iter().find(|lane| lane.scan.site == scan.site)?;
+                let lanes = lane
+                    .source
+                    .as_ref()
+                    .map_or(1, |source| source.take.maximum())
+                    .max(1);
+                let calls = read.max_calls / lanes;
+                Some(
+                    read.max_calls
+                        .saturating_add(calls.saturating_mul(site.take.saturating_add(2))),
+                )
+            })
+            .unwrap_or_else(|| read.take.saturating_mul(read.max_calls));
         let bytes = (crate::value::canonical_json(&skeleton).len() as u64
             + prefix
             + suffix.saturating_mul(bounds + 1)
-            + references)
-            .saturating_mul(read.max_calls);
+            + reference_bytes(schema, &scan.table))
+        .saturating_mul(read.max_calls)
+        .saturating_add(
+            reference_count
+                .saturating_mul(declared_identity_max(schema, &scan.table).saturating_add(1)),
+        );
         metadata = metadata.saturating_add(bytes);
         children.push(ByteShape::leaf(
             bytes,
@@ -289,9 +315,18 @@ pub(crate) fn estimate(
     Some(ByteShape::group(
         metadata.saturating_add(root),
         if search {
-            "search closure: whole row pool and actual issuing metadata"
+            "search closure: whole row pool and actual issuing metadata".to_owned()
+        } else if !plans.is_empty() {
+            format!(
+                "merge {}: emitted page, heads and lookahead; whole row pool and actual issuing metadata",
+                plans
+                    .iter()
+                    .map(|plan| plan.site.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         } else {
-            "maintained-address closure: whole row pool and actual issuing metadata"
+            "maintained-address closure: whole row pool and actual issuing metadata".to_owned()
         },
         children,
     ))
