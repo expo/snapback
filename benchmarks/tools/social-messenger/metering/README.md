@@ -284,8 +284,11 @@ deletion/downgrade of optional markers or by substituting explicit
 pin, or choreography version. A physical R2 root selects retained validation
 only when its frozen instrument manifest and hash-bound record base agree on
 the same retained pin, manifest digest, version tuple, harness identity,
-orientation identity, and setup identity when present. Record declarations
-alone cannot downgrade a current physical root.
+orientation identity, and exact setup presence/value. The submitted record is
+then compared through that same complete campaign-identity representation;
+missing, malformed, or conflicting identity evidence routes to complete
+current validation. Record declarations alone cannot downgrade a current
+physical root.
 
 The `0.3.8-m8` instrument coordinates UI `0.3.3-m8`'s React Native Web
 semantic bridge. Retained `0.3.7-m8` manifests and setup identities remain

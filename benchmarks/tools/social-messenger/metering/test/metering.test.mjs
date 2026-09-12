@@ -2683,6 +2683,82 @@ function composedErrors(record, artifactRoot = null) {
   });
 }
 
+const RETAINED_CAMPAIGN_IDENTITY_MUTATIONS = [
+  ["conflicting harness instrument", (value) => {
+    value.harness.environment.instrument = CURRENT_INSTRUMENT_PIN;
+  }],
+  ["missing record instrument pin", (value) => {
+    delete value.socialMessenger.instrumentVersion;
+  }],
+  ["conflicting record instrument pin", (value) => {
+    value.socialMessenger.instrumentVersion = "social-messenger@0.3.4-m8";
+  }],
+  ["missing orientation pin", (value) => {
+    delete value.socialMessenger.orientation.instrument.pin;
+  }],
+  ["conflicting manifest path", (value) => {
+    value.socialMessenger.orientation.instrument.manifest.path = "other-instrument.manifest.json";
+  }],
+  ["conflicting manifest digest", (value) => {
+    value.socialMessenger.orientation.instrument.manifest.sha256 = "f".repeat(64);
+  }],
+  ["conflicting schema version", (value) => {
+    value.socialMessenger.orientation.instrument.versions.schema = "0.3.1-m8";
+  }],
+  ["conflicting UI version", (value) => {
+    value.socialMessenger.orientation.instrument.versions.ui = "0.3.0-m8";
+  }],
+  ["conflicting choreography version", (value) => {
+    value.socialMessenger.orientation.instrument.versions.choreography = "0.3.4-m8";
+  }],
+  ["malformed orientation instrument", (value) => {
+    value.socialMessenger.orientation.instrument = null;
+  }],
+];
+
+function assertRetainedCampaignIdentityMutations(record, root, mutations = []) {
+  for (const [label, mutate] of [...RETAINED_CAMPAIGN_IDENTITY_MUTATIONS, ...mutations]) {
+    const candidate = structuredClone(record);
+    mutate(candidate);
+    assert.match(
+      validateSocialMessengerRecordSemantics(candidate, { artifactRoot: root }).join("\n"),
+      /current instrument|complete hash-bound native metering replay/u,
+      `${label} must not receive retained validation`,
+    );
+  }
+}
+
+async function assertHashBoundBaseIdentityMutations(record, root, mutations = []) {
+  const meteringPath = join(root, "metering-manifest.json");
+  const originalMeteringBytes = await readFile(meteringPath);
+  const originalMetering = JSON.parse(originalMeteringBytes.toString("utf8"));
+  const basePath = join(root, originalMetering.recordBase.path);
+  const originalBaseBytes = await readFile(basePath);
+  try {
+    for (const [label, mutate] of [...RETAINED_CAMPAIGN_IDENTITY_MUTATIONS, ...mutations]) {
+      const base = JSON.parse(originalBaseBytes.toString("utf8"));
+      mutate(base);
+      const baseBytes = Buffer.from(`${JSON.stringify(base, null, 2)}\n`);
+      const metering = structuredClone(originalMetering);
+      metering.recordBase.sha256 = sha256(baseBytes);
+      await Promise.all([
+        writeFile(basePath, baseBytes),
+        writeFile(meteringPath, `${JSON.stringify(metering, null, 2)}\n`),
+      ]);
+      assert.match(
+        validateSocialMessengerRecordSemantics(record, { artifactRoot: root }).join("\n"),
+        /current instrument|complete hash-bound native metering replay/u,
+        `hash-bound base ${label} must not authorize retained validation`,
+      );
+    }
+  } finally {
+    await Promise.all([
+      writeFile(basePath, originalBaseBytes),
+      writeFile(meteringPath, originalMeteringBytes),
+    ]);
+  }
+}
+
 test("retained 0.3.3 R2 provenance remains valid under its own implicit-v1 pin", async () => {
   const root = fileURLToPath(new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
@@ -2691,8 +2767,34 @@ test("retained 0.3.3 R2 provenance remains valid under its own implicit-v1 pin",
   const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
   assert.equal(record.socialMessenger.instrumentVersion, "social-messenger@0.3.3-m8");
   assert.equal(record.socialMessenger.typingObservationBoundaryVersion, undefined);
-  delete record.socialMessenger.setup;
+  assert.equal(Object.hasOwn(record.socialMessenger, "setup"), false);
   assert.deepEqual(composedErrors(record, root), []);
+  assertRetainedCampaignIdentityMutations(record, root, [[
+    "invented setup identity",
+    (value) => {
+      value.socialMessenger.setup = {
+        schemaVersion: "social-messenger.setup-identity.v1",
+        instrumentPin: "social-messenger@0.3.3-m8",
+      };
+    },
+  ]]);
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "retained-033-physical-root-")));
+  const copiedRoot = join(temp, "cell");
+  try {
+    await cp(root, copiedRoot, { recursive: true });
+    assert.deepEqual(composedErrors(record, copiedRoot), []);
+    await assertHashBoundBaseIdentityMutations(record, copiedRoot, [[
+      "invented setup identity",
+      (value) => {
+        value.socialMessenger.setup = {
+          schemaVersion: "social-messenger.setup-identity.v1",
+          instrumentPin: "social-messenger@0.3.3-m8",
+        };
+      },
+    ]]);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
   const mistyped = structuredClone(record);
   mistyped.socialMessenger.typingObservationBoundaryVersion = "v2";
   assert.notDeepEqual(composedErrors(mistyped, root), []);
@@ -2777,12 +2879,38 @@ test("physical retained 0.3.6 identity stays historical while downgraded and mix
       [],
       "a hash-bound physical base and the exact frozen 0.3.6 manifest select historical validation",
     );
+    const setupMutations = [
+      ["missing setup identity", (value) => { delete value.socialMessenger.setup; }],
+      ["conflicting setup schema", (value) => {
+        value.socialMessenger.setup.schemaVersion = "social-messenger.setup-identity.v2";
+      }],
+      ["conflicting setup instrument pin", (value) => {
+        value.socialMessenger.setup.instrumentPin = "social-messenger@0.3.4-m8";
+      }],
+      ["conflicting setup backend", (value) => {
+        value.socialMessenger.setup.backend.version = "0.1.30";
+      }],
+      ["conflicting setup runtime", (value) => {
+        value.socialMessenger.setup.runtime.qualifiedBinary.reason += " changed";
+      }],
+      ["conflicting setup package closure", (value) => {
+        value.socialMessenger.setup.packageClosure.artifacts[0].version += "-changed";
+      }],
+      ["conflicting setup toolchain", (value) => {
+        value.socialMessenger.setup.toolchain.node.version = "v24.18.0";
+      }],
+      ["conflicting setup host", (value) => {
+        value.socialMessenger.setup.host.id += "-changed";
+      }],
+    ];
+    assertRetainedCampaignIdentityMutations(retained, root, setupMutations);
+    await assertHashBoundBaseIdentityMutations(retained, root, setupMutations);
 
     const mixedCurrentMarker = structuredClone(retained);
     mixedCurrentMarker.socialMessenger.orientation.instrument.pin = CURRENT_INSTRUMENT_PIN;
     assert.match(
       validateSocialMessengerRecordSemantics(mixedCurrentMarker, { artifactRoot: root }).join("\n"),
-      /current observability\/orientation markers require social-messenger@0\.3\.8-m8/u,
+      /current instrument/u,
       "a retained record cannot borrow the current orientation identity",
     );
 

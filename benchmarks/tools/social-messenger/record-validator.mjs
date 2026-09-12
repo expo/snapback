@@ -23,6 +23,11 @@ import {
 import { joinUsageToMilestones } from "./metering/joiner.mjs";
 import { composeRunRecord } from "./metering/record-composer.mjs";
 import {
+  campaignIdentitiesEqual,
+  campaignIdentityBoundToFreeze,
+  extractCampaignIdentity,
+} from "./metering/campaign-identity.mjs";
+import {
   CURRENT_INSTRUMENT_PIN,
   CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
   OBSERVABILITY_BLOCKS,
@@ -169,7 +174,7 @@ function readPhysicalJson(artifactRoot, relativePath) {
   }
 }
 
-function retainedPhysicalInstrumentPin(artifactRoot, instrument, metering) {
+function retainedPhysicalCampaignIdentity(artifactRoot, instrument, metering) {
   const pin = instrument?.value?.instrumentPin;
   if (
     instrument?.value?.schemaVersion !== "benchmark-instrument-snapshot.v1"
@@ -193,33 +198,24 @@ function retainedPhysicalInstrumentPin(artifactRoot, instrument, metering) {
   const recordBase = readPhysicalJson(artifactRoot, recordBaseDescriptor.path);
   if (recordBase === null || sha256(recordBase.contents) !== recordBaseDescriptor.sha256) return null;
 
-  const baseExtension = recordBase.value?.socialMessenger;
-  const orientation = baseExtension?.orientation?.instrument;
-  const physicalPins = [
-    recordBase.value?.harness?.environment?.instrument,
-    baseExtension?.instrumentVersion,
-    orientation?.pin,
-  ];
-  if (baseExtension?.setup !== undefined) physicalPins.push(baseExtension.setup?.instrumentPin);
   const manifestDigest = sha256(instrument.contents).replace(/^sha256:/u, "");
-  if (
-    physicalPins.some((value) => value !== pin)
-    || orientation?.manifest?.path !== "instrument.manifest.json"
-    || orientation?.manifest?.sha256 !== manifestDigest
-    || !sameJson(orientation?.versions, versions)
-  ) return null;
-  return pin;
+  return campaignIdentityBoundToFreeze(recordBase.value, {
+    pin,
+    versions,
+    manifestPath: "instrument.manifest.json",
+    manifestSha256: manifestDigest,
+  });
 }
 
 function physicalR2Identity(artifactRoot) {
-  if (!artifactRoot) return { present: false, retainedPin: null };
+  if (!artifactRoot) return { present: false, retainedCampaignIdentity: null };
   const metering = readPhysicalJson(artifactRoot, "metering-manifest.json");
   const instrument = readPhysicalJson(artifactRoot, "instrument.manifest.json");
   // The native stream, R2 join manifest, frozen instrument, and hash-bound
   // record base form one physical campaign identity. A record-declared
-  // retained pin can select historical validation only when that complete
-  // physical tuple names the same retained instrument. Missing, malformed,
-  // conflicting, and current tuples remain on the current fail-closed path.
+  // retained identity can select historical validation only when the submitted
+  // record exactly repeats that complete physical tuple. Missing, malformed,
+  // conflicting, and current identities remain on the current fail-closed path.
   const present = (
     existsSync(resolve(artifactRoot, "events/codex-rollout.jsonl"))
       && existsSync(resolve(artifactRoot, "metering-manifest.json"))
@@ -229,10 +225,10 @@ function physicalR2Identity(artifactRoot) {
     || instrument?.value?.instrumentPin === CURRENT_INSTRUMENT_PIN
     || /^2026-08-23-r2-published-0125\//u.test(metering?.value?.laneRunId ?? "")
   );
-  if (!present) return { present: false, retainedPin: null };
+  if (!present) return { present: false, retainedCampaignIdentity: null };
   return {
     present: true,
-    retainedPin: retainedPhysicalInstrumentPin(artifactRoot, instrument, metering),
+    retainedCampaignIdentity: retainedPhysicalCampaignIdentity(artifactRoot, instrument, metering),
   };
 }
 
@@ -1271,10 +1267,15 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   const extension = record?.socialMessenger;
   if (extension === null || typeof extension !== "object") return errors;
   const physicalIdentity = physicalR2Identity(artifactRoot);
+  const retainedIdentityMatches = physicalIdentity.retainedCampaignIdentity !== null
+    && campaignIdentitiesEqual(
+      extractCampaignIdentity(record),
+      physicalIdentity.retainedCampaignIdentity,
+    );
   const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN
     || (
       physicalIdentity.present
-      && physicalIdentity.retainedPin !== extension.instrumentVersion
+      && !retainedIdentityMatches
     );
   const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION
     && !RETAINED_INSTRUMENT_PINS.has(extension.instrumentVersion);
