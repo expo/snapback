@@ -139,9 +139,9 @@ pub(crate) fn reconcile(
                     schedules: vec![schedule.clone()],
                     ..next.clone()
                 };
-                for row in crate::engine::fetch_table_connection(conn, table)? {
-                    maintain(conn, &isolated, table, None, Some(&row))?;
-                }
+                crate::successor::for_row_batches(conn, table, |row| {
+                    maintain(conn, &isolated, table, None, Some(&row)).map(|_| ())
+                })?;
                 conn.execute(
                     "UPDATE _timers SET generation=?2 WHERE schedule=?1",
                     params![schedule.name, next.hash()],

@@ -1,8 +1,7 @@
 # Schedules
 
-`schedule` declares two triggers, one kind. A row timer fires once per row when a `time ?` column
-is reached; a period timer fires once per whole-minute period. The target is a
-mutation or a declared job of this project, run as the owner.
+`schedule` binds a row deadline (`time ?`) or a whole-minute period to a local
+mutation or declared job, run as the owner.
 
 `schedule expireMessage on messages at .expiresAt: delete .` deletes its trigger
 row through a private mutation. It has the same admission, settlement and
@@ -49,8 +48,8 @@ period: a job still queued or running for that occurrence coalesces (a done,
 cancelled, or parked one is history, and the firing enqueues a fresh job), and
 a mutation target must be idempotent on its arguments. A period re-arms to
 `period_start + duration`; after an outage it fires once, for the latest missed
-period, and records `skipped`. A rejected target settles with its refusal and
-does not re-fire (row) or re-arms anyway (period). `if predicate` is evaluated
+period, and records `skipped`. A rejection settles without retry (row) or re-arms (period). To retry a row,
+change its deadline value; rewriting the same value or an unrelated field does not re-arm it. `if predicate` is evaluated
 against the row at fire time; false settles silently. A row already past its
 `expiresAt` when written fires on the next turn. A target is a system program:
 like a job it leaves the client operation map and `/api/*` refuses it

@@ -146,6 +146,7 @@ fn write_migration(
         .join(format!("migration-{generation}.json"));
     let bytes = serde_json::to_vec_pretty(&json!({
         "generation": generation,
+        "from": refusal.detail.get("from"),
         "project": project,
         "plan": plan,
     }))

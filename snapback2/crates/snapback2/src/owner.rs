@@ -55,7 +55,7 @@ pub struct DevOptions {
     pub test_owner: bool,
 }
 
-pub fn run(options: DevOptions) -> ExitCode {
+pub fn run(mut options: DevOptions) -> ExitCode {
     let root = match locate_root(options.project.as_deref()) {
         Ok(root) => root,
         Err(error) => return print_refusal(error, options.json, 2),
@@ -89,7 +89,15 @@ pub fn run(options: DevOptions) -> ExitCode {
                 );
             }
         };
-        return control_command(&root, "POST", "/control/migrate", value, options.json);
+        match probe_owner(&root) {
+            OwnerProbe::Active(_) | OwnerProbe::Running(_) => {
+                return control_command(&root, "POST", "/control/migrate", value, options.json);
+            }
+            OwnerProbe::Missing => {
+                options.apply_migration =
+                    Some(fs::canonicalize(path).unwrap_or_else(|_| path.clone()));
+            }
+        }
     }
     match probe_owner(&root) {
         OwnerProbe::Active(info) => {
@@ -166,8 +174,13 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     let restarted_through_seq = store
         .commit_seq()
         .map_err(|error| Refusal::from_runtime(&error))?;
-    let mut runtime = Runtime::open(store, compiled.generation.clone())
-        .map_err(|error| crate::protocol::successor_site(Refusal::from_successor(&error), &compiled, None))?;
+    let mut runtime = if let Some(path) = &options.apply_migration {
+        open_reviewed_migration(store, &compiled, path)
+    } else {
+        Runtime::open(store, compiled.generation.clone()).map_err(|error| {
+            crate::protocol::successor_site(Refusal::from_successor(&error), &compiled, None)
+        })
+    }?;
     // @ref LLP 1020#a3-exact-projection-ownership — a successor installed at owner start
     // (the schema changed while the owner was down) reaches the successor log exactly
     // as a hot installation does, regroup line included.
@@ -314,6 +327,36 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     writer_result
 }
 
+fn open_reviewed_migration(
+    store: Store,
+    compiled: &crate::project::CompiledProject,
+    path: &Path,
+) -> Result<Runtime, Refusal> {
+    let invalid = |error: String| {
+        Refusal::input(
+            format!("cannot apply saved migration: {error}"),
+            "review a new migration plan for the current sources and store",
+        )
+    };
+    let bytes = fs::read(path).map_err(|error| invalid(error.to_string()))?;
+    let saved: Json = serde_json::from_slice(&bytes).map_err(|error| invalid(error.to_string()))?;
+    let project = crate::project::certify_project_value(saved["project"].clone()).map_err(first)?;
+    if saved["generation"].as_str() != Some(compiled.generation.hash().as_str())
+        || serde_json::to_value(&project.project).ok()
+            != serde_json::to_value(&compiled.project).ok()
+    {
+        return Err(invalid(
+            "saved project differs from current authored sources".into(),
+        ));
+    }
+    let from = saved["from"].as_str().filter(|from| !from.is_empty()).ok_or_else(|| invalid("saved plan has no originating generation; restore the previous sources, start snapback2 dev, then restore current sources to generate a bound plan".into()))?;
+    let plan = serde_json::from_value(saved["plan"].clone())
+        .map_err(|error| invalid(error.to_string()))?;
+    Runtime::open_with_migration(store, compiled.generation.clone(), from, &plan).map_err(|error| {
+        crate::protocol::successor_site(Refusal::from_successor(&error), compiled, None)
+    })
+}
+
 fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
     let snapback = match secure_owner_directory(&root) {
         Ok(path) => path,
@@ -375,6 +418,9 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(stderr))
         .current_dir(&root);
+    if let Some(path) = &options.apply_migration {
+        command.arg("--apply-migration").arg(path);
+    }
     if options.port != 0 {
         command.arg("--port").arg(options.port.to_string());
     }

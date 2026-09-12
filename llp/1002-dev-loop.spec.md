@@ -605,8 +605,12 @@ trace-harvest harness opts into mutation execution with `queryOnly: false`.
   re-execute and deliver on an applied successor. Once the watcher has saved a
   destructive plan, its refusal carries `migrationFile` and `applyCommand`:
   `snapback2 dev --project '<absolute root>' --apply-migration '<absolute plan>'`,
-  with shell-quoted paths. Review the plan before running that command while the
-  owner remains running; `dev --status` then shows `ready` and the plan's generation.
+  with shell-quoted paths. Review the plan before running that command; it applies
+  to a running owner or starts a stopped one after applying the reviewed delta.
+  Cold application binds the saved originating generation, current authored
+  project, and exact live-store drops; mismatches refuse before mutation, and
+  drops plus successor metadata share one transaction. `dev --status` then shows
+  `ready` and the plan's generation.
   A failed plan write reports that failure instead of offering an application command.
   Relative `--apply-migration` paths resolve from the command's working directory,
   even with `--project`. `check` compiles, certifies, and refreshes the build cache;

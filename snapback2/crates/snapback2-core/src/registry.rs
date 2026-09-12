@@ -406,8 +406,10 @@ impl Generation {
         let mut programs = BTreeMap::new();
         let mut seen_programs = BTreeSet::new();
         let acknowledgements: Vec<_> = crate::delivery::declarations(&schema)
-            .filter(|(_, _, d)| d.receipts).map(|(content, _, d)| crate::delivery::ack_program(content, d))
-            .filter(|p| !project.programs.contains(p)).collect();
+            .filter(|(_, _, d)| d.receipts)
+            .map(|(content, _, d)| crate::delivery::ack_program(content, d))
+            .filter(|p| !project.programs.contains(p))
+            .collect();
         for program in project.programs.iter().chain(&acknowledgements) {
             let first_declaration = seen_programs.insert(program.name.clone());
             if !first_declaration {
@@ -528,9 +530,30 @@ impl Runtime {
             .map_err(store_refusal)?
             .unwrap_or_default();
         let to = generation.hash();
-        Self::open_inner(store, generation).map_err(|e| e.compared(&from, &to))
+        Self::open_inner(store, generation, None).map_err(|e| e.compared(&from, &to))
     }
-    fn open_inner(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
+    /// Start a stopped owner with an explicitly reviewed destructive delta.
+    pub fn open_with_migration(
+        store: Store,
+        generation: Generation,
+        from: &str,
+        migration: &MigrationPlan,
+    ) -> Result<Self, SuccessorRefusal> {
+        let installed = store.meta("generation").map_err(store_refusal)?;
+        if from.is_empty() || installed.as_deref() != Some(from) {
+            return Err(store_refusal(RuntimeError::MigrationPlan(
+                "saved plan does not match the installed generation".into(),
+            )));
+        }
+        let to = generation.hash();
+        Self::open_inner(store, generation, Some(migration))
+            .map_err(|error| error.compared(from, &to))
+    }
+    fn open_inner(
+        mut store: Store,
+        generation: Generation,
+        approved: Option<&MigrationPlan>,
+    ) -> Result<Self, SuccessorRefusal> {
         crate::engine::validate_schema(&generation.schema)
             .map_err(|errors| store_refusal(first_schema_error(errors)))?;
         let generation_hash = generation.hash();
@@ -563,6 +586,11 @@ impl Runtime {
                     .map_err(store_refusal)?;
             }
             Some(hash) if hash == generation_hash => {
+                if approved.is_some_and(|plan| !plan.drops.is_empty()) {
+                    return Err(store_refusal(RuntimeError::MigrationPlan(
+                        "saved plan has no matching destructive delta".into(),
+                    )));
+                }
                 // Persist additive owner metadata that may postdate this generation.
                 let transaction = store
                     .conn
@@ -581,7 +609,7 @@ impl Runtime {
                     succession,
                     true,
                 )
-                    .map_err(store_refusal)?;
+                .map_err(store_refusal)?;
                 transaction
                     .commit()
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
@@ -591,14 +619,20 @@ impl Runtime {
                     .meta("schema_json")
                     .map_err(store_refusal)?
                     .ok_or_else(|| SuccessorRefusal::destructive(MigrationPlan::default()))?;
-                let current: Schema = serde_json::from_str(&current_json).map_err(|error| {
+                let mut current: Schema = serde_json::from_str(&current_json).map_err(|error| {
                     store_refusal(RuntimeError::Serialization(error.to_string()))
                 })?;
                 let owned = projected_owned_ids(&store.conn, &current, &generation.schema)
                     .map_err(store_refusal)?;
                 let migration = plan(&store.conn, &current, &generation.schema, &owned)
                     .map_err(store_refusal)?;
-                if !migration.drops.is_empty() {
+                if let Some(approved) = approved {
+                    if approved != &migration {
+                        return Err(store_refusal(RuntimeError::MigrationPlan(
+                            "saved plan does not match the current destructive delta".into(),
+                        )));
+                    }
+                } else if !migration.drops.is_empty() {
                     return Err(SuccessorRefusal::destructive(migration));
                 }
                 let transaction = store
@@ -613,13 +647,17 @@ impl Runtime {
                     evaluator_changed,
                 )
                 .map_err(store_refusal)?;
+                let now = unix_millis();
+                if let Some(approved) = approved {
+                    apply_migration_drops(&transaction, &mut current, approved, now)
+                        .map_err(store_refusal)?;
+                }
                 if let Some(refusal) =
                     additive_refusal(&transaction, &current, &generation.schema, &owned)
                         .map_err(store_refusal)?
                 {
                     return Err(refusal);
                 }
-                let now = unix_millis();
                 let mut report = apply_additive(
                     &transaction,
                     &current,
@@ -630,15 +668,14 @@ impl Runtime {
                     now,
                 )
                 .map_err(store_refusal)?;
-                report.audience_bounds =
-                    persist_generation_transaction(
-                        &transaction,
-                        &generation,
-                        now,
-                        succession,
-                        true,
-                    )
-                        .map_err(store_refusal)?;
+                report.audience_bounds = persist_generation_transaction(
+                    &transaction,
+                    &generation,
+                    now,
+                    succession,
+                    true,
+                )
+                .map_err(store_refusal)?;
                 report.persist(&transaction).map_err(store_refusal)?;
                 opened_successor = Some(report);
                 transaction

@@ -9,8 +9,8 @@ silently discarding it. `--json` prints each chunk and the final receipt.
 `chunk` reads current rows in index order through the upper key captured
 at the start of its sweep. Later inserts between the cursor and bound are visited;
 inserts beyond it are excluded; deleted rows are skipped. Cursor and writes
-commit together. A job can have several independent chunks, in order, with
-typed arguments in their prefixes. Jobs execute as the owner, under constraints.
+commit together. `break` ends its sweep, `return` ends the job, and `continue` skips a row.
+Jobs run as the owner, under constraints.
 
 A refused chunk rolls back and parks with its refusal; earlier chunks remain.
 Fix the data or constraint, then `run --resume job_id --as system` retries it.
