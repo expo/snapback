@@ -21135,6 +21135,1262 @@
         "publicationQualified": false
       },
       "cleanup": "Both original-primary control/candidate runs and isolated replay completed normally; all owned browser/owner processes stopped. Integration and preserved candidate worktrees remain recoverable."
+    },
+    "fullAcquisitionRedesign": {
+      "status": "Full combined prototype implemented and measured:23.8067% faster,12.263s; not promoted; three-second target unmet and unproven",
+      "commission": "Author requested a full acquisition redesign attempt after stopping marginal tuning; three seconds is an unproven target.",
+      "source": {
+        "commit": "39523c188e2c16a6755b4bae086bf6adb5fc7654",
+        "base": "0ec9021233de47f62c15c43032d3f2b905ef57a8",
+        "branch": "llp-ship/acquisition-20260912/full-redesign",
+        "worktree": "/Users/ccheever/projects/snapback-s2-b/snapback2/packages/snapback2",
+        "cleanAfterCommit": true,
+        "disposition": "Preserved at the local experiment branch and staged fleet archive; not integrated into main"
+      },
+      "design": [
+        "Array-free wire images own one wire body; generic and all arrays retain tagged representation. Exact admission, canonical and JSON-normalized carrier checks preserved.",
+        "Numeric posting construction includes required first offline history/search inside timed endpoint. In-tree partial iterators close.",
+        "Current-state pages for rows/meta retain logical records; bounded256 entries/65536 JSON UTF16 units with oversized singleton; atomic sibling reads and completion-bound locator. DBv5 fresh-only old-store upgrade aborts intact.",
+        "Ordinary grants/intents/FIFO/executions/receipts unchanged. Proxy SwapJournal and ProjectionCache JSON normalization unchanged."
+      ],
+      "validation": {
+        "evaluatorCorpus": 266,
+        "additionalEvaluatorControls": "delivery10, visibility2, indexed and search foundation; conservative Proxy species and generic/tagged/wire controls",
+        "clientTests": 821,
+        "clientFailures": 0,
+        "skipped": 0,
+        "packageBuild": "PASS",
+        "refCheck": "PASS:466 LLP docs,8642 refs,0 errors,0 unchecked",
+        "initialClientRun": {
+          "tests": 821,
+          "passed": 819,
+          "failed": 2,
+          "cause": "Existing asynchronous transaction error was masked by explicit commit InvalidStateError after waiting for page reads",
+          "fix": "Check transaction.error before explicit commit; original rollback and error assertions unchanged"
+        },
+        "logs": {
+          "build": {
+            "path": "/tmp/acquisition-full-redesign-build-round4.log",
+            "bytes": 277,
+            "sha256": "4212e002c75ed0c7a686723c107fd45bfdf98dedc53d5130aa4d2dcffc778d74"
+          },
+          "evaluator": {
+            "path": "/tmp/acquisition-full-redesign-row-image-conservative-evaluator.log",
+            "bytes": 3683,
+            "sha256": "55152bd35a71d1c96378db3f33e673c8542e703f662a5664eb869b4707c62d57"
+          },
+          "package": {
+            "path": "/tmp/acquisition-full-redesign-combined-tests-round2.log",
+            "bytes": 75476,
+            "sha256": "3dc8ab04592017a5f9eeea792928af6f797127937ae7e4ab3fadb9e99d55fef8"
+          },
+          "initialPackageFailure": {
+            "path": "/tmp/acquisition-full-redesign-combined-tests.log",
+            "bytes": 78418,
+            "sha256": "0e6081a0e3f8dd5370e3b663fe146dac2a399df3d31206d46bbd624aab1e4ed5"
+          },
+          "bytes": {
+            "path": "/tmp/acquisition-full-redesign-bytes.log",
+            "bytes": 2400,
+            "sha256": "c9ef37f94e97c5b883fe35ab2598fd6b54dab7da5bf4cb49ebccc0009e514f4c"
+          },
+          "refCheck": {
+            "path": "/tmp/acquisition-full-redesign-ref-check.log",
+            "bytes": 80,
+            "sha256": "41911b186d91327bc44f0cbf8a0da66b5515437014f4737bd5e51d2496f285b3"
+          }
+        }
+      },
+      "canonicalRuntime": {
+        "minified": 273764,
+        "gzip": 90586,
+        "ceiling": 90000,
+        "passed": false,
+        "measurementScope": "Unchanged canonical five roots, measured immediately before commit with identical source. Browser IndexedDB carrier remains covered by built browser artifact and existing package accounting."
+      },
+      "independentReview": {
+        "reviewer": "/root/redesign_audit",
+        "source": "39523c188e2c16a6755b4bae086bf6adb5fc7654",
+        "verdict": "No material finding remains for the authorized full-endpoint experiment",
+        "readOnly": true,
+        "testsRerunByReviewer": false,
+        "limits": "Ceiling exceeded by586bytes; existing database upgrade refused intact; no rollout or sub3qualification"
+      },
+      "artifacts": {
+        "manifest": {
+          "path": "/tmp/acquisition-full-redesign-manifest.json",
+          "bytes": 60985,
+          "sha256": "0132eef895482d346c54b983b44997b00636ce2fd0a91ec3af3f5ba7c0ef7452"
+        },
+        "archive": {
+          "path": "/tmp/acquisition-20260912-candidate-full-redesign-dist.tar.gz",
+          "bytes": 1683357,
+          "sha256": "e93ff6c8ed84330c5034aa504f383eb50270affd18ed82cdf552b7c2dcaf929f"
+        },
+        "sourceFiles": [
+          {
+            "path": "llp/1018.008.007.002-bounded-bulk-acquisition.plan.md",
+            "bytes": 77207,
+            "sha256": "c03f542c52f623b92de8c760c7d639b8bf446aa33e652beb5b0be2b6226d661e"
+          },
+          {
+            "path": "snapback2/metrics/twin.jsonl",
+            "bytes": 365172,
+            "sha256": "5566f4f8fc02cc28b0a391696244f18d9838fd0891acdc84fc1d658b93008592"
+          },
+          {
+            "path": "snapback2/packages/evaluator/src/index-store.ts",
+            "bytes": 16300,
+            "sha256": "e2aeb35e5533d6d2a817ea71c801ea97a359c52db7be8ab2918a4a19290e5910"
+          },
+          {
+            "path": "snapback2/packages/evaluator/src/posting-tree.ts",
+            "bytes": 3965,
+            "sha256": "b914b6b633fb7b70b2fa42d9df503194b8a99a5fc9dd54a145d1ab5ba4fd2584"
+          },
+          {
+            "path": "snapback2/packages/evaluator/src/row-image.ts",
+            "bytes": 9241,
+            "sha256": "ee24eef85598773534df3dbc2b35e50cb1d5ba81d784cc7d899035f17466eaa0"
+          },
+          {
+            "path": "snapback2/packages/evaluator/src/runner.ts",
+            "bytes": 59866,
+            "sha256": "d30027361808f6b43cc0de0cdfc223f47b799230b5dfed1b69609284333093e5"
+          },
+          {
+            "path": "snapback2/packages/evaluator/src/store.ts",
+            "bytes": 15836,
+            "sha256": "67cac06da69e015ed00c5c4f4131b87c8e7e57d53e2300b9281b89120ac64b32"
+          },
+          {
+            "path": "snapback2/packages/evaluator/src/test-search-foundation.ts",
+            "bytes": 30052,
+            "sha256": "08b8aa9ee06dc7171bb6cc571c559b0667471de287eb70dc37ee77341016e9e3"
+          },
+          {
+            "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+            "bytes": 30559,
+            "sha256": "4ede3a64f792d0de413d58914fbf2ac9d809be6d71ed4f0e238bfc512f05f6a7"
+          },
+          {
+            "path": "snapback2/packages/snapback2/src/store/indexeddb-pages.ts",
+            "bytes": 6035,
+            "sha256": "fc506a21e490f9143111db634ac8d2f46f3ddbcba7edeb32d0e1575f05c174b4"
+          },
+          {
+            "path": "snapback2/packages/snapback2/src/store/indexeddb.ts",
+            "bytes": 23902,
+            "sha256": "028e53375aa37274613da431bd9b1895cd2d17716bd77aca3a30a7a8b7a02a08"
+          },
+          {
+            "path": "snapback2/packages/snapback2/tests/fake-indexeddb.ts",
+            "bytes": 20228,
+            "sha256": "ff2c7ddb16f7143c248b8f08a1b44028bf0bb8a09ec73e5adfc1fa1641871190"
+          },
+          {
+            "path": "snapback2/packages/snapback2/tests/offline-bytes.test.ts",
+            "bytes": 45966,
+            "sha256": "96e8105c4d86a1b9c89816b900b38b1ba83953e5a1175fe216d32ec744aac054"
+          },
+          {
+            "path": "snapback2/packages/snapback2/tests/offline-store.test.ts",
+            "bytes": 75693,
+            "sha256": "624ac1b74c4bfd2d1b39edbbb60a8d278b3b4fc471acff697fa400849821fb6c"
+          },
+          {
+            "path": "snapback2/packages/snapback2/tests/sqlite-exports.ts",
+            "bytes": 2219,
+            "sha256": "12db8d302af50358cc243d96e907240dfc36b2d7d68e96461d7588e7c7d46fbe"
+          },
+          {
+            "path": "snapback2/packages/snapback2/tests/sqlite.test.ts",
+            "bytes": 46786,
+            "sha256": "e154dd3848c31936405721abcb088372726ed2c77f476a3c4eabbadfab2c4c74"
+          },
+          {
+            "path": "snapback2/packages/snapback2/tests/store-review.test.ts",
+            "bytes": 83006,
+            "sha256": "d4ccdf1776dd5ee8f3b4bd90144733dde17772bb45bf918733b481816b1f5bf6"
+          }
+        ],
+        "majorModules": [
+          {
+            "path": "dist/client-runtime.mjs",
+            "bytes": 311755,
+            "sha256": "5f6b7f38d78a543a8fa79a0342689ca3a516c92e96fbac03b929026273c68e09"
+          },
+          {
+            "path": "dist/image-runtime.mjs",
+            "bytes": 68882,
+            "sha256": "4a3879bdd51590a1d95efa7a0cd78b0f37f1401c39844fd3869d972c7723dfae"
+          },
+          {
+            "path": "dist/react.mjs",
+            "bytes": 20204,
+            "sha256": "269700d5213f883ec0b9b7e8cdb113a50a21d5233b9e5a71512681a9fff0fac4"
+          }
+        ]
+      },
+      "metrology": {
+        "endpoint": "Original full10008-message acquisition with201 terminals/89 empty/5558effects, first offline history/search timed, full message hash, actual physical reopen and owner shutdown; same dual-format post-clock inspector both arms",
+        "harness": {
+          "path": "/tmp/acquisition-sub3-bearer-pages-inspector-20260912.mjs",
+          "bytes": 81285,
+          "sha256": "3ba08ec9df6eac606fe2470947a7efb610889d39835fd9e330a5e8c18777123d"
+        },
+        "controls": {
+          "path": "/tmp/acquisition-pages-inspector-controls-20260912.json",
+          "bytes": 1065,
+          "sha256": "a2ecb356e501508db74fdd9faeb6f34ed266b5137e82161f46645a7922babc0e"
+        },
+        "inspectorDiff": {
+          "path": "/tmp/acquisition-pages-inspector-20260912.diff",
+          "bytes": 7871,
+          "sha256": "9b8be2cc6e7a4d4113ad40b733cb3b1e89f30fc15159015b45cf6ef4c017bd15"
+        },
+        "inspectorMetadata": {
+          "path": "/tmp/acquisition-pages-inspector-20260912-metadata.json",
+          "bytes": 2599,
+          "sha256": "c6df6865dcf3cbe226130de5cae33a4de3671359087e6f14032866830ae44e0f"
+        },
+        "label": "Same full endpoint with format-aware post-clock inspector",
+        "scope": "Only physical() changed; both arms use this exact harness. Fresh per-run identities are not cross-run equality assertions.",
+        "pureDecoderControls": 14,
+        "syntaxCheck": "PASS",
+        "independentMetrologyReview": "No material finding remains; timing, first-use, full hash and shutdown boundaries preserved."
+      },
+      "nonClaims": [
+        "No sub-three-second qualification",
+        "No canonical byte-ceiling waiver",
+        "No production rollout or old-format support",
+        "No additive savings inference from component timings",
+        "No replacement of Proxy SwapJournal or ProjectionCache JSON normalization"
+      ],
+      "wireRepresentationCoverage": {
+        "artifact": {
+          "path": "/tmp/acquisition-full-redesign-wire-coverage-20260912.json",
+          "bytes": 3556,
+          "sha256": "ae4b39267e97ce5bfb2159d2980f83b9af7ef96441facd43aecceb53d2814f67"
+        },
+        "record": {
+          "kind": "Read-only frozen fixture wire-ownership eligibility audit",
+          "date": "2026-09-12",
+          "candidateSource": "39523c188e2c16a6755b4bae086bf6adb5fc7654",
+          "host": "ccheever@100.85.211.16",
+          "database": {
+            "path": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/fixture-snapshots/10008.sqlite",
+            "sha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "openMode": "mode=ro&immutable=1"
+          },
+          "schema": {
+            "path": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/fixture-10008/snapback/schema.q",
+            "sha256": "7f5330c77188f95381cd8f9c81b0400e130dce856aeea82aa382b2040c47f409",
+            "messageDefinitionLines": [
+              59,
+              80
+            ]
+          },
+          "method": "Previously obtained output only: SELECT table_name,data FROM rows; parse each persisted tagged JSON body and recursively detect any JSON array. Emit aggregate table counts and message field tag counts, without row identities or bodies. No new scan performed to create this record.",
+          "tables": {
+            "conversations": {
+              "rows": 100,
+              "withArray": 0,
+              "withoutArray": 100
+            },
+            "memberships": {
+              "rows": 199,
+              "withArray": 0,
+              "withoutArray": 199
+            },
+            "memberCounts": {
+              "rows": 100,
+              "withArray": 0,
+              "withoutArray": 100
+            },
+            "messages": {
+              "rows": 10008,
+              "withArray": 0,
+              "withoutArray": 10008
+            },
+            "deliveriesReceipts": {
+              "rows": 10008,
+              "withArray": 0,
+              "withoutArray": 10008
+            },
+            "deliveries": {
+              "rows": 10008,
+              "withArray": 0,
+              "withoutArray": 10008
+            },
+            "messageCounts": {
+              "rows": 1,
+              "withArray": 0,
+              "withoutArray": 1
+            },
+            "profiles": {
+              "rows": 1,
+              "withArray": 0,
+              "withoutArray": 1
+            }
+          },
+          "messages": {
+            "count": 10008,
+            "fieldTagCounts": {
+              "at": {
+                "Int": 10008
+              },
+              "authorId": {
+                "Id": 10008
+              },
+              "body": {
+                "String": 10008
+              },
+              "conversationId": {
+                "Id": 10008
+              },
+              "id": {
+                "Id": 10008
+              },
+              "expiresAt": {
+                "Null": 10007
+              }
+            },
+            "optionalFields": {
+              "body": {
+                "presentString": 10008,
+                "explicitNull": 0,
+                "omitted": 0
+              },
+              "expiresAt": {
+                "presentNonNull": 0,
+                "explicitNull": 10007,
+                "omitted": 1
+              },
+              "photo": {
+                "presentNonNull": 0,
+                "explicitNull": 0,
+                "omitted": 10008
+              },
+              "clip": {
+                "presentNonNull": 0,
+                "explicitNull": 0,
+                "omitted": 10008
+              },
+              "oncePhoto": {
+                "presentNonNull": 0,
+                "explicitNull": 0,
+                "omitted": 10008
+              },
+              "editedAt": {
+                "presentNonNull": 0,
+                "explicitNull": 0,
+                "omitted": 10008
+              }
+            }
+          },
+          "conclusion": "All frozen messages and every other stored table body are array-free and eligible for wire ownership when admitted through RowImage.fromWire. No fixture table kind falls back because of an array-bearing body. Generic tagged inputs and evaluator-created tagged rows still retain the tagged representation by construction.",
+          "limits": "This is input eligibility inferred from exact frozen row content and candidate source. It does not measure observed RowImage invocation paths, the number of wire-owned instances, allocation or CPU savings, or endpoint speedup. No timing, browser, tests, builds, production source edits or running-owner database inspection occurred."
+        }
+      },
+      "fullEndpointPair": {
+        "artifact": {
+          "path": "/tmp/acquisition-20260912-full-redesign-samples.json",
+          "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/acquisition-20260912-full-redesign-samples.json",
+          "bytes": 21583,
+          "sha256": "53d11d6ccdcc1062e8bdb8e66017c1a828ed38eb0c82c798686c465ac7b269dc"
+        },
+        "record": {
+          "scope": "One exploratory serial full acquisition control\u2192combined prototype pair on450b. Same reviewed dual-format post-clock inspector in both arms; no component timing or smaller workload. Descriptive pair, not qualifying median, p95 or cohort.",
+          "goalMs": 3000,
+          "goalMet": false,
+          "candidateNonDelivering": true,
+          "candidateDeliveryLimitations": [
+            "90,586 canonical gzip bytes exceeds unchanged90,000 ceiling by586.",
+            "DBv5 carrier is fresh-only; old-format upgrade aborts intact.",
+            "This full gain does not establish a route to3 seconds."
+          ],
+          "endpoint": "Unchanged full10,008 exact-message content acquisition, public outbox.settled, owner cut, first offline history/search inside original clock; post-clock exact message hash and actual browser-profile reopen. All201 ordinary earned terminals,89 empty,5558effects remain required.",
+          "interpretation": "Full endpoint improved3831.698538ms (23.8067%); candidate first offline search579.100ms is included. Physical final record reduction is a final-state count, not a measured write-operation count.",
+          "timingDeltaCandidateMinusControlMs": {
+            "completeAcquisitionMs": -3831.6985379999987,
+            "coldSyncedMs": -4530.016144000001,
+            "ackCompleteMs": -4429.037592999999,
+            "firstInboxMs": 93.69638300000042,
+            "firstOfflineHistoryMs": 10.80000114440918,
+            "firstOfflineSearchMs": 577.3999996185303,
+            "reopenMs": -822.6446149999974
+          },
+          "fullEndpointImprovementPercent": 23.806651815387696,
+          "fixedInputs": {
+            "ownerSha256": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "mediaSha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+            "compilerCoreSha256": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "sessionHelperSourceSha256": "7b0817643def0993d7f8e1a6cdd4dcda49e33693be60f7a7047d8d3f79bc580c",
+            "sessionHelperBinarySha256": "e178b2bd94cb9b1382e260a5511a250ac889b1dd3acf675d39c286d5d18dea2e",
+            "originalPrimaryHarnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131"
+          },
+          "nodeVersion": "v24.13.1",
+          "browserVersion": "140.0.7339.186",
+          "browserExecutableSha256": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+          "harness": {
+            "localPath": "/tmp/acquisition-sub3-bearer-pages-inspector-20260912.mjs",
+            "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-sub3-bearer-pages-inspector-20260912.mjs",
+            "bytes": 81285,
+            "sha256": "3ba08ec9df6eac606fe2470947a7efb610889d39835fd9e330a5e8c18777123d"
+          },
+          "harnessOriginalSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+          "harnessDiff": {
+            "localPath": "/tmp/acquisition-pages-inspector-20260912.diff",
+            "remotePath": null,
+            "bytes": 7871,
+            "sha256": "9b8be2cc6e7a4d4113ad40b733cb3b1e89f30fc15159015b45cf6ef4c017bd15"
+          },
+          "harnessMetadata": {
+            "localPath": "/tmp/acquisition-pages-inspector-20260912-metadata.json",
+            "remotePath": null,
+            "bytes": 2599,
+            "sha256": "c6df6865dcf3cbe226130de5cae33a4de3671359087e6f14032866830ae44e0f"
+          },
+          "decoderControls": {
+            "localPath": "/tmp/acquisition-pages-inspector-controls-20260912.json",
+            "remotePath": null,
+            "bytes": 1065,
+            "sha256": "a2ecb356e501508db74fdd9faeb6f34ed266b5137e82161f46645a7922babc0e"
+          },
+          "decoderControlsPassed": 14,
+          "inspectorScope": "Only physical() differs from original. Decoder runs after full endpoint; v4 flat and v5 bounded pages yield the same exact logical records for original content/ACK/reopen assertions. No clock, app or workload changes. Aggregate metadata hashes describe each run and are not cross-run equality assertions.",
+          "candidate": {
+            "source": "39523c188e2c16a6755b4bae086bf6adb5fc7654",
+            "base": "0ec9021233de47f62c15c43032d3f2b905ef57a8",
+            "archive": {
+              "localPath": "/tmp/acquisition-20260912-candidate-full-redesign-dist.tar.gz",
+              "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/acquisition-20260912-candidate-full-redesign-dist.tar.gz",
+              "bytes": 1683357,
+              "sha256": "e93ff6c8ed84330c5034aa504f383eb50270affd18ed82cdf552b7c2dcaf929f"
+            },
+            "manifest": {
+              "localPath": "/tmp/acquisition-full-redesign-manifest.json",
+              "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/acquisition-full-redesign-manifest.json",
+              "bytes": 60985,
+              "sha256": "0132eef895482d346c54b983b44997b00636ce2fd0a91ec3af3f5ba7c0ef7452"
+            },
+            "verifiedManifestFiles": 337,
+            "verifiedDistFiles": 248,
+            "runtimeGzipBytes": 90586,
+            "runtimeCeilingPass": false
+          },
+          "control": {
+            "source": "f8742a22d4cfd2906cdc7b5b3222f78d3b6babcd",
+            "archive": {
+              "localPath": "/tmp/acquisition-20260912-candidate-explicit-idb-commit-dist.tar.gz",
+              "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/acquisition-20260912-candidate-explicit-idb-commit-dist.tar.gz",
+              "bytes": 1707998,
+              "sha256": "421666aeea461b2aa6f2b37f15dbf4f93b4e8deaca653b34cbf22ec9c2e8d608"
+            },
+            "verifiedArchiveFiles": 335,
+            "runtimeGzipBytes": 89998,
+            "runtimeCeilingPass": true
+          },
+          "preflight": {
+            "load": [
+              0.2568359375,
+              0.14599609375,
+              0.10400390625
+            ],
+            "cpus": 12,
+            "mem": "               total        used        free      shared  buff/cache   available\nMem:          128714        2534        8631           3      118778      126180\nSwap:          32767          33       32734\n",
+            "processes": [],
+            "hashes": {
+              "owner": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+              "media": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+              "compiler": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "controlArchive": "421666aeea461b2aa6f2b37f15dbf4f93b4e8deaca653b34cbf22ec9c2e8d608",
+              "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa"
+            }
+          },
+          "preflightArtifact": {
+            "localPath": "/tmp/full-redesign-preflight-01.json",
+            "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/full-redesign-preflight-01.json",
+            "bytes": 768,
+            "sha256": "1ee7dc281e25477963f84a3a1bcb13cc37d85c9dc31a2697cb3a122684ad9070"
+          },
+          "samples": [
+            {
+              "experiment": "sub3-20260912-bearer-full-redesign-control-01",
+              "variant": "control-explicit-idb-commit-full-endpoint-dual-inspector",
+              "startedAt": "2026-09-12T16:26:32.358Z",
+              "finishedAt": "2026-09-12T16:27:07.481Z",
+              "instrumented": false,
+              "firstInboxMs": 1224.4822749999994,
+              "coldSyncedMs": 14924.530779,
+              "ackCompleteMs": 16053.025724,
+              "completeAcquisitionMs": 16095.075308,
+              "primaryPass": true,
+              "contentPass": true,
+              "ackPostPass": true,
+              "fullRowHashPass": true,
+              "ownerReceipts": {
+                "total": 10008,
+                "received": 10008,
+                "unreceived": 0
+              },
+              "stop": 0,
+              "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+              "runtimeSha": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+              "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "appSha": "8a328d5026fd1b3e23c5489d54f856f9de9d3d67e8d28f2cb5c57689fb4a5ffc",
+              "harnessSha256": "3ba08ec9df6eac606fe2470947a7efb610889d39835fd9e330a5e8c18777123d",
+              "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+              "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+              "error": null,
+              "primaryError": null,
+              "candidateSource": "f8742a22d4cfd2906cdc7b5b3222f78d3b6babcd",
+              "candidateArchiveSha256": "421666aeea461b2aa6f2b37f15dbf4f93b4e8deaca653b34cbf22ec9c2e8d608",
+              "runtimeGzipBytes": 89998,
+              "runtimeCeilingPass": true,
+              "publicationQualified": false,
+              "cohortQualified": false,
+              "moduleHashes": {
+                "dist/client-runtime.mjs": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+                "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                "dist/react.mjs": "4d71fb906d1d446a812f4f7aba31a4a6d864847d1c835968e2af7fd4a5b36875",
+                "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+                "dist/image-runtime.mjs": "cb1758e47d91e0cc5d8ff56d5c7848eafb042e5c7052460d1f99ca3d584ecd4e"
+              },
+              "firstUsePass": true,
+              "firstOfflineHistoryMs": 1.5999984741210938,
+              "firstOfflineSearchMs": 1.7000007629394531,
+              "reopenPass": true,
+              "reopenMs": 6080.1670239999985,
+              "reopenIdentityPass": true,
+              "messageCount": 10008,
+              "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+              "fixtureRowsUnchangedDuringSetup": true,
+              "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+              "ownerPidGone": true,
+              "ownerStopMs": 233.5033110000004,
+              "freshTerminalCount": 201,
+              "freshTerminalHistogram": [
+                {
+                  "state": "committed",
+                  "effects": 0,
+                  "count": 89
+                },
+                {
+                  "state": "committed",
+                  "effects": 8,
+                  "count": 1
+                },
+                {
+                  "state": "committed",
+                  "effects": 50,
+                  "count": 111
+                }
+              ],
+              "freshActualEffects": 5558,
+              "exactAcknowledgementWorkloadPass": true,
+              "result": {
+                "localPath": "/tmp/sub3-20260912-bearer-full-redesign-control-01.json",
+                "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-full-redesign-control-01.json",
+                "bytes": 60504,
+                "sha256": "b277d8c97fdad4ab2ac348760ce9312936250e961317d6e067a4b1c12d9547b0"
+              },
+              "logicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "reopenLogicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "physicalStorage": {
+                "databaseVersion": 4,
+                "layout": "flat string-key state entries",
+                "counts": {
+                  "answers": 203,
+                  "bytes": 0,
+                  "inbox": 0,
+                  "meta": 50912,
+                  "outbox": 112,
+                  "rows": 20216
+                },
+                "serializedJsonUtf8Bytes": {
+                  "answers": 8269072,
+                  "bytes": 2,
+                  "inbox": 2,
+                  "meta": 15294814,
+                  "outbox": 1074737,
+                  "rows": 9193543
+                }
+              },
+              "physicalStoredRecordCount": 71443,
+              "reopenPhysicalCounts": {
+                "answers": 203,
+                "bytes": 0,
+                "inbox": 0,
+                "meta": 50912,
+                "outbox": 112,
+                "rows": 20216
+              },
+              "logicalSnapshots": {
+                "rows": {
+                  "records": 20216,
+                  "serializedJsonUtf8Bytes": 9193543,
+                  "sha256": "108709ac8c67af98835850aedad6ebb4cef51ae46ba8730ffbce5d81985fe733"
+                },
+                "answers": {
+                  "records": 203,
+                  "serializedJsonUtf8Bytes": 8269072,
+                  "sha256": "d9422d1c0ee79e3587b42bb014a354861c80ce1ba28c5df9107824d6e02103bc"
+                },
+                "outbox": {
+                  "records": 112,
+                  "serializedJsonUtf8Bytes": 1074737,
+                  "sha256": "6431fff55574a90aa79fd57242d77461bf98faff25549154e558824a7b9c9353"
+                },
+                "meta": {
+                  "records": 50912,
+                  "serializedJsonUtf8Bytes": 15294814,
+                  "sha256": "28b5800f8782a47fa93e42aa5b9fc16d2ad25aa2483ff4091abcf7f1cbe1d266"
+                }
+              },
+              "logicalSnapshotMatchesAfterActualBrowserReopen": {
+                "rows": true,
+                "answers": true,
+                "outbox": true,
+                "meta": true
+              },
+              "setupPid": 127129,
+              "ownerPid": 127162,
+              "ownerDatabasePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-bearer-full-redesign-control-01/owner/.snapback/store.sqlite",
+              "browserProfilePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-bearer-full-redesign-control-01/browser",
+              "startedLoad": [
+                0.44,
+                0.22,
+                0.13
+              ],
+              "finishedLoad": [
+                0.89,
+                0.38,
+                0.19
+              ],
+              "postflight": {
+                "load": [
+                  0.54052734375,
+                  0.3388671875,
+                  0.1796875
+                ],
+                "browserOwners": []
+              },
+              "pageErrorCount": 0,
+              "execHandle": 80443,
+              "execExitCode": 0
+            },
+            {
+              "experiment": "sub3-20260912-bearer-full-redesign-01",
+              "variant": "non-delivering-combined-redesign-full-endpoint-dual-inspector",
+              "startedAt": "2026-09-12T16:27:52.811Z",
+              "finishedAt": "2026-09-12T16:28:22.777Z",
+              "instrumented": false,
+              "firstInboxMs": 1318.1786579999998,
+              "coldSyncedMs": 10394.514635,
+              "ackCompleteMs": 11623.988131,
+              "completeAcquisitionMs": 12263.37677,
+              "primaryPass": true,
+              "contentPass": true,
+              "ackPostPass": true,
+              "fullRowHashPass": true,
+              "ownerReceipts": {
+                "total": 10008,
+                "received": 10008,
+                "unreceived": 0
+              },
+              "stop": 0,
+              "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+              "runtimeSha": "5f6b7f38d78a543a8fa79a0342689ca3a516c92e96fbac03b929026273c68e09",
+              "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "appSha": "632ae17af0d9474eb72a6e59a19131c74c7a32680d3b0614ee1db491a74af620",
+              "harnessSha256": "3ba08ec9df6eac606fe2470947a7efb610889d39835fd9e330a5e8c18777123d",
+              "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+              "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+              "error": null,
+              "primaryError": null,
+              "candidateSource": "39523c188e2c16a6755b4bae086bf6adb5fc7654",
+              "candidateArchiveSha256": "e93ff6c8ed84330c5034aa504f383eb50270affd18ed82cdf552b7c2dcaf929f",
+              "runtimeGzipBytes": 90586,
+              "runtimeCeilingPass": false,
+              "publicationQualified": false,
+              "cohortQualified": false,
+              "moduleHashes": {
+                "dist/client-runtime.mjs": "5f6b7f38d78a543a8fa79a0342689ca3a516c92e96fbac03b929026273c68e09",
+                "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                "dist/react.mjs": "269700d5213f883ec0b9b7e8cdb113a50a21d5233b9e5a71512681a9fff0fac4",
+                "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+                "dist/image-runtime.mjs": "4a3879bdd51590a1d95efa7a0cd78b0f37f1401c39844fd3869d972c7723dfae"
+              },
+              "firstUsePass": true,
+              "firstOfflineHistoryMs": 12.399999618530273,
+              "firstOfflineSearchMs": 579.1000003814697,
+              "reopenPass": true,
+              "reopenMs": 5257.522409000001,
+              "reopenIdentityPass": true,
+              "messageCount": 10008,
+              "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+              "fixtureRowsUnchangedDuringSetup": true,
+              "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+              "ownerPidGone": true,
+              "ownerStopMs": 174.26130199999898,
+              "freshTerminalCount": 201,
+              "freshTerminalHistogram": [
+                {
+                  "state": "committed",
+                  "effects": 0,
+                  "count": 89
+                },
+                {
+                  "state": "committed",
+                  "effects": 8,
+                  "count": 1
+                },
+                {
+                  "state": "committed",
+                  "effects": 50,
+                  "count": 111
+                }
+              ],
+              "freshActualEffects": 5558,
+              "exactAcknowledgementWorkloadPass": true,
+              "result": {
+                "localPath": "/tmp/sub3-20260912-bearer-full-redesign-01.json",
+                "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-full-redesign-01.json",
+                "bytes": 60805,
+                "sha256": "488dc15d24c15dd2735883a8f0fbd82267d7ec7609b232eaa9cb706e160c2fdd"
+              },
+              "logicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "reopenLogicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "physicalStorage": {
+                "databaseVersion": 5,
+                "layout": "rows/meta positive numeric page IDs; each value contains unchanged logical entries, at most 256 and 65536 summed JSON UTF-16 units except a singleton",
+                "counts": {
+                  "answers": 203,
+                  "bytes": 0,
+                  "inbox": 0,
+                  "meta": 275,
+                  "outbox": 112,
+                  "rows": 141
+                },
+                "serializedJsonUtf8Bytes": {
+                  "answers": 8269070,
+                  "bytes": 2,
+                  "inbox": 2,
+                  "meta": 15300756,
+                  "outbox": 1074737,
+                  "rows": 9196537
+                }
+              },
+              "physicalStoredRecordCount": 731,
+              "reopenPhysicalCounts": {
+                "answers": 203,
+                "bytes": 0,
+                "inbox": 0,
+                "meta": 275,
+                "outbox": 112,
+                "rows": 141
+              },
+              "logicalSnapshots": {
+                "rows": {
+                  "records": 20216,
+                  "serializedJsonUtf8Bytes": 9193543,
+                  "sha256": "108709ac8c67af98835850aedad6ebb4cef51ae46ba8730ffbce5d81985fe733"
+                },
+                "answers": {
+                  "records": 203,
+                  "serializedJsonUtf8Bytes": 8269070,
+                  "sha256": "1eed07bf136f656329f8fbeb003a3e206f364ffb30a74068848d463a71965140"
+                },
+                "outbox": {
+                  "records": 112,
+                  "serializedJsonUtf8Bytes": 1074737,
+                  "sha256": "c2e03557d2218f1e46e8e6072eaa90d8c366cdca5274826bf9aa7e269cd46d5a"
+                },
+                "meta": {
+                  "records": 50912,
+                  "serializedJsonUtf8Bytes": 15294814,
+                  "sha256": "8602acb7bea32275fe3ac49b6d362c09b2c5c5eb27db8a5761dfdd97aafa9849"
+                }
+              },
+              "logicalSnapshotMatchesAfterActualBrowserReopen": {
+                "rows": true,
+                "answers": true,
+                "outbox": true,
+                "meta": true
+              },
+              "setupPid": 128251,
+              "ownerPid": 128284,
+              "ownerDatabasePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-bearer-full-redesign-01/owner/.snapback/store.sqlite",
+              "browserProfilePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-bearer-full-redesign-01/browser",
+              "startedLoad": [
+                0.42,
+                0.32,
+                0.18
+              ],
+              "finishedLoad": [
+                0.84,
+                0.43,
+                0.22
+              ],
+              "postflight": {
+                "load": [
+                  0.671875,
+                  0.4228515625,
+                  0.2197265625
+                ],
+                "browserOwners": []
+              },
+              "pageErrorCount": 0,
+              "execHandle": 48945,
+              "execExitCode": 0
+            }
+          ],
+          "cleanup": {
+            "load": [
+              0.134765625,
+              0.3037109375,
+              0.19189453125
+            ],
+            "browserOwners": [],
+            "recordedPids": {
+              "127102": {
+                "exists": false
+              },
+              "127129": {
+                "exists": false
+              },
+              "127162": {
+                "exists": false
+              },
+              "127212": {
+                "exists": false
+              },
+              "128251": {
+                "exists": false
+              },
+              "128284": {
+                "exists": false
+              }
+            },
+            "allRecordedPidsGone": true,
+            "note": "Candidate harness and Chromium PIDs were not captured before the completed run exited. Candidate setup and owner PIDs are retained in the raw result; postflight scans establish no remaining owner/Chromium process. No manual kill was needed."
+          },
+          "cleanupArtifact": {
+            "localPath": "/tmp/full-redesign-pair-postflight-01.json",
+            "remotePath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/full-redesign-pair-postflight-01.json",
+            "bytes": 675,
+            "sha256": "0a43849e23415b4dfee528eda183296ddf6a3a897e01577ff145b52c72a29ed7"
+          },
+          "apparatusEvents": [
+            "Initial candidate archive omitted package.json; parent retained that archive and supplied complete replacement before transfer or candidate launch.",
+            "Staging helper verified all candidate files, then encountered control-manifest field KeyError(files). Existing control archive hash was already verified. Read-only comprehensive comparison later verified all335 control archive files; control was observed to completion without restart.",
+            "No benchmark failure, browser error, extra trial, manual process kill or further run occurred."
+          ],
+          "rawPrivateValuesOrTokensAddedToExport": false,
+          "physicalSchema": "Both versions retain all six stores answers/bytes/inbox/meta/outbox/rows with inline keyPath key, no secondary indexes, inbox alone autoIncrement. v4 rows/meta are flat string-key entries; v5 rows/meta are positive safe-integer pages of strict bounded logical entries.",
+          "metadataSnapshotEvidence": "Complete post-clock logical metadata/grant/fact category counts and aggregate hashes are retained in each raw result at durable.metadataSnapshots and reopen.durable.metadataSnapshots; no raw keys/values are added to this export."
+        }
+      },
+      "postClockSnapshots": {
+        "control": {
+          "physicalStorage": {
+            "databaseVersion": 4,
+            "schema": [
+              {
+                "name": "answers",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "bytes",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "inbox",
+                "keyPath": "key",
+                "autoIncrement": true,
+                "indexes": []
+              },
+              {
+                "name": "meta",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "outbox",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "rows",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              }
+            ],
+            "layout": "flat string-key state entries",
+            "counts": {
+              "answers": 203,
+              "bytes": 0,
+              "inbox": 0,
+              "meta": 50912,
+              "outbox": 112,
+              "rows": 20216
+            },
+            "serializedJsonUtf8Bytes": {
+              "answers": 8269072,
+              "bytes": 2,
+              "inbox": 2,
+              "meta": 15294814,
+              "outbox": 1074737,
+              "rows": 9193543
+            },
+            "note": "Actual stored record JSON representation, measured after the full clock; not disk allocation or heap. Existing counts and serializedCarrierBytesByStore remain decoded logical-state records. Binary bytes-store JSON is a representation, not payload allocation."
+          },
+          "logicalSnapshots": {
+            "rows": {
+              "records": 20216,
+              "serializedJsonUtf8Bytes": 9193543,
+              "sha256": "108709ac8c67af98835850aedad6ebb4cef51ae46ba8730ffbce5d81985fe733"
+            },
+            "answers": {
+              "records": 203,
+              "serializedJsonUtf8Bytes": 8269072,
+              "sha256": "d9422d1c0ee79e3587b42bb014a354861c80ce1ba28c5df9107824d6e02103bc"
+            },
+            "outbox": {
+              "records": 112,
+              "serializedJsonUtf8Bytes": 1074737,
+              "sha256": "6431fff55574a90aa79fd57242d77461bf98faff25549154e558824a7b9c9353"
+            },
+            "meta": {
+              "records": 50912,
+              "serializedJsonUtf8Bytes": 15294814,
+              "sha256": "28b5800f8782a47fa93e42aa5b9fc16d2ad25aa2483ff4091abcf7f1cbe1d266"
+            }
+          },
+          "metadataSnapshots": {
+            "all": {
+              "records": 50912,
+              "serializedJsonUtf8Bytes": 15294814,
+              "sha256": "28b5800f8782a47fa93e42aa5b9fc16d2ad25aa2483ff4091abcf7f1cbe1d266"
+            },
+            "categories": {
+              "grants": {
+                "records": 2,
+                "serializedJsonUtf8Bytes": 328,
+                "sha256": "1b6ae4ec6b20c2dc179deba3d69806419f81cec5f29367c396f5e3f86cd3bdaf"
+              },
+              "currentGrant": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 95,
+                "sha256": "50ce78aaae87b2c822143a31bdb9aee468c2c1aa2148763f0eafc4359058a666"
+              },
+              "facts": {
+                "records": 4,
+                "serializedJsonUtf8Bytes": 304,
+                "sha256": "f7e9ba8f78ba879a483d4e4bf63a42f744a10acaac5cb740d86a106fd8a237a0"
+              },
+              "superseded": {
+                "records": 0,
+                "serializedJsonUtf8Bytes": 2,
+                "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              },
+              "rowSeq": {
+                "records": 20217,
+                "serializedJsonUtf8Bytes": 2364788,
+                "sha256": "cccdcb93c5182dfa405f6d5b4fcebcfe46db4cc8c63b40b4c399f7d194dd2b6e"
+              },
+              "negative": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 37,
+                "sha256": "1ca16e2998cb137038b13aa90e62bd7ff232313cf101ec7baa9e58758c4bbd75"
+              },
+              "rowFacts": {
+                "records": 10109,
+                "serializedJsonUtf8Bytes": 1960049,
+                "sha256": "1b278e3af10af0d0a277848a6818b8b83e6b90f5ee7b8001b99e98ed9c39635e"
+              },
+              "verdictFacts": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 41,
+                "sha256": "1f6f743605ce97b05c00841a92fe55c7318293260cdfed5e7aac48dc53e67d81"
+              },
+              "factFormat": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 38,
+                "sha256": "c6558f626ff05dad5f0bf828ff9198434aa586722da0b102e2d5eb3eb7d60e52"
+              },
+              "factImages": {
+                "records": 10109,
+                "serializedJsonUtf8Bytes": 7777778,
+                "sha256": "c03ead9f5e51714d4465cbc2a4fc317016a5771f463c94ca9c7b713244470e06"
+              },
+              "factExtents": {
+                "records": 204,
+                "serializedJsonUtf8Bytes": 833684,
+                "sha256": "c82d2170e2862a4fe058dc526176f11fcbce0bcad8cd2e626ae3a5183a048448"
+              },
+              "extentGuards": {
+                "records": 204,
+                "serializedJsonUtf8Bytes": 39017,
+                "sha256": "99aa68463649538d8cde2b5b75f7edff2a4a8abe399943bdb67e8c0ff4257f2d"
+              },
+              "extentNegative": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 43,
+                "sha256": "88119bafdd21f9ddf0ce98c2b83ec0e73ad2cf3484dff14be859c162c7b09f5d"
+              },
+              "factSlots": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 42,
+                "sha256": "9b874a6eb94ad89b3e1ea1c3963070b54bfcf2c13e23a7a665150d888315140e"
+              },
+              "factLimitReset": {
+                "records": 0,
+                "serializedJsonUtf8Bytes": 2,
+                "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              },
+              "programs": {
+                "records": 2,
+                "serializedJsonUtf8Bytes": 398813,
+                "sha256": "00f2321464797662e86d267ad91c04f0a3031e664e564f57be6cb9e283e58b49"
+              },
+              "deliveryAcks": {
+                "records": 10009,
+                "serializedJsonUtf8Bytes": 1916077,
+                "sha256": "f3741b4e89484f586d037afc249b6893cf42ec821b9714c089d9676240163403"
+              },
+              "watermarks": {
+                "records": 3,
+                "serializedJsonUtf8Bytes": 1495,
+                "sha256": "4fc5e77a1ec8bfbe471e089a2c189044c72a624481082ffd24bd33ad17edfd14"
+              }
+            },
+            "note": "Post-clock hashes of decoded JSON wire records in UTF-16 primary-key order; no keys or values exported. Per-run grants/intents may differ between arms. These snapshots are evidence, not new cross-run equality assertions."
+          }
+        },
+        "candidate": {
+          "physicalStorage": {
+            "databaseVersion": 5,
+            "schema": [
+              {
+                "name": "answers",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "bytes",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "inbox",
+                "keyPath": "key",
+                "autoIncrement": true,
+                "indexes": []
+              },
+              {
+                "name": "meta",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "outbox",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "rows",
+                "keyPath": "key",
+                "autoIncrement": false,
+                "indexes": []
+              }
+            ],
+            "layout": "rows/meta positive numeric page IDs; each value contains unchanged logical entries, at most 256 and 65536 summed JSON UTF-16 units except a singleton",
+            "counts": {
+              "answers": 203,
+              "bytes": 0,
+              "inbox": 0,
+              "meta": 275,
+              "outbox": 112,
+              "rows": 141
+            },
+            "serializedJsonUtf8Bytes": {
+              "answers": 8269070,
+              "bytes": 2,
+              "inbox": 2,
+              "meta": 15300756,
+              "outbox": 1074737,
+              "rows": 9196537
+            },
+            "note": "Actual stored record JSON representation, measured after the full clock; not disk allocation or heap. Existing counts and serializedCarrierBytesByStore remain decoded logical-state records. Binary bytes-store JSON is a representation, not payload allocation."
+          },
+          "logicalSnapshots": {
+            "rows": {
+              "records": 20216,
+              "serializedJsonUtf8Bytes": 9193543,
+              "sha256": "108709ac8c67af98835850aedad6ebb4cef51ae46ba8730ffbce5d81985fe733"
+            },
+            "answers": {
+              "records": 203,
+              "serializedJsonUtf8Bytes": 8269070,
+              "sha256": "1eed07bf136f656329f8fbeb003a3e206f364ffb30a74068848d463a71965140"
+            },
+            "outbox": {
+              "records": 112,
+              "serializedJsonUtf8Bytes": 1074737,
+              "sha256": "c2e03557d2218f1e46e8e6072eaa90d8c366cdca5274826bf9aa7e269cd46d5a"
+            },
+            "meta": {
+              "records": 50912,
+              "serializedJsonUtf8Bytes": 15294814,
+              "sha256": "8602acb7bea32275fe3ac49b6d362c09b2c5c5eb27db8a5761dfdd97aafa9849"
+            }
+          },
+          "metadataSnapshots": {
+            "all": {
+              "records": 50912,
+              "serializedJsonUtf8Bytes": 15294814,
+              "sha256": "8602acb7bea32275fe3ac49b6d362c09b2c5c5eb27db8a5761dfdd97aafa9849"
+            },
+            "categories": {
+              "grants": {
+                "records": 2,
+                "serializedJsonUtf8Bytes": 328,
+                "sha256": "efad5ff7659b80c3083bc5a8fa35b23caf9eb22bab8b6764129f5bad5171c116"
+              },
+              "currentGrant": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 95,
+                "sha256": "50ce78aaae87b2c822143a31bdb9aee468c2c1aa2148763f0eafc4359058a666"
+              },
+              "facts": {
+                "records": 4,
+                "serializedJsonUtf8Bytes": 304,
+                "sha256": "f7e9ba8f78ba879a483d4e4bf63a42f744a10acaac5cb740d86a106fd8a237a0"
+              },
+              "superseded": {
+                "records": 0,
+                "serializedJsonUtf8Bytes": 2,
+                "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              },
+              "rowSeq": {
+                "records": 20217,
+                "serializedJsonUtf8Bytes": 2364788,
+                "sha256": "1b6663220ddce6f8f286c1de9394ca5cfb9e239c9eaa1519fd1f3a729a541e57"
+              },
+              "negative": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 37,
+                "sha256": "1ca16e2998cb137038b13aa90e62bd7ff232313cf101ec7baa9e58758c4bbd75"
+              },
+              "rowFacts": {
+                "records": 10109,
+                "serializedJsonUtf8Bytes": 1960049,
+                "sha256": "e0e856e54f9763b26c93efaad81435bb5a822f6e285b3030d00b0633149afdac"
+              },
+              "verdictFacts": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 41,
+                "sha256": "1f6f743605ce97b05c00841a92fe55c7318293260cdfed5e7aac48dc53e67d81"
+              },
+              "factFormat": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 38,
+                "sha256": "c6558f626ff05dad5f0bf828ff9198434aa586722da0b102e2d5eb3eb7d60e52"
+              },
+              "factImages": {
+                "records": 10109,
+                "serializedJsonUtf8Bytes": 7777778,
+                "sha256": "c03ead9f5e51714d4465cbc2a4fc317016a5771f463c94ca9c7b713244470e06"
+              },
+              "factExtents": {
+                "records": 204,
+                "serializedJsonUtf8Bytes": 833684,
+                "sha256": "c82d2170e2862a4fe058dc526176f11fcbce0bcad8cd2e626ae3a5183a048448"
+              },
+              "extentGuards": {
+                "records": 204,
+                "serializedJsonUtf8Bytes": 39017,
+                "sha256": "721c90588230fa27d20e4bb0efd0be7f4e39a45c0bb628daf3782e940e0a4cb6"
+              },
+              "extentNegative": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 43,
+                "sha256": "88119bafdd21f9ddf0ce98c2b83ec0e73ad2cf3484dff14be859c162c7b09f5d"
+              },
+              "factSlots": {
+                "records": 1,
+                "serializedJsonUtf8Bytes": 42,
+                "sha256": "9b874a6eb94ad89b3e1ea1c3963070b54bfcf2c13e23a7a665150d888315140e"
+              },
+              "factLimitReset": {
+                "records": 0,
+                "serializedJsonUtf8Bytes": 2,
+                "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              },
+              "programs": {
+                "records": 2,
+                "serializedJsonUtf8Bytes": 398813,
+                "sha256": "00f2321464797662e86d267ad91c04f0a3031e664e564f57be6cb9e283e58b49"
+              },
+              "deliveryAcks": {
+                "records": 10009,
+                "serializedJsonUtf8Bytes": 1916077,
+                "sha256": "1f98fa8cebbdf83b024998e03d413e768325b1b1b6b8ead1be9672035e24d62c"
+              },
+              "watermarks": {
+                "records": 3,
+                "serializedJsonUtf8Bytes": 1495,
+                "sha256": "830e97846cda607e0c5802a0e72c051b5f8be9ae8aefe7055638fe2847cd591f"
+              }
+            },
+            "note": "Post-clock hashes of decoded JSON wire records in UTF-16 primary-key order; no keys or values exported. Per-run grants/intents may differ between arms. These snapshots are evidence, not new cross-run equality assertions."
+          }
+        }
+      },
+      "decision": {
+        "result": "Substantial exploratory combined gain of3831.698538ms;12.26337677s remains9.26337677s above3s",
+        "remainingSpeedupFactor": 4.087792256666667,
+        "delivery": "Evidence and existing plan only. Prototype source remains outside delivered runtime.",
+        "reason": "Canonical90586gzip exceeds90000; existing databases refuse intact; one pair does not qualify3s or production rollout.",
+        "nextConstraint": "Any further redesign must demonstrate end-to-end gains against the same full workload and ordinary receipt work. Stop component-only timing and byte-funding loops.",
+        "inferenceLimit": "Not proof that3seconds is fundamentally impossible; no attribution of combined speedup to individual changes or final physical record counts to write-operation counts."
+      }
     }
   }
 }
