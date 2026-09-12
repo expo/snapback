@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import type { PackageBuildProof } from "./package-regression-checks";
 import { lowerProject } from "./project";
+import { rustCheck } from "./rust-check";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 type Assert = (condition: unknown, message: string) => asserts condition;
@@ -185,6 +186,24 @@ export function registerPackageGuideChecks(
       assert(diagnostics.length === 0, diagnostics.map((item) =>
         `TS${item.code}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n"));
     });
+  });
+
+  test("the installed exact hub digest is the certified copyable fixture", async () => {
+    const packageRoot = resolve(crate, "packages/snapback2");
+    const recipeRoot = resolve(packageRoot, "dist/guide/recipes/exact-hub-digest");
+    const files = packageBuildProof();
+    for (const name of ["schema.q", "digest.q", "feeds.q", "messages.q", "push.ts"]) {
+      assert(files.has(`dist/guide/recipes/exact-hub-digest/snapback/${name}`),
+        `npm pack omitted exact hub digest ${name}`);
+    }
+    const fanout = await readFile(resolve(packageRoot, "dist/guide/fanout.md"), "utf8");
+    assert(fanout.includes("guide/recipes/exact-hub-digest"),
+      "the installed fanout card does not point to its exact digest project");
+    const lowered = await lowerProject(recipeRoot);
+    assert(lowered.ok, `installed exact digest refused: ${JSON.stringify(lowered)}`);
+    const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
+    assert(checked.every((item) => item.certificate && !item.error),
+      `installed exact digest did not certify: ${JSON.stringify(checked.flatMap((item) => item.error ? [item.error] : []))}`);
   });
 
   test("the installed global search recipe matches scalar ID order across chats", async () => {

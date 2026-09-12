@@ -1,9 +1,8 @@
 # Fan-out and complete reads
 
 `E_STRUCTURAL_FANOUT` needs a loop/argument/schema bound. Caps reject excess
-rows and price writes; do not shrink the population to certify. Use `merge`
-for feeds, caps for bounded groups, jobs for uncapped passes.
-Uncapped synchronous fan-out is unsupported. `check --cost` explains prices.
+rows; do not shrink the population to certify. Use `merge` for feeds, caps for
+groups, and jobs for uncapped passes. `check --cost` explains prices.
 
 ## Following
 
@@ -128,6 +127,6 @@ See `guide pagination` for source changes and offline continuation.
 
 ## Scheduled totals
 
-Jobs resume across snapshots and bypass viewer rules (`guide job`).
-Validate eligibility at emission or preserve it through every contributing
-mutation; a cached partial sum cannot prove authorization/expiry.
+Copy `dist/guide/recipes/exact-hub-digest/`. Server periods, 50-row attempts,
+final membership/source/expiry/commit-order checks and a 500-follow recount make
+the unique log/effect exact. Zero is silent; later-period messages do not retry.
