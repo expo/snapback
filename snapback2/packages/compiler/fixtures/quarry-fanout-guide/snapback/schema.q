@@ -10,6 +10,8 @@ table posts:
   by byAuthorTime: author, at, id
   public
   insert <- .author = viewer
+  update <- .author = viewer
+  delete <- .author = viewer
 
 table postHeads:
   post: posts

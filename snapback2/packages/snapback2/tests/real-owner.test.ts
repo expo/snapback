@@ -516,6 +516,9 @@ mutation erasePost(postId: posts):
 
 query digestState(target: principal, source: principal, period: int):
   return { accumulated: digests[target, period], sourceCount: periodPosts[source, period] }
+
+query postPair(postId: posts):
+  return { post: posts[postId], head: postHeads[postId] by byPost }
 `);
     await writeFile(join(root, "snapback/seed.ts"),
       'import { seed } from "snapback2";\nexport default seed(' + JSON.stringify({ personas: people, rows: {} }) + ');\n');
@@ -561,6 +564,34 @@ query digestState(target: principal, source: principal, period: int):
       }
     }
     await Promise.all([client.ready, author.ready]);
+    const published = await client.mutation(api.feeds.publishPost, { body: "author CRUD", period: 1 });
+    assert.equal(published.state, "committed");
+    const postId = published.data.id;
+    const postPair = async () => {
+      const result = await author.query(api.fixtureSetup.postPair, { postId });
+      assert.equal(result.state, "complete");
+      return result.data;
+    };
+    const originalPair = await postPair();
+    assert.equal(originalPair.post.body, "author CRUD");
+    assert.equal(originalPair.head.post, postId);
+    assert.equal(originalPair.head.author, originalPair.post.author);
+    assert.equal(originalPair.head.at, originalPair.post.at);
+    for (const [operation, args] of [
+      [api.feeds.editPost, { postId, body: "foreign edit" }],
+      [api.feeds.removePost, { postId }],
+    ] as const) {
+      const refused = await author.mutation(operation, args);
+      assert.equal(refused.state, "rejected", "another principal cannot change the author's post");
+      assert.deepEqual(await postPair(), originalPair, "a refused write leaves the post/head pair intact");
+    }
+    const editedPost = await client.mutation(api.feeds.editPost, { postId, body: "author edited" });
+    assert.equal(editedPost.state, "committed", "the author can edit the rich post");
+    const editedPair = await postPair();
+    assert.equal(editedPair.post.body, "author edited");
+    assert.deepEqual(editedPair.head, originalPair.head, "editing preserves the original compact head");
+    assert.equal((await client.mutation(api.feeds.removePost, { postId })).state, "committed");
+    assert.deepEqual(await postPair(), { post: null, head: null }, "removal deletes both the post and its head");
     const feed = async () => {
       const first = await client.query(api.feeds.followingFeed, { c: null });
       assert.equal(first.state, "capped");
