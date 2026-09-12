@@ -13,6 +13,7 @@ import type { PersistedRangeState, Receipt, ReceiptRange, StoredAnswer, StoredRo
 import type { ChangedRecords } from './swap-journal.js';
 import { rangeMeaningKey, type RangeMeaning, type KeyImage, type ExtentCondition } from './extent-facts.js';
 import { rowKey } from './row-values.js';
+import type { SuccessEffects } from './success-compaction.js';
 type HeldRange = { owner: string; range: ReceiptRange; key: string };
 export class CarrierIndex {
   readonly assets: RowAssets;
@@ -31,6 +32,9 @@ export class CarrierIndex {
   private masks = new Map<string,string>();
   private masked = new Map<string,Set<string>>();
   private answers = new Map<string, StoredAnswer>();
+  private compacted = false;
+  private effects = new Map<string, SuccessEffects>();
+  private successes = new Map<string, Set<string>>();
   private ranges = new Map<string, Map<string, Set<ReceiptRange>>>();
   private readonly schemaIdentity?: string;
   constructor(private state: PersistedRangeState, private schema?: OfflineSchema, publish = (key: string,answer: StoredAnswer) => { state.answers[key] = answer; }) {
@@ -39,6 +43,7 @@ export class CarrierIndex {
     this.positives = new FactIndex(current,true); this.live = new FactIndex(current,false,this.positives);
     this.assets = new RowAssets(state.onceColumns);
     for (const key of new Set([...Object.keys(state.rows), ...Object.keys(state.viewed)])) this.assets.set(key, state.rows[key], state.viewed[key]);
+    for (const key of Object.keys(state.outbox)) this.setSuccess(key);
     for (const key of Object.keys(state.rows)) this.setRow(key);
     for (const key of Object.keys(state.rowFacts)) if (typeof state.rowFacts[key] !== 'number') this.setGuard(key);
     const prepared: Array<[string,StoredAnswer]> = [];
@@ -175,8 +180,29 @@ export class CarrierIndex {
     if (answer) this.answers.set(key,answer); else this.answers.delete(key);
     return answer;
   }
+  // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work —
+  // Only these current row/proof/negative inputs can discharge a retained effect.
+  // Ranges contribute through their resulting row proofs and explicit negatives.
+  successCandidates(state: PersistedRangeState, changed: ChangedRecords): Set<string> | undefined {
+    if (!this.compacted || changed.has('facts') || changed.has('programs') || ['facts', 'programs', 'superseded', 'outbox', 'rows', 'rowSeq', 'negative', 'answers']
+      .some(key => changed.get('*')?.has(key))) return;
+    const intents = new Set(changed.get('outbox'));
+    const add = (key: string) => { for (const intent of this.successes.get(key) ?? []) intents.add(intent); };
+    for (const category of ['rows', 'rowSeq', 'negative']) for (const key of changed.get(category) ?? []) add(key);
+    for (const key of changed.get('answers') ?? []) for (const row of Object.keys(state.answers[key]?.rowProofs ?? {})) add(row);
+    return intents;
+  }
+  private setSuccess(intent: string): void {
+    const entry = this.state.outbox[intent];
+    const next = entry?.state === 'committed' && Array.isArray((entry.response as any)?.effects)
+      ? entry.effects ?? (entry.response as any).effects as SuccessEffects : undefined;
+    for (const [effects, delta] of [[this.effects.get(intent), -1], [next, 1]] as const)
+      for (const row of effects ?? []) this.member(this.successes, rowKey(row), intent, delta);
+    if (next) this.effects.set(intent, next); else this.effects.delete(intent);
+  }
   update(state: PersistedRangeState, changed: ChangedRecords, schema?: OfflineSchema): void {
-    this.state = state; this.schema = schema ?? this.schema;
+    this.state = state; this.schema = schema ?? this.schema; this.compacted = true;
+    for (const key of changed.get('outbox') ?? []) this.setSuccess(key);
     for (const key of new Set([...(changed.get('rows') ?? []), ...(changed.get('viewed') ?? [])])) this.assets.set(key, state.rows[key], state.viewed[key]);
     for (const key of changed.get('answers') ?? []) this.set(key, state.answers[key]);
     for (const key of changed.get('rows') ?? []) this.setRow(key);

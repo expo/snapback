@@ -7,13 +7,16 @@ import type { PersistedRangeState } from "./range-store.js";
 export type SuccessEffects = { table: string; id: string; removed?: true }[];
 
 /** Runs in the existing carrier transaction, with or without query readers. */
-export function compactSuccesses(state: PersistedRangeState, owners?: (key: string) => Iterable<string>): number[] {
+export function compactSuccesses(state: PersistedRangeState, owners?: (key: string) => Iterable<string>,
+  intents: Iterable<string> = Object.keys(state.outbox)): number[] {
   const aliases: number[] = [];
-  for (const [intent, entry] of Object.entries(state.outbox)) {
-    if (entry.state !== "committed" || state.superseded) continue;
+  if (state.superseded) return aliases;
+  const held = state.programs[state.facts?.generation ?? ""] ?? Object.values(state.programs)[0];
+  for (const intent of intents) {
+    const entry = state.outbox[intent];
+    if (entry?.state !== "committed") continue;
     const response = entry.response as { seq?: number; effects?: SuccessEffects; program?: { schemaHash: string; planHash: string } };
     const seq = response?.seq, identity = response?.program;
-    const held = state.programs[state.facts?.generation ?? ""] ?? Object.values(state.programs)[0];
     if (!Number.isSafeInteger(seq) || !Array.isArray(response.effects) || !identity || !held
       || held.schemaHash !== identity.schemaHash || held.programs[entry.op]?.planHash !== identity.planHash) continue;
     const pending = entry.effects ?? response.effects;
@@ -30,10 +33,8 @@ export function compactSuccesses(state: PersistedRangeState, owners?: (key: stri
         positive = Math.max(positive, rowObservation(state, key, state.answers[owner])?.through ?? -1);
         if (positive >= seq!) break;
       }
-      const negative = state.negative[key] ?? -1;
       // No global sequence, page exclusion, patience, or disappeared overlay is evidence.
-      return !(negative >= seq! && negative >= positive)
-        && (positive < seq! || positive <= negative);
+      return Math.max(positive, state.negative[key] ?? -1) < seq!;
     });
     if (remaining.length) {
       if (remaining.length !== pending.length) entry.effects = remaining;
