@@ -1,0 +1,45 @@
+# complete battery red: exact-all-aboard-live
+
+**Status:** Closed
+**Reopened by battery run:** `local.20260911T062045Z.15c134d056d0`
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `7d09e3124e2ea43e4e53d5f26460b04f6aa4bf82`
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, CI
+**Date:** 2026-08-30
+**Battery gate:** `exact-all-aboard-live`
+**Failure signature:** `sha256:30128006f9ff136a6ccbcf695061643fdd3d38e130ade7b83c6f5af4ca744162`
+**First observed run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Last observed run:** `local.20260911T162046Z.dd629ae33ad8`
+**Last processed run:** `local.20260912T024408Z.7d09e3124e2e`
+**Detected at revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
+**Last observed revision:** `dd629ae33ad8eaad1f8fa1c35dcc4c4f7292580f`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
+**Related:** LLP 0189 D-1, LLP 0175 D2.3
+
+## Summary
+
+The scheduled complete canonical battery reported `exact-all-aboard-live` as a root
+failure (exit 1). This ticket is keyed by gate plus the normalized
+root-failure signature and remains idempotent while open. Dependent `BLOCKED`
+results do not create tickets.
+
+## Standing claim cross-references
+
+- `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
+
+These are the standing published claims whose recorded LLP 0189 D-4 scope
+derives `exact-all-aboard-live` as claim-relevant for this battery revision.
+
+## Reproduce and repair
+
+```sh
+bun demos/all-aboard/tests/acceptance/contract-live.mjs
+```
+
+Fix forward, rerun the complete battery, and let the next determinate pass close
+this signature. Four consecutive red observations require author escalation.

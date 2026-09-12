@@ -10,11 +10,11 @@
 **Battery gate:** `security-gate-fixtures`
 **Failure signature:** `sha256:ceb3bafd7efd5c87f6e3430c8cce74b2cdc43f67f0797c99bdb0cd6d621b6cc7`
 **First observed run:** `local.20260828T114709Z.095880f16775`
-**Last observed run:** `local.20260911T162046Z.dd629ae33ad8`
-**Last processed run:** `local.20260911T162046Z.dd629ae33ad8`
+**Last observed run:** `local.20260912T024408Z.7d09e3124e2e`
+**Last processed run:** `local.20260912T024408Z.7d09e3124e2e`
 **Detected at revision:** `095880f167755431165137247bd51844b8c29e09`
-**Last observed revision:** `dd629ae33ad8eaad1f8fa1c35dcc4c4f7292580f`
-**Consecutive red runs:** `38`
+**Last observed revision:** `7d09e3124e2ea43e4e53d5f26460b04f6aa4bf82`
+**Consecutive red runs:** `39`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
