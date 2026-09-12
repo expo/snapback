@@ -34,6 +34,9 @@ test('0.3.3 exposes native and web semantic actor, receipt, media, membership, p
   assert.match(message, /webSourceUriProps\(mediaUri\)/u);
   assert.match(composer, /testID="sm-compose-attachment"/u);
   assert.match(composer, /accessibilityValue=\{\{ text: att\.kind \}\}/u);
+  assert.match(composer, /posterUri: string/u);
+  assert.match(composer, /att\.kind === 'video' \? att\.posterUri : att\.uri/u);
+  assert.doesNotMatch(composer, /source=\{\{ uri: att\.uri \}\}/u);
   assert.match(composer, /variant === 'post' \? 'sm-compose-attach' : 'sm-convo-attach'/u);
   assert.doesNotMatch(composer, /testID="sm-compose-file"/u);
   assert.match(receipt, /accessibilityValue=\{\{ text: label \}\}/u);

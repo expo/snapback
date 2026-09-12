@@ -12,6 +12,10 @@ const IMAGE_ONE =
   'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32"%3E%3Crect width="32" height="32" fill="%235B5CE2"/%3E%3C/svg%3E';
 const IMAGE_TWO =
   'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32"%3E%3Crect width="32" height="32" fill="%2317A673"/%3E%3C/svg%3E';
+const VIDEO_FIXTURE = new URL(
+  '../../../../fixtures/social-messenger/media/vid-01.mp4',
+  import.meta.url,
+).pathname;
 
 function listen(server) {
   return new Promise((resolvePromise, reject) => {
@@ -26,7 +30,7 @@ function close(server) {
   });
 }
 
-test('RN Web preserves the frozen M2 and M5 semantic contract in Chromium', async () => {
+test('RN Web preserves frozen M2 feed/composer and M5 semantics in Chromium', async () => {
   const output = await mkdtemp(join(tmpdir(), 'social-ui-rn-web-'));
   const bundlePath = join(output, 'consumer.js');
   const htmlPath = join(output, 'index.html');
@@ -78,6 +82,44 @@ test('RN Web preserves the frozen M2 and M5 semantic contract in Chromium', asyn
     const videoMedia = page.getByTestId('sm-feed-media').nth(1);
     assert.equal(await videoMedia.getAttribute('aria-valuetext'), 'video');
     assert.equal(await videoMedia.getAttribute('data-source-uri'), IMAGE_TWO);
+
+    const composerFile = page.getByTestId('sm-compose-file');
+    await composerFile.setInputFiles(VIDEO_FIXTURE);
+    assert.match(await composerFile.inputValue(), /vid-01\.mp4$/u);
+    const composerAttachment = page.getByTestId('sm-compose-attachment');
+    const composerPreview = page.getByTestId('sm-compose-attachment-media');
+    assert.equal(await composerAttachment.getAttribute('aria-valuetext'), 'video');
+    assert.equal(await composerAttachment.getAttribute('data-source-uri'), IMAGE_TWO);
+    assert.equal(await composerPreview.getAttribute('data-source-uri'), IMAGE_TWO);
+    assert.equal(
+      await composerPreview.evaluate(async (element) => {
+        const uri = element.getAttribute('data-source-uri');
+        if (!uri) return false;
+        const probe = new Image();
+        probe.src = uri;
+        try {
+          await probe.decode();
+          return probe.complete && probe.naturalWidth > 0 && probe.naturalHeight > 0;
+        } catch {
+          return false;
+        }
+      }),
+      true,
+    );
+    const pickedVideoUri = await page.getByTestId('consumer-picked-video-uri').innerText();
+    assert.match(pickedVideoUri, /^blob:/u);
+    assert.notEqual(pickedVideoUri, IMAGE_TWO);
+    assert.equal(
+      await page.evaluate(async (uri) => (await fetch(uri)).headers.get('content-type'), pickedVideoUri),
+      'video/mp4',
+    );
+    await page.getByTestId('sm-compose-input').fill('M2 canonical video post');
+    await page.getByTestId('sm-compose-submit').click();
+    assert.equal(
+      await page.getByTestId('consumer-video-published').innerText(),
+      `M2 canonical video post|video|${pickedVideoUri}`,
+    );
+    assert.equal(await composerAttachment.count(), 0);
 
     assert.equal(await page.getByTestId('sm-chats-item').getAttribute('aria-valuetext'), 'dm:bob');
     assert.equal(await page.getByTestId('sm-convo-receipt').getAttribute('aria-valuetext'), 'read');

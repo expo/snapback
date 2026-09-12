@@ -303,7 +303,9 @@ bridge. The kit mirrors its existing accessible values and selected or
 pressed states into literal ARIA attributes, and exposes an existing rendered
 image URI as `data-source-uri` on the contracted observable node. Web video
 cards require `FeedCard.videoPosterUri`; video messages require a poster or
-thumbnail through `MessageBubble.mediaUri`. No new application data or
+thumbnail through `MessageBubble.mediaUri`; composer video picks retain the
+video as `ComposerAttachment.uri` and require a still-image
+`ComposerAttachment.posterUri` for preview. No new application data or
 backend-shaped prop is part of the contract. Retained `0.3.7-m8` evidence
 keeps the earlier renderer contract and remains historical under its frozen
 identity.

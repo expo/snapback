@@ -36,14 +36,18 @@ image nodes repeat their existing source URI as `data-source-uri`; choreography
 `0.3.8-m8` includes that attribute in observable state and verifies its image
 bytes when RN Web renders no `img` descendant. The kit README now requires
 `FeedCard.videoPosterUri` for web video cards and a poster or thumbnail through
-`MessageBubble.mediaUri` for web video messages.
+`MessageBubble.mediaUri` for web video messages. Composer video attachments
+retain the picked asset in `uri`, require a still-image `posterUri`, and render
+only that poster through the kit's `Image`.
 
 The focused Playwright consumer bundles the public kit against
 `react-native-web` and exercises live M2 feed tabs, follow state, actor/media
 identity, and like/repost state plus M5 color, background, disappearing, and
-view-once state in headless Chromium. The consumer supplies ordinary kit props
-and no app-owned ARIA or DOM shim. This is focused app-UI contract evidence,
-not a full Clique backend or product end-to-end rerun.
+view-once state in headless Chromium. It also selects the canonical committed
+MP4 through the permitted app-shell file input, observes the kit's poster
+preview, and publishes through `Composer`. The consumer supplies ordinary kit
+props and no app-owned ARIA or DOM shim. This is focused app-UI contract
+evidence, not a full Clique backend or product end-to-end rerun.
 
 The coordinated freeze advances the instrument to
 `social-messenger@0.3.8-m8`, retains the authentic `0.3.7-m8` manifest and full

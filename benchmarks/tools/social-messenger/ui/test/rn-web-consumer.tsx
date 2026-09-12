@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import {
   ChatListRow,
   ChatSettingsForm,
+  Composer,
   FeedCard,
   FeedTabs,
   MessageBubble,
   ProfileForm,
   ReceiptTicks,
 } from '../index';
+import type { ComposerAttachment } from '../index';
 
 const IMAGE_ONE =
   'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32"%3E%3Crect width="32" height="32" fill="%235B5CE2"/%3E%3C/svg%3E';
@@ -24,6 +26,9 @@ function Consumer(): React.JSX.Element {
   const [accent, setAccent] = useState('#5B5CE2');
   const [background, setBackground] = useState(IMAGE_ONE);
   const [viewOnceOpened, setViewOnceOpened] = useState(false);
+  const [composerText, setComposerText] = useState('');
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
+  const [publishedVideo, setPublishedVideo] = useState<string | null>(null);
 
   return (
     <View>
@@ -70,6 +75,40 @@ function Consumer(): React.JSX.Element {
         videoPosterUri={IMAGE_TWO}
         videoUri={VIDEO_URI}
       />
+      <input
+        accept="video/mp4"
+        data-testid="sm-compose-file"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          if (!file) return;
+          setComposerAttachments([{
+            kind: 'video',
+            posterUri: IMAGE_TWO,
+            uri: URL.createObjectURL(file),
+          }]);
+        }}
+        style={{ display: 'none' }}
+        type="file"
+      />
+      <Composer
+        attachments={composerAttachments}
+        onChangeText={setComposerText}
+        onPressAttach={() => document.querySelector<HTMLInputElement>('[data-testid="sm-compose-file"]')?.click()}
+        onSend={(text) => {
+          const attachment = composerAttachments[0];
+          setPublishedVideo(`${text}|${attachment?.kind ?? 'none'}|${attachment?.uri ?? 'none'}`);
+          setComposerAttachments([]);
+          setComposerText('');
+        }}
+        value={composerText}
+        variant="post"
+      />
+      {composerAttachments[0]?.kind === 'video' ? (
+        <Text testID="consumer-picked-video-uri">{composerAttachments[0].uri}</Text>
+      ) : null}
+      {publishedVideo ? (
+        <Text testID="consumer-video-published">{publishedVideo}</Text>
+      ) : null}
       <ChatListRow identity="dm:bob" onPress={() => {}} title="Bob Brown" />
       <ReceiptTicks state="read" />
       <ChatSettingsForm

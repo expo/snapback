@@ -15,7 +15,7 @@
     "contract": {
       "kind": "file",
       "path": "tools/social-messenger/CONTRACT.md",
-      "sha256": "2b4343df53cd9b3d4730253c4eea594253e24d1a47f408266915cffebb92fb57"
+      "sha256": "ecb7b0a706703c271f67be81d1899414bfb50c79f85d5b03a585c76ca02085be"
     },
     "assertions": {
       "kind": "file",
@@ -40,7 +40,7 @@
     "uiRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/ui",
-      "sha256": "57e5284ae8498d967c34cfb1de29d1917f35cd347d0e468759ad134000f46702"
+      "sha256": "e1dc7a4055abb876d773f13e37d1d7d93f07c066b879afb1d38696895245cd91"
     },
     "uiVersion": {
       "kind": "file",
@@ -50,7 +50,7 @@
     "choreographyRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/choreography",
-      "sha256": "39538dc217dfccf91f0a97efa02ee1c763a02445ec07e4617c8d7701acdb377a"
+      "sha256": "9408b9a05de08905744fc9a28e7ebe226ce73279da6863ae3d9a0c154cdd0209"
     },
     "toolsLibRoot": {
       "kind": "directory",

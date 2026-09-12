@@ -93,8 +93,11 @@ do not need app-owned `aria-*` or DOM shims for these kit surfaces.
 
 React Native does not derive a video thumbnail. Web consumers must provide
 `videoPosterUri` for every `FeedCard` with `videoUri`, and must pass a poster or
-thumbnail as `MessageBubble.mediaUri` when `mediaKind="video"`. Without it the
-kit deliberately renders only the existing neutral placeholder and play glyph.
+thumbnail as `MessageBubble.mediaUri` when `mediaKind="video"`. A
+`ComposerAttachment` with `kind="video"` requires `posterUri`; `uri` remains
+the picked video submitted by the lane, while the kit renders only `posterUri`
+through `Image`. Without a feed or message poster the kit deliberately renders
+only the existing neutral placeholder and play glyph.
 
 ## Tests
 
@@ -115,7 +118,8 @@ at runtime they are peers supplied by the lane's app.
 `0.3.3-m8` preserves the native accessibility contract while adding the
 literal RN-Web ARIA and `data-source-uri` bridge verified by a headless
 Chromium consumer journey. It also makes the existing web video-poster
-obligation explicit. `0.3.2-m8` adds structural media, actor identity, semantic receipt,
+obligation explicit, including the required `ComposerAttachment.posterUri`
+for video picks. `0.3.2-m8` adds structural media, actor identity, semantic receipt,
 membership, profile-layout, and poll-state vocabulary for the coordinated
 instrument-observability bump. `0.3.1-m8` migrates the pressable quoted excerpt to
 `sm-convo-quote-preview`, reserving `sm-convo-quote` for the lane-owned

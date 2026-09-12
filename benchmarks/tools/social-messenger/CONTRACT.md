@@ -145,8 +145,12 @@ The P2 choreography hardening also freezes these accessible-state semantics:
   input. The React Native kit intentionally cannot own an HTML input and
   instead mounts `sm-compose-attach`, which is sufficient when it opens a
   chooser. Each `sm-compose-attachment` exposes `image` or
-  `video` as its semantic value, and `sm-feed-media` contains the real
-  rendered `img` or `video` observed by the other client.
+  `video` as its semantic value. A video attachment keeps the picked video in
+  `ComposerAttachment.uri`, requires a still-image
+  `ComposerAttachment.posterUri`, and renders that poster at
+  `sm-compose-attachment-media`; video bytes are never passed to the kit's
+  `Image`. `sm-feed-media` contains the real rendered image or video observed
+  by the other client.
 - `sm-feed-author-avatar` and any rendered `sm-convo-sender-avatar` expose the
   stable actor identity as accessible value text. The latter is conditional
   on the chosen bubble layout; absence on a default 1:1 bubble is not a
@@ -181,7 +185,9 @@ as `aria-pressed`. Kit-owned rendered image sources are repeated as
 the image bytes through a CSS-background descendant. This is a renderer bridge
 for existing public kit props, not an additional lane data contract. A web
 video post must supply `FeedCard.videoPosterUri`; a video message must supply a
-poster or thumbnail through `MessageBubble.mediaUri`.
+poster or thumbnail through `MessageBubble.mediaUri`; and a picked composer
+video must supply `ComposerAttachment.posterUri` while retaining the submitted
+video itself in `ComposerAttachment.uri`.
 
 ## Versioning
 
