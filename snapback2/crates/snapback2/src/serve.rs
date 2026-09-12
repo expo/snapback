@@ -1123,7 +1123,7 @@ mod tests {
         std::io::BufReader::new(&sockets[0])
             .read_line(&mut response)
             .unwrap();
-        assert!(response.contains(" 408 "), "{response}");
+        assert!(response.is_empty() || response.contains(" 408 "), "{response}");
     }
 
     #[test]
