@@ -780,3 +780,16 @@ Three fresh Astra sessions at medium, serial, each on the published
   `--allow-destructive`) take no value now, and no flag swallows a
   following flag. Re-proven: a fresh instance shows nothing a previous
   one seeded, in either argument order. Published `snapback4@0.0.10`.
+
+## 2026-09-12 — loop bar set B (0.0.6), and `test` on derived arguments; 0.0.11
+
+- **Set B on 0.0.6:** 499 s with three attributed loops (all the merge
+  continuation, fixed in 0.0.8); 765 s with none — the bar met; 420 s
+  with two (a `--fresh` promise read from a newer README than the pinned
+  package, and a pagination investigation the agent closed as correct).
+  My independent fixture check refused run 3's `thread` and `members` for
+  alice on a derived conversation she is not in — `test` now reports a
+  program's own `require` refusing a derived argument as information,
+  not a failure, and the runner checks the fixture with every persona.
+  One of three met the bar on 0.0.6 as on 0.0.4; set C on 0.0.8 runs.
+- Published `snapback4@0.0.11`.

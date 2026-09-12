@@ -320,7 +320,9 @@ flips the link.
   arguments derived from the data (a reference is the table's first row,
   a principal the persona, a text the shortest that fits), prints the
   meters beside the ceilings and the arguments it used, and names any
-  query it could not run.
+  query it could not run. A query's own `require` refusing a derived
+  argument (the persona is not in that group) is reported, not counted
+  as a failure; run it with your arguments to see its meters.
 - **`snapback4 check [--cost] [--json]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's

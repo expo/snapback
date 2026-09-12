@@ -529,11 +529,18 @@ pub fn test(options: &Options) -> i32 {
             }
             let shown = if args.is_empty() { String::new() } else { format!(" {}", serde_json::to_string(&args.iter().map(|(k, v)| (k.clone(), wire::to_json(v))).collect::<serde_json::Map<_, _>>()).unwrap_or_default()) };
             let started = Instant::now();
+            let derived = !args.is_empty();
             match engine.query(&program.program.name, Context::new(principal, args)) {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
                     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
+                }
+                Err(refusal) if refusal.family == "rule" && derived => {
+                    // A program's own `require` refusing a derived argument
+                    // is information, not a failure: the persona is not in
+                    // that group. Run it with yours to see the meters.
+                    println!("      {:<28} refused {} on derived arguments{shown} — run it with yours: snapback4 run {} '{{..}}' --as {persona}", format!("{} ({persona})", program.program.name), refusal.code, program.program.name);
                 }
                 Err(refusal) => {
                     failures += 1;

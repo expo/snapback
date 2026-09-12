@@ -30,6 +30,8 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **Union audiences.** One `sync` line per table. A read rule with a second disjunct is refused with the rewrite, never partially delivered; `retain delivered-history` covers the author who keeps their own rows. Several `sync` lines per table wait for an app that needs them.
 - **Exact horizon maintenance.** The horizon bounds acquisition (a snapshot, a bootstrap); the log never evicts or back-fills to hold a device's group at exactly N rows. A local read past the horizon says `complete: false`.
 
+- **Time in rules.** A read rule compares with `=` and `!=` only; `.expiresAt > now` is not a rule, because a rule that varies with time is not an audience a partition can hold. Ephemeral rows are filtered in queries today; the shape that closes the Clique lane's M5 gap is an `expires .col` clause on `sync` that the stream, the snapshot and the device's reads all honour. After the clock.
+
 ## Process not doing
 
 - **No drift registries, inventories, line-pinned diagnostics registries, claim digests or frozen-record gates.** Generated projections are built, not committed.
