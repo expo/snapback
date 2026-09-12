@@ -32,13 +32,13 @@ export function onceExhausted(columns: OnceColumns | undefined, row: StoredRow |
   return assets.size > 0 && [...assets].every(id => viewed.includes(id));
 }
 /** Scrub media even when a query projects it under an alias or out of its row. */
-export function nullOnceMedia(value: unknown, ids: { has(id: string): boolean }, scrubbed?: Set<string>): unknown {
-  if (Array.isArray(value)) return value.map(item => nullOnceMedia(item, ids, scrubbed));
+export function nullOnceMedia(value: unknown, ids: { has(id: string, path: string, value: unknown): boolean }, scrubbed?: Map<string, { id: string }>, path = ""): unknown {
+  if (Array.isArray(value)) return value.map((item, key) => nullOnceMedia(item, ids, scrubbed, path + JSON.stringify([key])));
   if (!object(value)) return value;
-  if (typeof value.id === "string" && ids.has(value.id) && "width" in value && "height" in value) {
-    scrubbed?.add(value.id); return null;
+  if (typeof value.id === "string" && ids.has(value.id, path, value) && "width" in value && "height" in value) {
+    scrubbed?.set(path, value as { id: string }); return null;
   }
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, nullOnceMedia(item, ids, scrubbed)]));
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, nullOnceMedia(item, ids, scrubbed, path + JSON.stringify([key]))]));
 }
 
 /** Incremental media custody shared by the carrier and effective twin rows. */

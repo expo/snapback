@@ -244,3 +244,80 @@ test("Expo witness seed leaves Alice's schema-once image unconsumed and keeps it
     if (previous === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previous;
   }
 });
+
+// @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction —
+// duplicated IDs do not make a null occurrence equivalent to a present occurrence.
+test("once alias occurrence changes survive an unrelated delivery while the next live frame is held", async t => {
+  const { appendFile, readFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-once-alias-"));
+  let fixture: RealOwnerHarness | undefined, client: any, sender: any;
+  const release = Promise.withResolvers<void>();
+  let hold = false;
+  try {
+    fixture = await RealOwnerHarness.create({ forceOwned: true, withDeliveries: true, prepare: async root => {
+      await appendFile(join(root, "snapback/messages.q"), `
+query onceAliases(messageId: messages):
+  msg = messages[messageId] ! else NOT_FOUND
+  if msg.body = null:
+    return { always: msg.oncePhoto, optional: msg.oncePhoto }
+  return { always: msg.oncePhoto, optional: null }
+
+query currentMessage(messageId: messages):
+  return messages[messageId]
+
+mutation hideOccurrence(messageId: messages):
+  msg = messages[messageId] ! else NOT_FOUND
+  update messages[msg] { body: 'hide the optional occurrence' }
+  return true
+`);
+    } });
+    sender = createClient({ url: fixture.url, persona: "alice" });
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const sent: any = await sender.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
+    assert.equal(sent.state, "committed");
+    client = createClient({ url: fixture.url, persona: "alice", offline: { store: fileRangeStore(directory) },
+      fetch: async (input: any, init: any) => {
+        const response = await fetch(input, init);
+        if (!response.headers.get("content-type")?.includes("text/event-stream")) return response;
+        return new Response(response.body!.pipeThrough(new TransformStream({
+          async transform(chunk, controller) { if (hold) await release.promise; controller.enqueue(chunk); },
+        })), { status: response.status, headers: response.headers });
+      } });
+    await client.ready;
+    const observed = client.observe(api.messages.onceAliases, { messageId: sent.data.id });
+    const first = Promise.withResolvers<void>(), successor = Promise.withResolvers<void>(), frames: any[] = [];
+    const off = observed.subscribe(() => {
+      const snapshot = observed.getSnapshot(); frames.push(snapshot);
+      if (snapshot.data?.optional?.id === photo.id) first.resolve();
+      if (snapshot.data?.optional === null && snapshot.data?.always?.id === photo.id) successor.resolve();
+    });
+    try {
+      await Promise.race([first.promise, new Promise((_, reject) => setTimeout(() => reject(new Error("alias live frame timed out")), 5_000))]);
+      await client.query(api.messages.currentMessage, { messageId: sent.data.id });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      assert.equal(observed.getSnapshot().data?.always?.id, photo.id);
+      assert.equal(observed.getSnapshot().data?.optional?.id, photo.id, "matching duplicate occurrences both remain available");
+      hold = true;
+      assert.equal((await sender.mutation(api.messages.hideOccurrence, { messageId: sent.data.id })).state, "committed");
+      const changed: any = await client.query(api.messages.currentMessage, { messageId: sent.data.id });
+      assert.equal(changed.data.body, "hide the optional occurrence");
+      await new Promise(resolve => setTimeout(resolve, 100));
+      assert.equal(observed.getSnapshot().data?.optional, null,
+        "one still-unviewed alias cannot restore a different occurrence which the current query removed");
+      assert.equal(observed.getSnapshot().receipt?.source, "twin", "the changed local value is published, not an old owner literal");
+      release.resolve();
+      await Promise.race([successor.promise, new Promise((_, reject) => setTimeout(() => reject(new Error("successor alias frame timed out")), 5_000))]);
+      assert.equal(observed.getSnapshot().data.always.id, photo.id, "the remaining owner-authorized occurrence returns");
+      assert.equal(observed.getSnapshot().data.optional, null);
+      t.diagnostic(JSON.stringify(frames));
+    } finally { off(); }
+  } finally {
+    release.resolve();
+    await client?.close(); await sender?.close(); await fixture?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

@@ -1231,7 +1231,7 @@ test("owner source changes rebuild distinct totals and report hot install, migra
   } finally { await owner?.close(); await rm(directory, { recursive: true, force: true }); if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl; }
 });
 
-// @ref LLP 1023.000#b-make-the-existing-one-client-freshness-path-sufficient —
+// @ref LLP 1023.000#b--make-the-existing-one-client-freshness-path-sufficient —
 // execute the packaged consumer recipe against real owner envelopes, including equal-seq clock changes.
 test("timed Clique Insights load and refresh reach the screen on one durable client", { timeout: 60000 }, async t => {
   const directory = await mkdtemp(join(tmpdir(), "snapback-timed-insights-"));

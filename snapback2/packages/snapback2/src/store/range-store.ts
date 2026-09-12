@@ -598,7 +598,7 @@ export class PersistentRangeStore implements RangeStore {
       const watermark = this.state.watermarks[key];
       const media = (this.referenceIndex ??= new CarrierIndex(this.state, this.referenceSchema)).assets;
       const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, clockOnly: _clockOnly, selection: _selection, ...visible } = stored;
-      const { data, validator, ...answer } = clone(visible), scrubbed = new Set<string>();
+      const { data, validator, ...answer } = clone(visible), scrubbed = new Map<string, { id: string }>();
       const projected = data === undefined ? undefined : nullOnceMedia(expand(data, this.state.rows, media.exhausted), media.once, scrubbed) as Result;
       const capture = new ItemCapture(this.state, op, args); capture.references(stored.data, projected);
       return withItemInputs(defined({ ...answer,

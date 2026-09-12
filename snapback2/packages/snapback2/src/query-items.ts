@@ -96,8 +96,11 @@ export class ItemCapture {
     const entries = value.Array ?? value.Map ?? value.Row;
     if (entries) for (const key of Object.keys(entries)) this.evaluated((entries as Record<string, unknown>)[key], (data as Record<string, unknown>)[key]);
   }
-  inputs(once?: Set<string>): ItemInputs {
-    if (once?.size) for (const id of viewedOnlyAssets(this.state)) once.delete(id);
+  inputs(once?: Map<string, { id: string }>): ItemInputs {
+    if (once?.size) {
+      const viewed = viewedOnlyAssets(this.state);
+      for (const [path, asset] of once) if (viewed.has(asset.id)) once.delete(path);
+    }
     const selection = this.held?.selection ?? freshItemSelection(this.held);
     return { once, compactedThrough: this.state.compactedThrough, entries: this.entries ??= Object.values(this.state.outbox).sort(outboxFifo),
       observations: this.observations, values: this.values, predicted: new Map(this.predicted),

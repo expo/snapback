@@ -99,7 +99,7 @@ export class Twin {
     const since = hydrated.deliveredAt;
     const capture = hydrated.captureItems(op, args);
     // A local hole cannot revoke the last authoritative page-membership proof.
-    const once = new Set<string>();
+    const once = new Map<string, { id: string }>();
     const publish = <T extends LocalAnswer>(value: T): T => withItemInputs(value, capture.inputs(once));
     const base = {
       seq: this.sources.seq(),

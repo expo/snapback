@@ -306,11 +306,13 @@ export class ClientQueries {
       && (refreshed.state === "held"
         || ((refreshed.state === "complete" || refreshed.state === "capped")
           && refreshed.state === authoritative.state && refreshed.seq === authoritative.seq))
-      // @ref LLP 1023.000#c-separate-live-once-publication-from-offline-redaction — only
+      // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — only
       // descriptors actually redacted from the current custody-checked result may
       // compare equal. Viewed/revoked rows and predictions cannot revive an image.
       && valueIdentity(refreshed) === valueIdentity(itemInputs(refreshed)?.once?.size
-        ? { ...authoritative, data: nullOnceMedia(authoritative.data, itemInputs(refreshed)!.once!) }
+        ? { ...authoritative, data: nullOnceMedia(authoritative.data, {
+          has: (_id, path, value) => stableSerialize(itemInputs(refreshed)!.once!.get(path)) === stableSerialize(value),
+        }) }
         : authoritative)) {
       const captured = itemInputs(refreshed);
       return withItemInputs({ ...authoritative }, captured && rebindItemInputs(captured,
