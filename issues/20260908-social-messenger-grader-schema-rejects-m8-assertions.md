@@ -37,3 +37,15 @@ This disposition supersedes stale current-work claims above; historical observat
 Current grader-report.schema.json still admits assertionResults keys only through ^m[1-7]-a[0-9]{2}$ while M8 remains part of the instrument. This is a reporting-schema defect, not an M8 application failure.
 
 Source: benchmarks/tools/social-messenger/grader/grader-report.schema.json patternProperties. A fresh Node 24.18.0 control read this exact JSON and applied its patterns: `m7-a01: true`, `m8-a01: false`, `additionalProperties: false`. This is a pattern-admission control, not a complete report-validation run. Correct it only in a versioned instrument revision, validate all declared assertion IDs and preserve frozen reports. No historical invalid report is reclassified as schema-valid.
+
+## Re-observed in a completed grade — 2026-09-12
+
+Keep open. The fresh Claude Opus5 grade of the
+[published0.0.24 Linux run](../benchmarks/runs/2026-09-11-clique-astra-snapback2-0024-linux/README.md)
+retains85 passes/16 not-run in the permitted M1–M7 JSON map and all18 M8
+outcomes in its trace/report notes (16 pass,2 native checks not-run). The
+resulting [core report](../benchmarks/runs/2026-09-11-clique-astra-snapback2-0024-linux/grading/grader-report.json)
+was actually validated under AJV2020, independently of the grader's own
+validation. This is a schema-valid core plus an explicit M8 companion, not
+a claim that the frozen schema now admits M8. No schema or historical
+report was changed; the next-version consistency repair remains necessary.
