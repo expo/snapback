@@ -34,21 +34,26 @@ Acceptance: `node_modules/snapback2-linux-x64/bin/snapback2 check` in a producti
 ## Resolution
 
 Implemented outcome 2 on 2026-09-11. Missing compiler-worker and missing
-trusted-Node refusals both rewrite `check` to `npx snapback2 check` and
-preserve `dev --foreground` as `npx snapback2 dev --foreground`; each also
-names the explicit environment-variable alternative. Platform packages now
-ship a README that routes `check` and `dev` through the public wrapper.
+trusted-Node refusals rewrite the complete invocation through `npx snapback2`,
+with POSIX shell quoting for every argument. The compiler refusal names
+`SNAPBACK2_COMPILER`; the Node refusal independently names the trusted
+`SNAPBACK2_NODE` path. Platform packages ship a README that routes `check`
+and `dev` through the public wrapper.
 
-Production evidence for source checkpoint `44f8da6fec3651b72eef4f05e29b075f985dba68`:
+Production evidence for repair checkpoint `4a9ddd57ef52a3a6b0196689d1cc33e92249fa52`:
 
-- A fresh engine-bearing Linux binary was built at 47,885,880 bytes with
-  SHA-256 `8eb50bf4f8c62ea2661feb00f4444f75b4127b743a9b2353df2efb76b1055c9a`.
+- A fresh engine-bearing Linux binary was built at 47,886,776 bytes with
+  SHA-256 `ded4832c63101e86ada3afe959a0361a32c0fe64e7c8d64f3c79f6592edd4385`.
 - Fresh `snapback2-linux-x64@0.0.26` and `snapback2@0.0.26` tarballs were
-  packed in `snapback2/dist/npm/verify-raw-binary-44f8da6fe/`; their SHA-512
-  integrities are `0AWKEkEWpk1ae0baXyjPHtub9Cf8HhXQ5EbZier8LHRtgV2iCjpJxyLaMT9jd+7QGXtp1VRD44A/M/QVjovwaQ==`
+  packed in `snapback2/dist/npm/verify-raw-binary-4a9ddd57e/`; their SHA-512
+  integrities are `NPzK7/oHSLUP2ZdGpWyOFeIbNLTvdMMpBcedStRLBqADtkKpN2WGxaArfl6447Vkxg83/1wQZUKNlLyGyYKSIA==`
   and `xuS7ANIpcwCAPFz5buUug40xcKH7qNzk+lUO46tLHjkyAE4pcOhO7iy7RdrCFz5WQ3Q2+SdlAlnnTEQhpUh5gg==`.
 - The installed production consumer passed the platform README check; raw
-  `check` and raw `dev --foreground` rewrites with the compiler missing;
-  the same two rewrites with only trusted Node missing; public-wrapper
-  `check`, `dev`, React live traffic, and both template test receipts.
-  Both engine-backed receipts were `pass`.
+  `check` and `dev --foreground` exact rewrites with the compiler missing;
+  then the distinct message and `SNAPBACK2_NODE` rewrite with a valid compiler
+  but no trusted Node. Those commands carried an external `--project` path
+  containing a space and apostrophe plus `--json`; the public wrapper used the
+  same external project successfully for `check`, `dev`, React live traffic,
+  and both template tests. Both engine-backed receipts were `pass`.
+- The two focused Rust toolchain tests and the repaired debug packed consumer
+  passed before production qualification.
