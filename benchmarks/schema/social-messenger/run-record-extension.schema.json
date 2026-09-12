@@ -42,6 +42,68 @@
     {
       "if": {
         "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.8-m8"
+          }
+        },
+        "required": [
+          "instrumentVersion"
+        ]
+      },
+      "then": {
+        "required": [
+          "instrumentVersion",
+          "typingObservationBoundaryVersion",
+          "orientation",
+          "observabilityProtocol",
+          "efficiencyScorecardEligibility",
+          "suiteStatusLinkage"
+        ],
+        "properties": {
+          "typingObservationBoundaryVersion": {
+            "const": "v2"
+          },
+          "setup": {
+            "properties": {
+              "instrumentPin": {
+                "const": "social-messenger@0.3.8-m8"
+              }
+            }
+          },
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "pin": {
+                    "const": "social-messenger@0.3.8-m8"
+                  },
+                  "versions": {
+                    "properties": {
+                      "choreography": {
+                        "const": "0.3.8-m8"
+                      }
+                    },
+                    "required": [
+                      "choreography"
+                    ]
+                  }
+                },
+                "required": [
+                  "pin",
+                  "versions"
+                ]
+              }
+            },
+            "required": [
+              "instrument"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
           "runScope": {
             "const": "full"
           }
@@ -314,7 +376,8 @@
               "social-messenger@0.3.3-m8",
               "social-messenger@0.3.4-m8",
               "social-messenger@0.3.6-m8",
-              "social-messenger@0.3.7-m8"
+              "social-messenger@0.3.7-m8",
+              "social-messenger@0.3.8-m8"
             ]
           }
         }
@@ -364,6 +427,37 @@
               "instrument": {
                 "properties": {
                   "pin": {
+                    "const": "social-messenger@0.3.8-m8"
+                  }
+                },
+                "required": ["pin"]
+              }
+            },
+            "required": ["instrument"]
+          }
+        },
+        "required": ["orientation"]
+      },
+      "then": {
+        "required": ["instrumentVersion", "typingObservationBoundaryVersion"],
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.8-m8"
+          },
+          "typingObservationBoundaryVersion": {
+            "const": "v2"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "pin": {
                     "const": "social-messenger@0.3.7-m8"
                   }
                 },
@@ -380,6 +474,42 @@
         "properties": {
           "instrumentVersion": {
             "const": "social-messenger@0.3.7-m8"
+          },
+          "typingObservationBoundaryVersion": {
+            "const": "v2"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "orientation": {
+            "properties": {
+              "instrument": {
+                "properties": {
+                  "versions": {
+                    "properties": {
+                      "choreography": {
+                        "const": "0.3.8-m8"
+                      }
+                    },
+                    "required": ["choreography"]
+                  }
+                },
+                "required": ["versions"]
+              }
+            },
+            "required": ["instrument"]
+          }
+        },
+        "required": ["orientation"]
+      },
+      "then": {
+        "required": ["instrumentVersion", "typingObservationBoundaryVersion"],
+        "properties": {
+          "instrumentVersion": {
+            "const": "social-messenger@0.3.8-m8"
           },
           "typingObservationBoundaryVersion": {
             "const": "v2"
@@ -612,17 +742,18 @@
         "social-messenger@0.3.3-m8",
         "social-messenger@0.3.4-m8",
         "social-messenger@0.3.6-m8",
-        "social-messenger@0.3.7-m8"
+        "social-messenger@0.3.7-m8",
+        "social-messenger@0.3.8-m8"
       ],
-      "description": "Unconditional identity binding for every plan record. Current records use 0.3.7-m8; retained 0.3.2-m8, 0.3.3-m8, 0.3.4-m8, and 0.3.6-m8 records remain identified by their own pins and never aggregate with current records."
+      "description": "Unconditional identity binding for every plan record. Current records use 0.3.8-m8; retained 0.3.2-m8, 0.3.3-m8, 0.3.4-m8, 0.3.6-m8, and 0.3.7-m8 records remain identified by their own pins and never aggregate with current records."
     },
     "typingObservationBoundaryVersion": {
       "enum": ["v1", "v2"],
-      "description": "M3 typing observation boundary. Current 0.3.7-m8 records require v2; retained pre-bump records may omit this field and are interpreted only under their own instrument version."
+      "description": "M3 typing observation boundary. Current 0.3.8-m8 records require v2; retained pre-bump records may omit this field and are interpreted only under their own instrument version."
     },
     "observabilityProtocol": {
       "const": "social-messenger-observation.v1",
-      "description": "Typed event/projection protocol used by the 0.3.3-m8, 0.3.4-m8, 0.3.6-m8, and 0.3.7-m8 instruments. Older version-2 records omit it; current records may not omit observability blocks silently."
+      "description": "Typed event/projection protocol used by the 0.3.3-m8, 0.3.4-m8, 0.3.6-m8, 0.3.7-m8, and 0.3.8-m8 instruments. Older version-2 records omit it; current records may not omit observability blocks silently."
     },
     "setup": {
       "$ref": "#/$defs/setupIdentity",
@@ -2196,7 +2327,7 @@
       "properties": {
         "schemaVersion": { "const": "social-messenger.setup-identity.v1" },
         "instrumentPin": {
-          "enum": ["social-messenger@0.3.3-m8", "social-messenger@0.3.4-m8", "social-messenger@0.3.6-m8", "social-messenger@0.3.7-m8"]
+          "enum": ["social-messenger@0.3.3-m8", "social-messenger@0.3.4-m8", "social-messenger@0.3.6-m8", "social-messenger@0.3.7-m8", "social-messenger@0.3.8-m8"]
         },
         "backend": {
           "type": "object",

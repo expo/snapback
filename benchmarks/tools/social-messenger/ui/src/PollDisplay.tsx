@@ -56,6 +56,9 @@ export function PollDisplay({
             accessibilityRole="button"
             accessibilityState={{ selected: !!option.mine, disabled, busy: !!option.pending }}
             accessibilityValue={{ text: option.id }}
+            aria-busy={!!option.pending}
+            aria-selected={!!option.mine}
+            aria-valuetext={option.id}
             disabled={disabled}
             key={option.id}
             onPress={() => onVote(index)}
@@ -76,6 +79,7 @@ export function PollDisplay({
               </Text>
               <Text
                 accessibilityValue={{ text: String(option.count) }}
+                aria-valuetext={String(option.count)}
                 style={styles.tally}
                 testID="sm-poll-tally"
               >
@@ -87,6 +91,7 @@ export function PollDisplay({
       })}
       <Text
         accessibilityValue={{ text: String(total) }}
+        aria-valuetext={String(total)}
         style={styles.total}
         testID="sm-poll-total"
       >

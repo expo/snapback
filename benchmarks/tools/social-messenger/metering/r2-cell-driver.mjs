@@ -152,7 +152,7 @@ function renderPrompt(config, cellRoot) {
     const journey = resolveCellJourney(config);
     const reducedAppendix = `
 
-## Observation-controller handoff (instrument 0.3.7-m8)
+## Observation-controller handoff (instrument 0.3.8-m8)
 
 The external lane controller owns the authoring clock and is already running.
 For each milestone, run the suite and choreography with their required typed
@@ -182,7 +182,7 @@ the M3 signal is the last authoring action before the native harness exits.
 `;
     const fullAppendix = `
 
-## Full-journey observation-controller handoff (instrument 0.3.7-m8)
+## Full-journey observation-controller handoff (instrument 0.3.8-m8)
 
 The external lane controller owns the authoring clocks and is already running.
 This native session is the continuous builder only: complete M1, M2, M3, M4,

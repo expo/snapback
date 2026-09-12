@@ -41,6 +41,7 @@ export function FeedTabs({
             accessibilityLabel={label}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
+            aria-selected={selected}
             key={key}
             onPress={() => onChange(key)}
             style={styles.tab}

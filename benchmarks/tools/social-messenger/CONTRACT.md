@@ -145,8 +145,12 @@ The P2 choreography hardening also freezes these accessible-state semantics:
   input. The React Native kit intentionally cannot own an HTML input and
   instead mounts `sm-compose-attach`, which is sufficient when it opens a
   chooser. Each `sm-compose-attachment` exposes `image` or
-  `video` as its semantic value, and `sm-feed-media` contains the real
-  rendered `img` or `video` observed by the other client.
+  `video` as its semantic value. A video attachment keeps the picked video in
+  `ComposerAttachment.uri`, requires a still-image
+  `ComposerAttachment.posterUri`, and renders that poster at
+  `sm-compose-attachment-media`; video bytes are never passed to the kit's
+  `Image`. `sm-feed-media` contains the real rendered image or video observed
+  by the other client.
 - `sm-feed-author-avatar` and any rendered `sm-convo-sender-avatar` expose the
   stable actor identity as accessible value text. The latter is conditional
   on the chosen bubble layout; absence on a default 1:1 bubble is not a
@@ -174,10 +178,21 @@ The P2 choreography hardening also freezes these accessible-state semantics:
   viewer IDs, exact `unopened`/`opened` accessible values, and
   `sm-convo-error` for server refusal.
 
+For React Native Web, kit-owned stable values are emitted literally as
+`aria-valuetext`; tab selection as `aria-selected`; and button-like selection
+as `aria-pressed`. Kit-owned rendered image sources are repeated as
+`data-source-uri` on the contracted observable node because RN Web may render
+the image bytes through a CSS-background descendant. This is a renderer bridge
+for existing public kit props, not an additional lane data contract. A web
+video post must supply `FeedCard.videoPosterUri`; a video message must supply a
+poster or thumbnail through `MessageBubble.mediaUri`; and a picked composer
+video must supply `ComposerAttachment.posterUri` while retaining the submitted
+video itself in `ComposerAttachment.uri`.
+
 ## Versioning
 
-The choreography subdirectory is `0.3.7-m8` and the UI kit is
-`0.3.2-m8`. The coordinated `0.3.3-m8` instrument migration required
+The choreography subdirectory is `0.3.8-m8` and the UI kit is
+`0.3.3-m8`. The coordinated `0.3.3-m8` instrument migration required
 suite-status and setup-identity linkage before
 startup and adds the hash-linked D0.6 run-record observations while retaining
 the W2 native-usage channel and extension version; the meter additionally
@@ -196,5 +211,7 @@ across all M7 retry attempts. Other P1 artifacts remain at their existing
 pre-freeze versions. Choreography `0.3.7-m8` carries those semantics plus the
 LLP 0317 N7 fixture repair and binds the complete executable evidence stack to
 the repaired frozen root; retained `0.3.4-m8` records stay historical.
+Choreography `0.3.8-m8` coordinates UI `0.3.3-m8`'s RN-Web semantic bridge;
+retained `0.3.7-m8` evidence keeps the pre-bridge renderer contract.
 The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the
 brief.

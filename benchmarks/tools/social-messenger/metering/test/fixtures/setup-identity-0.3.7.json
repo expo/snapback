@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "social-messenger.setup-identity.v1",
+  "instrumentPin": "social-messenger@0.3.7-m8",
+  "backend": { "kind": "external", "version": "choreography-calibration.v1" },
+  "runtime": {
+    "qualifiedBinary": { "claimed": false, "reason": "calibration HTTP app has no Snapback binary" },
+    "wrapper": { "claimed": false, "reason": "calibration launches the app in-process" }
+  },
+  "packageClosure": {
+    "mode": "workspace",
+    "prepack": "not-applicable",
+    "artifacts": [
+      { "name": "choreography-calibration", "version": "0.3.7-m8", "sha256": null }
+    ]
+  },
+  "toolchain": {
+    "node": { "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node", "version": "v24.18.0" },
+    "bun": "not-used",
+    "npm": "not-used",
+    "playwright": "1.62.1",
+    "browser": "chromium"
+  },
+  "host": { "id": "local-calibration", "platform": "darwin", "arch": "arm64" }
+}
