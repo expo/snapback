@@ -26,8 +26,8 @@ Snapback 4 candidate on the benchmark, one week into its four-week clock.
 
 | Phase | State |
 | --- | --- |
-| Continuous builder | running |
-| Independent grade (fresh Claude session on the frozen grader prompt) | pending |
+| Continuous builder | **complete**: start 1789222278, end 1789230003 (7,725 s); M1–M6 and M8 green, M7 not-run by design; `builder-final-report.md`, `builder-essay.md`, `builder-platform-gaps.md`, `builder-diary.md`, `builder-run-log.md`, `record-astra-snapback4.json` beside this file |
+| Independent grade (fresh Claude session on the frozen grader prompt) | running |
 | M7 day-2 evolution (fresh Astra session, same lane) | pending |
 | Record and validation | pending |
 
@@ -72,6 +72,28 @@ machine with the loop-bar runs. N=1 each; calibration, not a magnitude.
 | Snapback 2 0.0.4, Astra, 2026-09-05 (`~/clique-full-20260905`) | 449 | 1,184 | 1,916 | 2,511 | 5,599 | 6,208 | 7,885 | M1, M2, M5, M6 later regressed and were recorded `aborted`; M3, M4, M8 green |
 | Snapback 2 0.0.29, Astra, 2026-09-12 (`benchmarks/runs/2026-09-12-snapback2-clique-0029`) | 469 (first green proof) | | | | | | | 13,667 s total including a 6,146 s scale replay; M1–M6 plus M8 web-green, then graded O1 73 / O2 55 |
 | Convex 1.45.0, Astra, 2026-09-05 | 792 | 1,577 | 1,881 | 2,148 | 3,185 | 4,475 | 5,643 | every milestone green; no capability failures |
+
+## What the builder wrote (essay, after M8)
+
+The lane's `essay.md` (copied here when the phase closes) says the center
+of the application was "unusually compact" — the data model, ownership
+rules, sync audience and mutation intent in one Quarry program, with
+follows and reactions as set-state intents behind uniqueness constraints
+and no resolver layer — and that "several edges" were "unusually
+demanding": expiry (a time comparison is not a rule; a guarded point read
+was built and the gap disclosed), cold restoration fetching the schema
+before opening the durable replica, a stale settings screen after
+navigation between two components on one query key, retained history
+hidden by local rule evaluation after a leave, the README's maintained-sum
+spelling, and an index rewrite the upsert position did not accept. Every
+edge but expiry was a defect fixed on main the same day (0.0.7, 0.0.12,
+0.0.14, 0.0.15). Insights showed "the upside of those constraints":
+server-computed totals over maintained aggregates instead of paging; the
+plain JSON protocol and stable mutation ids made the replay adapter
+"straightforward" and the full scale replay verified. The builder's
+preference is "conditional": a relational application whose authorization
+and synchronization rules fit Quarry, especially with offline writes at
+the center, budgeting time for client lifecycle validation.
 
 ## Results
 

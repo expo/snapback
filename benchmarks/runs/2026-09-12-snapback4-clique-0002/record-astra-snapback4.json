@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API agent",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "@types/react": "19.3.0",
+      "expo": "57.0.22",
+      "expo-constants": "57.0.18",
+      "expo-linking": "57.0.10",
+      "expo-router": "57.0.21",
+      "expo-secure-store": "57.0.4",
+      "expo-sqlite": "57.0.3",
+      "expo-status-bar": "57.0.1",
+      "react": "19.2.3",
+      "react-dom": "19.2.3",
+      "react-native": "0.86.3",
+      "react-native-safe-area-context": "5.7.0",
+      "react-native-screens": "4.26.2",
+      "react-native-web": "0.21.2",
+      "snapback4": "0.0.2",
+      "typescript": "6.0.3",
+      "snapback4-darwin-arm64": "0.0.2",
+      "playwright (choreography)": "1.62.1",
+      "ajv (choreography)": "8.20.0",
+      "os": "macOS arm64 Apple M5 Max",
+      "nodeDefault": "25.9.0",
+      "nodeExpo": "24.18.0",
+      "npm": "11.12.0"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-12T14:11:18.000Z",
+    "finishedAt": "2026-09-12T16:07:46.306Z"
+  },
+  "firstGreenProofAt": "2026-09-12T14:25:51.296Z",
+  "wallClock": {
+    "totalSeconds": 6988.305999994278,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 242.40599966049194,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "1789222730 correction loop attribution=agent-error evidence=evidence/smoke-output.txt; Expo optional catch-all missed root despite native export success; explicit index plus catch-all routes. Stopped web PID=55691 to reload route manifest.",
+      "evidence": "run-log.md:24"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789222772 correction loop attribution=snapback4-defect subAttribution=defect evidence=evidence/m1-acceptance-output-2.txt; IndexedDB local prediction unique clash raised unhandled pageerror \"aborted\" and Expo error overlay after visible rejection. Add explicit HANDLE_TAKEN precondition before upsert, retaining authoritative unique constraint.",
+      "evidence": "run-log.md:26"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789222865 correction loop attribution=agent-error evidence=evidence/m1-acceptance-output-4.txt; route-level App instances duplicated local clients. Move persistent app/session owner into root layout. Stopped web PID=93793.",
+      "evidence": "run-log.md:30"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1789223065 correction loop attribution=ambiguous evidence=evidence/live-probe.txt,evidence/m1-choreo-output-2.txt; two-client init stalls with /schema timeout while long polls held. Try documented waitSeconds=1. Stop web PID=5376, backend binary PID=10871.",
+      "evidence": "run-log.md:39"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789223125 correction loop attribution=agent-error evidence=evidence/live-probe-4.txt; profile form copied row id/ownerId into strict mutation args. Explicitly select five fields. Online client mislabeled E_INPUT HTTP400 as unreachable (secondary snapback4 diagnostic defect). Stop web PID=26883.",
+      "evidence": "run-log.md:43"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789223529 correction loop attribution=agent-error evidence=scripts/acceptance.mjs; suite evidence path was mutable across verification iterations. Future suite-status references immutable timestamped receipts; rerun choreography after final suite settles so hash linkage is valid. M1's final linked receipt remains unchanged.",
+      "evidence": "run-log.md:53"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1789223564 correction loop attribution=ambiguous evidence=evidence/m2-choreo-output-2.txt,choreography/choreography.mjs:957; toggleFollow leaves client on profile then clicks feed tabs without contracted profile-nav-feed. Expose feed tabs in persistent navigation on nonfeed screens to support frozen harness and useful navigation. Stop web PID=78392.",
+      "evidence": "run-log.md:54"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789223641 correction loop attribution=agent-error evidence=evidence/m2-choreo-output-2.txt; running acceptance concurrently inserted >20 posts and displaced choreography's pinned live post, invalidating later checks. Stop exact runner PID=90894 identified by open lane output file; rerun suite and choreography strictly sequentially. This is not platform behavior.",
+      "evidence": "run-log.md:56"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789224283 correction loop attribution=agent-error evidence=evidence/m3-choreo-output.txt; per-keystroke typing produced durable queue backlog, throttle to 700ms with 2.5s clear timer and 3s display expiry. Membership remove works in isolated probe evidence=evidence/member-probe.txt; failed run residue Dave removed through own mutation. Restart web PID=58992.",
+      "evidence": "run-log.md:61"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789224292 correction loop attribution=agent-error evidence=evidence/m3-acceptance-output-2.txt; repeated quote test text selected prior run's original. Use run-unique text in test; app quote pointer and jump were correct.",
+      "evidence": "run-log.md:63"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789224864 correction loop attribution=snapback4-defect subAttribution=defect evidence=evidence/m3-choreo-output-3.txt; delivered-history query hides rows after membership removal despite retain declaration. Archive previously rendered authorized history as fallback. Separate per-tab IndexedDB stores resolved progress marker delivery. Stop obsolete non-green runner PID=44923 and web PID=40277 to apply fixes.",
+      "evidence": "run-log.md:66"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789224936 correction loop attribution=snapback4-defect subAttribution=defect evidence=evidence/quote-probe.txt; quote data and pointer are correct, but unhandled IndexedDB abort opens Expo overlay and intercepts clicks. Move ephemeral typing off durable prediction onto online client to isolate abort. Earlier runner PID=44923 had already exited before stop request. Restart web PID=74784.",
+      "evidence": "run-log.md:68"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789225588 correction loop attribution=snapback4-defect subAttribution=defect evidence=evidence/m4-sync-diagnostic.json,evidence/m4-check.txt; check accepted reactions sync without source conversationId-leading index, but /sync fails 503 E_SCHEMA: reactions has no index leading with conversationId. Client silently shows fresh=false empty partition. Added source audience index; exact diagnostic lookup evidence=evidence/m4-why-schema.txt.",
+      "evidence": "run-log.md:83"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1789225781 correction loop attribution=environment evidence=evidence/m4-window-output.txt; copyFile inherited readonly fixture mode and production restore failed. Config script now reads/writes bytes without inheriting mode; restored production successfully.",
+      "evidence": "run-log.md:85"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789226461 correction-loop agent-error immutable locals and optional field narrowing fixed evidence=evidence/m5-check-retry.txt; lookup source=package README; workaround environment M5 background half struck, color preserved evidence=evidence/instrument-repairs.md",
+      "evidence": "run-log.md:89"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1789226730 correction-loop ambiguous M5 color server state correct but Carol live selection missed 10-second deadline evidence=evidence/m5-choreo-output.txt,evidence/m5-color-diagnostic.txt. Isolating with focused two-client probe after frozen segment settles.",
+      "evidence": "run-log.md:91"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789226894 correction-loop snapback4-defect M5 settings navigation reproduces stale useQuery DOM despite fresh client.query; direct settings navigation works. Distinct chatConfiguration query avoids old Conversation subscription teardown sharing same key evidence=evidence/m5-color-probe-route.txt,src/Messaging.tsx",
+      "evidence": "run-log.md:96"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789227059 correction-loop agent-error focused probe started before Metro ready, ERR_CONNECTION_REFUSED; added readiness polling to server launcher and retried evidence=evidence/m5-color-probe-route-fixed.txt",
+      "evidence": "run-log.md:98"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789227488 lookup source=fixture action-schema.md,validate.mjs,sample-50.log; lookup source=package README wire,data help; correction-loop agent-error device is reserved, renamed deviceKey evidence=evidence/m6-push-check.txt,evidence/m6-push-check-retry.txt; replay adapter authored evidence=scripts/replay-adapter.mjs",
+      "evidence": "run-log.md:101"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789227903 correction-loop snapback4-defect shaped history omits pending metadata despite pending write result; raw pendingMessages query restores pending UI, M6 choreography passes evidence=evidence/m6-offline-probe.txt,evidence/m6-choreo.jsonl. Lookup source=package published .d.ts contract, no implementation source read. Test correction agent-error dynamic sender name and repostCount field evidence=evidence/m6-suite-output.txt,evidence/m6-suite-output-final.txt",
+      "evidence": "run-log.md:105"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789227988 correction-loop agent-error scale attempt1 stopped at 10% due verifier field names follower/followed instead of followerId/followedId; every entity count matched. Retaining failed instance and receipts, restarting from another fresh instance evidence=evidence/scale-verify-10pct.json",
+      "evidence": "run-log.md:110"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789228186 correction-loop snapback4-defect cold restore failed on schema fetch despite durable session/rows; bootstrap schema cache via documented fetch option passes cold web history and search evidence=evidence/m6-cold-offline-output-primary.txt,evidence/m6-cold-offline.json,src/schemaCache.ts",
+      "evidence": "run-log.md:118"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "1789228625 correction-loop snapback4-defect README sum syntax rejected; actual syntax sum TABLE of COLUMN. Compiler index rewrite invalid for upsert; two-column unique key avoids ambiguity. Lookup source=diagnostic,package guide evidence=evidence/m8-analytics-check*.txt,evidence/m8-forward-check*.txt. Scale adoption E_STORE UNIQUE constraint failed _catalog.name after concurrent data CLI; restart exact scale binary evidence=evidence/scale-server.log",
+      "evidence": "run-log.md:123"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789228939 correction-loop agent-error M8 dual-offline order transient: predicted local timestamps sorted before an already-confirmed remote write. Sort pending messages after confirmed rows and use raw row timestamps for settlement ordering; focused probe shows correct authoritative order evidence=evidence/m8-choreo-output.txt,evidence/m8-dual-offline-probe.txt,src/Messaging.tsx",
+      "evidence": "run-log.md:127"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789229204 correction-loop agent-error restart probe used a local edit path instead of shipped UI online-edit path; rerun via real edit/reaction UI passes restart queue and same-account edit/reaction convergence evidence=evidence/m8-restart-queue-attempt1.json,evidence/m8-restart-queue.json. Focused M2 regression started for changed post mutations.",
+      "evidence": "run-log.md:129"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 1042,
+    "files": 57,
+    "sharedUiLines": 3671
+  },
+  "diary": "diary.md",
+  "notes": "Validates against the base protocol run-record schema. Detailed milestone/replay clocks are in milestone-record.json. No hidden grading or native-runtime proof is claimed. Phase splits are unavailable without external transcript reconciliation; native Codex token accounting must be joined by the harness. M5 universal expiry remains a documented platform gap despite authoring green. No weighted score exists because media/M7/grading dimensions are null.",
+  "socialMessenger": {
+    "instrumentVersion": "social-messenger@0.3.8-m8",
+    "runScope": "full with ENVIRONMENT media/scheduled exclusions; M7 deferred",
+    "milestoneRecord": "milestone-record.json",
+    "coverageManifest": "coverage-manifest.json",
+    "essay": "essay.md",
+    "experienceScores": "experience-scores.json",
+    "grading": {
+      "status": "not-run"
+    },
+    "replayReceipt": "evidence/scale-replay-receipt.json"
+  }
+}
