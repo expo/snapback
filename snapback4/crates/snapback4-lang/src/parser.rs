@@ -442,6 +442,13 @@ impl Parser {
 
     fn parse_focal_rule_value(&mut self, label: &str, site: &Site) -> Fallible<Expr> {
         if self.maybe("<-") {
+            // `read <- public 'reason'`: the table line's spelling, allowed on
+            // the rule too; the reason rides as the call's one argument.
+            if self.peek().value == "public" && self.peek_at(1).kind == Kind::Str {
+                let site = self.take("public")?.site;
+                let reason = self.take_kind(Kind::Str)?;
+                return Ok(Expr::Call { name: "public".into(), args: vec![Expr::Literal { value: Literal::Str(reason.value), site: reason.site }], site });
+            }
             let value = self.expression(0, &["<newline>"])?;
             current_rule(&value)?;
             return Ok(value);

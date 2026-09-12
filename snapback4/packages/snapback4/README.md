@@ -122,7 +122,8 @@ mutation edit(messageId: messages, body: text <=4000):
   exist by the end of the mutation that inserted this one).
 - **Rules:** `read`, `insert`, `update`, `delete`, each `<-` one
   expression over the row (`.col`), `viewer`, and literals: `allow`,
-  `deny`, `public 'reason'`, `.col = viewer`, `.col != 'x'`,
+  `deny`, `public` (or the table line `public 'reason'`, which also
+  documents why), `.col = viewer`, `.col != 'x'`,
   `exists t[.a, viewer, 'literal']`, `created t[..]` (insert rules only:
   true when this mutation inserted the probed row), `and`, `or`, `not`.
   `update (old, next) <- old.x = next.x` names both images. An `exists`
@@ -320,8 +321,11 @@ seq, next }` or `{ denied }`; `POST /m/<op>` with `{ "id", "args",
 "failed", why }` (a client-minted `id` makes the write apply at most
 once); `GET /sync?from=W` streams the partition; `GET /changes?since=S`
 long-polls for commits; `GET /schema` is the compiled backend;
-`POST /auth/guest|signup|login|logout`. Authorization: `x-snapback-persona`
-(dev, same machine) or `Authorization: Bearer <token>`.
+`POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
+(`{ "email", "password" }`) answer `{ "session": { principal, kind, token,
+expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout` with the
+bearer token ends it. Authorization: `x-snapback-persona` (dev, same
+machine) or `Authorization: Bearer <token>`.
 
 ## 6. Release
 

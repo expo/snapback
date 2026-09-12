@@ -621,3 +621,26 @@ the hub run's to catch, and the run record will say whether they did.
   and records `metrics/loopbar.jsonl` with `bar: true` when a run is green
   within 1,200 s with at most one `snapback4-defect` loop. It runs when
   the machine is quiet: after the Clique lane.
+
+## 2026-09-12 — what the Clique lane's first hour taught
+
+The lane read the README and every card in its first minutes and hit
+three things worth fixing at once (all on 0.0.2, which it keeps):
+
+- `read <- public 'reason'` was refused ("expected the end of the line");
+  only the table line `public 'reason'` parsed, while the rules card and
+  the README listed the reason on the rule. The parser now takes the
+  reason on the rule too (a `public` call with one string argument, bound
+  to the same `RuleExpr::Public`); the README says both spellings.
+- The wire's `/auth/*` shapes were not written down; the lane expected the
+  helper's `{ ok, session }` envelope on the wire and normalized. The
+  README now gives `{ session: {..} }` / `{ denied }`.
+- The choreography harness imports `../../lib/json-schema.mjs` from the
+  instrument's sibling `lib/`; the packet lacked it and the lane
+  relocated a copy (attributed to the environment). The packet now carries
+  `lib/` for the grader and M7 sessions.
+
+The lane also chose Node 25 from its login shell over the overlay's Node
+24 and switched to the absolute path — the launcher prepends it, codex's
+shell does not inherit that; recorded as environment. M1's iOS Hermes
+bundle exported cleanly on the lane's npm install.
