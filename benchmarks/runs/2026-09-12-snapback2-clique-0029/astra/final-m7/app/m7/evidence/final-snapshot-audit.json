@@ -1,0 +1,77 @@
+{
+  "pass": true,
+  "exact": false,
+  "normalReceiptAdvances": [
+    {
+      "file": "alice.json",
+      "message": "sm0001",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "alice.json",
+      "message": "sm0003",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "alice.json",
+      "message": "sm0005",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "bob.json",
+      "message": "sm0002",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "bob.json",
+      "message": "sm0004",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "bob.json",
+      "message": "sm0006",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "carol.json",
+      "message": "sm0008",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "carol.json",
+      "message": "sm0009",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "carol.json",
+      "message": "sm0012",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    },
+    {
+      "file": "carol.json",
+      "message": "sm0013",
+      "field": "receipt",
+      "before": "sent",
+      "after": "read"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,38 @@
+{
+  "pass": true,
+  "pre": "m7/pre-snapshot",
+  "post": "m7/post-snapshot",
+  "at": 1789210177102,
+  "results": [
+    {
+      "persona": "alice",
+      "conversation": "d-alice-bob",
+      "messages": 6,
+      "pass": true
+    },
+    {
+      "persona": "alice",
+      "conversation": "g-starter",
+      "messages": 9,
+      "pass": true
+    },
+    {
+      "persona": "bob",
+      "conversation": "d-alice-bob",
+      "messages": 6,
+      "pass": true
+    },
+    {
+      "persona": "bob",
+      "conversation": "g-starter",
+      "messages": 9,
+      "pass": true
+    },
+    {
+      "persona": "carol",
+      "conversation": "g-starter",
+      "messages": 9,
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "at": 1789210824895,
+  "results": [
+    {
+      "pid": 1083410,
+      "port": 53300,
+      "kind": "backend",
+      "signal": "SIGTERM",
+      "processExists": false
+    },
+    {
+      "pid": 1097252,
+      "port": 53301,
+      "kind": "web",
+      "signal": "SIGTERM",
+      "processExists": false
+    },
+    {
+      "pid": 1101767,
+      "port": 53302,
+      "kind": "test",
+      "autoReaped": true,
+      "signal": null
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "milestone": "m5",
+  "pass": true,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m5-a04",
+      "name": "view-once first open",
+      "ok": true,
+      "ms": 235
+    },
+    {
+      "id": "m5-a05",
+      "name": "view-once second open denied",
+      "ok": true,
+      "ms": 268
+    },
+    {
+      "id": "m5-a08",
+      "name": "non-admin cannot rename group",
+      "ok": true,
+      "ms": 13
+    },
+    {
+      "id": "m5-a09",
+      "name": "people search car -> carol",
+      "ok": true,
+      "ms": 3
+    },
+    {
+      "id": "m5-a10",
+      "name": "in-chat search seeded string",
+      "ok": true,
+      "ms": 2
+    },
+    {
+      "id": "m5-a11",
+      "name": "global search groups by chat",
+      "ok": true,
+      "ms": 1
+    }
+  ],
+  "at": "2026-09-12T09:32:23.425Z"
+}

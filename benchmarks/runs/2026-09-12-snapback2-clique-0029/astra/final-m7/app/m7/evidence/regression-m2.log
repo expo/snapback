@@ -1,0 +1,10 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m2
+
+PASS create text and real media posts
+PASS follow projections and implicit self
+PASS like set-state and repost projection
+PASS direct chronological replies absent from feeds
+PASS pagination no gaps or duplicates
+PASS URL opens browser without preview and reply thread UI

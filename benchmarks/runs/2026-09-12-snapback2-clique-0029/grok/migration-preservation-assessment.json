@@ -1,0 +1,111 @@
+{
+  "kind": "Supervisor read-only preservation assessment, separate from actor/grader/scorer inputs",
+  "recordedEpoch": 1789212366.250487,
+  "sources": [
+    {
+      "path": "m7/archive-members/m7/pre-snapshot/manifest.json",
+      "sha256": "7dc92bc9084a72033b65c75858404ff056b432ca144f0bbaad222a51046197ce"
+    },
+    {
+      "path": "m7/reports/snapshot-compare.json",
+      "sha256": "42ae46638b5431ae6f51a8b118009f155e4c76453a18455213bfb508adc5da59"
+    },
+    {
+      "path": "m7/archive-members/scripts/compare-m7-snapshot.mjs",
+      "sha256": "fc8a4846de6fc644dc00ae6d9158de13de32380e37ce7a835a5d98b908ff9195"
+    },
+    {
+      "path": "m7/archive-members/scripts/export-m7-snapshot.mjs",
+      "sha256": "1f994b1f834afca9c145727268aa93b9269b57c676dcf3fe202d85f51554b5e5"
+    },
+    {
+      "path": "m7/reports/final-report.md",
+      "sha256": "e12a86b625b27dce8e03d0df7a1f496cd035772f58fa24718557c73270f1a457"
+    },
+    {
+      "path": "m7/pre-snapshot-hash-verification.json",
+      "sha256": "87aae2e34d030d167695ab4918e9d190ee9c894b6da11d02fa4dc8f1dec19268"
+    }
+  ],
+  "actorComparison": {
+    "ok": true,
+    "comparedPersonas": 8,
+    "mismatches": []
+  },
+  "preSnapshot": {
+    "personas": 8,
+    "declaredFields": [
+      "id",
+      "conversationId",
+      "senderId",
+      "at",
+      "type",
+      "text",
+      "caption",
+      "media",
+      "edited",
+      "tombstone",
+      "replyToId",
+      "reactions",
+      "receipt"
+    ],
+    "allManifestHashesMatch": true,
+    "messageViews": 39,
+    "scope": "8 starter-persona exports;39 persona-visible message entries, not39 unique messages"
+  },
+  "comparisonCoverage": {
+    "checked": [
+      "existing message ID presence",
+      "conversationId",
+      "senderId",
+      "type",
+      "text",
+      "caption",
+      "edited",
+      "tombstone",
+      "replyToId",
+      "media.id",
+      "reaction summary"
+    ],
+    "omittedDeclaredFields": [
+      "at",
+      "receipt"
+    ],
+    "retainedPostExport": false,
+    "assessment": "Actor summary reports no mismatch within its implemented comparison. The archived comparison omits timestamp and receipt fields declared by the M6 pre-snapshot manifest, and no complete post-snapshot export is retained. This does not establish full required migration preservation."
+  },
+  "messageCountLimit": "Actor reports the pre-M7 raw message-count maintain already existed. Its final report says the added conversation visibleMessageCount is filled at migration and poll creation, while settings read the raw row-count maintain; retained deletedAt tombstones could count until visible is maintained on every write path. Green suite/browser receipts do not remove this admitted implementation limit.",
+  "regressionScope": {
+    "selectedOriginalGreens": [
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "m5",
+      "m8"
+    ],
+    "selection": "Explicit list in m7-a09; no suite-status.json read in that assertion",
+    "sourceEvidence": {
+      "path": "m7/suite-attempts/eaf521ce0697999c/acceptance.mjs",
+      "sha256": "9c87dc349baf01466eae15579e9da1c66160ff9c842d604c1d8ab3f188a72392"
+    },
+    "priorGraderMutation": "Grader rewrote7 suite receipts plus suite-status.json before M7; original builder versions are retained. Observed M7 selection still matches original builder suite greens.",
+    "inheritedRepair": "Actor also changed feed page size40\u219220 to meet the original brief; it explicitly reports this inherited correction under M7.",
+    "scopeCapture": {
+      "observedEpoch": 1789211333.0626054,
+      "source": "/home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/acceptance.mjs",
+      "sourceMtime": 1789210696.2150135,
+      "sha256": "9c87dc349baf01466eae15579e9da1c66160ff9c842d604c1d8ab3f188a72392",
+      "afterSha256": "9c87dc349baf01466eae15579e9da1c66160ff9c842d604c1d8ab3f188a72392",
+      "observation": "m7-a09 uses explicit prior=[m1,m2,m3,m4,m5,m8], not a read of suite-status.json. This set matches original builder suite greens. Initial suite/status receipts were overwritten by grader before M7 but preserved separately.",
+      "limit": "Current code captured after receipt; not an atomic code-and-run snapshot."
+    }
+  },
+  "limits": [
+    "No supervisor browser or API probes were run",
+    "No independent post-M7 grade yet in this evidence set",
+    "Actor SDK/language defect attributions remain actor statements",
+    "N=1 diagnostic, uncalibrated initial grader/no committed holdouts",
+    "No full-scale replay or Apple simulator proof"
+  ]
+}

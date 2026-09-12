@@ -1,0 +1,251 @@
+{
+  "purpose": "Exact compact diagnostic evidence; no raw reasoning/credential streams",
+  "files": [
+    {
+      "file": "storage/assessment.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/assessment.json",
+      "sha256": "07c861f5b3ae1bc2a5b4d9991c3c4cedc09a704be66abe004194a117c840804a",
+      "bytes": 11669
+    },
+    {
+      "file": "storage/assessment.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/assessment.md",
+      "sha256": "0c6ab7723e8e1ad63a530a69f65faf5ad59a1a9636759bde7e9ad4cb453e9668",
+      "bytes": 6459
+    },
+    {
+      "file": "storage/storage-breakdown.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/storage-breakdown.json",
+      "sha256": "94c720a637194f3d796ace252c5e591c1dc964bf86310e1851c33780252036cb",
+      "bytes": 9387
+    },
+    {
+      "file": "storage/schema-index-inventory.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/schema-index-inventory.json",
+      "sha256": "2802e54393b45ea6b681837580c3d0b8da3a97673d78db6619a34df5e00f3eb1",
+      "bytes": 12634
+    },
+    {
+      "file": "storage/scale-schema.q",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/scale-schema.q",
+      "sha256": "4ae68d39fcdfc8207dfba84b373622127539833f94aac041e115c6a04c03ac11",
+      "bytes": 8022
+    },
+    {
+      "file": "storage/source-manifest.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source-manifest.json",
+      "sha256": "4d14a7694dfc95d64429df1bf25820a82c604ef3acd8d54fea0304837aa1f0cd",
+      "bytes": 4020
+    },
+    {
+      "file": "narrative-scores/rubric.template.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/rubric.template.md",
+      "sha256": "85bc1180b8d73d72b4bc5da143f0cb1331d747972156da0e485cea41db5358c5",
+      "bytes": 5650
+    },
+    {
+      "file": "narrative-scores/cli-options.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/cli-options.json",
+      "sha256": "04319a1ef55a464670206a95e6b7b34fb54bb30e87d372c39936d644dbf447a0",
+      "bytes": 7726
+    },
+    {
+      "file": "narrative-scores/astra/score.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/astra/score.json",
+      "sha256": "d452eb356e4ad94bce025dd7726a09953b79da54697e4f8a1febce149f63a84e",
+      "bytes": 6292
+    },
+    {
+      "file": "narrative-scores/astra/score-audit.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/astra/score-audit.json",
+      "sha256": "6badea1709e3e91be91c84e7fff27631b2be14dac063bcd283f2d01e3e5727ee",
+      "bytes": 3938
+    },
+    {
+      "file": "narrative-scores/astra/process.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/astra/process.json",
+      "sha256": "4478bc81fcb57c6681425ea93d0b1f539a8405bb36144ccb4cb0176485cc1df9",
+      "bytes": 2212
+    },
+    {
+      "file": "narrative-scores/astra/final-response.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/astra/astra.last.txt",
+      "sha256": "39e84c008141de2b4096a74cbdfbd851d385436d25597f1ee7c355ac5a1e60a4",
+      "bytes": 6303
+    },
+    {
+      "file": "narrative-scores/astra/prompt.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/prompt.md",
+      "sha256": "601cbeb30ed907892c5a93cb14a358e38d6d14d5003b3bac56c58a6ec4af6d70",
+      "bytes": 183211
+    },
+    {
+      "file": "narrative-scores/astra/inputs.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/inputs.json",
+      "sha256": "e130e732ccab3b4098142525a823bda065856d8be38154304175cce93f113547",
+      "bytes": 6522
+    },
+    {
+      "file": "narrative-scores/astra/assembly-audit.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/assembly-audit.json",
+      "sha256": "cfd2e2096592d99c77898f8e0122250432e3fbc35e1a71fbcc742928d0e919a3",
+      "bytes": 5203
+    },
+    {
+      "file": "storage/source/llp/1001-query-engine.spec.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/llp/1001-query-engine.spec.md",
+      "sha256": "1a781008ed86ff23c3b36e9a5137939dbfe1eab72e6ac1716af15b64bc0686ee",
+      "bytes": 98011
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/delivery/receipts.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/delivery/receipts.rs",
+      "sha256": "c85eb91ec1a37c00e0ba2c043ba519636745c2c5d8a269764fdd94ac129e5ffe",
+      "bytes": 4030
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/delivery.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/delivery.rs",
+      "sha256": "93083b108487797433257d6c1968ba4f367b3ef6a40e5de403b3b1d720b61568",
+      "bytes": 26355
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/engine/acknowledgements.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/engine/acknowledgements.rs",
+      "sha256": "1a31e658c28944e6562b4d8f46b9b9c7b488ff82dd173324b509e584306d65b4",
+      "bytes": 11794
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/engine/custody.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/engine/custody.rs",
+      "sha256": "2d9b920697e966417e3f30c92bef87135a3785cb51e4d58c8c9eca0a64fecc98",
+      "bytes": 20821
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/engine/index.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/engine/index.rs",
+      "sha256": "f4d5cf81439662843ea4afa18d87aa12e86cc36acb02e1d4ed20f59c8de2972d",
+      "bytes": 33417
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/engine/runner_ops.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/engine/runner_ops.rs",
+      "sha256": "eff7ccc1bdf86b857bd843fe7179fdc5df82d43dba957989a8ede235ee352ad8",
+      "bytes": 50643
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/engine/search_index.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/engine/search_index.rs",
+      "sha256": "8b4028f5eec5afb861fb194598f3dd4e0e5e377ae2c3945792e7ca450124f07d",
+      "bytes": 11382
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/store.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/store.rs",
+      "sha256": "bfbc6ad638385f73911c1fe7c3126e662435e3ed2ce9951285219725bcae6143",
+      "bytes": 54290
+    },
+    {
+      "file": "storage/source/snapback2/crates/snapback2-core/src/value.rs",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/crates/snapback2-core/src/value.rs",
+      "sha256": "48ca9efa13d4084cf8b3e804017103da914591e105a1e0e72efc8b1319ac62d3",
+      "bytes": 11256
+    },
+    {
+      "file": "storage/source/snapback2/packages/compiler/src/quarry/bound-schema.ts",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/packages/compiler/src/quarry/bound-schema.ts",
+      "sha256": "11ce95a6d811d23744906aa04c361404985901fe99385d6623ae96180e021bcc",
+      "bytes": 24134
+    },
+    {
+      "file": "storage/source/snapback2/packages/compiler/src/quarry/catalog.ts",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/packages/compiler/src/quarry/catalog.ts",
+      "sha256": "9adf06f77deaa4899bda1ba381d15a58d4fd0d752619b872e2387f670b19ca87",
+      "bytes": 24395
+    },
+    {
+      "file": "storage/source/snapback2/packages/compiler/src/quarry/deliver.ts",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/packages/compiler/src/quarry/deliver.ts",
+      "sha256": "e0caadaa645a030fa7f1332618fb97fa89528a8fd6c9c7fc712cc0bd434c95e9",
+      "bytes": 12590
+    },
+    {
+      "file": "storage/source/snapback2/packages/compiler/src/quarry/index.ts",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/packages/compiler/src/quarry/index.ts",
+      "sha256": "dc096b9b48adff4cc45ae47243f93740b771a0012f575ac0aec4481bde93d020",
+      "bytes": 13724
+    },
+    {
+      "file": "storage/source/snapback2/packages/snapback2/guide/indexes.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/packages/snapback2/guide/indexes.md",
+      "sha256": "6132d82edd9a5bd3a9c8a1105d1124e24c10b28b7f87db8083bd45089073674d",
+      "bytes": 975
+    },
+    {
+      "file": "storage/source/snapback2/packages/snapback2/guide/maintain.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/storage-analysis/source/snapback2/packages/snapback2/guide/maintain.md",
+      "sha256": "9c984408bd2570bd738b3218f2787d9b0db5b7d719e5ad162ea3671cee33e0d0",
+      "bytes": 1246
+    },
+    {
+      "file": "narrative-scores/grok/score.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/grok/score.json",
+      "sha256": "04efa90097bb188f892f55dee7ee9223186504b25c727e091b9f0d74171a0705",
+      "bytes": 5134
+    },
+    {
+      "file": "narrative-scores/grok/score-audit.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/grok/score-audit.json",
+      "sha256": "0c564a6cf36f9a94eafa6c3e05c6074560ac2c2e1ecfbf91aca60795ceb92625",
+      "bytes": 6009
+    },
+    {
+      "file": "narrative-scores/grok/process.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/grok/process.json",
+      "sha256": "3be82403baf7403217c7d43e98bf14565d5bd1f639bc13f81e5ce0325074dd5c",
+      "bytes": 1835
+    },
+    {
+      "file": "narrative-scores/grok/final-response.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-results/grok/final-response.md",
+      "sha256": "c2caa2abb844f20990a8fa531b008e9505e53a938752928af9ce0c322379541d",
+      "bytes": 5145
+    },
+    {
+      "file": "narrative-scores/grok/prompt.md",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/prompt.md",
+      "sha256": "024a7e313129e48a1ddd5331bab0c24dac11e919f3f1d9e30385bd95c8a1b937",
+      "bytes": 97133
+    },
+    {
+      "file": "narrative-scores/grok/inputs.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/inputs.json",
+      "sha256": "35074d714f73571f808d0e3e6f420788a2298960ab45df76cb7fe329f05e984e",
+      "bytes": 6935
+    },
+    {
+      "file": "narrative-scores/grok/assembly-audit.json",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/assembly-audit.json",
+      "sha256": "a5b7d53e31833ab8d4245cb40e6a381fc7639e153d6bfcf41e0bf842c23cc636",
+      "bytes": 5519
+    },
+    {
+      "file": "attribution/grok-m3-auth.json",
+      "source": "100.85.211.16:/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m3-auth-independent-20260912/assessment.json",
+      "sha256": "73c4c9aa3eb27505f8ead820ffd91aa163ae5f2b3f85a31ab3c1279c15a8476e",
+      "bytes": 5928
+    },
+    {
+      "file": "ref-check-final.log",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/benchmark-evidence/ref-check-final.log",
+      "sha256": "fdee816f90a7a6e8ab89cc6e9a1bed634bc7062e2e30e982130cbd791c247e31",
+      "bytes": 80
+    },
+    {
+      "file": "caps-final.log",
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/benchmark-evidence/caps-final.log",
+      "sha256": "4105aa1b93ff9e6c1d9b4f79ebb8c899a5c7084cb704051003bac7bffd24456c",
+      "bytes": 623
+    }
+  ]
+}

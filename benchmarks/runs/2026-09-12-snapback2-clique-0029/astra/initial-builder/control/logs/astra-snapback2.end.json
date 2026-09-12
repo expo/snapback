@@ -1,0 +1,13 @@
+{
+  "lane": "astra-snapback2",
+  "pid": 3569177,
+  "startedEpoch": 1789191374,
+  "endedEpoch": 1789205055,
+  "exit": 0,
+  "interrupted": null,
+  "nativeManifest": "/home/ccheever/clique-0029-20260912/native/codex/astra-snapback2-builder/manifest.json",
+  "waitError": null,
+  "nativeCaptureError": null,
+  "nativeTreeStatus": "retained",
+  "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller"
+}

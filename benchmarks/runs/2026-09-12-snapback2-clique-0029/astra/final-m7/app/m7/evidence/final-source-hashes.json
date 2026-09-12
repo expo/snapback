@@ -1,0 +1,14 @@
+{
+  "snapback/schema.q": "e5ff870a242066bf9f2a671cd2ab58e487c41965c532bb4fbdd21507acd7be62",
+  "snapback/messages.q": "59931db19064b48f44f988310b1077c5d97af1177bb19cc4b5cd5cf993bcbff3",
+  "snapback/polls.q": "d81acfaeef267782de301cfa1fede234a2235eff8cdffba34dc60e31120e98ff",
+  "snapback/groups.q": "0c6bc5ea909ab8a227fd1a6adf65bd9ddf528d67c207acc6821c0edee12854ae",
+  "snapback/admin.q": "76c6b84da668bc6438b0ec1957764a5cc381d19f28912e9748f85dc0d1cfab5f",
+  "src/messaging.tsx": "6d14ff1fa3df66813d0088e7f835809ac7dd8c9eca97e4e11e3cd88418cdcc6a",
+  "src/polls.tsx": "3ea2e07a0913ef234f9925a679f19635e88959a77c3d9e51f4ec06d872a2acb3",
+  "scripts/acceptance.ts": "7bd2f09fb754da87ae4ddc105cb69a9117448eebd75fd3c3b5d4ea2abe5e5b54",
+  "scripts/acceptance-m7.ts": "2383d8a990e9576b267b84ff81c8900b8e7dd5b3bd7964f935227352f12f4c6f",
+  "scripts/custom-client-api.mjs": "4b2999d2e75896802ffb3b536e7e1c6148cce2513dc0a4202de7e59c0808501b",
+  "API.md": "687ed6478b144268b56945e81a51ba559e2425c6c0c318274411a3d18c2e7688",
+  "README.md": "17246d8caeb8b7d349835531979fe619d542cd1892c8e2485fa1768d09743a7f"
+}

@@ -1,0 +1,8 @@
+{
+  "m7-a06": "required successor and exact starter backfill",
+  "m7-a01": "group poll create through UI and server bounds",
+  "m7-a03": "one vote per member and changing vote adjusts all tallies",
+  "m7-a04": "same intent retry cannot invert or overwrite later vote",
+  "m7-a07": "forward count handles text media polls tombstones expiry and settings",
+  "m7-a09": "previously passing milestone suites remain passing"
+}

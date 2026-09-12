@@ -1,0 +1,14 @@
+{
+  "lane": "grok-snapback2",
+  "phase": "m7",
+  "pid": 4122600,
+  "startedEpoch": 1789208829,
+  "endedEpoch": 1789211925,
+  "exit": 0,
+  "interrupted": null,
+  "waitError": null,
+  "nativeManifest": null,
+  "nativeCaptureError": null,
+  "nativeTreeStatus": "incomplete-unavailable",
+  "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller"
+}

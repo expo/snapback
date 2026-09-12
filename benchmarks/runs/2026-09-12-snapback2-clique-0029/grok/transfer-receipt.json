@@ -1,0 +1,11 @@
+{
+  "sshPid": 45608,
+  "startedEpoch": 1789212274.0096278,
+  "endedEpoch": 1789212278.288867,
+  "exit": 0,
+  "transferBytes": 170702,
+  "transferSha256": "31c89736d7705f4f4ba2f7839a6c98c14a2413f0b04cd5b09b2c223aee35d13b",
+  "filesVerified": 71,
+  "mismatches": [],
+  "importManifestSha256": "c106722984d17a5b26fd1a2960c9d9d541af901e86d6a8e64107bc46ca1c6ebc"
+}

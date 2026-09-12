@@ -1,0 +1,10 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m5
+
+PASS view-once first open renders authorized bytes
+PASS closing ends view and second open refused
+PASS non-admin group rename refused
+PASS people prefix finds Carol
+PASS scoped seeded text search
+PASS global results grouped by chat

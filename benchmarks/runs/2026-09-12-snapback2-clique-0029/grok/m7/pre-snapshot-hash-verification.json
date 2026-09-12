@@ -1,0 +1,61 @@
+{
+  "scope": "Read-only check of archived pre-snapshot file hashes against actor manifest; no post-state queries",
+  "checks": [
+    {
+      "persona": "alice",
+      "file": "m7/pre-snapshot/alice.json",
+      "expected": "sha256:b4bf35cbd65d9891a56748f504307cba248bdc295e34602a93ad1be8633842bb",
+      "actual": "sha256:b4bf35cbd65d9891a56748f504307cba248bdc295e34602a93ad1be8633842bb",
+      "match": true
+    },
+    {
+      "persona": "bob",
+      "file": "m7/pre-snapshot/bob.json",
+      "expected": "sha256:b07159eaf32c4b3a2c2784796c7d5dc27fdb102c383eb0f2e128e76d0ad563b5",
+      "actual": "sha256:b07159eaf32c4b3a2c2784796c7d5dc27fdb102c383eb0f2e128e76d0ad563b5",
+      "match": true
+    },
+    {
+      "persona": "carol",
+      "file": "m7/pre-snapshot/carol.json",
+      "expected": "sha256:03ffde3e8a8d30bce0fa06d9a6c994b75789032bbf839d0b83fc7f314e6879db",
+      "actual": "sha256:03ffde3e8a8d30bce0fa06d9a6c994b75789032bbf839d0b83fc7f314e6879db",
+      "match": true
+    },
+    {
+      "persona": "dave",
+      "file": "m7/pre-snapshot/dave.json",
+      "expected": "sha256:9f2f02aa6afda06b9d5c76614a28da1e88148564618c8040301d253f9d002bc9",
+      "actual": "sha256:9f2f02aa6afda06b9d5c76614a28da1e88148564618c8040301d253f9d002bc9",
+      "match": true
+    },
+    {
+      "persona": "erin",
+      "file": "m7/pre-snapshot/erin.json",
+      "expected": "sha256:d0aa6caa6a8c723cbe5a02c2b31759c5678998dbd5632a4b32bf7279524fedd4",
+      "actual": "sha256:d0aa6caa6a8c723cbe5a02c2b31759c5678998dbd5632a4b32bf7279524fedd4",
+      "match": true
+    },
+    {
+      "persona": "frank",
+      "file": "m7/pre-snapshot/frank.json",
+      "expected": "sha256:6e82e63561058c5b144565926fdbff1d4cc3dd133438f5d1e54649455bc79800",
+      "actual": "sha256:6e82e63561058c5b144565926fdbff1d4cc3dd133438f5d1e54649455bc79800",
+      "match": true
+    },
+    {
+      "persona": "grace",
+      "file": "m7/pre-snapshot/grace.json",
+      "expected": "sha256:b3097eeb003f9f6e5918d192f6acb0476376798f0bd9c77d9c3eff0b1041dbdc",
+      "actual": "sha256:b3097eeb003f9f6e5918d192f6acb0476376798f0bd9c77d9c3eff0b1041dbdc",
+      "match": true
+    },
+    {
+      "persona": "henry",
+      "file": "m7/pre-snapshot/henry.json",
+      "expected": "sha256:2b8528f0e8e0dfeb5acc9fe18f213f8b1d60fb3cd08cac38ca9d86bb8b0e4c2b",
+      "actual": "sha256:2b8528f0e8e0dfeb5acc9fe18f213f8b1d60fb3cd08cac38ca9d86bb8b0e4c2b",
+      "match": true
+    }
+  ]
+}

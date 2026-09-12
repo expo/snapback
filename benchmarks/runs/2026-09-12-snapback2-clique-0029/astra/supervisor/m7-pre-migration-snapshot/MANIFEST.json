@@ -1,0 +1,256 @@
+{
+  "capturedAt": "2026-09-12T10:49:33.298507+00:00",
+  "pid": 1090566,
+  "parentPid": 1090565,
+  "files": [
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/alice.json",
+      "path": "m7/pre-snapshot/alice.json",
+      "bytes": 8182,
+      "sha256": "104e012c2ee555015de3b17349715a4ea4858abb705d8edad6311699821ef7ab",
+      "sourceMtimeNs": 1789210082803354690,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/bob.json",
+      "path": "m7/pre-snapshot/bob.json",
+      "bytes": 8178,
+      "sha256": "2027cb78514ce0750723c04389f37e08b7711202f22f4bac6172ec1c9012b699",
+      "sourceMtimeNs": 1789210082949354368,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/carol.json",
+      "path": "m7/pre-snapshot/carol.json",
+      "bytes": 4858,
+      "sha256": "db987a2c6fab3e402f11b327e915fdc425dde4fbbb50da68a636da96180faefd",
+      "sourceMtimeNs": 1789210083037354174,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/dave.json",
+      "path": "m7/pre-snapshot/dave.json",
+      "bytes": 90,
+      "sha256": "b6ee41abb2ed03f1ff5ba2aea9a9abb45c443e2ef5ef3b09a6c50bbcc1d8f968",
+      "sourceMtimeNs": 1789210083083354072,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/erin.json",
+      "path": "m7/pre-snapshot/erin.json",
+      "bytes": 90,
+      "sha256": "0d89f7c825f317063d84fcea8819a0f06af34ad01187c3a5e8c06733f0c27661",
+      "sourceMtimeNs": 1789210083116353999,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/frank.json",
+      "path": "m7/pre-snapshot/frank.json",
+      "bytes": 91,
+      "sha256": "c329289b89615d56d13b7ae5b160521cd6829013e6814a326e921bb2493a9264",
+      "sourceMtimeNs": 1789210083149353926,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/grace.json",
+      "path": "m7/pre-snapshot/grace.json",
+      "bytes": 91,
+      "sha256": "fb1773bd6214194c428894ea322b148293a799159c3655688a87c35237fe8450",
+      "sourceMtimeNs": 1789210083182353853,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/henry.json",
+      "path": "m7/pre-snapshot/henry.json",
+      "bytes": 91,
+      "sha256": "463852dfaafdb0d10b5ba2b05c0ed7e5e6f5dc6400e7b06f53085ace0abcb422",
+      "sourceMtimeNs": 1789210083215353781,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-snapshot/manifest.json",
+      "path": "m7/pre-snapshot/manifest.json",
+      "bytes": 1076,
+      "sha256": "ed1e17755d54364cf2460b53b8b26b368969f4d7e0e33c1fc1b2f0da06fd02ce",
+      "sourceMtimeNs": 1789210083215353781,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/access.q",
+      "path": "m7/pre-source/snapback/access.q",
+      "bytes": 241,
+      "sha256": "111c2e9ec3c0afc5eda595fbdc052422ef56a1c3ac91cbe3b056643a24867253",
+      "sourceMtimeNs": 1789191434125045190,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/admin.q",
+      "path": "m7/pre-source/snapback/admin.q",
+      "bytes": 715,
+      "sha256": "167188461c7cee250bc9213c612d585d86155c40748925e1980c9efa352a4737",
+      "sourceMtimeNs": 1789196697175217497,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/delivery.ts",
+      "path": "m7/pre-source/snapback/delivery.ts",
+      "bytes": 779,
+      "sha256": "0b654e628cfd0a97090d712e6bd790adcac68a927f97dad26aeac0fd2744f066",
+      "sourceMtimeNs": 1789196697179217487,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/digest.q",
+      "path": "m7/pre-source/snapback/digest.q",
+      "bytes": 3327,
+      "sha256": "938a9bea1eaa55f67ad974819c4b4f28ab2103e09aca7e546d7ce2263067f853",
+      "sourceMtimeNs": 1789196989940509123,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/digestConfig.q",
+      "path": "m7/pre-source/snapback/digestConfig.q",
+      "bytes": 109,
+      "sha256": "ab60fd6cc4ebfd6a12464552927418c2503cf35eaeb115e709084b2577c628f4",
+      "sourceMtimeNs": 1789205844389703446,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/feeds.q",
+      "path": "m7/pre-source/snapback/feeds.q",
+      "bytes": 711,
+      "sha256": "3c48dd9d98dea9ac2ebc1ac276792742a9ea811ae90aedd6dda9a57b16c44f21",
+      "sourceMtimeNs": 1789192297147871878,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/follows.q",
+      "path": "m7/pre-source/snapback/follows.q",
+      "bytes": 432,
+      "sha256": "d1ef266bdca12229069b1f4ad144b2f5422dade3a5c0faffe1cfa109e9d03677",
+      "sourceMtimeNs": 1789192188565143824,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/groups.q",
+      "path": "m7/pre-source/snapback/groups.q",
+      "bytes": 5487,
+      "sha256": "701c5e7efc1a90dec47ecb06647edeed67ea82ee82f6603b6d0af5f4974bc9d1",
+      "sourceMtimeNs": 1789195698014641965,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/insights.q",
+      "path": "m7/pre-source/snapback/insights.q",
+      "bytes": 900,
+      "sha256": "275dec73a26a661e87e47164b342347af829bf9e118182dc4dbde0d55800a851",
+      "sourceMtimeNs": 1789196715902172171,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/messages.q",
+      "path": "m7/pre-source/snapback/messages.q",
+      "bytes": 8056,
+      "sha256": "bdc2870d8132f3a4a901ed79c03c6bf858bf8463094265fd0ee3d15523ffcae8",
+      "sourceMtimeNs": 1789196028287839351,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/notifications.q",
+      "path": "m7/pre-source/snapback/notifications.q",
+      "bytes": 270,
+      "sha256": "511f98c4ab831f51da17ccca3f59bf6f5c6e5ac550100332880540df7e2bf616",
+      "sourceMtimeNs": 1789196271010249982,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/posts.q",
+      "path": "m7/pre-source/snapback/posts.q",
+      "bytes": 2573,
+      "sha256": "7b80682af8392c51ef0dca453e532aa11c0f4ab084d760f80910085adb45aff4",
+      "sourceMtimeNs": 1789196697169217511,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/profiles.q",
+      "path": "m7/pre-source/snapback/profiles.q",
+      "bytes": 1315,
+      "sha256": "f09b62b5e977d1caf79179fba88a9af4a5f155af7a6839643034b0d6bd842090",
+      "sourceMtimeNs": 1789195079507133660,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/runtime.q",
+      "path": "m7/pre-source/snapback/runtime.q",
+      "bytes": 100,
+      "sha256": "447b8b9aef20493bef5cd375d0726c664ebc09d832ac7d76e1ae7902d7fc3109",
+      "sourceMtimeNs": 1789205844389703446,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/schema.q",
+      "path": "m7/pre-source/snapback/schema.q",
+      "bytes": 8022,
+      "sha256": "4ae68d39fcdfc8207dfba84b373622127539833f94aac041e115c6a04c03ac11",
+      "sourceMtimeNs": 1789196697169217511,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/seed.ts",
+      "path": "m7/pre-source/snapback/seed.ts",
+      "bytes": 97,
+      "sha256": "247a5fd0ce22c09bd4aafc73a6049d0a1121d99337c0f7e43ce728a8c99db4dd",
+      "sourceMtimeNs": 1789191480157935012,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/tests/clique.test.ts",
+      "path": "m7/pre-source/snapback/tests/clique.test.ts",
+      "bytes": 2302,
+      "sha256": "398e4c875a77108a19189c20572ea95e59cbd873be73989ca8e5003940a4f9bc",
+      "sourceMtimeNs": 1789200287678744097,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/tests/fixtures/clip.mp4",
+      "path": "m7/pre-source/snapback/tests/fixtures/clip.mp4",
+      "bytes": 280,
+      "sha256": "0bf2c3c80dab9197eb6a70db98273551d7da76dbc76e1e1203099c81385086b0",
+      "sourceMtimeNs": 1789191434126045187,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/tests/fixtures/photo.jpg",
+      "path": "m7/pre-source/snapback/tests/fixtures/photo.jpg",
+      "bytes": 633,
+      "sha256": "e00771915c18a0c0419b6104666f24a1316a93a364356cc0bc4d71bfdd9bd297",
+      "sourceMtimeNs": 1789191434126045187,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/pre-source/snapback/windows.q",
+      "path": "m7/pre-source/snapback/windows.q",
+      "bytes": 212,
+      "sha256": "0602657aa66cb522feca1b1018eb8c6291aac365697b129777b7f21c33bd2048",
+      "sourceMtimeNs": 1789205844387703450,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/compare-snapshots.mjs",
+      "path": "m7/compare-snapshots.mjs",
+      "bytes": 1284,
+      "sha256": "4fc4709b90633fc28da49d79d2963ea6ecfefd978cd55c36e8765490039ed271",
+      "sourceMtimeNs": 1789210050439426144,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/prior-suite-status.json",
+      "path": "m7/prior-suite-status.json",
+      "bytes": 683,
+      "sha256": "ab04941301f7d010ff4b262c43872b58f739729d54099cd8a08cfecb329e6c18",
+      "sourceMtimeNs": 1789209949638648686,
+      "sourceChangedDuringRead": false
+    }
+  ],
+  "scope": "Actor-provided pre-source, eight persona pre-snapshots, prewritten comparator and inherited status captured during active M7. No supervisor owner/API probe, source modification, or credential file read. Actor continues independently."
+}

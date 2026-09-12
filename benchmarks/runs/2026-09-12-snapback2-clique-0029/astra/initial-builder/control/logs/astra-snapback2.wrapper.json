@@ -1,0 +1,20 @@
+{
+  "wrapperPid": 3569176,
+  "supervisorPid": 3569175,
+  "command": [
+    "python3",
+    "-u",
+    "scripts/launch.py",
+    "astra",
+    "snapback2"
+  ],
+  "startedAt": "2026-09-12T05:36:14.137885+00:00",
+  "foreground": true,
+  "preflight": "preflight/pre-astra-builder.json",
+  "promptSha256": "4faa14e8f670f562b7f53fa17aea4c3566c46235baa4d08439013d6fbb7838f1",
+  "capController": "unavailable; unchanged prompt instructions only",
+  "exit": 0,
+  "interrupted": null,
+  "endedAt": "2026-09-12T09:24:15.835859+00:00",
+  "wrapperExited": true
+}

@@ -1,0 +1,66 @@
+{
+  "milestone": "m7",
+  "pass": true,
+  "at": 1789210696410,
+  "required": [
+    "m7-a01",
+    "m7-a03",
+    "m7-a04",
+    "m7-a06",
+    "m7-a07",
+    "m7-a09"
+  ],
+  "covered": [
+    "m7-a06",
+    "m7-a01",
+    "m7-a03",
+    "m7-a04",
+    "m7-a07",
+    "m7-a09"
+  ],
+  "missing": [],
+  "results": [
+    {
+      "name": "required successor and exact starter backfill",
+      "ids": [
+        "m7-a06"
+      ],
+      "pass": true
+    },
+    {
+      "name": "group poll create through UI and server bounds",
+      "ids": [
+        "m7-a01"
+      ],
+      "pass": true
+    },
+    {
+      "name": "one vote per member and changing vote adjusts all tallies",
+      "ids": [
+        "m7-a03"
+      ],
+      "pass": true
+    },
+    {
+      "name": "same intent retry cannot invert or overwrite later vote",
+      "ids": [
+        "m7-a04"
+      ],
+      "pass": true
+    },
+    {
+      "name": "forward count handles text media polls tombstones expiry and settings",
+      "ids": [
+        "m7-a07"
+      ],
+      "pass": true
+    },
+    {
+      "name": "previously passing milestone suites remain passing",
+      "ids": [
+        "m7-a09"
+      ],
+      "pass": true
+    }
+  ]
+}

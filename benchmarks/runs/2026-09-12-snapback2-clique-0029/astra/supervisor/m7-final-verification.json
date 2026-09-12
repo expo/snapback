@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-12T11:04:56.181516+00:00",
+  "frozenInstrumentFiles": 185,
+  "frozenInstrumentMatches": true,
+  "sourceOrReceiptsChangedAfterFirstGreen": [],
+  "ownedPidsStillPresent": [],
+  "assignedPortListeners": [],
+  "initialGradeReportStillMatches": true,
+  "limitations": [
+    "PID absence checked only for recorded IDs, never killed by port or name. No whole-host isolation claim."
+  ]
+}

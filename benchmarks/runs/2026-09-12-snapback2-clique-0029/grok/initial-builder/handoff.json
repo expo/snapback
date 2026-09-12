@@ -1,0 +1,176 @@
+{
+  "schema": "clique.initial-builder-boundary.v1",
+  "recordedAtEpoch": 1789206762.072666,
+  "boundaryReady": true,
+  "host": "450b",
+  "packet": "/home/ccheever/clique-0029-20260912",
+  "actorLane": "/home/ccheever/clique-0029-20260912/lanes/grok-snapback2",
+  "boundaryDirectory": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137",
+  "wrapper": {
+    "startEpoch": 1789191903,
+    "endEpoch": 1789206137,
+    "elapsedSeconds": 14234,
+    "exitCode": 0,
+    "builderPid": 3870211,
+    "controllerPid": 3870208
+  },
+  "artifacts": {
+    "manifest.json": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/manifest.json",
+      "sha256": "44e3c4a4d6afe3064f4c4798ed460c60c991f0cf9911f90871bdf97076e27ae2"
+    },
+    "initial-app.tar.gz": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sha256": "85b615ea80401d6a435fb732343ea6d1ddf5b40bedc4e1ed6c8bc123a7becfe2"
+    },
+    "installed-payload-comparison.json": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/installed-payload-comparison.json",
+      "sha256": "d2eca67f5394b3a1b6459246a08688a475c3f55b25d0edbdf56a715b5371c17d"
+    },
+    "instrument-comparison.json": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/instrument-comparison.json",
+      "sha256": "1148e259de7b70780617addd86b7da14a85319c06ef4ae0bd26d130c80871273"
+    },
+    "remaining-processes.json": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/remaining-processes.json",
+      "sha256": "daa7849a92012882a5c1e96c51ae07ace479906346d5dc6ae5314feb735e9ccb"
+    },
+    "reports/final-report.md": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/reports/final-report.md",
+      "sha256": "c7184d78755f65ab5c034a038a23b4dc3734998bd4f1327a240285f57f09f421"
+    },
+    "reports/run-log.md": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/reports/run-log.md",
+      "sha256": "bf0d7ea5265e143edb4ea2d3124f5ae021490b50303950312680862ef1056f56"
+    }
+  },
+  "coverage": {
+    "m1": {
+      "authoredSuite": "7 pass",
+      "browser": "3/3 green"
+    },
+    "m2": {
+      "authoredSuite": "22 pass",
+      "browser": "final 7/9; earlier completed best 8/9; not green"
+    },
+    "m3": {
+      "authoredSuite": "7 pass",
+      "browser": "fatal during login; empty final receipt; no completed assertions"
+    },
+    "m4": {
+      "authoredSuite": "5 pass",
+      "browser": "1/5 pass; photo, video, reaction prerequisite and delete tombstone failures"
+    },
+    "m5": {
+      "authoredSuite": "6 pass",
+      "browser": "not run"
+    },
+    "m6": {
+      "authoredSuite": "failed sample-50 adapter a13",
+      "browser": "not run"
+    },
+    "m7": "not run, deferred fresh actor phase",
+    "m8": {
+      "authoredSuite": "6 pass",
+      "browser": "not run"
+    }
+  },
+  "actorStopReason": "Actor reports two consecutive capability failures M2 then M3; continued supplemental M4-M8 suites and M4 browser attempt. No authentic enforced wall-clock/token boundary receipt.",
+  "fullScale": "No fresh-owner full-scale replay or verification. Sample-50 adapter attempted in M6 authored suite and failed. Scheduled-job/digest observations on development owner do not qualify full-scale work.",
+  "native": "No successful iOS Hermes bundle; export attempt failed react-native-screens SearchBar native component typing. No Apple Simulator proof on Linux.",
+  "limits": [
+    "N=1 diagnostic; 450b Ryzen host differs from EPYC Astra host",
+    "Actor used Node24.13.1 despite launcher24.18.0",
+    "Old runner native tree unavailable and cap enforcement unauthenticated; usage unjoined",
+    "Some actor milestone timestamps approximate/malformed",
+    "Retained M2 polling history nonexhaustive; corrected partial-copy attribution recorded separately",
+    "Actor SDK/instrument attributions not independently established; M3 source assessment outside grader"
+  ],
+  "readinessAndController": {
+    "readiness": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/readiness.json",
+    "preflight": "/home/ccheever/clique-0029-20260912/preflight/pre-grok-builder.json",
+    "preflightProcess": "/home/ccheever/clique-0029-20260912/preflight/pre-grok-builder.process.json",
+    "controller": "/home/ccheever/clique-0029-20260912/logs/grok-snapback2.controller.json",
+    "start": "/home/ccheever/clique-0029-20260912/logs/grok-snapback2.start.json",
+    "end": "/home/ccheever/clique-0029-20260912/logs/grok-snapback2.end.json",
+    "launchIdentity": "/home/ccheever/clique-0029-20260912/logs/grok-snapback2.launch-identity.json"
+  },
+  "receipts": [
+    {
+      "path": "receipts/choreo-m1.jsonl",
+      "bytes": 4244,
+      "sha256": "34e7b452b112c66de1e6c43932cb505b1cfb4d61a702aa627bf07eaef51c1b9c"
+    },
+    {
+      "path": "receipts/choreo-m1.jsonl.observations.jsonl",
+      "bytes": 1644,
+      "sha256": "ce8202f73a9925de72514d34238786c295c92d7ac801e9937d62062f1c7819b8"
+    },
+    {
+      "path": "receipts/choreo-m2.jsonl",
+      "bytes": 12985,
+      "sha256": "2616600473f404726f305344a7e6950b9c1dc91de407e0330616c04661658ed8"
+    },
+    {
+      "path": "receipts/choreo-m2.jsonl.observations.jsonl",
+      "bytes": 7209,
+      "sha256": "362f533838854863c1a774d551fa531f04cefbe3feebf9cfe83d56912a505ad0"
+    },
+    {
+      "path": "receipts/choreo-m3.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receipts/choreo-m3.jsonl.observations.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receipts/choreo-m4.jsonl",
+      "bytes": 6941,
+      "sha256": "fd29b728b2ac7e42a8ec2cb5615f2132d0723d8e8c833642ec0cf34731323187"
+    },
+    {
+      "path": "receipts/choreo-m4.jsonl.observations.jsonl",
+      "bytes": 3266,
+      "sha256": "a36c184cddbad25a8c23f4fe808cf799f045a40accca721c3cf6cd6459ff6bc0"
+    },
+    {
+      "path": "receipts/suite-m1.json",
+      "bytes": 928,
+      "sha256": "19d8cfdad581e10994b9d88c4b9302726c065348d8d07949e0eae2c6f7404a02"
+    },
+    {
+      "path": "receipts/suite-m2.json",
+      "bytes": 2663,
+      "sha256": "c279e31c95b466d98e5173852cedfabf1ade3c47acfb7331425e94269372fe2b"
+    },
+    {
+      "path": "receipts/suite-m3.json",
+      "bytes": 938,
+      "sha256": "a2c121c4858dbd87fa64178d7beea0dbec3c0f033cbbd6338b6fbfc4a519e122"
+    },
+    {
+      "path": "receipts/suite-m4.json",
+      "bytes": 654,
+      "sha256": "b552f61af20fd03198e1ee552015fe3d7c769a3138db1d7cf89cf89e1b55cd15"
+    },
+    {
+      "path": "receipts/suite-m5.json",
+      "bytes": 803,
+      "sha256": "c43a9ff8d28e94dc0ae62ab755e86713f7324bd760c9ce514a9d337a0aac5315"
+    },
+    {
+      "path": "receipts/suite-m6.json",
+      "bytes": 1311,
+      "sha256": "688821d0b317cd56032990c93ebfa36d3938a9b4eddf989ef4515e9a442d578c"
+    },
+    {
+      "path": "receipts/suite-m8.json",
+      "bytes": 803,
+      "sha256": "53f6f0a820cb8f9abcdc2baeffc8c0b408a6dd79544f3e24f58f9b2ef8049f8b"
+    }
+  ],
+  "next": "Root privately launches unchanged grade.py with subprocess-only Anthropic credential. No actor source, packet or prompt changes by supervisor."
+}

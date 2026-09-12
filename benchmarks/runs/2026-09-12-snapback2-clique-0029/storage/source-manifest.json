@@ -1,0 +1,101 @@
+{
+  "sourceCommit": "f2c569a5e50f8add3c7fc0680cc0ec093fba7a23",
+  "files": [
+    {
+      "path": "snapback2/crates/snapback2-core/src/store.rs",
+      "sha256": "bfbc6ad638385f73911c1fe7c3126e662435e3ed2ce9951285219725bcae6143",
+      "bytes": 54290,
+      "gitBlob": "2dc9b246b0ac45e31a6b30f97865a04f0d1bb7ed"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/engine/index.rs",
+      "sha256": "f4d5cf81439662843ea4afa18d87aa12e86cc36acb02e1d4ed20f59c8de2972d",
+      "bytes": 33417,
+      "gitBlob": "8b9b3d0eaddf865ceecda79b431a55a30e45e57f"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/engine/search_index.rs",
+      "sha256": "8b4028f5eec5afb861fb194598f3dd4e0e5e377ae2c3945792e7ca450124f07d",
+      "bytes": 11382,
+      "gitBlob": "d63544bf2301f15cf2774c506a6bbc65bc49328c"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/value.rs",
+      "sha256": "48ca9efa13d4084cf8b3e804017103da914591e105a1e0e72efc8b1319ac62d3",
+      "bytes": 11256,
+      "gitBlob": "f27c6981aa741dd90afc4cdbf7c79a48b9a39542"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/engine/runner_ops.rs",
+      "sha256": "eff7ccc1bdf86b857bd843fe7179fdc5df82d43dba957989a8ede235ee352ad8",
+      "bytes": 50643,
+      "gitBlob": "c8df35277ebd7770672893098c1c705811f0a205"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/engine/custody.rs",
+      "sha256": "2d9b920697e966417e3f30c92bef87135a3785cb51e4d58c8c9eca0a64fecc98",
+      "bytes": 20821,
+      "gitBlob": "c9de85c9a9dd078f29ae14b10bd41334638c58e0"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/engine/acknowledgements.rs",
+      "sha256": "1a31e658c28944e6562b4d8f46b9b9c7b488ff82dd173324b509e584306d65b4",
+      "bytes": 11794,
+      "gitBlob": "789c12a7b1c682cb135d2ee3e00e2e8cfd16af77"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/delivery.rs",
+      "sha256": "93083b108487797433257d6c1968ba4f367b3ef6a40e5de403b3b1d720b61568",
+      "bytes": 26355,
+      "gitBlob": "e39c1f700c4b9cefc90d46c8a5834df2c4bf7a1c"
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/delivery/receipts.rs",
+      "sha256": "c85eb91ec1a37c00e0ba2c043ba519636745c2c5d8a269764fdd94ac129e5ffe",
+      "bytes": 4030,
+      "gitBlob": "a26daf93655d25ddb2483f65d4429a00b467ea60"
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/catalog.ts",
+      "sha256": "9adf06f77deaa4899bda1ba381d15a58d4fd0d752619b872e2387f670b19ca87",
+      "bytes": 24395,
+      "gitBlob": "bd76c3f61b581ac71a9e076f9047f67d44bb27aa"
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/index.ts",
+      "sha256": "dc096b9b48adff4cc45ae47243f93740b771a0012f575ac0aec4481bde93d020",
+      "bytes": 13724,
+      "gitBlob": "b4517f6ae8dc9e8883e953b57f96fc0706692e46"
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/deliver.ts",
+      "sha256": "e0caadaa645a030fa7f1332618fb97fa89528a8fd6c9c7fc712cc0bd434c95e9",
+      "bytes": 12590,
+      "gitBlob": "e699ed64a99688c7643c3fea7d06b31adebcbb8c"
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/bound-schema.ts",
+      "sha256": "11ce95a6d811d23744906aa04c361404985901fe99385d6623ae96180e021bcc",
+      "bytes": 24134,
+      "gitBlob": "a3b05e3d65ed95087039435f3a879bb5e42ad4c3"
+    },
+    {
+      "path": "llp/1001-query-engine.spec.md",
+      "sha256": "1a781008ed86ff23c3b36e9a5137939dbfe1eab72e6ac1716af15b64bc0686ee",
+      "bytes": 98011,
+      "gitBlob": "436522c36956d68244380583312913c20d78055a"
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/indexes.md",
+      "sha256": "6132d82edd9a5bd3a9c8a1105d1124e24c10b28b7f87db8083bd45089073674d",
+      "bytes": 975,
+      "gitBlob": "5031df89c65210c18613b6e5ff1770e86fdbc22e"
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/maintain.md",
+      "sha256": "9c984408bd2570bd738b3218f2787d9b0db5b7d719e5ad162ea3671cee33e0d0",
+      "bytes": 1246,
+      "gitBlob": "ba6991b492a40f6b016a67ea43fc75e384e30332"
+    }
+  ]
+}

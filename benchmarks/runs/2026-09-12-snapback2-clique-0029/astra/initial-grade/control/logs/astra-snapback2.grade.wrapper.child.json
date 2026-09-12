@@ -1,0 +1,18 @@
+{
+  "phase": "frozen-grade-wrapper",
+  "invocation": "f9528f52-5282-47ae-a0b1-42ffe6c2797f",
+  "started": 1789205750.0928404,
+  "pid": 830364,
+  "childBirth": {
+    "pid": 830364,
+    "startTicks": "156466837",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+  },
+  "processGroup": 830364,
+  "childExit": 0,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789209760.5729113,
+  "exit": 0
+}

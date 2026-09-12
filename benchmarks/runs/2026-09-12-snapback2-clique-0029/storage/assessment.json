@@ -1,0 +1,326 @@
+{
+  "createdAt": "2026-09-12T09:45:50.354413+00:00",
+  "scope": "Read-only attribution of retained canonical scale SQLite allocation; no current database or actor/grader access.",
+  "sdkSourceCommit": "f2c569a5e50f8add3c7fc0680cc0ec093fba7a23",
+  "sdkPackageVersion": "0.0.29",
+  "evidence": {
+    "audit": {
+      "path": "storage-breakdown.json",
+      "sha256": "94c720a637194f3d796ace252c5e591c1dc964bf86310e1851c33780252036cb",
+      "startedAt": "2026-09-12T09:27:35.792287+00:00",
+      "endedAt": "2026-09-12T09:27:39.164601+00:00",
+      "exit": 0,
+      "sourceStatUnchanged": true
+    },
+    "builderSourceManifest": {
+      "path": "builder-MANIFEST.json",
+      "sha256": "6a1b0500a902233f7807145ac432105e8a56f7ae193f1773bd61a75ebe021e5b",
+      "snapshotIntervalUTC": "2026-09-12 09:25:23\u201309:25:30",
+      "builderExitedUTC": "2026-09-12 09:24:15"
+    },
+    "schema": {
+      "path": "scale-schema.q",
+      "sha256": "4ae68d39fcdfc8207dfba84b373622127539833f94aac041e115c6a04c03ac11",
+      "remoteSource": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-builder-snapshot/app/.replays/scale/snapback/schema.q"
+    }
+  },
+  "measured": {
+    "fileBytes": 5196644352,
+    "fileGiB": 4.839752197265625,
+    "pageSize": 4096,
+    "pageCount": 1268712,
+    "freelistBytes": 8192,
+    "categories": {
+      "genericIndexes": {
+        "allocatedBytes": 3638677504,
+        "payloadBytes": 3104859916,
+        "unusedBytes": 433244765,
+        "allocatedPercent": 70.01975231573438,
+        "structures": [
+          "index_entries",
+          "index_entries_lookup",
+          "sqlite_autoindex_index_entries_1",
+          "index_entries_by_row"
+        ]
+      },
+      "rowsAndPrimaryIndex": {
+        "allocatedBytes": 806375424,
+        "payloadBytes": 725563230,
+        "unusedBytes": 60595330,
+        "allocatedPercent": 15.517233225507443,
+        "structures": [
+          "rows",
+          "sqlite_autoindex_rows_1"
+        ]
+      },
+      "searchPostings": {
+        "allocatedBytes": 687235072,
+        "payloadBytes": 588997762,
+        "unusedBytes": 76842158,
+        "allocatedPercent": 13.224593130671106,
+        "structures": [
+          "_search_postings",
+          "_search_postings_lookup",
+          "_search_postings_by_row"
+        ]
+      },
+      "commits": {
+        "allocatedBytes": 37990400,
+        "payloadBytes": 32725900,
+        "unusedBytes": 5036959,
+        "allocatedPercent": 0.7310563784373443,
+        "structures": [
+          "_commits"
+        ]
+      }
+    },
+    "dbstatAllocatedBytes": 5196632064,
+    "dbstatPayloadBytes": 4475269203,
+    "dbstatUnusedBytes": 577937297,
+    "bytesOutsideDbstatAndFreelist": 4096,
+    "genericAllocatedOverBaseTable": 2.7873095459223376,
+    "scopeLimit": "One canonical SQLite file; WAL, media blobs, replay copies and total workspace are outside this measurement. dbstat unused is within allocated pages, not evidence of safely reclaimable bytes."
+  },
+  "sourceEstablished": [
+    {
+      "fact": "Each ordinary schema index creates one generic entry per stored row, represented by four B-trees: base rowid table, primary-key autoindex, ordered covering lookup, and row cleanup. This repeats index keys and addresses; it does not copy the full application row body into every index.",
+      "refs": [
+        "sqliteLayout",
+        "plainIndexInsertion"
+      ]
+    },
+    {
+      "fact": "String/Id/Bytes key encoding is a two-byte tag plus hexadecimal byte expansion (2N+2 ASCII bytes); integer keys occupy 22 ASCII bytes. Unused c0\u2013c7 slots are SQL NULL. Raw table/index names and row IDs also occur in physical records.",
+      "refs": [
+        "keyEncoding",
+        "plainIndexInsertion"
+      ]
+    },
+    {
+      "fact": "Each search posting is held in three B-trees; the posting table is WITHOUT ROWID. For each row and derived index, there is one posting per distinct nonempty normalized word prefix node. A per-row set deduplicates repeated prefix nodes; the dictionary is shared within table/index.",
+      "refs": [
+        "searchLayout",
+        "searchPrefixInsertion"
+      ]
+    },
+    {
+      "fact": "Rows are persisted as typed canonical JSON text, including field names and value tags. In-memory Arc sharing is not on-disk row-body compression.",
+      "refs": [
+        "typedRows",
+        "rowWrite"
+      ]
+    },
+    {
+      "fact": "All tables receive byId. Each Count target adds its unique group index. Delivery log has byId plus three generated orderings; its receipt table has byId plus unique byRow.",
+      "refs": [
+        "implicitById",
+        "maintainTargets",
+        "deliveryTables"
+      ]
+    },
+    {
+      "fact": "A newly delivered message to R distinct recipients creates R log rows and R initial receipt rows: 6R ordinary logical index entries, represented by 24R generic B-tree records, before the source message, maintained groups, or search postings. At declared membership cap 50 this conditional example is 300 logical entries / 1200 generic records. Actual mean R and population share are unknown. Generated delivery rows carry metadata, not full message bodies.",
+      "refs": [
+        "deliveryFanout",
+        "deliveryTables",
+        "receiptCreation",
+        "receiptFields"
+      ]
+    },
+    {
+      "fact": "Generated delivery IDs are 64-character hexadecimal SHA-256 digests. The ordinary byId key therefore encodes this ID as 130 characters, in addition to the separate raw row address.",
+      "refs": [
+        "deliveryId",
+        "typedRows",
+        "keyEncoding"
+      ]
+    },
+    {
+      "fact": "The schema contains identical-column unique/nonunique index pairs for follows and reactions. Both names are stored separately; they have different declaration semantics and consumers have not been audited for safe consolidation.",
+      "refs": [
+        "authoredDuplicateKeys",
+        "indexGuide",
+        "plainIndexInsertion"
+      ]
+    },
+    {
+      "fact": "Replacement reindexes only changed ordinary keys and skips retokenization when derived key components are unchanged; this source does not support a blanket every-update-rebuild allegation.",
+      "refs": [
+        "unchangedKeyUpdate"
+      ]
+    }
+  ],
+  "schemaInventory": {
+    "method": "static declaration scan plus frozen compiler materialization rules; no compiler or database execution",
+    "authoredTableKinds": 19,
+    "generatedCountTargetKinds": 14,
+    "generatedDeliveryTableKinds": 2,
+    "materializedApplicationTableKindsTotal": 35,
+    "ordinaryIndexDeclarations": {
+      "authoredIncludingById": 49,
+      "maintainedTargets": 28,
+      "deliveryTables": 6,
+      "total": 83
+    },
+    "derivedIndexDeclarations": 3,
+    "detailPath": "schema-index-inventory.json",
+    "interpretation": "35 schema table kinds share generic SQLite storage; these are not 35 separate application SQLite tables. 83 declarations are not 83 index entries per row; each row gets only its table indices. Count target population follows occupied groups, not source-row count."
+  },
+  "conclusion": "Confirmed structural storage amplification in the current generic representation, with implementation and authored-index consolidation opportunities. The evidence does not establish an irreducible 5.2 GB semantic requirement, nor a measured safely removable percentage or a correctness defect.",
+  "unknowns": [
+    "Per-application-table and per-index cardinalities; delivery/receipt versus posts/follows share of the generic structures.",
+    "Key/ID length distributions and actual recipient fanout, message word-prefix counts, and maintained-group populations.",
+    "Which identical-column authored index names can be consolidated without changing program lookup selection or uniqueness.",
+    "Actual byte, read, write, deletion, migration and rebuild tradeoffs of compact keys or fewer physical structures.",
+    "Cause of the residual 4096 bytes outside the summed dbstat groups and freelist; immaterial to the dominant attribution."
+  ],
+  "smallestJustifiedFollowup": "After grading, use a separately retained database copy and authorized metadata-only table/index counts plus key-length histograms to rank the measured contributors. Then consider one isolated representation comparison preserving ordering, uniqueness, row cleanup, index rebuild, search, authority and custody. No new ticket/design/implementation or savings claim is made here.",
+  "cleanup": {
+    "databaseOpenedOrQueriedByThisTask": false,
+    "ownersTestsBuildsOrProbesLaunched": false,
+    "actorGraderContact": false,
+    "repositoryEdits": false,
+    "remoteWrites": false,
+    "sourceCopiesOnly": true,
+    "runningOwnedLongLivedProcesses": []
+  },
+  "references": {
+    "sqliteLayout": {
+      "path": "source/snapback2/crates/snapback2-core/src/store.rs",
+      "lines": [
+        170,
+        191
+      ]
+    },
+    "plainIndexInsertion": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/index.rs",
+      "lines": [
+        106,
+        148
+      ]
+    },
+    "keyEncoding": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/index.rs",
+      "lines": [
+        724,
+        755
+      ]
+    },
+    "unchangedKeyUpdate": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/index.rs",
+      "lines": [
+        58,
+        84
+      ]
+    },
+    "searchLayout": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/search_index.rs",
+      "lines": [
+        29,
+        42
+      ]
+    },
+    "searchPrefixInsertion": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/search_index.rs",
+      "lines": [
+        119,
+        174
+      ]
+    },
+    "typedRows": {
+      "path": "source/snapback2/crates/snapback2-core/src/value.rs",
+      "lines": [
+        9,
+        26,
+        318,
+        325
+      ]
+    },
+    "rowWrite": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/runner_ops.rs",
+      "lines": [
+        65,
+        70
+      ]
+    },
+    "implicitById": {
+      "path": "source/snapback2/packages/compiler/src/quarry/catalog.ts",
+      "lines": [
+        25,
+        34
+      ]
+    },
+    "maintainTargets": {
+      "path": "source/snapback2/packages/compiler/src/quarry/index.ts",
+      "lines": [
+        131,
+        181
+      ]
+    },
+    "deliveryTables": {
+      "path": "source/snapback2/packages/compiler/src/quarry/deliver.ts",
+      "lines": [
+        105,
+        185
+      ]
+    },
+    "deliveryFanout": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/custody.rs",
+      "lines": [
+        230,
+        301
+      ]
+    },
+    "deliveryId": {
+      "path": "source/snapback2/crates/snapback2-core/src/delivery.rs",
+      "lines": [
+        376,
+        407
+      ]
+    },
+    "receiptCreation": {
+      "path": "source/snapback2/crates/snapback2-core/src/engine/acknowledgements.rs",
+      "lines": [
+        51,
+        77
+      ]
+    },
+    "receiptFields": {
+      "path": "source/snapback2/crates/snapback2-core/src/delivery/receipts.rs",
+      "lines": [
+        46,
+        55
+      ]
+    },
+    "authoredDuplicateKeys": {
+      "path": "scale-schema.q",
+      "lines": [
+        120,
+        122,
+        227,
+        228
+      ]
+    },
+    "governingStore": {
+      "path": "source/llp/1001-query-engine.spec.md",
+      "lines": [
+        36,
+        95
+      ]
+    },
+    "indexGuide": {
+      "path": "source/snapback2/packages/snapback2/guide/indexes.md",
+      "lines": [
+        3,
+        8
+      ]
+    },
+    "maintainGuide": {
+      "path": "source/snapback2/packages/snapback2/guide/maintain.md",
+      "lines": [
+        3,
+        14
+      ]
+    }
+  }
+}

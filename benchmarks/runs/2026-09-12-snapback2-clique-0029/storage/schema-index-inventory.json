@@ -1,0 +1,699 @@
+{
+  "method": "static declaration scan plus frozen compiler materialization rules; no compiler or database execution",
+  "schemaSha256": "4ae68d39fcdfc8207dfba84b373622127539833f94aac041e115c6a04c03ac11",
+  "authoredTables": [
+    {
+      "name": "profiles",
+      "line": 3,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPrincipal",
+          "keys": [
+            "principal"
+          ],
+          "line": 11
+        },
+        {
+          "name": "byHandle",
+          "keys": [
+            "handle"
+          ],
+          "line": 12
+        }
+      ],
+      "derived": [
+        {
+          "name": "byNameSearch",
+          "keys": [
+            "wordPrefixes(displayName)",
+            "id"
+          ],
+          "line": 13
+        },
+        {
+          "name": "byHandleSearch",
+          "keys": [
+            "wordPrefixes(handle)",
+            "id"
+          ],
+          "line": 14
+        }
+      ]
+    },
+    {
+      "name": "conversations",
+      "line": 21,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byCreator",
+          "keys": [
+            "creatorId"
+          ],
+          "line": 31
+        },
+        {
+          "name": "byIdCreator",
+          "keys": [
+            "id",
+            "creatorId"
+          ],
+          "line": 32
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "memberships",
+      "line": 39,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byConversationPrincipal",
+          "keys": [
+            "conversationId",
+            "principal"
+          ],
+          "line": 44
+        },
+        {
+          "name": "byConversationPrincipalRole",
+          "keys": [
+            "conversationId",
+            "principal",
+            "role"
+          ],
+          "line": 45
+        },
+        {
+          "name": "byPrincipalConversation",
+          "keys": [
+            "principal",
+            "conversationId",
+            "id"
+          ],
+          "line": 46
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "messages",
+      "line": 68,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byConvTime",
+          "keys": [
+            "conversationId",
+            "at",
+            "id"
+          ],
+          "line": 82
+        }
+      ],
+      "derived": [
+        {
+          "name": "bySearch",
+          "keys": [
+            "conversationId",
+            "wordPrefixes(body)",
+            "at",
+            "id"
+          ],
+          "line": 83
+        }
+      ]
+    },
+    {
+      "name": "posts",
+      "line": 96,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byParentTime",
+          "keys": [
+            "parent",
+            "at",
+            "id"
+          ],
+          "line": 106
+        },
+        {
+          "name": "byTime",
+          "keys": [
+            "at",
+            "id"
+          ],
+          "line": 107
+        },
+        {
+          "name": "byAuthorTime",
+          "keys": [
+            "author",
+            "at",
+            "id"
+          ],
+          "line": 108
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "follows",
+      "line": 116,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byFollowerFollowed",
+          "keys": [
+            "follower",
+            "followed"
+          ],
+          "line": 120
+        },
+        {
+          "name": "byFollower",
+          "keys": [
+            "follower",
+            "followed"
+          ],
+          "line": 121
+        },
+        {
+          "name": "byFollowed",
+          "keys": [
+            "followed",
+            "follower"
+          ],
+          "line": 122
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "notifications",
+      "line": 129,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byOutbox",
+          "keys": [
+            "outboxId"
+          ],
+          "line": 133
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "feedHeads",
+      "line": 151,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byActorPost",
+          "keys": [
+            "actor",
+            "post",
+            "repost"
+          ],
+          "line": 157
+        },
+        {
+          "name": "byTime",
+          "keys": [
+            "at",
+            "id"
+          ],
+          "line": 158
+        },
+        {
+          "name": "byActorTime",
+          "keys": [
+            "actor",
+            "at",
+            "id"
+          ],
+          "line": 159
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "likes",
+      "line": 166,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPostActor",
+          "keys": [
+            "post",
+            "actor"
+          ],
+          "line": 172
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "intents",
+      "line": 193,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPrincipalKey",
+          "keys": [
+            "principal",
+            "key"
+          ],
+          "line": 196
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "dmPairs",
+      "line": 202,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPair",
+          "keys": [
+            "lo",
+            "hi"
+          ],
+          "line": 206
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "readCursors",
+      "line": 212,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byConversationPrincipal",
+          "keys": [
+            "conversationId",
+            "principal"
+          ],
+          "line": 216
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "reactions",
+      "line": 222,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byMessageActor",
+          "keys": [
+            "message",
+            "actor"
+          ],
+          "line": 227
+        },
+        {
+          "name": "byMessage",
+          "keys": [
+            "message",
+            "actor"
+          ],
+          "line": 228
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "pushEvents",
+      "line": 235,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byTargetTime",
+          "keys": [
+            "targetUserId",
+            "at",
+            "id"
+          ],
+          "line": 243
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "trendingPosts",
+      "line": 264,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPost",
+          "keys": [
+            "post"
+          ],
+          "line": 270
+        },
+        {
+          "name": "byRank",
+          "keys": [
+            "score",
+            "at",
+            "post"
+          ],
+          "line": 271
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "digestClocks",
+      "line": 277,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "digestWork",
+      "line": 284,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPrincipalCutoff",
+          "keys": [
+            "principal",
+            "cutoff"
+          ],
+          "line": 291
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "digestChats",
+      "line": 297,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPrincipalCutoffChat",
+          "keys": [
+            "principal",
+            "cutoff",
+            "conversationId"
+          ],
+          "line": 301
+        }
+      ],
+      "derived": []
+    },
+    {
+      "name": "digestReceipts",
+      "line": 307,
+      "ordinary": [
+        {
+          "name": "byId",
+          "keys": [
+            "id"
+          ],
+          "generated": true
+        },
+        {
+          "name": "byPrincipalCutoff",
+          "keys": [
+            "principal",
+            "cutoff"
+          ],
+          "line": 310
+        }
+      ],
+      "derived": []
+    }
+  ],
+  "maintains": [
+    {
+      "name": "messageCounts",
+      "source": "messages",
+      "by": [
+        "conversationId"
+      ],
+      "line": 139,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "memberCounts",
+      "source": "memberships",
+      "by": [
+        "conversationId"
+      ],
+      "line": 148,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "likeCounts",
+      "source": "likes",
+      "by": [
+        "post"
+      ],
+      "line": 178,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "repostCounts",
+      "source": "feedHeads",
+      "by": [
+        "post",
+        "repost"
+      ],
+      "line": 181,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "replyCounts",
+      "source": "posts",
+      "by": [
+        "parent"
+      ],
+      "line": 184,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "followerCounts",
+      "source": "follows",
+      "by": [
+        "followed"
+      ],
+      "line": 187,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "followingCounts",
+      "source": "follows",
+      "by": [
+        "follower"
+      ],
+      "line": 190,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "postTotals",
+      "source": "posts",
+      "by": [
+        "author"
+      ],
+      "line": 249,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "receivedLikes",
+      "source": "likes",
+      "by": [
+        "owner"
+      ],
+      "line": 251,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "receivedReposts",
+      "source": "feedHeads",
+      "by": [
+        "owner",
+        "repost"
+      ],
+      "line": 253,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "receivedReplies",
+      "source": "posts",
+      "by": [
+        "parentAuthor"
+      ],
+      "line": 255,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "postDays",
+      "source": "posts",
+      "by": [
+        "author",
+        "day"
+      ],
+      "line": 257,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "likedDays",
+      "source": "likes",
+      "by": [
+        "owner",
+        "day"
+      ],
+      "line": 259,
+      "ordinaryIndexCount": 2
+    },
+    {
+      "name": "authorPeriods",
+      "source": "posts",
+      "by": [
+        "author",
+        "period",
+        "parent"
+      ],
+      "line": 261,
+      "ordinaryIndexCount": 2
+    }
+  ],
+  "generatedDeliveryTables": [
+    {
+      "name": "deliveries",
+      "ordinaryIndexCount": 4,
+      "indexes": [
+        "byId",
+        "byRecipient",
+        "byRecipientGroup",
+        "byRow"
+      ]
+    },
+    {
+      "name": "deliveriesReceipts",
+      "ordinaryIndexCount": 2,
+      "indexes": [
+        "byId",
+        "byRow"
+      ]
+    }
+  ]
+}

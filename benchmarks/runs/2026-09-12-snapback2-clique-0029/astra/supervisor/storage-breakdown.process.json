@@ -1,0 +1,11 @@
+{
+  "startedAt": "2026-09-12T09:27:35.792287+00:00",
+  "supervisorPid": 784367,
+  "database": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/.replays/scale/.snapback/store.sqlite",
+  "access": "SQLite URI mode=ro&immutable=1; query_only=ON; no row contents selected",
+  "queryTimeoutSeconds": 15,
+  "processTimeoutSeconds": 25,
+  "pid": 784428,
+  "exit": 0,
+  "endedAt": "2026-09-12T09:27:39.164601+00:00"
+}

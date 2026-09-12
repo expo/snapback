@@ -1,0 +1,595 @@
+{
+  "recordedEpoch": 1789212277.2263086,
+  "host": "450b / 100.85.211.16",
+  "scope": "Compact evidence only; no raw CLI streams, reasoning, auth, credentials or runtime stores",
+  "boundaries": {
+    "initial-builder": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/manifest.json",
+      "sha256": "44e3c4a4d6afe3064f4c4798ed460c60c991f0cf9911f90871bdf97076e27ae2",
+      "archive": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "archiveSha256": "85b615ea80401d6a435fb732343ea6d1ddf5b40bedc4e1ed6c8bc123a7becfe2"
+    },
+    "initial-grade": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/manifest.json",
+      "sha256": "7f659f32fbbb11e88133b6a75f71ca0f104e0fcf19274d7ba4790c6a80e4786e",
+      "archive": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/post-grade-app.tar.gz",
+      "archiveSha256": "492579554f226769d184b5198dc5382542a542264eadf9e1e1907fa3ed41337b"
+    },
+    "m7": {
+      "path": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/manifest.json",
+      "sha256": "7e880bb2b5203443b7398a989590e2962c1b7bc51857bd8bffa3fd458a75c57f",
+      "archive": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "archiveSha256": "b0c8740cca530e66045f4b5dbec1ac9a9f4b633ea718511d09bd49e24f8b2895"
+    }
+  },
+  "files": [
+    {
+      "localPath": "initial-builder/manifest.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/manifest.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 82714,
+      "sha256": "44e3c4a4d6afe3064f4c4798ed460c60c991f0cf9911f90871bdf97076e27ae2"
+    },
+    {
+      "localPath": "initial-builder/remaining-processes.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/remaining-processes.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 96,
+      "sha256": "daa7849a92012882a5c1e96c51ae07ace479906346d5dc6ae5314feb735e9ccb"
+    },
+    {
+      "localPath": "initial-builder/capture-process.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/capture-process.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 134,
+      "sha256": "e7f8e5641d0ae1bbf7ccf75cf96734bb6f71aaf5e1482d7dc31f51a815efa62d"
+    },
+    {
+      "localPath": "initial-grade/manifest.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/manifest.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 97885,
+      "sha256": "7f659f32fbbb11e88133b6a75f71ca0f104e0fcf19274d7ba4790c6a80e4786e"
+    },
+    {
+      "localPath": "initial-grade/remaining-processes.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/remaining-processes.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 80,
+      "sha256": "34b305b9e424d234d7e13cac981a4a9a5f61ed56352977773b9dbabce91d4cda"
+    },
+    {
+      "localPath": "initial-grade/capture-process.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/capture-process.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 110,
+      "sha256": "29a58863b676b3ecd746fd21881a940baf542a46a4a5c6326bfe85f4d9224810"
+    },
+    {
+      "localPath": "m7/manifest.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/manifest.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 106276,
+      "sha256": "7e880bb2b5203443b7398a989590e2962c1b7bc51857bd8bffa3fd458a75c57f"
+    },
+    {
+      "localPath": "m7/remaining-processes.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/remaining-processes.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 80,
+      "sha256": "d8aa71ecbf08ead2a9e4efd833737df13925aa4e23f82b52fcfa0712de157fd4"
+    },
+    {
+      "localPath": "m7/capture-process.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/capture-process.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 113,
+      "sha256": "ae58fe7456836a6a3154fd6bfd00acccf609ff0c1a5c103b914db846c667e3c7"
+    },
+    {
+      "localPath": "initial-builder/handoff.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/handoff.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 7658,
+      "sha256": "246db927069ec3060dd262b397a30d4f16e1e808869eb0f7657449e20266223c"
+    },
+    {
+      "localPath": "initial-builder/installed-payload-comparison.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/installed-payload-comparison.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 91562,
+      "sha256": "d2eca67f5394b3a1b6459246a08688a475c3f55b25d0edbdf56a715b5371c17d"
+    },
+    {
+      "localPath": "initial-builder/instrument-comparison.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/instrument-comparison.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 47878,
+      "sha256": "1148e259de7b70780617addd86b7da14a85319c06ef4ae0bd26d130c80871273"
+    },
+    {
+      "localPath": "initial-builder/logs/grok-snapback2.start.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/logs/grok-snapback2.start.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 722,
+      "sha256": "f8307ea25763edfc9357a3ad9083c0ba719f21c0e40216b9b7ab49dbced04516"
+    },
+    {
+      "localPath": "initial-builder/logs/grok-snapback2.end.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/logs/grok-snapback2.end.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 368,
+      "sha256": "90f15b4f069516fe8b33a049f231722df0a9f2d5fe7967183132b834c547c721"
+    },
+    {
+      "localPath": "initial-builder/logs/grok-snapback2.controller.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/logs/grok-snapback2.controller.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-builder",
+      "bytes": 280,
+      "sha256": "ad831d0f6de3ea4945d0410f1c3f2e61df2210c5cf250492a0cb4224662e8eda"
+    },
+    {
+      "localPath": "initial-grade/source-difference.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/source-difference.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 3147,
+      "sha256": "b1bc9628ffa2c09760820dc2a3264891d6dfcc25177e3df0525c2830a5e1b69f"
+    },
+    {
+      "localPath": "initial-grade/logs/grok-snapback2.grade.start.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/logs/grok-snapback2.grade.start.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 345,
+      "sha256": "6954fba1f9e78f7e00958e697eadec96dd1330a11719e4b56ca995ed37388bf1"
+    },
+    {
+      "localPath": "initial-grade/logs/grok-snapback2.grade.end.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/logs/grok-snapback2.grade.end.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 184,
+      "sha256": "3ba5e849f85a61d518227ab20a27373e6c4756fc0e17c6ce03a05b57aa80eed7"
+    },
+    {
+      "localPath": "initial-grade/logs/grok-snapback2.grade.wrapper.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/logs/grok-snapback2.grade.wrapper.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 2250,
+      "sha256": "9418307574d3b00c401eca1a51c9a1bd6b82e0c768b8d340f75112b9765e8d19"
+    },
+    {
+      "localPath": "initial-grade/logs/grok-snapback2.grade.wrapper.child.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/logs/grok-snapback2.grade.wrapper.child.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 431,
+      "sha256": "7cd96e1ce7423b603b4ad98752bc5dc19a13c2ae5d7b8ed6cdf107de930301db"
+    },
+    {
+      "localPath": "initial-grade/reports/grader-report.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/reports/grader-report.json",
+      "sourceArchiveMember": null,
+      "boundary": "initial-grade",
+      "bytes": 48580,
+      "sha256": "31b1714d2bb2cba7eaaa8025716fe33d809743479894378a2a46706a1fd9c791"
+    },
+    {
+      "localPath": "m7/source-difference.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/source-difference.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 4442,
+      "sha256": "255b544630d92b0eb59dd313ab79b3359277b623cf1bc38836c242849841189e"
+    },
+    {
+      "localPath": "m7/installed-payload-comparison.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/installed-payload-comparison.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 71943,
+      "sha256": "c1a00775c647ff560da124210833470982c653b775d56cecc552020853e408a0"
+    },
+    {
+      "localPath": "m7/instrument-comparison.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/instrument-comparison.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 47488,
+      "sha256": "12806500d1d67190a9dda637106373b8f032851b49b8154e8491f590b88dc62d"
+    },
+    {
+      "localPath": "m7/logs/grok-snapback2.m7.start.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/logs/grok-snapback2.m7.start.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 638,
+      "sha256": "f8c39a2a9fb69c6357630329ff779fa08ad12e87bcb38b3de10d38424e3b292d"
+    },
+    {
+      "localPath": "m7/logs/grok-snapback2.m7.end.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/logs/grok-snapback2.m7.end.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 385,
+      "sha256": "181ed8ca128df13f47fc1aede2cf99f9a8d6cbcab1c309f31356ad41ef7df7a9"
+    },
+    {
+      "localPath": "m7/logs/grok-snapback2.m7.controller.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/logs/grok-snapback2.m7.controller.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 787,
+      "sha256": "0407918f2852e5a21a248b0ecce4d95d78beb1ba4a15b4a91406e4e17ad5fa45"
+    },
+    {
+      "localPath": "m7/control/pre-grok-m7.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/control/pre-grok-m7.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 813,
+      "sha256": "b38ca660dc63a453a52988988859b2899cf40d323e5363b5daf87d01306581d5"
+    },
+    {
+      "localPath": "m7/control/pre-grok-m7.process.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/control/pre-grok-m7.process.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 258,
+      "sha256": "60c82fea7bab4b578c1f4f1ea7ffaba468e77077445e31f627f1edfdbfe9c1de"
+    },
+    {
+      "localPath": "m7/reports/run-log.md",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/run-log.md",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 5422,
+      "sha256": "5d06f455735ea2ab896f43b3158d3cf3d820f2682b691f3747ba23489a750eac"
+    },
+    {
+      "localPath": "m7/reports/diary.md",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/diary.md",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 2141,
+      "sha256": "95174c5fd8fdcec9fd34e97aed58a5e9e2a5f0ce2cd9a629ca9d489770720114"
+    },
+    {
+      "localPath": "m7/reports/essay-paragraphs.md",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/essay-paragraphs.md",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 2864,
+      "sha256": "e4d86568f27097aa7c5f9189cdd42e31a44f926f6a901d0337b77e9e8bd1288a"
+    },
+    {
+      "localPath": "m7/reports/final-report.md",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/final-report.md",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 3227,
+      "sha256": "e12a86b625b27dce8e03d0df7a1f496cd035772f58fa24718557c73270f1a457"
+    },
+    {
+      "localPath": "m7/reports/snapshot-compare.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/snapshot-compare.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 62,
+      "sha256": "42ae46638b5431ae6f51a8b118009f155e4c76453a18455213bfb508adc5da59"
+    },
+    {
+      "localPath": "m7/reports/suite-m7.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/suite-m7.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 880,
+      "sha256": "eaf521ce0697999cf8f5f2be0aacb75a7a2fe56fcdea1b411107a483c68cca09"
+    },
+    {
+      "localPath": "m7/reports/choreo-m7.jsonl",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/choreo-m7.jsonl",
+      "sourceArchiveMember": null,
+      "boundary": "m7",
+      "bytes": 3828,
+      "sha256": "679876928bff4a1ffd6ac7b7fc4dc85ed5e2e547c46e1f849366e49f4b3b9789"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-status.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-status.json",
+      "boundary": "initial-builder",
+      "bytes": 93,
+      "sha256": "1e71ebd7b0d99615d9d345f383918ef0a80dbd97f57003e89b632df173ee7a09"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-m1.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m1.json",
+      "boundary": "initial-builder",
+      "bytes": 928,
+      "sha256": "19d8cfdad581e10994b9d88c4b9302726c065348d8d07949e0eae2c6f7404a02"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-m2.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m2.json",
+      "boundary": "initial-builder",
+      "bytes": 2663,
+      "sha256": "c279e31c95b466d98e5173852cedfabf1ade3c47acfb7331425e94269372fe2b"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-m3.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m3.json",
+      "boundary": "initial-builder",
+      "bytes": 938,
+      "sha256": "a2c121c4858dbd87fa64178d7beea0dbec3c0f033cbbd6338b6fbfc4a519e122"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-m4.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m4.json",
+      "boundary": "initial-builder",
+      "bytes": 654,
+      "sha256": "b552f61af20fd03198e1ee552015fe3d7c769a3138db1d7cf89cf89e1b55cd15"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-m5.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m5.json",
+      "boundary": "initial-builder",
+      "bytes": 803,
+      "sha256": "c43a9ff8d28e94dc0ae62ab755e86713f7324bd760c9ce514a9d337a0aac5315"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-m6.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m6.json",
+      "boundary": "initial-builder",
+      "bytes": 1311,
+      "sha256": "688821d0b317cd56032990c93ebfa36d3938a9b4eddf989ef4515e9a442d578c"
+    },
+    {
+      "localPath": "initial-builder/archive-members/receipts/suite-m8.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m8.json",
+      "boundary": "initial-builder",
+      "bytes": 803,
+      "sha256": "53f6f0a820cb8f9abcdc2baeffc8c0b408a6dd79544f3e24f58f9b2ef8049f8b"
+    },
+    {
+      "localPath": "initial-grade/archive-members/receipts/suite-status.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/post-grade-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-status.json",
+      "boundary": "initial-grade",
+      "bytes": 92,
+      "sha256": "f675f33aa4ae0c9275c7ee8544a80ab120f996ac13a68176d8b6c5c770cb5f78"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-status.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-status.json",
+      "boundary": "m7",
+      "bytes": 92,
+      "sha256": "b54336e9d8e437acba530fa579950016ad963ed1b8aa88bf39967a0b68e0e6ed"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-m1.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m1.json",
+      "boundary": "m7",
+      "bytes": 929,
+      "sha256": "e3fdf07acf1b5d431cfd42ce4b7995dae7c8212ce875c0fedd9ba4577f1cca20"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-m2.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m2.json",
+      "boundary": "m7",
+      "bytes": 2663,
+      "sha256": "be7401e5def2f87c9dc14142bab1e7626fa9726e772d7dcc0b2d987d56e4d65e"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-m3.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m3.json",
+      "boundary": "m7",
+      "bytes": 938,
+      "sha256": "f312a84d5031a6cc3ddb6987feb99e57ad202913e54e24f09241fccb5df4f449"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-m4.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m4.json",
+      "boundary": "m7",
+      "bytes": 654,
+      "sha256": "77efb154542839311e1e3c86a644bd79bbf89f2fc882cb8c1805d04c7c9ed8fc"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-m5.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m5.json",
+      "boundary": "m7",
+      "bytes": 803,
+      "sha256": "16a950261e8d35e9cb1a4307cc0ff77b82759b453d9feb5ed04d51826ca25c5d"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-m6.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m6.json",
+      "boundary": "m7",
+      "bytes": 1312,
+      "sha256": "07a687187d2834a34818166d78b2754e6543bad62b5c269e92b03d7e349a4912"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/suite-m8.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/suite-m8.json",
+      "boundary": "m7",
+      "bytes": 803,
+      "sha256": "ce5199cf98e895f57f744c2f5e61489e90be6d8d2f22a914199e9c1f11d8af7c"
+    },
+    {
+      "localPath": "m7/archive-members/receipts/coverage-m7.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "receipts/coverage-m7.json",
+      "boundary": "m7",
+      "bytes": 226,
+      "sha256": "86e5af3754fba7ad6e392642c1a3e9fd85ddaf12a50bafb94bd4634fcabf1864"
+    },
+    {
+      "localPath": "m7/archive-members/m7/pre-snapshot/manifest.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "m7/pre-snapshot/manifest.json",
+      "boundary": "m7",
+      "bytes": 2029,
+      "sha256": "7dc92bc9084a72033b65c75858404ff056b432ca144f0bbaad222a51046197ce"
+    },
+    {
+      "localPath": "m7/archive-members/scripts/acceptance.mjs",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "scripts/acceptance.mjs",
+      "boundary": "m7",
+      "bytes": 39115,
+      "sha256": "521125d44771d546cf198fd221c8075151360341ff18badd76e3d2ffe6d1ebaa"
+    },
+    {
+      "localPath": "m7/archive-members/scripts/export-m7-snapshot.mjs",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "scripts/export-m7-snapshot.mjs",
+      "boundary": "m7",
+      "bytes": 6102,
+      "sha256": "1f994b1f834afca9c145727268aa93b9269b57c676dcf3fe202d85f51554b5e5"
+    },
+    {
+      "localPath": "m7/archive-members/scripts/compare-m7-snapshot.mjs",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "scripts/compare-m7-snapshot.mjs",
+      "boundary": "m7",
+      "bytes": 4803,
+      "sha256": "fc8a4846de6fc644dc00ae6d9158de13de32380e37ce7a835a5d98b908ff9195"
+    },
+    {
+      "localPath": "m7/pre-snapshot-hash-verification.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/final-m7-app.tar.gz",
+      "sourceArchiveMember": "derived from m7/pre-snapshot/manifest.json and its 8 listed files",
+      "boundary": "m7",
+      "bytes": 2422,
+      "sha256": "87aae2e34d030d167695ab4918e9d190ee9c894b6da11d02fa4dc8f1dec19268"
+    },
+    {
+      "localPath": "m7/browser-attempts/82b3e306d3abfb92/choreo-m7.jsonl",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-82b3e306d3abfb92/choreo-m7.jsonl",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-receipt-capture",
+      "bytes": 4053,
+      "sha256": "82b3e306d3abfb92675eda4d9ec95496c7f4bbe26464447ace61072a864a180c"
+    },
+    {
+      "localPath": "m7/browser-attempts/82b3e306d3abfb92/capture.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-82b3e306d3abfb92/capture.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-receipt-capture",
+      "bytes": 288,
+      "sha256": "cbbc364e868dd4dcc1658745611ef9232ac9b64c682af12cd4a0762605170192"
+    },
+    {
+      "localPath": "m7/browser-attempts/b7d3e6436f9690d7/choreo-m7.jsonl",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-b7d3e6436f9690d7/choreo-m7.jsonl",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-receipt-capture",
+      "bytes": 4055,
+      "sha256": "b7d3e6436f9690d77316f1ab8440f6c5b78247ec4b779150b779d1512c322ad3"
+    },
+    {
+      "localPath": "m7/browser-attempts/b7d3e6436f9690d7/capture.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-b7d3e6436f9690d7/capture.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-receipt-capture",
+      "bytes": 287,
+      "sha256": "afcb287ba6724ca4f1430b636a1353fa469258af1d4ab2ac4ce8d8a5c400eed6"
+    },
+    {
+      "localPath": "m7/browser-attempts/679876928bff4a1f/choreo-m7.jsonl",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-679876928bff4a1f/choreo-m7.jsonl",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-receipt-capture",
+      "bytes": 3828,
+      "sha256": "679876928bff4a1ffd6ac7b7fc4dc85ed5e2e547c46e1f849366e49f4b3b9789"
+    },
+    {
+      "localPath": "m7/browser-attempts/679876928bff4a1f/capture.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-679876928bff4a1f/capture.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-receipt-capture",
+      "bytes": 287,
+      "sha256": "25a72a905e563fc94a3fcf0d02c7b5040ed31ce32ec07387b8e04329d6f5391b"
+    },
+    {
+      "localPath": "m7/suite-attempts/4ac089da6a9dbdfe/suite-m7.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-suite-4ac089da6a9dbdfe/suite-m7.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-suite-capture",
+      "bytes": 1260,
+      "sha256": "4ac089da6a9dbdfe2898828eb1f3cf474cfa1d6c6cf7b04c33f52106cc6b2ac8"
+    },
+    {
+      "localPath": "m7/suite-attempts/4ac089da6a9dbdfe/capture.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-suite-4ac089da6a9dbdfe/capture.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-suite-capture",
+      "bytes": 4944,
+      "sha256": "21cd2076dac50688b73e419a77052bd18fea87342fc3bea76852d793658b6dd9"
+    },
+    {
+      "localPath": "m7/suite-attempts/eaf521ce0697999c/suite-m7.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-suite-eaf521ce0697999c/suite-m7.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-suite-capture",
+      "bytes": 880,
+      "sha256": "eaf521ce0697999cf8f5f2be0aacb75a7a2fe56fcdea1b411107a483c68cca09"
+    },
+    {
+      "localPath": "m7/suite-attempts/eaf521ce0697999c/capture.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-suite-eaf521ce0697999c/capture.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-suite-capture",
+      "bytes": 269,
+      "sha256": "e5762719833861a83df647867d07ed22e0bf1206f6304ab199308c62a1494280"
+    },
+    {
+      "localPath": "m7/suite-attempts/eaf521ce0697999c/regression-scope.json",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-suite-eaf521ce0697999c/regression-scope.json",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-suite-capture",
+      "bytes": 669,
+      "sha256": "cdb64e0918e0498052e82f8b922e2888199e10bddf2979460fdda3eb3021e79b"
+    },
+    {
+      "localPath": "m7/suite-attempts/eaf521ce0697999c/acceptance.mjs",
+      "sourcePath": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/completed-m7-suite-eaf521ce0697999c/acceptance.mjs",
+      "sourceArchiveMember": null,
+      "boundary": "m7-live-suite-capture",
+      "bytes": 39215,
+      "sha256": "9c87dc349baf01466eae15579e9da1c66160ff9c842d604c1d8ab3f188a72392"
+    }
+  ]
+}

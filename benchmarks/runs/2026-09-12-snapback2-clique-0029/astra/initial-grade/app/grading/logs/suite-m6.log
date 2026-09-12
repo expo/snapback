@@ -1,0 +1,12 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m6
+
+FAIL offline recipient produces exact text push seam payload AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(row)
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(row)
+

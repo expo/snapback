@@ -1,0 +1,9 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m8
+
+PASS six server totals match all seeded and accepted content
+PASS UTC current day increments and seven days include zeros
+PASS highest liked recent original post ranks first
+PASS old heavily liked post excluded
+PASS equal likes tie breaks newest first

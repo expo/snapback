@@ -1,0 +1,52 @@
+run 0: {"pass":false,"timedOut":true,"ms":30097,"peakHeapMB":446}
+run 1: {"pass":false,"timedOut":true,"ms":30233,"peakHeapMB":465}
+run 2: {"pass":false,"timedOut":true,"ms":30053,"peakHeapMB":448}
+GRADER_RESULT {
+ "rule": "cold-start initial sync of the 100-conversation probe user",
+ "probeTimeoutMs": 30000,
+ "runs": [
+  {
+   "run": 0,
+   "authenticatedMs": 4904,
+   "timedOut": true,
+   "pass": false,
+   "elapsedMs": 30097,
+   "error": "TimeoutError: page.waitForFunction: Timeout 25095.694807ms exceeded.",
+   "chatsRendered": 50,
+   "syncStatusText": "Syncing message history…",
+   "peakHeapBytes": 446071144,
+   "finalHeapBytes": 373718708,
+   "heapSamples": 30,
+   "pageErrors": []
+  },
+  {
+   "run": 1,
+   "authenticatedMs": 1850,
+   "timedOut": true,
+   "pass": false,
+   "elapsedMs": 30233,
+   "error": "TimeoutError: page.waitForFunction: Timeout 28150.05731ms exceeded.",
+   "chatsRendered": 50,
+   "syncStatusText": "Syncing message history…",
+   "peakHeapBytes": 464536332,
+   "finalHeapBytes": 464536332,
+   "heapSamples": 30,
+   "pageErrors": []
+  },
+  {
+   "run": 2,
+   "authenticatedMs": 1868,
+   "timedOut": true,
+   "pass": false,
+   "elapsedMs": 30053,
+   "error": "TimeoutError: page.waitForFunction: Timeout 28131.776504ms exceeded.",
+   "chatsRendered": 50,
+   "syncStatusText": "Syncing message history…",
+   "peakHeapBytes": 448339664,
+   "finalHeapBytes": 448339664,
+   "heapSamples": 30,
+   "pageErrors": []
+  }
+ ],
+ "bestOf3Passed": false
+}

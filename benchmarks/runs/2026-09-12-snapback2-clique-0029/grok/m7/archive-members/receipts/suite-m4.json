@@ -1,0 +1,38 @@
+{
+  "milestone": "m4",
+  "pass": true,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m4-a01",
+      "name": "photo message send",
+      "ok": true,
+      "ms": 236
+    },
+    {
+      "id": "m4-a03",
+      "name": "video message send",
+      "ok": true,
+      "ms": 134
+    },
+    {
+      "id": "m4-a06",
+      "name": "reaction replace",
+      "ok": true,
+      "ms": 109
+    },
+    {
+      "id": "m4-a07",
+      "name": "reaction remove",
+      "ok": true,
+      "ms": 19
+    },
+    {
+      "id": "m4-a09",
+      "name": "edited label via editedAt",
+      "ok": true,
+      "ms": 55
+    }
+  ],
+  "at": "2026-09-12T11:02:52.592Z"
+}
