@@ -1,0 +1,21 @@
+{
+  "source": "cc1112a32cf69d25b01a8d6b1a4f4a426d62f2fe",
+  "started": 1789210559.065161,
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "build.mjs",
+    "--measure-twin"
+  ],
+  "pid": 29606,
+  "childBirth": {
+    "pid": 29606,
+    "started": "Sat Sep 12 03:55:59 2026"
+  },
+  "processGroup": 29606,
+  "childExit": 0,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789210559.281049,
+  "exit": 0
+}

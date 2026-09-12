@@ -1,0 +1,21 @@
+{
+  "ours": "6246c20f1f10f965808ba7488fb090d0735e7052",
+  "main": "b07260d53ad3ec148f2320f085a87327898efabf",
+  "at": 1789210469.887775,
+  "files": {
+    "loop": {
+      "oursRows": 304,
+      "mainRows": 304,
+      "unionRows": 305,
+      "sha256": "ae4ea875d8cd7225905dcd67f13a1b856f0f3d374d5700976b0339a3ef669703"
+    },
+    "twin": {
+      "oursRows": 167,
+      "mainRows": 160,
+      "unionRows": 169,
+      "sha256": "f1980fc923cfc73037828618810bb34de54fb183179391ea6f5511806160fd4c"
+    }
+  },
+  "merged": "cc1112a32cf69d25b01a8d6b1a4f4a426d62f2fe",
+  "ended": 1789210523.252518
+}

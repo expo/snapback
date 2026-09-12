@@ -53,3 +53,25 @@ Darwin qualification with the shared Linux/Darwin shim and publication remain
 pending. New main history and every append-only metric row are preserved.
 
 The [restoration record](deferred-adjacent-proof/RESULT.json) verifies all 1,181 tracked Snapback 2 files outside metrics against `d251e00dae`. Canonical build/self-test passes and the final five-root measurement returns **89,993** bytes. No product tests or independent source reviews are rerun for identical content.
+
+### Source landing after schema-digest reuse
+
+Main then added existing immutable schema-digest reuse in `5fa5726bdc`,
+integrated from fixed parent `b07260d53ad3ec148f2320f085a87327898efabf`.
+The [merge record](merge-b07260d/result.json) preserves both append-only histories
+and both LLP paragraphs. Source merged at `cc1112a32c` retains the adjacent-proof
+deferral and passes the complete evaluator corpus, including the new immutable
+memo controls, maintained-address coverage and primitive helper tests: 266
+shared cases plus the stated server-only exclusions. Its combined runtime is
+**89,983** gzip bytes, 17 below the ceiling; the 80,000 target remains unmet.
+This reuse changes imports, store construction and certificate schema hashing;
+mutable callers and every program identity still rehash. No additional native
+or broad package rerun is warranted for that input.
+
+**Publication stays bound to the immutable `d251e00dae` product artifacts**,
+at 89,993 runtime bytes, which both platforms qualified. The later schema-digest
+reuse on main is outside this package cut. Final Darwin staging imports the
+exact Linux-qualified full-platform shim. Its first invocation refused a local
+receipt whose tarballs had not yet been copied; after transferring and checking
+the two required tarball integrities, canonical qualification was restarted.
+No failed invocation is a passing consumer result.

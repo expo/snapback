@@ -1,0 +1,20 @@
+{
+  "source": "cc1112a32cf69d25b01a8d6b1a4f4a426d62f2fe",
+  "started": 1789210559.2850182,
+  "command": [
+    "bun",
+    "src/test.ts"
+  ],
+  "pid": 29626,
+  "childBirth": {
+    "pid": 29626,
+    "started": "Sat Sep 12 03:55:59 2026"
+  },
+  "processGroup": 29626,
+  "childExit": 0,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789210563.24269,
+  "exit": 0
+}

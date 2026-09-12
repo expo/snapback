@@ -1,0 +1,7 @@
+Auto-merging llp/1018.008.007.002-bounded-bulk-acquisition.plan.md
+CONFLICT (content): Merge conflict in llp/1018.008.007.002-bounded-bulk-acquisition.plan.md
+Auto-merging snapback2/metrics/loop.jsonl
+Auto-merging snapback2/metrics/twin.jsonl
+CONFLICT (content): Merge conflict in snapback2/metrics/twin.jsonl
+Auto-merging snapback2/packages/evaluator/src/store.ts
+Automatic merge failed; fix conflicts and then commit the result.
