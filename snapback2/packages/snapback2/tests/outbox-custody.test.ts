@@ -540,12 +540,12 @@ test("cancelling replay during its trust read preserves the last unspent refusal
 // @ref LLP 1023.002#a--a-small-reproduction-matrix-on-current-source — a
 // configured durable caller must not fall through plain transport before auth.
 test("fresh unbound bearer restoration cannot bypass durable admission after a transport cut", async () => {
-  const carrier = (await carriers())[0]!;
+  const root = await tempRoot(), factory = fileRangeStore(root);
   const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
   const requests: string[] = [];
   const owner = fakeOwner();
   const client = createClient({ url: "http://restoration-custody.test", token: "fresh-bearer",
-    offline: { store: carrier.factory() }, fetch: async (input, init) => {
+    offline: { store: factory }, fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;
       requests.push(path);
       if (path === "/api/auth/me") { entered.resolve(); await release.promise; throw new TypeError("restoration network cut"); }
@@ -561,7 +561,7 @@ test("fresh unbound bearer restoration cannot bypass durable admission after a t
     const result = await mutation;
     assert.equal(result.state, "rejected");
     assert.equal(requests.includes("/api/mutation"), false, "failed restoration cannot turn a configured durable client into a plain client");
-  } finally { release.resolve(); await client.close(); await carrier.cleanup(); }
+  } finally { release.resolve(); await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
 for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage of ["replay", "tail"] as const) {
@@ -614,6 +614,66 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
       assert.equal(store.load(), "token-alice");
       const original = (await client.outbox.entries()).find(entry => entry.intent === interrupted.intent);
       assert.equal(original?.state, "committed", "recovery finds the original identity without submitting fresh bytes");
+      const observed = client.outbox.observe(api.messages.send);
+      const visible = Promise.withResolvers<void>();
+      const unsubscribe = observed.subscribe(() => { if (observed.getWork(interrupted.intent!)?.entry.state === "committed") visible.resolve(); });
+      try { await visible.promise; assert.equal(observed.getWork(interrupted.intent!)?.entry.intent, original?.intent); }
+      finally { unsubscribe(); }
     } finally { await client.close(); }
   });
 }
+
+test("sealing immediately after carrier commit cannot hide the admitted call's identity", async context => {
+  const root = await tempRoot(); context.after(() => rm(root, { recursive: true, force: true }));
+  const factory = fileRangeStore(root); await seededStore(factory);
+  let committedIntent: string | undefined;
+  const wrapped = Object.assign(() => {
+    const store = factory(), commit = store.commit.bind(store);
+    store.commit = async swap => {
+      await commit(swap);
+      const entry = swap.outbox?.put?.find(entry => (entry.args as any)?.body === "seal after commit");
+      if (entry) { committedIntent = entry.intent; await store.seal(); }
+    };
+    return store;
+  }, { carrier: factory.carrier });
+  const client = createClient({ url: "http://commit-seal.test", persona: "alice", fetch: fakeOwner().fetch, offline: { store: wrapped } });
+  try {
+    await client.ready; await client.offline();
+    const result = await client.mutation(api.messages.send as any, post("seal after commit"));
+    assert.ok(committedIntent, "the carrier transaction completed before sealing");
+    assert.equal(result.intent, committedIntent, "successful admission needs no second readable carrier transaction");
+  } finally { await client.close(); }
+});
+
+test("an intentional non-durable bearer client keeps its plain mutation path", async () => {
+  const owner = fakeOwner(), bodies: any[] = [];
+  const client = createClient({ url: "http://plain-custody.test", token: "fresh-bearer", fetch: async (input, init) => {
+    if (String(input).endsWith("/api/mutation")) bodies.push(JSON.parse(String(init?.body)));
+    return owner.fetch(input, init);
+  } });
+  try {
+    const result = await client.mutation(api.messages.send as any, post("intentional plain path"));
+    assert.equal(result.state, "committed"); assert.equal(bodies.length, 1); assert.equal(bodies[0].replay, undefined);
+  } finally { await client.close(); }
+});
+
+test("a seal while an admitted mutation waits reports the carrier lifecycle with its original intent", async context => {
+  const root = await tempRoot(); context.after(() => rm(root, { recursive: true, force: true }));
+  const factory = fileRangeStore(root); await seededStore(factory);
+  const held = capturing(factory), owner = fakeOwner();
+  let intent: string | undefined;
+  const client = createClient({ url: "http://sealed-wait.test", persona: "alice", offline: { store: held.factory }, fetch: async (input, init) => {
+    if (String(input).endsWith("/api/mutation")) {
+      intent = JSON.parse(String(init?.body)).replay.intent;
+      await held.store().seal();
+      return new Response("transport cut after independent expiry", { status: 503 });
+    }
+    return owner.fetch(input, init);
+  } });
+  try {
+    await client.ready;
+    const result = await client.mutation(api.messages.send as any, post("sealed wait"));
+    assert.equal(result.state, "rejected"); assert.equal(result.intent, intent);
+    assert.equal((result as any).code, "E_OFFLINE_LIFECYCLE");
+  } finally { await client.close(); }
+});

@@ -454,7 +454,9 @@ export class OutboxLedger {
         ...(prepared.overlay ? { overlay: { put: { [prepared.entry.intent]: prepared.overlay } } } : {}),
         ...extra?.(prepared.entry, grant!),
       });
-      return (await this.store.outbox.get(prepared.entry.intent)) ?? prepared.entry;
+      // The ledger lock excludes settlement; commit already gave this entry
+      // custody. A second read can be sealed after commit and lose its identity.
+      return structuredClone(prepared.entry);
   }
 
   private async prepareEntry(input: EnqueueInput, grant: OutboxGrant | undefined, bounds: Record<string, number>,

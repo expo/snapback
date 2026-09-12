@@ -130,8 +130,8 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
     let custody = false;
     const admit = async () => {
       const entry = await runtime.outbox.enqueue(
-      { op: options.op, args: options.args, expectedGeneration: options.expectedGeneration, issuedSeq: runtime.seq, presentation: options.presentation },
-      ids => runtime.predict(options.op, options.args, ids),
+        { op: options.op, args: options.args, expectedGeneration: options.expectedGeneration, issuedSeq: runtime.seq, presentation: options.presentation },
+        ids => runtime.predict(options.op, options.args, ids),
         () => { options.onCustody?.("outbox"); custody = true; },
       );
       options.onAdmitted?.(entry.intent);
@@ -157,6 +157,14 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   // acknowledgements continually move the end of the queue ahead of this write.
   const entry = await enqueue();
   const slot = openTerminal(runtime, entry.intent);
+  const ownEntry = async () => {
+    try { return slot.entry ?? await runtime.store.outbox.get(entry.intent); }
+    catch (error) {
+      // Independent session expiry may seal between drain and observation.
+      // Preserve typed refusals and unrelated failures at their own boundaries.
+      throw error instanceof Error && !isRefusalError(error) && /sealed/.test(error.message) ? options.failure(error) : error;
+    }
+  };
   try {
     let stopped: boolean;
     try {
@@ -166,13 +174,13 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
       // this one is durable and reports through its entry.
       // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
       if (isRefusalError(error) && isTerminalSession(error.envelope)) throw error;
-      const own = slot.entry ?? await runtime.store.outbox.get(entry.intent);
+      const own = await ownEntry();
       if (own && own.state !== "queued") return settledResult<Result>(own);
       if (own && !own.refusal && isRefusalError(error)
         && (error.envelope.family === "input" || error.envelope.family === "schema")) return queued(entry);
       throw error;
     }
-    const settled = slot.entry ?? await runtime.store.outbox.get(entry.intent);
+    const settled = await ownEntry();
     // A transport failure mid-drain leaves the intent queued: the retry is the same envelope.
     if (!settled || settled.state === "queued") return queued(entry);
     void stopped;
