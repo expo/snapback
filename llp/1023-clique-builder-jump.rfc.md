@@ -499,3 +499,12 @@ Seven bytes of headroom does not achieve the 80,000 target or the desired
 and independent frozen-wave outcomes remain pending. The
 [0.0.31 evidence](../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/README.md)
 retains every intermediate byte refusal and the actual-parent metric repair.
+
+The later main-only adjacent-proof reuse experiment would make the combined
+runtime 90,012 bytes; one safe simplification still leaves 90,003. This release
+defers that optional experiment and restores its preceding block. Product
+content outside metrics is again exactly `d251e00dae`; all earlier acquisition
+work and raw measurements remain. Linux staging of that content passes all 29
+production installed-consumer checks in 255.66 seconds. Final shared-shim
+Darwin qualification and publication remain pending. The existing acquisition
+plan records the budget trade; no runtime allocation is raised.

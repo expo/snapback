@@ -1,0 +1,53 @@
+{
+  "base": "c6b0e1dca0c53332319a1d912b605e7ba872c2ad",
+  "result": "bounded candidate remains over ceiling; stopped without commit or further measurement",
+  "baselineGzip": 90012,
+  "candidateGzip": 90003,
+  "deltaGzip": -9,
+  "ceiling": 90000,
+  "overCeiling": 3,
+  "candidateMinified": 272446,
+  "candidateSourceSha256": "58981410644340807537d1fe2a0f4d7542a5ef509b1b4a7ff92058bbe7b4c8a9",
+  "candidatePatchSha256": "4a0d4a161e14e626a54db4383b7877b08bc0e2dfcd9c299f016dcb7a38e875e2",
+  "qualification": {
+    "canonicalBuildSelfTest": "PASS",
+    "canonicalFiveRootMeasurement": "FAIL exit1",
+    "storeReviewAndOwnerTests": "NOT RUN: authorized only if candidate fits"
+  },
+  "processes": {
+    "build": {
+      "pid": 36657,
+      "exit": 0,
+      "childReaped": true,
+      "started": 1789209815.499972,
+      "ended": 1789209817.807196
+    },
+    "bytes": {
+      "pid": 36901,
+      "exit": 1,
+      "childReaped": true,
+      "started": 1789209817.807749,
+      "ended": 1789209818.0079172
+    }
+  },
+  "scope": [
+    "snapback2/packages/snapback2/src/store/range-store.ts",
+    "snapback2/metrics/twin.jsonl"
+  ],
+  "limits": [
+    "No ceiling change, authority weakening, further candidate or commit.",
+    "Root baseline90,012 metric row preserved; original root run evidence remains root-owned.",
+    "Canonical dist currently contains90,003 candidate; ownership returned to root.",
+    "Unrelated dirty vendor/llp observed and left untouched."
+  ],
+  "artifacts": {
+    "baseline-row.json": "a9858466d8d29a1253f3942f7a52ebf46b54e02c974cf7ffc721bf635f56418f",
+    "build.json": "b05b5e65e6740f6dc35217108da41dc9d0963714bb644bac2bfe7db013de49aa",
+    "build.log": "9253287c2038c408088ce6380ce00a7eb53e0608a9bc6c127015892228c20f7b",
+    "bytes.json": "c6d5b7a678a22027aa65126289eef691f95f1f51e5d42b9348a7dc17632ebe29",
+    "bytes.log": "0350f1fe89af7656d8cea8c6f1adcfe63a11f0a7d09b4b3d3e6704b90f1b9bb6",
+    "candidate.patch": "4a0d4a161e14e626a54db4383b7877b08bc0e2dfcd9c299f016dcb7a38e875e2",
+    "range-store.before.ts": "96abb7c9c2c219ce02bb90faa15215ba633934868a2a0763747451aac46e3c69",
+    "source.json": "973f593c205642a59c50b6dcdf1e7fbf4de4c3953e82d53e1f18ab35d96198e0"
+  }
+}

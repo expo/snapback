@@ -22,6 +22,34 @@ The complete qualification above predates concurrent acquisition changes on main
 
 The actual merged runtime initially measured 90,042 bytes, exceeding the ceiling. Three bounded simplification rounds in `d251e00dae743cc214fd70dcebb2fedb7341222e` reach **89,993 bytes**, leaving only **seven bytes**. The [retained result](combined-funding/RESULT.json) binds the source, rejected intermediate measurements and final checks: the evaluator differential corpus and primitive/coverage controls, 206 package tests, 23 native tests, package self-test and reference checks all pass. The change shares existing complete-range and primitive value helpers while retaining negative-authority, byte validation and type distinctions. The 80,000 target and the 150-byte headroom aim remain unmet.
 
-Both fresh final source reviews against the actual main parent return READY; the exact texts and tool/model attestation limits are retained in the existing LLP code-review documents. Reviewers inspected source and supplied qualification records; neither independently ran the tests. The prior complete suite, incoming-main qualification and affected combined checks support integration; no new complete-suite or 60-second-loop result is claimed for `d251e00`.
+Both fresh final source reviews against the actual main parent return READY ([exact final packet and audits](final-code-reviews/manifest.json)); the exact texts and tool/model attestation limits are retained in the existing LLP code-review documents. Reviewers inspected source and supplied qualification records; neither independently ran the tests. The prior complete suite, incoming-main qualification and affected combined checks support integration; no new complete-suite or 60-second-loop result is claimed for `d251e00`.
 
 [Darwin staging of the funded source](darwin-funded-initial-process.json) passes all 29 installed-consumer checks with production Hermes and full media in 157.74 seconds. Final shared Linux/Darwin shim qualification and package publication remain pending. No grade, score, native-device success or causal experience improvement is claimed here.
+
+### Later main integration and budget disposition
+
+Main subsequently added adjacent final proof-check reuse in `69d9bcfde7`,
+retained by merge parent `fff6fe112da64136ce77999f465081fdc31d2b1b`.
+The merge has no semantic conflict. The independent integration read found
+no authority incompatibility: only exact retained key/digest pairs are reused
+within one synchronous frame, after extent changes finish. Nevertheless,
+the actual combined runtime is **90,012**; one sound redundant-presence-test
+removal reaches **90,003**, still refusing the unchanged ceiling. A proposed
+single-use temporary removal was inapplicable because the variable has several
+uses; it caused no edit or measurement.
+
+The optional adjacent-check optimization is deferred in this combined release.
+Restoring its preceding block makes every tracked Snapback 2 file outside
+metrics identical to reviewed `d251e00dae`. All earlier acquisition work
+remains, and the existing [acquisition plan](../../../llp/1018.008.007.002-bounded-bulk-acquisition.plan.md)
+records the deferred experiment and its original successful standalone samples.
+This keeps the confirmed correctness repair within the frozen allocation;
+it does not fund the 80,000-byte target. The rejected candidates and metric
+rows remain evidence, not shipped code.
+
+Linux staging of `d251e00dae` passed all 29 production installed-consumer checks
+in 255.66 seconds. Both platform stages now pass on this product content; final
+Darwin qualification with the shared Linux/Darwin shim and publication remain
+pending. New main history and every append-only metric row are preserved.
+
+The [restoration record](deferred-adjacent-proof/RESULT.json) verifies all 1,181 tracked Snapback 2 files outside metrics against `d251e00dae`. Canonical build/self-test passes and the final five-root measurement returns **89,993** bytes. No product tests or independent source reviews are rerun for identical content.

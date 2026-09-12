@@ -1,0 +1,8 @@
+{
+  "base": "c6b0e1dca0c53332319a1d912b605e7ba872c2ad",
+  "beforeSha256": "96abb7c9c2c219ce02bb90faa15215ba633934868a2a0763747451aac46e3c69",
+  "afterSha256": "58981410644340807537d1fe2a0f4d7542a5ef509b1b4a7ff92058bbe7b4c8a9",
+  "patchSha256": "4a0d4a161e14e626a54db4383b7877b08bc0e2dfcd9c299f016dcb7a38e875e2",
+  "baselineMetricFileSha256": "5fe968f76e2a76db3f3bb10d1c8756be88a1fdb7ab5a0d898fe57129f3b9f86c",
+  "proof": "Map.get can collide with an absent key only for undefined. deliveryFacts generates string SHA-256 digests; refresh answerProofs receives JSON-normalized state (undefined object fields omitted) and maps null row proofs to the absence digest. Other JSON malformed digest values remain distinct from undefined and retain the old second-check predicate result. No proof/authority checks change."
+}

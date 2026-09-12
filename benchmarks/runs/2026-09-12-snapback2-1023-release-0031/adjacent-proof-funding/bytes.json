@@ -1,0 +1,16 @@
+{
+  "base": "c6b0e1dca0c53332319a1d912b605e7ba872c2ad",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "build.mjs",
+    "--measure-twin"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/packages/snapback2",
+  "sourceSha256": "58981410644340807537d1fe2a0f4d7542a5ef509b1b4a7ff92058bbe7b4c8a9",
+  "started": 1789209817.807749,
+  "pid": 36901,
+  "exit": 1,
+  "ended": 1789209818.0079172,
+  "childReaped": true,
+  "logSha256": "0350f1fe89af7656d8cea8c6f1adcfe63a11f0a7d09b4b3d3e6704b90f1b9bb6"
+}

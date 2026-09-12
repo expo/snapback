@@ -1,0 +1,17 @@
+{
+  "source": "d251e00dae743cc214fd70dcebb2fedb7341222e",
+  "exit": 0,
+  "seconds": 255.65997409820557,
+  "ended": 1789209630.7603948,
+  "consumerChecks": 29,
+  "consumerVerdict": "pass",
+  "nativeIntegrity": "sha512-JztKQakdlRyFWv8saP5pHNJZ08xsaejFi+F7ZJ821xgHx3IIFrcU/Xdyv2ZihA9DJ3cLj+ZHC7CI93b7YqXEdA==",
+  "shimIntegrity": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ==",
+  "files": {
+    "process.json": "b21f84d17b1dae46f5c14e0f760f96a93bb83cd1349d7b2ab846fe6f7db8afd3",
+    "stage.log": "b7e4c1c6329b2c6897b58e414fb7249dba8788a5d148d7a1644ed0e91474a909",
+    "resume.json": "aa38814e7009995e86388f50320dd11062f14e9616adf13b41bb5aaa4ad5a984"
+  },
+  "originalStageRetained": "/home/ccheever/lanes/blockgraph/snapback2/dist/npm/publish-snapback2-linux-x64-0.0.31",
+  "scope": "d251 source before later adjacent-proof main integration; pending final canonical qualification"
+}

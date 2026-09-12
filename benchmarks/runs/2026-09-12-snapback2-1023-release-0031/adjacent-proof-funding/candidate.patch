@@ -1,0 +1,13 @@
+diff --git a/snapback2/packages/snapback2/src/store/range-store.ts b/snapback2/packages/snapback2/src/store/range-store.ts
+index affc5155fe..0858a4d191 100644
+--- a/snapback2/packages/snapback2/src/store/range-store.ts
++++ b/snapback2/packages/snapback2/src/store/range-store.ts
+@@ -1268,7 +1268,7 @@ export class PersistentRangeStore implements RangeStore {
+       // No extent changes between these passes: retained proofs already passed
+       // the forced-enrollment gate. Unindexed keys still require the second pass.
+       proofs.push(...integrity.check(facts.filter(([key,digest]) => enrolledRows.has(key)
+-        && (!checked.has(key) || checked.get(key) !== digest)),seq,true));
++        && checked.get(key) !== digest),seq,true));
+       const answer = state.answers[owner];
+       if ((proofs.length || extentProofs.has(owner)) && answer?.fingerprint === fingerprint) {
+         const retained = holeProofs.get(owner) ?? new Map(answerProofs(answer));

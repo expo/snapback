@@ -1,0 +1,10 @@
+guide/live-query.md: below 20% headroom; split this topic before expanding it
+guide/offline.md: below 20% headroom; split this topic before expanding it
+guide/testing.md: below 20% headroom; split this topic before expanding it
+guide: 32 cards, 98194/98304 bytes (0% headroom)
+guide validation self-test ok: guide/E_BAD_CAP: Quarry right example does not parse | guide/families.source.json[1]: missing wrong, right | guide/families.source.json: duplicate code E_ONE | guide/oversized.md: exceeds 4 bytes | guide/stale.md: 1 TypeScript snippet(s) not present in the compiler fixtures | guide/invalid-quarry.md: 1 top-level Quarry module snippet(s) do not parse
+client graph self-test ok: 73 sources occur once across 15 entries; 4 declarations occur once across all 18 packaged modules; 5 duplicate mutations refused
+browser: 10 exports execute; web/native constructors, protocol, file/SQLite swaps and clients share identity
+react-native: 10 exports execute; web/native constructors, protocol, file/SQLite swaps and clients share identity
+node: 10 exports execute; web/native constructors, protocol, file/SQLite swaps and clients share identity
+client bundle self-test ok: client, client-runtime, internal and 11 arms share one range store, twin and offline runtime; 3 export conditions execute

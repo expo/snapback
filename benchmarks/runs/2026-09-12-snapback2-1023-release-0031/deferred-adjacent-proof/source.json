@@ -1,0 +1,10 @@
+{
+  "head": "c6b0e1dca0c53332319a1d912b605e7ba872c2ad",
+  "reviewedProduct": "d251e00dae743cc214fd70dcebb2fedb7341222e",
+  "rejectedSourceSha256": "58981410644340807537d1fe2a0f4d7542a5ef509b1b4a7ff92058bbe7b4c8a9",
+  "restoredSourceSha256": "3070abb94093432c21c84822c3dc11c5fbdbf58c117559753dfb5f4dd9512ef6",
+  "trackedSnapback2FilesExcludingMetrics": 1181,
+  "gitDiffExcludingMetricsEmpty": true,
+  "untrackedSnapback2FilesExcludingMetrics": [],
+  "sourceDisposition": "Defer optional main69d9bc proof-reuse optimization; preserve correctness repair and unchanged ceiling. No product tests repeated."
+}

@@ -1264,12 +1264,7 @@ export class PersistentRangeStore implements RangeStore {
     // assertions in this swap. Replay immutable incoming proofs, never pooled bodies.
     for (const frame of applied) {
       const { owner,seq } = frame, facts = frame.facts!, fingerprint = frame.answer!.fingerprint;
-      const proofs = integrity.check(facts, seq), checked = new Map(proofs);
-      // No extent changes between these passes: retained proofs already passed
-      // the forced-enrollment gate. Unindexed keys still require the second pass.
-      proofs.push(...integrity.check(facts.filter(([key,digest]) => enrolledRows.has(key)
-        && (!checked.has(key) || checked.get(key) !== digest)),seq,true));
-      const answer = state.answers[owner];
+      const proofs = [...integrity.check(facts, seq), ...integrity.check(facts.filter(([key]) => enrolledRows.has(key)),seq,true)], answer = state.answers[owner];
       if ((proofs.length || extentProofs.has(owner)) && answer?.fingerprint === fingerprint) {
         const retained = holeProofs.get(owner) ?? new Map(answerProofs(answer));
         for (const [key, digest] of proofs) retained.set(key, digest);

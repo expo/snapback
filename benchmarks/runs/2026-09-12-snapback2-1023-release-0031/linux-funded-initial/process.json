@@ -1,0 +1,33 @@
+{
+  "source": "d251e00dae743cc214fd70dcebb2fedb7341222e",
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "node",
+    "scripts/publish.mjs",
+    "--stage-only",
+    "--platform-artifact",
+    "/home/ccheever/snapback-1023-20260912/coverage-followup/darwin31-funded/resume.json"
+  ],
+  "started": 1789209375.1004207,
+  "cwd": "/home/ccheever/lanes/blockgraph/snapback2",
+  "log": "/home/ccheever/snapback-1023-20260912/coverage-followup/linux-funded31-stage.log",
+  "buildJobs": 8,
+  "withoutEngine": false,
+  "prerequisites": "144 copied files hash-verified; normal EPYC cargo home",
+  "pid": 1058221,
+  "childBirth": {
+    "pid": 1058221,
+    "startTicks": "156829338",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+  },
+  "processGroup": 1058221,
+  "childExit": 0,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789209630.7603948,
+  "exit": 0,
+  "observedRemainingGroupMembers": []
+}

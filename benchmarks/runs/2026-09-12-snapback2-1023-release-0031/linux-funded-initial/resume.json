@@ -1,0 +1,303 @@
+{
+  "name": "snapback2-linux-x64",
+  "version": "0.0.31",
+  "bin": "/home/ccheever/lanes/blockgraph/snapback2/target/hermes/production/snapback2",
+  "mediaBin": "/home/ccheever/lanes/blockgraph/snapback2/target/production/snapback2-media",
+  "mediaBytes": 3922216,
+  "withoutEngine": false,
+  "withoutEngineBytes": 6836376,
+  "withEngineBytes": 47918328,
+  "platformQualifications": {
+    "snapback2-darwin-arm64": {
+      "format": 1,
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.31",
+      "integrity": "sha512-EaV22pnqRbIoLT92JQDt8o4H50eq1b7Fl+7soB7ffjmYr70cC+MO9C99WUjinFjgK9mZj+7ckmw93SbGzJswHw==",
+      "shimIntegrity": "sha512-UiOUknzXVjbMfhIVIPf4FGuDTGP+rQwhTu0zjTBwL1d26mvBolHTzbITPqz0nWlcSFzeIXAyhc41KGoW8T+QVw==",
+      "mediaDigest": "0d57cb7c510500b1f2acb5c2a49e67415c4f878098cbb04c41b9f5ed15290805",
+      "host": {
+        "platform": "darwin",
+        "arch": "arm64"
+      },
+      "consumer": {
+        "verdict": "pass",
+        "steps": [
+          {
+            "name": "install tarballs",
+            "ok": true
+          },
+          {
+            "name": "platform README guidance",
+            "ok": true
+          },
+          {
+            "name": "doctor",
+            "ok": true
+          },
+          {
+            "name": "guide auth",
+            "ok": true
+          },
+          {
+            "name": "public client and React exports",
+            "ok": true
+          },
+          {
+            "name": "todos init",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev public-wrapper recovery",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev recovery stop",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev owner+worker cleanup",
+            "ok": true
+          },
+          {
+            "name": "todos check",
+            "ok": true
+          },
+          {
+            "name": "todos React bundle",
+            "ok": true
+          },
+          {
+            "name": "todos dev",
+            "ok": true
+          },
+          {
+            "name": "React live query round trip",
+            "ok": true
+          },
+          {
+            "name": "todos receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "todos test",
+            "ok": true
+          },
+          {
+            "name": "todos stop",
+            "ok": true
+          },
+          {
+            "name": "chat init",
+            "ok": true
+          },
+          {
+            "name": "chat check",
+            "ok": true
+          },
+          {
+            "name": "chat React bundle",
+            "ok": true
+          },
+          {
+            "name": "chat dev",
+            "ok": true
+          },
+          {
+            "name": "chat receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "chat test",
+            "ok": true
+          },
+          {
+            "name": "chat stop",
+            "ok": true
+          }
+        ]
+      }
+    },
+    "snapback2-linux-x64": {
+      "format": 1,
+      "name": "snapback2-linux-x64",
+      "version": "0.0.31",
+      "integrity": "sha512-JztKQakdlRyFWv8saP5pHNJZ08xsaejFi+F7ZJ821xgHx3IIFrcU/Xdyv2ZihA9DJ3cLj+ZHC7CI93b7YqXEdA==",
+      "shimIntegrity": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ==",
+      "mediaDigest": "5ce3e5799d804fa7c205678fb993e115f1198f28b0eab531d08a3a80cfecb4f0",
+      "host": {
+        "platform": "linux",
+        "arch": "x64"
+      },
+      "consumer": {
+        "verdict": "pass",
+        "steps": [
+          {
+            "name": "install tarballs",
+            "ok": true
+          },
+          {
+            "name": "platform README guidance",
+            "ok": true
+          },
+          {
+            "name": "doctor",
+            "ok": true
+          },
+          {
+            "name": "guide auth",
+            "ok": true
+          },
+          {
+            "name": "public client and React exports",
+            "ok": true
+          },
+          {
+            "name": "todos init",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary check missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-compiler guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev missing-node guidance",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev public-wrapper recovery",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev recovery stop",
+            "ok": true
+          },
+          {
+            "name": "raw binary default detached dev owner+worker cleanup",
+            "ok": true
+          },
+          {
+            "name": "todos check",
+            "ok": true
+          },
+          {
+            "name": "todos React bundle",
+            "ok": true
+          },
+          {
+            "name": "todos dev",
+            "ok": true
+          },
+          {
+            "name": "React live query round trip",
+            "ok": true
+          },
+          {
+            "name": "todos receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "todos test",
+            "ok": true
+          },
+          {
+            "name": "todos stop",
+            "ok": true
+          },
+          {
+            "name": "chat init",
+            "ok": true
+          },
+          {
+            "name": "chat check",
+            "ok": true
+          },
+          {
+            "name": "chat React bundle",
+            "ok": true
+          },
+          {
+            "name": "chat dev",
+            "ok": true
+          },
+          {
+            "name": "chat receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "chat test",
+            "ok": true
+          },
+          {
+            "name": "chat stop",
+            "ok": true
+          }
+        ]
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "name": "snapback2-linux-x64",
+      "version": "0.0.31",
+      "tarball": "/home/ccheever/lanes/blockgraph/snapback2/dist/npm/publish-snapback2-linux-x64-0.0.31/snapback2-linux-x64-0.0.31.tgz",
+      "integrity": "sha512-JztKQakdlRyFWv8saP5pHNJZ08xsaejFi+F7ZJ821xgHx3IIFrcU/Xdyv2ZihA9DJ3cLj+ZHC7CI93b7YqXEdA=="
+    },
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.31",
+      "tarball": "/home/ccheever/lanes/blockgraph/snapback2/dist/npm/publish-snapback2-linux-x64-0.0.31/snapback2-darwin-arm64-0.0.31.tgz",
+      "integrity": "sha512-EaV22pnqRbIoLT92JQDt8o4H50eq1b7Fl+7soB7ffjmYr70cC+MO9C99WUjinFjgK9mZj+7ckmw93SbGzJswHw=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.31",
+      "tarball": "/home/ccheever/lanes/blockgraph/snapback2/dist/npm/publish-snapback2-linux-x64-0.0.31/snapback2-0.0.31.tgz",
+      "integrity": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ=="
+    }
+  ],
+  "mediaDigest": "5ce3e5799d804fa7c205678fb993e115f1198f28b0eab531d08a3a80cfecb4f0"
+}

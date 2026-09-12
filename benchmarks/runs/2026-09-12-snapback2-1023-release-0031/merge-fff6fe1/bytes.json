@@ -1,0 +1,27 @@
+{
+  "source": "c6b0e1dca0c53332319a1d912b605e7ba872c2ad",
+  "started": 1789209638.459668,
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "build.mjs",
+    "--measure-twin"
+  ],
+  "pid": 12690,
+  "childBirth": {
+    "pid": 12690,
+    "started": "Sat Sep 12 03:40:38 2026"
+  },
+  "processGroup": 12690,
+  "cleanup": {
+    "directChildPid": 12690,
+    "signals": [],
+    "observedRemainingGroupMembers": [],
+    "unresolved": false
+  },
+  "childExit": 1,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789209638.7808828,
+  "exit": 1
+}

@@ -1,0 +1,24 @@
+{
+  "ours": "9c476602c632a4bc6fd4f77f2c9a6c274e72fc71",
+  "main": "fff6fe112da64136ce77999f465081fdc31d2b1b",
+  "started": 1789209579.749695,
+  "mergeExit": 0,
+  "conflicts": [],
+  "files": {
+    "loop": {
+      "oursRows": 303,
+      "mainRows": 303,
+      "unionRows": 304,
+      "addedMainRows": 1,
+      "sha256": "e323ed763ff752738e5b945fe3c239a5529c05f6f38b0a19b7e9587b846a401f"
+    },
+    "twin": {
+      "oursRows": 163,
+      "mainRows": 158,
+      "unionRows": 164,
+      "addedMainRows": 1,
+      "sha256": "95bed288137d0ec7e052020ac4a6320a1d1a2f7e3c4d521dbedd4916e502dc35"
+    }
+  },
+  "merged": "c6b0e1dca0c53332319a1d912b605e7ba872c2ad"
+}
