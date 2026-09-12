@@ -1,0 +1,143 @@
+//! Rule evaluation and the static facts about it that the engine hoists: a
+//! rule that is proven true by the scanned prefix (`decided_true`) costs no
+//! probes; a rule whose every field is pinned by the prefix (`uniform`) is
+//! decided once for the whole range. Copied from Snapback 2's uniformity
+//! analysis (LLP 2000.000 §5.1); the certificate that priced these is gone,
+//! the analysis is not.
+
+use crate::ir::{Expr, IndexKeyExpr, Input, Scan};
+use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema, Table};
+use crate::value::Value;
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Visibility {
+    /// One verdict serves every row of the scanned prefix.
+    pub uniform: bool,
+    /// That verdict is `true` before any row is read.
+    pub decided_true: bool,
+}
+
+pub fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
+    let Some(table) = schema.table(&scan.table) else { return Visibility::default() };
+    let Some(index) = table.index(&scan.index) else { return Visibility::default() };
+    let pinned: BTreeMap<&String, &Expr> = index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| component.column().zip(key.scalar())).collect();
+    prefix_visibility(&scan.table, table, &table.rules.read, &pinned)
+}
+
+/// The same analysis for an arbitrary pinned prefix (`sync` audiences and
+/// merge lanes use it too).
+pub fn prefix_visibility(table_name: &str, table: &Table, rule: &RuleExpr, pinned: &BTreeMap<&String, &Expr>) -> Visibility {
+    let decided_true = rule_true(rule, table_name, table, pinned);
+    let mut used = BTreeSet::new();
+    rule.fields(&mut used);
+    Visibility { uniform: decided_true || used.iter().all(|field| pinned.contains_key(field)), decided_true }
+}
+
+fn pinned_term(term: &RuleTerm, expression: &Expr) -> bool {
+    match (term, expression) {
+        (RuleTerm::Viewer, Expr::Input(Input::Viewer)) => true,
+        (RuleTerm::Literal(left), Expr::Literal(right)) => left == right,
+        _ => false,
+    }
+}
+
+fn rule_true(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> bool {
+    match rule {
+        RuleExpr::Allow | RuleExpr::Public { .. } => true,
+        RuleExpr::Eq(left, right) => [(left, right), (right, left)].iter().any(|(field, value)| {
+            let RuleTerm::Field(column) = field else { return false };
+            pinned.get(column).is_some_and(|expression| pinned_term(value, expression))
+        }),
+        RuleExpr::Or(rules) => rules.iter().any(|rule| rule_true(rule, table_name, table, pinned)),
+        RuleExpr::And(rules) => !rules.is_empty() && rules.iter().all(|rule| rule_true(rule, table_name, table, pinned)),
+        RuleExpr::Exists { table: target, index, key, .. } if target == table_name => {
+            // A self-probe on a total unique key whose every component is
+            // either the row's own column or pinned to the probing value is
+            // true for every row the prefix selects.
+            let Some(index) = table.index(index) else { return false };
+            index.unique
+                && index.is_plain()
+                && !key.is_empty()
+                && key.len() == index.components.len()
+                && index.columns().iter().zip(key).all(|(column, term)| {
+                    table.columns.get(column).is_some_and(|ty| !matches!(ty, ColumnType::Optional(_)))
+                        && match term {
+                            RuleTerm::Field(field) => field == column,
+                            _ => pinned.get(column).is_some_and(|expression| pinned_term(term, expression)),
+                        }
+                })
+        }
+        _ => false,
+    }
+}
+
+/// The prefix expressions of a scan as `IndexKeyExpr`s, for callers that
+/// pin values rather than expressions.
+pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
+    prefix.iter().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value.clone()))).collect()
+}
+
+/// Something that can answer an `exists`/`created` probe while a rule runs.
+pub trait Probe {
+    fn exists(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, crate::error::RuntimeError>;
+    fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool;
+}
+
+/// Evaluate a rule over a row image (and its old image, for update rules).
+pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<bool, crate::error::RuntimeError> {
+    match rule {
+        RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
+        RuleExpr::Deny => Ok(false),
+        RuleExpr::Eq(left, right) => Ok(term(left, viewer, old, next)? == term(right, viewer, old, next)?),
+        RuleExpr::Ne(left, right) => Ok(term(left, viewer, old, next)? != term(right, viewer, old, next)?),
+        RuleExpr::And(rules) => {
+            for rule in rules {
+                if !evaluate(rule, viewer, old, next, created_allowed, probe)? {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        }
+        RuleExpr::Or(rules) => {
+            for rule in rules {
+                if evaluate(rule, viewer, old, next, created_allowed, probe)? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+        RuleExpr::Not(rule) => Ok(!evaluate(rule, viewer, old, next, created_allowed, probe)?),
+        RuleExpr::Exists { table, index, key, .. } => {
+            let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
+            probe.exists(table, index, &key)
+        }
+        RuleExpr::Created { table, index, key, .. } => {
+            if !created_allowed {
+                return Err(crate::error::RuntimeError::Schema("created probes are valid only in insert rules".into()));
+            }
+            let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
+            Ok(probe.created(table, index, &key))
+        }
+    }
+}
+
+fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value) -> Result<Value, crate::error::RuntimeError> {
+    Ok(match term {
+        RuleTerm::Field(field) | RuleTerm::NextField(field) => next.field(field).cloned().unwrap_or(Value::Null),
+        RuleTerm::OldField(field) => old.and_then(|old| old.field(field).ok()).cloned().unwrap_or(Value::Null),
+        RuleTerm::Viewer => Value::Id(viewer.to_owned()),
+        RuleTerm::Literal(value) => value.clone(),
+    })
+}
+
+/// A rule's probe sites, as `(table, index)`: what a rule reads besides the
+/// row, for live subscriptions and the partition audience.
+pub fn probe_sites(rule: &RuleExpr, out: &mut Vec<(String, String)>) {
+    match rule {
+        RuleExpr::Exists { table, index, .. } | RuleExpr::Created { table, index, .. } => out.push((table.clone(), index.clone())),
+        RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().for_each(|item| probe_sites(item, out)),
+        RuleExpr::Not(inner) => probe_sites(inner, out),
+        _ => {}
+    }
+}

@@ -1,0 +1,309 @@
+//! Writes: the four words, their rules, the constraints (unique, cap,
+//! immutable, append-only, after-insert), maintained aggregates, and the
+//! partition events every row change produces.
+
+use super::runner::Runner;
+use super::validate::validate_row;
+use crate::error::{MeterKind, RuntimeError};
+use crate::partition;
+use crate::schema::{Constraint, Effect, Maintain, MaintainKind, materialize_optional_fields, maintained_key};
+use crate::store::index_values;
+use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json};
+use std::collections::BTreeMap;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Origin {
+    Source,
+    Maintained,
+}
+
+impl Runner<'_> {
+    pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
+        self.insert_mode(table, row, false).map(|_| ())
+    }
+
+    pub(super) fn insert_if_absent(&mut self, table: &str, row: Value) -> Result<bool, RuntimeError> {
+        self.insert_mode(table, row, true)
+    }
+
+    fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+        self.refuse_engine_owned(table_name)?;
+        validate_row(self.schema, table_name, &row)?;
+        if !self.check_rule(table_name, Effect::Insert, None, &row)? {
+            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
+        }
+        let table = self.schema.table(table_name).expect("validated").clone();
+        if if_absent {
+            for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+                let key = index_values(index, &row);
+                if self.tx.lookup(table_name, name, index, &key)?.is_some() {
+                    return Ok(false);
+                }
+            }
+        }
+        let id = row.field("id")?.as_str()?.to_owned();
+        if self.tx.get(table_name, &id)?.is_some() {
+            return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
+        }
+        self.check_constraints(table_name, None, &row, Effect::Insert)?;
+        let entries = self.tx.put(table_name, &table, &row, None)?;
+        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        self.row_changed(table_name, None, Some(&row), Origin::Source)?;
+        Ok(true)
+    }
+
+    pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+        self.refuse_engine_owned(table_name)?;
+        if patch.as_object()?.contains_key("id") {
+            return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
+        }
+        let id = key.as_str()?;
+        let Some(old) = self.fetch(table_name, id)? else {
+            return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
+        };
+        let mut new = old.as_object()?.clone();
+        for (name, value) in patch.as_object()? {
+            new.insert(name.clone(), value.clone());
+        }
+        self.replace(table_name, old, Value::Row(new.into()))
+    }
+
+    pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+        self.refuse_engine_owned(table_name)?;
+        validate_row(self.schema, table_name, &row)?;
+        let id = key.as_str()?;
+        if row.field("id")?.as_str()? != id {
+            return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
+        }
+        match self.fetch(table_name, id)? {
+            Some(old) => self.replace(table_name, old, row),
+            None => self.insert(table_name, row),
+        }
+    }
+
+    fn replace(&mut self, table_name: &str, old: Value, new: Value) -> Result<(), RuntimeError> {
+        validate_row(self.schema, table_name, &new)?;
+        if !self.check_rule(table_name, Effect::Update, Some(&old), &new)? {
+            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Update });
+        }
+        self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
+        let table = self.schema.table(table_name).expect("validated").clone();
+        let entries = self.tx.put(table_name, &table, &new, Some(&old))?;
+        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        self.row_changed(table_name, Some(&old), Some(&new), Origin::Source)
+    }
+
+    pub(super) fn delete(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
+        self.refuse_engine_owned(table_name)?;
+        let Some(old) = self.fetch(table_name, id)? else {
+            return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
+        };
+        if !self.check_rule(table_name, Effect::Delete, None, &old)? {
+            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete });
+        }
+        self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
+        let table = self.schema.table(table_name).expect("validated").clone();
+        let entries = self.tx.delete(table_name, &table, &old)?;
+        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        self.row_changed(table_name, Some(&old), None, Origin::Source)
+    }
+
+    /// Programs never write a maintained target; the engine does.
+    fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
+        if self.schema.maintain_for(table).is_some() {
+            return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
+        }
+        Ok(())
+    }
+
+    fn check_constraints(&mut self, table_name: &str, old: Option<&Value>, new: &Value, effect: Effect) -> Result<(), RuntimeError> {
+        let table = self.schema.table(table_name).expect("validated").clone();
+        let id = new.field("id")?.as_str()?.to_owned();
+        if effect != Effect::Delete {
+            for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+                let key = index_values(index, new);
+                if key.iter().any(|value| *value == Value::Null) {
+                    continue;
+                }
+                if let Some(existing) = self.tx.lookup(table_name, name, index, &key)?
+                    && existing.field("id")?.as_str()? != id
+                {
+                    return Err(RuntimeError::Constraint(format!("{table_name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
+                }
+            }
+        }
+        for constraint in &table.constraints {
+            match constraint {
+                Constraint::Unique { .. } | Constraint::Text { .. } | Constraint::FinalExistsOnInsert { .. } => {}
+                Constraint::AppendOnly => {
+                    if effect != Effect::Insert {
+                        return Err(RuntimeError::Constraint(format!("{table_name} is append-only")));
+                    }
+                }
+                Constraint::Immutable { fields } => {
+                    if let Some(old) = old
+                        && effect == Effect::Update
+                    {
+                        let mut old_image = old.clone();
+                        materialize_optional_fields(&mut old_image, &table);
+                        let mut new_image = new.clone();
+                        materialize_optional_fields(&mut new_image, &table);
+                        for field in fields {
+                            if old_image.field(field).ok() != new_image.field(field).ok() {
+                                return Err(RuntimeError::Constraint(format!("{table_name}.{field} is immutable")));
+                            }
+                        }
+                    }
+                }
+                Constraint::Cap { by, max } => {
+                    if effect == Effect::Delete {
+                        continue;
+                    }
+                    let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
+                    let moved = old.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
+                    if !moved {
+                        continue;
+                    }
+                    let index_name = table.indexes.iter().find(|(_, index)| index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
+                    self.meter.charge(MeterKind::IndexEntries, 1)?;
+                    let count = self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?;
+                    if count >= *max as u64 {
+                        return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows where {} = {}", by.join(", "), group.iter().map(describe).collect::<Vec<_>>().join(", "))));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// `after insert <- exists t[...]` holds for every row inserted this
+    /// transaction; checked once the program has run.
+    pub(super) fn check_final_exists(&mut self) -> Result<(), RuntimeError> {
+        let inserted = std::mem::take(&mut self.inserted);
+        for (table_name, row) in &inserted {
+            let table = self.schema.table(table_name).expect("validated").clone();
+            for constraint in &table.constraints {
+                let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue };
+                let key: Vec<Value> = key
+                    .iter()
+                    .map(|term| match term {
+                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => row.field(field).cloned().unwrap_or(Value::Null),
+                        crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
+                        crate::schema::RuleTerm::Literal(value) => value.clone(),
+                        crate::schema::RuleTerm::OldField(_) => Value::Null,
+                    })
+                    .collect();
+                let target_index = self.schema.table(target).and_then(|t| t.index(index)).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
+                if self.tx.lookup(target, index, target_index, &key)?.is_none() {
+                    return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
+                }
+            }
+        }
+        self.inserted = inserted;
+        Ok(())
+    }
+
+    /// The shared tail of every physical row change: creation facts, the
+    /// write meter, maintained aggregates, and the partition events.
+    fn row_changed(&mut self, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
+        self.written_tables.insert(table_name.to_owned());
+        self.rows_written += 1;
+        self.meter.charge(MeterKind::RowsWritten, 1)?;
+        let table = self.schema.table(table_name).expect("validated").clone();
+        match (old, new) {
+            (None, Some(row)) => {
+                for (name, index) in &table.indexes {
+                    self.created.insert((table_name.to_owned(), name.clone(), canonical_json(&index_values(index, row))));
+                }
+                self.inserted.push((table_name.to_owned(), row.clone()));
+            }
+            (Some(old), Some(row)) => {
+                let id = old.field("id")?.as_str()?.to_owned();
+                self.created.retain(|(t, _, _)| t != table_name || !self.inserted.iter().any(|(it, ir)| it == table_name && ir.field("id").ok().and_then(|v| v.as_str().ok()) == Some(id.as_str())));
+                for (name, index) in &table.indexes {
+                    if self.inserted.iter().any(|(it, ir)| it == table_name && ir.field("id").ok().and_then(|v| v.as_str().ok()) == Some(id.as_str())) {
+                        self.created.insert((table_name.to_owned(), name.clone(), canonical_json(&index_values(index, row))));
+                    }
+                }
+            }
+            _ => {}
+        }
+        partition::row_changed(self, table_name, old, new)?;
+        if origin == Origin::Source {
+            self.maintain(table_name, old, new)?;
+        }
+        Ok(())
+    }
+
+    fn maintain(&mut self, source: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+        let maintains: Vec<Maintain> = self.schema.maintains.iter().filter(|maintain| maintain.source == source).cloned().collect();
+        for maintain in maintains {
+            let table = self.schema.table(&maintain.source).expect("validated").clone();
+            let mut changes: Vec<(Vec<Value>, i128)> = Vec::new();
+            if let Some(old) = old {
+                let mut image = old.clone();
+                materialize_optional_fields(&mut image, &table);
+                let key = maintained_key(&image, &maintain.by);
+                changes.push((key, delta(&maintain, &image, -1)?));
+            }
+            if let Some(new) = new {
+                let mut image = new.clone();
+                materialize_optional_fields(&mut image, &table);
+                let key = maintained_key(&image, &maintain.by);
+                let change = delta(&maintain, &image, 1)?;
+                if let Some(existing) = changes.iter_mut().find(|(k, _)| *k == key) {
+                    existing.1 += change;
+                } else {
+                    changes.push((key, change));
+                }
+            }
+            for (key, change) in changes {
+                if change != 0 {
+                    self.apply_aggregate(&maintain, key, change)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128) -> Result<(), RuntimeError> {
+        let id = canonical_json(&key);
+        let target = self.schema.table(&maintain.target).expect("validated").clone();
+        let existing = self.tx.get(&maintain.target, &id)?;
+        let old_value = existing.as_ref().and_then(|row| row.field("value").ok()).map(Value::as_int).transpose()?.unwrap_or(0);
+        let next = i128::from(old_value) + change;
+        if !(I53_MIN as i128..=I53_MAX as i128).contains(&next) {
+            return Err(ValueError::Overflow(next).into());
+        }
+        if next == 0 {
+            if let Some(existing) = existing {
+                let entries = self.tx.delete(&maintain.target, &target, &existing)?;
+                self.meter.charge(MeterKind::IndexEntries, entries)?;
+                self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
+            }
+            return Ok(());
+        }
+        let mut row = BTreeMap::from([("id".to_owned(), Value::Id(id.clone())), ("value".to_owned(), Value::Int(next as i64))]);
+        for (field, value) in maintain.by.iter().zip(key) {
+            row.insert(field.clone(), value);
+        }
+        let row = Value::Row(row.into());
+        let entries = self.tx.put(&maintain.target, &target, &row, existing.as_ref())?;
+        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        self.row_changed(&maintain.target, existing.as_ref(), Some(&row), Origin::Maintained)
+    }
+}
+
+fn delta(maintain: &Maintain, source: &Value, direction: i64) -> Result<i128, RuntimeError> {
+    Ok(match &maintain.kind {
+        MaintainKind::Count => i128::from(direction),
+        MaintainKind::Sum { of } => i128::from(direction).checked_mul(i128::from(source.field(of)?.as_int()?)).ok_or_else(|| RuntimeError::Constraint("aggregate multiplication overflow".to_owned()))?,
+    })
+}
+
+fn describe(value: &Value) -> String {
+    match value {
+        Value::String(s) | Value::Id(s) => format!("'{s}'"),
+        other => canonical_json(other),
+    }
+}
