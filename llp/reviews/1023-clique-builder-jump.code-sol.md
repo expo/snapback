@@ -97,3 +97,29 @@ No material integration defect found.
 Non-material wording hypothesis: “`(at,id)` scalar order” applies specifically to each fixed-conversation message lane, not the `searchScopes` cursor. The installed recipe makes that explicit, so this does not warrant MATERIAL.
 
 This is a manual review of the supplied integration only. I did not run tests or treat the still-running combined script, historical byte-growth failure, digest gap, or unlaunched benchmark as evidence.
+
+## Rule diagnostic follow-up — 0.0.31
+
+Received 2026-09-12 from a fresh Codex CLI session requested as `gpt-5.6-sol xhigh`. The reviews received the same fixed source/diff evidence in separate empty contexts. No tool events were observed; the reviewer ran no tests. Raw streams and process records are retained under `/Users/ccheever/projects/snapback-1023-20260912/rule-diagnostic-repair/`.
+
+### Round 1 — adc641a107
+
+Prompt SHA-256: `637b2df4f050577f88c77e1669b44d6e88701b844553432231f6ffa8570ca555`. Raw response SHA-256: `da7a7f95428b258acb4e478645e1e203f6ea0f72238f489c1680c42c846c0041`.
+
+MATERIAL
+
+- [bound-schema.ts lines 324–326]: `context.effect === "read"` treats every other context as a write rule. Channel `publish`/`subscribe` expressions call `bindRuleExpr` with `effect` unset (lines 213–221), so an unsupported comparison still advises moving it into a mutation `require`. For `subscribe`, that cannot enforce read authorization; for `publish`, it does not enforce channel authorization. Smallest correction: give mutation guidance only for `insert | update | delete`; use the no-automatic-rewrite guidance for `read` and unset/non-write contexts. Add comparison coverage for channel publish/subscribe.
+
+I did not run tests. The supplied table-rule coverage and scoped documentation otherwise match the stated change, and they do not claim benchmark success.
+
+### Round 2 — 237f6575f6
+
+Prompt SHA-256: `e1177881f9e99851f5ad669db0b38b8eab2e3730bb1b1e11d9f5a7df15bcf9fd`. Raw response SHA-256: `e37a57ca6bd338391a6093fe2dbc83ce55c80e969a8239809e4ded4459093a27`.
+
+READY — no material findings in the supplied diff.
+
+The change preserves unsupported-language refusal and diagnostic identity, restricts mutation guidance to insert/update/delete, gives authorization-safe guidance for read and channel contexts, and provides meaningful operator/effect boundary coverage. Documentation remains appropriately scoped and makes no benchmark or publication claim for this patch.
+
+Review was limited to the inline evidence; I did not run tests. The reported full-script failure and pending frozen benchmark remain external qualification caveats.
+
+Disposition: the material channel-rule finding was accepted and fixed at `237f6575f6`; mutation advice now requires an insert/update/delete effect, and existing diagnostics cover both channel positions. Round 2 leaves no material finding.

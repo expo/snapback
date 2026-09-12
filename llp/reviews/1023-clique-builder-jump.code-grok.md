@@ -78,3 +78,35 @@ Session: `01a093f1-b3a2-7a70-a9ae-30fb5b951a2d`; exit 0.
 No material findings.
 
 **Limits, verbatim:** Review is of the supplied fanout.md/merge.md integration text against the supplied fixture Q, installed recipe, and stated program facts only. No tools, checkouts, compiler, generated-client types, builds, network, or 4a4249 walk; did not re-open cee80bc1 source, runtime-test the pager, or launch digest/fresh-benchmark work. Main first-use/diagnostics survival is judged from the reconciled files as given (named-or-positional lanes; system reads bypass rule capping, not execution limits) plus the 1023 global/grouped split. Fixture Q matches the inlined forms; semantic compile is by that match and reported guide 98178/98304, not a run in this review. Historical 0.0.25 Clique timings, red 1% byte-growth, unchanged baseline, digest gap, and unlaunched fresh benchmark stay explicit and out of scope.
+
+## Rule diagnostic follow-up — 0.0.31
+
+Received 2026-09-12 from a fresh Grok CLI session requested as `grok-4.6 xhigh`, returned model `grok-4.6`. The reviews received the same fixed source/diff evidence in separate empty contexts. No tool events were observed; the reviewer ran no tests. Raw streams and process records are retained under `/Users/ccheever/projects/snapback-1023-20260912/rule-diagnostic-repair/`.
+
+### Round 1 — adc641a107
+
+Prompt SHA-256: `637b2df4f050577f88c77e1669b44d6e88701b844553432231f6ffa8570ca555`. Raw response SHA-256: `68c910b70602245ee59f81b09f03dea803672040837a1a404fc1af33bb96354b`.
+
+**READY**
+
+No material findings in this delta.
+
+The binder still refuses `<` `<=` `>` `>=`. Repair text now splits on `context.effect === "read"`: read rules no longer recommend a mutation `require`; insert/update/delete keep the previous require wording. Refusal code, family, and site are unchanged. Supported `=` / `!=` rules and mutation `require` comparisons are untouched. The new checks cover all four operators × all four table effects, plus a supported ownership read and a write `require` that still lowers.
+
+Parent/child LLP text matches the stated 0.0.30 digest baseline, unmet byte target, frozen 0.0.29 Clique wave, and source-only qualification. Version files are 0.0.31 preparation, not a publication or Clique claim.
+
+Not material: channel publish/subscribe still have no `effect`, so they still get the write require sentence (pre-existing, outside the commissioned read/write matrix). Author-reported 85/85, typecheck, and 319/319 were not rerun here; the integrated full script and the frozen 0.0.29 benchmark remain unclaimed.
+
+### Round 2 — 237f6575f6
+
+Prompt SHA-256: `e1177881f9e99851f5ad669db0b38b8eab2e3730bb1b1e11d9f5a7df15bcf9fd`. Raw response SHA-256: `b0192ceeceae0ad6ec018109966d7b8074a731433c5290743efd09d17f5377cf`.
+
+**READY**
+
+No material findings. Unsupported `<` `<=` `>` `>=` still refuse with the same code, family, and authored site. Mutation-precondition text is only emitted when `context.effect` is `insert`/`update`/`delete`. Read rules and channel publish/subscribe (unset `effect`) get authorization-preserving text that points at `guide rules` and rejects an automatic `require` rewrite. Supported `=`/`!=` rules and mutation `require` lowering are unchanged.
+
+Table tests cover all four operators across read/insert/update/delete, including the nested nullable-expiry shape and a supported ownership-read plus write-`Require` contrast. Channel tests cover all four operators in both publish and subscribe, including refusal identity and the old mutation-require phrase staying absent. Version `0.0.31` prep and the 0.0.30 digest reconciliation in the parent/child LLPs match the stated scope and do not claim Clique, the 80k-byte target, or the frozen 0.0.29 wave.
+
+I did not run tests. Author-reported 86/86 scoped, typecheck, and 321/321 compiler results are not independently verified here. Optional wording only: the new read/channel text does not say some bounds have no supported equivalent; write-rule `require` advice is the retained pre-existing string, not a new authorization hole introduced by this delta.
+
+Disposition: round 1 treated the inherited channel wording as outside its requested table-rule scope. The integrator independently selected the narrow channel correction after the other actual review; round 2 reviews that completed scope. No finding or test execution is attributed beyond the received text above.
