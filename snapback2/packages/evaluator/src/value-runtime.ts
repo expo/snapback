@@ -127,11 +127,13 @@ export function safeNumber(value: number): number {
 }
 
 export function totalCompare(left: Value, right: Value): number {
-  const order = ["Null", "Bool", "Int", "String", "Id", "Bytes", "Row", "Array", "Map"];
   const leftKind = kindOf(left);
   const rightKind = kindOf(right);
-  const tag = order.indexOf(leftKind) - order.indexOf(rightKind);
-  if (tag !== 0) return Math.sign(tag);
+  if (leftKind !== rightKind) {
+    const order = ["Null", "Bool", "Int", "String", "Id", "Bytes", "Row", "Array", "Map"];
+    const tag = order.indexOf(leftKind) - order.indexOf(rightKind);
+    if (tag !== 0) return Math.sign(tag);
+  }
   if (leftKind === "Null") return 0;
   const leftData = (left as any)[leftKind];
   const rightData = (right as any)[rightKind];
