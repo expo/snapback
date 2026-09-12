@@ -12,6 +12,11 @@ import shutil
 import socket
 import subprocess
 import tempfile
+import threading
+import time
+import urllib.error
+import urllib.request
+import urllib.parse
 from contextlib import contextmanager
 from errno import EACCES, EADDRINUSE
 from pathlib import Path
@@ -23,10 +28,291 @@ LINUX_PATH_PREFIX = "/home/ccheever/.cargo/bin:/home/ccheever/.bun/bin:/home/cch
 CLIENT_URL_ENVIRONMENT_VARIABLES = ("EXPO_PUBLIC_SNAPBACK_URL", "VITE_SNAPBACK_URL")
 RUN_LOCK_FD_ENV = "CLIQUE_RUN_ROOT_LOCK_FD"
 RUN_LOCK_ID_ENV = "CLIQUE_RUN_ROOT_LOCK_ID"
+CHILD_SUBREAPER = 36
 
 
 class ProcessInterrupted(Exception):
     pass
+
+
+def enable_child_subreaper() -> None:
+    """Adopt daemonized actor descendants so their launch ancestry stays provable."""
+    if not Path("/proc/self/stat").is_file():
+        raise RuntimeError("Clique Linux process custody requires /proc")
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(CHILD_SUBREAPER, 1, 0, 0, 0) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+
+
+def _process_identity(pid: int) -> dict | None:
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        _, fields = stat.rsplit(") ", 1)
+        values = fields.split()
+        command = Path(f"/proc/{pid}/cmdline").read_bytes().rstrip(b"\0").split(b"\0")
+        return {
+            "pid": pid,
+            "parentPid": int(values[1]),
+            "state": values[0],
+            "startTicks": int(values[19]),
+            "cwd": str(Path(f"/proc/{pid}/cwd").resolve()),
+            "command": [value.decode(errors="replace") for value in command],
+        }
+    except (FileNotFoundError, PermissionError, ProcessLookupError, ValueError):
+        return None
+
+
+def _same_process(identity: dict) -> bool:
+    current = _process_identity(identity["pid"])
+    return current is not None and current["state"] != "Z" and current["startTicks"] == identity["startTicks"]
+
+
+def _process_table() -> dict[int, dict]:
+    table = {}
+    for entry in Path("/proc").iterdir():
+        if entry.name.isdigit():
+            identity = _process_identity(int(entry.name))
+            if identity is not None:
+                table[identity["pid"]] = identity
+    return table
+
+
+def _descends_from(pid: int, ancestor: int, table: dict[int, dict]) -> bool:
+    visited = set()
+    while pid in table and pid not in visited:
+        if pid == ancestor:
+            return True
+        visited.add(pid)
+        pid = table[pid]["parentPid"]
+    return False
+
+
+def _process_summary(identity: dict) -> dict:
+    return {"pid": identity["pid"], "parentPid": identity["parentPid"],
+            "startTicks": identity["startTicks"], "command": identity["command"]}
+
+
+def _port_closed(url: str | None) -> bool | None:
+    if not isinstance(url, str):
+        return None
+    parsed = urllib.parse.urlparse(url)
+    if parsed.hostname is None or parsed.port is None:
+        return None
+    try:
+        with socket.create_connection((parsed.hostname, parsed.port), timeout=0.5):
+            return False
+    except OSError:
+        return True
+
+
+def _owner_project(identity: dict) -> Path | None:
+    command = identity["command"]
+    if "dev" not in command or not any("snapback2" in Path(arg).name for arg in command):
+        return None
+    try:
+        project_index = command.index("--project")
+        project = Path(command[project_index + 1])
+    except (ValueError, IndexError):
+        project = Path(identity["cwd"])
+    if not project.is_absolute():
+        project = Path(identity["cwd"]) / project
+    return project.resolve()
+
+
+def _is_scale_project(project: Path, lane: Path) -> bool:
+    try:
+        relative = project.relative_to(lane)
+    except ValueError:
+        return False
+    return any("scale" in part.lower() for part in relative.parts)
+
+
+# @ref LLP 0201#d2--quantitative-instrument — a terminal scale clock releases
+# its run-owned backend without changing the separately recorded clock.
+class ScaleOwnerCustody:
+    """Track actor-created scale owners and stop only their proven process identities."""
+
+    def __init__(self, *, root: Path, lane: Path, actor_pid: int, name: str, poll_seconds: float = 0.2):
+        self.root = root.resolve()
+        self.lane = lane.resolve()
+        self.actor_pid = actor_pid
+        self.launcher_pid = os.getpid()
+        self.actor_identity = _process_identity(actor_pid)
+        if self.actor_identity is None:
+            raise RuntimeError(f"actor pid {actor_pid} exited before custody started")
+        self.name = name
+        self.poll_seconds = poll_seconds
+        self.started_ns = time.time_ns()
+        self.receipt_path = self.root / "logs" / f"{name}.scale-owners.jsonl"
+        self.owners: dict[tuple[int, int], dict] = {}
+        self.seen_terminals: set[tuple[str, int]] = set()
+        self.errors: list[str] = []
+        self._lock = threading.RLock()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._monitor, name=f"{name}-scale-custody", daemon=True)
+
+    def start(self) -> None:
+        self.receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        self._record({"event": "monitor-started", "actorPid": self.actor_pid,
+                      "actorStartTicks": self.actor_identity["startTicks"],
+                      "launcherPid": self.launcher_pid})
+        self._thread.start()
+
+    def _record(self, value: dict) -> None:
+        value = {"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **value}
+        with self.receipt_path.open("a") as handle:
+            handle.write(json.dumps(value, sort_keys=True) + "\n")
+
+    def _owned_by_actor(self, identity: dict, table: dict[int, dict]) -> bool:
+        if identity["startTicks"] < self.actor_identity["startTicks"]:
+            return False
+        return _descends_from(identity["pid"], self.actor_pid, table) or identity["parentPid"] == self.launcher_pid
+
+    def _discover(self, table: dict[int, dict]) -> None:
+        for identity in table.values():
+            project = _owner_project(identity)
+            if project is None or not _is_scale_project(project, self.lane) or not self._owned_by_actor(identity, table):
+                continue
+            owner_path = project / ".snapback" / "owner.json"
+            try:
+                raw = json.loads(owner_path.read_text())
+            except (FileNotFoundError, json.JSONDecodeError, PermissionError):
+                continue
+            if raw.get("pid") != identity["pid"] or Path(raw.get("project", "")).resolve() != project:
+                continue
+            key = (identity["pid"], identity["startTicks"])
+            if key in self.owners:
+                continue
+            descendants = [child for child in table.values() if child["pid"] != identity["pid"]
+                           and _descends_from(child["pid"], identity["pid"], table)]
+            owner = {"identity": identity, "project": str(project), "url": raw.get("url"),
+                     "secret": raw.get("secret"), "descendants": descendants, "cleaned": False}
+            self.owners[key] = owner
+            self._record({"event": "claimed", "ownerPid": identity["pid"], "ownerStartTicks": identity["startTicks"],
+                          "project": str(project), "url": raw.get("url"),
+                          "descendants": [_process_summary(child) for child in descendants],
+                          "compilerWorkers": [_process_summary(child) for child in descendants if "--worker" in child["command"]],
+                          "ownership": "actor ancestry or Linux child-subreaper adoption plus matching owner.json"})
+
+    def _terminal_paths(self) -> list[Path]:
+        paths = [self.lane / "scale-replay.json", self.lane / "scale-replay-failure.json"]
+        evidence = self.lane / "evidence"
+        if evidence.is_dir():
+            paths.extend(evidence.glob("scale*/result.json"))
+            paths.extend(evidence.glob("*/scale*/result.json"))
+        return paths
+
+    def _terminal(self) -> tuple[Path, str] | None:
+        for path in self._terminal_paths():
+            try:
+                modified = path.stat().st_mtime_ns
+                key = (str(path), modified)
+                if modified < self.started_ns or key in self.seen_terminals:
+                    continue
+                value = json.loads(path.read_text())
+            except (FileNotFoundError, json.JSONDecodeError, PermissionError):
+                continue
+            outcome = None
+            if isinstance(value.get("pass"), bool):
+                outcome = "success" if value["pass"] else "failure"
+            elif value.get("state") in ("succeeded", "failed", "aborted"):
+                outcome = value["state"]
+            elif value.get("version") == "snapback.full-journey-scale-replay.v1" \
+                    and isinstance(value.get("attempts"), list) and value["attempts"]:
+                disposition = value["attempts"][-1].get("disposition")
+                if disposition in ("completed", "aborted"):
+                    outcome = "success" if disposition == "completed" else "failure:aborted"
+            elif path.name == "scale-replay-failure.json" and value.get("outcome"):
+                outcome = f"failure:{value['outcome']}"
+            if outcome is not None:
+                self.seen_terminals.add(key)
+                return path, outcome
+        return None
+
+    @staticmethod
+    def _signal(identity: dict, signum: int, signals: list[dict]) -> None:
+        if not _same_process(identity):
+            return
+        try:
+            os.kill(identity["pid"], signum)
+            signals.append({"pid": identity["pid"], "signal": signal.Signals(signum).name})
+        except ProcessLookupError:
+            pass
+
+    @staticmethod
+    def _wait_gone(identities: list[dict], timeout: float) -> list[dict]:
+        deadline = time.monotonic() + timeout
+        remaining = [identity for identity in identities if _same_process(identity)]
+        while remaining and time.monotonic() < deadline:
+            time.sleep(0.05)
+            remaining = [identity for identity in remaining if _same_process(identity)]
+        return remaining
+
+    def _stop_owner(self, owner: dict, reason: str) -> None:
+        table = _process_table()
+        identity = owner["identity"]
+        descendants = { (child["pid"], child["startTicks"]): child for child in owner["descendants"] }
+        for child in table.values():
+            if child["pid"] != identity["pid"] and _descends_from(child["pid"], identity["pid"], table):
+                descendants[(child["pid"], child["startTicks"])] = child
+        identities = [identity, *descendants.values()]
+        control = "not-attempted"
+        if _same_process(identity) and isinstance(owner["url"], str) and isinstance(owner["secret"], str):
+            request = urllib.request.Request(owner["url"] + "/control/stop", method="POST", data=b'{"cause":"clique scale verification complete"}',
+                                             headers={"content-type": "application/json", "x-snapback-control": owner["secret"]})
+            try:
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    control = f"http-{response.status}"
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+                control = f"error:{type(error).__name__}"
+        remaining = self._wait_gone(identities, 5)
+        signals = []
+        for process in remaining:
+            self._signal(process, signal.SIGTERM, signals)
+        remaining = self._wait_gone(remaining, 2)
+        for process in remaining:
+            self._signal(process, signal.SIGKILL, signals)
+        remaining = self._wait_gone(remaining, 2)
+        port_closed = _port_closed(owner["url"])
+        passed = not remaining and port_closed is not False
+        owner["cleaned"] = passed
+        self._record({"event": "cleanup", "reason": reason, "project": owner["project"],
+                      "ownerPid": identity["pid"], "ownerStartTicks": identity["startTicks"],
+                      "descendantPids": [child["pid"] for child in descendants.values()],
+                      "descendants": [_process_summary(child) for child in descendants.values()],
+                      "compilerWorkers": [_process_summary(child) for child in descendants.values() if "--worker" in child["command"]],
+                      "control": control, "signals": signals,
+                      "remainingPids": [process["pid"] for process in remaining],
+                      "portClosed": port_closed, "pass": passed})
+        if not passed:
+            raise RuntimeError(f"scale owner cleanup left exact PIDs {[process['pid'] for process in remaining]} or open port {owner['url']}")
+
+    def stop_all(self, reason: str) -> None:
+        with self._lock:
+            self._discover(_process_table())
+            for owner in self.owners.values():
+                if not owner["cleaned"]:
+                    self._stop_owner(owner, reason)
+
+    def _monitor(self) -> None:
+        try:
+            while not self._stop.wait(self.poll_seconds):
+                with self._lock:
+                    self._discover(_process_table())
+                    terminal = self._terminal()
+                    if terminal is not None:
+                        self.stop_all(f"verification-{terminal[1]}:{terminal[0].relative_to(self.lane)}")
+        except Exception as error:
+            self.errors.append(f"{type(error).__name__}: {error}")
+
+    def finish(self, reason: str) -> None:
+        self._stop.set()
+        self._thread.join(timeout=2)
+        self.stop_all(reason)
+        if self.errors:
+            raise RuntimeError("; ".join(self.errors))
 
 
 def wait_tracked_process(process: subprocess.Popen) -> tuple[int, str | None]:

@@ -69,7 +69,35 @@ lane's backend. If a lane deliberately needs an explicit URL, set it inside
 that lane after its owner has written `.snapback/dev-url`, then restart its
 bundler. Do not export it through the shell that starts a Clique builder.
 
-The wrappers run in the foreground. Stop only the PID recorded in
-`logs/<wave>-<backend>.pid`; do not kill by process name or port pattern.
-Never update the scripts inside a live or retained packet. Install a reviewed
-revision into the next fresh packet.
+The wrappers run in the foreground. On Linux they make themselves child
+subreapers before starting the actor. A detached `snapback2 dev` whose
+`--project` path contains `scale` is claimed only when its live process ancestry
+leads to that actor (or the wrapper has adopted it) and its PID and project match
+its `owner.json`. This means the actor's ordinary `npx snapback2 dev --project
+replays/scale ...` launch enters custody without a special command. When a
+fresh `scale-replay.json`, `scale-replay-failure.json`, or
+`evidence/scale*/result.json` becomes terminal, the wrapper sends the matching
+owner's authenticated stop request and verifies that the exact recorded owner
+and compiler-worker process identities exited. It repeats that cleanup when the
+actor exits or receives INT, TERM, or HUP. Claims and cleanup receipts are in
+`logs/<wave>-<backend>[.m7].scale-owners.jsonl`; cleanup failure makes an
+otherwise successful actor exit nonzero.
+
+For old packets created before this custody existed, first list candidates and
+their parentage without changing them:
+
+```sh
+ps -u "$USER" -o pid=,ppid=,etimes=,args= | awk '$0 ~ /snapback2-client-owner-|replays\/scale/ { print }'
+```
+
+Inspect the project and its `.snapback/owner.json`, use `pstree -ap <OWNER_PID>`
+to identify that owner's compiler worker, and then signal only the PIDs you
+explicitly selected, for example `kill -- 3113906 3113912`. Recheck those same
+PIDs with `ps -p 3113906,3113912 -o pid=,ppid=,stat=,args=` before escalating an
+unchanged identity to `kill -KILL -- 3113906 3113912`. Never feed the listing
+pattern directly to `kill`, `pkill`, or `killall`: another packet's process or
+an older ticket's process may match.
+
+Stop the actor itself only by the PID recorded in
+`logs/<wave>-<backend>.pid`. Never update the scripts inside a live or retained
+packet. Install a reviewed revision into the next fresh packet.
