@@ -3,6 +3,7 @@
 
 mod lowering;
 mod toolchain;
+use toolchain::compiler_rewrite;
 pub use toolchain::node_path;
 
 use crate::protocol::{Refusal, certification_family_guide};
@@ -172,21 +173,21 @@ impl CompilerWorker {
                     "cannot start compiler worker at {}: {error}",
                     path.display()
                 ),
-                "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+                toolchain::node_rewrite(),
             )
         })?;
         let input = child.stdin.take().ok_or_else(|| {
             Refusal::owner(
                 "E_OWNER_NO_COMPILER",
                 "compiler worker has no stdin",
-                "set SNAPBACK2_COMPILER to a working bundled compiler.mjs",
+                compiler_rewrite(),
             )
         })?;
         let output = child.stdout.take().ok_or_else(|| {
             Refusal::owner(
                 "E_OWNER_NO_COMPILER",
                 "compiler worker has no stdout",
-                "set SNAPBACK2_COMPILER to a working bundled compiler.mjs",
+                compiler_rewrite(),
             )
         })?;
         let (output_tx, output_rx) = mpsc::channel();
@@ -630,20 +631,6 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
         ));
     }
     Ok(candidate)
-}
-
-fn compiler_rewrite() -> String {
-    let command = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "check".to_owned());
-    let foreground = if command == "dev" && std::env::args().any(|arg| arg == "--foreground") {
-        " --foreground"
-    } else {
-        ""
-    };
-    format!(
-        "run npx snapback2 {command}{foreground}; or set SNAPBACK2_COMPILER=/absolute/path/to/node_modules/snapback2/dist/compiler.mjs"
-    )
 }
 
 pub fn write_build_cache(root: &Path, compiled: &CompiledProject) -> Result<(), Refusal> {
