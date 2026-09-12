@@ -2723,6 +2723,53 @@ test("retained 0.3.3 R2 provenance remains valid under its own implicit-v1 pin",
   );
 });
 
+test("physical retained 0.3.6 identity stays historical while downgraded and mixed pins fail closed", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "retained-036-physical-root-")));
+  try {
+    await mkdir(join(root, "events"));
+    await writeFile(join(root, "events/codex-rollout.jsonl"), "\n");
+    await writeFile(join(root, "metering-manifest.json"), "{}\n");
+
+    const retained = composedRecord({
+      capFamily: "gpt-frontier",
+      source: "codex-rollout-token-count",
+      metered: true,
+    });
+    retained.socialMessenger.instrumentVersion = "social-messenger@0.3.6-m8";
+    retained.socialMessenger.typingObservationBoundaryVersion = "v2";
+    retained.socialMessenger.orientation.instrument.pin = "social-messenger@0.3.6-m8";
+    retained.socialMessenger.orientation.instrument.versions.choreography = "0.3.6-m8";
+    assert.deepEqual(
+      validateSocialMessengerRecordSemantics(retained, { artifactRoot: root }),
+      [],
+      "physical campaign files must not relabel a known retained instrument as current",
+    );
+
+    const mixedCurrentMarker = structuredClone(retained);
+    mixedCurrentMarker.socialMessenger.orientation.instrument.pin = CURRENT_INSTRUMENT_PIN;
+    assert.match(
+      validateSocialMessengerRecordSemantics(mixedCurrentMarker, { artifactRoot: root }).join("\n"),
+      /current observability\/orientation markers require social-messenger@0\.3\.7-m8/u,
+      "a retained record cannot borrow the current orientation identity",
+    );
+
+    for (const instrumentVersion of [
+      "social-messenger@0.3.2-m8",
+      "social-messenger@unknown",
+    ]) {
+      const downgraded = structuredClone(retained);
+      downgraded.socialMessenger.instrumentVersion = instrumentVersion;
+      assert.match(
+        validateSocialMessengerRecordSemantics(downgraded, { artifactRoot: root }).join("\n"),
+        /current instrument must identify the typed observation protocol|complete hash-bound native metering replay/u,
+        `${instrumentVersion} must not evade current physical-root validation`,
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("retained 0.3.3 R2 complete evidence rejects coordinated quantitative fabrication", async () => {
   const root = fileURLToPath(new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",

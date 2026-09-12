@@ -41,9 +41,8 @@ const ATTEMPTED_STATUSES = new Set([
 ]);
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const CURRENT_CHOREOGRAPHY_VERSION = "0.3.7-m8";
-const PREVIOUS_INSTRUMENT_PIN = "social-messenger@0.3.3-m8";
 const RETAINED_INSTRUMENT_PINS = new Set([
-  PREVIOUS_INSTRUMENT_PIN,
+  "social-messenger@0.3.3-m8",
   "social-messenger@0.3.4-m8",
   "social-messenger@0.3.6-m8",
 ]);
@@ -1218,7 +1217,10 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   if (extension === null || typeof extension !== "object") return errors;
   const physicalCurrentIdentity = physicalCurrentR2Identity(artifactRoot);
   const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN
-    || (physicalCurrentIdentity && extension.instrumentVersion !== PREVIOUS_INSTRUMENT_PIN);
+    || (
+      physicalCurrentIdentity
+      && !RETAINED_INSTRUMENT_PINS.has(extension.instrumentVersion)
+    );
   const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION
     && !RETAINED_INSTRUMENT_PINS.has(extension.instrumentVersion);
   const currentOrientationMarker = (
