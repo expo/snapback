@@ -15585,7 +15585,8 @@
         "sameCompatibleInspectorInBothArms": true,
         "timedFlowAndExistingOraclesUnchanged": true,
         "sequenceDecoderControls": "Null, zero, absence, row-only and sequence-only cases preserve logical metadata; duplicate representations refuse. Existing reopen and logical metadata counts retained."
-      }
+      },
+      "refinementAudit": "No credible526byte funding identified. Merging packing with ProjectionCache still requires tri-state patches and independent logical row/sequence key ownership. Reusing replace for migration changes normalization/witness timing; duplicated carrierDML mostly lies outside fixed five-root measurement. No code changed or byte omission approved."
     },
     "alignedQueryFourExperiment": {
       "manifest": {
@@ -16089,9 +16090,287 @@
           "path": "/tmp/acquisition-20260912-fragments-query-four-samples.json",
           "sha256": "35c2b3e4f00db0c58998039a4051015b21ccb8bf1129401f12a9f9345e448b98",
           "bytes": 14309
+        },
+        {
+          "path": "/tmp/acquisition-20260912-query-four-repeat-samples.json",
+          "sha256": "8dbdbbf48088c685975f79ac3bf3258fb20fcf4d314892c956284f520dff33c7",
+          "bytes": 10579
         }
       ],
-      "decision": "Experimental:one adjacent16965.006/16389.180ms observation; advantage575.826ms is smaller than observed content variation. Two further original-primary observations commissioned before selecting fordelivery. No packing combined."
+      "decision": "Not selected fordelivery:full adjacent advantage575.826ms then75.787ms; content341.895ms faster then82.451ms slower. Stable content gain notestablished. Main keepsrequest16,commitgroup4; experiment07e59 remainsrecoverable.",
+      "repeat": {
+        "kind": "Sequential adjacent primary-harness observations; not a qualifying cohort",
+        "endpoint": "Navigation to durable 10008-message content, settled earned acknowledgements, first owner-cut offline history/search; full row hash and physical reopen verified afterward.",
+        "fixedInputs": {
+          "ownerSha256": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+          "mediaSha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+          "compilerCoreSha256": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+          "sessionHelperSourceSha256": "7b0817643def0993d7f8e1a6cdd4dcda49e33693be60f7a7047d8d3f79bc580c",
+          "sessionHelperBinarySha256": "e178b2bd94cb9b1382e260a5511a250ac889b1dd3acf675d39c286d5d18dea2e"
+        },
+        "authScope": "Ordinary finite dev bearer session for existing dev:alice fixture principal, prepared on stopped disposable copy before clock; no serve/live-account signup qualification.",
+        "unchangedScope": {
+          "messages": 10008,
+          "conversations": 100,
+          "memberships": 199,
+          "initialReceiptsTrue": 4450,
+          "initialReceiptsFalse": 5558,
+          "freshCommittedTerminals": 201,
+          "freshEmptyTerminals": 89,
+          "freshEffects": 5558
+        },
+        "instrumented": false,
+        "physicalPacking": false,
+        "networkCounts": "Not collected by original primary endpoint; no observer was added.",
+        "samples": [
+          {
+            "experiment": "sub3-20260912-bearer-fragments-02",
+            "variant": "repeat-control-fragments90000-original-primary",
+            "startedAt": "2026-09-12T12:41:11.232Z",
+            "finishedAt": "2026-09-12T12:41:45.053Z",
+            "instrumented": false,
+            "firstInboxMs": 1194.1267320000006,
+            "coldSyncedMs": 15603.084159,
+            "ackCompleteMs": 16666.970281,
+            "completeAcquisitionMs": 16715.111612,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "runtimeSha": "78742cf01a1516167eb5e4810eba25a36f16b77318161f42d01906eb4bdb0616",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "c2eebd93743f6cd4dcf4d5da1c17a2fae72a2247cb6275682c412ee30e66a429",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "runtimeGzipBytes": 90000,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "5e099bfbc95c8cec11cf9b080eb08e6fc25c75d20eb55cce0237b306e76cd04d",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "78742cf01a1516167eb5e4810eba25a36f16b77318161f42d01906eb4bdb0616",
+              "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+              "dist/react.mjs": "6e9a814b241e529c79067be0c0c59555a6a18fd63b20057edf198fef333028ea",
+              "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+              "dist/image-runtime.mjs": "90e10a6b501b420643bcd6335d7c8c2c9c8d4dcdc0085119823b9d15fba72dd8"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.3999996185302734,
+            "firstOfflineSearchMs": 1.8999996185302734,
+            "reopenPass": true,
+            "reopenMs": 6030.555381999999,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 228.24256500000047,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "arm": "fragments-repeat",
+            "clientSource": "5060a547427238f874e8be71f16e87a26be381cf",
+            "clientArchiveSha256": "4ea0114ae0b000864f5a8db91216afed97be982596b9cc4983634ce9785455a8",
+            "startedLoad": [
+              0.1,
+              0.34,
+              0.27
+            ],
+            "finishedLoad": [
+              0.77,
+              0.49,
+              0.33
+            ],
+            "postflight": {
+              "load": [
+                0.6533203125,
+                0.4736328125,
+                0.3212890625
+              ],
+              "browserOwners": []
+            },
+            "pageErrorCount": 0,
+            "logicalCounts": {
+              "rows": 20216,
+              "answers": 203,
+              "outbox": 112,
+              "meta": 50912
+            },
+            "reopenLogicalCounts": {
+              "rows": 20216,
+              "answers": 203,
+              "outbox": 112,
+              "meta": 50912
+            },
+            "remoteResultPath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-fragments-02.json"
+          },
+          {
+            "experiment": "sub3-20260912-bearer-aligned-query-four-02",
+            "variant": "NON-DELIVERING-repeat-aligned-query-four90000-original-primary",
+            "startedAt": "2026-09-12T12:42:15.583Z",
+            "finishedAt": "2026-09-12T12:42:49.479Z",
+            "instrumented": false,
+            "firstInboxMs": 1228.514521,
+            "coldSyncedMs": 15685.534693,
+            "ackCompleteMs": 16595.750023,
+            "completeAcquisitionMs": 16639.324749,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "runtimeSha": "78742cf01a1516167eb5e4810eba25a36f16b77318161f42d01906eb4bdb0616",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "c40b85f4a149fae89d51b07ef5ca58eb0263890a3f53124e34636142510277f7",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "runtimeGzipBytes": 90000,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "07dfa454e1254abf9e09bf429179466cba7310c8727d0726c83a3a974b372022",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "78742cf01a1516167eb5e4810eba25a36f16b77318161f42d01906eb4bdb0616",
+              "dist/client.mjs": "86fe136edc9b612f35f8cb43b3ed36c6ff605511ba5354ff215ee13ee7b5ecea",
+              "dist/react.mjs": "6e9a814b241e529c79067be0c0c59555a6a18fd63b20057edf198fef333028ea",
+              "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+              "dist/image-runtime.mjs": "90e10a6b501b420643bcd6335d7c8c2c9c8d4dcdc0085119823b9d15fba72dd8"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.3999996185302734,
+            "firstOfflineSearchMs": 1.8999996185302734,
+            "reopenPass": true,
+            "reopenMs": 6029.666031000001,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 300.7539100000067,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "arm": "query-four-repeat",
+            "clientSource": "07e59b2f9e9662460d5d4491428e50d616cbdf1b",
+            "clientArchiveSha256": "420c6b6bf10971afd86158088eae11a6b347171eda939bb22ff70be837bd7b3a",
+            "startedLoad": [
+              0.72,
+              0.51,
+              0.34
+            ],
+            "finishedLoad": [
+              1.03,
+              0.6,
+              0.37
+            ],
+            "postflight": {
+              "load": [
+                0.8681640625,
+                0.587890625,
+                0.373046875
+              ],
+              "browserOwners": []
+            },
+            "pageErrorCount": 0,
+            "logicalCounts": {
+              "rows": 20216,
+              "answers": 203,
+              "outbox": 112,
+              "meta": 50912
+            },
+            "reopenLogicalCounts": {
+              "rows": 20216,
+              "answers": 203,
+              "outbox": 112,
+              "meta": 50912
+            },
+            "remoteResultPath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-aligned-query-four-02.json"
+          }
+        ],
+        "failures": [],
+        "adjacentDifferences": [
+          {
+            "control": "fragments-repeat",
+            "candidate": "query-four-repeat",
+            "candidateMinusControlMs": {
+              "coldSyncedMs": 82.4505339999996,
+              "ackCompleteMs": -71.2202580000012,
+              "completeAcquisitionMs": -75.78686300000118
+            }
+          }
+        ],
+        "priorImmutableThreeSampleSha256": "35c2b3e4f00db0c58998039a4051015b21ccb8bf1129401f12a9f9345e448b98",
+        "priorImmutableThreeSamplePath": "/tmp/acquisition-20260912-fragments-query-four-samples.json",
+        "interpretation": "Second adjacent descriptive fragments/query-four pair; combined A/B/A/B repetition, not a qualifying cohort.",
+        "preflight": {
+          "load": [
+            0.1279296875,
+            0.3564453125,
+            0.27587890625
+          ],
+          "cpus": 12,
+          "browserOwners": [],
+          "fixedHashesPass": true
+        }
+      }
     }
   }
 }
