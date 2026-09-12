@@ -6,6 +6,7 @@ pub(super) fn add_bytes_cases(cases: &mut Vec<CorpusCase>) {
     let insert = bytes_insert_program();
     let scan = bytes_scan_program("bytesRoundTrip");
     let prelude = PreludeStep {
+        certificate: None,
         program: insert.clone(),
         context: mutation_context(
             [

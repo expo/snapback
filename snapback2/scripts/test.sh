@@ -33,6 +33,7 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 status=0
+export SNAPBACK2_NODE="${SNAPBACK2_NODE:-$(node -p 'process.execPath')}"
 rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(8, Math.min(32, require("node:os").availableParallelism()))))' 2>/dev/null || printf '8\n')}"
 # @ref LLP 1002#11-measured — bound owner-heavy test-file concurrency while preserving every original per-test deadline.
 package_test_threads="${SNAPBACK_PACKAGE_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(2, Math.min(6, require("node:os").availableParallelism()))))' 2>/dev/null || printf '2\n')}"
@@ -47,7 +48,11 @@ run_package_checks() {
 }
 
 run_evaluator_checks() {
-  (cd packages/evaluator && bun src/test.ts)
+  evaluator_status=0
+  cargo run -p snapback2-core --bin export_corpus -- --check || evaluator_status=1
+  (cd packages/evaluator && bun src/test.ts) || evaluator_status=1
+  (cd packages/evaluator && bun run build && node dist/corpus-runner.js) || evaluator_status=1
+  return "$evaluator_status"
 }
 
 run_native_checks() {

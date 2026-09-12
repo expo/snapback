@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-10 (an update re-derives search postings only when a derived component changed, LLP 1020 A7; implementer Claude Fable 5.1); 2026-09-09 (guarded update conflicts and non-disclosing if-absent inserts; implementer GPT-6 Astra); 2026-09-08 (plain connected value read and consistent count-first repairs, LLP 1011 one spelling); 2026-09-07 (indexed prefix selection and direct owner subscription dispatch); 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-11 (hub-scale compact-head and per-scope pager repairs); 2026-09-10 (an update re-derives search postings only when a derived component changed, LLP 1020 A7; implementer Claude Fable 5.1); 2026-09-09 (guarded update conflicts and non-disclosing if-absent inserts; implementer GPT-6 Astra); 2026-09-08 (plain connected value read and consistent count-first repairs, LLP 1011 one spelling); 2026-09-07 (indexed prefix selection and direct owner subscription dispatch); 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -142,12 +142,17 @@ that table.
 by who may issue each part: `rows` — "I hold these" — is client-issuable;
 `absences` and *complete* `ranges` — "no row exists there / this range is
 whole" — and `verdicts` — "this principal may see this" — are authority-only.
-An absence is also bound to the schema hash under which authority observed it;
-a predecessor absence is not authority after a successor. Receipt-only
+Absences and verdicts are also bound to the receipt schema hash under which
+authority observed them; neither crosses a successor, even if an inner verdict
+is relabeled. Current scoped rule hashes already include the complete schema. Receipt-only
 maintained prediction may apply a delta only when the exact target row is held
 or a same-schema authority-issued `byId` absence proves its deterministic id
 starts at zero; otherwise the whole local mutation rolls back as
 `Partial(["missing-authority"])`.
+The TypeScript twin validates value-model/evaluator versions and canonical
+schema/program identity at direct execution, including prediction; a missing
+certificate refuses before statements. Corpus preludes carry Rust-issued
+certificates as well. Authority-only rule probes do not execute programs.
 The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
 *asserted*, not merely true by construction: `assert_bounds` checks
 `receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
@@ -289,8 +294,13 @@ existing calibrated heap model, not a whole-process allocator bound.
 Runtime owns the policy-hash cache for its certified schema generation; reuse
 cannot cross a successor or accept caller-supplied hashes. Independent trace
 and receipt membership indexes preserve each collection's first disclosed row
-image and rollback behavior. Heap entries address retained rows by index,
-avoiding transient copies without changing ordering or evidence. Certificate,
+image and rollback behavior. Heap entries address retained rows by index.
+Overlapping evaluated lane bounds share one reference-counted body per intrinsic
+id across lane evidence and the returned page; at most `take + lanes + 2` unique
+bodies survive. Hidden candidates are dropped immediately. Per-lane examined
+and visible identity lists still scale with examined work because they are
+required trace evidence. Ordinary scans borrow their halo and derive returned
+ids from the visible identity list rather than cloning another row body. Certificate,
 trace, receipt, authority, result and opaque-cursor semantics remain unchanged.
 The integrated core bytes match the tested candidate; first full curves and
 byte-exact output comparisons are retained in the feed evidence record.
@@ -303,9 +313,10 @@ lane and the lane-discovery scan, cap probes include calls and the named cap,
 and rule probes include their multiplicity. Output and closure name the
 nested collection bounds and selected field widths (closure explains peak
 retention, including intermediate collections). Branches explain the arm that
-sets each meter's maximum. A dominant merge requires a structural repair:
-smaller lane bound, smaller page, two reads (two snapshots), or a maintained
-feed. A dominant cap names the cap and a chunk size that fits the breached
+sets each meter's maximum. A dominant merge points first to the compiled hub
+forms: narrow merge heads, or certified per-scope heads with the shipped
+global pager. Other repairs are a smaller continued page, two reads (two
+snapshots), or a maintained feed. A dominant cap names the cap and a chunk size that fits the breached
 meter with other reserves unchanged, or says no positive chunk fits. Nested
 population scans keep the `maintain.count/sum` advice. Byte repairs name the
 widest nested collection and the fields carrying its bytes; they never paste
@@ -823,6 +834,7 @@ impl Runtime {
     pub fn ensure_persona(&mut self, name: &str, now: i64) -> Result<Principal, IdentityError>;          // stable dev alias; no session side effect
     pub fn persona(&mut self, name: &str, now: i64) -> Result<Session, IdentityError>;                   // fresh finite session for `dev:<name>`
     pub fn authenticate(&self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;        // E_AUTH_SESSION
+    pub fn refresh_session(&mut self, token: &str, now: i64) -> Result<Session, IdentityError>;            // rotates credential, retains principal/epoch
     pub fn logout(&mut self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;          // exact live session, else E_AUTH_SESSION
     pub fn expire_sessions(&mut self, now: i64) -> Result<Vec<SessionAuthority>, IdentityError>;         // delete and return every epoch whose exclusive bound has arrived
     pub fn next_session_expiry(&self) -> Result<Option<i64>, IdentityError>;                              // owner polling deadline
@@ -855,7 +867,17 @@ strictly-increasing, never-reused epoch in that store. A session is valid on
 expired rows are deleted so clock rollback cannot revive them. Logout verifies
 and deletes one exact live epoch; a missing, expired, or already-revoked bearer
 is `E_AUTH_SESSION`, not a successful no-op. Multiple sessions for one
-principal are independent.
+principal are independent. Sessions expire after 24 hours. Explicit refresh atomically
+replaces the digest and renews that deadline, retaining the principal and epoch;
+the prior token immediately fails. Admitted streams and offline custody keep that
+epoch. This reduces a stolen unrefreshed credential's window from thirty days to
+one; an attacker holding a valid credential can also refresh it, so rotation is
+not theft detection. A lost refresh response requires password login again.
+
+A signup email UNIQUE conflict at the credential insert becomes `EmailTaken`,
+including a race after the early existence check; other storage/constraint
+failures remain `Store`. The current exclusive store owner already serializes
+ordinary HTTP signup; this mapping also protects the lower-level insert boundary.
 
 This is a pre-promotion store-format break. `Store::open` accepts only the
 canonical digest-only session schema and refuses an older plaintext-token or
@@ -1318,7 +1340,12 @@ twin/held-state and local cursor contract is LLP 1012 §"Indexed held search".
   lane.
 - The shared corpus (`snapback2/corpus/manifest.json`) is regenerated whenever serialization or
   certification changes; the Rust engine and TypeScript evaluator must agree
-  on every case.
+  on every executable case. The existing blocking test entrypoint also runs
+  `export_corpus --check`, comparing every case and the manifest to generator
+  bytes, then rebuilds and executes the embedded runner. All consumers assert
+  corpus version 1; server-only certification refusals are counted separately,
+  never handed to the twin runner. Compiler checks cover canonical corpus IR
+  and pin the shared value-model contract at import time.
   It preserves the original semantic inventory while removing authored
   `input_visibility`, and covers old/next updates, `Created`, final-exists,
   intrinsic row ids, maintained writes, text constraints, rule-memo

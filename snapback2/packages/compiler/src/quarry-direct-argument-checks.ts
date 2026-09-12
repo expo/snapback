@@ -1,5 +1,6 @@
+import { CertifiedTestStore as ClientStore } from "./quarry-check-helpers";
 import { deepStrictEqual } from "node:assert";
-import { ClientStore, type Context, type Value } from "../../evaluator/src/evaluator";
+import { type Context, type Value } from "../../evaluator/src/evaluator";
 import type { ArgType } from "./ir";
 import { rustCheck } from "./rust-check";
 import { bindQuarrySchema } from "./quarry/bound-schema";

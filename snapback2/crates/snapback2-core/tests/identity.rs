@@ -438,3 +438,93 @@ fn assert_files_omit(path: &Path, needle: &[u8]) {
         );
     }
 }
+
+#[test]
+fn oversized_passwords_are_refused_before_kdf() {
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation(true, false)).unwrap();
+    let before = snapback2_core::identity::password_verification_calls();
+    for password in ["x".repeat(257), "é".repeat(129)] {
+        assert!(matches!(runtime.signup("max@example.com", &password, 1), Err(IdentityError::PasswordWeak)));
+        assert!(matches!(runtime.login("max@example.com", &password, 1), Err(IdentityError::Invalid)));
+    }
+    assert_eq!(snapback2_core::identity::password_verification_calls(), before);
+    runtime.signup("max@example.com", &"é".repeat(128), 1).unwrap();
+    runtime.login("max@example.com", &"é".repeat(128), 2).unwrap();
+}
+
+#[test]
+fn refresh_rotates_only_the_token_and_survives_restart_with_one_day_expiry() {
+    let path = temp_path();
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation(false, true)).unwrap();
+    let first = runtime.guest(1000).unwrap();
+    assert_eq!(first.expires_at - 1000, 24 * 60 * 60 * 1000);
+    let rotated = runtime.refresh_session(&first.token, 2000).unwrap();
+    assert_ne!(first.token, rotated.token);
+    assert_eq!(first.auth_epoch, rotated.auth_epoch);
+    assert_eq!(first.principal, rotated.principal);
+    assert_eq!(rotated.expires_at - 2000, 24 * 60 * 60 * 1000);
+    assert!(matches!(
+        runtime.refresh_session(&first.token, 2000),
+        Err(IdentityError::Session)
+    ));
+    assert!(matches!(
+        runtime.authenticate(&first.token, 2001),
+        Err(IdentityError::Session)
+    ));
+    drop(runtime);
+    let mut reopened = Runtime::open(Store::open(&path).unwrap(), generation(false, true)).unwrap();
+    assert_eq!(
+        reopened
+            .authenticate(&rotated.token, 2001)
+            .unwrap()
+            .auth_epoch,
+        first.auth_epoch
+    );
+    assert_eq!(
+        reopened.logout(&rotated.token, 2001).unwrap().auth_epoch,
+        first.auth_epoch
+    );
+    assert!(matches!(
+        reopened.authenticate(&rotated.token, 2002),
+        Err(IdentityError::Session)
+    ));
+    drop(reopened);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn signup_unique_race_is_typed_but_other_storage_constraints_are_not_email_taken() {
+    let path = temp_path();
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation(true, false)).unwrap();
+    runtime
+        .signup("taken@example.com", "long enough password", 1000)
+        .unwrap();
+    assert!(matches!(
+        runtime.signup("taken@example.com", "long enough password", 1001),
+        Err(IdentityError::EmailTaken)
+    ));
+    runtime.ensure_persona("race", 1000).unwrap();
+    drop(runtime);
+    // Store::open excludes concurrent owners. Inject a competing credential
+    // between the early existence check and INSERT to exercise that exact race.
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection.execute_batch("CREATE TRIGGER race_credentials BEFORE INSERT ON _credentials BEGIN INSERT INTO _credentials(principal,email,hash) VALUES ('dev:race',NEW.email,NEW.hash); END;").unwrap();
+    drop(connection);
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation(true, false)).unwrap();
+    assert!(matches!(
+        runtime.signup("race@example.com", "long enough password", 1001),
+        Err(IdentityError::EmailTaken)
+    ));
+    drop(runtime);
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection.execute_batch("DROP TRIGGER race_credentials; CREATE TRIGGER deny_credentials BEFORE INSERT ON _credentials BEGIN SELECT RAISE(ABORT, 'injected storage constraint'); END;").unwrap();
+    drop(connection);
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation(true, false)).unwrap();
+    assert!(matches!(
+        runtime.signup("other@example.com", "long enough password", 1001),
+        Err(IdentityError::Store(_))
+    ));
+    drop(runtime);
+    cleanup(&path);
+
+}

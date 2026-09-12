@@ -1,7 +1,8 @@
+import { CertifiedTestStore as ClientStore } from "./quarry-check-helpers";
 import { deepStrictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { canonicalValue, ClientStore, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
+import { canonicalValue, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import type { Execution } from "../../evaluator/src/types";
 import type { Program } from "./ir";
 import { lowerProject } from "./project";

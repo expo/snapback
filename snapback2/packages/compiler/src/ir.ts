@@ -8,7 +8,15 @@ export type Index = { components: IndexComponent[]; unique: boolean };
 
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 
+export const CURRENT_VALUE_MODEL_VERSION = "i53-codepoint-bytes-unicode-search-text-refinements-v5";
+export function assertValueModelVersion(version: string): void {
+  if (version !== CURRENT_VALUE_MODEL_VERSION)
+    throw new Error(`value model version ${version} != compiler ${CURRENT_VALUE_MODEL_VERSION}`);
+}
+assertValueModelVersion(coreIrContract.valueModelVersion);
+
 export const IR_CONTRACT = Object.freeze({
+  valueModelVersion: coreIrContract.valueModelVersion,
   systemPrincipalId: coreIrContract.systemPrincipalId,
   retentionPolicies: coreIrContract.retentionPolicies as readonly RetentionPolicy[],
 });

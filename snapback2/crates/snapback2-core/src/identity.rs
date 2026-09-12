@@ -12,7 +12,7 @@ use std::fmt;
 use std::sync::LazyLock;
 use thiserror::Error;
 
-const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
+const SESSION_MILLIS: i64 = 24 * 60 * 60 * 1_000;
 // @ref LLP 1001#6-identity-identityrs — system is one
 // reserved principal value, not a principal-kind rule term. The adjacent
 // core-owned IR contract is also consumed directly by the TypeScript compiler.
@@ -154,7 +154,7 @@ pub struct SessionAuthority {
 pub enum IdentityError {
     #[error("E_AUTH_EMAIL_TAKEN: email is already registered")]
     EmailTaken,
-    #[error("E_AUTH_PASSWORD_WEAK: password must contain at least 8 characters")]
+    #[error("E_AUTH_PASSWORD_WEAK: password must contain at least 8 characters and at most 256 UTF-8 bytes")]
     PasswordWeak,
     #[error("E_AUTH_RESERVED: system is the owner, not a development persona")]
     ReservedSystem,
@@ -177,7 +177,7 @@ impl Runtime {
         password: &str,
         now: i64,
     ) -> Result<Session, IdentityError> {
-        if password.chars().count() < 8 {
+        if password.len() > 256 || password.chars().count() < 8 {
             return Err(IdentityError::PasswordWeak);
         }
         if !self.generation.schema().auth.password {
@@ -207,10 +207,20 @@ impl Runtime {
             "INSERT INTO _principals(id, kind, name, created_at) VALUES (?1, 'user', ?2, ?3)",
             params![principal.id.as_str(), email, now],
         )?;
-        transaction.execute(
-            "INSERT INTO _credentials(principal, email, hash) VALUES (?1, ?2, ?3)",
-            params![principal.id.as_str(), email, hash],
-        )?;
+        transaction
+            .execute(
+                "INSERT INTO _credentials(principal, email, hash) VALUES (?1, ?2, ?3)",
+                params![principal.id.as_str(), email, hash],
+            )
+            .map_err(|error| match &error {
+                rusqlite::Error::SqliteFailure(code, Some(message))
+                    if code.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE
+                        && message == "UNIQUE constraint failed: _credentials.email" =>
+                {
+                    IdentityError::EmailTaken
+                }
+                _ => IdentityError::Store(error),
+            })?;
         let session = create_session(&transaction, principal, "auth", now, expires(now))?;
         transaction.commit()?;
         Ok(session)
@@ -222,7 +232,7 @@ impl Runtime {
         password: &str,
         now: i64,
     ) -> Result<Session, IdentityError> {
-        if !self.generation.schema().auth.password {
+        if password.len() > 256 || !self.generation.schema().auth.password {
             return Err(IdentityError::Invalid);
         }
         let email = normalize_email(email);
@@ -323,6 +333,30 @@ impl Runtime {
             return Err(IdentityError::Session);
         }
         stored.authority(&self.engine.store().conn)
+    }
+
+    /// Replace only the credential: leases and offline custody retain their epoch.
+    pub fn refresh_session(&mut self, token: &str, now: i64) -> Result<Session, IdentityError> {
+        let authority = self.authenticate(token, now)?;
+        let replacement = random_base64url(32)?;
+        let old_digest = session_token_digest(token);
+        let digest = session_token_digest(&replacement);
+        let expires_at = expires(now);
+        let transaction = self.engine.store_mut().conn.transaction()?;
+        let changed = transaction.execute(
+            "UPDATE _sessions SET token_digest = ?1, expires_at = ?2 WHERE token_digest = ?3 AND auth_epoch = ?4",
+            params![&digest[..], expires_at, &old_digest[..], authority.auth_epoch as i64],
+        )?;
+        if changed != 1 {
+            return Err(IdentityError::Session);
+        }
+        transaction.commit()?;
+        Ok(Session {
+            token: replacement,
+            principal: authority.principal,
+            auth_epoch: authority.auth_epoch,
+            expires_at,
+        })
     }
 
     pub fn logout(&mut self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError> {

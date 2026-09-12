@@ -1,8 +1,9 @@
+import { CertifiedTestStore as ClientStore } from "./quarry-check-helpers";
 import { deepStrictEqual, throws } from "node:assert";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-import { canonicalValue, ClientStore, sha256, type Context, type Value } from "../../evaluator/src/evaluator";
+import { canonicalValue, sha256, type Context, type Value } from "../../evaluator/src/evaluator";
 import { canonicalSchemaJson } from "../../evaluator/src/certificate-identity";
 import { lowerProject } from "./project";
 import { parseDocument } from "./quarry/parser";

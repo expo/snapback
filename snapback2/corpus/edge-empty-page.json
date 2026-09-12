@@ -1371,13 +1371,13 @@
       {
         "meter": "output bytes",
         "value": 3080,
-        "source": "users.handle",
+        "source": "20 × users.handle (154 bytes each)",
         "site": "programs.mentionScan.0"
       },
       {
         "meter": "output bytes",
         "value": 3000,
-        "source": "users.id",
+        "source": "20 × users.id (150 bytes each)",
         "site": "programs.mentionScan.0"
       },
       {
@@ -1395,13 +1395,13 @@
       {
         "meter": "closure bytes",
         "value": 3080,
-        "source": "users.handle",
+        "source": "20 × users.handle (154 bytes each; 10 field-name/framing + text max 32 scalars: encoded value bound 144)",
         "site": "programs.mentionScan.0"
       },
       {
         "meter": "closure bytes",
         "value": 3000,
-        "source": "users.id",
+        "source": "20 × users.id (150 bytes each; 6 field-name/framing + users declared identity 144)",
         "site": "programs.mentionScan.0"
       }
     ]

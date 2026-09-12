@@ -175,7 +175,7 @@ fn why_trace_in_state(
         "POST",
         "/control/why",
         &[("X-Snapback-Control", secret)],
-        json!({ "op": op, "args": args, "as": as_persona }),
+        json!({ "op": op, "args": args, "as": as_persona, "queryOnly": false }),
     );
     assert_eq!(why.status, 200, "{}", why.body);
     assert_eq!(why.body["result"]["state"], state, "{}", why.body);

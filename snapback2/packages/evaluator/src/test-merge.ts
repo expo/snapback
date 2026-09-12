@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 const manifest = JSON.parse(readFileSync(process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, "manifest.json") : new URL("../../../corpus/manifest.json", import.meta.url), "utf8"));
-import { ClientStore } from "./store";
+import { ClientStore } from './store';
 import { Runner, queryState } from "./runner";
 import { EvalError } from "./errors";
 import { mergeRemainder } from "./merge";
@@ -104,6 +104,7 @@ for (const bound of ["after", "before", "range"]) {
   lane.scan.opaque_cursor = false;
   if (bound === "range") lane.scan.range = { gt: at, gte: null, lt: null, lte: null };
   else lane.scan[bound] = cursor;
+  c.certificate = recertify(c);
   // Equal prefixes, different values of the very same bound expression.
   for (const record of c.receipt.rows.filter((r: any) => r.table === "follows")) record.row.Row.followed = { Id: "u2" };
   const result = new Runner(new ClientStore(c.schema, c.receipt), c.schema, c.context, c.certificate).execute(c.program);
@@ -114,7 +115,7 @@ for (const bound of ["after", "before", "range"]) {
   const c: any = manifest.find((c) => c.name === "local-pagination-partial-clears-next");
   const store = new ClientStore(c.schema, c.receipt);
   assert.notEqual(store.reexecute(c.program, c.context, c.certificate).execution.next, null);
-  for (const step of c.prelude) assert.equal(store.applyMutation(step.program, step.context).state, "predicted");
+  for (const step of c.prelude) assert.equal(store.applyMutation(step.program, step.context, false, step.certificate).state, "predicted");
   assert.notEqual(new Runner(store, c.schema, c.context, c.certificate).execute(c.program).next, null,
     "the raw replay still has a cursor; local coverage must clear it");
   const replay = store.reexecute(c.program, c.context, c.certificate);

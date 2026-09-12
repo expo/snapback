@@ -21,3 +21,8 @@ export function requireRowIdentity(
     throw new EvalError("E_INPUT", `${table} ${operation} key ${keyId} does not match row id ${rowId}`);
   }
 }
+
+/** One throwing path preserves EvalError identity and authored refusal details. */
+export function fail(code: string, message: string, authoredCode: string | null = null): never {
+  throw new EvalError(code, message, authoredCode);
+}

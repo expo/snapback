@@ -514,31 +514,31 @@
       {
         "meter": "output bytes",
         "value": 7500,
-        "source": "deliveriesReceipts.id",
+        "source": "50 × deliveriesReceipts.id (150 bytes each; 6 field-name/framing + deliveriesReceipts declared identity 144)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "output bytes",
         "value": 1400,
-        "source": "deliveriesReceipts.received",
+        "source": "50 × deliveriesReceipts.received (28 bytes each; 12 field-name/framing + Bool value maximum 16)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "output bytes",
         "value": 7850,
-        "source": "deliveriesReceipts.recipient",
+        "source": "50 × deliveriesReceipts.recipient (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "output bytes",
         "value": 7550,
-        "source": "deliveriesReceipts.row",
+        "source": "50 × deliveriesReceipts.row (151 bytes each; 7 field-name/framing + messages declared identity 144)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "output bytes",
         "value": 1950,
-        "source": "deliveriesReceipts.seq",
+        "source": "50 × deliveriesReceipts.seq (39 bytes each; 7 field-name/framing + Int value maximum 32)",
         "site": "deliver-receipts-query"
       },
       {
@@ -556,31 +556,31 @@
       {
         "meter": "closure bytes",
         "value": 7500,
-        "source": "deliveriesReceipts.id",
+        "source": "50 × deliveriesReceipts.id (150 bytes each; 6 field-name/framing + deliveriesReceipts declared identity 144)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "closure bytes",
         "value": 1400,
-        "source": "deliveriesReceipts.received",
+        "source": "50 × deliveriesReceipts.received (28 bytes each; 12 field-name/framing + Bool value maximum 16)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "closure bytes",
         "value": 7850,
-        "source": "deliveriesReceipts.recipient",
+        "source": "50 × deliveriesReceipts.recipient (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "closure bytes",
         "value": 7550,
-        "source": "deliveriesReceipts.row",
+        "source": "50 × deliveriesReceipts.row (151 bytes each; 7 field-name/framing + messages declared identity 144)",
         "site": "deliver-receipts-query"
       },
       {
         "meter": "closure bytes",
         "value": 1950,
-        "source": "deliveriesReceipts.seq",
+        "source": "50 × deliveriesReceipts.seq (39 bytes each; 7 field-name/framing + Int value maximum 32)",
         "site": "deliver-receipts-query"
       },
       {

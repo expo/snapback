@@ -423,14 +423,26 @@ declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: n
 
 ## 4. The wire
 
-HTTP/1.1, JSON bodies, `Content-Type: application/json`; CORS `*` in `dev`
-mode with preflight methods `GET, POST, OPTIONS` (cross-origin SSE needs
-`GET`). The allowed request headers are `Authorization`, `Content-Type`, and
-`X-Snapback-As`; `X-Snapback-Control` is deliberately excluded, so a web page
-cannot preflight access to the local control capability. Every refusal on every route — including a rejected mutation and a
-channel refusal — carries the full envelope below; `guide` and `family` are
-required fields in the client's public types as well as in its validator. Authentication: `Authorization: Bearer <token>`; in `dev` mode
-`X-Snapback-As: <name>` selects a persona (created on first use; §1.6).
+HTTP/1.1, JSON bodies, `Content-Type: application/json`. Development CORS
+reflects only literal loopback origins; other browser origins are refused before
+body parsing or identity lookup. Allowed preflight headers are `Authorization`,
+`Content-Type`, and `Cache-Control`; persona and control headers are excluded.
+Browser requests (`Origin` or `Sec-Fetch-Site`) cannot select personas, including
+same-origin browser requests. Local CLI/journey requests retain first-use
+`X-Snapback-As` personas; `serve` refuses them. Every refusal carries the full
+envelope below. Authentication uses a case-insensitive `Bearer` scheme.
+Request lines and individual headers are bounded to 16 KiB before allocation;
+aggregate headers are bounded to 64 KiB (414/431). JSON bodies retain the 1 MiB
+bound. A connection-thread creation failure sheds that connection, preserving
+the owner's listener. The control secret uses constant-time byte comparison. The parser caps
+connection-reader threads and pending connections at 128, uses five-second idle
+read/write timeouts, and sheds individual allocation/spawn failures. Asset GETs
+share the four-worker media/upload class, preserving the JSON pool.
+Password inputs are at most 256 UTF-8 bytes (signup still requires eight
+characters). Password HTTP routes admit at most two concurrent attempts,
+eight per normalized account, sixteen per IP, and thirty-two per owner within
+sixty seconds; denied admission returns `E_AUTH_RATE_LIMIT`/429 before the KDF.
+Unknown-email and wrong-password attempts retain the same dummy-hash work.
 
 | route | body → response |
 |---|---|
@@ -452,9 +464,13 @@ required fields in the client's public types as well as in its validator. Authen
 public client multiplexes query and channel subscriptions on one SSE connection
 per client and authority. `POST /api/live` opens it and first emits
 `data: {"session":"<random capability>"}`. `POST /api/live/control` carries
-`{ session, add: [{ id, path, lastEventId? }], remove: [id] }`, or
+`{ session, add: [{ id, path }], remove: [id] }`, or
 `{ session, close: true }`; it returns `{ ok: true }`. Controls require the
-same bearer/persona as the connection. Every child is independently admitted by
+same bearer/persona as the connection. Reconnection creates fresh replaceable
+query/channel snapshots; Last-Event-ID is not a resume protocol and the client
+does not send it. Existing held receipts remain visible during reconnection.
+Live control waits at most 250 ms before E_OWNER_BUSY; it does not pin a worker
+for ten seconds. Every child is independently admitted by
 the existing owner query/channel action; the stream capability grants no data
 authority. A child path is only a query or channel subscription path, including
 its existing receipt/validator arguments.
@@ -562,12 +578,16 @@ that never touches the served generation; `test`'s rules check uses it),
 Clock advances are non-negative. A negative `advanceMs` is refused before the
 owner changes its offset, sweeps sessions, or reruns live state.
 
+`POST /control/why` defaults `queryOnly` to true. Only the protected
+trace-harvest harness opts into mutation execution with `queryOnly: false`.
+
 ## 5. The owner
 
 - **Start.** `dev` → compile (worker) → `Generation::certify` → open
   `.snapback/store.sqlite` → `Runtime::open` (or successor) → bind a free
   loopback port (or `--port`, honored or refused `E_OWNER_PORT_TAKEN`) → write
-  `owner.json { pid, port, url, secret, generation, startedAt, mode }` → print
+  `owner.json { pid, port, url, secret, generation, startedAt, mode }` → capture
+  the watch baseline and start its thread → print
   exactly one line `SNAPBACK_URL=http://127.0.0.1:<port>` (and the JSON form
   under `--json`) → detach: the foreground process exits 0 after the owner
   is ready; the owner runs with stdin closed and stdout/stderr to
@@ -579,15 +599,19 @@ owner changes its offset, sweeps sessions, or reruns live state.
 - **Attach.** If `owner.json` names a live pid whose `/control/status`
   answers with the same project root, print the same line and exit 0. Keyed
   by project root, not port.
-- **Watch.** Poll `snapback/**/*.ts` mtimes every 200 ms; on change,
+- **Watch.** Poll authored `.q`/`.ts` sources under `snapback/` every 200 ms; on change,
   compile → certify → `apply_successor`; on refusal, log it, keep serving the
   last generation, and answer `/control/status` with `applying`/`refused`
   (+ the plan, written to `.snapback/migration-<gen>.json`). Subscriptions
   re-execute and deliver on an applied successor. Once the watcher has saved a
   destructive plan, its refusal carries `migrationFile` and `applyCommand`:
   `snapback2 dev --project '<absolute root>' --apply-migration '<absolute plan>'`,
-  with shell-quoted paths. Review the plan before running that command while the
-  owner remains running; `dev --status` then shows `ready` and the plan's generation.
+  with shell-quoted paths. Review the plan before running that command; it applies
+  to a running owner or starts a stopped one after applying the reviewed delta.
+  Cold application binds the saved originating generation, current authored
+  project, and exact live-store drops; mismatches refuse before mutation, and
+  drops plus successor metadata share one transaction. `dev --status` then shows
+  `ready` and the plan's generation.
   A failed plan write reports that failure instead of offering an application command.
   Relative `--apply-migration` paths resolve from the command's working directory,
   even with `--project`. `check` compiles, certifies, and refreshes the build cache;
@@ -1087,7 +1111,7 @@ other persistent custody by default. The adapter requires a non-empty,
 backend-specific storage key; a client rejects `as` combined with `token` or
 `tokenStore`, so a request never carries ambiguous persona and bearer
 authority; raw requests carrying both are refused too. Persona clients cannot
-run signup, login, guest, or logout bearer transitions. `client.ready` settles the initial load
+run signup, login, guest, refresh, or logout bearer transitions. `client.ready` settles the initial load
 before any query, mutation, subscription, channel action, or `me` request can
 reach the network. Browser storage protects restart continuity, not XSS: code
 executing in the page origin can read a bearer held by browser JavaScript.
@@ -1099,8 +1123,16 @@ The flattened hook and its bearer field are deleted. `useViewer()` reads
 it supplies no additional query or authority and eliminates viewer prop drilling.
 All three starter entrypoints now use bearer sessions, with signup, login,
 guest, logout, a visible who-am-I identity, working/error states, and automatic
-restoration in a compact `Auth.tsx`. Browser storage is explicitly selected and
-backend-keyed; Expo's SecureStore key encodes the complete backend URL. The
+restoration in a compact `Auth.tsx`. Web starters explicitly choose backend-keyed
+`sessionStorage`; Expo uses SecureStore keyed by the complete backend URL. Browser
+JavaScript can still read the bearer: this limits persistence, not XSS. Each starter
+exposes “Renew session” via `client.auth.refresh()` / `actions.refresh`, posting to
+`/api/auth/refresh`. The serialized transition replaces durable token/principal
+binding, keeps principal/epoch custody, and fences late old-token replies. Refresh
+is explicit to avoid concurrent request/duplicate-tab rotation races; other clients
+sharing that old bearer must sign in again. New sessions and refreshes last 24 hours.
+Lost responses or failed durable token saves require login again; guests cannot
+recover an expired/lost session. No HttpOnly-cookie protection is claimed. The
 account boundary keys children by principal and unmounts them after logout.
 A token-bound restoring principal keeps its app mounted during cold offline
 restoration, under the existing SDK held-read/write fences; unbound hydration,
@@ -1626,3 +1658,11 @@ schedule kind, retention.
    benchmark run, or `init` should scaffold the backend only.
 3. `tick` as a control route (dev only) versus `ctx.now()` bound to the
    request — the spec takes the control route.
+
+### Runtime hardening (2026-09-12)
+
+The npm launcher pins `SNAPBACK2_NODE` to `process.execPath`. Compiler and
+journey subprocesses use that absolute executable, never an ambient PATH search.
+Direct-binary invocations that compile must explicitly supply the trusted absolute
+Node path; a missing, relative, or non-executable path refuses `E_OWNER_NO_COMPILER`.
+The source watcher skips symlinks, so linked directory cycles cannot recurse.

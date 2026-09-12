@@ -1,9 +1,14 @@
 use super::*;
 
+const MINUTE: i64 = 60_000;
 const HOUR: i64 = 3_600_000;
 const DAY: i64 = 24 * HOUR;
 
 fn boot_schedules() -> (PathBuf, PathBuf, ChildGuard, u16, String) {
+    boot_schedules_with_period("24h")
+}
+
+fn boot_schedules_with_period(period: &str) -> (PathBuf, PathBuf, ChildGuard, u16, String) {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let schedules_fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -28,7 +33,7 @@ mutation sendExpiring(conversationId: conversations, body: text <=4000, expiresA
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, expiresAt, at: now }
   return { id: row.id }
-"#,
+"#.replace("every 24h", &format!("every {period}")),
     )
     .unwrap();
     let compiler = compiler(&root);
@@ -71,6 +76,21 @@ mutation sendExpiring(conversationId: conversations, body: text <=4000, expiresA
         record["secret"].as_str().unwrap().into(),
     )
 }
+
+fn restart_owner(root: &Path, compiler: &Path) -> (ChildGuard, u16, String) {
+    let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), compiler, root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let info: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    (owner, port, info["secret"].as_str().unwrap().to_owned())
+}
+
 fn control(port: u16, secret: &str, method: &str, path: &str, body: Value) -> Value {
     let r = request(port, method, path, &[("X-Snapback-Control", secret)], body);
     assert_eq!(r.status, 200, "{path}: {}", r.body);
@@ -107,6 +127,26 @@ fn owner_now(port: u16, secret: &str) -> i64 {
     );
     wall_now() + clock["offsetMs"].as_i64().unwrap()
 }
+fn advance_owner_to_daily_phase(port: u16, secret: &str, phase: i64) -> i64 {
+    let now = owner_now(port, secret);
+    let mut target = now.div_euclid(DAY) * DAY + phase;
+    if target <= now {
+        target += DAY;
+    }
+    control(
+        port,
+        secret,
+        "POST",
+        "/control/clock",
+        json!({"advanceMs": target - now}),
+    );
+    let observed = owner_now(port, secret);
+    assert!(
+        observed >= target && observed < target + 5_000,
+        "owner clock did not reach requested daily phase: target={target} observed={observed}"
+    );
+    observed
+}
 fn per_schedule<'a>(timers: &'a Value, name: &str) -> Option<&'a Value> {
     timers["schedules"]
         .as_array()
@@ -142,10 +182,148 @@ fn thread_ids(port: u16) -> Vec<String> {
         .collect()
 }
 
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a
+// whole-minute schedule persists across a real owner stop/start and emits its one occurrence.
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn one_minute_digest_aligns_and_emits_exactly_once_after_owner_restart() {
+    let (root, compiler, mut owner, mut port, mut secret) = boot_schedules_with_period("1m");
+    let initial = control(port, &secret, "GET", "/control/timers", json!({}));
+    let initial_timer = initial["next"].clone();
+    let timer_id = initial_timer["id"].as_str().unwrap().to_owned();
+    let initial_start = initial_timer["periodStart"].as_i64().unwrap();
+    let initial_at = initial_timer["at"].as_i64().unwrap();
+    assert_eq!(initial_start.rem_euclid(MINUTE), 0, "{initial}");
+    assert_eq!(initial_at, initial_start + MINUTE, "{initial}");
+
+    // Put the owner clock six real seconds before its next whole-minute boundary, then reset
+    // through the public route so the authored schedule is reinstalled on that clock.
+    let before = owner_now(port, &secret);
+    let advance_ms = (MINUTE - 6_000 - before.rem_euclid(MINUTE)).rem_euclid(MINUTE);
+    control(
+        port,
+        &secret,
+        "POST",
+        "/control/clock",
+        json!({"advanceMs": advance_ms}),
+    );
+    control(port, &secret, "POST", "/control/reset", json!({}));
+    let armed = control(port, &secret, "GET", "/control/timers", json!({}));
+    let armed_timer = armed["next"].clone();
+    let armed_at = armed_timer["at"].as_i64().unwrap();
+    assert_eq!(armed_at.rem_euclid(MINUTE), 0, "{armed}");
+    assert_eq!(
+        armed_timer["periodStart"].as_i64().unwrap(),
+        armed_at - MINUTE,
+        "{armed}"
+    );
+    let remaining = armed_at - owner_now(port, &secret);
+    assert!(remaining > 0 && remaining <= 6_000, "{armed}");
+    assert_eq!(
+        control(port, &secret, "GET", "/control/status", json!({}))["schedules"]["fired"],
+        0
+    );
+
+    stop_owner(port, &secret, &mut owner, "period restart witness");
+    (owner, port, secret) = restart_owner(&root, &compiler);
+    control(
+        port,
+        &secret,
+        "POST",
+        "/control/clock",
+        json!({"advanceMs": advance_ms}),
+    );
+    let status = wait_for(Duration::from_secs(8), || {
+        let status = control(port, &secret, "GET", "/control/status", json!({}));
+        let effects = [
+            "queued",
+            "running",
+            "thenPending",
+            "sent",
+            "failed",
+            "sentUnknown",
+        ]
+        .iter()
+        .map(|state| status["effects"][state].as_u64().unwrap_or(0))
+        .sum::<u64>();
+        (status["schedules"]["fired"].as_u64().unwrap_or(0) >= 1 && effects >= 2)
+            .then_some((status, effects))
+    });
+    assert_eq!(status.0["schedules"]["fired"], 1, "{}", status.0);
+    assert_eq!(
+        status.1, 2,
+        "one effect for each seeded profile: {}",
+        status.0
+    );
+    let trace = cli(&root, &compiler, &["trace", &format!("timer:{timer_id}")]);
+    assert_eq!(trace.0, 0, "{trace:?}");
+    assert_eq!(
+        trace.1[0]["firings"].as_array().unwrap().len(),
+        1,
+        "{trace:?}"
+    );
+    assert_eq!(trace.1[0]["firings"][0]["scheduledAt"], armed_at);
+    stop_owner(port, &secret, &mut owner, "period restart witness complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
 // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the two customers through the real binary: expiry with no client attached, and the digest firing once after an outage.
 #[test]
 fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once_after_a_gap() {
     let (root, compiler, mut owner, port, secret) = boot_schedules();
+
+    // Stabilize the whole fixture at 00:30 on the owner's public clock. Reaching 23:30 can
+    // cross the initially armed deadline, and the following hour intentionally does; resets at
+    // both phases prove that preliminary work is cleared before any counters below are captured.
+    let phase_2330 = 23 * HOUR + 30 * MINUTE;
+    let at_2330 = advance_owner_to_daily_phase(port, &secret, phase_2330);
+    assert_eq!(at_2330.rem_euclid(DAY) / MINUTE, 23 * 60 + 30);
+    control(port, &secret, "POST", "/control/reset", json!({}));
+    let clean_2330 = control(port, &secret, "GET", "/control/status", json!({}));
+    assert_eq!(clean_2330["schedules"]["fired"], 0, "{clean_2330}");
+    control(
+        port,
+        &secret,
+        "POST",
+        "/control/clock",
+        json!({"advanceMs": HOUR}),
+    );
+    let preliminary = wait_for(Duration::from_secs(5), || {
+        let status = control(port, &secret, "GET", "/control/status", json!({}));
+        (status["schedules"]["fired"] == 1
+            && status["jobs"] == json!({"parked": 0, "queued": 0, "running": 0}))
+        .then_some(status)
+    });
+    assert_eq!(
+        owner_now(port, &secret).rem_euclid(DAY) / MINUTE,
+        30,
+        "the public clock crossed from 23:30 to 00:30"
+    );
+    assert_eq!(preliminary["schedules"]["fired"], 1, "{preliminary}");
+    control(port, &secret, "POST", "/control/reset", json!({}));
+    let clean_0030 = control(port, &secret, "GET", "/control/status", json!({}));
+    assert_eq!(clean_0030["schedules"]["fired"], 0, "{clean_0030}");
+    assert_eq!(
+        clean_0030["jobs"],
+        json!({"parked": 0, "queued": 0, "running": 0}),
+        "{clean_0030}"
+    );
+    assert_eq!(
+        [
+            "queued",
+            "running",
+            "thenPending",
+            "sent",
+            "failed",
+            "sentUnknown",
+        ]
+        .iter()
+        .map(|state| clean_0030["effects"][state].as_u64().unwrap_or(0))
+        .sum::<u64>(),
+        0,
+        "reset did not clear preliminary effects: {clean_0030}"
+    );
+
     let timers = control(port, &secret, "GET", "/control/timers", json!({}));
     assert_eq!(timers["schedules"].as_array().unwrap().len(), 2, "{timers}");
     assert_eq!(
@@ -175,6 +353,10 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     // Expiry: the row timer is written with the row; every request below is a
     // closed HTTP exchange, so no client exists when the purge fires.
     let now = owner_now(port, &secret);
+    assert!(
+        now + HOUR + 1_000 < period_start + DAY,
+        "the expiry phase must not cross the daily boundary"
+    );
     let message = send_expiring(port, "gone in an hour", now + HOUR);
     let timers = control(port, &secret, "GET", "/control/timers", json!({}));
     let expire = per_schedule(&timers, "expireMessage").unwrap();
@@ -390,6 +572,11 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
             .as_u64()
             .unwrap();
     let deadline = period_start + 4 * DAY + HOUR;
+    let until_deadline = deadline - owner_now(port, &secret);
+    assert!(
+        until_deadline > 23 * HOUR && until_deadline < DAY,
+        "00:30 setup must leave the batch deadline safely ahead: {until_deadline}"
+    );
     let ids: Vec<String> = (0..70)
         .map(|n| send_expiring(port, &format!("batch {n}"), deadline))
         .collect();
@@ -464,13 +651,17 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     );
     assert_eq!(batch.iter().filter(|seq| **seq > chunk_seq).count(), 7);
 
-    // A successor installed under the advanced clock anchors its new period to the owner's
+    // A successor installed under the advanced clock aligns its new period on the owner's
     // clock, and so does a reset: neither reads wall time.
     let wall = wall_now();
     let owner_before = owner_now(port, &secret);
     assert!(
-        owner_before > wall + 4 * DAY,
-        "the dev clock is days ahead of wall time"
+        owner_before >= deadline + 1_000,
+        "the owner retained the observed advance through the timer batch"
+    );
+    assert!(
+        owner_before > wall + 2 * DAY,
+        "the dev clock is far enough ahead to distinguish a 48h wall-clock period"
     );
     let admin = fs::read_to_string(root.join("snapback/admin.q")).unwrap();
     fs::write(
@@ -504,9 +695,10 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     let weekly_at = per_schedule(&timers, "weeklyDigest").unwrap()["next_at"]
         .as_i64()
         .unwrap();
+    assert_eq!(weekly_at.rem_euclid(2 * DAY), 0, "{timers}");
     assert!(
-        weekly_at >= owner_before + 2 * DAY && weekly_at <= owner_now(port, &secret) + 2 * DAY,
-        "the new period is anchored to the owner's clock, not wall time: {timers}"
+        weekly_at > owner_before && weekly_at <= owner_now(port, &secret) + 2 * DAY,
+        "the new period uses the next whole boundary on the owner's clock: {timers}"
     );
     control(port, &secret, "POST", "/control/reset", json!({}));
     let timers = control(port, &secret, "GET", "/control/timers", json!({}));
@@ -518,9 +710,10 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     let daily_at = per_schedule(&timers, "dailyDigest").unwrap()["next_at"]
         .as_i64()
         .unwrap();
+    assert_eq!(daily_at.rem_euclid(DAY), 0, "{timers}");
     assert!(
-        daily_at >= owner_before + DAY && daily_at <= owner_now(port, &secret) + DAY,
-        "reset re-arms on the owner's clock: {timers}"
+        daily_at > owner_before && daily_at <= owner_now(port, &secret) + DAY,
+        "reset re-arms at the next whole boundary on the owner's clock: {timers}"
     );
     stop_owner(port, &secret, &mut owner, "schedules test");
     fs::remove_dir_all(root).unwrap();
@@ -612,7 +805,7 @@ fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
         json!({"email":"reset@example.com", "password":"test-password-reset"}),
     );
     assert_eq!(signup.status, 200, "{}", signup.body);
-    let token = format!("Bearer {}", signup.body["token"].as_str().unwrap());
+    let mut token = format!("Bearer {}", signup.body["token"].as_str().unwrap());
     let reset = cli(&root, &compiler, &["reset"]);
     assert_eq!(reset.0, 0, "{reset:?}");
     assert_eq!(reset.1[0]["seed"], json!({"rows":18,"personas":3}));
@@ -631,13 +824,13 @@ fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
         "before empty reset",
         owner_now(port, &secret) + 3 * DAY,
     );
-    control(
-        port,
-        &secret,
-        "POST",
-        "/control/clock",
-        json!({"advanceMs": DAY + 1_000}),
-    );
+    // Keep the same auth epoch alive while crossing the daily schedule: the
+    // bearer now expires after 24 hours, independent of application resets.
+    control(port, &secret, "POST", "/control/clock", json!({"advanceMs": DAY / 2}));
+    let renewed = request(port, "POST", "/api/auth/refresh", &[("Authorization", &token)], json!({}));
+    assert_eq!(renewed.status, 200, "{}", renewed.body);
+    token = format!("Bearer {}", renewed.body["token"].as_str().unwrap());
+    control(port, &secret, "POST", "/control/clock", json!({"advanceMs": DAY / 2 + 1_000}));
     // The digest schedule emitted two rows; the Hermes build may already have
     // claimed or retried them, so count every outbox state rather than `queued`.
     wait_for(Duration::from_secs(5), || {

@@ -66,7 +66,11 @@ fn warmed(decl: &EffectDecl, calm: Value) -> Ibex2Host {
         host.run(decl, &job("warm-up", calm), Duration::from_secs(10)),
         sent(json!("calm"))
     );
-    assert_eq!(host.cached_runtime_count(), 1, "the warm-up keeps its runtime");
+    assert_eq!(
+        host.cached_runtime_count(),
+        1,
+        "the warm-up keeps its runtime"
+    );
     host
 }
 
@@ -152,7 +156,10 @@ fn a_spin_at_the_module_top_level_is_stopped_at_the_budget() {
         0,
         "a build the deadline ended leaves no runtime"
     );
-    let calm = declaration("(() => { return async () => 'calm'; })()", unreachable_grant());
+    let calm = declaration(
+        "(() => { return async () => 'calm'; })()",
+        unreachable_grant(),
+    );
     assert_eq!(
         host.run(&calm, &job("calm-1", Value::Null), BUDGET),
         sent(json!("calm"))
@@ -267,7 +274,11 @@ fn a_provider_that_never_answers_is_stopped_at_the_budget() {
     );
     assert_timed_out(&outcome, BUDGET);
     assert_stopped_at(started, BUDGET);
-    assert_eq!(provider.requests(), 1, "the request reached the provider once");
+    assert_eq!(
+        provider.requests(),
+        1,
+        "the request reached the provider once"
+    );
     assert_eq!(host.cached_runtime_count(), 0);
 }
 
@@ -519,7 +530,11 @@ fn a_spinning_effect_fails_after_five_attempts_across_the_backoff_schedule() {
             "attempt {attempt}"
         );
         if attempt < 5 {
-            assert_eq!((drained.requeued, drained.failed), (1, 0), "attempt {attempt}");
+            assert_eq!(
+                (drained.requeued, drained.failed),
+                (1, 0),
+                "attempt {attempt}"
+            );
             assert_eq!(outbox.state, "queued");
             schedule.push(outbox.next_at - clock.get());
             clock.set(outbox.next_at);
@@ -533,4 +548,69 @@ fn a_spinning_effect_fails_after_five_attempts_across_the_backoff_schedule() {
         .drain_with_clock(&mut outbox, 16, || clock.get() + 100_000)
         .unwrap();
     assert_eq!(after.claimed, 0, "a failed row is never claimed again");
+}
+
+#[test]
+fn held_fetch_drive_measurement() {
+    let provider = HoldingProvider::start();
+    let decl = declaration(
+        "async (payload, { fetch }) => { if (!payload.wait) return 'calm'; return await fetch(payload.url); }",
+        vec![provider.origin()],
+    );
+    let mut host = warmed(&decl, json!({"wait":false}));
+    DRIVE_TURNS.with(|turns| turns.set(0));
+    let started = Instant::now();
+    let seconds = std::env::var("SNAPBACK2_MEASURE_SECONDS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(2)
+        .clamp(2, 30);
+    let legacy = std::env::var_os("SNAPBACK2_MEASURE_LEGACY_POLL").is_some();
+    MEASURE_LEGACY_POLL.with(|flag| flag.set(legacy));
+    let budget = Duration::from_secs(seconds);
+    let outcome = host.run(
+        &decl,
+        &job("held-measure", json!({"wait":true,"url":provider.origin()})),
+        budget,
+    );
+    assert_timed_out(&outcome, budget);
+    assert_eq!(provider.requests(), 1);
+    let turns = DRIVE_TURNS.with(|turns| turns.get());
+    MEASURE_LEGACY_POLL.with(|flag| flag.set(false));
+    if !legacy {
+        assert!(
+            turns <= 50 * seconds,
+            "blocked fetch hot-looped: {turns} turns"
+        );
+    }
+    eprintln!(
+        "held_fetch_drive turns={turns} elapsed_ms={}",
+        started.elapsed().as_millis()
+    );
+}
+
+#[test]
+fn trusted_setup_obeys_an_expired_deadline_and_host_tokens_are_os_random() {
+    let decl = declaration("async () => true", vec![]);
+    assert!(matches!(
+        build_runtime(&decl, None, Instant::now()),
+        Err(BuildFailure::Deadline)
+    ));
+    let first = host_channel_token().unwrap();
+    let second = host_channel_token().unwrap();
+    assert_eq!(first.len(), 64);
+    assert!(first.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    assert_ne!(first, second);
+}
+
+#[test]
+fn host_channel_failure_discards_the_cached_runtime() {
+    let decl = declaration("async () => 'calm'", vec![]);
+    let mut host = warmed(&decl, json!(null));
+    host.runtimes.values_mut().next().unwrap().host_token = "wrong-token".into();
+    assert!(matches!(
+        host.run(&decl, &job("broken-host", json!(null)), BUDGET),
+        Outcome::Failed { .. }
+    ));
+    assert_eq!(host.cached_runtime_count(), 0);
 }

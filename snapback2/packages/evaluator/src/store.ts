@@ -3,7 +3,7 @@ export { immutable } from './row-image';
 import { ReadableDirectory } from './held-directory';
 import { canonicalSchemaJson } from './certificate-identity';
 import { CoverageIndex, prepareRange } from './coverage';
-import { EvalError } from './errors';
+import { fail, EvalError } from './errors';
 import { sha256 } from './hash';
 import { HeldIndex, components, ordinaryColumns, preparePrefix, scalarAtoms } from './index-store';
 import type { SearchExecution } from './search-runtime';
@@ -35,7 +35,7 @@ export class ClientStore {
     }
     this.facts = new CoverageIndex(schema, (r, logical, id) => this.index(r.table, r.index).position(id, logical));
     for (const record of receipt.rows) {
-      if (asString(field(record.row,'id')) !== record.id) throw new EvalError('E_INPUT', 'receipt row identity must match its body');
+      if (asString(field(record.row,'id')) !== record.id) fail('E_INPUT', 'receipt row identity must match its body');
       this.put(record.table, record.row);
     }
     this.setReceipt('seed', receipt, options.program);
@@ -50,11 +50,11 @@ export class ClientStore {
       const pool = admittedPool ?? new Set(receipt.rows.map(r => JSON.stringify([r.table, r.id])));
       for (const r of receipt.ranges) {
         for (const id of r.row_ids) if (!pool.has(JSON.stringify([r.table, id])) && !r.evicted_ids?.includes(id))
-          throw new EvalError('E_INPUT', 'range member must reference its receipt row pool');
+          fail('E_INPUT', 'range member must reference its receipt row pool');
       }
       for (const r of receipt.ranges) if (r.halo && (r.halo.table !== r.table || !pool.has(JSON.stringify([r.halo.table, r.halo.id]))))
-        throw new EvalError('E_INPUT', 'halo must reference the same receipt row pool');
-      if (receipt.schema_hash !== this.schemaHash) receipt = { ...receipt, absences: [] };
+        fail('E_INPUT', 'halo must reference the same receipt row pool');
+      if (receipt.schema_hash !== this.schemaHash) receipt = { ...receipt, absences: [], verdicts: [] };
     }
     return receipt;
   }
@@ -71,11 +71,11 @@ export class ClientStore {
     }
   }
   rehydrate(receipt: ClosureReceipt): number {
-    if (this.journal) throw new EvalError('E_INPUT', 'nested prediction transaction');
+    if (this.journal) fail('E_INPUT', 'nested prediction transaction');
     // Validate the entire replacement before touching current rows or authority.
     const rows = receipt.rows.map(({ table,id,row }) => {
       const value = this.prepareRow(table,row);
-      if (asString(field(value,'id')) !== id) throw new EvalError('E_INPUT', 'receipt row identity must match its body');
+      if (asString(field(value,'id')) !== id) fail('E_INPUT', 'receipt row identity must match its body');
       return { table,id,row: value };
     });
     const next = new CoverageIndex(this.schema, (r, logical, id) => this.index(r.table, r.index).position(id, logical));
@@ -100,7 +100,7 @@ export class ClientStore {
   }
   applyMutation(program: any, context: Context, preview = false, certificate: any = null, predictDelivery = false): LocalExecution {
     validateInputs(this.schema, program, context.args);
-    if (this.journal) throw new EvalError('E_INPUT', 'nested prediction transaction');
+    if (this.journal) fail('E_INPUT', 'nested prediction transaction');
     this.journal = new Map();
     const runner = new Runner(this, this.schema, context, certificate, undefined, predictDelivery);
     let execution: Execution;
@@ -146,13 +146,13 @@ export class ClientStore {
   rows(table: string): Value[] { return [...(this.tables.get(table)?.values() ?? [])]; }
   lookup(table: string, index: string, key: Value[]): Value | null {
     const definition = this.schema.tables?.[table]?.indexes?.[index];
-    if (!definition || key.length !== ordinaryColumns(definition).length) throw new EvalError('E_TYPE', 'point requires a complete ordinary index key');
+    if (!definition || key.length !== ordinaryColumns(definition).length) fail('E_TYPE', 'point requires a complete ordinary index key');
     const prefix = preparePrefix(this.schema, table, index, scalarAtoms(key), []);
     return this.seek(table, index, prefix, null, null, null, 'Asc').next().value ?? null;
   }
   index(table: string, index: string): HeldIndex {
     const held = this.indexes.get(JSON.stringify([table, index]));
-    if (!held) throw new EvalError('E_SCHEMA', `missing index ${table}.${index}`);
+    if (!held) fail('E_SCHEMA', `missing index ${table}.${index}`);
     return held;
   }
   seek(table: string, index: string, prefix: LogicalIndexAtom[], after: Value | null, before: Value | null, range: any, order: 'Asc' | 'Desc'): Generator<Value> {
@@ -169,7 +169,7 @@ export class ClientStore {
   put(table: string, row: Value): boolean {
     const value = this.prepareRow(table,row);
     const id = asString(field(value, 'id')), rows = this.tables.get(table);
-    if (!rows) throw new EvalError('E_SCHEMA', `missing table ${table}`);
+    if (!rows) fail('E_SCHEMA', `missing table ${table}`);
     const old = this.byId(table, id);
     if (old === value) return false;
     const changed = !RowImage.equal(old,value);
@@ -200,9 +200,9 @@ export class ClientStore {
         if (value.lanes.length !== 1 || !lane.source || lane.setup?.length || lane.scan.before !== null || lane.scan.range !== null
           || d.table !== lane.scan.table || d.index !== lane.scan.index || d.order !== lane.scan.order
           || canonicalJson(d.discovery.scan) !== canonicalJson(lane.source) || d.discovery.binding !== lane.binding
-          || canonicalJson(d.term) !== canonicalJson(lane.scan.prefix.at(-1)?.WordPrefix)) throw new EvalError('E_TRACE_SUBSET', 'held search metadata does not match its merge');
+          || canonicalJson(d.term) !== canonicalJson(lane.scan.prefix.at(-1)?.WordPrefix)) fail('E_TRACE_SUBSET', 'held search metadata does not match its merge');
         const index = this.index(d.table, d.index);
-        if (index.derived !== d.scope.length || d.suffix.at(-1) !== 'id') throw new EvalError('E_TRACE_SUBSET', 'invalid held search partition');
+        if (index.derived !== d.scope.length || d.suffix.at(-1) !== 'id') fail('E_TRACE_SUBSET', 'invalid held search partition');
         this.directories.set(d, new ReadableDirectory(index, d, context.viewer, row => new Runner(this, this.schema, context, null).readAuthority(d.table, row)));
       }
       for (const child of Object.values(value)) visit(child);

@@ -150,7 +150,7 @@ async function auditVariants(variants, binary, compiler, generation, pids) {
   }
   for (const variant of variants) {
     checks.push(await capturedCommand({ command: binary, args: ["check", "--json"], cwd: variant.root,
-      env: { ...process.env, SNAPBACK2_COMPILER: compiler }, label: `${variant.label}-check`, pids }));
+      env: { ...process.env, SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: compiler }, label: `${variant.label}-check`, pids }));
   }
   for (const variant of variants) {
     const certificatesPath = join(variant.root, ".snapback", "build", "certificates.json");

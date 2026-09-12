@@ -477,9 +477,23 @@ fn mutation_generation_fence_is_atomic_and_replay_terminals_survive_successors()
     state.apply(compiled(&scheduled, next), None, None, None).unwrap();
     assert_eq!(state.handle(request(0, &generation)).unwrap(), committed);
     assert_eq!(state.handle(request(1, &generation)).unwrap(), rejected);
-    let mut fresh = request(2, state.runtime().generation().program_hash());
-    if let Action::Execute { args, .. } = &mut fresh { *args = json!({}); }
-    assert_eq!(state.handle(fresh).unwrap_err().code, "E_OPERATOR_REQUIRED");
+    let scheduled_generation = state.runtime().generation().program_hash().to_owned();
+    let fresh = || {
+        let mut action = request(2, &scheduled_generation);
+        if let Action::Execute { args, .. } = &mut action { *args = json!({}); }
+        action
+    };
+    let seq = state.runtime().store().commit_seq().unwrap();
+    let denied = state.handle(fresh()).unwrap();
+    assert_eq!(denied["state"], "rejected");
+    assert_eq!(denied["code"], "E_OPERATOR_REQUIRED");
+    assert_eq!(denied["intent"], format!("{}:2", grant.id));
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), seq);
+    assert_eq!(state.handle(fresh()).unwrap(), denied);
+    let restored = Generation::certify(&successor, Ceilings::default()).unwrap();
+    state.apply(compiled(&successor, restored), None, None, None).unwrap();
+    assert_eq!(state.handle(fresh()).unwrap(), denied,
+        "restoring client eligibility must not execute a settled rejection");
     std::fs::remove_dir_all(&state.root).unwrap();
 }
 

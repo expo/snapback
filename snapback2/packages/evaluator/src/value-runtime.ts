@@ -2,7 +2,7 @@ import { compareCodepoints } from './hash';
 export { compareCodepoints } from './hash';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { canonicalRuleJson, canonicalSchemaJson } from "./certificate-identity";
-import { EvalError } from "./errors";
+import { fail, EvalError } from "./errors";
 import { sha256, utf8Length } from "./hash";
 import { cursorSuffix, decodeCursor, decodeCursorFor } from "./cursor";
 import { scalarLength } from "./unicode";
@@ -44,7 +44,7 @@ export function canonicalValue(value: Value): string {
   if (kind === "Bool" || kind === "Int") return `{"${kind}":${JSON.stringify(data)}}`;
   if (kind === "String" || kind === "Id") return `{"${kind}":${JSON.stringify(data)}}`;
   if (kind === "Bytes") {
-    if (!canonicalBytes(data)) throw new EvalError("E_INPUT", "Bytes is not canonical lowercase base16");
+    if (!canonicalBytes(data)) fail("E_INPUT", "Bytes is not canonical lowercase base16");
     return `{"Bytes":${JSON.stringify(data)}}`;
   }
   if (kind === "Array") return `{"Array":${canonicalValues(data)}}`;
@@ -87,7 +87,7 @@ export function rowValue(entries: Record<string, Value>): Value {
 
 export function field(value: Value, name: string): Value {
   const object = asObject(value);
-  if (!hasOwn(object, name)) throw new EvalError("E_FIELD", `missing field ${name}`);
+  if (!hasOwn(object, name)) fail("E_FIELD", `missing field ${name}`);
   return object[name];
 }
 
@@ -99,27 +99,27 @@ export function fieldOrNull(value: Value, name: string): Value {
 export function asObject(value: Value): Record<string, Value> {
   if (isVariant(value, "Row")) return value.Row;
   if (isVariant(value, "Map")) return value.Map;
-  throw new EvalError("E_TYPE", "expected row or map");
+  fail("E_TYPE", "expected row or map");
 }
 
 export function asArray(value: Value): Value[] {
-  if (!isVariant(value, "Array")) throw new EvalError("E_TYPE", "expected array");
+  if (!isVariant(value, "Array")) fail("E_TYPE", "expected array");
   return value.Array;
 }
 
 export function asString(value: Value): string {
   if (isVariant(value, "String")) return value.String;
   if (isVariant(value, "Id")) return value.Id;
-  throw new EvalError("E_TYPE", "expected string or id");
+  fail("E_TYPE", "expected string or id");
 }
 
 export function asInt(value: Value): number {
-  if (!isVariant(value, "Int")) throw new EvalError("E_TYPE", "expected int");
+  if (!isVariant(value, "Int")) fail("E_TYPE", "expected int");
   return value.Int;
 }
 
 export function asBool(value: Value): boolean {
-  if (!isVariant(value, "Bool")) throw new EvalError("E_TYPE", "expected bool");
+  if (!isVariant(value, "Bool")) fail("E_TYPE", "expected bool");
   return value.Bool;
 }
 
@@ -129,7 +129,7 @@ export function int(value: number): Value {
 
 export function safeNumber(value: number): number {
   if (!Number.isSafeInteger(value) || value < I53_MIN || value > I53_MAX)
-    throw new EvalError("E_OVERFLOW", `${value} is outside the i53 value model`);
+    fail("E_OVERFLOW", `${value} is outside the i53 value model`);
   return value;
 }
 
@@ -146,7 +146,7 @@ export function totalCompare(left: Value, right: Value): number {
   if (leftKind === "String" || leftKind === "Id") return compareCodepoints(leftData, rightData);
   if (leftKind === "Bytes") {
     if (!canonicalBytes(leftData) || !canonicalBytes(rightData))
-      throw new EvalError("E_INPUT", "Bytes is not canonical lowercase base16");
+      fail("E_INPUT", "Bytes is not canonical lowercase base16");
     return compareCodepoints(leftData, rightData);
   }
   if (leftKind === "Array") return compareArrays(leftData, rightData);
@@ -179,7 +179,7 @@ export function comparePrimitive(left: number | boolean | string, right: number 
 export function variant(value: any): [string, any] {
   if (typeof value === "string") return [value, null];
   const keys = Object.keys(value);
-  if (keys.length !== 1) throw new EvalError("E_CORPUS", "invalid externally tagged variant");
+  if (keys.length !== 1) fail("E_CORPUS", "invalid externally tagged variant");
   return [keys[0], value[keys[0]]];
 }
 
@@ -196,7 +196,7 @@ export function wireJson(value: Value): unknown {
     case "Row": case "Map":
       return Object.fromEntries(Object.keys(data).sort(compareCodepoints).map((key) => [key, wireJson(data[key])]));
     case "Array": return data.map(wireJson);
-    default: throw new EvalError("E_INPUT", `unsupported value kind ${kind}`);
+    default: fail("E_INPUT", `unsupported value kind ${kind}`);
   }
 }
 
@@ -214,7 +214,7 @@ export function scopedRuleHash(schema: any, rule: any): string {
 export function kindOf(value: Value): string {
   if (value === "Null") return "Null";
   const keys = Object.keys(value);
-  if (keys.length !== 1) throw new EvalError("E_INPUT", "invalid externally tagged value");
+  if (keys.length !== 1) fail("E_INPUT", "invalid externally tagged value");
   return keys[0];
 }
 
@@ -234,10 +234,10 @@ export function sameValueZero(left: Value, right: Value): boolean {
   const leftKind = kindOf(left);
   const rightKind = kindOf(right);
   if (["Bytes", "Row", "Array", "Map"].includes(leftKind)) {
-    throw new EvalError("E_TYPE", `SameValueZero expects primitive operands, got ${leftKind}`);
+    fail("E_TYPE", `SameValueZero expects primitive operands, got ${leftKind}`);
   }
   if (["Bytes", "Row", "Array", "Map"].includes(rightKind)) {
-    throw new EvalError("E_TYPE", `SameValueZero expects primitive operands, got ${rightKind}`);
+    fail("E_TYPE", `SameValueZero expects primitive operands, got ${rightKind}`);
   }
   if ((leftKind === "String" || leftKind === "Id") && (rightKind === "String" || rightKind === "Id")) {
     const leftText = isVariant(left, "String") ? left.String : (left as { Id: string }).Id;
@@ -273,30 +273,30 @@ export function canonicalJson(value: unknown): string {
 
 export function validateWriteRow(schema: any, tableName: string, row: Value): void {
   const columns = schema.tables?.[tableName]?.columns;
-  if (columns === undefined) throw new EvalError("E_SCHEMA", `missing table ${tableName}`);
+  if (columns === undefined) fail("E_SCHEMA", `missing table ${tableName}`);
   const object = asObject(row);
-  if (!hasOwn(object, "id")) throw new EvalError("E_SCHEMA", `${tableName} row lacks id`);
+  if (!hasOwn(object, "id")) fail("E_SCHEMA", `${tableName} row lacks id`);
   const unknown = Object.keys(object).find((name) => !hasOwn(columns, name));
   if (unknown !== undefined)
-    throw new EvalError("E_INPUT", `${tableName} row contains undeclared field ${unknown}`);
+    fail("E_INPUT", `${tableName} row contains undeclared field ${unknown}`);
   for (const [name, descriptor] of Object.entries<any>(columns)) {
     const value = hasOwn(object, name) ? object[name] : undefined;
     if (value === undefined && descriptor?.Optional === undefined)
-      throw new EvalError("E_INPUT", `${tableName}.${name} is required`);
+      fail("E_INPUT", `${tableName}.${name} is required`);
     if (value !== undefined) validateColumnValue(schema, tableName, name, value);
   }
   const id = object.id;
   if (isVariant(id, 'Id') && !identityFits(id.Id)) {
     const maintain = schema.maintains.find((m: any) => m.target === tableName);
     if (canonicalValues(maintain.by.map((name: string) => fieldOrNull(row, name))) !== id.Id)
-      throw new EvalError('E_INPUT', `${tableName}.id differs from its maintained group`);
+      fail('E_INPUT', `${tableName}.id differs from its maintained group`);
   }
 }
 
 export function validateInputs(schema: any, program: any, inputs: Record<string, Value>): void {
   for (const [name, descriptor] of Object.entries<any>(program.args ?? {})) {
     const value = inputs[name];
-    if (value === undefined) throw new EvalError("E_INPUT", `missing arg ${name}`);
+    if (value === undefined) fail("E_INPUT", `missing arg ${name}`);
     validateTypedValue(descriptor, value, `arg ${name}`, true, false, schema);
   }
 }
@@ -304,11 +304,11 @@ export function validateInputs(schema: any, program: any, inputs: Record<string,
 /** Cursor scope follows executed control flow, including an empty merge. */
 export function validateScanCursor(schema: any, scan: any, bindings: Map<string, Value>): void {
   if (!scan.opaque_cursor) return;
-  if (scan.before !== null) throw new EvalError("E_INPUT", "opaque cursors only support after");
+  if (scan.before !== null) fail("E_INPUT", "opaque cursors only support after");
   const cursor = scan.after?.Variable !== undefined ? bindings.get(scan.after.Variable) : scan.after?.Literal;
-  if (cursor === undefined) throw new EvalError("E_INPUT", "opaque cursor expression must derive from an operation argument");
+  if (cursor === undefined) fail("E_INPUT", "opaque cursor expression must derive from an operation argument");
   if (cursor === "Null") return;
-  if (!isVariant(cursor, "String")) throw new EvalError("E_INPUT", "opaque cursor must be a string");
+  if (!isVariant(cursor, "String")) fail("E_INPUT", "opaque cursor must be a string");
   decodeCursorFor(cursor.String, {
     table: scan.table, index: scan.index, order: scan.order, suffix: cursorSuffix(schema, scan),
   }, schema);
@@ -317,7 +317,7 @@ export function validateScanCursor(schema: any, scan: any, bindings: Map<string,
 /** Intrinsic addresses belong to the table; references belong to their declared target. */
 export function columnDescriptor(schema: any, table: string, column: string): any {
   const kind = schema?.tables?.[table]?.columns?.[column];
-  if (kind === undefined) throw new EvalError('E_SCHEMA', `missing column ${table}.${column}`);
+  if (kind === undefined) fail('E_SCHEMA', `missing column ${table}.${column}`);
   return column === 'id' && kind === 'Id' ? { Ref: { table } } : kind;
 }
 export function validateColumnValue(schema: any, table: string, column: string, value: Value, internalKey = false): void {
@@ -334,7 +334,7 @@ export function validateTypedValue(
 ): void {
   const reserved = inspectValue(value, label, descriptor, schema);
   if (!internalKey && reserved)
-    throw new EvalError("E_INPUT", `${label} cannot carry the reserved system principal`);
+    fail("E_INPUT", `${label} cannot carry the reserved system principal`);
   validateType(descriptor, value, label, fanoutForLongList, descriptorContainsAsset(descriptor));
 }
 
@@ -364,58 +364,58 @@ function validateType(descriptor: any, value: Value, label: string, fanout: bool
   }
   if (asset) return validateAsset(descriptor,value,label);
   if (descriptor === "Cursor") {
-    if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be a cursor string`);
+    if (!isVariant(value, "String")) fail("E_INPUT", `${label} must be a cursor string`);
     decodeCursor(value.String);
     return;
   }
   if (descriptor === "Scalar") return;
   if (descriptor === "Id" || descriptor === "Principal" || descriptor?.Ref !== undefined) {
-    if (!isVariant(value, "Id")) throw new EvalError("E_INPUT", `${label} must be an id`);
+    if (!isVariant(value, "Id")) fail("E_INPUT", `${label} must be an id`);
     return;
   }
   if (descriptor?.Text !== undefined) {
-    if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be text`);
+    if (!isVariant(value, "String")) fail("E_INPUT", `${label} must be text`);
     const codePoint = disallowedTextControlCodePoint(value.String);
     if (codePoint !== undefined)
-      throw new EvalError("E_INPUT", `${label} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
+      fail("E_INPUT", `${label} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
     const length = Array.from(value.String).length;
     if (length > descriptor.Text.max)
-      throw new EvalError("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
+      fail("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
     // Argument refinements apply recursively before any program body executes; column Text is unchanged.
     if (fanout && length < (descriptor.Text.min ?? 0))
-      throw new EvalError("E_INPUT", `${label} is shorter than text min ${descriptor.Text.min}`);
+      fail("E_INPUT", `${label} is shorter than text min ${descriptor.Text.min}`);
     if (fanout && descriptor.Text.format !== undefined && !(descriptor.Text.format === 'handle'
       ? /^[a-z0-9_]*$/.test(value.String) : descriptor.Text.format === 'url' && validHttpUrl(value.String)))
-      throw new EvalError('E_INPUT', `${label} has invalid ${String(descriptor.Text.format)} format`);
+      fail('E_INPUT', `${label} has invalid ${String(descriptor.Text.format)} format`);
     return;
   }
   if (descriptor?.Bytes !== undefined) {
     if (!isVariant(value, "Bytes") || !canonicalBytes(value.Bytes))
-      throw new EvalError("E_INPUT", `${label} must be bytes`);
+      fail("E_INPUT", `${label} must be bytes`);
     if (value.Bytes.length / 2 > descriptor.Bytes.max)
-      throw new EvalError("E_INPUT", `${label} exceeds bytes max ${descriptor.Bytes.max}`);
+      fail("E_INPUT", `${label} exceeds bytes max ${descriptor.Bytes.max}`);
     return;
   }
   if (["Int", "Time"].includes(descriptor) || descriptor?.Decimal !== undefined || descriptor?.Money !== undefined) {
     if (!isVariant(value, "Int") || !Number.isSafeInteger(value.Int))
-      throw new EvalError("E_INPUT", `${label} must be an i53 integer`);
+      fail("E_INPUT", `${label} must be an i53 integer`);
     return;
   }
   if (descriptor === "Bool") {
-    if (!isVariant(value, "Bool")) throw new EvalError("E_INPUT", `${label} must be a boolean`);
+    if (!isVariant(value, "Bool")) fail("E_INPUT", `${label} must be a boolean`);
     return;
   }
   if (descriptor?.Json !== undefined) {
     if (utf8Length(canonicalValue(value)) > descriptor.Json.max_bytes)
-      throw new EvalError("E_INPUT", `${label} exceeds JSON max ${descriptor.Json.max_bytes} bytes`);
+      fail("E_INPUT", `${label} exceeds JSON max ${descriptor.Json.max_bytes} bytes`);
     return;
   }
   if (descriptor?.Enum !== undefined) {
     if (!isVariant(value, "String") || !descriptor.Enum.variants.includes(value.String))
-      throw new EvalError("E_INPUT", `${label} is not a declared enum value`);
+      fail("E_INPUT", `${label} is not a declared enum value`);
     return;
   }
-  throw new EvalError("E_SCHEMA", `unsupported type for ${label}`);
+  fail("E_SCHEMA", `unsupported type for ${label}`);
 }
 
 function disallowedTextControlCodePoint(text: string): number | undefined {
@@ -437,7 +437,7 @@ function descriptorContainsAsset(descriptor: any): boolean {
 // @ref LLP 1006#6-the-write-validated-not-stamped — the twin enforces the closed asset record and list uniqueness but owns no ledger authority.
 function validateAsset(descriptor: any, value: Value, label: string): string[] {
   const kind = descriptor?.Image !== undefined ? "image" : descriptor?.Video !== undefined ? "video" : null;
-  if (kind === null) throw new EvalError("E_SCHEMA", `unsupported asset type for ${label}`);
+  if (kind === null) fail("E_SCHEMA", `unsupported asset type for ${label}`);
   if (!isVariant(value, "Map")) throw assetType(label, `must be a closed ${kind} asset map`);
   const expected = kind === "image" ? ["height", "id", "width"] : ["duration", "height", "id", "width"];
   const actual = Object.keys(value.Map).sort(compareCodepoints);
@@ -468,7 +468,7 @@ export function assertValue(value: Value, label: string, descriptor?: any, schem
 function inspectValue(value: Value, label: string, descriptor?: any, schema?: any): boolean {
   while (descriptor?.Optional !== undefined) descriptor = descriptor.Optional;
   if (value === "Null") return false;
-  if (!plainObject(value) || Object.keys(value).length !== 1) throw new EvalError("E_INPUT", `${label} is not a tagged value`);
+  if (!plainObject(value) || Object.keys(value).length !== 1) fail("E_INPUT", `${label} is not a tagged value`);
   const kind = kindOf(value);
   const data = (value as any)[kind];
   if (kind === "Bool" && typeof data === "boolean" || kind === "Int" && Number.isSafeInteger(data)) return false;
@@ -489,7 +489,7 @@ function inspectValue(value: Value, label: string, descriptor?: any, schema?: an
     for (const [key, item] of Object.entries(data)) { scalarText(key); reserved = inspectValue(item as Value, label) || reserved; }
     return reserved;
   }
-  throw new EvalError("E_INPUT", `${label} is not a valid value`);
+  fail("E_INPUT", `${label} is not a valid value`);
 }
 
 export function canonicalBytes(value: unknown): value is string {
@@ -523,7 +523,7 @@ export function builtinArity(kind: string): number {
     case "Len": case "Sort":  case "MentionTokens": case "Count": case "CountCapped": case "Sum": return 1;
     case "Concat": case "Min": case "Max": case "Divmod": return 2;
     case "Slice": case "DeterministicShare": return 3;
-    default: throw new EvalError("E_OPAQUE", `unsupported builtin ${kind}`);
+    default: fail("E_OPAQUE", `unsupported builtin ${kind}`);
   }
 }
 
@@ -544,11 +544,11 @@ export function isWordCharacter(character: string): boolean {
 
 // @ref LLP 1001#unicode-search-foundation — canonical tagged identity allowance is actual UTF-8, including escapes.
 export function scalarText(text: string): void {
-  try { scalarLength(text, text.length); } catch { throw new EvalError("E_INPUT", "invalid Unicode scalar text"); }
+  try { scalarLength(text, text.length); } catch { fail("E_INPUT", "invalid Unicode scalar text"); }
 }
 export function validateIdentity(id: string): void {
   scalarText(id);
-  if (!identityFits(id)) throw new EvalError("E_INPUT", "identity exceeds 144 canonical bytes");
+  if (!identityFits(id)) fail("E_INPUT", "identity exceeds 144 canonical bytes");
 }
 function identityFits(id: string): boolean { return utf8Length(JSON.stringify({ Id: id })) <= 144; }
 
@@ -556,7 +556,7 @@ function identityFits(id: string): boolean { return utf8Length(JSON.stringify({ 
 export function validateAddress(schema: any, table: string, id: string): void {
   scalarText(id);
   if (identityFits(id)) return;
-  const invalid = (): never => { throw new EvalError('E_INPUT', `${table}.id is not a canonical maintained group address`); };
+  const invalid = (): never => { fail('E_INPUT', `${table}.id is not a canonical maintained group address`); };
   const maintain = schema.maintains?.find((m: any) => m.target === table);
   if (!maintain) return validateIdentity(id);
   let key: Value[];

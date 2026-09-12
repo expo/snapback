@@ -608,6 +608,11 @@ test("shipped web auth signs up, restores who-am-I, logs out, rejects bad login,
   const root = fileURLToPath(new URL("../", import.meta.url));
   assert.equal(readFileSync(join(root, "templates/react/src/Auth.tsx"), "utf8"),
     readFileSync(join(root, "templates/chat/react/src/Auth.tsx"), "utf8"), "both web starters ship the same real flow");
+  for (const main of ["templates/react/src/main.tsx", "templates/chat/react/src/main.tsx"]) {
+    const source = readFileSync(join(root, main), "utf8");
+    assert.match(source, /browserTokenStore\(sessionStorage,/);
+    assert.doesNotMatch(source, /localStorage/);
+  }
   const output = join(root, "dist/.auth-template.test.mjs");
   const bundled = await build({ entryPoints: [join(root, "templates/chat/react/src/Auth.tsx")], bundle: true, write: false,
     format: "esm", jsx: "automatic", external: ["react", "react/jsx-runtime", "snapback2/react"] });
@@ -627,6 +632,7 @@ test("shipped web auth signs up, restores who-am-I, logs out, rejects bad login,
       return bearer ? me(bearer === "Bearer guest-token" ? "guest-id" : "account-id") : refusal("E_AUTH_REQUIRED");
     }
     if (path === "/api/auth/logout") return json({ ok: true });
+    if (path === "/api/auth/refresh") return json({ token: "renewed-token", viewer: "account-id", kind: "user", authEpoch: 1 });
     if (path === "/api/auth/login" && JSON.parse(String(init?.body)).password === "wrong") return refusal("E_AUTH_INVALID");
     if (["/api/auth/signup", "/api/auth/login", "/api/auth/guest"].includes(path)) {
       const guest = path.endsWith("guest");
@@ -652,6 +658,9 @@ test("shipped web auth signs up, restores who-am-I, logs out, rejects bad login,
     assert.equal(current.actions, client.auth);
     assert.equal("token" in current, false);
     assert.equal(saved.get("template-auth"), "account-token");
+    await click("Renew session");
+    assert.equal(saved.get("template-auth"), "renewed-token");
+    assert.equal(renderer.root.findByType("output").children[0], "account-id");
     await act(async () => renderer.unmount()); await client.close();
     const beforeRestore = meRequests;
     client = createClient({ url: "http://template.test", tokenStore: store, fetch });
@@ -678,6 +687,6 @@ test("shipped web auth signs up, restores who-am-I, logs out, rejects bad login,
     await click("Log out"); await click("Continue as guest");
     assert.equal(renderer.root.findByType("output").children[0], "guest-id");
     assert.equal(saved.get("template-auth"), "guest-token");
-    assert.ok(["signup", "login", "guest", "logout", "me"].every(action => requests.includes(`/api/auth/${action}`)));
+    assert.ok(["signup", "login", "guest", "logout", "me", "refresh"].every(action => requests.includes(`/api/auth/${action}`)));
   } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); rmSync(output, { force: true }); }
 });

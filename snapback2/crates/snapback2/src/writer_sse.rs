@@ -18,6 +18,20 @@ struct Shared {
     ready: Condvar,
 }
 
+impl Shared {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Queue> {
+        self.queue.lock().unwrap_or_else(|error| {
+            let mut queue = error.into_inner();
+            queue.event = None;
+            queue.senders = 0;
+            queue.receiver_alive = false;
+            queue.terminal = true;
+            self.ready.notify_all();
+            queue
+        })
+    }
+}
+
 pub struct SseSender {
     shared: Arc<Shared>,
 }
@@ -51,12 +65,12 @@ pub fn queue() -> (SseSender, SseReceiver) {
 
 impl SseSender {
     pub fn is_alive(&self) -> bool {
-        let queue = self.shared.queue.lock().expect("SSE queue lock");
+        let queue = self.shared.lock();
         queue.receiver_alive && !queue.terminal
     }
 
     pub fn send_latest(&self, event: SseEvent) -> Result<(), SendError> {
-        let mut queue = self.shared.queue.lock().expect("SSE queue lock");
+        let mut queue = self.shared.lock();
         if !queue.receiver_alive || queue.terminal {
             return Err(SendError::Disconnected);
         }
@@ -72,7 +86,7 @@ impl SseSender {
 
 impl Clone for SseSender {
     fn clone(&self) -> Self {
-        self.shared.queue.lock().expect("SSE queue lock").senders += 1;
+        self.shared.lock().senders += 1;
         Self {
             shared: self.shared.clone(),
         }
@@ -81,7 +95,7 @@ impl Clone for SseSender {
 
 impl Drop for SseSender {
     fn drop(&mut self) {
-        let mut queue = self.shared.queue.lock().expect("SSE queue lock");
+        let mut queue = self.shared.lock();
         queue.senders = queue.senders.saturating_sub(1);
         self.shared.ready.notify_one();
         if let Some(wake) = &queue.wake {
@@ -92,19 +106,19 @@ impl Drop for SseSender {
 
 impl SseReceiver {
     pub fn notify_on(&self, wake: std::sync::mpsc::SyncSender<()>) {
-        let mut queue = self.shared.queue.lock().expect("SSE queue lock");
+        let mut queue = self.shared.lock();
         let _ = wake.try_send(());
         queue.wake = Some(wake);
     }
 
     pub fn recv_timeout(&self, timeout: Duration) -> Result<SseEvent, RecvTimeoutError> {
         let deadline = Instant::now() + timeout;
-        let mut queue = self.shared.queue.lock().expect("SSE queue lock");
+        let mut queue = self.shared.lock();
         loop {
             if let Some(event) = queue.event.take() {
                 return Ok(event);
             }
-            if queue.senders == 0 {
+            if queue.senders == 0 || queue.terminal {
                 return Err(RecvTimeoutError::Disconnected);
             }
             let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
@@ -114,7 +128,7 @@ impl SseReceiver {
                 .shared
                 .ready
                 .wait_timeout(queue, remaining)
-                .expect("SSE queue wait");
+                .map_err(|_| RecvTimeoutError::Disconnected)?;
             queue = next;
             if waited.timed_out() && queue.event.is_none() {
                 return Err(RecvTimeoutError::Timeout);
@@ -125,7 +139,7 @@ impl SseReceiver {
 
 impl Drop for SseReceiver {
     fn drop(&mut self) {
-        let mut queue = self.shared.queue.lock().expect("SSE queue lock");
+        let mut queue = self.shared.lock();
         queue.receiver_alive = false;
         queue.event = None;
         self.shared.ready.notify_all();
@@ -143,6 +157,24 @@ mod tests {
             data: json!({ "value": value, "padding": "x".repeat(1_000_000) }),
             terminal: false,
         }
+    }
+
+    #[test]
+    fn poisoned_queue_disconnects_instead_of_panicking() {
+        let (sender, receiver) = queue();
+        let shared = sender.shared.clone();
+        let _ = std::thread::spawn(move || {
+            let _guard = shared.queue.lock().unwrap();
+            panic!("injected poison");
+        })
+        .join();
+        assert!(!sender.is_alive());
+        assert!(sender.send_latest(event(1)).is_err());
+        assert!(matches!(
+            receiver.recv_timeout(Duration::ZERO),
+            Err(RecvTimeoutError::Disconnected)
+        ));
+        drop((sender.clone(), sender, receiver));
     }
 
     #[test]

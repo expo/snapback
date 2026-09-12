@@ -145,7 +145,12 @@ pub fn run(args: &[String]) -> ExitCode {
             names[0]
         } else {
             return refused(
-                Refusal::unknown_operation(requested, ops.as_object().into_iter().flat_map(|o| o.keys().map(String::as_str))),
+                Refusal::unknown_operation(
+                    requested,
+                    ops.as_object()
+                        .into_iter()
+                        .flat_map(|o| o.keys().map(String::as_str)),
+                ),
                 json_output,
                 1,
             );
@@ -246,6 +251,9 @@ fn wait(attached: &owner::OwnerInfo, id: &str, json_output: bool) -> ExitCode {
             Ok(r) if r.status < 400 => r,
             other => return response(other, json_output),
         };
+        if let Err(error) = advance_page(&r.body, after) {
+            return response(Err(error), json_output);
+        }
         if let Some(commits) = r.body["commits"].as_array() {
             for commit in commits {
                 after = commit["seq"].as_u64().unwrap_or(after);
@@ -258,6 +266,7 @@ fn wait(attached: &owner::OwnerInfo, id: &str, json_output: bool) -> ExitCode {
             }
         }
         if r.body["hasMoreCommits"] == true {
+            thread::sleep(Duration::from_millis(20));
             continue;
         }
         match r.body["state"].as_str() {
@@ -272,4 +281,48 @@ fn wait(attached: &owner::OwnerInfo, id: &str, json_output: bool) -> ExitCode {
             _ => thread::sleep(Duration::from_millis(20)),
         }
     }
+}
+
+// Validate the whole page before printing it or advancing its cursor.
+fn advance_page(page: &Json, mut after: u64) -> Result<(), Refusal> {
+    let before = after;
+    let invalid = || {
+        Refusal::owner(
+            "E_OWNER_PROTOCOL",
+            "job commit page did not advance its sequence",
+            "retry trace <job_id> or run --wait after restarting the owner",
+        )
+    };
+    for commit in page["commits"].as_array().into_iter().flatten() {
+        let seq = commit["seq"]
+            .as_u64()
+            .filter(|seq| *seq > after)
+            .ok_or_else(invalid)?;
+        after = seq;
+    }
+    if page["hasMoreCommits"] == true && after == before {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[test]
+fn job_commit_pages_require_strict_progress() {
+    for page in [
+        json!({"hasMoreCommits":true}),
+        json!({"hasMoreCommits":true,"commits":[{"seq":4}]}),
+        json!({"commits":[{"seq":"5"}]}),
+        json!({"commits":[{"seq":6},{"seq":5}]}),
+    ] {
+        assert!(advance_page(&page, 4).is_err());
+    }
+    assert!(
+        advance_page(
+            &json!({"hasMoreCommits":true,"commits":[{"seq":5},{"seq":6}]}),
+            4
+        )
+        .is_ok()
+    );
+    assert!(advance_page(&json!({"state":"done","commits":[]}), 4).is_ok());
 }

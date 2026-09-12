@@ -1238,25 +1238,25 @@
       {
         "meter": "output bytes",
         "value": 5772,
-        "source": "cards.columnId",
+        "source": "37 × cards.columnId (156 bytes each; 12 field-name/framing + Id value maximum 144)",
         "site": "programs.helperWrappedScan.0"
       },
       {
         "meter": "output bytes",
         "value": 5550,
-        "source": "cards.id",
+        "source": "37 × cards.id (150 bytes each; 6 field-name/framing + cards declared identity 144)",
         "site": "programs.helperWrappedScan.0"
       },
       {
         "meter": "output bytes",
         "value": 1517,
-        "source": "cards.order",
+        "source": "37 × cards.order (41 bytes each; 9 field-name/framing + Int value maximum 32)",
         "site": "programs.helperWrappedScan.0"
       },
       {
         "meter": "output bytes",
         "value": 10397,
-        "source": "cards.title",
+        "source": "37 × cards.title (281 bytes each; 9 field-name/framing + text max 64 scalars: encoded value bound 272)",
         "site": "programs.helperWrappedScan.0"
       },
       {
@@ -1274,25 +1274,25 @@
       {
         "meter": "closure bytes",
         "value": 5772,
-        "source": "cards.columnId",
+        "source": "37 × cards.columnId (156 bytes each; 12 field-name/framing + Id value maximum 144)",
         "site": "programs.helperWrappedScan.0"
       },
       {
         "meter": "closure bytes",
         "value": 5550,
-        "source": "cards.id",
+        "source": "37 × cards.id (150 bytes each; 6 field-name/framing + cards declared identity 144)",
         "site": "programs.helperWrappedScan.0"
       },
       {
         "meter": "closure bytes",
         "value": 1517,
-        "source": "cards.order",
+        "source": "37 × cards.order (41 bytes each; 9 field-name/framing + Int value maximum 32)",
         "site": "programs.helperWrappedScan.0"
       },
       {
         "meter": "closure bytes",
         "value": 10397,
-        "source": "cards.title",
+        "source": "37 × cards.title (281 bytes each; 9 field-name/framing + text max 64 scalars: encoded value bound 272)",
         "site": "programs.helperWrappedScan.0"
       },
       {

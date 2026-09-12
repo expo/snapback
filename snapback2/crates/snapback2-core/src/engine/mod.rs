@@ -186,8 +186,13 @@ impl Engine {
     }
 
     pub(crate) fn install_receipt_authority(&mut self, receipt: &ClosureReceipt) {
-        self.verdicts = receipt.verdicts.clone();
-        self.authority_absences = receipt.absences.clone();
+        if receipt.schema_hash.as_deref() == Some(self.hashes.schema.as_str()) {
+            self.verdicts = receipt.verdicts.clone();
+            self.authority_absences = receipt.absences.clone();
+        } else {
+            self.verdicts.clear();
+            self.authority_absences.clear();
+        }
         self.rule_authority = RuleAuthority::ReceiptOnly;
     }
 

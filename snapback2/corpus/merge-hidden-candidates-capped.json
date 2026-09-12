@@ -496,25 +496,25 @@
       {
         "meter": "output bytes",
         "value": 76,
-        "source": "posts.at",
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 308,
-        "source": "posts.author",
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 300,
-        "source": "posts.id",
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 54,
-        "source": "posts.visible",
+        "source": "2 × posts.visible (27 bytes each; 11 field-name/framing + Bool value maximum 16)",
         "site": null
       },
       {
@@ -532,32 +532,32 @@
       {
         "meter": "closure bytes",
         "value": 266,
-        "source": "posts.at",
-        "site": null
+        "source": "7 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
         "value": 1078,
-        "source": "posts.author",
-        "site": null
+        "source": "7 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
         "value": 1050,
-        "source": "posts.id",
-        "site": null
+        "source": "7 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
         "value": 189,
-        "source": "posts.visible",
-        "site": null
+        "source": "7 × posts.visible (27 bytes each; 11 field-name/framing + Bool value maximum 16)",
+        "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
         "value": 70,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": null
+        "site": "merge.hidden"
       }
     ]
   },

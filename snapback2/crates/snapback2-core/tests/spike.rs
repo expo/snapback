@@ -449,6 +449,27 @@ fn scoped_verdict_and_certificate_refuse_a_predecessor_policy() {
     assert_eq!(served.receipt.verdicts.len(), 1);
     assert_eq!(served.receipt.verdicts[0].rule_hash, predecessor_rule_hash);
 
+    // Even unchanged scoped rules cannot carry authority across a schema generation.
+    let mut same_rule_successor = predecessor.clone();
+    same_rule_successor.auth.guests = true;
+    // Current scoped hashes already include the entire schema. Retag the inner
+    // verdict deliberately to isolate the receipt envelope's independent fence.
+    let mut retagged = served.receipt.clone();
+    retagged.verdicts[0].rule_hash =
+        same_rule_successor.rule_hash(&same_rule_successor.tables["secretDocs"].rules.read);
+    assert_ne!(predecessor_rule_hash, retagged.verdicts[0].rule_hash);
+    let same_rule_certificate = checker(&same_rule_successor).check(&program).unwrap();
+    let mut same_rule_client = ClientStore::hydrate(same_rule_successor, &retagged).unwrap();
+    let (state, replay) = same_rule_client
+        .reexecute(
+            &program,
+            &same_rule_certificate,
+            query_context([("id", id("doc1"))]),
+        )
+        .unwrap();
+    assert_eq!(replay.result, Value::Null);
+    assert!(matches!(state, LocalState::Partial(_)));
+
     let mut successor = predecessor.clone();
     successor.tables.get_mut("entitlements").unwrap().rules.read =
         RuleExpr::Eq(RuleTerm::Field("userId".to_owned()), RuleTerm::Viewer);

@@ -344,14 +344,44 @@
       },
       {
         "meter": "closure bytes",
-        "value": 854,
-        "source": "1 pooled balances first images with table/id envelopes",
+        "value": 989,
+        "source": "balances.afterInsert × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "balances.afterInsert"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "balances.id (309 bytes; 6 field-name/framing + balances declared identity 303)",
         "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 1106,
-        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "value": 153,
+        "source": "balances.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "balances.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "balances row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "balances table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       },
       {

@@ -48,10 +48,9 @@ export function multiplexFetch(source: typeof fetch): typeof fetch {
       session.closed = true; sessions.delete(command.session);
       for (const child of session.children.values()) child.abort();
       session.output.close();
-    } else for (const { id, path, lastEventId } of command.add ?? []) {
+    } else for (const { id, path } of command.add ?? []) {
       const abort = new AbortController(); session.children.set(id, abort);
       const headers = new Headers(init?.headers); headers.delete("Content-Type");
-      if (lastEventId !== undefined) headers.set("Last-Event-ID", lastEventId);
       void (async () => {
         const response = await source(new URL(path, url).href, { headers, signal: abort.signal });
         if (!response.ok) {

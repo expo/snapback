@@ -203,8 +203,19 @@ impl State {
                 .map_err(|error| Refusal::from_runtime(&error))?;
             return Ok(response);
         }
-        self.refuse_schedule_target(op)?;
-        self.operation_kind(op, Some(ProgramKind::Mutation))?;
+        if let Err(error) = self.refuse_schedule_target(op)
+            .and_then(|()| self.operation_kind(op, Some(ProgramKind::Mutation))) {
+            // Operation removal/retargeting is terminal; input validation below
+            // remains retryable under a future declaration.
+            let mut response = crate::protocol::refusal_json(&error);
+            response["state"] = json!("rejected");
+            response["intent"] = json!(wire.intent);
+            let replay = ReplayCommit { grant: wire.grant, offset: wire.offset, count: wire.count,
+                intent: wire.intent, request_digest, trace: ReplayTrace::default(), at: now };
+            self.runtime().store().record_replay_rejection(principal, &replay, &response)
+                .map_err(|error| Refusal::from_runtime(&error))?;
+            return Ok(response);
+        }
         let trace = self.decode_replay_trace(&wire.trace)?;
         // A replay judged by current validation (a removed enum case, a changed
         // argument type) is refused like any request and never spends the intent:

@@ -871,3 +871,67 @@ fn admits_top_level_size_zero_mdat_as_the_last_box() {
     assert_facts(facts, "video/mp4", 640, 480);
     assert_eq!(staging.bytes(), source);
 }
+
+#[test]
+fn gps_in_nested_media_containers_is_stripped() {
+    for container in [
+        *b"minf", *b"dinf", *b"edts", *b"mvex", *b"moof", *b"traf", *b"stbl",
+    ] {
+        let tail = boxed(&container, &boxed(b"udta", &xyz_atom()));
+        let trak = track(b"vide", tkhd(640, 480, IDENTITY), &tail);
+        let file = StagingFile::new(
+            &[
+                mp4_ftyp(),
+                boxed(b"moov", &[mvhd(1000, 2000), trak].concat()),
+            ]
+            .concat(),
+        );
+        assert_facts(
+            walk_and_strip(file.path(), &DEFAULT_CEILINGS).unwrap(),
+            "video/mp4",
+            640,
+            480,
+        );
+        assert!(!contains(&file.bytes(), GPS.as_bytes()), "{:?}", container);
+    }
+}
+
+#[test]
+fn meta_refuses_unknown_children_and_duplicate_tables() {
+    for children in [
+        boxed(b"myst", GPS.as_bytes()),
+        [
+            mdta_keys(&[b"location"]),
+            mdta_keys(&[b"model"]),
+            boxed(b"ilst", &boxed(&1u32.to_be_bytes(), GPS.as_bytes())),
+        ]
+        .concat(),
+        [boxed(b"ilst", &xyz_atom()), boxed(b"ilst", &[])].concat(),
+    ] {
+        let meta = boxed(b"meta", &[vec![0; 4], children].concat());
+        let file = StagingFile::new(&[mp4_ftyp(), video_moov(640, 480, IDENTITY), meta].concat());
+        assert!(walk_and_strip(file.path(), &DEFAULT_CEILINGS).is_err());
+    }
+}
+
+#[test]
+fn large_location_tables_scale_with_the_input() {
+    for count in [2000_u32, 8000] {
+        let keys = mdta_keys(&vec![b"location".as_slice(); count as usize]);
+        let entries: Vec<u8> = (1..=count)
+            .flat_map(|i| boxed(&i.to_be_bytes(), GPS.as_bytes()))
+            .collect();
+        let meta = boxed(
+            b"meta",
+            &[vec![0; 4], keys, boxed(b"ilst", &entries)].concat(),
+        );
+        let file = StagingFile::new(&[mp4_ftyp(), video_moov(640, 480, IDENTITY), meta].concat());
+        let start = Instant::now();
+        walk_and_strip(file.path(), &DEFAULT_CEILINGS).unwrap();
+        eprintln!(
+            "location sweep entries={count} elapsed_us={}",
+            start.elapsed().as_micros()
+        );
+        assert!(!contains(&file.bytes(), GPS.as_bytes()));
+    }
+}

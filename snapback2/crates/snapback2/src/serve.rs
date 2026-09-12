@@ -22,8 +22,11 @@ use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 #[path = "serve_live.rs"]
 mod live;
+#[path = "serve_security.rs"]
+mod security;
+pub(crate) use security::cors_origin;
 
-const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, X-Snapback-As, Cache-Control";
+const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, Cache-Control";
 const MAX_HTTP_WORKERS: usize = 64;
 const RESERVED_CONTROL_WORKERS: usize = 4;
 const RESERVED_JSON_WORKERS: usize = 8;
@@ -97,6 +100,7 @@ impl BoundServer {
     pub fn run(self, context: Context) -> Result<(), Refusal> {
         let workers = WorkerPools::default();
         let streams = live::Streams::default();
+        let auth_limits = Arc::new(security::AuthLimiter::default());
         while !context.stop.load(Ordering::SeqCst) {
             match self.server.recv_timeout(Duration::from_millis(100)) {
                 Ok(Some(request)) => {
@@ -119,21 +123,25 @@ impl BoundServer {
                     };
                     let connection_context = context.clone();
                     let connection_streams = streams.clone();
-                    if let Err(error) = thread::Builder::new()
-                        .name("snapback2-http".to_owned())
-                        .spawn(move || {
+                    let connection_auth_limits = auth_limits.clone();
+                    spawn_connection(
+                        &context.root,
+                        move || {
                             let mut worker = worker;
-                            handle(request, connection_context, connection_streams, &mut worker);
-                        })
-                    {
-                        let refusal = fatal_server("connection thread", error);
-                        crate::watch::log(
-                            &context.root,
-                            json!({ "exited": "fatal server failure", "refusal": refusal }),
-                        );
-                        context.stop.store(true, Ordering::SeqCst);
-                        return Err(refusal);
-                    }
+                            handle(
+                                request,
+                                connection_context,
+                                connection_streams,
+                                &mut worker,
+                                &connection_auth_limits,
+                            );
+                        },
+                        |task| {
+                            thread::Builder::new()
+                                .name("snapback2-http".to_owned())
+                                .spawn(task)
+                        },
+                    );
                 }
                 Ok(None) => {}
                 Err(error) => {
@@ -154,6 +162,19 @@ impl BoundServer {
     }
 }
 
+fn spawn_connection<F, S>(root: &std::path::Path, task: F, spawn: S)
+where
+    F: FnOnce() + Send + 'static,
+    S: FnOnce(F) -> std::io::Result<thread::JoinHandle<()>>,
+{
+    if let Err(error) = spawn(task) {
+        crate::watch::log(
+            root,
+            json!({"connection": "shed", "refusal": fatal_server("connection thread", error)}),
+        );
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum WorkerClass {
     Json,
@@ -165,10 +186,10 @@ enum WorkerClass {
 impl WorkerClass {
     fn for_url(url: &str) -> Self {
         let raw_path = url.split_once('?').map_or(url, |(path, _)| path);
-        let path = percent_decode(raw_path);
+        let path = percent_decode_path(raw_path);
         if path.starts_with("/control/") {
             Self::Control
-        } else if path == "/api/upload" {
+        } else if path == "/api/upload" || path.starts_with("/api/asset/") {
             Self::Upload
         } else if path == "/api/live"
             || path == "/api/subscribe"
@@ -204,7 +225,7 @@ struct WorkerPools(Arc<Mutex<WorkerCounts>>);
 
 impl WorkerPools {
     fn acquire(&self, class: WorkerClass) -> Option<HttpWorker> {
-        let mut counts = self.0.lock().expect("HTTP worker count lock");
+        let mut counts = self.0.lock().ok()?;
         let non_control = counts.json + counts.sse + counts.upload;
         if counts.total >= MAX_HTTP_WORKERS
             || (class != WorkerClass::Control && non_control >= MAX_NON_CONTROL_WORKERS)
@@ -250,7 +271,11 @@ impl HttpWorker {
 
 impl Drop for HttpWorker {
     fn drop(&mut self) {
-        let mut counts = self.pools.0.lock().expect("HTTP worker count lock");
+        let mut counts = self
+            .pools
+            .0
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         counts.total -= 1;
         match self.class {
             WorkerClass::Json => counts.json -= 1,
@@ -274,7 +299,7 @@ fn control_admission(request: &Request, secret: &str) -> Result<(), Refusal> {
             "call the owner from the local machine",
         ));
     }
-    if header(request, "X-Snapback-Control").as_deref() != Some(secret) {
+    if !security::secret_matches(header(request, "X-Snapback-Control").as_deref(), secret) {
         return Err(Refusal::owner(
             "E_OWNER_CONTROL_SECRET",
             "invalid owner control secret",
@@ -284,7 +309,29 @@ fn control_admission(request: &Request, secret: &str) -> Result<(), Refusal> {
     Ok(())
 }
 
-fn handle(mut request: Request, context: Context, streams: live::Streams, worker: &mut HttpWorker) {
+fn handle(
+    mut request: Request,
+    context: Context,
+    streams: live::Streams,
+    worker: &mut HttpWorker,
+    auth_limits: &security::AuthLimiter,
+) {
+    if request.url().len() > 16 * 1024 {
+        respond_refusal(
+            request,
+            414,
+            Refusal::input(
+                "request URL exceeds 16 KiB",
+                "use a shorter URL or a POST request",
+            ),
+            &context.mode,
+        );
+        return;
+    }
+    if let Err(refusal) = security::browser_admission(&request, &context.mode) {
+        respond_refusal(request, 403, refusal, &context.mode);
+        return;
+    }
     let method = method_name(request.method());
     let request_url = request.url().to_owned();
     let (path, query) = split_url(&request_url);
@@ -411,6 +458,33 @@ fn handle(mut request: Request, context: Context, streams: live::Streams, worker
         );
         return;
     }
+    let _auth_permit =
+        if method == "POST" && matches!(path.as_str(), "/api/auth/signup" | "/api/auth/login") {
+            match auth_limits.admit(
+                request.remote_addr().map(SocketAddr::ip),
+                body.get("email").and_then(Json::as_str).unwrap_or_default(),
+                std::time::Instant::now(),
+            ) {
+                Some(permit) => Some(permit),
+                None => {
+                    respond_refusal(
+                        request,
+                        429,
+                        Refusal::new(
+                            "E_AUTH_RATE_LIMIT",
+                            "auth",
+                            "too many password authentication attempts",
+                            "wait 60 seconds before trying again",
+                            "auth/session",
+                        ),
+                        &context.mode,
+                    );
+                    return;
+                }
+            }
+        } else {
+            None
+        };
     match (method, path.as_str()) {
         ("GET", "/") => match context.handle.call(Action::Status) {
             Ok(status) => respond_json(
@@ -471,6 +545,12 @@ fn handle(mut request: Request, context: Context, streams: live::Streams, worker
             },
             200,
         ),
+        ("POST", "/api/auth/refresh") => call_json(
+            request,
+            &context,
+            Action::Refresh { token: bearer_token },
+            200,
+        ),
         ("POST", "/api/auth/logout") => call_json(
             request,
             &context,
@@ -501,12 +581,18 @@ fn handle(mut request: Request, context: Context, streams: live::Streams, worker
         ("POST", "/api/auth/asset-session") => {
             call_json(request, &context, Action::AssetSession { identity }, 200)
         }
-        ("POST", "/api/query") if body.get("batch").is_some() => {
-            call_json(request, &context, Action::QueryBatch { body, identity }, 200)
-        }
-        ("POST", "/api/mutation") if body.get("batch").is_some() => {
-            call_json(request, &context, Action::ReplayBatch { body, identity }, 200)
-        }
+        ("POST", "/api/query") if body.get("batch").is_some() => call_json(
+            request,
+            &context,
+            Action::QueryBatch { body, identity },
+            200,
+        ),
+        ("POST", "/api/mutation") if body.get("batch").is_some() => call_json(
+            request,
+            &context,
+            Action::ReplayBatch { body, identity },
+            200,
+        ),
         ("POST", "/api/query") => call_json(
             request,
             &context,
@@ -664,8 +750,9 @@ pub(crate) fn respond_json(request: Request, status: u16, value: Json, mode: &st
     for header in headers {
         response.add_header(header);
     }
-    if mode == "dev" {
-        response.add_header(header_value("Access-Control-Allow-Origin", "*"));
+    if let Some(origin) = cors_origin(&request, mode) {
+        response.add_header(header_value("Access-Control-Allow-Origin", &origin));
+        response.add_header(header_value("Vary", "Origin"));
         response.add_header(header_value(
             "Access-Control-Allow-Headers",
             DEV_CORS_ALLOWED_HEADERS,
@@ -695,12 +782,8 @@ fn respond_sse(
     // tiny_http's ordinary chunk encoder buffers 8 KiB, which is wrong for
     // realtime SSE. Its raw response writer lets this route frame and flush
     // one HTTP chunk per event while the rest of the server stays tiny_http.
+    let cors = security::cors_lines(&request, mode);
     let mut writer = request.into_writer();
-    let cors = if mode == "dev" {
-        "Access-Control-Allow-Origin: *\r\n"
-    } else {
-        ""
-    };
     if write!(
         writer,
         "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nX-Accel-Buffering: no\r\nTransfer-Encoding: chunked\r\n{cors}\r\n"
@@ -764,9 +847,9 @@ pub(crate) fn request_identity(request: &Request) -> Identity {
 }
 
 pub(crate) fn bearer(request: &Request) -> Option<String> {
-    header(request, "Authorization")?
-        .strip_prefix("Bearer ")
-        .map(ToOwned::to_owned)
+    let value = header(request, "Authorization")?;
+    let (scheme, token) = value.split_once(' ')?;
+    (scheme.eq_ignore_ascii_case("Bearer") && !token.is_empty()).then(|| token.to_owned())
 }
 
 pub(crate) fn header(request: &Request, name: &str) -> Option<String> {
@@ -817,25 +900,35 @@ fn split_url(raw: &str) -> (String, Query) {
             (percent_decode(name), percent_decode(value))
         })
         .collect();
-    (percent_decode(path), Query(values))
+    (percent_decode_path(path), Query(values))
 }
 
 fn percent_decode(value: &str) -> String {
+    decode_component(value, true)
+}
+
+fn percent_decode_path(value: &str) -> String {
+    decode_component(value, false)
+}
+
+fn decode_component(value: &str, query: bool) -> String {
     let mut output = Vec::with_capacity(value.len());
     let bytes = value.as_bytes();
     let mut index = 0;
     while index < bytes.len() {
         match bytes[index] {
             b'%' if index + 2 < bytes.len() => {
-                let hex = &value[index + 1..index + 3];
-                if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                let digit = |byte: u8| (byte as char).to_digit(16);
+                if let (Some(high), Some(low)) = (digit(bytes[index + 1]), digit(bytes[index + 2]))
+                {
+                    let byte = ((high << 4) | low) as u8;
                     output.push(byte);
                     index += 3;
                     continue;
                 }
                 output.push(bytes[index]);
             }
-            b'+' => output.push(b' '),
+            b'+' if query => output.push(b' '),
             byte => output.push(byte),
         }
         index += 1;
@@ -924,8 +1017,19 @@ fn content_type(value: &str) -> Header {
     header_value("Content-Type", value)
 }
 
+pub(crate) fn checked_header_value(name: &str, value: &str) -> Result<Header, Refusal> {
+    Header::from_bytes(name.as_bytes(), value.as_bytes()).map_err(|_| {
+        Refusal::owner(
+            "E_OWNER_HTTP_HEADER",
+            "invalid HTTP response header",
+            "use ASCII header values without control characters",
+        )
+    })
+}
+
+// Callers with data-derived values use checked_header_value and return a refusal.
 pub(crate) fn header_value(name: &str, value: &str) -> Header {
-    Header::from_bytes(name.as_bytes(), value.as_bytes()).expect("static HTTP header")
+    checked_header_value(name, value).expect("static or typed HTTP header")
 }
 
 /// Apply the asset-route privacy envelope from the untouched request target,
@@ -934,7 +1038,7 @@ pub(crate) fn header_value(name: &str, value: &str) -> Header {
 // presence, not dispatch progress, makes every asset response no-store/no-referrer.
 pub(crate) fn decorate_asset_response_headers(raw_url: &str, headers: &mut Vec<Header>) {
     let raw_path = raw_url.split_once('?').map_or(raw_url, |(path, _)| path);
-    if !percent_decode(raw_path).starts_with("/api/asset/") {
+    if !percent_decode_path(raw_path).starts_with("/api/asset/") {
         return;
     }
     set_header(headers, "Referrer-Policy", "no-referrer");
@@ -993,6 +1097,186 @@ mod tests {
                 assert_eq!(unread, body, "admission consumed the body");
             }
         }
+    }
+
+    #[test]
+    fn idle_socket_flood_is_shed_and_first_socket_times_out() {
+        use std::io::BufRead;
+        let server = BoundServer::bind(0).unwrap();
+        let mut sockets = (0..300)
+            .map(|_| std::net::TcpStream::connect(("127.0.0.1", server.port)).unwrap())
+            .collect::<Vec<_>>();
+        let mut shed = 0;
+        for socket in sockets.iter_mut().skip(1) {
+            socket
+                .set_read_timeout(Some(Duration::from_millis(2)))
+                .unwrap();
+            let mut byte = [0];
+            match socket.read(&mut byte) {
+                Ok(0) => shed += 1,
+                Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => shed += 1,
+                _ => {}
+            }
+        }
+        assert!(
+            shed > 0,
+            "raw socket admission must shed beyond its fixed reader/queue bounds"
+        );
+        sockets[0]
+            .set_read_timeout(Some(Duration::from_secs(7)))
+            .unwrap();
+        let mut response = String::new();
+        std::io::BufReader::new(&sockets[0])
+            .read_line(&mut response)
+            .unwrap();
+        assert!(
+            response.is_empty() || response.contains(" 408 "),
+            "{response}"
+        );
+    }
+
+    #[test]
+    fn pipelined_requests_wait_for_response_without_blocking_other_connections() {
+        use std::io::Write;
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let address = server.server_addr().to_ip().unwrap();
+        let mut pipeline = std::net::TcpStream::connect(address).unwrap();
+        pipeline.write_all(b"GET /first HTTP/1.1\r\nHost: localhost\r\n\r\nGET /second HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+        let first = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        assert_eq!(first.url(), "/first");
+        // An open raw/SSE response holds only its own connection's admission.
+        let response = first.into_writer();
+        assert!(server.recv_timeout(Duration::from_millis(100)).unwrap().is_none());
+        let mut other = std::net::TcpStream::connect(address).unwrap();
+        other.write_all(b"GET /other HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+        let unrelated = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        assert_eq!(unrelated.url(), "/other");
+        unrelated.respond(tiny_http::Response::empty(200)).unwrap();
+        drop(response);
+        let second = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        assert_eq!(second.url(), "/second");
+        second.respond(tiny_http::Response::empty(200)).unwrap();
+    }
+
+    #[test]
+    fn shed_connection_does_not_allocate_or_drain_declared_body() {
+        use std::io::BufRead;
+        let server = BoundServer::bind(0).unwrap();
+        let mut socket = std::net::TcpStream::connect(("127.0.0.1", server.port)).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .unwrap();
+        write!(
+            socket,
+            "POST /api/query HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n",
+            usize::MAX
+        )
+        .unwrap();
+        let request = server
+            .server
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap()
+            .unwrap();
+        let started = std::time::Instant::now();
+        let root = std::env::temp_dir().join(format!("snapback-body-shed-{}", std::process::id()));
+        spawn_connection(
+            &root,
+            move || drop(request),
+            |_task| Err(std::io::Error::other("injected spawn exhaustion")),
+        );
+        assert!(started.elapsed() < Duration::from_secs(1));
+        let mut response = String::new();
+        std::io::BufReader::new(socket)
+            .read_line(&mut response)
+            .unwrap();
+        assert!(response.contains(" 500 "), "{response}");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn spawn_failure_releases_one_connection_and_next_spawn_runs() {
+        let pools = WorkerPools::default();
+        let worker = pools.acquire(WorkerClass::Json).unwrap();
+        let root =
+            std::env::temp_dir().join(format!("snapback-spawn-failure-{}", std::process::id()));
+        spawn_connection(
+            &root,
+            move || drop(worker),
+            |_task| Err(std::io::Error::other("injected thread exhaustion")),
+        );
+        assert_eq!(pools.0.lock().unwrap().total, 0);
+        let (done, answer) = std::sync::mpsc::channel();
+        let worker = pools.acquire(WorkerClass::Json).unwrap();
+        spawn_connection(
+            &root,
+            move || {
+                drop(worker);
+                done.send(()).unwrap();
+            },
+            |task| thread::Builder::new().spawn(task),
+        );
+        answer.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!(pools.0.lock().unwrap().total, 0);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn percent_decoding_is_byte_safe_and_paths_preserve_plus() {
+        for value in [
+            "/%aé",
+            "%é",
+            "%😀",
+            "%a😀",
+            "%",
+            "%a",
+            "%FF",
+            "%E2%82%AC",
+            "中文%中",
+        ] {
+            let _ = split_url(value);
+            let _ = WorkerClass::for_url(value);
+        }
+        for ch in (128..=0x10ffff).filter_map(char::from_u32) {
+            let value = format!("/%a{ch}");
+            assert_eq!(percent_decode_path(&value), value);
+        }
+        assert_eq!(split_url("/a+b?q=a+b").0, "/a+b");
+        assert_eq!(split_url("/a+b?q=a+b").1.get("q"), Some("a b"));
+        assert_eq!(percent_decode_path("/%2B%E2%82%AC"), "/+€");
+    }
+
+    #[test]
+    fn response_headers_reject_control_characters_and_non_ascii() {
+        for value in ["ok\r\nSet-Cookie: a=1", "bad\0value", "é", "\u{7f}"] {
+            assert!(checked_header_value("Location", value).is_err());
+        }
+        assert!(checked_header_value("Bad\r\nName", "value").is_err());
+        assert!(checked_header_value("Location", "/api/asset/s2id-example?w=256").is_ok());
+    }
+
+    #[test]
+    fn bearer_scheme_is_case_insensitive() {
+        for scheme in ["Bearer", "bearer", "BEARER", "bEaReR"] {
+            let request: Request = tiny_http::TestRequest::new()
+                .with_header(header_value("Authorization", &format!("{scheme} opaque")))
+                .into();
+            assert_eq!(bearer(&request).as_deref(), Some("opaque"));
+        }
+    }
+
+    #[test]
+    fn poisoned_worker_pool_refuses_and_drop_releases_without_panicking() {
+        let pools = WorkerPools::default();
+        let worker = pools.acquire(WorkerClass::Json).unwrap();
+        let poison = pools.clone();
+        let _ = thread::spawn(move || {
+            let _guard = poison.0.lock().unwrap();
+            panic!("inject poison");
+        })
+        .join();
+        assert!(pools.acquire(WorkerClass::Json).is_none());
+        drop(worker);
+        assert_eq!(pools.0.lock().err().unwrap().into_inner().total, 0);
     }
 
     #[test]
@@ -1060,6 +1344,10 @@ mod tests {
         );
         assert_eq!(WorkerClass::for_url("/api/query"), WorkerClass::Json);
         assert_eq!(WorkerClass::for_url("/api/upload"), WorkerClass::Upload);
+        assert_eq!(
+            WorkerClass::for_url("/api/asset/id?w=256"),
+            WorkerClass::Upload
+        );
     }
 
     #[test]

@@ -763,7 +763,7 @@
       {
         "meter": "output bytes",
         "value": 2080,
-        "source": "posts.body",
+        "source": "20 × posts.body (104 bytes each)",
         "site": "feed.global"
       },
       {
@@ -780,68 +780,68 @@
       },
       {
         "meter": "closure bytes",
-        "value": 60192,
-        "source": "posts.at",
-        "site": null
+        "value": 39672,
+        "source": "1044 × posts.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": "feed.following"
       },
       {
         "meter": "closure bytes",
-        "value": 243936,
-        "source": "posts.author",
-        "site": null
+        "value": 160776,
+        "source": "1044 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "feed.following"
       },
       {
         "meter": "closure bytes",
-        "value": 164736,
-        "source": "posts.body",
-        "site": null
+        "value": 108576,
+        "source": "1044 × posts.body (104 bytes each; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
+        "site": "feed.following"
       },
       {
         "meter": "closure bytes",
-        "value": 237600,
-        "source": "posts.id",
-        "site": null
+        "value": 156600,
+        "source": "1044 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "feed.following"
       },
       {
         "meter": "closure bytes",
-        "value": 15840,
+        "value": 10440,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": null
+        "site": "feed.following"
       },
       {
         "meter": "closure bytes",
-        "value": -190080,
-        "source": "merge feed.following: emitted page + heads + lookahead; posts at feed.following: 1584 retained rows: framing/shared encoding/growth adjustment",
-        "site": null
+        "value": 56160,
+        "source": "540 × posts.body (104 bytes each; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
+        "site": "feed.following"
       },
       {
         "meter": "closure bytes",
-        "value": 237432,
-        "source": "follows.followed",
+        "value": 156312,
+        "source": "1002 × follows.followed (156 bytes each; 12 field-name/framing + Principal value maximum 144)",
         "site": "feed.follows"
       },
       {
         "meter": "closure bytes",
-        "value": 237432,
-        "source": "follows.follower",
+        "value": 156312,
+        "source": "1002 × follows.follower (156 bytes each; 12 field-name/framing + Principal value maximum 144)",
         "site": "feed.follows"
       },
       {
         "meter": "closure bytes",
-        "value": 228300,
-        "source": "follows.id",
+        "value": 150300,
+        "source": "1002 × follows.id (150 bytes each; 6 field-name/framing + follows declared identity 144)",
         "site": "feed.follows"
       },
       {
         "meter": "closure bytes",
-        "value": 15220,
+        "value": 10020,
         "source": "follows row width: framing/shared encoding/growth adjustment",
         "site": "feed.follows"
       },
       {
         "meter": "closure bytes",
-        "value": -191360,
-        "source": "feed.follows take 500 × 1 calls; follows at feed.follows: 1522 retained rows: framing/shared encoding/growth adjustment",
+        "value": 54080,
+        "source": "520 × follows projected value width (104 bytes each)",
         "site": "feed.follows"
       }
     ]

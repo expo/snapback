@@ -82,6 +82,7 @@ export interface ClosureReceipt {
 }
 
 export interface PreludeStep {
+  certificate: any;
   program: any;
   context: Context;
   expectedState: string;

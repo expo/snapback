@@ -187,14 +187,15 @@ mutation fallback(value: text <=20, accept: bool):
         .unwrap()
         .body = vec![Stmt::Return(Expr::Literal(snapback2_core::Value::Null))];
 
-    for (label, project, new_code) in [
+    let mut new_terminals = Vec::new();
+    for (case, (label, project, new_code)) in [
         ("operation removed", removed, "E_OP_UNKNOWN"),
         ("operation is now a query", changed_kind, "E_OP_KIND"),
         ("traced key changed type", changed_type, "E_INPUT"),
         ("traced index removed", removed_index, "E_INPUT"),
         ("traced table removed", removed_table, "E_INPUT"),
         ("argument changed type", changed_args, "E_INPUT"),
-    ] {
+    ].into_iter().enumerate() {
         apply_project(port, &secret, &project);
         let before = status(port, &secret);
         for (body, terminal) in [
@@ -222,12 +223,18 @@ mutation fallback(value: text <=20, accept: bool):
                 );
             }
         }
-        let new_intent = replay(port, token, &replay_request(grant, 2, true));
+        let new_request = replay_request(grant, 2 + case as u64, true);
+        let new_intent = replay(port, token, &new_request);
         assert_eq!(
             new_intent.body["code"], new_code,
             "{label}: new intents use current validation: {}",
             new_intent.body
         );
+        if new_code != "E_INPUT" {
+            assert_eq!(new_intent.body["state"], "rejected", "{label}: a removed operation settles the FIFO head");
+            assert_eq!(replay(port, token, &new_request).body_bytes, new_intent.body_bytes);
+            new_terminals.push((new_request, new_intent.body_bytes));
+        }
         let after = status(port, &secret);
         assert_eq!(after["seq"], before["seq"], "{label}: no writes");
         assert_eq!(
@@ -271,10 +278,14 @@ mutation fallback(value: text <=20, accept: bool):
         assert_eq!(own.body_bytes, terminal.body_bytes);
     }
     apply_project(port, &secret, &original);
+    for (body, terminal) in new_terminals {
+        assert_eq!(replay(port, fresh.body["token"].as_str().unwrap(), &body).body_bytes, terminal,
+            "restoring an operation must not replay its settled rejection");
+    }
     let unsettled = replay(
         port,
         fresh.body["token"].as_str().unwrap(),
-        &replay_request(grant, 2, true),
+        &replay_request(grant, 4, true),
     );
     assert_eq!(
         unsettled.body["state"], "committed",

@@ -470,6 +470,22 @@
                           }
                         },
                         {
+                          "Require": {
+                            "condition": {
+                              "Binary": {
+                                "op": "Ne",
+                                "left": {
+                                  "Variable": "content"
+                                },
+                                "right": {
+                                  "Literal": "Null"
+                                }
+                              }
+                            },
+                            "code": "E_RULE"
+                          }
+                        },
+                        {
                           "If": {
                             "condition": {
                               "Binary": {
@@ -507,6 +523,22 @@
                                       "provenance": "Shape"
                                     }
                                   }
+                                }
+                              },
+                              {
+                                "Require": {
+                                  "condition": {
+                                    "Binary": {
+                                      "op": "Ne",
+                                      "left": {
+                                        "Variable": "receipt"
+                                      },
+                                      "right": {
+                                        "Literal": "Null"
+                                      }
+                                    }
+                                  },
+                                  "code": "E_RULE"
                                 }
                               },
                               {
@@ -599,7 +631,7 @@
   },
   "certificate": {
     "program": "_delivery.deliveries.ack",
-    "plan_hash": "3a4b455b6f59339b7b111c0a47aad28c5760e36d852ef1492cd86cf56fc35c5f",
+    "plan_hash": "5380ea0c3e86629a9403b6d34f7a73a5dd30574ae172524cddb24995a6fb03cb",
     "schema_hash": "1a40d65a8526c1bdaed3cb44a058784fb9792ce27b84c8420eba4bd088005cc1",
     "tables": {
       "conversations": {
@@ -699,10 +731,10 @@
     "max_examined": 400,
     "max_index_entries": 400,
     "max_rule_probes": 0,
-    "max_steps": 4003,
+    "max_steps": 4403,
     "derived_steps": 0,
     "derived_scratch_bytes": 0,
-    "max_heap_bytes": 136784,
+    "max_heap_bytes": 149584,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
     "completeness": "Page",
@@ -788,13 +820,13 @@
         "meter": "steps",
         "value": 250,
         "source": "deliveriesReceipts Update writes (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:2"
       },
       {
         "meter": "steps",
         "value": 250,
         "source": "expressions (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:2"
       },
       {
         "meter": "steps",
@@ -830,7 +862,7 @@
         "meter": "steps",
         "value": 200,
         "source": "expressions (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:1"
       },
       {
         "meter": "steps",
@@ -854,13 +886,25 @@
         "meter": "steps",
         "value": 150,
         "source": "expressions (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3"
       },
       {
         "meter": "steps",
         "value": 150,
         "source": "expressions (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 150,
+        "source": "expressions (calls from arg events max 50)",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 150,
+        "source": "expressions (calls from arg events max 50)",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:1"
       },
       {
         "meter": "steps",
@@ -902,25 +946,37 @@
         "meter": "steps",
         "value": 50,
         "source": "statements (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3"
       },
       {
         "meter": "steps",
         "value": 50,
         "source": "statements (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:1"
       },
       {
         "meter": "steps",
         "value": 50,
         "source": "statements (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:2"
       },
       {
         "meter": "steps",
         "value": 50,
         "source": "statements (calls from arg events max 50)",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from arg events max 50)",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from arg events max 50)",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:2"
       },
       {
         "meter": "steps",
@@ -956,13 +1012,13 @@
         "meter": "heap bytes",
         "value": 8000,
         "source": "deliveriesReceipts Update writes (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:2"
       },
       {
         "meter": "heap bytes",
         "value": 8000,
         "source": "expressions (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:2"
       },
       {
         "meter": "heap bytes",
@@ -998,7 +1054,7 @@
         "meter": "heap bytes",
         "value": 6400,
         "source": "expressions (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:1"
       },
       {
         "meter": "heap bytes",
@@ -1022,13 +1078,25 @@
         "meter": "heap bytes",
         "value": 4800,
         "source": "expressions (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3"
       },
       {
         "meter": "heap bytes",
         "value": 4800,
         "source": "expressions (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 4800,
+        "source": "expressions (calls from arg events max 50) × 32",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 4800,
+        "source": "expressions (calls from arg events max 50) × 32",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:1"
       },
       {
         "meter": "heap bytes",
@@ -1070,25 +1138,37 @@
         "meter": "heap bytes",
         "value": 1600,
         "source": "statements (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3"
       },
       {
         "meter": "heap bytes",
         "value": 1600,
         "source": "statements (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:1"
       },
       {
         "meter": "heap bytes",
         "value": 1600,
         "source": "statements (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:1"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:2"
       },
       {
         "meter": "heap bytes",
         "value": 1600,
         "source": "statements (calls from arg events max 50) × 32",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from arg events max 50) × 32",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from arg events max 50) × 32",
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:2"
       },
       {
         "meter": "heap bytes",
@@ -1124,7 +1204,7 @@
         "meter": "write rows",
         "value": 50,
         "source": "deliveriesReceipts Update",
-        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:2:then:statement:2:then:statement:2"
+        "site": "_delivery.deliveries.ack:statement:1:statement:2:then:statement:1:then:statement:3:then:statement:3:then:statement:2"
       }
     ]
   },

@@ -265,13 +265,13 @@
       {
         "meter": "output bytes",
         "value": 150,
-        "source": "items.id",
+        "source": "items.id (150 bytes; 6 field-name/framing + items declared identity 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 185,
-        "source": "items.label",
+        "source": "items.label (185 bytes; 9 field-name/framing + text max 40 scalars: encoded value bound 176)",
         "site": null
       },
       {

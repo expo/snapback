@@ -521,7 +521,7 @@
       {
         "meter": "closure bytes",
         "value": 7500,
-        "source": "memberships.id",
+        "source": "50 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
         "site": "members.page"
       },
       {

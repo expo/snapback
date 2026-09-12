@@ -466,31 +466,31 @@
       {
         "meter": "output bytes",
         "value": 760,
-        "source": "messages.at",
+        "source": "20 × messages.at (38 bytes each; 6 field-name/framing + time 32)",
         "site": "search.inConversation.0"
       },
       {
         "meter": "output bytes",
         "value": 320480,
-        "source": "messages.body",
+        "source": "20 × messages.body (16024 bytes each; 8 field-name/framing + max(text max 4000 scalars: encoded value bound 16016, null reserve 8))",
         "site": "search.inConversation.0"
       },
       {
         "meter": "output bytes",
         "value": 4540,
-        "source": "messages.caption",
+        "source": "20 × messages.caption (227 bytes each; 11 field-name/framing + max(text max 50 scalars: encoded value bound 216, null reserve 8))",
         "site": "search.inConversation.0"
       },
       {
         "meter": "output bytes",
         "value": 3200,
-        "source": "messages.conversation",
+        "source": "20 × messages.conversation (160 bytes each; 16 field-name/framing + conversations declared identity 144)",
         "site": "search.inConversation.0"
       },
       {
         "meter": "output bytes",
         "value": 3000,
-        "source": "messages.id",
+        "source": "20 × messages.id (150 bytes each; 6 field-name/framing + messages declared identity 144)",
         "site": "search.inConversation.0"
       },
       {
@@ -513,20 +513,86 @@
       },
       {
         "meter": "closure bytes",
-        "value": 1324,
-        "source": "2 pooled memberships first images with table/id envelopes",
+        "value": 1108,
+        "source": "search.inConversation.0 × 2 probes: separately serialized rule verdict/absence envelopes",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 320,
+        "source": "2 × memberships.conversation (160 bytes each; 16 field-name/framing + conversations declared identity 144)",
         "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 352611,
-        "source": "21 pooled messages first images with table/id envelopes",
+        "value": 300,
+        "source": "2 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
         "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 14894,
-        "source": "search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "value": 314,
+        "source": "2 × memberships.principal (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "memberships row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 370,
+        "source": "2 × memberships table/id envelope (185 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 798,
+        "source": "21 × messages.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 336504,
+        "source": "21 × messages.body (16024 bytes each; 8 field-name/framing + max(text max 4000 scalars: encoded value bound 16016, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4767,
+        "source": "21 × messages.caption (227 bytes each; 11 field-name/framing + max(text max 50 scalars: encoded value bound 216, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3360,
+        "source": "21 × messages.conversation (160 bytes each; 16 field-name/framing + conversations declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3150,
+        "source": "21 × messages.id (150 bytes each; 6 field-name/framing + messages declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 210,
+        "source": "messages row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3822,
+        "source": "21 × messages table/id envelope (182 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 13786,
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       }
     ]

@@ -123,9 +123,9 @@
   {
     "family": "bound",
     "code": "E_BOUND",
-    "wrong": "500 merge lanes × (20 + 2), 50 writes × cap 1000, or a wide nested result exceeds a named ceiling",
-    "right": "Follow the largest sourced term: structurally reduce merge lanes/page, use two reads (two snapshots), or maintain a feed; for a cap use the named fitting chunk; for nested scans use maintain.count/sum; for bytes narrow the named collection and fields",
-    "guide": "quarry"
+    "wrong": "Silently lower a 1,000-follow/search population, a 50-row rich page, or a whole digest/backfill because one certified query or chunk exceeds a named ceiling.",
+    "right": "Open guide fanout. It compiles the preserving forms: compact heads for a 1,000-follow feed; every membership page plus certified per-chat heads and the shipped global pager for 1,000-chat search; a smaller rich page with continuation; maintained period cells in a chunk job; and a smaller resumable backfill chunk. Keep the requested population.",
+    "guide": "fanout"
   },
   {
     "family": "op",

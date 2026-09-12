@@ -125,7 +125,7 @@ async function startOwner(options) {
   const stdoutPath = join(options.variant.root, ".snapback", `${options.variant.label}-owner.stdout`);
   const stderrPath = join(options.variant.root, ".snapback", `${options.variant.label}-owner.stderr`);
   const child = spawn(options.binary, ["dev", "--foreground", "--port", "0"], {
-    cwd: options.variant.root, env: { ...process.env, SNAPBACK2_COMPILER: options.compiler },
+    cwd: options.variant.root, env: { ...process.env, SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: options.compiler },
     stdio: ["ignore", "pipe", "pipe"],
   });
   const pidReceipt = { kind: "owner", label: options.variant.label, pid: child.pid,

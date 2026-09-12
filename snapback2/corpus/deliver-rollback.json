@@ -588,55 +588,55 @@
       {
         "meter": "output bytes",
         "value": 1900,
-        "source": "deliveries.at",
+        "source": "50 × deliveries.at (38 bytes each; 6 field-name/framing + time 32)",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 2200,
-        "source": "deliveries.audience",
+        "source": "50 × deliveries.audience (44 bytes each; 12 field-name/framing + Int value maximum 32)",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 8100,
-        "source": "deliveries.conversationId",
+        "source": "50 × deliveries.conversationId (162 bytes each; 18 field-name/framing + conversations declared identity 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 7500,
-        "source": "deliveries.id",
+        "source": "50 × deliveries.id (150 bytes each; 6 field-name/framing + deliveries declared identity 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 2350,
-        "source": "deliveries.incarnation",
+        "source": "50 × deliveries.incarnation (47 bytes each; 15 field-name/framing + Int value maximum 32)",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 1650,
-        "source": "deliveries.kind",
+        "source": "50 × deliveries.kind (33 bytes each; 8 field-name/framing + enum maximum 25 (escaped value maximum 22))",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 7850,
-        "source": "deliveries.recipient",
+        "source": "50 × deliveries.recipient (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 7550,
-        "source": "deliveries.row",
+        "source": "50 × deliveries.row (151 bytes each; 7 field-name/framing + messages declared identity 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "output bytes",
         "value": 1950,
-        "source": "deliveries.seq",
+        "source": "50 × deliveries.seq (39 bytes each; 7 field-name/framing + Int value maximum 32)",
         "site": "delivery.inbox"
       },
       {
@@ -654,55 +654,55 @@
       {
         "meter": "closure bytes",
         "value": 1900,
-        "source": "deliveries.at",
+        "source": "50 × deliveries.at (38 bytes each; 6 field-name/framing + time 32)",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 2200,
-        "source": "deliveries.audience",
+        "source": "50 × deliveries.audience (44 bytes each; 12 field-name/framing + Int value maximum 32)",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 8100,
-        "source": "deliveries.conversationId",
+        "source": "50 × deliveries.conversationId (162 bytes each; 18 field-name/framing + conversations declared identity 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 7500,
-        "source": "deliveries.id",
+        "source": "50 × deliveries.id (150 bytes each; 6 field-name/framing + deliveries declared identity 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 2350,
-        "source": "deliveries.incarnation",
+        "source": "50 × deliveries.incarnation (47 bytes each; 15 field-name/framing + Int value maximum 32)",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 1650,
-        "source": "deliveries.kind",
+        "source": "50 × deliveries.kind (33 bytes each; 8 field-name/framing + enum maximum 25 (escaped value maximum 22))",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 7850,
-        "source": "deliveries.recipient",
+        "source": "50 × deliveries.recipient (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 7550,
-        "source": "deliveries.row",
+        "source": "50 × deliveries.row (151 bytes each; 7 field-name/framing + messages declared identity 144)",
         "site": "delivery.inbox"
       },
       {
         "meter": "closure bytes",
         "value": 1950,
-        "source": "deliveries.seq",
+        "source": "50 × deliveries.seq (39 bytes each; 7 field-name/framing + Int value maximum 32)",
         "site": "delivery.inbox"
       },
       {

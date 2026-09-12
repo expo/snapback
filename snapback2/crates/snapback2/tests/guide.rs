@@ -240,8 +240,8 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("deliver", "derives an engine-owned per-recipient log"),
         ("channel", "typed latest state"),
         ("connected", "read-only virtual table"),
-        ("schedule", "declares two triggers, one kind"),
-        ("job", "A job can have several independent chunks"),
+        ("schedule", "binds a row deadline (`time ?`) or a whole-minute period"),
+        ("job", "`break` ends its sweep, `return` ends the job"),
         (
             "chunk",
             "reads current rows in index order through the upper key",

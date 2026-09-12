@@ -51,22 +51,36 @@ function valueIdentity(value: QueryMachineEvent<unknown>): string {
   });
 }
 
+const frozenPublications = new WeakSet<object>();
+const dataIdentities = new WeakMap<object, string>();
+function dataIdentity(value: unknown): string {
+  if (value === null || typeof value !== "object") return stableSerialize(value);
+  const cached = dataIdentities.get(value);
+  if (cached !== undefined) return cached;
+  const identity = stableSerialize(value);
+  if (frozenPublications.has(value)) dataIdentities.set(value, identity);
+  return identity;
+}
 function freezeTree<Value>(value: Value, seen = new WeakSet<object>()): Value {
-  if (typeof value !== "object" || value === null || seen.has(value)) return value;
+  if (typeof value !== "object" || value === null || seen.has(value) || frozenPublications.has(value)) return value;
   seen.add(value);
   for (const child of Object.values(value)) freezeTree(child, seen);
+  frozenPublications.add(value);
   return Object.freeze(value);
 }
 
 /** One isolated, recursively immutable publication shared by every consumer. */
 function immutablePublication<Value>(value: Value, current?: QueryView<unknown>): Value {
-  const published = cloneItemPublication(value);
-  if (current && typeof published === "object" && published !== null && "data" in published && "data" in current
-    && stableSerialize(published.data) === stableSerialize(current.data)) {
-    const inputs = itemInputs(published);
-    if (inputs) withItemInputs(published, rebindItemInputs(inputs, published.data, current.data));
+  if (current && typeof value === "object" && value !== null && "data" in value && "data" in current
+    && dataIdentity(value.data) === dataIdentity(current.data)) {
+    // Compare before cloning: an equal immutable page needs only a new metadata envelope.
+    const published = structuredClone({ ...value, data: undefined as unknown });
     published.data = current.data;
+    const inputs = itemInputs(value);
+    if (inputs) withItemInputs(published, rebindItemInputs(inputs, value.data, current.data));
+    return freezeTree(published) as Value;
   }
+  const published = cloneItemPublication(value);
   return freezeTree(published);
 }
 

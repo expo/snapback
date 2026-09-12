@@ -5,7 +5,7 @@ use super::owner_support::*;
 use super::owner_wire::{Sse, request, status};
 use super::*;
 
-const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
+const SESSION_MILLIS: i64 = 24 * 60 * 60 * 1_000;
 const THREAD_PATH: &str = "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D";
 const TYPING_PATH: &str =
     "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D";
@@ -36,6 +36,38 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     let _first_channel_lease = first_channel.event()["lease"].clone();
     let mut second_channel = Sse::open_bearer(port, TYPING_PATH, &second_token);
     let second_channel_lease = second_channel.event()["lease"].clone();
+
+    let before_refresh = bearer_request(port, "GET", "/api/auth/me", &second_token, json!({}));
+    let refreshed = bearer_request(port, "POST", "/api/auth/refresh", &second_token, json!({}));
+    assert_eq!(refreshed.status, 200, "{}", refreshed.body);
+    assert_eq!(before_refresh.status, 200, "{}", before_refresh.body);
+    assert_eq!(refreshed.body["viewer"], before_refresh.body["viewer"]);
+    assert_eq!(refreshed.body["kind"], before_refresh.body["kind"]);
+    assert_eq!(
+        refreshed.body["authEpoch"],
+        before_refresh.body["authEpoch"]
+    );
+    let rotated_token = refreshed.body["token"].as_str().unwrap().to_owned();
+    assert_ne!(rotated_token, second_token);
+    assert_auth_session(&bearer_request(
+        port,
+        "GET",
+        "/api/auth/me",
+        &second_token,
+        json!({}),
+    ));
+    assert_auth_session(&bearer_request(
+        port,
+        "POST",
+        "/api/auth/logout",
+        &second_token,
+        json!({}),
+    ));
+    assert_eq!(status(port, &secret)["subscriptions"], 2);
+    assert_eq!(status(port, &secret)["channelSubscriptions"], 2);
+    second_query.assert_silent(Duration::from_millis(100));
+    second_channel.assert_silent(Duration::from_millis(100));
+    let second_token = rotated_token;
 
     let logout = bearer_request(port, "POST", "/api/auth/logout", &first_token, json!({}));
     assert_eq!(logout.status, 200, "{}", logout.body);

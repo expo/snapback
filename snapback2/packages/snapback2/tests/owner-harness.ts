@@ -119,7 +119,7 @@ export class RealOwnerHarness {
     if (serve) args.push("--serve");
     const child = spawn(binary, args, {
       cwd: workspaceRoot,
-      env: { ...process.env, SNAPBACK2_COMPILER: compiler },
+      env: { ...process.env, SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: compiler },
       stdio: ["ignore", "pipe", "pipe"],
     });
     this.child = child;

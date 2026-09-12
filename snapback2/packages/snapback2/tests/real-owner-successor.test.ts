@@ -250,7 +250,7 @@ test("real chat sends compact after own fanout and maintained count arrive", asy
 
 const binary = resolve(import.meta.dirname, "../../../target/debug/snapback2");
 const compiler = resolve(import.meta.dirname, "../dist/compiler.mjs");
-const env = { ...process.env, SNAPBACK2_COMPILER: compiler };
+const env = { ...process.env, SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: compiler };
 const schema = (cases = "'text', 'image'", by = "sender") => `use identity
 
 table messages:

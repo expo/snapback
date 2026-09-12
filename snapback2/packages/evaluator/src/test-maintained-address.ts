@@ -2,7 +2,7 @@
 // Additional absence/forgery/cursor controls below are synthetic, with no new native-output claim.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ClientStore } from './store';
+import { FixtureStore as ClientStore } from './test-certificate';
 import { canonicalValues, scopedRuleHash, validateIdentity, validateInputs, validateWriteRow, wireJson } from './value-runtime';
 import { decodeCursor, decodeCursorFor, encodeCursor } from './cursor';
 import { preparePrefix, indexTuple } from './index-store';

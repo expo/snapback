@@ -14,20 +14,17 @@ mutation inspect(photo: image <=5000000, clip: video <=50000000):
   return { photo, width: photo.width, clip }
 ```
 
-See `guide quarry` for related topics.
-
 ## Uploads and custody
 
 Pass a browser `File` or Expo `{ uri, fileSize, mimeType }` as a generated
 image/video mutation argument. `client.upload(file, { kind: "image" })`
 returns a record for the explicit two-step form; see `guide operator` for
-abandoned upload cleanup. Each asset is owned by one row cell. Reusing its id
+cleanup. Raw uploads accept `Content-Length` or bounded chunked bodies;
+over-bound bytes refuse `E_ASSET_TOO_LARGE`. Each asset belongs to one row cell. Reusing its id
 in another cell refuses `E_ASSET_IN_USE`; upload a fresh copy for that cell.
 
-Images are decoded, oriented and re-encoded; metadata and original PNG bytes
-are not preserved. Compare normalized pixels when testing PNG fidelity.
-Videos are validated and served without image re-encoding; do not infer
-image byte preservation from a video check.
+Images are decoded, oriented and re-encoded; compare normalized pixels for PNG
+fidelity. Videos are validated and location metadata stripped without re-encoding.
 
 ## Open once
 
@@ -58,6 +55,6 @@ consumed asset's slot; it never compacts sibling records.
 allowance is already consumed, and `E_OFFLINE_CARRIER` means the durable
 allowance or row custody changed. Do not retry with a new token to bypass them.
 
-Quarry `once` currently applies only to image columns. The native memory video
-player exists, but `video ... once` is refused by the public grammar; a newly
-authored app cannot promise view-once video. Ordinary `AssetVideo` is supported.
+`once` is image-only. Ordinary `AssetVideo` supports video. Video/download URLs
+may carry `?s=` credentials: ten-minute expiry, 1,024-owner cap, current row checks,
+`no-store`/`no-referrer`. URLs are transferable; redact proxy query logs too.

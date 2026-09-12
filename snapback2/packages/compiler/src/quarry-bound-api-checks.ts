@@ -1,7 +1,8 @@
+import { CertifiedTestStore as ClientStore } from "./quarry-check-helpers";
 import { ok, equal, match, doesNotMatch, deepStrictEqual } from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { ClientStore, wireJson, type Context } from "../../evaluator/src/evaluator";
+import { wireJson, type Context } from "../../evaluator/src/evaluator";
 import { RowImage } from "../../evaluator/src/row-image";
 import { apiConsumerDiagnostics } from "./quarry-check-helpers";
 import { boundApiRowAliases, generateBoundApiDts } from "./quarry/bound-api";

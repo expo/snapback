@@ -15,6 +15,8 @@ mod bytes_cases;
 mod cap_cases;
 #[path = "export_corpus/client_scenarios.rs"]
 mod client_scenarios;
+#[path = "export_corpus/delivery_cases.rs"]
+mod delivery_cases;
 #[path = "export_corpus/enriched_pages.rs"]
 mod enriched_pages;
 #[path = "export_corpus/constraints.rs"]
@@ -23,8 +25,6 @@ mod export_corpus_constraints;
 mod merge_cases;
 #[path = "export_corpus/tombstone_cases.rs"]
 mod tombstone_cases;
-#[path = "export_corpus/delivery_cases.rs"]
-mod delivery_cases;
 #[path = "export_corpus/twin_cases.rs"]
 mod twin_cases;
 #[path = "export_corpus/visibility_cases.rs"]
@@ -64,6 +64,7 @@ struct CorpusCase {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PreludeStep {
+    certificate: Option<Certificate>,
     program: Program,
     context: Context,
     expected_state: String,
@@ -152,31 +153,69 @@ fn main() {
     search_cases::add(&mut cases);
     assert!(cases.len() >= 60, "brief requires at least 60 corpus cases");
 
-    let output = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
-    fs::create_dir_all(&output).expect("create corpus directory");
-    for entry in fs::read_dir(&output).expect("read corpus directory") {
-        let path = entry.expect("corpus entry").path();
-        if path
-            .extension()
-            .is_some_and(|extension| extension == "json")
-        {
-            fs::remove_file(path).expect("remove stale generated corpus file");
+    for case in &mut cases {
+        for step in &mut case.prelude {
+            step.certificate = Some(
+                Checker::new(&case.schema, Ceilings::default())
+                    .check(&step.program)
+                    .expect("prelude certificate"),
+            );
         }
     }
+    let output = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
+    let check = std::env::args().skip(1).any(|arg| arg == "--check");
+    let mut generated = std::collections::BTreeMap::new();
     for case in &cases {
-        let path = output.join(format!("{}.json", case.name));
         let encoded = serde_json::to_string_pretty(case).expect("serialize corpus case");
         let encoded = if encoded.lines().count() > 1500 {
             serde_json::to_string(case).expect("serialize compact corpus case")
         } else {
             encoded
         };
-        fs::write(path, format!("{encoded}\n")).expect("write corpus case");
+        generated.insert(format!("{}.json", case.name), format!("{encoded}\n"));
     }
-    let manifest = serde_json::to_string(&cases).expect("serialize corpus manifest");
-    fs::write(output.join("manifest.json"), format!("{manifest}\n"))
-        .expect("write corpus manifest");
-    println!("wrote {} frozen corpus cases", cases.len());
+    generated.insert(
+        "manifest.json".into(),
+        format!("{}\n", serde_json::to_string(&cases).unwrap()),
+    );
+    fs::create_dir_all(&output).expect("create corpus directory");
+    let mut stale = Vec::new();
+    for entry in fs::read_dir(&output).expect("read corpus directory") {
+        let path = entry.expect("corpus entry").path();
+        if path
+            .extension()
+            .is_some_and(|extension| extension == "json")
+            && !generated.contains_key(path.file_name().unwrap().to_str().unwrap())
+        {
+            if check {
+                stale.push(path.display().to_string());
+            } else {
+                fs::remove_file(path).expect("remove stale corpus file");
+            }
+        }
+    }
+    for (name, encoded) in generated {
+        let path = output.join(name);
+        if check {
+            if fs::read_to_string(&path).ok().as_deref() != Some(encoded.as_str()) {
+                stale.push(path.display().to_string());
+            }
+        } else {
+            fs::write(path, encoded).expect("write corpus");
+        }
+    }
+    if !stale.is_empty() {
+        eprintln!(
+            "stale corpus (run cargo run -p snapback2-core --bin export_corpus):\n{}",
+            stale.join("\n")
+        );
+        std::process::exit(1);
+    }
+    println!(
+        "{} {} corpus cases",
+        if check { "checked" } else { "wrote" },
+        cases.len()
+    );
 }
 
 // @ref LLP 1001#3-read-and-write-states-no-silent-states — cursors carry the

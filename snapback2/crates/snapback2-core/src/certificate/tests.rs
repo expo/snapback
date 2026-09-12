@@ -145,6 +145,9 @@ fn merge_refusal_names_lanes_discovery_and_structural_repairs() {
         );
         for repair in [
             "structural repair",
+            "compact merge heads",
+            "shipped global pager",
+            "guide fanout",
             "smaller lane bound",
             "smaller page",
             "two reads",

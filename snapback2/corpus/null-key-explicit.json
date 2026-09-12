@@ -460,25 +460,25 @@
       {
         "meter": "output bytes",
         "value": 157,
-        "source": "counts.__proto__",
+        "source": "counts.__proto__ (157 bytes; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 599,
-        "source": "counts.id",
+        "source": "counts.id (599 bytes; 6 field-name/framing + counts declared identity 593)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 156,
-        "source": "counts.toString",
+        "source": "counts.toString (156 bytes; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 41,
-        "source": "counts.value",
+        "source": "counts.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
         "site": null
       },
       {
@@ -490,19 +490,19 @@
       {
         "meter": "output bytes",
         "value": 157,
-        "source": "events.__proto__",
+        "source": "events.__proto__ (157 bytes; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 150,
-        "source": "events.id",
+        "source": "events.id (150 bytes; 6 field-name/framing + events declared identity 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 156,
-        "source": "events.toString",
+        "source": "events.toString (156 bytes; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
         "site": null
       },
       {
@@ -519,26 +519,98 @@
       },
       {
         "meter": "closure bytes",
-        "value": 1592,
-        "source": "1 pooled counts first images with table/id envelopes",
+        "value": 1421,
+        "source": "null.count × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "null.count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 972,
+        "source": "null.exists × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "null.exists"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 972,
+        "source": "null.row × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "null.row"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 157,
+        "source": "counts.__proto__ (157 bytes; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
         "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 1306,
-        "source": "2 pooled events first images with table/id envelopes",
+        "value": 599,
+        "source": "counts.id (599 bytes; 6 field-name/framing + counts declared identity 593)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 156,
+        "source": "counts.toString (156 bytes; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "counts.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 629,
+        "source": "counts table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 314,
+        "source": "2 × events.__proto__ (157 bytes each; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 300,
+        "source": "2 × events.id (150 bytes each; 6 field-name/framing + events declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 312,
+        "source": "2 × events.toString (156 bytes each; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "events row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 360,
+        "source": "2 × events table/id envelope (180 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       },
       {
         "meter": "closure bytes",
         "value": 3438,
         "source": "public count absence evidence",
-        "site": null
-      },
-      {
-        "meter": "closure bytes",
-        "value": 3482,
-        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
         "site": null
       },
       {

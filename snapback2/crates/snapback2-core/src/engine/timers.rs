@@ -36,13 +36,18 @@ impl Engine {
         let (start, scheduled_at, skipped) = match (&schedule.trigger, timer.period_start) {
             (Trigger::Every { duration_ms }, Some(start)) => {
                 let skipped = (now.saturating_sub(timer.at) / duration_ms).max(0);
-                (
-                    Some(start.saturating_add(skipped.saturating_mul(*duration_ms))),
-                    timer
-                        .at
-                        .saturating_add(skipped.saturating_mul(*duration_ms)),
-                    skipped as u64,
-                )
+                let scheduled_at = timer
+                    .at
+                    .saturating_add(skipped.saturating_mul(*duration_ms));
+                // A migrated install-offset timer can own one short transition interval. Keep
+                // that start when it is the interval being fired; after any missed interval,
+                // the latest complete interval is back on the schedule's whole-duration grid.
+                let start = if skipped == 0 {
+                    start
+                } else {
+                    scheduled_at.saturating_sub(*duration_ms)
+                };
+                (Some(start), scheduled_at, skipped as u64)
             }
             _ => (None, timer.at, 0),
         };

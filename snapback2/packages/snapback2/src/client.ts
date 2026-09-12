@@ -243,6 +243,7 @@ class Client implements SnapbackClient {
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
       guest: () => this.session("/api/auth/guest", {}),
       logout: () => this.logout(),
+      refresh: () => this.session("/api/auth/refresh", {}),
       me: () => this.me(),
     };
     this.localReady = this.hydrate(options.token).then(async () => {
@@ -697,7 +698,7 @@ class Client implements SnapbackClient {
   private async session(path: string, input: unknown): Promise<AuthSession> {
     ensureBearerTransition(this, path.slice("/api/auth/".length));
     const session = await this.transition(authority => this.authState.session(path, {
-      request: () => this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, { enforceAuthority: false, terminalSession: "keep" }),
+      request: () => this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, { enforceAuthority: false, terminalSession: path === "/api/auth/refresh" ? "expire" : "keep" }),
       install: async (session, response) => {
         this.offlineRuntime?.noteGrant(response, session.viewer);
         await this.openOffline(session.viewer, true, session.authEpoch);
@@ -954,9 +955,9 @@ class Client implements SnapbackClient {
     this.ensureAuthority(authority);
     if (this.forcedOffline) throw offlineNetworkRefusal();
     const headers = this.headers(authority, true);
-    if (lastEventId !== undefined) headers.set("Last-Event-ID", lastEventId);
+    // Live deliveries replace snapshots; the owner has no event-id resume contract.
     try {
-      const response = await this.live.open(path, lastEventId, signal, headers, async () => { await this.expireSession(authority); });
+      const response = await this.live.open(path, undefined, signal, headers, async () => { await this.expireSession(authority); });
       this.ensureAuthority(authority);
       throwIfAborted(signal);
       this.patchSnapshot({ connection: "connected" });
@@ -1293,7 +1294,7 @@ class Client implements SnapbackClient {
       this.follower.stop();
       this.inbox.stop();
       this.abortSync(options.signal);
-      if (!options.fromAuth) this.authState.reset({ state: "hydrating" });
+      if (!options.fromAuth) this.authState.reset({ state: "hydrating", restoringViewer: this.currentPrincipal });
       const fence = this.operationFence;
       const authGeneration = this.authGeneration + 1;
       this.closeTransports(options.origin);

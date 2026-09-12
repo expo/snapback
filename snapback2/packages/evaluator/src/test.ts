@@ -15,7 +15,6 @@ await import('./test-maintained-address');
 await import('./test-delivery');
 await import('./test-merge');
 import {
-  ClientStore,
   canonicalValue,
   compareExpected,
   evaluateCase,
@@ -29,6 +28,8 @@ import {
   type CorpusCase,
   type Value,
 } from "./evaluator";
+import { ClientStore as ProductionStore } from './store';
+import { FixtureStore as ClientStore } from './test-certificate';
 import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
 import { queryState } from "./runner";
@@ -272,6 +273,7 @@ function derivedRuleInput(
       },
     }],
   };
+  receipt.schema_hash = sha256(canonicalSchemaJson(schema));
   if (authority !== "none") {
     const verdict = {
       rule_hash: scopedRuleHash(schema, docsRead),
@@ -419,6 +421,19 @@ try {
   staleValueModelRefused = error instanceof Error && error.message.startsWith("E_TRACE_SUBSET:");
 }
 assert(staleValueModelRefused, "twin accepted a stale certificate value-model version");
+// Public execution entry points never accept an unbound or incompatible certificate.
+for (const certificate of [null, { ...original.certificate, evaluator_version: 'future' },
+  { ...original.certificate, value_model_version: 'future' }, { ...original.certificate, plan_hash: 'wrong' },
+  { ...original.certificate, schema_hash: 'wrong' }]) {
+  for (const mutation of [false, true]) {
+    const store = new ProductionStore(original.schema, original.receipt);
+    let refused = false;
+    try { mutation ? store.applyMutation(original.program, original.context, false, certificate)
+      : store.reexecute(original.program, original.context, certificate); }
+    catch (error) { refused = error instanceof EvalError && error.code === 'E_TRACE_SUBSET'; }
+    assert(refused, 'direct execution accepted missing/stale certificate identity');
+  }
+}
 const corrupted = JSON.parse(JSON.stringify(original)) as CorpusCase;
 const message = corrupted.receipt.rows.find((row) => row.table === "messages");
 assert(message !== undefined && message.row !== "Null" && "Row" in message.row, "message receipt row missing");
@@ -436,7 +451,8 @@ const predecessor = JSON.parse(JSON.stringify(hidden)) as CorpusCase;
 predecessor.schema.tables.entitlements.rules.read = {
   Eq: [{ Field: "userId" }, { Literal: { Id: "u2" } }],
 };
-predecessor.certificate.schema_hash = sha256(JSON.stringify(predecessor.schema));
+predecessor.certificate.schema_hash = sha256(canonicalSchemaJson(predecessor.schema));
+predecessor.receipt.schema_hash = predecessor.certificate.schema_hash;
 const outerRule = predecessor.schema.tables.secretDocs.rules.read;
 const predecessorHash = scopedRuleHash(predecessor.schema, outerRule);
 predecessor.receipt.verdicts = [{
@@ -449,11 +465,20 @@ predecessor.receipt.verdicts = [{
 const predecessorReplay = hydrateCase(predecessor);
 assert(predecessorReplay.planState === "ready", predecessorReplay.diagnostic ?? "predecessor replay");
 
+const sameRuleSchema = structuredClone(predecessor.schema);
+sameRuleSchema.auth = { password: false, guests: true };
+const successorRuleHash = scopedRuleHash(sameRuleSchema, outerRule);
+assert(successorRuleHash !== predecessorHash, 'scoped hash must already bind the complete schema');
+const retaggedReceipt = structuredClone(predecessor.receipt);
+retaggedReceipt.verdicts[0]!.rule_hash = successorRuleHash;
+const staleStore = new ProductionStore(sameRuleSchema, retaggedReceipt);
+assert(staleStore.verdict(successorRuleHash, predecessor.receipt.verdicts[0]!.pinned_inputs_digest,
+  predecessor.context) === null, 'schema mismatch retained a predecessor verdict');
 const successor = JSON.parse(JSON.stringify(predecessor)) as CorpusCase;
 successor.schema.tables.entitlements.rules.read = {
   Eq: [{ Field: "userId" }, { Literal: { Id: "u3" } }],
 };
-successor.certificate.schema_hash = sha256(JSON.stringify(successor.schema));
+successor.certificate.schema_hash = sha256(canonicalSchemaJson(successor.schema));
 const successorHash = scopedRuleHash(successor.schema, successor.schema.tables.secretDocs.rules.read);
 assert(successorHash !== predecessorHash, "referenced read-policy replacement did not change the enclosing rule hash");
 const carriedVerdict = hydrateCase(successor);
