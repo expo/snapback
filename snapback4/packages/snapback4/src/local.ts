@@ -24,8 +24,10 @@ export interface LocalOptions {
   /** Where the session is kept: `localStorage` by default, memory without one. */
   readonly sessionStore?: SessionStore;
   readonly fetch?: typeof fetch;
-  /** `"indexeddb"` on the web (the default when available), `"memory"` for tests. */
-  readonly store?: "indexeddb" | "memory";
+  /** `"indexeddb"` on the web (the default when available), `"memory"` for
+   * tests, or an opener for another store (`openSqlite` from
+   * `snapback4/replica` on Expo and Node). */
+  readonly store?: "indexeddb" | "memory" | { open(name: string, schema: SchemaJson): Promise<Store> };
   readonly waitSeconds?: number;
 }
 
@@ -99,8 +101,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
 
   const backend = await loadBackend(doFetch, base, headers);
+  const storeName = `snapback4:${base}:${viewer}`;
   const useIdb = options.store === "indexeddb" || (options.store === undefined && typeof indexedDB !== "undefined");
-  const store: Store = useIdb ? await openIndexedDb(`snapback4:${base}:${viewer}`, backend.schema) : new MemoryStore(backend.schema);
+  const store: Store = typeof options.store === "object" ? await options.store.open(storeName, backend.schema) : useIdb ? await openIndexedDb(storeName, backend.schema) : new MemoryStore(backend.schema);
   let link: Link = "online";
   let closed = false;
   let seq = 0;

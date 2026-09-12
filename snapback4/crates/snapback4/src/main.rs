@@ -90,8 +90,11 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
+    /// The binary and the client package publish together at one version.
     #[test]
     fn version_is_the_workspace_version() {
-        assert_eq!(env!("CARGO_PKG_VERSION"), "0.0.1");
+        let package = include_str!("../../../packages/snapback4/package.json");
+        let published = package.lines().find_map(|line| line.trim().strip_prefix("\"version\": \"")).and_then(|rest| rest.split('"').next()).expect("package.json has a version");
+        assert_eq!(env!("CARGO_PKG_VERSION"), published, "bump Cargo.toml [workspace.package] and packages/snapback4/package.json together");
     }
 }

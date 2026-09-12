@@ -45,6 +45,20 @@ export function scaleSeed({ groups, messages, members }) {
   return rows;
 }
 
+/** A `snapback4 dev` on the chat backend in a temporary project, seeded. */
+export async function devServer({ seed, port = 4460 + (process.pid % 20) }) {
+  const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
+  cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true });
+  rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
+  const api = `http://127.0.0.1:${port}`;
+  const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "ignore", "inherit"] });
+  for (let i = 0; i < 100; i++) { try { await fetch(api); break; } catch { await new Promise((r) => setTimeout(r, 50)); } }
+  const t0 = performance.now();
+  const seeded = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(seed) }).then((r) => r.json());
+  const seedMs = +(performance.now() - t0).toFixed(1);
+  return { api, app, seeded: seeded.seeded, seedMs, close() { server.kill(); rmSync(app, { recursive: true, force: true }); } };
+}
+
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
 export async function launch({ seed, headless = true }) {
   const require = createRequire(join(process.env.HOME, "projects/snapback/snapback2/packages/snapback2/package.json"));
@@ -57,16 +71,8 @@ export async function launch({ seed, headless = true }) {
   await build({ root: harness, logLevel: "silent", build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", lib: { entry, formats: ["es"], fileName: () => "harness.js" } } });
   const bundle = readFileSync(join(harness, "dist/harness.js"), "utf8");
 
-  const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
-  cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true });
-  rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
-  const port = 4460 + (process.pid % 20);
-  const api = `http://127.0.0.1:${port}`;
-  const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "ignore", "inherit"] });
-  for (let i = 0; i < 100; i++) { try { await fetch(api); break; } catch { await new Promise((r) => setTimeout(r, 50)); } }
-  const t0 = performance.now();
-  const seeded = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(seed) }).then((r) => r.json());
-  const seedMs = +(performance.now() - t0).toFixed(1);
+  const dev = await devServer({ seed });
+  const { api, app, seeded, seedMs } = dev;
 
   const pageServer = createServer((_, res) => { res.setHeader("content-type", "text/html"); res.end(`<!doctype html><title>witness</title><script type="module">${bundle}</script>`); });
   await new Promise((r) => pageServer.listen(0, "127.0.0.1", r));
@@ -82,17 +88,16 @@ export async function launch({ seed, headless = true }) {
     page,
     api,
     app,
-    seeded: seeded.seeded,
+    seeded,
     seedMs,
     chromium: exe.includes("Testing") ? exe.split("/").find((p) => p.startsWith("chromium-")) : "system chrome",
     async reload() { await page.reload(); await page.waitForFunction(() => typeof window.createLocalClient === "function"); },
     async heapMb() { const { metrics } = await cdp.send("Performance.getMetrics"); return +((metrics.find((m) => m.name === "JSHeapUsedSize")?.value ?? 0) / 1_048_576).toFixed(1); },
     async close() {
       await browser.close();
-      server.kill();
       pageServer.close();
       rmSync(harness, { recursive: true, force: true });
-      rmSync(app, { recursive: true, force: true });
+      dev.close();
     },
   };
 }

@@ -544,3 +544,32 @@ the hub run's to catch, and the run record will say whether they did.
 - Every invariant, day-two scenario and review test passes on the new
   log; the lang crate's chat test now expects one put per group, not one
   per member.
+
+## 2026-09-12 — the Expo arm, and the package with the binary on it
+
+- **`apps/chat-expo`**: the chat app on React Native, on the same client
+  and the same generated `api.ts` as the web app. The device holds its
+  partition in SQLite (`expo-sqlite` behind `snapback4/replica`'s
+  four-method driver), keeps its session in the secure store, mints a
+  guest when it has none; a screen is a query plus JSX, as on the web.
+  `createLocalClient` takes a store opener for hosts that bring their own
+  store.
+- **The simulator witness (`witness/expo.mjs`)**: Expo Go on the booted
+  iPhone 17 Pro simulator against a real `snapback4 dev`; the app runs the
+  scenario itself and posts its report. 303 rows sync into SQLite in
+  209 ms; a thread page reads 50 rows `complete` with a cursor; the inbox
+  count is 300; a send is `sent`; a second open of the same file finds the
+  301 rows and reopens in 22 ms. The line is in `metrics/witness.jsonl`.
+- **Expo tooling notes.** The workspace installs hoisted (`bunfig.toml`),
+  since Metro could not bundle from bun's isolated layout. `expo install
+  --fix` pins the SDK 57 versions (React Native 0.86). `expo export`'s
+  bytecode step still resolves an old `hermes-compiler` (0.14.1, "private
+  properties are not supported") under bun; development bundles and Expo
+  Go do not go through it. A follow-up for the production build.
+- **`npx snapback4`**: the client package carries the CLI. `bin/snapback4.js`
+  finds the binary in `snapback4-darwin-arm64` (an optional dependency, the
+  release build copied in at publish time), or `SNAPBACK4_BIN`, or this
+  repository's build. `scripts/publish.mjs` builds the binary, packs both
+  packages, proves them from an installed consumer (`snapback4 --version`
+  runs; the mock client works) and publishes the platform package first.
+  Versions move together: 0.0.2 (the Cargo workspace too).
