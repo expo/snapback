@@ -105,7 +105,10 @@ for (let run = 1; run <= n; run++) {
   const start = Number(runLog.match(/^start=(\d+)/m)?.[1]);
   const green = Number(runLog.match(/^green=(\d+)/m)?.[1]);
   out.agentSeconds = start && green ? green - start : null;
-  out.correctionLoops = { snapback4: (runLog.match(/snapback4-defect/g) ?? []).length, docs: (runLog.match(/docs-gap/g) ?? []).length, agent: (runLog.match(/agent-error/g) ?? []).length, environment: (runLog.match(/environment/g) ?? []).length };
+  // An attribution the agent itself retracted later in the log does not count.
+  const lines = runLog.split("\n").filter((l) => !/retract/i.test(l));
+  const count = (re) => lines.filter((l) => re.test(l)).length;
+  out.correctionLoops = { snapback4: count(/snapback4-defect/), docs: count(/docs-gap/), agent: count(/agent-error/), environment: count(/environment/) };
   // Independent verification of the proof: check, the fixture test, the
   // acceptance script — with nothing the agent left running.
   out.verify = verifyLane(lane);

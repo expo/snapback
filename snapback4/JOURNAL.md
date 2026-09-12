@@ -852,3 +852,15 @@ Three fresh Astra sessions at medium, serial, each on the published
   lock instead of failing at once.
 - The README wrote `sum messages.x by ..`; the grammar is `sum <table> of
   <column> by ..`. Published `snapback4@0.0.15`.
+
+## 2026-09-12 — the loop bar is met
+
+Set D on 0.0.11: three fresh Astra agents at medium, green in 537, 443 and
+535 s, no Snapback-attributed correction loop (the third agent charged one
+and retracted it as its own error a minute later; the runner no longer
+counts a retracted line), `check`, the fixture test and the acceptance
+script verified independently for each. LLP 3000 §3's loop bar (≤ 1,200 s,
+≤ 1 loop, N ≥ 3, the published package, a fresh agent) holds. The road
+there — twelve runs on four pins, every one green inside the clock, the
+loops on the earlier pins all traced to defects fixed the same day — is
+`benchmarks/runs/2026-09-12-snapback4-loopbar/`.

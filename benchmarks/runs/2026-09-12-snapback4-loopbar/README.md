@@ -1,6 +1,6 @@
 # The loop bar on Snapback 4 — fresh Astra agents on the published pins
 
-**Status: in progress** (set D running). The loop bar (LLP 3000 §3;
+**Status: complete.** The bar is met on `snapback4@0.0.11`: three of three fresh agents green in 443–537 s with no Snapback-attributed correction loop, every proof verified independently. The loop bar (LLP 3000 §3;
 `rules/NOT-DOING.md` "The bars"): a fresh agent, with only the installed
 package and the task, builds the reduced Clique M1–M3 (accounts and
 profiles, posts and the follow graph, messaging core; React web; no media)
@@ -31,12 +31,15 @@ the agent's own attributions in its run log.
 | C | 0.0.8 | 1 | 366 | 0 | yes (on a second look, after stopping the agent's leftover server and dropping its dev store) | **met** | — |
 | C | 0.0.8 | 2 | 592 | 2 | yes | no | `dev --fresh` from the registry README again (absent on 0.0.8) |
 | C | 0.0.8 | 3 | 472 | 0 | yes | **met** | — |
-| D | 0.0.11 | 1–3 | pending | | | | the brief now names the installed README |
+| D | 0.0.11 | 1 | 537 | 0 | yes | **met** | — (the brief now names the installed README) |
+| D | 0.0.11 | 2 | 443 | 0 | yes | **met** | — |
+| D | 0.0.11 | 3 | 535 | 0 | yes | **met** | the agent first blamed a rejected merge cursor on the package, then retracted it as its own error (it had put the outer cursor on the inner lanes); the runner's count now ignores retracted attributions |
 
-Every one of nine runs went green inside 1,200 s (366–765 s). Four of nine
-met the bar on the loop count; every counted loop was a defect or a docs
-mismatch fixed on main the same day (0.0.5 through 0.0.13), and the
-`tests/loopbar.rs` cases hold them.
+Every one of twelve runs went green inside 1,200 s (366–765 s). On the
+pins before the fixes, four of nine met the bar on the loop count; every
+counted loop was a defect or a docs mismatch fixed on main the same day
+(0.0.5 through 0.0.13), and the `tests/loopbar.rs` cases hold them. On
+0.0.11 all three met it.
 
 ## Docs gaps the agents named
 
