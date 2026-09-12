@@ -66,3 +66,15 @@ No material findings.
 **Limits, verbatim:** Delta-only review of the supplied packet (candidate cee80bc1 vs prior READY at ade40815). No tools, tests, builds, peer reviews, or files outside this packet. Unconfirmed, not raised: whether opaque_cursor plus a non-empty result_pages site can label merge page: without a proved client cursor binding (code checks plans.len()==1, uniform, take>1, opaque_cursor, result site match, and pool ownership; it does not check result_page cursor Some). Unconfirmed: assetBlob/ByteCache admit after the live row drops the asset id; templates keep the captured ImageAsset and viewing instance, which the packet’s transition tests cover. Digest final-emission remains the recorded unfulfilled parent gap. Runtime 89843/90000 and failed 1% byte comparison are inherited. Did not re-judge main’s landed CLI/schedule/mutation-target work.
 
 Integrator: this resolves the reviewed source findings. The actual full test script passes at the candidate; the inherited historical byte comparisons remain failed. Later imported main changes retain their own provenance. A separate small review covers the two manually reconciled guide pages. No digest or fresh-wave success is inferred.
+
+## Guide integration follow-up
+
+Candidate: `4229f3143917c24a9b7374a334b4010b1762cc2f`; scope is only the manual fanout/merge guide reconciliation after imported main `4a4249f7cc`.
+Packet SHA-256: `550ef6a3618d2aab6a5406ba325bc89802c273ef243275fba046a1deb211b850`. Fresh mutually blind sessions; no tools or peer review.
+Session: `01a093f1-b3a2-7a70-a9ae-30fb5b951a2d`; exit 0.
+
+**Verdict: READY**
+
+No material findings.
+
+**Limits, verbatim:** Review is of the supplied fanout.md/merge.md integration text against the supplied fixture Q, installed recipe, and stated program facts only. No tools, checkouts, compiler, generated-client types, builds, network, or 4a4249 walk; did not re-open cee80bc1 source, runtime-test the pager, or launch digest/fresh-benchmark work. Main first-use/diagnostics survival is judged from the reconciled files as given (named-or-positional lanes; system reads bypass rule capping, not execution limits) plus the 1023 global/grouped split. Fixture Q matches the inlined forms; semantic compile is by that match and reported guide 98178/98304, not a run in this review. Historical 0.0.25 Clique timings, red 1% byte-growth, unchanged baseline, digest gap, and unlaunched fresh benchmark stay explicit and out of scope.

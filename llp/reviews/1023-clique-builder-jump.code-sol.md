@@ -77,3 +77,23 @@ This is readiness for the supplied delta only. Digest final-emission eligibility
 
 Limitations: frozen-packet static review only. I did not browse, run commands, builds, tests, or benchmarks; edit files; inspect credentials; access remote machines; or read peer reviews. Reported validation and measurements were not independently reproduced.
 Integrator: this resolves the reviewed source findings. The actual full test script passes at the candidate; the inherited historical byte comparisons remain failed. Later imported main changes retain their own provenance. A separate small review covers the two manually reconciled guide pages. No digest or fresh-wave success is inferred.
+
+## Guide integration follow-up
+
+Candidate: `4229f3143917c24a9b7374a334b4010b1762cc2f`; scope is only the manual fanout/merge guide reconciliation after imported main `4a4249f7cc`.
+Packet SHA-256: `550ef6a3618d2aab6a5406ba325bc89802c273ef243275fba046a1deb211b850`. Fresh mutually blind sessions; no tools or peer review.
+Session: `01a093f1-bc9b-7220-95e3-5f0907956ea4`; exit 0.
+
+READY
+
+No material integration defect found.
+
+- Both intended paths survive: grouped search retains membership-order pagination, empty groups, and separate chat cursors; global search adds full scope discovery plus per-conversation heads/refills.
+- The added Q forms exactly match the supplied `feeds.q` fixture. Their prefixes align with `byPrincipalConversation` and `bySearch`, leaving the message suffix `(at, id)`, and their generated argument shapes match the TypeScript recipe.
+- Authorization remains sound: scope discovery is restricted to `memberships[viewer]`; message reads remain governed by the membership-based `messages` read rule.
+- Cursor and completeness guidance is sound: cursors remain opaque and operation-specific; dynamic scope discovery is distinct from authored bounded merge lanes; term/membership changes require recreating the pager; separate reads have separate snapshots; capped/truncated conditions are surfaced through page state/issues.
+- `merge.md` preserves the prior completeness definition while correctly integrating named/positional prefixes, system-read limits, and the distinction between bounded Quarry lanes and the client-side 1,000-scope pager.
+
+Non-material wording hypothesis: “`(at,id)` scalar order” applies specifically to each fixed-conversation message lane, not the `searchScopes` cursor. The installed recipe makes that explicit, so this does not warrant MATERIAL.
+
+This is a manual review of the supplied integration only. I did not run tests or treat the still-running combined script, historical byte-growth failure, digest gap, or unlaunched benchmark as evidence.
