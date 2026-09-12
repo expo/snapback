@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { canonicalProgramJson, canonicalSchemaJson } from './certificate-identity';
 import { sha256 } from './hash';
-import { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION, Runner } from './runner';
+import { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION, Runner, validateCertificate } from './runner';
 import { ClientStore } from './store';
 import { canonicalJson, prepareSchema, scopedRuleHash } from './value-runtime';
 import { rangeSchemaIdentity } from './range-preparation';
@@ -88,6 +88,23 @@ try { for (let index = 0; index < 3; index++) {
 } } finally { Object.keys = objectKeys; }
 assert.equal(preparedReads,0,'admitted custody reuses canonical hashes across fresh executions');
 assert.equal(admittedHash,scopedRuleHash(schema,changed),'prepared and public hashers retain byte parity');
+
+preparedReads = 0;
+Object.keys = ((value: object) => { if (value === admittedSchema.tables) preparedReads++; return objectKeys(value); }) as typeof Object.keys;
+try {
+  for (let i = 0; i < 3; i++) {
+    validateCertificate(admittedSchema, admitted.programs.read.ir, admitted.programs.read.certificate);
+    new ClientStore(admittedSchema);
+  }
+} finally { Object.keys = objectKeys; }
+assert.equal(preparedReads,0,'store construction and certificate checks reuse the admitted schema digest');
+const callerSchema = Object.freeze(structuredClone(admittedSchema));
+validateCertificate(callerSchema, admitted.programs.read.ir, admitted.programs.read.certificate);
+callerSchema.tables.denied.rules.read = 'Allow';
+assert.throws(() => validateCertificate(callerSchema, admitted.programs.read.ir, admitted.programs.read.certificate),
+  /E_TRACE_SUBSET: schema hash mismatch/, 'a frozen caller root cannot cache a mutable descendant');
+assert.throws(() => validateCertificate(admittedSchema, { ...admitted.programs.read.ir, name: 'changed' }, admitted.programs.read.certificate),
+  /E_TRACE_SUBSET: plan hash mismatch/, 'schema custody never suppresses a changed program check');
 
 const rangeHash = sha256(canonicalJson(admittedSchema));
 assert.equal(rangeSchemaIdentity(admittedSchema),rangeHash,'range identity retains its exact prior encoding');

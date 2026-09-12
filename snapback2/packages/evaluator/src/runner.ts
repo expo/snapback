@@ -1,4 +1,4 @@
-import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
+import { canonicalProgramJson } from "./certificate-identity";
 import { mergeRemainder, mergeStreams } from "./merge";
 import { DeliveryPrediction } from './delivery-prediction';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
@@ -32,6 +32,7 @@ import {
   safeNumber,
   sameValueZero,
   scopedRuleHash,
+  schemaDigest,
   startsWith,
   totalCompare,
   validHttpUrl,
@@ -1352,7 +1353,8 @@ export function validateCertificate(schema: any, program: any, certificate: any)
     fail('E_TRACE_SUBSET', 'value model version mismatch');
   if (certificate.evaluator_version !== CURRENT_EVALUATOR)
     fail('E_TRACE_SUBSET', 'evaluator version mismatch');
-  if (certificate.schema_hash !== sha256(canonicalSchemaJson(schema)))
+  // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — reuse existing immutable schema custody; mutable callers still rehash.
+  if (certificate.schema_hash !== schemaDigest(schema))
     fail('E_TRACE_SUBSET', 'schema hash mismatch');
   if (certificate.plan_hash !== sha256(canonicalProgramJson(program)))
     fail('E_TRACE_SUBSET', 'plan hash mismatch');
