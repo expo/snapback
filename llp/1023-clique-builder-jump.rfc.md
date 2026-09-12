@@ -290,3 +290,40 @@ remain pending. The prepared
 fresh diagnostic packet on EPYC has not launched (estimated run: 7–12 hours),
 so there is no fresh independently graded M1–M8 claim. Passing source checks or
 an earlier native stage does not establish that result.
+
+
+### Final combined qualification and measurement — 2026-09-12
+
+The unmodified blocking script passes on cee80bc1d in 59 seconds: 1,450 package,
+314 compiler and 1,198 native tests, both 266-case evaluator runs (27 server-only
+cases), and doctests. The preceding five combined-run failures were introduced
+guide-fixture and template-contract checks; their repairs passed affected checks
+before this complete rerun. Source was clean before measurement.
+
+The unchanged measure.mjs --check exits 1 on all four historical +1% byte
+comparisons. Its last accepted comparable baseline is bf650aebb, measured
+2026-09-09T18:12:53.625Z with Node 24.18.0, esbuild 0.25.9 and gzip level 9:
+
+| Packaged closure | Accepted baseline | Current cee80bc1d |
+|---|---:|---:|
+| client | 136,547 | 142,989 |
+| React | 146,166 | 152,942 |
+| Expo | 149,836 | 156,395 |
+| five-root runtime | 84,580 | 89,843 |
+
+These four failures already exist in the starting fadda tree's comparable
+900bbd9a90 record and in imported main 3994fc112e/e4a85. Both imported main
+snapshots carry the successful-measurement 13dc20058d row, dated
+2026-09-12T03:14:42.652Z, at 143,053 / 152,966 / 156,459 / 89,981 bytes with
+byte_baseline_accepted=false. Current closures are smaller by 64 / 24 / 64 /
+138 bytes respectively. This establishes inherited comparison failures, not
+zero byte growth from every individual change. The historical measurement
+remains failed; the baseline is neither accepted nor reset. The fixed 90,000
+runtime ceiling passes, while the 80,000 target remains unmet.
+
+Every timed check passes: warm release build 90s, incremental rebuild 3.06s,
+development consumer (effects off) 23.32s, project check 0.896s, doctor
+0.036/0.035s, and init-to-dev 1.615s. One loop row and one twin row are appended;
+all prior records remain byte-for-byte unchanged and the new loop row keeps
+byte_baseline_accepted=false. Full output and process evidence are retained on
+EPYC under /home/ccheever/snapback-1023-20260912/qualification-complete/.
