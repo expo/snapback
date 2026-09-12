@@ -35,7 +35,10 @@ qualification below. The reviewed source landed at `394ac17802`, and all
 three `0.0.29` packages are published with verified registry integrity and
 29 installed-consumer checks on each native platform. The parent remains
 **Accepted, not complete**: fresh Clique evidence is still outstanding and the
-80,000-byte target remains unmet. The separate 0.0.30 follow-up below completes
+80,000-byte target remains unmet. The fresh wave also reproduced a durable
+mixed-row/zero-count read defect; its focused repair passes and is awaiting
+integrated review and publication below.
+The separate 0.0.30 follow-up below completes
 the exact digest recipe. The residual research is context, not a fourth
 implementation work order.
 
@@ -51,7 +54,7 @@ source outcomes. Neither is an exact-HEAD gate.
 | [0.0.24 record](../benchmarks/runs/2026-09-11-clique-astra-snapback2-0024-linux/README.md) and [0.0.25 record](../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md) | Builders reported recurring bound and client problems | The retained records do not establish independently graded M1–M8 success; shared-host load, preparation collision and cross-lane browser traffic limit attribution |
 | [Insights resolution](../issues/closed/20260911-snapback2-insights-partial-twin-zero.md), landed in `3b7f51564a` | An uncovered maintained point could publish zero with a **partial** receipt; the twin now withholds the tainted result | Real-owner warm/cold hook regression exists; exact timed Clique Insights and published-browser qualification remain separate |
 | [Acquisition plan §9](./1018.008.007.002-bounded-bulk-acquisition.plan.md#9-implementation-and-measured-outcome), `9f93f3e1ba` and `4e22e80462` | Batching and foreground admission repairs already landed | Single controls do not close the original single-context offline-flush report, browser navigation, or the acquisition objective |
-| [Hub report](../issues/20260911-snapback2-hub-scale-certified-query-envelopes.md) | Several authored shapes refused and builders reduced/chunked them | Refusal sizes are bounds for those schemas, not universal lane limits; the report conflates required fixture coverage with the builder's chosen single-query shape |
+| [Hub report](../issues/closed/20260911-snapback2-hub-scale-certified-query-envelopes.md) | Several authored shapes refused and builders reduced/chunked them | Refusal sizes are bounds for those schemas, not universal lane limits; the report conflates required fixture coverage with the builder's chosen single-query shape |
 
 The later `e4a85d7671` update completes the separate 0.0.24 Astra record:
 fresh Opus 5 grading reports 101 passes and 18 not-run across its JSON and
@@ -219,6 +222,8 @@ The failed 0.0.29 forms remain historical evidence for those candidates. The
 80,000-byte target and the fresh Clique wave remain outstanding. The running
 wave retains its frozen 0.0.29 package and cannot qualify the later recipe;
 source/package checks and final builder outcomes remain separate evidence.
+The mixed-row/zero-count regression below reopens the one-client read outcome;
+the initial source qualification did not cover that failing transition.
 
 [Review and dispositions](./reviews/1023-clique-builder-jump.gpt.md).
 
@@ -428,3 +433,37 @@ its [release evidence](../benchmarks/runs/2026-09-12-snapback2-hub-digest-0030/R
 retains the exactness regression, ordering repair, reviewed source and publication
 receipts. Runtime/public closure bytes match 0.0.29. The fresh diagnostic wave
 above retains its selected 0.0.29 package identity and its stated comparison limits.
+
+### Fresh-wave read regression — focused repair qualified
+
+The Astra builder added a second same-bearer observer after its durable thread
+query became unavailable. An independent isolated owner reproduces the SDK
+failure: a complete server `{row, count: 0}` result becomes partial twin data
+at the same sequence and selection, with no queued work. Explicit authentication
+and a committed owner update preserve the failure; nonzero, row-only and literal
+controls pass. This establishes a matching SDK defect, not the cause of every
+unavailable screen in the builder.
+
+The delivered receipt includes an exhausted empty grouping range and a separate
+canonical-primary absence. Local missing-point coverage checks only the exact
+index absence, overlooking the grouping range. Repair belongs at read coverage;
+pooled-row owner fallback, negative rule authority and canonical-ID equivalence
+must retain their guards. The existing query child owns the repair and regression
+controls. No change is sent to either frozen builder or its grader.
+
+The independent diagnosis is retained under the run's
+`second-reader-reproducer/RESULT.json` (SHA-256
+`de6044691da91a5fcd999bfdaa358e915b394eee5c91325ec8ef2ca16724c8c9`).
+Its real-owner controls cover current owner updates and admitted removal overlays;
+browser carrier, timed reads and real revocation are separate qualification.
+The focused repair in `9106fe7dd5` consumes the existing complete range only
+for public, unique-key read classification. It passes the full evaluator suite,
+two real-owner prediction tests, the unchanged timed Insights control and 402
+custody/twin checks. The new owner case uses a fresh guest bearer shared by plain
+and durable clients and covers subsequent publication, owner update, cold file
+reopen and admitted removal. It is not an IndexedDB or repaired actor witness.
+Initial red tests and fixture/provenance expectation corrections remain retained
+under `second-reader-repair/`; the runtime costs 55 additional gzip bytes,
+**89,898 / 90,000**, still above the 80,000 target. Integrated review and package
+qualification remain pending. The frozen app still does not demonstrate the
+one-client outcome; the initial release's narrower passing evidence remains valid.

@@ -471,8 +471,9 @@ exhausted range whose typed scope contains that complete key. This is read
 coverage: it adds neither an alternate-index negative rule fact nor primary
 mutation authority, and does not infer a maintained row address. A public
 Count query's independently proved empty group range therefore lets an exact
-local rerun keep a row-plus-zero composite. Truncated, bounded, evicted,
-wrong-scope or wrong-rule evidence cannot discharge that point. Restricted
+local rerun keep a row-plus-zero composite. A truncated or bounded fragment
+alone cannot discharge that point; evicted, wrong-scope or wrong-rule evidence
+cannot establish the required complete coverage. Restricted
 read rules retain their existing authority requirements, and pooled-answer
 fallback guards above remain unchanged. The evaluator contrast controls and
 real-owner durable observation/cold-reopen regression qualify this boundary.
