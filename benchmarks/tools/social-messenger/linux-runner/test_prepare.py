@@ -33,7 +33,10 @@ TEMPLATE = "\n".join([
 def packet(root: Path) -> None:
     scripts = root / "scripts"
     scripts.mkdir(parents=True)
-    for name in ("prepare.py", "preflight.py", "render.py", "run_support.py", "launch.py"):
+    for name in (
+        "prepare.py", "preflight.py", "render.py", "run_support.py",
+        "scale_terminal_validator.mjs", "launch.py",
+    ):
         (scripts / name).write_bytes((SOURCE / name).read_bytes())
     (root / "prompts").mkdir()
     (root / "prompts" / "template.md").write_text(TEMPLATE)
@@ -242,7 +245,9 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
         }
 
     @staticmethod
-    def canonical_result(lane, owner, attempt=1, disposition="completed"):
+    def canonical_result(lane, owner, custody, attempt=1, disposition="completed"):
+        authority = custody.canonical_fixture_authority
+        action_count = authority["actionCount"]
         start_epoch = max(int(time.time()) + 1, int(owner["startedAt"] / 1000) + 1)
         attempts = []
         for number in range(1, attempt + 1):
@@ -250,7 +255,7 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             finished = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(start_epoch + (number - 1) * 2 + 1))
             attempts.append({
                 "attempt": number, "startedAt": started, "finishedAt": finished,
-                "settledPrefix": 167157 if number == attempt else 8058,
+                "settledPrefix": action_count if number == attempt else 0,
                 "continuationOf": None if number == 1 else number - 1,
                 "disposition": disposition if number == attempt else "continued",
             })
@@ -258,17 +263,12 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             "version": "snapback.full-journey-scale-replay-receipt.v1",
             "pass": disposition == "completed",
             "actionLog": {
-                "sha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
-                "actionCount": 167157,
+                "sha256": authority["actionLogSha256"],
+                "actionCount": action_count,
             },
-            "settledPrefix": 167157,
+            "settledPrefix": action_count,
             "failedActions": 0 if disposition == "completed" else 1,
-            "checkpoints": [
-                {"id": "10%", "settledPrefix": 24777,
-                 "prefixSha256": "sha256:f1f4abf9f2178b039c44db6b3acb17d4e0019faad81f8839339ad6b26467dbba"},
-                {"id": "50%", "settledPrefix": 88057,
-                 "prefixSha256": "sha256:f3ce58724cbd0570f909f95e7643b7f921408bc6750ad5eb6e6a80477d2fc41c"},
-            ],
+            "checkpoints": authority["checkpoints"],
         }
         receipt_path = lane / f"scale-replay-receipt-{attempt}.json"
         receipt_bytes = (json.dumps(receipt) + "\n").encode()
@@ -313,7 +313,7 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             self.write_bound_result(lane, m6, self.raw_result(m6))
             self.assert_owner_gone(m6)
             self.assertTrue(self.alive(m8["pid"]), "M6 terminal stopped unrelated M8 owner")
-            self.write_bound_result(lane, m8, self.canonical_result(lane, m8))
+            self.write_bound_result(lane, m8, self.canonical_result(lane, m8, custody))
             self.assert_owner_gone(m8)
             receipts = self.finish(custody)
             associated = [entry for entry in receipts if entry["event"] == "terminal-associated"]
@@ -350,7 +350,7 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             time.sleep(0.15)
             self.assertTrue(self.alive(retry["pid"]), "copied/touched attempt-one result stopped retry")
             retry["result"].unlink()
-            self.write_bound_result(lane, retry, self.canonical_result(lane, retry, attempt=2))
+            self.write_bound_result(lane, retry, self.canonical_result(lane, retry, custody, attempt=2))
             self.assert_owner_gone(retry)
             receipts = self.finish(custody)
             self.assertTrue(any(entry["event"] == "terminal-rejected" and "exact owner/attempt" in entry["reason"]
@@ -371,7 +371,9 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             _, lane, generated_owner, snapback2, custody, _actor = self.fixture_existing(root)
             owner = self.start_owner(generated_owner, snapback2, custody, lane, "M6", 1, "scale-stale")
             unrelated = lane / "scale-replay.json"
-            unrelated.write_text(json.dumps(self.associated_value(owner, self.canonical_result(lane, owner))) + "\n")
+            unrelated.write_text(json.dumps(self.associated_value(
+                owner, self.canonical_result(lane, owner, custody)
+            )) + "\n")
             time.sleep(0.15)
             self.assertTrue(self.alive(owner["pid"]), "undeclared canonical terminal stopped owner")
             os.utime(stale, None)

@@ -25,6 +25,7 @@ import urllib.error
 import urllib.request
 import urllib.parse
 from contextlib import contextmanager
+from datetime import datetime
 from errno import EACCES, EADDRINUSE
 from pathlib import Path
 
@@ -45,10 +46,82 @@ SCALE_ASSOCIATION_FILE_ENV = "CLIQUE_SCALE_ASSOCIATION_FILE"
 SCALE_ASSOCIATION_SHA_ENV = "CLIQUE_SCALE_ASSOCIATION_SHA256"
 SCALE_ASSOCIATION_VERSION = "clique.scale-owner-association.v1"
 SCALE_TERMINAL_ASSOCIATION_VERSION = "clique.scale-owner-terminal-association.v1"
+CANONICAL_VALIDATOR_NODE_ENV = "CLIQUE_CANONICAL_VALIDATOR_NODE"
+CANONICAL_VALIDATOR_SCRIPT = Path(__file__).resolve().with_name("scale_terminal_validator.mjs")
 
 
 class ProcessInterrupted(Exception):
     pass
+
+
+class CanonicalValidatorUnavailable(RuntimeError):
+    pass
+
+
+def _canonical_validator_node() -> Path:
+    declared = os.environ.get(CANONICAL_VALIDATOR_NODE_ENV)
+    if declared:
+        candidate = Path(declared)
+        if not candidate.is_absolute():
+            raise CanonicalValidatorUnavailable(
+                f"{CANONICAL_VALIDATOR_NODE_ENV} must name an absolute executable"
+            )
+    else:
+        found = shutil.which("node", path=LINUX_PATH_PREFIX + ":" + os.environ.get("PATH", ""))
+        if found is None:
+            raise CanonicalValidatorUnavailable(
+                f"canonical scale validation requires Node 24 on the maintained runner PATH "
+                f"or in {CANONICAL_VALIDATOR_NODE_ENV}"
+            )
+        candidate = Path(found)
+    resolved = candidate.resolve()
+    if not os.access(resolved, os.X_OK):
+        raise CanonicalValidatorUnavailable(
+            f"canonical scale validator Node is not executable: {resolved}"
+        )
+    return resolved
+
+
+def _canonical_validator(node: Path, root: Path, request: dict | None = None,
+                         *, doctor: bool = False) -> dict:
+    if not CANONICAL_VALIDATOR_SCRIPT.is_file():
+        raise CanonicalValidatorUnavailable(
+            f"canonical scale validator adapter is missing at {CANONICAL_VALIDATOR_SCRIPT}"
+        )
+    command = [
+        str(node), str(CANONICAL_VALIDATOR_SCRIPT),
+        "--packet-root", str(root.resolve()),
+    ]
+    if doctor:
+        command.append("--doctor")
+    try:
+        result = subprocess.run(
+            command,
+            input=None if doctor else json.dumps(request),
+            text=True,
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise CanonicalValidatorUnavailable(
+            f"canonical scale validator could not run with pinned Node: {type(error).__name__}: {error}"
+        ) from error
+    try:
+        response = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        detail = result.stderr.strip()[-500:]
+        raise CanonicalValidatorUnavailable(
+            f"canonical scale validator returned no JSON diagnostic (exit {result.returncode}): {detail}"
+        ) from error
+    if result.returncode == 2 and response.get("kind") == "validation":
+        raise ValueError(f"canonical scale validator rejected terminal: {response.get('error', 'unknown error')}")
+    if result.returncode != 0 or response.get("ok") is not True:
+        raise CanonicalValidatorUnavailable(
+            f"canonical scale validator unavailable (exit {result.returncode}): "
+            f"{response.get('error', 'invalid adapter response')}"
+        )
+    return response
 
 
 def enable_child_subreaper() -> None:
@@ -107,6 +180,10 @@ def _process_summary(identity: dict) -> dict:
 
 def _finite_number(value) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _rfc3339_millis(value: str) -> int:
+    return round(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
 
 
 def _contained_absolute(path: Path, parent: Path, field: str) -> Path:
@@ -333,6 +410,13 @@ class ScaleOwnerCustody:
             raise RuntimeError("Clique Linux process custody requires pidfd signaling")
         self.root = root.resolve()
         self.lane = lane.resolve()
+        self.validator_node = _canonical_validator_node()
+        self.validator_doctor = _canonical_validator(self.validator_node, self.root, doctor=True)
+        if not isinstance(self.validator_doctor.get("fixtureAuthority"), dict):
+            raise CanonicalValidatorUnavailable(
+                "canonical scale validator doctor omitted the fixture authority"
+            )
+        self.canonical_fixture_authority = self.validator_doctor["fixtureAuthority"]
         self.actor_pid = None
         self.launcher_pid = os.getpid()
         self.actor_identity = None
@@ -353,6 +437,7 @@ class ScaleOwnerCustody:
     def actor_env(self, base: dict[str, str]) -> dict[str, str]:
         env = dict(base)
         env[SCALE_RUN_ID_ENV] = self.run_id
+        env[CANONICAL_VALIDATOR_NODE_ENV] = str(self.validator_node)
         for variable in (
             SCALE_MILESTONE_ENV, SCALE_ATTEMPT_ENV, SCALE_RESULT_ENV,
             SCALE_ASSOCIATION_ID_ENV, SCALE_ASSOCIATION_FILE_ENV, SCALE_ASSOCIATION_SHA_ENV,
@@ -371,6 +456,10 @@ class ScaleOwnerCustody:
                       "actorStartTicks": self.actor_identity["startTicks"],
                       "launcherPid": self.launcher_pid,
                       "custodyStartedNs": self.started_ns,
+                      "canonicalValidator": {
+                          "node": self.validator_doctor["node"],
+                          "fixtureAuthority": self.canonical_fixture_authority,
+                      },
                       "terminalBaselineCount": len(self.initial_terminals)})
         self._thread.start()
 
@@ -540,56 +629,7 @@ class ScaleOwnerCustody:
                 except Exception as error:
                     self.errors.append(f"{project}: {type(error).__name__}: {error}")
 
-    @staticmethod
-    def _timestamp_millis(value, field: str) -> int:
-        if not isinstance(value, str):
-            raise ValueError(f"{field} must be an RFC3339 string")
-        try:
-            parsed = __import__("datetime").datetime.fromisoformat(value.replace("Z", "+00:00"))
-            return round(parsed.timestamp() * 1000)
-        except ValueError as error:
-            raise ValueError(f"{field} must be an RFC3339 string") from error
-
     def _validate_success(self, value: dict, owner: dict) -> str:
-        required_numbers = ("capSeconds", "probeWallSecondsExcluded", "wallSeconds", "capFractionUsed")
-        if value.get("attempted") is not True or any(not _finite_number(value.get(field))
-                                                       for field in required_numbers):
-            raise ValueError("canonical replay is missing its clock contract")
-        if value["capSeconds"] <= 0 or value["probeWallSecondsExcluded"] < 0 \
-                or not isinstance(value.get("capExhausted"), bool):
-            raise ValueError("canonical replay has invalid clock bounds")
-        attempts = value.get("attempts")
-        if not isinstance(attempts, list) or not attempts:
-            raise ValueError("canonical replay has no attempts")
-        previous_finished = None
-        previous_prefix = 0
-        total = 0.0
-        for index, attempt in enumerate(attempts, 1):
-            if not isinstance(attempt, dict) or attempt.get("attempt") != index:
-                raise ValueError("canonical replay attempt numbering is invalid")
-            started = self._timestamp_millis(attempt.get("startedAt"), f"attempt {index}.startedAt")
-            finished = self._timestamp_millis(attempt.get("finishedAt"), f"attempt {index}.finishedAt")
-            prefix = attempt.get("settledPrefix")
-            expected_continuation = None if index == 1 else index - 1
-            final = index == len(attempts)
-            if finished < started or (previous_finished is not None and started < previous_finished) \
-                    or not isinstance(prefix, int) or isinstance(prefix, bool) or prefix < previous_prefix \
-                    or attempt.get("continuationOf") != expected_continuation \
-                    or (final and attempt.get("disposition") not in ("completed", "aborted")) \
-                    or (not final and attempt.get("disposition") != "continued"):
-                raise ValueError("canonical replay attempt chronology is invalid")
-            previous_finished, previous_prefix = finished, prefix
-            total += (finished - started) / 1000
-        declaration = owner["declaration"]
-        if len(attempts) != declaration["attempt"]:
-            raise ValueError("canonical final attempt differs from the owner declaration")
-        owner_started = owner.get("startedAt")
-        if _finite_number(owner_started) and self._timestamp_millis(attempts[-1]["startedAt"], "final attempt.startedAt") < owner_started:
-            raise ValueError("canonical final attempt predates its owner")
-        wall = total - value["probeWallSecondsExcluded"]
-        if value["wallSeconds"] != wall or value["capFractionUsed"] != wall / value["capSeconds"] \
-                or value["capExhausted"] != (wall >= value["capSeconds"]):
-            raise ValueError("canonical replay derived clock is inconsistent")
         receipt = value.get("receipt")
         if not isinstance(receipt, dict) or not isinstance(receipt.get("path"), str) \
                 or not re.fullmatch(r"sha256:[a-f0-9]{64}", receipt.get("sha256", "")):
@@ -606,42 +646,29 @@ class ScaleOwnerCustody:
             receipt_value = json.loads(read[0])
         except json.JSONDecodeError as error:
             raise ValueError("canonical receipt is malformed") from error
-        if receipt_value.get("version") != "snapback.full-journey-scale-replay-receipt.v1" \
-                or not isinstance(receipt_value.get("pass"), bool) \
-                or not isinstance(receipt_value.get("actionLog"), dict) \
-                or not re.fullmatch(r"sha256:[a-f0-9]{64}", receipt_value["actionLog"].get("sha256", "")) \
-                or not isinstance(receipt_value["actionLog"].get("actionCount"), int) \
-                or isinstance(receipt_value["actionLog"].get("actionCount"), bool) \
-                or not isinstance(receipt_value.get("settledPrefix"), int) \
-                or isinstance(receipt_value.get("settledPrefix"), bool) \
-                or receipt_value["settledPrefix"] != attempts[-1]["settledPrefix"] \
-                or receipt_value["settledPrefix"] > receipt_value["actionLog"]["actionCount"] \
-                or not isinstance(receipt_value.get("failedActions"), int) \
-                or isinstance(receipt_value.get("failedActions"), bool) \
-                or receipt_value["failedActions"] < 0 \
-                or not isinstance(receipt_value.get("checkpoints"), list):
-            raise ValueError("canonical receipt shape or final prefix is invalid")
-        disposition = attempts[-1]["disposition"]
-        if disposition == "completed" and (receipt_value["pass"] is not True or receipt_value["failedActions"] != 0):
-            raise ValueError("completed replay lacks a passing receipt")
-        if disposition == "aborted" and receipt_value["pass"] is not False:
-            raise ValueError("aborted replay receipt claims pass")
-        return "success" if disposition == "completed" else "failure:aborted"
+        validation = _canonical_validator(
+            self.validator_node, self.root,
+            {"kind": "success", "value": value, "receipt": receipt_value},
+        )
+        attempts = value["attempts"]
+        declaration = owner["declaration"]
+        if len(attempts) != declaration["attempt"]:
+            raise ValueError("canonical final attempt differs from the owner declaration")
+        owner_started = owner.get("startedAt")
+        started_millis = _rfc3339_millis(attempts[-1]["startedAt"])
+        if _finite_number(owner_started) and started_millis < owner_started:
+            raise ValueError("canonical final attempt predates its owner")
+        return validation["outcome"]
 
     def _validate_failure(self, value: dict, owner: dict) -> str:
-        outcome = value.get("outcome")
-        if outcome not in ("aborted", "settlement-timeout") or value.get("clock", {}).get("attempted") is not True:
-            raise ValueError("canonical replay failure has an unsupported disposition")
-        started = self._timestamp_millis(value.get("startedAt"), "failure.startedAt")
-        finished = self._timestamp_millis(value.get("finishedAt"), "failure.finishedAt")
-        if finished < started or value["clock"].get("wallSeconds") != (finished - started) / 1000:
-            raise ValueError("canonical replay failure clock is inconsistent")
+        validation = _canonical_validator(
+            self.validator_node, self.root, {"kind": "failure", "value": value}
+        )
+        started = _rfc3339_millis(validation["canonical"]["firstStartedAt"])
         owner_started = owner.get("startedAt")
         if _finite_number(owner_started) and started < owner_started:
             raise ValueError("canonical replay failure predates its owner")
-        if not isinstance(value.get("failure"), dict) or not isinstance(value["failure"].get("message"), str):
-            raise ValueError("canonical replay failure lacks its failure envelope")
-        return f"failure:{outcome}"
+        return validation["outcome"]
 
     @staticmethod
     def _validate_raw(value: dict, owner: dict) -> str:
@@ -700,6 +727,12 @@ class ScaleOwnerCustody:
         except (json.JSONDecodeError, ValueError, TypeError, ZeroDivisionError) as error:
             self._record({"event": "terminal-rejected", "project": owner["project"],
                           "result": str(path), "sha256": digest, "reason": str(error)})
+            return None
+        except CanonicalValidatorUnavailable as error:
+            diagnostic = f"canonical validation unavailable for {path}: {error}"
+            self.errors.append(diagnostic)
+            self._record({"event": "terminal-rejected", "project": owner["project"],
+                          "result": str(path), "sha256": digest, "reason": diagnostic})
             return None
         self._record({"event": "terminal-associated", "project": owner["project"],
                       "ownerPid": owner["identity"]["pid"], "declaration": declaration,
