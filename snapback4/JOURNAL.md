@@ -819,3 +819,8 @@ Three fresh Astra sessions at medium, serial, each on the published
   word, so a screen on a shape could not say "Sending…". On the device an
   object built from a pending row's fields is pending; tested. Published
   `snapback4@0.0.13`.
+- **Loop bar set C (0.0.8):** 366 s and 472 s with no attributed loop —
+  two of three met the bar; the middle run (592 s) charged two loops to
+  `dev --fresh`, read from the registry's newer README and absent from
+  the pin it installed (the brief now names the installed README). Set D
+  on 0.0.11 runs with that brief.
