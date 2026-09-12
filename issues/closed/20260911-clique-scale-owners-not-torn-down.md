@@ -61,6 +61,17 @@ result written before owner discovery remains pending and is consumed only
 after its association is proved. Failure on one attempt releases only its
 owner; a retry has a distinct attempt association.
 
+The R3 validation repair removes the Python copy of the canonical success
+contract. The runner resolves one absolute Node 24 executable, doctors the
+packet before actor launch, and delegates success/aborted replay validation to
+the frozen instrument's exported fixture-derived validator. Canonical failure
+validation delegates through the instrument's exported full-journey accounting
+binder; the runner's narrow Node adapter additionally requires the complete
+failure name/message and clock envelope emitted by the existing producer. A
+prepared packet can use only its own `instrument/` authority. Missing or broken
+instrument validator bytes are actionable infrastructure failure and never
+fall back to checkout source or reinterpret a canonical result as raw.
+
 Every claimed owner and descendant is opened with Linux `pidfd_open`; `/proc`
 start identity and pidfd fdinfo are revalidated after the handle opens.
 Waiting and escalation use the bound pidfd only, never a check-then-`kill`
@@ -108,6 +119,14 @@ Targeted Linux regression evidence after the review repair:
 - The earlier proof at `/tmp/clique-scale-lifecycle-lrwevdjm/` remains
   unchanged as recoverable evidence for the first implementation. Its old PIDs
   2811007/2811008 were not signaled during this repair.
+
+R3 adds direct authority/custody comparison cases for the current fixture hash,
+action count, reached checkpoints, completed final prefix, and excluded replay
+wall. It also covers missing canonical failure fields, authentic abort and
+settlement-timeout envelopes, packet-instrument precedence, and fail-closed
+missing-validator diagnosis. This changes terminal validation only; the prior
+real HTTP-200 owner/compiler shutdown proof remains the lifecycle evidence and
+was not repeated as a benchmark or performance claim.
 
 No retained active run packet, frozen benchmark run, unrelated owner, or old
 ticket PID was modified or signaled.

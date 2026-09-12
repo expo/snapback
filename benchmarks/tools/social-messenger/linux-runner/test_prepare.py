@@ -35,7 +35,7 @@ def packet(root: Path) -> None:
     scripts.mkdir(parents=True)
     for name in (
         "prepare.py", "preflight.py", "render.py", "run_support.py",
-        "scale_terminal_validator.mjs", "launch.py",
+        "scale_terminal_validator.mjs", "launch.py", "launch_m7.py",
     ):
         (scripts / name).write_bytes((SOURCE / name).read_bytes())
     (root / "prompts").mkdir()
@@ -111,6 +111,29 @@ class PrepareCustodyTest(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     prepare.prepare_packet(root, "0.0.26", 54100, 20)
                 self.assertEqual(before, ((root / "SNAPBACK2_VERSION").read_bytes(), prompt.read_bytes(), receipt.read_bytes()))
+
+
+class CanonicalValidatorTest(unittest.TestCase):
+    def test_prepared_packet_authority_precedes_repository_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "instrument").symlink_to(SOURCE.parents[2], target_is_directory=True)
+            doctor = run_support._canonical_validator(
+                run_support._canonical_validator_node(), root, doctor=True,
+            )
+            self.assertEqual(doctor["authoritySource"], "packet-instrument")
+
+    def test_incomplete_prepared_instrument_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "instrument").mkdir()
+            with self.assertRaisesRegex(
+                run_support.CanonicalValidatorUnavailable,
+                "prepared packet instrument lacks canonical metering authority",
+            ):
+                run_support._canonical_validator(
+                    run_support._canonical_validator_node(), root, doctor=True,
+                )
 
 
 @unittest.skipUnless(Path("/proc/self/stat").is_file(), "Linux /proc custody test")
@@ -283,18 +306,42 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
         }
 
     @staticmethod
-    def canonical_failure(owner):
+    def canonical_failure(owner, outcome="aborted"):
         started_epoch = max(int(time.time()) + 1, int(owner["startedAt"] / 1000) + 1)
         started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started_epoch))
-        finished = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started_epoch + 1))
-        return {
+        elapsed = 2 if outcome == "settlement-timeout" else 1
+        finished = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started_epoch + elapsed))
+        value = {
             "version": "snapback.full-journey-scale-replay-failure.v1",
-            "outcome": "aborted", "startedAt": started, "finishedAt": finished,
-            "clock": {"attempted": True, "wallSeconds": 1, "capSeconds": None,
+            "outcome": outcome, "startedAt": started, "finishedAt": finished,
+            "clock": {"attempted": True, "wallSeconds": elapsed, "capSeconds": None,
                       "capFractionUsed": None, "capExhausted": None,
                       "probeWallSecondsExcluded": 0},
             "failure": {"name": "Error", "message": "fixture abort"},
         }
+        if outcome == "settlement-timeout":
+            value["deadlineAt"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%SZ", time.gmtime(started_epoch + 1)
+            )
+            value["clock"].update({
+                "capSeconds": 1, "capFractionUsed": 2, "capExhausted": True,
+            })
+            value["failure"]["cause"] = "missing-post-m8-token-count"
+        return value
+
+    @staticmethod
+    def canonical_request(custody, lane, value):
+        request = {"kind": "failure", "value": value}
+        if value.get("version") == "snapback.full-journey-scale-replay.v1":
+            receipt_path = lane / value["receipt"]["path"]
+            request = {
+                "kind": "success",
+                "value": value,
+                "receipt": json.loads(receipt_path.read_text()),
+            }
+        return run_support._canonical_validator(
+            custody.validator_node, custody.root, request,
+        )
 
     def assert_owner_gone(self, owner):
         self.wait_for(lambda: not self.alive(owner["pid"]), f"owner {owner['pid']} survived")
@@ -402,6 +449,119 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             receipts = self.finish(custody)
             associated = [entry for entry in receipts if entry["event"] == "terminal-associated"]
             self.assertEqual(associated[-1]["outcome"], "failure:aborted")
+
+    def test_canonical_success_custody_matches_current_fixture_authority(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory)
+            owner = self.start_owner(owner_script, snapback2, custody, lane, "M8", 1, "scale-canonical")
+            authority = custody.canonical_fixture_authority
+            invalid_cases = (
+                "wrong-fixture-hash", "wrong-action-count", "wrong-checkpoints",
+                "partial-completed-prefix", "excessive-excluded-time",
+            )
+            rejected = 0
+            for case in invalid_cases:
+                value = self.canonical_result(lane, owner, custody)
+                receipt_path = lane / value["receipt"]["path"]
+                receipt = json.loads(receipt_path.read_text())
+                if case == "wrong-fixture-hash":
+                    receipt["actionLog"]["sha256"] = "sha256:" + "0" * 64
+                elif case == "wrong-action-count":
+                    receipt["actionLog"]["actionCount"] = authority["actionCount"] + 1
+                elif case == "wrong-checkpoints":
+                    receipt["checkpoints"] = []
+                elif case == "partial-completed-prefix":
+                    partial = authority["actionCount"] - 1
+                    receipt["settledPrefix"] = partial
+                    receipt["checkpoints"] = [
+                        checkpoint for checkpoint in authority["checkpoints"]
+                        if checkpoint["settledPrefix"] <= partial
+                    ]
+                    value["attempts"][-1]["settledPrefix"] = partial
+                else:
+                    value["probeWallSecondsExcluded"] = 2
+                    value["wallSeconds"] = -1
+                    value["capFractionUsed"] = -0.01
+                receipt_bytes = (json.dumps(receipt) + "\n").encode()
+                receipt_path.write_bytes(receipt_bytes)
+                value["receipt"]["sha256"] = "sha256:" + hashlib.sha256(receipt_bytes).hexdigest()
+                with self.subTest(case=case):
+                    with self.assertRaisesRegex(ValueError, "canonical scale validator rejected"):
+                        self.canonical_request(custody, lane, value)
+                    self.write_bound_result(lane, owner, value)
+                    rejected += 1
+                    self.wait_for(
+                        lambda: sum(
+                            json.loads(line)["event"] == "terminal-rejected"
+                            for line in custody.receipt_path.read_text().splitlines()
+                        ) >= rejected,
+                        f"custody did not reject {case}",
+                    )
+                    self.assertTrue(self.alive(owner["pid"]), f"{case} stopped the owner")
+                    owner["result"].unlink()
+            valid = self.canonical_result(lane, owner, custody)
+            self.assertEqual(self.canonical_request(custody, lane, valid)["outcome"], "success")
+            self.write_bound_result(lane, owner, valid)
+            self.assert_owner_gone(owner)
+            aborted_owner = self.start_owner(
+                owner_script, snapback2, custody, lane, "M6", 1, "scale-canonical-aborted"
+            )
+            valid_aborted = self.canonical_result(
+                lane, aborted_owner, custody, disposition="aborted"
+            )
+            self.assertEqual(
+                self.canonical_request(custody, lane, valid_aborted)["outcome"],
+                "failure:aborted",
+            )
+            self.write_bound_result(lane, aborted_owner, valid_aborted)
+            self.assert_owner_gone(aborted_owner)
+            self.finish(custody)
+
+    def test_canonical_failure_requires_producer_envelope_and_accepts_settlement_timeout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory)
+            owner = self.start_owner(owner_script, snapback2, custody, lane, "M6", 1, "scale-abort")
+            invalid_cases = ("missing-name", "missing-message", "missing-clock-field")
+            rejected = 0
+            for case in invalid_cases:
+                value = self.canonical_failure(owner)
+                if case == "missing-name":
+                    del value["failure"]["name"]
+                elif case == "missing-message":
+                    del value["failure"]["message"]
+                else:
+                    del value["clock"]["probeWallSecondsExcluded"]
+                with self.subTest(case=case):
+                    with self.assertRaisesRegex(ValueError, "canonical scale validator rejected"):
+                        self.canonical_request(custody, lane, value)
+                    self.write_bound_result(lane, owner, value)
+                    rejected += 1
+                    self.wait_for(
+                        lambda: sum(
+                            json.loads(line)["event"] == "terminal-rejected"
+                            for line in custody.receipt_path.read_text().splitlines()
+                        ) >= rejected,
+                        f"custody did not reject {case}",
+                    )
+                    self.assertTrue(self.alive(owner["pid"]), f"{case} stopped the owner")
+                    owner["result"].unlink()
+            valid_abort = self.canonical_failure(owner)
+            self.assertEqual(
+                self.canonical_request(custody, lane, valid_abort)["outcome"], "failure:aborted"
+            )
+            self.write_bound_result(lane, owner, valid_abort)
+            self.assert_owner_gone(owner)
+            timeout_owner = self.start_owner(
+                owner_script, snapback2, custody, lane, "M8", 1, "scale-settlement-timeout"
+            )
+            timeout = self.canonical_failure(timeout_owner, outcome="settlement-timeout")
+            self.assertEqual(
+                self.canonical_request(custody, lane, timeout)["outcome"],
+                "failure:settlement-timeout",
+            )
+            self.write_bound_result(lane, timeout_owner, timeout)
+            self.assert_owner_gone(timeout_owner)
+            self.finish(custody)
 
     def fixture_existing(self, root, poll_seconds=0.02):
         lane = root / "lanes" / "astra-snapback2"

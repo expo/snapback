@@ -13,7 +13,7 @@ layout is:
   logs/
   prompts/
   preflight/
-  scripts/{prepare.py,preflight.py,render.py,launch.py,launch_m7.py,run_support.py}
+  scripts/{prepare.py,preflight.py,render.py,launch.py,launch_m7.py,run_support.py,scale_terminal_validator.mjs}
 ```
 
 Prepare a new packet from this directory rather than copying scripts from a
@@ -26,7 +26,7 @@ packet=/home/ccheever/clique-20260912-0026
 install -d "$packet/scripts"
 install -m 0755 "$runner/prepare.py" "$runner/preflight.py" \
   "$runner/render.py" "$runner/run_support.py" "$runner/launch.py" \
-  "$runner/launch_m7.py" "$packet/scripts/"
+  "$runner/launch_m7.py" "$runner/scale_terminal_validator.mjs" "$packet/scripts/"
 ```
 
 Before the builder starts, the coordinator must also install the selected
@@ -72,6 +72,11 @@ bundler. Do not export it through the shell that starts a Clique builder.
 The wrappers run in the foreground. Before starting the actor they create a
 unique custody run ID and fingerprint any existing scale terminals; on Linux
 they then make themselves child subreapers. The actor inherits the run ID.
+Startup also resolves one absolute Node 24 executable from the maintained
+runner path (or `CLIQUE_CANONICAL_VALIDATOR_NODE`) and doctors the packet's
+frozen canonical replay validator before the actor starts. A prepared packet
+must use its own `instrument/` authority; missing or unloadable validator bytes
+fail closed rather than falling back to checkout source.
 Every M6/M8 scale-owner launch goes through the maintained executable boundary,
 which creates a one-shot association sidecar and places its milestone, positive
 attempt number, result path, and association identity on the owner process:
@@ -111,7 +116,10 @@ accepts the complete current
 `snapback.full-journey-scale-replay.v1` plus digest-bound receipt,
 `snapback.full-journey-scale-replay-failure.v1`, or the full raw replay report
 (`pass`, start/end, actions, fixture hash, excluded probe time). Canonical final
-attempt numbering must equal the declared attempt. Generic `pass`/`state`
+success validation delegates to the frozen instrument's fixture-derived
+validator; canonical failures delegate to the instrument's full-journey
+accounting validator and require its producer's complete failure envelope.
+Canonical final attempt numbering must equal the declared attempt. Generic `pass`/`state`
 objects, unsupported or malformed JSON, stale pre-actor bytes, and results that
 predate the owner fail closed and do not stop anything. A result written before
 owner discovery remains pending and is evaluated after the owner is proved.

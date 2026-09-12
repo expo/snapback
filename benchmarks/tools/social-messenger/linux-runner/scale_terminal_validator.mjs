@@ -18,19 +18,23 @@ async function exists(path) {
 }
 
 async function resolveMeteringRoot(packetRoot) {
-  const candidates = [
-    resolve(packetRoot, "instrument/tools/social-messenger/metering"),
-    resolve(SCRIPT_DIRECTORY, "../metering"),
-  ];
-  for (const candidate of candidates) {
-    if (await exists(resolve(candidate, "scale-replay-evidence.mjs"))
-        && await exists(resolve(candidate, "manifest.mjs"))) {
-      return candidate;
+  const instrumentRoot = resolve(packetRoot, "instrument");
+  const packetAuthority = resolve(instrumentRoot, "tools/social-messenger/metering");
+  if (await exists(instrumentRoot)) {
+    if (await exists(resolve(packetAuthority, "scale-replay-evidence.mjs"))
+        && await exists(resolve(packetAuthority, "manifest.mjs"))) {
+      return { path: packetAuthority, source: "packet-instrument" };
     }
+    throw new Error(
+      `prepared packet instrument lacks canonical metering authority at ${packetAuthority}`,
+    );
   }
-  throw new Error(
-    `canonical metering authority is absent; checked ${candidates.join(", ")}`,
-  );
+  const repositoryAuthority = resolve(SCRIPT_DIRECTORY, "../metering");
+  if (await exists(resolve(repositoryAuthority, "scale-replay-evidence.mjs"))
+      && await exists(resolve(repositoryAuthority, "manifest.mjs"))) {
+    return { path: repositoryAuthority, source: "repository-source" };
+  }
+  throw new Error(`canonical metering authority is absent at ${repositoryAuthority}`);
 }
 
 async function loadAuthority(packetRoot) {
@@ -39,7 +43,8 @@ async function loadAuthority(packetRoot) {
       `canonical terminal validation requires Node ${SUPPORTED_NODE_MAJOR}; observed ${process.version}`,
     );
   }
-  const meteringRoot = await resolveMeteringRoot(packetRoot);
+  const metering = await resolveMeteringRoot(packetRoot);
+  const meteringRoot = metering.path;
   const evidence = await import(pathToFileURL(resolve(
     meteringRoot,
     "scale-replay-evidence.mjs",
@@ -51,6 +56,7 @@ async function loadAuthority(packetRoot) {
   }
   return {
     fixtureAuthority: evidence.SCALE_REPLAY_FIXTURE_AUTHORITY,
+    authoritySource: metering.source,
     validateScaleReplayEvidence: evidence.validateScaleReplayEvidence,
     bindFullJourneyAccountingValues: manifest.bindFullJourneyAccountingValues,
   };
@@ -114,8 +120,7 @@ function validateFailure(value, bindFullJourneyAccountingValues) {
   };
 }
 
-export async function validateCanonicalTerminal(request, packetRoot) {
-  const authority = await loadAuthority(packetRoot);
+function validateWithAuthority(request, authority) {
   if (request?.kind === "success") {
     const result = authority.validateScaleReplayEvidence(request.value, request.receipt);
     const disposition = request.value.attempts.at(-1).disposition;
@@ -128,6 +133,10 @@ export async function validateCanonicalTerminal(request, packetRoot) {
     return validateFailure(request.value, authority.bindFullJourneyAccountingValues);
   }
   throw new Error("validator request kind must be success or failure");
+}
+
+export async function validateCanonicalTerminal(request, packetRoot) {
+  return validateWithAuthority(request, await loadAuthority(packetRoot));
 }
 
 async function readStdin() {
@@ -154,25 +163,14 @@ async function main() {
     process.stdout.write(`${JSON.stringify({
       ok: true,
       node: process.version,
+      authoritySource: authority.authoritySource,
       fixtureAuthority: authority.fixtureAuthority,
     })}\n`);
     return;
   }
   try {
     const request = await readStdin();
-    let result;
-    if (request?.kind === "success") {
-      const canonical = authority.validateScaleReplayEvidence(request.value, request.receipt);
-      const disposition = request.value.attempts.at(-1).disposition;
-      result = {
-        outcome: disposition === "completed" ? "success" : "failure:aborted",
-        canonical,
-      };
-    } else if (request?.kind === "failure") {
-      result = validateFailure(request.value, authority.bindFullJourneyAccountingValues);
-    } else {
-      throw new Error("validator request kind must be success or failure");
-    }
+    const result = validateWithAuthority(request, authority);
     process.stdout.write(`${JSON.stringify({ ok: true, ...result })}\n`);
   } catch (error) {
     process.stdout.write(`${JSON.stringify({ ok: false, kind: "validation", error: error.message })}\n`);

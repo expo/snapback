@@ -458,6 +458,7 @@ class ScaleOwnerCustody:
                       "custodyStartedNs": self.started_ns,
                       "canonicalValidator": {
                           "node": self.validator_doctor["node"],
+                          "authoritySource": self.validator_doctor["authoritySource"],
                           "fixtureAuthority": self.canonical_fixture_authority,
                       },
                       "terminalBaselineCount": len(self.initial_terminals)})
