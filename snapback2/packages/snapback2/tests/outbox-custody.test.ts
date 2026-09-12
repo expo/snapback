@@ -677,3 +677,72 @@ test("a seal while an admitted mutation waits reports the carrier lifecycle with
     assert.equal((result as any).code, "E_OFFLINE_LIFECYCLE");
   } finally { await client.close(); }
 });
+
+for (const failure of ["token clear", "typed seal", "raw seal", "unexpected cleanup"] as const) {
+  test(`terminal ${failure} failure preserves durable admission and same-account recovery`, async context => {
+    const root = await tempRoot(); context.after(() => rm(root, { recursive: true, force: true }));
+    const factory = fileRangeStore(root), owner = fakeOwner(); await seededStore(factory);
+    let token: string | null = "token-a", failCleanup = false, admitted: string | undefined;
+    const typed = { code: "E_OFFLINE_STATE", family: "offline", message: "injected seal failure", guide: "offline",
+      site: "test.seal", rewrite: "restore the carrier before recovery" };
+    const wrapped = Object.assign(() => {
+      const store = factory(), commit = store.commit.bind(store), seal = store.seal.bind(store);
+      store.commit = async swap => {
+        await commit(swap);
+        const entry = swap.outbox?.put?.find(entry => (entry.args as any)?.body === "keep this intent");
+        if (entry) admitted = entry.intent;
+      };
+      store.seal = async () => {
+        if (failCleanup && failure === "typed seal") throw new RefusalError(typed);
+        if (failCleanup && failure === "raw seal") throw new Error("carrier persistence unavailable");
+        return seal();
+      };
+      return store;
+    }, { carrier: factory.carrier });
+    const tokenStore = {
+      load: () => token,
+      save: (value: string | null) => {
+        if (failCleanup && failure === "token clear" && value === null) throw new Error("token persistence unavailable");
+        token = value;
+      },
+      loadPrincipalBinding: () => token ? ({ token, principal: "dev:alice" }) : null,
+      savePrincipal: () => undefined,
+    };
+    const client = createClient({ url: "http://cleanup-custody.test", tokenStore, offline: { store: wrapped }, fetch: owner.fetch });
+    const host = client as any, drain = host.drainNow.bind(host), terminal = host.terminalRefusal.bind(host);
+    try {
+      await client.ready; await client.auth.me(); await client.outbox.settled();
+      // Deliver expiry at the drain boundary after the real carrier commit.
+      // Cleanup and subsequent recovery use the production client and store.
+      host.drainNow = async () => {
+        assert.ok(admitted, "the expiry signal follows durable admission");
+        failCleanup = true;
+        throw new RefusalError({ code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth/session" });
+      };
+      if (failure === "unexpected cleanup") host.terminalRefusal = async (...args: any[]) => {
+        await terminal(...args); throw new Error("unexpected cleanup exception");
+      };
+      const result = await client.mutation(api.messages.send as any, post("keep this intent"));
+      assert.equal(result.state, "rejected");
+      assert.equal(result.intent, admitted, "a failed cleanup refuses the wait without losing admitted identity");
+      const refusal = result as any;
+      assert.equal(refusal.code, failure === "token clear" ? "E_AUTH_TOKEN_STORE"
+        : failure === "unexpected cleanup" ? "E_CLIENT" : "E_OFFLINE_STATE");
+      if (failure === "typed seal") for (const [key, value] of Object.entries(typed)) assert.equal(refusal[key], value);
+      if (failure === "unexpected cleanup") assert.equal(refusal.message, "unexpected cleanup exception");
+      assert.equal(owner.executions.length, 0, "expiry prevented dispatch of the admitted write");
+      assert.equal(client.snapshot.token, undefined);
+      failCleanup = false; host.drainNow = drain; host.terminalRefusal = terminal;
+      await client.auth.login({ email: "alice@example.com", password: "password" }); await client.online();
+      await client.outbox.settled();
+      const original = (await client.outbox.entries()).find(entry => entry.intent === result.intent);
+      assert.equal(original?.state, "committed", "same-account recovery settles the original durable entry");
+      await client.online(); await client.outbox.settled();
+      assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["keep this intent"]);
+      assert.equal(owner.messages.size, 1, "recovery never submits a replacement intent or duplicates its effect");
+    } finally {
+      failCleanup = false; host.drainNow = drain; host.terminalRefusal = terminal;
+      await client.close();
+    }
+  });
+}

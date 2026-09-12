@@ -87,9 +87,12 @@ export async function performMutation<Args, Result>(
       }
       return result;
     } catch (error) {
-      if (isRefusalError(error) && isTerminalSession(error.envelope)) {
-        await host.terminalRefusal(authority, error.envelope, { preserveVerdict: true });
-      }
+      // Cleanup can refuse too; retain its diagnostic and the admitted identity.
+      try {
+        if (isRefusalError(error) && isTerminalSession(error.envelope)) {
+          await host.terminalRefusal(authority, error.envelope, { preserveVerdict: true });
+        }
+      } catch (cleanupError) { error = cleanupError; }
       // This rejects the caller's wait, not the admitted intent. The ledger
       // remains authoritative after same-account recovery, including expiry.
       if (admitted) return { state: "rejected", ...toRefusal(error), intent: admitted };
