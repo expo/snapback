@@ -376,7 +376,8 @@ export function registerQuarryDiagnosticChecks(test: Test): void {
         assert(diagnostic.site.startsWith("snapback/schema.q:4:"), diagnostic.site);
         assert(diagnostic.message.includes(`rule vocabulary has eq/ne but not ${op}`), diagnostic.message);
         if (effect === "read") {
-          assert(diagnostic.rewrite.includes("mutation require cannot enforce read authorization"), diagnostic.rewrite);
+          assert(diagnostic.rewrite.includes("preserve this rule's authorization")
+            && diagnostic.rewrite.includes("not an automatic equivalent rewrite"), diagnostic.rewrite);
           assert(diagnostic.rewrite.includes("guide rules"), diagnostic.rewrite);
           assert(!diagnostic.rewrite.includes("move the bounded comparison"), diagnostic.rewrite);
         } else {
@@ -396,6 +397,32 @@ export function registerQuarryDiagnosticChecks(test: Test): void {
     assert(supported.ok, JSON.stringify(supported));
     assert(supported.project.programs[0]!.body.some(statement => typeof statement === "object" && "Require" in statement),
       "the supported write comparison lost its mutation precondition");
+  });
+  test("channel comparison advice preserves publish and subscribe authority", () => {
+    for (const op of ["<", "<=", ">", ">="]) {
+      for (const effect of ["publish", "subscribe"]) {
+        const source = `table rows:
+  value: bool
+  public
+
+channel activity(owner: principal, deadline: time):
+  value: { active: bool }
+  publish <- ${effect === "publish" ? `owner = viewer and deadline ${op} now` : "owner = viewer"}
+  subscribe <- ${effect === "subscribe" ? `owner = viewer and deadline ${op} now` : "owner = viewer"}
+  ttl 5s
+`;
+        const result = compileInline([{ fileName: "snapback/schema.q", source }]);
+        assert(!result.ok && result.diagnostics.length === 1, JSON.stringify(result));
+        const diagnostic = result.diagnostics[0]!;
+        assert(diagnostic.code === "E_QUARRY_UNKNOWN" && diagnostic.family === "quarry", JSON.stringify(diagnostic));
+        assert(diagnostic.site.startsWith(`snapback/schema.q:${effect === "publish" ? 7 : 8}:`), diagnostic.site);
+        assert(diagnostic.message.includes(`rule vocabulary has eq/ne but not ${op}`), diagnostic.message);
+        assert(diagnostic.rewrite.includes("preserve this rule's authorization")
+          && diagnostic.rewrite.includes("guide rules")
+          && diagnostic.rewrite.includes("not an automatic equivalent rewrite"), diagnostic.rewrite);
+        assert(!diagnostic.rewrite.includes("move the bounded comparison"), diagnostic.rewrite);
+      }
+    }
   });
   registerDiagnosticFixChecks(test);
   for (const c of quarryDiagnosticCases) test(`Quarry diagnostic recovery: ${c.name}`, async () => {
