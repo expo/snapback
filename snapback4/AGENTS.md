@@ -13,7 +13,11 @@ cargo build                          # the binary; no JS engine, no bootstrap, n
 scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
 ./target/debug/snapback4 --version   # 0.0.1
 ./target/debug/snapback4 doctor      # says honestly what does not exist yet
-bun run --cwd packages/snapback4 typecheck   # the contract typechecks
+bun run --cwd packages/snapback4 typecheck   # the contract, the mock client and the hooks typecheck
+(cd apps/chat && bun run dev)               # the chat app on the MOCK client (Vite 8 / rolldown); `bun run build` measures its bytes
+node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; exits 1 on a missed budget
+node scripts/publish.mjs --dry-run   # build, pack, installed-consumer proof; drop --dry-run to publish snapback4@<version>
+node fixtures/clique.mjs stats       # the hub fixture facts, asserted against the Clique manifest; `build` writes JSONL seed tables to fixtures/out/
 ```
 
 What exists, by week (LLP 3000 §5):
@@ -27,9 +31,10 @@ What exists, by week (LLP 3000 §5):
 
 Gotchas you cannot derive from the code:
 
-- Own Cargo and Bun workspaces; the repository root excludes them. Run cargo/bun from `snapback4/`.
+- Own Cargo and Bun workspaces; the repository root excludes them. Run cargo/bun from `snapback4/`. Node 24.x (`engines`): run the suite with the pinned runtime on PATH, not the ambient Homebrew node.
 - One owner on the core (LLP 3000 decision 4): the engine, the store and the client contract are written by the lead session; Codex lanes take the fixture generator, the reference apps, the device witnesses and the periphery. Do not reshape `contract.ts` from a lane; propose the change in the journal.
 - No ceiling is raised in slice one (LLP 2000.000 §12). A thing that does not fit changes the design or waits.
 - The journal is append-only and dated; never rewrite an entry. LLP 3000 §7 carries decisions that must outlive it.
 - Nothing here depends on `snapback2/` at runtime. Copy source deliberately, split under 1,500 lines on the way in, and say so in the journal.
 - Named lane: `~/projects/snapback-sb4` on `sb4/*` branches. Never `git stash`; commit checkpoints.
+- `publish.mjs` ships the client package only until the binary does something; the platform binary packages arrive with week 2's owner. Bump `version` in `packages/snapback4/package.json` and `Cargo.toml` together.

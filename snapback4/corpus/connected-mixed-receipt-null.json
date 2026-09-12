@@ -1,0 +1,653 @@
+{
+  "corpusVersion": 1,
+  "name": "connected-mixed-receipt-null",
+  "category": "connected",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "grants": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "notes": {
+        "columns": {
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 20
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "grants",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "grant"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "connected-mixed-receipt-null",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "note",
+          "value": {
+            "Get": {
+              "site": "note",
+              "table": "notes",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "note1"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "name",
+          "value": {
+            "Literal": "Null"
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "note"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "name",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "note"
+                    },
+                    "name": "name"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Let": {
+          "name": "n",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "connection",
+          "value": {
+            "Get": {
+              "site": "connected",
+              "table": "_connected",
+              "index": "byPrincipal",
+              "key": [
+                {
+                  "Input": "Viewer"
+                }
+              ],
+              "provenance": "Viewer"
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "connection"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "n",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "connection"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "n": {
+              "Variable": "n"
+            },
+            "name": {
+              "Variable": "name"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "connected-mixed-receipt-null",
+    "plan_hash": "2d8d67007f4a188a7d33de06bbd9c90cff059fcd046ab2831015438184d5908d",
+    "schema_hash": "eba113a1f4d987e44648b4fe234348015a500e16114438e6986e10d3b3609c76",
+    "tables": {
+      "grants": {
+        "retain": "until-revoked"
+      },
+      "notes": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "_connected.read": "8cba5592243b2c65c0388897e93f7efb4b3f2258dfcdd6f07f968e1912a6f1c4",
+      "notes.read": "1893aa3fcbf8cbd6537f0bf614be631a727afa9731cbf077774c82a7d14461e4"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "connected",
+        "table": "_connected",
+        "index": "byPrincipal",
+        "prefix_template": "Viewer",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "note",
+        "table": "notes",
+        "index": "byId",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 2,
+    "max_steps": 36,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 1152,
+    "max_output_bytes": 168,
+    "max_closure_bytes": 145,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "_connected.byPrincipal",
+      "grants.byId",
+      "notes.byId"
+    ],
+    "disclosures": [],
+    "bound_product": "note point read on notes × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "note point read on notes × 1 calls",
+        "site": "note"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "note point read on notes × 1 calls",
+        "site": "note"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "connected: 1 calls × 1 rule probes",
+        "site": "connected"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "note: 1 calls × 1 rule probes",
+        "site": "note"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "note point read on notes × 1 calls × 4",
+        "site": "note"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "note point read on notes × 1 calls × 4 × 32",
+        "site": "note"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "_connected.value",
+        "site": "connected"
+      },
+      {
+        "meter": "output bytes",
+        "value": 104,
+        "source": "notes.name",
+        "site": "note"
+      },
+      {
+        "meter": "output bytes",
+        "value": 23,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "_connected.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": "connected"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 104,
+        "source": "notes.name (104 bytes; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
+        "site": "note"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "alice",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "eba113a1f4d987e44648b4fe234348015a500e16114438e6986e10d3b3609c76",
+    "rows": [
+      {
+        "table": "notes",
+        "id": "note1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "note1"
+            },
+            "name": {
+              "String": "Alice"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": [
+      {
+        "rule_hash": "1893aa3fcbf8cbd6537f0bf614be631a727afa9731cbf077774c82a7d14461e4",
+        "pinned_inputs_digest": "3a3a6122869a6c7c512f3e2b8eeb45e661b176bf422cdb32230565ec5075a097",
+        "principal": "alice",
+        "auth_epoch": 1,
+        "result": true
+      }
+    ]
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "missing-authority"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

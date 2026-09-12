@@ -1,0 +1,1351 @@
+{
+  "corpusVersion": 1,
+  "name": "named-hidden-rule",
+  "category": "authority",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "accounts": {
+        "columns": {
+          "groupId": "Id",
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "parentId": "Id"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "cardCounts": {
+        "columns": {
+          "columnId": "Id",
+          "id": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "columnId"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "cards": {
+        "columns": {
+          "columnId": "Id",
+          "id": "Id",
+          "order": "Int",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byParentOrder": {
+            "components": [
+              {
+                "Column": "columnId"
+              },
+              {
+                "Column": "order"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "columns": {
+        "columns": {
+          "boardId": "Id",
+          "id": "Id",
+          "order": "Int",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byParentOrder": {
+            "components": [
+              {
+                "Column": "boardId"
+              },
+              {
+                "Column": "order"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "dmKeys": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "hi": "Principal",
+          "id": "Id",
+          "lo": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPair": {
+            "components": [
+              {
+                "Column": "lo"
+              },
+              {
+                "Column": "hi"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byPair"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "entitlements": {
+        "columns": {
+          "id": "Id",
+          "userId": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byUser": {
+            "components": [
+              {
+                "Column": "userId"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "expenses": {
+        "columns": {
+          "amount": "Int",
+          "groupId": "Id",
+          "id": "Id",
+          "payerId": "Principal"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "activity": "Time",
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
+          "userId": "Principal"
+        },
+        "indexes": {
+          "byConvUser": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "userId"
+              }
+            ],
+            "unique": true
+          },
+          "byConversation": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "userId"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byUserActivity": {
+            "components": [
+              {
+                "Column": "userId"
+              },
+              {
+                "Column": "activity"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvUser",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": "Allow",
+          "update": {
+            "Eq": [
+              {
+                "Field": "userId"
+              },
+              "Viewer"
+            ]
+          },
+          "delete": {
+            "Eq": [
+              {
+                "Field": "userId"
+              },
+              "Viewer"
+            ]
+          }
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byConvUser"
+            }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "columns": {
+          "at": "Time",
+          "authorId": "Principal",
+          "body": {
+            "Text": {
+              "max": 256
+            }
+          },
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byConvTime": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byToken": {
+            "components": [
+              {
+                "Column": "body"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvUser",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "And": [
+              {
+                "Eq": [
+                  {
+                    "Field": "authorId"
+                  },
+                  "Viewer"
+                ]
+              },
+              {
+                "Exists": {
+                  "table": "memberships",
+                  "index": "byConvUser",
+                  "key": [
+                    {
+                      "Field": "conversationId"
+                    },
+                    "Viewer"
+                  ],
+                  "provenance": "Shape"
+                }
+              }
+            ]
+          },
+          "update": {
+            "Eq": [
+              {
+                "Field": "authorId"
+              },
+              "Viewer"
+            ]
+          },
+          "delete": {
+            "Eq": [
+              {
+                "Field": "authorId"
+              },
+              "Viewer"
+            ]
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "owed": {
+        "columns": {
+          "groupId": "Id",
+          "id": "Id",
+          "userId": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "userId"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "secretDocs": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "entitlements",
+              "index": "byUser",
+              "key": [
+                "Viewer"
+              ],
+              "provenance": "Viewer"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "columns": {
+          "amount": "Int",
+          "expenseId": {
+            "Ref": {
+              "table": "expenses"
+            }
+          },
+          "groupId": "Id",
+          "id": "Id",
+          "userId": "Principal"
+        },
+        "indexes": {
+          "byExpense": {
+            "components": [
+              {
+                "Column": "expenseId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byGroupUser": {
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "userId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "unreads": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "userId": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byConvUser": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "userId"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "users": {
+        "columns": {
+          "handle": {
+            "Text": {
+              "max": 32
+            }
+          },
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byHandle": {
+            "components": [
+              {
+                "Column": "handle"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "components": [
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "waitCounts": {
+        "columns": {
+          "id": "Id",
+          "resourceId": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "resourceId"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "waitlist": {
+        "columns": {
+          "id": "Id",
+          "ownerId": "Principal",
+          "resourceId": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byResource": {
+            "components": [
+              {
+                "Column": "resourceId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "ownerId"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "cards",
+        "by": [
+          "columnId"
+        ],
+        "target": "cardCounts",
+        "readable": null
+      },
+      {
+        "kind": {
+          "Sum": {
+            "of": "amount"
+          }
+        },
+        "source": "shares",
+        "by": [
+          "groupId",
+          "userId"
+        ],
+        "target": "owed",
+        "readable": null
+      },
+      {
+        "kind": "Count",
+        "source": "waitlist",
+        "by": [
+          "resourceId"
+        ],
+        "target": "waitCounts",
+        "readable": {
+          "Public": {
+            "reason": "resource owners disclose queue depth"
+          }
+        }
+      }
+    ]
+  },
+  "program": {
+    "name": "hiddenRuleDocument",
+    "kind": "Query",
+    "args": {
+      "id": "Scalar"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Get": {
+            "site": "programs.hiddenRuleDocument.0",
+            "table": "secretDocs",
+            "index": "byId",
+            "key": [
+              {
+                "Variable": "id"
+              }
+            ],
+            "provenance": "Arg"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "hiddenRuleDocument",
+    "plan_hash": "dbe16017ab622ab13249595d3517a0018b41b33e7263f43f10d60b98b5782dfa",
+    "schema_hash": "c6444e4dcb9cd98cd0807b2c5b59cbfabbb0e76c693d16bf63417f0a07392afd",
+    "tables": {
+      "accounts": {
+        "retain": "until-revoked"
+      },
+      "cardCounts": {
+        "retain": "until-revoked"
+      },
+      "cards": {
+        "retain": "until-revoked"
+      },
+      "columns": {
+        "retain": "until-revoked"
+      },
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "dmKeys": {
+        "retain": "until-revoked"
+      },
+      "entitlements": {
+        "retain": "until-revoked"
+      },
+      "expenses": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      },
+      "owed": {
+        "retain": "until-revoked"
+      },
+      "secretDocs": {
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "retain": "until-revoked"
+      },
+      "unreads": {
+        "retain": "until-revoked"
+      },
+      "users": {
+        "retain": "until-revoked"
+      },
+      "waitCounts": {
+        "retain": "until-revoked"
+      },
+      "waitlist": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "secretDocs.read": "6421aff050be749e01b2eefba78d76018b9f58571d35586835a10e63caaf6f78"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "programs.hiddenRuleDocument.0",
+        "table": "secretDocs",
+        "index": "byId",
+        "prefix_template": "Arg",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 1,
+    "max_steps": 7,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 441,
+    "max_closure_bytes": 441,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "entitlements.byUser",
+      "secretDocs.byId"
+    ],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": "programs.hiddenRuleDocument.0 point read on secretDocs × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "programs.hiddenRuleDocument.0 point read on secretDocs × 1 calls",
+        "site": "programs.hiddenRuleDocument.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "programs.hiddenRuleDocument.0 point read on secretDocs × 1 calls",
+        "site": "programs.hiddenRuleDocument.0"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "programs.hiddenRuleDocument.0: 1 calls × 1 rule probes",
+        "site": "programs.hiddenRuleDocument.0"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "programs.hiddenRuleDocument.0 point read on secretDocs × 1 calls × 4",
+        "site": "programs.hiddenRuleDocument.0"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "hiddenRuleDocument:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "hiddenRuleDocument:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "programs.hiddenRuleDocument.0 point read on secretDocs × 1 calls × 4 × 32",
+        "site": "programs.hiddenRuleDocument.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "hiddenRuleDocument:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "hiddenRuleDocument:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 150,
+        "source": "secretDocs.id (150 bytes; 6 field-name/framing + secretDocs declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 281,
+        "source": "secretDocs.title (281 bytes; 9 field-name/framing + text max 64 scalars: encoded value bound 272)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "secretDocs row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 150,
+        "source": "secretDocs.id (150 bytes; 6 field-name/framing + secretDocs declared identity 144)",
+        "site": "programs.hiddenRuleDocument.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 281,
+        "source": "secretDocs.title (281 bytes; 9 field-name/framing + text max 64 scalars: encoded value bound 272)",
+        "site": "programs.hiddenRuleDocument.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "secretDocs row width: framing/shared encoding/growth adjustment",
+        "site": "programs.hiddenRuleDocument.0"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "id": {
+        "Id": "doc1"
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "c6444e4dcb9cd98cd0807b2c5b59cbfabbb0e76c693d16bf63417f0a07392afd",
+    "rows": [
+      {
+        "table": "entitlements",
+        "id": "ent1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "ent1"
+            },
+            "userId": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "secretDocs",
+        "id": "doc1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "doc1"
+            },
+            "title": {
+              "String": "Private"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": [
+      {
+        "rule_hash": "6421aff050be749e01b2eefba78d76018b9f58571d35586835a10e63caaf6f78",
+        "pinned_inputs_digest": "dc02e3c8f0fb7131c9e5e0f653a9740adc2bbb65f5f71913f3dc5bf4f33fa63e",
+        "principal": "u1",
+        "auth_epoch": 1,
+        "result": true
+      }
+    ]
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "id": {
+          "Id": "doc1"
+        },
+        "title": {
+          "String": "Private"
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Row\":{\"id\":{\"Id\":\"doc1\"},\"title\":{\"String\":\"Private\"}}}",
+    "digest": "76a2f5503992c4d0a2db1464759be9d78256f680b45554f5d71216dde21687de",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

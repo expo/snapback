@@ -1,0 +1,9 @@
+[package]
+name = "snapback4-sim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Deterministic simulation for Snapback 4: one program under a seed — virtual clock, scheduler, faulty network, faulty disks, kill and restart."
+
+[dependencies]

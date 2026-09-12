@@ -1,0 +1,594 @@
+{
+  "corpusVersion": 1,
+  "name": "search-empty-is-not-wildcard",
+  "category": "unicode-search",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 50
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "conversations is public in Quarry"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversation": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversation"
+              },
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversation"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversation"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byConversationPrincipal"
+            }
+          },
+          {
+            "Cap": {
+              "by": [
+                "principal"
+              ],
+              "max": 100
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "columns": {
+          "at": "Time",
+          "body": {
+            "Optional": {
+              "Text": {
+                "max": 4000
+              }
+            }
+          },
+          "caption": {
+            "Optional": {
+              "Text": {
+                "max": 50
+              }
+            }
+          },
+          "conversation": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byConversationWords": {
+            "components": [
+              {
+                "Column": "conversation"
+              },
+              {
+                "WordPrefixes": {
+                  "fields": [
+                    "body",
+                    "caption"
+                  ],
+                  "contract": "u17-nfc-scf-nfc-wsp-p"
+                }
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversation"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "people": {
+        "columns": {
+          "handle": {
+            "Optional": {
+              "Text": {
+                "max": 20
+              }
+            }
+          },
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 50
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byNameWords": {
+            "components": [
+              {
+                "WordPrefixes": {
+                  "fields": [
+                    "name",
+                    "handle"
+                  ],
+                  "contract": "u17-nfc-scf-nfc-wsp-p"
+                }
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "people is public in Quarry"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "search.findPeople",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      },
+      "term": {
+        "Text": {
+          "max": 2000
+        }
+      }
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "search.findPeople.0",
+            "table": "people",
+            "index": "byNameWords",
+            "prefix": [
+              {
+                "WordPrefix": {
+                  "source": {
+                    "Variable": "term"
+                  },
+                  "contract": "u17-nfc-scf-nfc-wsp-p",
+                  "source_max": 2000
+                }
+              }
+            ],
+            "order": "Asc",
+            "take": {
+              "Literal": 20
+            },
+            "after": {
+              "Variable": "c"
+            },
+            "before": null,
+            "range": null,
+            "opaque_cursor": true,
+            "merge_site": null,
+            "provenance": "Arg"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "search.findPeople",
+    "plan_hash": "f54ad4592f9d82eccf701a3f5bac84672f2d9409dbcf81d08d04ecd70cffced6",
+    "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      },
+      "people": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "people.read": "4defc44932a19c78ade9ac86058f742aeed9ca769c6584a24ee746c26046717b"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "search.findPeople.0",
+        "table": "people",
+        "index": "byNameWords",
+        "prefix_template": "Arg",
+        "take": 20,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "result_pages": {
+      "0": {
+        "site": "search.findPeople.0",
+        "table": "people",
+        "index": "byNameWords",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 22,
+    "max_index_entries": 22,
+    "max_rule_probes": 0,
+    "max_steps": 353205,
+    "derived_steps": 353091,
+    "derived_scratch_bytes": 332351,
+    "max_heap_bytes": 335999,
+    "max_output_bytes": 9832,
+    "max_closure_bytes": 39475,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "people.byNameWords"
+    ],
+    "disclosures": [],
+    "bound_product": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people = 22",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 22,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 22,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "steps",
+        "value": 353091,
+        "source": "search term normalization at search.findPeople.0",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "steps",
+        "value": 110,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people × 5",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 292876,
+        "source": "search term normalization at search.findPeople.0",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 39475,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3520,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people × 5 × 32",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2120,
+        "source": "20 × people.handle (106 bytes each; 10 field-name/framing + max(text max 20 scalars: encoded value bound 96, null reserve 8))",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 3000,
+        "source": "20 × people.id (150 bytes each; 6 field-name/framing + people declared identity 144)",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 4480,
+        "source": "20 × people.name (224 bytes each; 8 field-name/framing + text max 50 scalars: encoded value bound 216)",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 200,
+        "source": "people row width: framing/shared encoding/growth adjustment",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 32,
+        "source": "people first 20 at search.findPeople.0: framing/shared encoding/growth adjustment",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 11779,
+        "source": "search.findPeople.0 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "search.findPeople.0 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2226,
+        "source": "21 × people.handle (106 bytes each; 10 field-name/framing + max(text max 20 scalars: encoded value bound 96, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3150,
+        "source": "21 × people.id (150 bytes each; 6 field-name/framing + people declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4704,
+        "source": "21 × people.name (224 bytes each; 8 field-name/framing + text max 50 scalars: encoded value bound 216)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 210,
+        "source": "people row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3780,
+        "source": "21 × people table/id envelope (180 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 13626,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
+      }
+    ]
+  },
+  "context": {
+    "viewer": "alice",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": "Null",
+      "term": {
+        "String": " -- "
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+    "rows": [],
+    "ranges": [
+      {
+        "site": "search.findPeople.0",
+        "table": "people",
+        "index": "byNameWords",
+        "prefix": [
+          {
+            "WordPrefix": {
+              "contract": "u17-nfc-scf-nfc-wsp-p",
+              "source": " -- "
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 20,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "4defc44932a19c78ade9ac86058f742aeed9ca769c6584a24ee746c26046717b",
+        "row_ids": [],
+        "stop": "Exhausted",
+        "absence": true,
+        "halo": null,
+        "n2_suffix": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "search.findPeople.0": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

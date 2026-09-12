@@ -1,0 +1,246 @@
+{
+  "corpusVersion": 1,
+  "name": "named-text-empty-display",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "profiles": {
+        "columns": {
+          "displayName": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "handle": {
+            "Text": {
+              "max": 32
+            }
+          },
+          "id": "Id",
+          "link": {
+            "Optional": {
+              "Text": {
+                "max": 256
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [
+          {
+            "Text": {
+              "field": "displayName",
+              "min": 1
+            }
+          },
+          {
+            "Text": {
+              "field": "handle",
+              "min": 3,
+              "format": "handle"
+            }
+          },
+          {
+            "Text": {
+              "field": "link",
+              "min": 0,
+              "format": "url"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "named-text-empty-display",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "profiles",
+          "row": {
+            "Literal": {
+              "Row": {
+                "displayName": {
+                  "String": ""
+                },
+                "handle": {
+                  "String": "alice"
+                },
+                "id": {
+                  "Id": "profile-1"
+                },
+                "link": "Null"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "named-text-empty-display",
+    "plan_hash": "26f9ce87e710581b0a79f5afb9293239725c98b5e797b28520a2566799e350fc",
+    "schema_hash": "987a57053d6f81ddff708effe91eae5fd5d64b46085a45862fe45b909655b513",
+    "tables": {
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "profiles.insert": "adad79b1b162e845a2359d62bc7dfce0840ac346e6e97b4bf81ee9fb23193a49"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "profiles",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "profiles",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "profiles:Text(displayName,min=1,format=None)",
+      "profiles:Text(handle,min=3,format=Some(Handle))",
+      "profiles:Text(link,min=0,format=Some(Url))",
+      "profiles:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 7,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "profiles Insert writes",
+        "site": "named-text-empty-display:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "named-text-empty-display:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "named-text-empty-display:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "profiles Insert writes × 32",
+        "site": "named-text-empty-display:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "named-text-empty-display:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "named-text-empty-display:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "profiles Insert",
+        "site": "named-text-empty-display:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "987a57053d6f81ddff708effe91eae5fd5d64b46085a45862fe45b909655b513",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_CONSTRAINT",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_CONSTRAINT\"}",
+    "digest": "e1e7bb43a4702c4812836a881ca6813abebafb1f5f07a5b3264ca6f85175b24d",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "corpusVersion": 1,
+  "name": "asset-shape-video-nonpositive-duration",
+  "category": "asset-shape",
+  "randomSeed": null,
+  "schema": {
+    "tables": {},
+    "maintains": []
+  },
+  "program": {
+    "name": "asset-shape-video-nonpositive-duration",
+    "kind": "Query",
+    "args": {
+      "asset": {
+        "Video": {
+          "max": 25000000
+        }
+      }
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Variable": "asset"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "asset-shape-video-nonpositive-duration",
+    "plan_hash": "d9000965e8a6657d53f356e71077f42989b0657ff10dedfb0270a8063ee69c08",
+    "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
+    "rule_hashes": {},
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 2,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 64,
+    "max_output_bytes": 287,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "asset-shape-video-nonpositive-duration:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "asset-shape-video-nonpositive-duration:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "asset-shape-video-nonpositive-duration:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "asset-shape-video-nonpositive-duration:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 287,
+        "source": "argument asset",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "asset": {
+        "Map": {
+          "duration": {
+            "Int": 0
+          },
+          "height": {
+            "Int": 1080
+          },
+          "id": {
+            "String": "s2id-00000000000000000000000000000006-0000000000000002"
+          },
+          "width": {
+            "Int": 1920
+          }
+        }
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_ASSET_TYPE",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_ASSET_TYPE\"}",
+    "digest": "029d34b46531e7450eeda1bcde408d799e614be7ede50b82bf50a8e6deb33d9c",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

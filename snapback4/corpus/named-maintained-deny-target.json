@@ -1,0 +1,301 @@
+{
+  "corpusVersion": 1,
+  "name": "named-maintained-deny-target",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "counts": {
+        "columns": {
+          "bucket": "Id",
+          "id": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "events": {
+        "columns": {
+          "bucket": "Id",
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "events",
+        "by": [
+          "bucket"
+        ],
+        "target": "counts",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "events.record",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Literal": {
+              "Row": {
+                "bucket": {
+                  "Id": "bucket-1"
+                },
+                "id": {
+                  "Id": "event-1"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Literal": {
+            "Bool": true
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "events.record",
+    "plan_hash": "369d675ad71f563da2e153169b3b2932692520dde6e1445b3ca5792d2956b8b9",
+    "schema_hash": "5d5ef2de575a43000bef1651e86bb87491bfbc82916155829bcf25a3a4578c88",
+    "tables": {
+      "counts": {
+        "retain": "until-revoked"
+      },
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "events.insert": "cfe2a1aaba6c6597f4abb34819c689237e61f8272f2cc6a07988ea81eec848f2"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "events",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "counts": 1
+    },
+    "constraint_checks": [
+      "counts:Unique(byId)",
+      "events:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 9,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 288,
+    "max_output_bytes": 13,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "events Insert writes",
+        "site": "events.record:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "events.record:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "events.record:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "events.record:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "events.record:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "events Insert writes × 32",
+        "site": "events.record:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "events.record:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "events.record:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "events.record:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "events.record:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 13,
+        "source": "literal value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "events Insert",
+        "site": "events.record:statement:1"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "counts maintained applications",
+        "site": "schema.tables.counts"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "5d5ef2de575a43000bef1651e86bb87491bfbc82916155829bcf25a3a4578c88",
+    "rows": [
+      {
+        "table": "counts",
+        "id": "[{\"Id\":\"bucket-1\"}]",
+        "row": {
+          "Row": {
+            "bucket": {
+              "Id": "bucket-1"
+            },
+            "id": {
+              "Id": "[{\"Id\":\"bucket-1\"}]"
+            },
+            "value": {
+              "Int": 0
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Bool": true
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Bool\":true}",
+    "digest": "8440db0feac5c4e635c562902bcab7b782934db1d6947f41a1d928b16b8153a0",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

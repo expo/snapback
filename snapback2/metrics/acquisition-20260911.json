@@ -10675,6 +10675,131 @@
           "primaryError": null
         }
       }
+    },
+    "adjacentProofIncrement": {
+      "localSource": "fd2430d90b",
+      "laneSource": "5dfb929ba98bd332d669c0557d61f2dafe3493a6",
+      "remoteSource": "476c78ed2b4bf331b770df39af711f7a5373828e",
+      "change": "Reuse exact retained key/digest pairs only between adjacent final enrollment checks. Different-digest and previously unretained proofs still get the forced check.",
+      "verification": {
+        "affectedTestsPassed": 316,
+        "fullStateDifferential": {
+          "passed": true,
+          "comparedSnapshots": 16,
+          "fullStateIncludes": [
+            "answers",
+            "fingerprints",
+            "rowProofs",
+            "verdictProofs",
+            "extentProofs",
+            "guards",
+            "refcounts",
+            "factSlots",
+            "rows",
+            "outbox"
+          ],
+          "baselineCheckedProofs": 44,
+          "candidateCheckedProofs": 34
+        },
+        "differentialSha256": "1b172ebb3f0abe2ccee430205ed3bda7d66732ea9a33f08c2ee558165a506a9b",
+        "packageBuild": "pass",
+        "refs": "pass",
+        "independentSourceReview": "No material findings; source review did not rerun tests."
+      },
+      "canonicalBytes": {
+        "runtime": 90000,
+        "ceiling": 90000,
+        "client": 143223,
+        "react": 153191,
+        "expo": 156652,
+        "node": "v24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9
+      },
+      "measureCheck": "All latency steps pass; four inherited byte-growth guards fail; no accepted baseline change.",
+      "sample": {
+        "experiment": "sub3-20260912-bearer-proof-01",
+        "variant": "native8-clientproof-90000gzip",
+        "startedAt": "2026-09-12T10:08:07.877Z",
+        "finishedAt": "2026-09-12T10:08:49.725Z",
+        "instrumented": false,
+        "firstInboxMs": 1082.1051029999999,
+        "coldSyncedMs": 15068.385254,
+        "ackCompleteMs": 24417.217612,
+        "completeAcquisitionMs": 24460.084507,
+        "primaryPass": true,
+        "contentPass": true,
+        "ackPostPass": true,
+        "fullRowHashPass": true,
+        "ownerReceipts": {
+          "total": 10008,
+          "received": 10008,
+          "unreceived": 0
+        },
+        "stop": 0,
+        "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+        "runtimeSha": "b84911a52a0e60de6a672f267fa92b4889d40bf7235669bb70c7b3949d7d52ac",
+        "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+        "appSha": "9a0e5913f4c57bb39535150e1d9af14f6c324f71bbdcd77c8dc96ccbf0101316",
+        "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+        "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+        "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+        "error": null,
+        "primaryError": null,
+        "candidateSource": "476c78ed2b4bf331b770df39af711f7a5373828e",
+        "candidateArchiveSha256": "f4966d39d23a68d97bb9e115e81edb741be4dfb9e96d65ee57641e2ce0eaf9bc",
+        "runtimeGzipBytes": 90000,
+        "runtimeCeilingPass": true,
+        "publicationQualified": false,
+        "cohortQualified": false,
+        "resultSha256": "ecfc094c3401b5ffce522d3cf3952cafdbe9f61d6a27dcd24a1356f740503703",
+        "moduleHashes": {
+          "dist/client-runtime.mjs": "b84911a52a0e60de6a672f267fa92b4889d40bf7235669bb70c7b3949d7d52ac",
+          "dist/image-runtime.mjs": "406704207ccdf13d5d657abb5b44983b789c64bc66b4a4a1d74560576ec247ca"
+        },
+        "firstUsePass": true,
+        "firstOfflineHistoryMs": 1.8999996185302734,
+        "firstOfflineSearchMs": 2.1000003814697266,
+        "reopenPass": true,
+        "reopenMs": 6143.886030999998,
+        "reopenIdentityPass": true,
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "fixtureRowsUnchangedDuringSetup": true,
+        "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+        "ownerPidGone": true,
+        "ownerStopMs": 292.9572350000017,
+        "freshTerminalCount": 201,
+        "freshTerminalHistogram": [
+          {
+            "state": "committed",
+            "effects": 0,
+            "count": 89
+          },
+          {
+            "state": "committed",
+            "effects": 8,
+            "count": 1
+          },
+          {
+            "state": "committed",
+            "effects": 50,
+            "count": 111
+          }
+        ],
+        "freshActualEffects": 5558,
+        "exactAcknowledgementWorkloadPass": true
+      },
+      "sampleArtifact": "evidence/sub3-20260912-bearer-proof-01.json",
+      "limits": [
+        "One full endpoint sample, not a matched cohort or a sub-three-second result.",
+        "Exactly at the unchanged runtime ceiling; no headroom is claimed.",
+        "All 201 ordinary terminals retained, including 89 empty results for initially received events."
+      ]
+    },
+    "rejectedContinuationIdeas": {
+      "attemptWideGrantSnapshot": "Rejected: direct RangeStore.commit or custom carrier changes can remove a queued intent grant outside the ledger write lock without advancing trustGeneration. A delayed-read reproduction selected one intent with current per-entry reads versus two under the proposed snapshot.",
+      "skipTwinChangeIsolation": "Rejected: built-in change records alias plain carrier wrappers; isolate is their first deep separation. Nominal row/key/range leaves are already shared. Baseline sampled isolate self time is 176.237 ms; this does not justify a new ownership mechanism."
     }
   }
 }

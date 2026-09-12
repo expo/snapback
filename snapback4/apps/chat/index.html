@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Snapback 4 chat</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 0; display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+      nav { border-right: 1px solid #ddd; overflow: auto; }
+      nav button { display: block; width: 100%; text-align: left; padding: 8px 12px; border: 0; background: none; }
+      nav button[aria-current="true"] { background: #eef; }
+      main { display: flex; flex-direction: column; min-height: 0; }
+      ol.bubbles { list-style: none; margin: 0; padding: 12px; overflow: auto; flex: 1; }
+      li.bubble { max-width: 60%; padding: 6px 10px; margin: 4px 0; border-radius: 12px; background: #f1f1f1; }
+      li.bubble.own { margin-left: auto; background: #dbeafe; }
+      li.bubble.pending { opacity: 0.6; }
+      form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #ddd; }
+      form input { flex: 1; }
+      header { padding: 8px 12px; border-bottom: 1px solid #ddd; display: flex; gap: 12px; align-items: center; }
+      small.note { color: #666; }
+    </style>
+  </head>
+  <body>
+    <div id="root" style="display: contents"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

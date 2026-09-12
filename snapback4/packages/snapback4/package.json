@@ -1,16 +1,49 @@
 {
   "name": "snapback4",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
-  "description": "Snapback 4 client: the contract first (LLP 3000 §2), the mechanism after.",
+  "description": "Snapback 4 client: the contract (the card), a labelled mock client, and React hooks. Week one of LLP 3000; nothing here talks to a server yet.",
   "exports": {
-    "./contract": "./src/contract.ts"
+    "./contract": {
+      "types": "./dist/contract.d.ts",
+      "import": "./dist/contract.js"
+    },
+    "./mock": {
+      "types": "./dist/mock.d.ts",
+      "import": "./dist/mock.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "typescript": "5.9.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/snapback.git",
+    "directory": "snapback4/packages/snapback4"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   }
 }

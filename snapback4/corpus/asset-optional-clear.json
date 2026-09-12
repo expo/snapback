@@ -1,0 +1,288 @@
+{
+  "corpusVersion": 1,
+  "name": "asset-optional-clear",
+  "category": "asset",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "media": {
+        "columns": {
+          "id": "Id",
+          "photo": {
+            "Optional": {
+              "Image": {
+                "max": 5000000
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "media.clearImage",
+    "kind": "Mutation",
+    "args": {
+      "asset": {
+        "Optional": {
+          "Image": {
+            "max": 5000000
+          }
+        }
+      },
+      "rowId": "Id"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Update": {
+          "table": "media",
+          "key": {
+            "Variable": "rowId"
+          },
+          "patch": {
+            "Object": {
+              "photo": {
+                "Variable": "asset"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Variable": "asset"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "media.clearImage",
+    "plan_hash": "286932b8cb92c86a21f06b1670083078a62e7b6a509d52e98348ab9ed6a12675",
+    "schema_hash": "c6dcce6c69b8013c68b683d993efeae797d492e962dd7a6d25752ffb5978b67f",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "media.update": "f7fb6a8936ac5b10993c486d2812137f2f848226632fd07b8689876298faae52"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "media",
+        "kind": "Update",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "media",
+          "kind": "update",
+          "source": {
+            "argument": "rowId"
+          }
+        }
+      ],
+      "complete": true
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "media:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 11,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 352,
+    "max_output_bytes": 243,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "media Update writes",
+        "site": "media.clearImage:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "media.clearImage:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "media.clearImage:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "media.clearImage:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "media.clearImage:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "media Update writes × 32",
+        "site": "media.clearImage:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "media.clearImage:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "media.clearImage:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "media.clearImage:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "media.clearImage:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 243,
+        "source": "argument asset",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "media Update",
+        "site": "media.clearImage:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "asset": "Null",
+      "rowId": {
+        "Id": "media-1"
+      }
+    },
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "c6dcce6c69b8013c68b683d993efeae797d492e962dd7a6d25752ffb5978b67f",
+    "rows": [
+      {
+        "table": "media",
+        "id": "media-1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "media-1"
+            },
+            "photo": {
+              "Map": {
+                "height": {
+                  "Int": 480
+                },
+                "id": {
+                  "String": "s2id-00000000000000000000000000000006-0000000000000001"
+                },
+                "width": {
+                  "Int": 640
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}
