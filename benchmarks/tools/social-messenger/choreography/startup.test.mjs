@@ -29,7 +29,7 @@ function run(args, env = {}) {
 function setupValue(overrides = {}) {
   return {
     schemaVersion: "social-messenger.setup-identity.v1",
-    instrumentPin: "social-messenger@0.3.7-m8",
+    instrumentPin: "social-messenger@0.3.8-m8",
     backend: { kind: "snapback", version: "test" },
     runtime: {
       qualifiedBinary: { claimed: false, reason: "unit test does not launch a backend" },
@@ -174,7 +174,7 @@ test("a failed best-of-three attempt resets only its assertion", async () => {
 test("receipt schema accepts fresh M7 and rejects an unverified packed setup", async () => {
   const schema = JSON.parse(await readFile(new URL("./receipts.schema.json", import.meta.url)));
   const record = {
-    version: "0.3.7-m8",
+    version: "0.3.8-m8",
     runId: "00000000-0000-4000-8000-000000000007",
     recordedAt: "2026-08-25T12:00:00.000Z",
     type: "segment-summary",

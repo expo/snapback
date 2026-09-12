@@ -296,4 +296,16 @@ starter log and refuses any membership or sender drift before a lane starts.
 Retained `0.3.6-m8` receipts and run snapshots remain historical under their
 original four-person fixture identity.
 
+## 0.3.8-m8 migration
+
+`0.3.8-m8` coordinates the UI kit's `0.3.3-m8` React Native Web semantic
+bridge. The kit mirrors its existing accessible values and selected or
+pressed states into literal ARIA attributes, and exposes an existing rendered
+image URI as `data-source-uri` on the contracted observable node. Web video
+cards require `FeedCard.videoPosterUri`; video messages require a poster or
+thumbnail through `MessageBubble.mediaUri`. No new application data or
+backend-shaped prop is part of the contract. Retained `0.3.7-m8` evidence
+keeps the earlier renderer contract and remains historical under its frozen
+identity.
+
 `0.3.0-m8` added the M8 choreography surfaces.

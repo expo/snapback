@@ -609,7 +609,7 @@ test("production full-journey load and join accept an equality-bound Codex settl
     })}\n`);
     const suiteReceiptBytes = Buffer.from(`${JSON.stringify({ milestone: "M8", pass: true })}\n`);
     const summary = {
-      version: "0.3.7-m8",
+      version: "0.3.8-m8",
       runId,
       recordedAt: terminalAt,
       type: "segment-summary",
@@ -1502,7 +1502,7 @@ test("current-pin smoke starts the controller and composes without lock or attem
   try {
     await mkdir(repositoryRoot);
     await mkdir(privateRoot);
-    await writeFile(instrumentPath, '{"instrumentPin":"social-messenger@0.3.7-m8"}\n');
+    await writeFile(instrumentPath, '{"instrumentPin":"social-messenger@0.3.8-m8"}\n');
     const host = {
       hostname: "smoke-host",
       platform: "linux",

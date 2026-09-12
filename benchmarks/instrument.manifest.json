@@ -1,10 +1,10 @@
 {
   "schemaVersion": "benchmark-instrument-snapshot.v1",
-  "instrumentPin": "social-messenger@0.3.7-m8",
+  "instrumentPin": "social-messenger@0.3.8-m8",
   "versions": {
     "schema": "0.3.0-m8",
-    "ui": "0.3.2-m8",
-    "choreography": "0.3.7-m8"
+    "ui": "0.3.3-m8",
+    "choreography": "0.3.8-m8"
   },
   "artifacts": {
     "brief": {

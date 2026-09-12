@@ -1448,7 +1448,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
   const r2Harness = {
     schemaVersion: "snapback.r2-harness-config.v1",
     runId: "r2-fixture",
-    pins: { instrument: { instrumentPin: "social-messenger@0.3.7-m8" } },
+    pins: { instrument: { instrumentPin: "social-messenger@0.3.8-m8" } },
     harnesses: { fixture: { binary: process.execPath } },
     machines: { "fixture-host": { id: "fixture-host", node: { version: process.version } } },
     paths: { privateExecutionRoot: directory },
@@ -1486,7 +1486,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
       harnessConfigPath: r2HarnessPath,
       cellId: "fixture-cell",
     }),
-    /must pin social-messenger@0\.3\.7-m8/u,
+    /must pin social-messenger@0\.3\.8-m8/u,
   );
 
   for (const name of ["boundaries.json", "first-product-edit.json"]) {
@@ -1506,7 +1506,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
     const records = parseJsonLines(await fixtureText(receiptName));
     const summary = records.find((record) => record.type === "segment-summary");
     for (const record of records) {
-      record.version = "0.3.7-m8";
+      record.version = "0.3.8-m8";
       for (const timing of record.timings) timing.settlementWaitMs = 0;
     }
     summary.timings[0].settlementWaitMs = 0;
@@ -1597,7 +1597,7 @@ test("meter binds suite-status bytes to receipts at record-write time", async (t
     sha256(`${JSON.stringify({ milestone: "M1", pass: true })}\n`),
   );
   assert.equal(joined.suiteStatusLinkage.milestones[0].pass, true);
-  assert.equal(joined.instrumentVersion, "social-messenger@0.3.7-m8");
+  assert.equal(joined.instrumentVersion, "social-messenger@0.3.8-m8");
   assert.equal(
     joined.typingObservationBoundaryVersion,
     CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
@@ -2223,7 +2223,7 @@ test("native usage settlement timeout stays distinct in the production-finalized
   base.socialMessenger.typingObservationBoundaryVersion =
     CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION;
   base.socialMessenger.orientation.instrument.pin = CURRENT_INSTRUMENT_PIN;
-  base.socialMessenger.orientation.instrument.versions.choreography = "0.3.7-m8";
+  base.socialMessenger.orientation.instrument.versions.choreography = "0.3.8-m8";
   const nativePath = join(temp, "events", "harness.stdout.jsonl");
   const markerTurn = claudeMarkerTurn({
     milestone: "M1",
@@ -2782,7 +2782,7 @@ test("physical retained 0.3.6 identity stays historical while downgraded and mix
     mixedCurrentMarker.socialMessenger.orientation.instrument.pin = CURRENT_INSTRUMENT_PIN;
     assert.match(
       validateSocialMessengerRecordSemantics(mixedCurrentMarker, { artifactRoot: root }).join("\n"),
-      /current observability\/orientation markers require social-messenger@0\.3\.7-m8/u,
+      /current observability\/orientation markers require social-messenger@0\.3\.8-m8/u,
       "a retained record cannot borrow the current orientation identity",
     );
 
@@ -2799,6 +2799,72 @@ test("physical retained 0.3.6 identity stays historical while downgraded and mix
         `${instrumentVersion} must not evade current physical-root validation`,
       );
     }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("physical retained 0.3.7 identity stays historical while current markers fail closed", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "retained-037-physical-root-")));
+  try {
+    const instrumentBytes = await readFile(new URL(
+      "benchmarks/tools/social-messenger/metering/test/fixtures/instrument-0.3.7.manifest.json",
+      ROOT,
+    ));
+    const instrument = JSON.parse(instrumentBytes);
+    assert.equal(instrument.instrumentPin, "social-messenger@0.3.7-m8");
+    assert.equal(
+      sha256(instrumentBytes),
+      "sha256:8ecb92f4ee859296fb9c0da6ffdb0329af581bd31f603b64e1e6f77c84ac2f41",
+      "the retained identity fixture is the exact 126b0b5 0.3.7 freeze manifest",
+    );
+    await writeFile(join(root, "instrument.manifest.json"), instrumentBytes);
+    await mkdir(join(root, "events"));
+    await writeFile(join(root, "events/codex-rollout.jsonl"), "\n");
+
+    const retained = composedRecord({
+      capFamily: "gpt-frontier",
+      source: "codex-rollout-token-count",
+      metered: true,
+    });
+    retained.harness.environment = {
+      ...(retained.harness.environment ?? {}),
+      instrument: instrument.instrumentPin,
+    };
+    retained.socialMessenger.instrumentVersion = instrument.instrumentPin;
+    retained.socialMessenger.typingObservationBoundaryVersion = "v2";
+    retained.socialMessenger.orientation.instrument.pin = instrument.instrumentPin;
+    retained.socialMessenger.orientation.instrument.manifest = {
+      path: "instrument.manifest.json",
+      sha256: sha256(instrumentBytes).replace(/^sha256:/u, ""),
+    };
+    retained.socialMessenger.orientation.instrument.versions = instrument.versions;
+    retained.socialMessenger.setup = JSON.parse(await readFile(new URL(
+      "benchmarks/tools/social-messenger/metering/test/fixtures/setup-identity-0.3.7.json",
+      ROOT,
+    ), "utf8"));
+    const recordBaseBytes = Buffer.from(`${JSON.stringify(retained, null, 2)}\n`);
+    await writeFile(join(root, "record-base.json"), recordBaseBytes);
+    await writeFile(join(root, "metering-manifest.json"), `${JSON.stringify({
+      driver: { id: "social-messenger-full-journey-native-cli-driver.v1" },
+      recordBase: {
+        path: "record-base.json",
+        sha256: sha256(recordBaseBytes),
+      },
+    }, null, 2)}\n`);
+    assert.deepEqual(
+      validateSocialMessengerRecordSemantics(retained, { artifactRoot: root }),
+      [],
+      "an exact hash-bound 0.3.7 manifest/setup/base tuple selects historical validation",
+    );
+
+    const mixedCurrentMarker = structuredClone(retained);
+    mixedCurrentMarker.socialMessenger.orientation.instrument.pin = CURRENT_INSTRUMENT_PIN;
+    assert.match(
+      validateSocialMessengerRecordSemantics(mixedCurrentMarker, { artifactRoot: root }).join("\n"),
+      /current observability\/orientation markers require social-messenger@0\.3\.8-m8/u,
+      "retained 0.3.7 evidence cannot borrow the current orientation identity",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -2844,7 +2910,7 @@ test("migrated current R2 complete replay rejects coordinated quantitative fabri
       CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
       "the migrated base retains the boundary stamped by the production driver",
     );
-    assert.equal(base.socialMessenger.setup.instrumentPin, "social-messenger@0.3.7-m8");
+    assert.equal(base.socialMessenger.setup.instrumentPin, "social-messenger@0.3.8-m8");
 
     const manifest = JSON.parse(await readFile(join(root, "metering-manifest.json"), "utf8"));
     const boundaryCarriers = [];
@@ -2882,19 +2948,19 @@ test("migrated current R2 complete replay rejects coordinated quantitative fabri
     const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
     assert.deepEqual(composedErrors(record, root), []);
     const coordinatedRetainedRelabel = structuredClone(record);
-    coordinatedRetainedRelabel.harness.environment.instrument = "social-messenger@0.3.6-m8";
-    coordinatedRetainedRelabel.socialMessenger.instrumentVersion = "social-messenger@0.3.6-m8";
+    coordinatedRetainedRelabel.harness.environment.instrument = "social-messenger@0.3.7-m8";
+    coordinatedRetainedRelabel.socialMessenger.instrumentVersion = "social-messenger@0.3.7-m8";
     coordinatedRetainedRelabel.socialMessenger.orientation.instrument.pin =
-      "social-messenger@0.3.6-m8";
+      "social-messenger@0.3.7-m8";
     coordinatedRetainedRelabel.socialMessenger.orientation.instrument.manifest.sha256 =
-      "ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623";
+      "8ecb92f4ee859296fb9c0da6ffdb0329af581bd31f603b64e1e6f77c84ac2f41";
     coordinatedRetainedRelabel.socialMessenger.orientation.instrument.versions = {
       schema: "0.3.0-m8",
       ui: "0.3.2-m8",
-      choreography: "0.3.6-m8",
+      choreography: "0.3.7-m8",
     };
     coordinatedRetainedRelabel.socialMessenger.setup.instrumentPin =
-      "social-messenger@0.3.6-m8";
+      "social-messenger@0.3.7-m8";
     assert.match(
       validateSocialMessengerRecordSemantics(
         coordinatedRetainedRelabel,
@@ -5151,7 +5217,7 @@ async function writeSuiteFixture(root) {
     const choreographyPath = `${milestone.toLowerCase()}-choreography.jsonl`;
     const runId = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
     const choreographyText = `${JSON.stringify({
-      version: "0.3.7-m8",
+      version: "0.3.8-m8",
       runId,
       recordedAt: `2026-08-21T16:0${index + 1}:00.000Z`,
       type: "segment-summary",
@@ -5222,9 +5288,9 @@ async function addD06Observability(record, root, { allClaimed = true } = {}) {
   const observations = await writeObservationFixture(root, { allClaimed });
   const events = parseObservationJsonLines(await readFile(observations.path, "utf8"));
   const evidence = [observations.artifact];
-  record.socialMessenger.orientation.instrument.pin = "social-messenger@0.3.7-m8";
-  record.socialMessenger.orientation.instrument.versions.choreography = "0.3.7-m8";
-  record.socialMessenger.instrumentVersion = "social-messenger@0.3.7-m8";
+  record.socialMessenger.orientation.instrument.pin = "social-messenger@0.3.8-m8";
+  record.socialMessenger.orientation.instrument.versions.choreography = "0.3.8-m8";
+  record.socialMessenger.instrumentVersion = "social-messenger@0.3.8-m8";
   record.socialMessenger.typingObservationBoundaryVersion = "v2";
   record.socialMessenger.observabilityProtocol = OBSERVATION_VERSION;
   record.socialMessenger.meteringProvenance.observations = [{
@@ -5364,7 +5430,7 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
   await writeFile(choreographyReceiptPath, choreographyReceiptText);
 
   const fabricatedReceipt = `${JSON.stringify({
-    version: "0.3.7-m8",
+    version: "0.3.8-m8",
     runId: "00000000-0000-4000-8000-000000000001",
     recordedAt: "2026-08-21T16:01:00.000Z",
     type: "segment-summary",

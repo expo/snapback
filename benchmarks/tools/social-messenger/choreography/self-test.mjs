@@ -622,7 +622,7 @@ try {
     setupIdentity,
     `${JSON.stringify({
       schemaVersion: "social-messenger.setup-identity.v1",
-      instrumentPin: "social-messenger@0.3.7-m8",
+      instrumentPin: "social-messenger@0.3.8-m8",
       backend: { kind: "external", version: "choreography-calibration.v1" },
       runtime: {
         qualifiedBinary: { claimed: false, reason: "calibration HTTP app has no Snapback binary" },
@@ -631,7 +631,7 @@ try {
       packageClosure: {
         mode: "workspace",
         prepack: "not-applicable",
-        artifacts: [{ name: "choreography-calibration", version: "0.3.7-m8", sha256: null }],
+        artifacts: [{ name: "choreography-calibration", version: "0.3.8-m8", sha256: null }],
       },
       toolchain: {
         node: { path: process.execPath, version: process.version },
@@ -892,7 +892,7 @@ try {
     },
   };
   const currentTypingReceipt = {
-    version: "0.3.7-m8",
+    version: "0.3.8-m8",
     runId: "00000000-0000-4000-8000-000000000010",
     recordedAt: "2026-08-25T00:00:00.000Z",
     type: "assertion",

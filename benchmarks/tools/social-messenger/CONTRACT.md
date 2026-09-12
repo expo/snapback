@@ -174,10 +174,19 @@ The P2 choreography hardening also freezes these accessible-state semantics:
   viewer IDs, exact `unopened`/`opened` accessible values, and
   `sm-convo-error` for server refusal.
 
+For React Native Web, kit-owned stable values are emitted literally as
+`aria-valuetext`; tab selection as `aria-selected`; and button-like selection
+as `aria-pressed`. Kit-owned rendered image sources are repeated as
+`data-source-uri` on the contracted observable node because RN Web may render
+the image bytes through a CSS-background descendant. This is a renderer bridge
+for existing public kit props, not an additional lane data contract. A web
+video post must supply `FeedCard.videoPosterUri`; a video message must supply a
+poster or thumbnail through `MessageBubble.mediaUri`.
+
 ## Versioning
 
-The choreography subdirectory is `0.3.7-m8` and the UI kit is
-`0.3.2-m8`. The coordinated `0.3.3-m8` instrument migration required
+The choreography subdirectory is `0.3.8-m8` and the UI kit is
+`0.3.3-m8`. The coordinated `0.3.3-m8` instrument migration required
 suite-status and setup-identity linkage before
 startup and adds the hash-linked D0.6 run-record observations while retaining
 the W2 native-usage channel and extension version; the meter additionally
@@ -196,5 +205,7 @@ across all M7 retry attempts. Other P1 artifacts remain at their existing
 pre-freeze versions. Choreography `0.3.7-m8` carries those semantics plus the
 LLP 0317 N7 fixture repair and binds the complete executable evidence stack to
 the repaired frozen root; retained `0.3.4-m8` records stay historical.
+Choreography `0.3.8-m8` coordinates UI `0.3.3-m8`'s RN-Web semantic bridge;
+retained `0.3.7-m8` evidence keeps the pre-bridge renderer contract.
 The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the
 brief.
