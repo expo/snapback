@@ -677,3 +677,7 @@ recorded as measured, with the parallelism noted here and in the records).
 Three fresh Astra sessions at medium, serial, each on the published
 0.0.4, each verified independently after it stops. Results land in
 `metrics/loopbar.jsonl`; the lanes are under `~/loopbar-sb4-2026-09-12/`.
+- The Expo bytecode export works after a clean reinstall: the old
+  `hermes-compiler` was a leftover of the isolated-linker install, not a
+  version conflict. `expo export --platform ios` writes the `.hbc`; the
+  follow-up is closed.
