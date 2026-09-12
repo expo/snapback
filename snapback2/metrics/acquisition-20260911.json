@@ -16871,7 +16871,673 @@
         "One adjacent pair only; no statistical or publication qualification",
         "Fixed TCP owner does not include subsequent native primary-lookup increment",
         "No receipt work, first offline-use cost or physical correctness oracle omitted"
-      ]
+      ],
+      "freshDiagnostic": {
+        "artifact": {
+          "path": "/tmp/acquisition-20260912-image-cow-profile-summary.json",
+          "bytes": 18687,
+          "sha256": "b0ee5b3fa1f2d3666e244e4223bdcb31882edf023bc1ed5f6982c7a55a940eae"
+        },
+        "observation": {
+          "scope": "Separate instrumented image/COW diagnostic; no latency qualification or primary-pair inference. Original full endpoint, workload and all existing oracles preserved.",
+          "controls": {
+            "experiment": "sub3-20260912-bearer-image-cow-profile-01",
+            "variant": "diagnostic-image-cow89998-cpu-idb",
+            "startedAt": "2026-09-12T13:14:17.876Z",
+            "finishedAt": "2026-09-12T13:14:51.713Z",
+            "instrumented": true,
+            "firstInboxMs": 1277.7340329999997,
+            "coldSyncedMs": 15258.054757999998,
+            "ackCompleteMs": 16504.179846,
+            "completeAcquisitionMs": 16549.900289,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "runtimeSha": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "e1a98e7743a0b1fb1dc9dc242da0622db989f1d1e37eff36f7c2036991ecce46",
+            "harnessSha256": "e64c85190e2de21fcffebda1045eb4011b4c3007b09c25c9935c62a0fe4f4f6d",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "candidateSource": "4e545d525e3e6eb8bfce20536a26522f4dec50f2",
+            "candidateArchiveSha256": "d61ca6f06cbd8b185fd491c6132550b6f04fe22dfe2e573ca8ab84e2939b0577",
+            "runtimeGzipBytes": 89998,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "884736e467413ac4afe12f6d421e3af324929486039dc418327182d045607e67",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+              "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+              "dist/react.mjs": "6e9a814b241e529c79067be0c0c59555a6a18fd63b20057edf198fef333028ea",
+              "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+              "dist/image-runtime.mjs": "cb1758e47d91e0cc5d8ff56d5c7848eafb042e5c7052460d1f99ca3d584ecd4e"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.5999984741210938,
+            "firstOfflineSearchMs": 2,
+            "reopenPass": true,
+            "reopenMs": 5994.367388999999,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 216.69975599999452,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "startedLoad": [
+              0.19,
+              0.34,
+              0.26
+            ],
+            "finishedLoad": [
+              1.02,
+              0.54,
+              0.33
+            ],
+            "postflight": {
+              "load": [
+                0.43896484375,
+                0.4521484375,
+                0.31103515625
+              ],
+              "browserOwners": []
+            },
+            "pageErrorCount": 0,
+            "logicalCounts": {
+              "rows": 20216,
+              "answers": 203,
+              "outbox": 112,
+              "meta": 50912
+            },
+            "reopenLogicalCounts": {
+              "rows": 20216,
+              "answers": 203,
+              "outbox": 112,
+              "meta": 50912
+            }
+          },
+          "profile": {
+            "file": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-image-cow-profile-01-cpu.cpuprofile",
+            "sha256": "029ff9bb3c2af5ea60503fb9a2f3ade8c1e873aed877802dc5eb2ecb0c39bc4f",
+            "samples": 15824,
+            "startTime": 11778458195899,
+            "endTime": 11778474807895,
+            "endpoint": "Profiler started immediately before the unchanged navigation clock; stopped after first-use and before physical content hashing"
+          },
+          "sourceMap": {
+            "path": "/tmp/sub3-20260912-bearer-image-cow-profile-01-app.js.map",
+            "sha256": "9cd26084bcebbdae34eba49a6db6919bf5cd518e8f50cc111fa76778ca4652f6"
+          },
+          "rawResult": {
+            "path": "/tmp/sub3-20260912-bearer-image-cow-profile-01.json",
+            "sha256": "884736e467413ac4afe12f6d421e3af324929486039dc418327182d045607e67"
+          },
+          "cpu": {
+            "phaseStartMs": 0,
+            "phaseEndMs": 15258.054757999998,
+            "specialSelfMs": {
+              "(program)": 697.734,
+              "(idle)": 4446.041,
+              "(garbage collector)": 646.312,
+              "put": 665.843
+            },
+            "moduleSelf": [
+              {
+                "source": "(idle)",
+                "ms": 4446.041
+              },
+              {
+                "source": "packages/evaluator/src/value-runtime.ts",
+                "ms": 1296.446
+              },
+              {
+                "source": "packages/evaluator/src/row-image.ts",
+                "ms": 1098.837
+              },
+              {
+                "source": "packages/evaluator/src/hash.ts",
+                "ms": 1053.684
+              },
+              {
+                "source": "(program)",
+                "ms": 697.734
+              },
+              {
+                "source": "put",
+                "ms": 665.843
+              },
+              {
+                "source": "packages/snapback2/src/store/swap-journal.ts",
+                "ms": 647.868
+              },
+              {
+                "source": "(garbage collector)",
+                "ms": 646.312
+              },
+              {
+                "source": "packages/evaluator/src/index-store.ts",
+                "ms": 526.637
+              },
+              {
+                "source": "packages/evaluator/src/posting-tree.ts",
+                "ms": 442.932
+              },
+              {
+                "source": "IDBObjectStore.<computed>",
+                "ms": 360.123
+              },
+              {
+                "source": "packages/snapback2/src/store/canonical.ts",
+                "ms": 327.828
+              },
+              {
+                "source": "packages/snapback2/src/store/range-store.ts",
+                "ms": 309.997
+              },
+              {
+                "source": "packages/snapback2/src/store/metadata.ts",
+                "ms": 253.221
+              },
+              {
+                "source": "packages/snapback2/src/store/fact-integrity.ts",
+                "ms": 247.407
+              },
+              {
+                "source": "packages/snapback2/src/offline-protocol.ts",
+                "ms": 214.957
+              },
+              {
+                "source": "packages/evaluator/src/unicode.ts",
+                "ms": 188.406
+              },
+              {
+                "source": "packages/evaluator/src/slot-tree.ts",
+                "ms": 182.771
+              },
+              {
+                "source": "packages/snapback2/src/twin-store.ts",
+                "ms": 121.625
+              },
+              {
+                "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/portable-node_modules/react-dom/cjs/react-dom-client.production.js",
+                "ms": 111.603
+              }
+            ],
+            "functionSelf": [
+              {
+                "source": "(idle)",
+                "ms": 4446.041
+              },
+              {
+                "source": "(program)",
+                "ms": 697.734
+              },
+              {
+                "source": "put",
+                "ms": 665.843
+              },
+              {
+                "source": "(garbage collector)",
+                "ms": 646.312
+              },
+              {
+                "source": "packages/evaluator/src/value-runtime.ts:129 totalCompare",
+                "ms": 581.133
+              },
+              {
+                "source": "packages/evaluator/src/hash.ts:9 r",
+                "ms": 546.096
+              },
+              {
+                "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+                "ms": 542.152
+              },
+              {
+                "source": "packages/evaluator/src/posting-tree.ts:8 change",
+                "ms": 421.1
+              },
+              {
+                "source": "IDBObjectStore.<computed>",
+                "ms": 360.123
+              },
+              {
+                "source": "packages/snapback2/src/store/canonical.ts:10 jsonState",
+                "ms": 325.697
+              },
+              {
+                "source": "packages/evaluator/src/hash.ts:1 sha256",
+                "ms": 238.691
+              },
+              {
+                "source": "packages/snapback2/src/store/swap-journal.ts:19 isolate",
+                "ms": 207.217
+              },
+              {
+                "source": "packages/evaluator/src/index-store.ts:128 (anonymous)",
+                "ms": 205.144
+              },
+              {
+                "source": "packages/snapback2/src/store/swap-journal.ts:58 get",
+                "ms": 162.025
+              },
+              {
+                "source": "packages/evaluator/src/row-image.ts:107 tagged",
+                "ms": 160.515
+              },
+              {
+                "source": "packages/evaluator/src/slot-tree.ts:19 balance",
+                "ms": 159.673
+              },
+              {
+                "source": "packages/evaluator/src/value-runtime.ts:206 kindOf",
+                "ms": 157.093
+              },
+              {
+                "source": "packages/evaluator/src/index-store.ts:200 putPrepared",
+                "ms": 154.554
+              },
+              {
+                "source": "packages/snapback2/src/store/metadata.ts:13 jsonValue",
+                "ms": 149.809
+              },
+              {
+                "source": "packages/evaluator/src/row-image.ts:140 key",
+                "ms": 148.029
+              }
+            ],
+            "functionInclusive": [
+              {
+                "source": "(root)",
+                "ms": 15258.055
+              },
+              {
+                "source": "(idle)",
+                "ms": 4446.041
+              },
+              {
+                "source": "packages/snapback2/src/store/range-store.ts:711 (anonymous)",
+                "ms": 3229.249
+              },
+              {
+                "source": "packages/snapback2/src/twin-store.ts:122 syncIdentity",
+                "ms": 2449.97
+              },
+              {
+                "source": "packages/snapback2/src/store/range-store.ts:863 applySwap",
+                "ms": 2124.465
+              },
+              {
+                "source": "packages/snapback2/src/store/range-store.ts:931 applyCoverage",
+                "ms": 2084.069
+              },
+              {
+                "source": "packages/snapback2/src/twin-store.ts:212 row",
+                "ms": 2011.987
+              },
+              {
+                "source": "packages/evaluator/src/store.ts:172 put",
+                "ms": 1972.563
+              },
+              {
+                "source": "packages/evaluator/src/index-store.ts:200 putPrepared",
+                "ms": 1656.271
+              },
+              {
+                "source": "packages/evaluator/src/posting-tree.ts:8 change",
+                "ms": 1478.572
+              },
+              {
+                "source": "packages/snapback2/src/store/indexeddb.ts:287 replace",
+                "ms": 1463.381
+              },
+              {
+                "source": "packages/evaluator/src/posting-tree.ts:6 put",
+                "ms": 1348.159
+              },
+              {
+                "source": "IDBObjectStore.<computed>",
+                "ms": 1025.966
+              },
+              {
+                "source": "packages/evaluator/src/hash.ts:1 sha256",
+                "ms": 994.774
+              },
+              {
+                "source": "packages/evaluator/src/index-store.ts:128 (anonymous)",
+                "ms": 891.297
+              },
+              {
+                "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+                "ms": 876.196
+              },
+              {
+                "source": "packages/evaluator/src/value-runtime.ts:129 totalCompare",
+                "ms": 732.885
+              },
+              {
+                "source": "(program)",
+                "ms": 697.734
+              },
+              {
+                "source": "put",
+                "ms": 665.843
+              },
+              {
+                "source": "(garbage collector)",
+                "ms": 646.312
+              },
+              {
+                "source": "packages/evaluator/src/hash.ts:47 byte",
+                "ms": 600.642
+              },
+              {
+                "source": "packages/evaluator/src/hash.ts:72 utf8",
+                "ms": 597.784
+              },
+              {
+                "source": "packages/snapback2/src/offline.ts:797 o",
+                "ms": 591.374
+              },
+              {
+                "source": "packages/snapback2/src/offline.ts:919 (anonymous)",
+                "ms": 589.003
+              },
+              {
+                "source": "packages/evaluator/src/row-image.ts:140 key",
+                "ms": 583.581
+              }
+            ],
+            "sensitivityPlus125Ms": {
+              "startMs": 0,
+              "endMs": 15383.054757999998,
+              "specialSelfMs": {
+                "(program)": 701.04,
+                "(idle)": 4534.767,
+                "(garbage collector)": 648.494,
+                "put": 666.869
+              }
+            },
+            "tail": {
+              "startMs": 15258.054757999998,
+              "endMs": 16611.124000000298,
+              "specialSelfMs": {
+                "(program)": 44.895,
+                "(idle)": 949.204,
+                "put": 7.429,
+                "(garbage collector)": 11.873
+              }
+            }
+          },
+          "idb": {
+            "transactions": 201,
+            "states": {
+              "complete": 201
+            },
+            "modes": {
+              "readonly": 60,
+              "readwrite": 141
+            },
+            "pendingAtCut": 0,
+            "operationsByStore": {
+              "meta": {
+                "put": 62004,
+                "delete": 0,
+                "add": 0,
+                "clear": 0
+              },
+              "rows": {
+                "put": 20329,
+                "delete": 0,
+                "add": 0,
+                "clear": 0
+              },
+              "answers": {
+                "put": 217,
+                "delete": 0,
+                "add": 0,
+                "clear": 0
+              },
+              "outbox": {
+                "put": 313,
+                "delete": 89,
+                "add": 0,
+                "clear": 0
+              }
+            },
+            "phases": [
+              {
+                "endMs": 15258.054757999998,
+                "readwriteTransactionsStarted": 136,
+                "readwriteLifetimeUnionMs": 4837.500005722046,
+                "lastQueuedToCompleteUnionMs": 3777.1000022888184
+              },
+              {
+                "endMs": 15383.054757999998,
+                "readwriteTransactionsStarted": 137,
+                "readwriteLifetimeUnionMs": 4839.000005722046,
+                "lastQueuedToCompleteUnionMs": 3778.300001144409
+              },
+              {
+                "endMs": 16549.10000038147,
+                "readwriteTransactionsStarted": 141,
+                "readwriteLifetimeUnionMs": 4865.4000034332275,
+                "lastQueuedToCompleteUnionMs": 3794.0
+              }
+            ]
+          },
+          "network": {
+            "/api/auth/me ": {
+              "requests": 2,
+              "completed": 2,
+              "failed": 0,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 4.193000495433807,
+              "encodedBytes": 378
+            },
+            "/api/manifest ": {
+              "requests": 5,
+              "completed": 5,
+              "failed": 0,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 34.83800031244755,
+              "encodedBytes": 40544
+            },
+            "/api/program ": {
+              "requests": 2,
+              "completed": 2,
+              "failed": 0,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 16.952000558376312,
+              "encodedBytes": 399732
+            },
+            "/api/resume ": {
+              "requests": 2,
+              "completed": 2,
+              "failed": 0,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 19.113000482320786,
+              "encodedBytes": 775
+            },
+            "/api/query messages.inbox": {
+              "requests": 40,
+              "completed": 40,
+              "failed": 0,
+              "offeredOps": 40,
+              "loadingElapsedSumMs": 1350.366000086069,
+              "encodedBytes": 12165524
+            },
+            "/api/query ": {
+              "requests": 5,
+              "completed": 5,
+              "failed": 0,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 3.8419999182224274,
+              "encodedBytes": 0
+            },
+            "/api/query groups.mine": {
+              "requests": 9,
+              "completed": 9,
+              "failed": 0,
+              "offeredOps": 9,
+              "loadingElapsedSumMs": 93.50799769163132,
+              "encodedBytes": 81128
+            },
+            "/api/live ": {
+              "requests": 2,
+              "completed": 1,
+              "failed": 1,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 15409.794000908732,
+              "encodedBytes": 0
+            },
+            "/api/mutation ": {
+              "requests": 4,
+              "completed": 4,
+              "failed": 0,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 4.528999328613281,
+              "encodedBytes": 0
+            },
+            "/api/mutation _delivery.deliveries.ack": {
+              "requests": 127,
+              "completed": 127,
+              "failed": 0,
+              "offeredOps": 901,
+              "loadingElapsedSumMs": 4324.76400770247,
+              "encodedBytes": 676763
+            },
+            "/api/live/control ": {
+              "requests": 6,
+              "completed": 5,
+              "failed": 1,
+              "offeredOps": 0,
+              "loadingElapsedSumMs": 74.87599737942219,
+              "encodedBytes": 672
+            }
+          },
+          "stackPresence": {
+            "installSnapshot": {
+              "sampledInclusiveMs": 54.317999999999756,
+              "samplesWithFrame": 72,
+              "firstSampleStartMs": 754.2450000000014,
+              "lastSampleEndMs": 809.6280000000012,
+              "sampledMsBySecond": {
+                "0": 54.317999999999756
+              },
+              "notInvocationCounts": true
+            },
+            "syncIdentity": {
+              "sampledInclusiveMs": 2458.4680000000694,
+              "samplesWithFrame": 2374,
+              "firstSampleStartMs": 747.885000000001,
+              "lastSampleEndMs": 16515.53100000028,
+              "sampledMsBySecond": {
+                "0": 60.67800000000011,
+                "1": 164.00399999999922,
+                "2": 158.4290000000019,
+                "3": 197.41899999999714,
+                "4": 143.49999999999727,
+                "5": 186.8809999999985,
+                "6": 141.50399999999536,
+                "7": 155.24699999999575,
+                "8": 184.83200000000033,
+                "9": 164.29200000001583,
+                "10": 192.05200000002696,
+                "11": 176.23399999999674,
+                "12": 138.43700000000172,
+                "13": 188.74200000002566,
+                "14": 145.57100000001265,
+                "15": 57.48500000000604,
+                "16": 3.160999999998239
+              },
+              "notInvocationCounts": true
+            },
+            "putPrepared": {
+              "sampledInclusiveMs": 1657.3320000000547,
+              "samplesWithFrame": 1570,
+              "firstSampleStartMs": 534.1220000000002,
+              "lastSampleEndMs": 15447.593000000303,
+              "sampledMsBySecond": {
+                "0": 38.57899999999984,
+                "1": 92.29399999999953,
+                "2": 100.21000000000186,
+                "3": 121.0079999999989,
+                "4": 102.03599999999824,
+                "5": 139.09500000000298,
+                "6": 83.71399999999812,
+                "7": 108.4369999999999,
+                "8": 122.13300000000163,
+                "9": 119.04600000001301,
+                "10": 137.94400000001588,
+                "11": 123.12599999999657,
+                "12": 88.34499999999571,
+                "13": 143.27300000001742,
+                "14": 99.77700000000914,
+                "15": 38.315000000005966
+              },
+              "notInvocationCounts": true
+            }
+          },
+          "analysis": {
+            "path": "/tmp/acquisition-20260912-image-cow-cpu-phases.json",
+            "sha256": "d8550cb092527e52698ba97428ae77b8ee153e255dc9f66d2bcc787ccbb7f38e",
+            "scriptSha256": "c51e6f837ad67cab2923cfc7d4105d8bb858c44d8b9f1a4dc0fab3f291482734"
+          },
+          "limitations": [
+            "Diagnostic timing only. CPU starts just before navigation clock; content split uses observed coldSyncedMs and +125 ms sensitivity. IDB timestamps start at browser navigation time and share only an approximate phase alignment. Nested inclusive CPU and IDB transaction lifetimes overlap and must not be added. Sample hits are not invocation counts. Tiny negative sample deltas, if any, are clamped to zero only for chronology.",
+            "Network loading elapsed includes native execution, network transport and browser scheduling; it overlaps CPU and IDB and is not native CPU time.",
+            "No exact TwinStore invocation counts are exposed by existing instrumentation. All observed installSnapshot samples occur during 754\u2013810 ms startup; absence of later samples is not an exact call-count proof.",
+            "IDBObjectStore spy itself consumes sampled CPU; per-store operation counts and tx lifetimes are diagnostic.",
+            "One initial analysis helper variable shadowing error was corrected; no browser rerun or artifact mutation resulted."
+          ]
+        },
+        "decision": "Repeated cold snapshots are not indicated; focus on hashing, row conversion, posting comparisons and physical records. No source change selected from this profile yet."
+      },
+      "followupSyntheticHashDiagnostic": {
+        "artifact": {
+          "path": "/tmp/acquisition-hash-micro.json",
+          "bytes": 1169,
+          "sha256": "990b16303ec1dc77356dd8f5a46d8e9a2ae4ae5e81f5c8a6e1c2099050f288a6"
+        },
+        "method": "Three standalone outside-repository copies of current hash.ts; control, Uint32 words, indexed Unicode traversal;2014mixedtexts including invalidsurrogates compared exactly, validtextsnativeoracle;7alternatingrounds",
+        "medianMs": {
+          "control": 93.54174999999998,
+          "uint32": 89.24258299999997,
+          "indexed": 90.372208
+        },
+        "scope": "Local Node24.18 synthetic only, no full endpoint/browser claim; neither change implemented in repository"
+      }
     }
   }
 }
