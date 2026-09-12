@@ -1,0 +1,27 @@
+{
+  "start": 1789232846.1360366,
+  "beforeSizes": {
+    ".snapback3/store.sqlite": 405504,
+    ".snapback3/store.sqlite-wal": 4054112,
+    ".snapback3/store.sqlite-shm": 32768
+  },
+  "signals": [
+    {
+      "pid": 1675418,
+      "signal": "SIGTERM",
+      "at": 1789232846.136226,
+      "cmdline": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node node_modules/snapback3/dist/cli.mjs serve . --port 54900 "
+    },
+    {
+      "pid": 1675445,
+      "alreadyExited": true
+    }
+  ],
+  "remaining": [],
+  "end": 1789232847.1367455,
+  "afterSizes": {
+    ".snapback3/store.sqlite": 405504,
+    ".snapback3/store.sqlite-wal": 4054112,
+    ".snapback3/store.sqlite-shm": 32768
+  }
+}

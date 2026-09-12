@@ -231,3 +231,135 @@ Snapback 1 failures recorded above.
 Whole-app browser acquisition, server storage attribution, useful byte headroom,
 and a fresh builder performing a feature/schema change remain the important
 unmeasured outcomes.
+
+## 2026-09-12: choosing the relevant Clique experiment
+
+The [first Astra medium run](../benchmarks/runs/2026-09-12-snapback3-clique-astra-medium/README.md)
+finished its text account/profile slice, then stopped at required avatar uploads.
+I let the full benchmark's prerequisite chain block the questions this experiment
+was meant to answer. The private package correctly refused unsupported media,
+but that refusal supplied no evidence about client coordination or acquisition.
+The independent grader also found actual account-flow defects, so even the
+partial application was not established as a polished product.
+
+Charlie redirected the run to the relevant scenarios. The
+[focused variant](../benchmarks/runs/2026-09-12-snapback3-clique-focused-astra-medium/README.md)
+starts a fresh Astra medium session from supplied prerequisite source and keeps
+the product package unchanged. Text-projected fixture messages preserve their
+identities and authorization scopes. Independent expected data comes from the
+frozen logs, rather than from the application's reported totals. Preparation is
+separate from the builder clock; application dependency installation and loader
+authoring remain on that clock.
+
+This is a useful correction to the evaluation sequence: test a complete selected
+data lifecycle and retain each failure, then ask a fresh builder to change it.
+The continuous build and independent assessment are complete. They establish
+useful one-client behavior at the selected scope, but expose acquisition and
+retention failures that the first slice did not exercise. The fresh M7 build
+and its independent assessment have also finished. Their small-database success
+does not resolve those acquisition failures.
+
+## 2026-09-12: what the focused run exposed
+
+The outside builder used one ordinary client for inbox, selected history,
+summary reads and mutations. A denied summary stayed Unknown without disabling
+messages, auth restoration worked in the independent probe, and two offline
+clients recovered their saved sends after page close/reopen. Starter Insights
+had reachable navigation and independently correct totals. These are useful
+outcomes; they do not amount to a complete social product.
+
+The harder experience sits between those features. The builder wrote a serial
+acquisition helper, waited explicitly for in-flight resources, and calculated
+unread from a bounded recent-message summary. It had to stop waiting for
+`complete` on fresh paginated responses that supplied data and a cursor with
+`complete: false`. The guide did not make this path clear; the
+[guide-gap ticket](../snapback3/issues/20260912-guide-gap-paginated-resource-readiness.md)
+records it. Counting client instances alone would miss this coordination work.
+
+The worker-only timing was particularly misleading as a product intuition.
+Final complete 10,000-message browser acquisition took about 33 seconds; the
+100,000-message account never completed before the three-minute cutoff.
+Useful first content appeared much sooner. A separate CPU profile attributes
+browser SDK, React and persistence-await work, with explicit measurement
+limits. Nearly half of logical server database bytes belong to the inherited
+generic index family. We now have a browser profile and storage breakdown to
+work from, rather than an unmeasured assumption that normalized persistence
+made acquisition inexpensive.
+
+The most consequential test changed when the foreground send occurred. The
+builder sent near acquisition startup and passed full offline verification.
+The independent assessor sent after substantial acquisition: all 10,000 IDs
+were eventually fetched, but only 200 were reachable through offline pagination
+after close/reopen. It reproduced the failure twice. Server rows remained
+intact; the local sequence-wide fence is consistent with the cache replacement.
+An accumulator of IDs ever fetched was not a durable-content oracle. The
+[retention ticket](../snapback3/issues/20260912-acquired-history-lost-across-sequence-advance.md)
+preserves the distinction and the authority constraints a repair must respect.
+
+The assessment was not automatically trustworthy either. Its first navigation
+probe ended on the group, then waited for a DM-only message. The report called
+the timeout an intermittent app defect even though the corrected probe selected
+the DM and passed. I preserved both probes and rejected that finding in a
+separate disposition. A zero-to-zero unread assertion and a confounded
+delivered-only receipt check also remain weaker than a complete UI result.
+Grader statuses were kept out of the next builder's regression inputs.
+
+The experimental package stayed fixed. The failed collection filter that
+omitted static assets under `dist/assets/node_modules` was repaired by restoring
+their exact frozen bytes, not by changing the application. The CPU diagnostic's
+first helper failure was retained before its single retry. These are evaluation
+mistakes, separate from the observed product failures. Snapback3 still needs a
+clearer ordinary acquisition contract and substantially cheaper browser work;
+the run establishes no equal-scope performance win over Snapback2 or Snapback4.
+
+Charlie singled out acquisition time during the run and asked whether there was
+a plan to make it fast. LLP 2000 §16 now makes the next experiment concrete:
+target a complete 10k workflow under three seconds on the checked browser host,
+first measure a compact authorized dataset through the browser, then build
+SDK-owned bounded acquisition with shared facts/evidence, incremental processing
+and fewer persistence/publication boundaries. The current profile's 151 page
+responses and 85,697 persistence row entries for 10,000 messages give that work
+a measured starting point. The target is not a performance result or a promise
+about every network. Retention, authority, foreground operations and the full
+offline endpoint stay part of the work; the benchmark package remains fixed.
+
+## 2026-09-12: fresh builder, polls and migration
+
+A fresh Astra medium session added polls and persisted message counts in
+976 seconds. Independent assessment supports all nine selected M7 assertions
+and reran the 25 prior passing regression IDs. The existing UI qualifications
+remain, and large acquisition was not rerun or repaired. The migration preserved
+all 42 persona-visible records and their populated receipt, timestamp, reaction,
+reply, edit and tombstone controls. Its public replay backfilled both original
+conversations, and the visible group count advanced from nine to ten to eleven
+as a poll and text arrived. An original offline vote survived actual browser
+close/reopen and settled with two votes total, without replacement or duplication.
+
+The authoring cost remained substantial. Optional arithmetic and cross-table
+ID errors required compiler corrections; a bounded tally scan was replaced by
+a maintained aggregate. The backfill rejects conversations beyond 200 visible
+messages and has no larger resumable path. A wrong persona list caused an
+explicit late census failure after the two backfill commits. A corrected
+all-persona census and physical row count proved this small fixture was fully
+covered; that does not establish a general migration solution.
+
+The retained old client kept its original send but could not execute it under
+the changed program. A coordinator control confirms its public status is
+`parked` with `S3_OPERATION_CHANGED`; the original input remains inspectable
+and no server message appears. The app has no complete recovery presentation,
+and the guide promises parked dismissal that the SDK refuses without a terminal
+receipt. That [recovery gap](../snapback3/issues/20260912-guide-gap-parked-operation-recovery.md)
+needs a concrete user flow, not a claim of automatic compatibility.
+
+The second assessment also needed inspection. Its snapshot comparator compared
+principal objects by identity; all their content and required message fields
+actually matched. Its nonmember-read helper discarded `status` and `error`,
+then described missing data as never completing. The corrected control returned
+`denied` and `NOT_MEMBER` four times. Its hidden-settings wait was a driver
+precondition failure. Raw failed attempts remain alongside the dispositions.
+These corrections neither erase the real acquisition failures nor turn selected
+passes into a full Clique score.
+
+After the benchmark, Charlie explicitly asked us to try reaching sub-three-second
+acquisition. That is the next implementation task under LLP 2000 §16, with the
+fixed package and collected run retained as the baseline.

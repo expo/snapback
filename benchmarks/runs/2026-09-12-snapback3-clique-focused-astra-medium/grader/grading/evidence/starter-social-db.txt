@@ -1,0 +1,26 @@
+===== main
+posts 28
+   sp0001 {"authorId": "user:5ocYUJT7yml-j2a-NgjSvA", "day": 20708, "id": "sp0001", "parentAuthor": null, "parentId": null, "serverTimestamp": 1789225568567, "text": "Coffee time at the corner table https://example.com/cafe"}
+   sp0002 {"authorId": "user:5ocYUJT7yml-j2a-NgjSvA", "day": 20708, "id": "sp0002", "parentAuthor": null, "parentId": null, "serverTimestamp": 1789225568571, "text": "[Projected images: media/img-02.png,media/img-03.png] Two color
+   sp0003 {"authorId": "user:5ocYUJT7yml-j2a-NgjSvA", "day": 20708, "id": "sp0003", "parentAuthor": null, "parentId": null, "serverTimestamp": 1789225568574, "text": "[Projected video: media/vid-01.mp4] A five-second hello from th
+likes 9 [{"authorId": "user:C_hseZnjWqUZBT41VLmirQ", "day": 20708, "id": "s3-0c2fea9e223c152cfd4996ae7fab85068a17fd1081787ee1baf16e7bd50d519b-0000", "postId": "sp0019", "userId": "user:4ZfodF3D7krFrmcjUg1DeA"}, {"authorId": "user:4ZfodF3D7krFrmcjUg1DeA", "day": 20708, "id": "s3-313c28a58e9322fdb8a7d1dc46159a4b788fa34439afdbf8072778cf0c3fbcb5-0000", "postId": "sp0022", "userId": "user:5ocYUJT7yml-j2a-NgjSvA"}, {"authorId": "user:THfw_zzHgu6hMvj3wS3T4A", "day": 20708, "id": "s3-34b181c60b928eecd2d058a119a9f3455126f1e785fdc19b8bec520c57468f67-0000", "postId": "sp0016", "userId": "user:C_hseZnjWqUZBT41VLmirQ"}]
+follows 12 [{"id": "s3-037c4d9d81cad1f381780c90ae8dcfd36c709ee70d620bb0e441786daf12de43-0000", "targetId": "user:5ocYUJT7yml-j2a-NgjSvA", "userId": "user:ufqMpInyBMv152B8BthCgg"}, {"id": "s3-070d7b02f240a0cac0dcfe24bce7e48c1e2f7621091fcf38fb0bf45185c05d9d-0000", "targetId": "user:C_hseZnjWqUZBT41VLmirQ", "userId": "user:4ZfodF3D7krFrmcjUg1DeA"}]
+reposts 4 [{"authorId": "user:7LSU2tBotQovTDZxSkuLIw", "id": "s3-13b47df694dc617391a2701e41d721c6dfb5a24289a45a71417b77da5c93cf5e-0000", "postId": "sp0013", "userId": "user:4ZfodF3D7krFrmcjUg1DeA"}, {"authorId": "user:XTNBcyFxnMjJ5OJJsSUfcQ", "id": "s3-b3f822390edc9b94b7d8b5c81efa923fb11113921734f9c2a64b6a6033621305-0000", "postId": "sp0004", "userId": "user:5ocYUJT7yml-j2a-NgjSvA"}]
+alice post entities 0 top-level 0 replies 0
+likes received by alice 0 []
+reposts received 0
+replies received 0
+followers 0 following 0
+===== starter
+posts 28
+   sp0001 {"authorId": "user:yPESCpaBcw5cjFZxlVklwQ", "day": 20708, "id": "sp0001", "parentAuthor": null, "parentId": null, "serverTimestamp": 1789226888144, "text": "Coffee time at the corner table https://example.com/cafe"}
+   sp0002 {"authorId": "user:yPESCpaBcw5cjFZxlVklwQ", "day": 20708, "id": "sp0002", "parentAuthor": null, "parentId": null, "serverTimestamp": 1789226888148, "text": "[Projected images: media/img-02.png,media/img-03.png] Two color
+   sp0003 {"authorId": "user:yPESCpaBcw5cjFZxlVklwQ", "day": 20708, "id": "sp0003", "parentAuthor": null, "parentId": null, "serverTimestamp": 1789226888151, "text": "[Projected video: media/vid-01.mp4] A five-second hello from th
+likes 8 [{"authorId": "user:yPESCpaBcw5cjFZxlVklwQ", "day": 20708, "id": "s3-2497bf6252bfec0fde24f44d8ea7655018102f4176972a7b07ec520168b3e6ff-0000", "postId": "sp0001", "userId": "user:LUxZCsBzObuYlz7_daZ0xg"}, {"authorId": "user:2bgrMuckdM_c7R-tMStXNQ", "day": 20708, "id": "s3-3e6623369892fa9a1422ecf3901877fd9b74c3bba6c5130050e4fbeb73742ba9-0000", "postId": "sp0022", "userId": "user:yPESCpaBcw5cjFZxlVklwQ"}, {"authorId": "user:yPESCpaBcw5cjFZxlVklwQ", "day": 20708, "id": "s3-940e9ae70d50dbf1548921ef21ef74ccf80e3c1d95ff6c9d11c3889c0a33bb06-0000", "postId": "sp0001", "userId": "user:BvgROYb0e9WPwbh9O3gSdg"}]
+follows 12 [{"id": "s3-13ba57180a496b7768623588b546b8a1086f2aca0283df2b869921813d305d55-0000", "targetId": "user:yPESCpaBcw5cjFZxlVklwQ", "userId": "user:LUxZCsBzObuYlz7_daZ0xg"}, {"id": "s3-21b0c801303803f03a0f9a0e3204c1965e3d7d0fa81d571b6c69854787a8b2b4-0000", "targetId": "user:aT0jdDlzdcQD2NoLoHcf1Q", "userId": "user:2bgrMuckdM_c7R-tMStXNQ"}]
+reposts 4 [{"authorId": "user:FXK8hqseSJGqCPAS4mxnLg", "id": "s3-26dcd32bec7c0688d1b0686fe014bf3c87050e9f64ce04d02507ac9cb4a0db05-0000", "postId": "sp0013", "userId": "user:2bgrMuckdM_c7R-tMStXNQ"}, {"authorId": "user:yPESCpaBcw5cjFZxlVklwQ", "id": "s3-8410e48429886788fe2a1d949826b5d2c5443aa87353c184546fdf3150de622c-0000", "postId": "sp0001", "userId": "user:BvgROYb0e9WPwbh9O3gSdg"}]
+alice post entities 0 top-level 0 replies 0
+likes received by alice 0 []
+reposts received 0
+replies received 0
+followers 0 following 0

@@ -1,0 +1,5 @@
+[
+  { rep: 1, status: 'pass', error: undefined, ms: 242 },
+  { rep: 2, status: 'pass', error: undefined, ms: 253 },
+  { rep: 3, status: 'pass', error: undefined, ms: 226 }
+]

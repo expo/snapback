@@ -1,0 +1,169 @@
+{
+  "status": "pass",
+  "mode": "read-only verification; no experiment",
+  "errors": [],
+  "secretScan": {
+    "method": "High-confidence credential patterns and excluded-path/SQLite checks, including decompressed source seed; not a guarantee that all conceivable secret formats are recognized.",
+    "rules": [
+      "private-key",
+      "openai-anthropic-key",
+      "github-token",
+      "aws-access-key",
+      "google-api-key",
+      "slack-token",
+      "jwt",
+      "bearer-value",
+      "literal-secret-assignment"
+    ],
+    "files": 59,
+    "decodedBytes": 26357890,
+    "findings": []
+  },
+  "markdownLinks": [
+    {
+      "from": "COLLECTION.md",
+      "target": "README.md",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "diagnostic.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "run.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "evidence-manifest.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "browser-main-thread.cpuprofile",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "top-self-time-functions.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "expected-u0500-ids.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "acquired-ids.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "profile.mjs",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "analyze-profile.mjs",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "summarize.py",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "inputs.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "source/app/src/acquire.ts",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "source/app/src/client.tsx",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "source/browser/_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "source/sdk/client.mjs",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "source/sdk/client.mjs.map",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "source/seed.ts.gz",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "attempt-1/harness-error.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "attempt-1/run.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "attempt-1/profile.mjs",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "attempt-1/browser-main-thread.cpuprofile",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "preparation-error.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "collection-selection.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "collection-manifest.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "provenance.json",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "verify-collection.py",
+      "exists": true
+    },
+    {
+      "from": "COLLECTION.md",
+      "target": "verification.json",
+      "exists": true
+    }
+  ],
+  "selectedSourceFiles": 53,
+  "originalEvidenceSealVerified": true,
+  "diagnosticModel": "gpt-5.6-sol",
+  "diagnosticEffort": "high",
+  "phase": "Payload source hashes, original evidence seal, public links and secret/path checks before collection sealing. Final sealed-manifest verification is retained separately."
+}

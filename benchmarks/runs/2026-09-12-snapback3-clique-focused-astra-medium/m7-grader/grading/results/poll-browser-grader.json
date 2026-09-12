@@ -1,0 +1,312 @@
+{
+ "url": "http://127.0.0.1:54901",
+ "steps": [
+  {
+   "t": 1789233980084,
+   "name": "alice-logged-in"
+  },
+  {
+   "t": 1789233980236,
+   "name": "group-initial",
+   "count": "9"
+  },
+  {
+   "t": 1789233980357,
+   "name": "dm-initial",
+   "count": "6"
+  },
+  {
+   "t": 1789234010591,
+   "name": "wait-10-failed",
+   "err": "TimeoutError: page.waitForFunction: Timeout 30000ms exceeded."
+  },
+  {
+   "t": 1789234010658,
+   "name": "group-after-poll",
+   "count": "10"
+  },
+  {
+   "t": 1789234010884,
+   "name": "group-after-text",
+   "count": "11"
+  },
+  {
+   "t": 1789234010918,
+   "name": "poll-id",
+   "pollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987"
+  },
+  {
+   "t": 1789234011780,
+   "name": "bob-poll-id",
+   "bobPollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987",
+   "sameId": true
+  },
+  {
+   "t": 1789234013309,
+   "name": "alice-voted-a",
+   "state": [
+    {
+     "question": "Grader canonical poll: where shall we meet?",
+     "options": [
+      {
+       "optionId": "a",
+       "selected": "true",
+       "busy": "false",
+       "label": "● Cafe A",
+       "count": 1
+      },
+      {
+       "optionId": "b",
+       "selected": "false",
+       "busy": "false",
+       "label": "Park B",
+       "count": 0
+      }
+     ],
+     "total": "1 vote"
+    }
+   ]
+  },
+  {
+   "t": 1789234014841,
+   "name": "alice-changed-b",
+   "state": [
+    {
+     "question": "Grader canonical poll: where shall we meet?",
+     "options": [
+      {
+       "optionId": "a",
+       "selected": "false",
+       "busy": "false",
+       "label": "Cafe A",
+       "count": 0
+      },
+      {
+       "optionId": "b",
+       "selected": "true",
+       "busy": "false",
+       "label": "● Park B",
+       "count": 1
+      }
+     ],
+     "total": "1 vote"
+    }
+   ]
+  },
+  {
+   "t": 1789234017345,
+   "name": "bob-live",
+   "state": [
+    {
+     "question": "Grader canonical poll: where shall we meet?",
+     "options": [
+      {
+       "optionId": "a",
+       "selected": "false",
+       "busy": "false",
+       "label": "Cafe A",
+       "count": 0
+      },
+      {
+       "optionId": "b",
+       "selected": "false",
+       "busy": "false",
+       "label": "Park B",
+       "count": 1
+      }
+     ],
+     "total": "1 vote"
+    }
+   ]
+  },
+  {
+   "t": 1789234018875,
+   "name": "bob-voted-a",
+   "state": [
+    {
+     "question": "Grader canonical poll: where shall we meet?",
+     "options": [
+      {
+       "optionId": "a",
+       "selected": "true",
+       "busy": "false",
+       "label": "● Cafe A",
+       "count": 1
+      },
+      {
+       "optionId": "b",
+       "selected": "false",
+       "busy": "false",
+       "label": "Park B",
+       "count": 1
+      }
+     ],
+     "total": "2 votes"
+    }
+   ]
+  }
+ ],
+ "results": {
+  "groupCountInitialUI": "9",
+  "dmCountInitialUI": "6",
+  "groupCountAfterPollUI": "10",
+  "groupCountAfterTextUI": "11",
+  "pollStateAliceInitial": [
+   {
+    "question": "Grader canonical poll: where shall we meet?",
+    "options": [
+     {
+      "optionId": "a",
+      "selected": "false",
+      "busy": "false",
+      "label": "Cafe A",
+      "count": 0
+     },
+     {
+      "optionId": "b",
+      "selected": "false",
+      "busy": "false",
+      "label": "Park B",
+      "count": 0
+     }
+    ],
+    "total": "0 votes"
+   }
+  ],
+  "pollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987",
+  "pollStateBobInitial": [
+   {
+    "question": "Grader canonical poll: where shall we meet?",
+    "options": [
+     {
+      "optionId": "a",
+      "selected": "false",
+      "busy": "false",
+      "label": "Cafe A",
+      "count": 0
+     },
+     {
+      "optionId": "b",
+      "selected": "false",
+      "busy": "false",
+      "label": "Park B",
+      "count": 0
+     }
+    ],
+    "total": "0 votes"
+   }
+  ],
+  "bobPollId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987",
+  "afterAliceVoteA": [
+   {
+    "question": "Grader canonical poll: where shall we meet?",
+    "options": [
+     {
+      "optionId": "a",
+      "selected": "true",
+      "busy": "false",
+      "label": "● Cafe A",
+      "count": 1
+     },
+     {
+      "optionId": "b",
+      "selected": "false",
+      "busy": "false",
+      "label": "Park B",
+      "count": 0
+     }
+    ],
+    "total": "1 vote"
+   }
+  ],
+  "afterAliceChangeB": [
+   {
+    "question": "Grader canonical poll: where shall we meet?",
+    "options": [
+     {
+      "optionId": "a",
+      "selected": "false",
+      "busy": "false",
+      "label": "Cafe A",
+      "count": 0
+     },
+     {
+      "optionId": "b",
+      "selected": "true",
+      "busy": "false",
+      "label": "● Park B",
+      "count": 1
+     }
+    ],
+    "total": "1 vote"
+   }
+  ],
+  "bobSeesAliceVote": [
+   {
+    "question": "Grader canonical poll: where shall we meet?",
+    "options": [
+     {
+      "optionId": "a",
+      "selected": "false",
+      "busy": "false",
+      "label": "Cafe A",
+      "count": 0
+     },
+     {
+      "optionId": "b",
+      "selected": "false",
+      "busy": "false",
+      "label": "Park B",
+      "count": 1
+     }
+    ],
+    "total": "1 vote"
+   }
+  ],
+  "afterBobVoteA": [
+   {
+    "question": "Grader canonical poll: where shall we meet?",
+    "options": [
+     {
+      "optionId": "a",
+      "selected": "true",
+      "busy": "false",
+      "label": "● Cafe A",
+      "count": 1
+     },
+     {
+      "optionId": "b",
+      "selected": "false",
+      "busy": "false",
+      "label": "Park B",
+      "count": 1
+     }
+    ],
+    "total": "2 votes"
+   }
+  ],
+  "bobOfflinePending": [
+   {
+    "question": "Grader canonical poll: where shall we meet?",
+    "options": [
+     {
+      "optionId": "a",
+      "selected": "false",
+      "busy": "false",
+      "label": "Cafe A",
+      "count": 1
+     },
+     {
+      "optionId": "b",
+      "selected": "true",
+      "busy": "true",
+      "label": "● Park B",
+      "count": 1
+     }
+    ],
+    "total": "2 votes"
+   }
+  ]
+ },
+ "fatal": "Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'pending')\n    at eval (eval at evaluate (:311:30), <anonymous>:1:25)\n    at UtilityScript.evaluate (<anonymous>:313:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+}

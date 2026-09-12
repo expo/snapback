@@ -1,0 +1,58 @@
+{
+  "sourceCommit": "409954115f151a72dd95e897c5f00f36877f11e0",
+  "instrumentCommit": "b323d61f60b5d167708ca6ebe6434b1d5a79c899",
+  "instrumentVersion": "0.3.8-m8",
+  "filesVerified": 185,
+  "instrumentManifestSha256": "b183d949bb4c5871747afb92f0eccb153c813765037507ef4d888f76a6da07a6",
+  "host": "expose-builder-pixel",
+  "remoteEpoch": 1789221740,
+  "ports": [
+    54800,
+    54801,
+    54802,
+    54803,
+    54804,
+    54805,
+    54806,
+    54807,
+    54808,
+    54809,
+    54810,
+    54811,
+    54812,
+    54813,
+    54814,
+    54815,
+    54816,
+    54817,
+    54818,
+    54819
+  ],
+  "supplementalProductDocs": {
+    "guide.md": {
+      "bytes": 7724,
+      "sha256": "ce787c06b38fdb6a46b18ddd67c34935443e41faad08f57964c046a898682d17"
+    },
+    "README.md": {
+      "bytes": 4899,
+      "sha256": "b4f1216b00925cde5749ea54282f3106f89336bebfdcb5fe40817da550c5ba55"
+    }
+  },
+  "privatePackage": true,
+  "capEnforcement": "prompt-only 4h per milestone; no authenticated numeric cap controller",
+  "holdouts": null,
+  "calibrationPassed": false,
+  "nativeAppleProof": "unavailable-linux",
+  "phaseOrder": [
+    "builder",
+    "independent-grade",
+    "m7-if-eligible"
+  ],
+  "preparationErrors": [
+    {
+      "action": "bun install before completed source transfer",
+      "result": "package.json absent; exit 1; no actor launched",
+      "recovery": "awaited successful source transfer before rerun"
+    }
+  ]
+}

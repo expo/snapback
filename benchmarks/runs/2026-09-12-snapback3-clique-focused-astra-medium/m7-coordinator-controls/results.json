@@ -1,0 +1,356 @@
+{
+  "kind": "separate coordinator diagnostic; not a new grade",
+  "startedEpochMs": 1789236579404,
+  "operationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+  "messageId": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+  "processes": [
+    {
+      "pid": 1791064,
+      "ppid": 1791056,
+      "startTick": "159549769",
+      "state": "R",
+      "role": "owner-54910",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791077,
+      "ppid": 1791064,
+      "startTick": "159549814",
+      "state": "S",
+      "role": "owner-54910-descendant",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791056,
+      "ppid": 1791031,
+      "startTick": "159549742",
+      "state": "R",
+      "role": "controller"
+    },
+    {
+      "pid": 1791082,
+      "ppid": 1791056,
+      "startTick": "159549848",
+      "state": "S",
+      "role": "chromium",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791084,
+      "ppid": 1791082,
+      "startTick": "159549850",
+      "state": "S",
+      "role": "chromium-descendant",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791085,
+      "ppid": 1791082,
+      "startTick": "159549850",
+      "state": "S",
+      "role": "chromium-descendant",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791100,
+      "ppid": 1791084,
+      "startTick": "159549853",
+      "state": "S",
+      "role": "chromium-descendant",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791102,
+      "ppid": 1791082,
+      "startTick": "159549853",
+      "state": "S",
+      "role": "chromium-descendant",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791108,
+      "ppid": 1791085,
+      "startTick": "159549854",
+      "state": "S",
+      "role": "chromium-descendant",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791779,
+      "ppid": 1791056,
+      "startTick": "159552505",
+      "state": "R",
+      "role": "owner-54903",
+      "afterStop": "absent"
+    },
+    {
+      "pid": 1791797,
+      "ppid": 1791779,
+      "startTick": "159552550",
+      "state": "S",
+      "role": "owner-54903-descendant",
+      "afterStop": "absent"
+    }
+  ],
+  "oldClient": [
+    {
+      "phase": "offline-restored",
+      "epochMs": 1789236580530,
+      "clientStatus": "offline",
+      "clientError": {
+        "code": "S3_NETWORK",
+        "message": "Failed to fetch"
+      },
+      "operation": {
+        "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+        "op": "messages.send",
+        "status": "parked",
+        "error": {
+          "code": "S3_OPERATION_CHANGED",
+          "message": "This saved change uses an older application. Review it before submitting a new change."
+        },
+        "receipt": null
+      },
+      "pending": [
+        {
+          "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+          "op": "messages.send",
+          "status": "parked",
+          "error": {
+            "code": "S3_OPERATION_CHANGED",
+            "message": "This saved change uses an older application. Review it before submitting a new change."
+          },
+          "receipt": null
+        }
+      ]
+    },
+    {
+      "phase": "online-5s",
+      "epochMs": 1789236585540,
+      "clientStatus": "online",
+      "clientError": null,
+      "operation": {
+        "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+        "op": "messages.send",
+        "status": "parked",
+        "error": {
+          "code": "S3_OPERATION_CHANGED",
+          "message": "This saved change uses an older application. Review it before submitting a new change."
+        },
+        "receipt": null
+      },
+      "pending": [
+        {
+          "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+          "op": "messages.send",
+          "status": "parked",
+          "error": {
+            "code": "S3_OPERATION_CHANGED",
+            "message": "This saved change uses an older application. Review it before submitting a new change."
+          },
+          "receipt": null
+        }
+      ]
+    },
+    {
+      "phase": "online-10s",
+      "epochMs": 1789236590545,
+      "clientStatus": "online",
+      "clientError": null,
+      "operation": {
+        "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+        "op": "messages.send",
+        "status": "parked",
+        "error": {
+          "code": "S3_OPERATION_CHANGED",
+          "message": "This saved change uses an older application. Review it before submitting a new change."
+        },
+        "receipt": null
+      },
+      "pending": [
+        {
+          "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+          "op": "messages.send",
+          "status": "parked",
+          "error": {
+            "code": "S3_OPERATION_CHANGED",
+            "message": "This saved change uses an older application. Review it before submitting a new change."
+          },
+          "receipt": null
+        }
+      ]
+    },
+    {
+      "phase": "online-15s",
+      "epochMs": 1789236595554,
+      "clientStatus": "online",
+      "clientError": null,
+      "operation": {
+        "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+        "op": "messages.send",
+        "status": "parked",
+        "error": {
+          "code": "S3_OPERATION_CHANGED",
+          "message": "This saved change uses an older application. Review it before submitting a new change."
+        },
+        "receipt": null
+      },
+      "pending": [
+        {
+          "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+          "op": "messages.send",
+          "status": "parked",
+          "error": {
+            "code": "S3_OPERATION_CHANGED",
+            "message": "This saved change uses an older application. Review it before submitting a new change."
+          },
+          "receipt": null
+        }
+      ]
+    },
+    {
+      "phase": "online-20s",
+      "epochMs": 1789236600559,
+      "clientStatus": "online",
+      "clientError": null,
+      "operation": {
+        "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+        "op": "messages.send",
+        "status": "parked",
+        "error": {
+          "code": "S3_OPERATION_CHANGED",
+          "message": "This saved change uses an older application. Review it before submitting a new change."
+        },
+        "receipt": null
+      },
+      "pending": [
+        {
+          "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+          "op": "messages.send",
+          "status": "parked",
+          "error": {
+            "code": "S3_OPERATION_CHANGED",
+            "message": "This saved change uses an older application. Review it before submitting a new change."
+          },
+          "receipt": null
+        }
+      ]
+    },
+    {
+      "phase": "online-25s",
+      "epochMs": 1789236605567,
+      "clientStatus": "online",
+      "clientError": null,
+      "operation": {
+        "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+        "op": "messages.send",
+        "status": "parked",
+        "error": {
+          "code": "S3_OPERATION_CHANGED",
+          "message": "This saved change uses an older application. Review it before submitting a new change."
+        },
+        "receipt": null
+      },
+      "pending": [
+        {
+          "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+          "op": "messages.send",
+          "status": "parked",
+          "error": {
+            "code": "S3_OPERATION_CHANGED",
+            "message": "This saved change uses an older application. Review it before submitting a new change."
+          },
+          "receipt": null
+        }
+      ]
+    }
+  ],
+  "polls": [
+    {
+      "attempt": 1,
+      "epochMs": 1789236607519,
+      "status": "denied",
+      "fresh": true,
+      "complete": false,
+      "seq": 186,
+      "dataPresent": false,
+      "data": null,
+      "error": {
+        "code": "NOT_MEMBER",
+        "message": "This resource is unavailable to this account."
+      }
+    },
+    {
+      "attempt": 2,
+      "epochMs": 1789236607825,
+      "status": "denied",
+      "fresh": true,
+      "complete": false,
+      "seq": 186,
+      "dataPresent": false,
+      "data": null,
+      "error": {
+        "code": "NOT_MEMBER",
+        "message": "This resource is unavailable to this account."
+      }
+    },
+    {
+      "attempt": 3,
+      "epochMs": 1789236608133,
+      "status": "denied",
+      "fresh": true,
+      "complete": false,
+      "seq": 186,
+      "dataPresent": false,
+      "data": null,
+      "error": {
+        "code": "NOT_MEMBER",
+        "message": "This resource is unavailable to this account."
+      }
+    },
+    {
+      "attempt": 4,
+      "epochMs": 1789236608440,
+      "status": "denied",
+      "fresh": true,
+      "complete": false,
+      "seq": 186,
+      "dataPresent": false,
+      "data": null,
+      "error": {
+        "code": "NOT_MEMBER",
+        "message": "This resource is unavailable to this account."
+      }
+    }
+  ],
+  "failures": [],
+  "serverBefore": {
+    "status": "ready",
+    "complete": true,
+    "fresh": true,
+    "seq": 41,
+    "error": null,
+    "observedRows": 6,
+    "originalMessagePresent": false,
+    "next": null
+  },
+  "onlineStartEpochMs": 1789236580533,
+  "onlineEndEpochMs": 1789236605569,
+  "onlineObservedMs": 25036,
+  "serverAfter": {
+    "status": "ready",
+    "complete": true,
+    "fresh": true,
+    "seq": 41,
+    "error": null,
+    "observedRows": 6,
+    "originalMessagePresent": false,
+    "next": null
+  },
+  "pollControl": {
+    "group": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea",
+    "poll": "0a7a16ae-e978-485b-94a4-50775d954d35",
+    "actor": "dave"
+  },
+  "finishedEpochMs": 1789236609121
+}

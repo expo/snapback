@@ -1,0 +1,20 @@
+{
+  "scope": "coordinator-only read-only snapshot audit",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 614,
+      "sha256": "1c1be4ca21efc4a3adbdee87a98755c73a3452f8c2bffc0cb5b576987c3d0634"
+    },
+    {
+      "path": "check-m7-snapshots.py",
+      "bytes": 3110,
+      "sha256": "307218e7ffc622a81065666b64d9bf691a1c0cd7345761c250b7bb8b7c7f9235"
+    },
+    {
+      "path": "m7-snapshot-audit.json",
+      "bytes": 2246,
+      "sha256": "215e272a5620fe26dd92691f9f7f2aab980b7ffc60a14f1a6955d35ddd2ecd1e"
+    }
+  ]
+}

@@ -1,0 +1,402 @@
+{
+  "epoch": 1789229228748,
+  "expectedSource": "Frozen fixture membership projection plus recorded foreground mutation IDs, with server timestamps only establishing their arrival boundary",
+  "audits": [
+    {
+      "file": "evidence/acquisition-1789226390051/u0001-1.json",
+      "status": "failed",
+      "expectedFixture": 100000,
+      "observedFixture": 0,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c"
+      ],
+      "missingDiagnostics": null,
+      "exactCompletedScope": false
+    },
+    {
+      "file": "evidence/acquisition-1789226390051/u0500-1.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789226390051/u0500-2.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789226390051/u0500-3.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789226894877/u0500-1.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789226894877/u0500-2.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789226894877/u0500-3.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789227560621/u0001-1.json",
+      "status": "timeout",
+      "expectedFixture": 100000,
+      "observedFixture": 42400,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466"
+      ],
+      "missingDiagnostics": null,
+      "exactCompletedScope": false
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0001-1.json",
+      "status": "timeout",
+      "expectedFixture": 100000,
+      "observedFixture": 42900,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+        "21fac831-0f93-49e1-a879-03f1c97beb31"
+      ],
+      "missingDiagnostics": null,
+      "exactCompletedScope": false
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0001-2.json",
+      "status": "timeout",
+      "expectedFixture": 100000,
+      "observedFixture": 42500,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+        "21fac831-0f93-49e1-a879-03f1c97beb31",
+        "b297ceab-e581-4784-b082-1143f6884295"
+      ],
+      "missingDiagnostics": null,
+      "exactCompletedScope": false
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0001-3.json",
+      "status": "timeout",
+      "expectedFixture": 100000,
+      "observedFixture": 42900,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+        "21fac831-0f93-49e1-a879-03f1c97beb31",
+        "b297ceab-e581-4784-b082-1143f6884295",
+        "ca1d55a6-2506-4582-9371-3036eb03b1f0"
+      ],
+      "missingDiagnostics": null,
+      "exactCompletedScope": false
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0500-1.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0500-2.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    },
+    {
+      "file": "evidence/acquisition-1789227775383/u0500-3.json",
+      "status": "complete",
+      "expectedFixture": 10000,
+      "observedFixture": 10000,
+      "duplicateIds": 0,
+      "unrecognizedExtraIds": [],
+      "observedDiagnosticIds": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886"
+      ],
+      "expectedDiagnosticsForCompletedAttempt": [
+        "b9a94254-9709-4550-83d9-0d2f24271af9",
+        "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+        "4c26daae-2207-4d3e-88d4-7eab5345af64",
+        "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+        "b8979d9c-8e2b-496e-b651-6c46811ad252",
+        "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+        "260efcf4-276b-483f-a40d-2f301455d011",
+        "e28a6219-3823-443f-8ca3-f845be43c84a",
+        "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+        "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+        "ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+        "845f95a1-533a-4e67-b55c-298618a84466",
+        "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+        "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+        "a7a57cab-f509-45a8-b895-4ebb7ffb4886"
+      ],
+      "missingDiagnostics": [],
+      "exactCompletedScope": true
+    }
+  ]
+}

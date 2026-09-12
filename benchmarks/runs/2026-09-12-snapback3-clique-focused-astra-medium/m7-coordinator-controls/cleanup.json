@@ -1,0 +1,89 @@
+{
+  "observedEpochMs": 1789236670408,
+  "ownedProcesses": [
+    {
+      "pid": 1791064,
+      "startTick": "159549769",
+      "role": "owner-54910",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791077,
+      "startTick": "159549814",
+      "role": "owner-54910-descendant",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791056,
+      "startTick": "159549742",
+      "role": "controller",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791082,
+      "startTick": "159549848",
+      "role": "chromium",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791084,
+      "startTick": "159549850",
+      "role": "chromium-descendant",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791085,
+      "startTick": "159549850",
+      "role": "chromium-descendant",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791100,
+      "startTick": "159549853",
+      "role": "chromium-descendant",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791102,
+      "startTick": "159549853",
+      "role": "chromium-descendant",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791108,
+      "startTick": "159549854",
+      "role": "chromium-descendant",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791779,
+      "startTick": "159552505",
+      "role": "owner-54903",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    },
+    {
+      "pid": 1791797,
+      "startTick": "159552550",
+      "role": "owner-54903-descendant",
+      "sameIdentityRemaining": false,
+      "state": "absent"
+    }
+  ],
+  "ports": "State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess\n",
+  "stoppedDatabaseHashes": {
+    "app-oldclient": "4345de3104a464e53f3059b8aec1dc958785531e3b0a8a3da12f6103fd1d4c12",
+    "app-final": "a0fb3f4d1ac5799369cc77d9238609984fe709d34ded480d4411f29aa2090216"
+  },
+  "nodeVersion": "v24.13.1",
+  "playwrightVersion": "1.62.1"
+}

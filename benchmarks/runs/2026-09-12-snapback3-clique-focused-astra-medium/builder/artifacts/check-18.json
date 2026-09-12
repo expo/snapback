@@ -1,0 +1,5 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_CHECK: {"error":{"code":"S3_CERTIFICATION","message":"messages.setReaction: E_STRUCTURAL_FANOUT: `for` over reactions.byMessage at messages.setReaction/for/__bound_loopItem_1/0 may end before its range does: reactions has no cap over messageId; 100 is this loop's bound, not a platform maximum. A cap refuses the 101st row per group and prices writes by 100 (guide fanout); rewrite: cap 100 by messageId\nmessages.setReaction: E_STRUCTURAL_COUNT: deleted key depends on capped-only site messages.setReaction.2; its read rule is not uniform over the scanned prefix; rewrite: denormalize the authorization scope onto reactions and include it in the byMessage prefix so the rule is uniform, or declare maintain totals: count reactions by <scope> and read the maintained aggregate"},"ok":false}

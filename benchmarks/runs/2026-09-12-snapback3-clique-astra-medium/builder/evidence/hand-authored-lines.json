@@ -1,0 +1,24 @@
+{
+  "method": "physical non-trailing-empty source/config/test lines; copied kit/instrument, dependencies, generated declarations, exports, docs and receipts excluded",
+  "files": {
+    "package.json": 34,
+    "app.json": 1,
+    "tsconfig.json": 1,
+    "app/_layout.tsx": 5,
+    "app/index.tsx": 3,
+    "app/settings.tsx": 3,
+    "app/profile/[handle].tsx": 4,
+    "app/profile/edit.tsx": 3,
+    "src/client.tsx": 4,
+    "src/screens.tsx": 16,
+    "scripts/acceptance.mjs": 29,
+    "scripts/auth-probe.mjs": 10,
+    "scripts/choreography.mjs": 4,
+    "scripts/seed.mjs": 30,
+    "scripts/server.mjs": 6,
+    "scripts/setup-identity.mjs": 6,
+    "snapback/profiles.q": 9,
+    "snapback/schema.q": 15
+  },
+  "total": 183
+}

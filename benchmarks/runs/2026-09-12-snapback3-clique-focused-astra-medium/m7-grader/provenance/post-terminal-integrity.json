@@ -1,0 +1,85 @@
+{
+  "schema": "snapback3-focused-m7-grader-post-terminal-integrity.v1",
+  "fixedPackage": {
+    "archiveSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "archivePayloadFiles": 108,
+    "installed": [
+      {
+        "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-grade/node_modules/snapback3",
+        "archivePayloadFiles": 108,
+        "mismatches": [],
+        "exact": true
+      },
+      {
+        "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-grade/m7/custom-client/node_modules/snapback3",
+        "archivePayloadFiles": 108,
+        "mismatches": [],
+        "exact": true
+      }
+    ]
+  },
+  "appSource": {
+    "comparedToM7FinalManifest": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-final.manifest.json",
+    "checkedFiles": 115,
+    "mismatches": [],
+    "exact": true
+  },
+  "immutableInputs": [
+    {
+      "path": ".snapback3/store.sqlite",
+      "sha256": "936bf1ac473b358961adb62e1fd4f1681a16e661d6b3055c9247f364faa12773",
+      "expectedSha256": "936bf1ac473b358961adb62e1fd4f1681a16e661d6b3055c9247f364faa12773",
+      "matches": true
+    },
+    {
+      "path": ".snapback3/store.sqlite-wal",
+      "sha256": "546bb18ae9f6a12efbd91fe4b576a4c4addb84293d6faf1e10978aa25571ccc6",
+      "expectedSha256": "546bb18ae9f6a12efbd91fe4b576a4c4addb84293d6faf1e10978aa25571ccc6",
+      "matches": true
+    },
+    {
+      "path": ".snapback3/store.sqlite-shm",
+      "sha256": "0cbe6c16bae6af02df2fe30bea9c6958b8dd6bb57eb210b316c5fb3d0c011467",
+      "expectedSha256": "0cbe6c16bae6af02df2fe30bea9c6958b8dd6bb57eb210b316c5fb3d0c011467",
+      "matches": true
+    },
+    {
+      "path": "grading-input/pre-m7-db/store.sqlite",
+      "sha256": "79dc997ef76cbe47a689f612ef88bc89a2e21a361460aa4e58dca2acb07d1487",
+      "expectedSha256": "79dc997ef76cbe47a689f612ef88bc89a2e21a361460aa4e58dca2acb07d1487",
+      "matches": true
+    },
+    {
+      "path": "grading-input/pre-m7-db/store.sqlite-wal",
+      "sha256": "c0568d69af5afbb9bf66770cbbee96ada98399568e1f79f6d07885060e54ae52",
+      "expectedSha256": "c0568d69af5afbb9bf66770cbbee96ada98399568e1f79f6d07885060e54ae52",
+      "matches": true
+    },
+    {
+      "path": "grading-input/pre-m7-db/store.sqlite-shm",
+      "sha256": "94f17bd265590cf6dbb049295fb5d296d97cbfe6bc1fa2dbb0e8ca75d25c1660",
+      "expectedSha256": "94f17bd265590cf6dbb049295fb5d296d97cbfe6bc1fa2dbb0e8ca75d25c1660",
+      "matches": true
+    },
+    {
+      "path": "grading-input/old-client/profile.tar.gz",
+      "sha256": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+      "expectedSha256": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+      "matches": true
+    },
+    {
+      "path": "selected-results.json",
+      "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+      "expectedSha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+      "matches": true
+    },
+    {
+      "path": "m7/selected-results.json",
+      "sha256": "f93597cc9928ce66ab4b30737f4c3c9e188bbb6f8496886d05650e25a3f3d47e",
+      "expectedSha256": "f93597cc9928ce66ab4b30737f4c3c9e188bbb6f8496886d05650e25a3f3d47e",
+      "matches": true
+    }
+  ],
+  "allImmutableInputsMatch": true,
+  "qualification": "Read-only post-terminal hash verification; isolated grading replica databases are excluded because grader probes intentionally mutated them. No repair performed."
+}

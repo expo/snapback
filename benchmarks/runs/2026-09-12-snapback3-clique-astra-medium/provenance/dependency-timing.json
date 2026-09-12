@@ -1,0 +1,40 @@
+{
+  "version": "snapback3-original-dependency-timing.v1",
+  "conclusion": "Application dependencies were installed by the builder after launch, not supplied as a preinstalled baseline.",
+  "preflight": {
+    "toolingInstallEpoch": 1789221831,
+    "toolingInstallReceipt": "preflight/tooling-install.log",
+    "toolingInstallResult": "added 7 packages in 819ms",
+    "preBuilderEpoch": 1789221832,
+    "preBuilderReceipt": "preflight/pre-builder.json",
+    "limit": "These records establish preflight tooling readiness; they do not establish installed application dependencies."
+  },
+  "builder": {
+    "actorStartedEpoch": 1789222650,
+    "m1AuthoringStartedEpoch": 1789222660,
+    "m1AuthoringEndedEpoch": 1789223246,
+    "transcriptEvidence": [
+      {
+        "records": [23, 24],
+        "result": "exit 0",
+        "action": "npm init followed by installation of the pinned private Snapback 3 tarball"
+      },
+      {
+        "records": [29, 30],
+        "result": "exit 0",
+        "action": "npm install"
+      },
+      {
+        "records": [51, 54],
+        "result": "exit 0",
+        "action": "exact Expo, router, React, React DOM, React Native, and React Native Web installation"
+      },
+      {
+        "records": [73, 74],
+        "result": "exit 0",
+        "action": "exact React Native screens, safe-area context, Expo Metro runtime, and React type installation"
+      }
+    ],
+    "rawTranscript": "retained privately and omitted from the selected public collection"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "basePass": true,
+  "baseErrors": null,
+  "composedPass": false,
+  "composedErrors": [
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/then/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "typingObservationBoundaryVersion"
+      },
+      "message": "must have required property 'typingObservationBoundaryVersion'"
+    },
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/then/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "orientation"
+      },
+      "message": "must have required property 'orientation'"
+    },
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/then/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "observabilityProtocol"
+      },
+      "message": "must have required property 'observabilityProtocol'"
+    },
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/then/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "efficiencyScorecardEligibility"
+      },
+      "message": "must have required property 'efficiencyScorecardEligibility'"
+    },
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/then/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "suiteStatusLinkage"
+      },
+      "message": "must have required property 'suiteStatusLinkage'"
+    },
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "meteringProvenance"
+      },
+      "message": "must have required property 'meteringProvenance'"
+    },
+    {
+      "instancePath": "/socialMessenger/clocks/grading/sessions",
+      "schemaPath": "#/properties/clocks/properties/grading/properties/sessions/minItems",
+      "keyword": "minItems",
+      "params": {
+        "limit": 1
+      },
+      "message": "must NOT have fewer than 1 items"
+    }
+  ],
+  "reason": "No grading session or authenticated metering manifest exists; cannot claim a post-grading composed record."
+}

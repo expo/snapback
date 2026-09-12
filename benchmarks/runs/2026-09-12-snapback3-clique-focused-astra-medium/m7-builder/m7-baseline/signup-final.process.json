@@ -1,0 +1,45 @@
+{
+  "phase": "signup-final",
+  "pid": 1615825,
+  "procStartTicks": "158920126",
+  "command": [
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "node_modules/snapback3/dist/cli.mjs",
+    "serve",
+    ".",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "54910"
+  ],
+  "cwd": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare",
+  "port": 54910,
+  "startedEpoch": 1789230282.977415,
+  "load": [
+    0.794921875,
+    0.8759765625,
+    0.82958984375
+  ],
+  "memAvailable": "MemAvailable:   252847940 kB",
+  "diskFreeGiB": 273.7824516296387,
+  "health": {
+    "ok": true,
+    "pid": 1615838,
+    "seq": 0,
+    "version": "0.0.1"
+  },
+  "children": [
+    {
+      "pid": 1615838,
+      "procStartTicks": "158920169"
+    }
+  ],
+  "readyEpoch": 1789230283.5978975,
+  "stoppedEpoch": 1789230284.5984905,
+  "childFinalStates": [
+    {
+      "pid": 1615838,
+      "sameProcessStillPresent": false
+    }
+  ]
+}

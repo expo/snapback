@@ -1,0 +1,889 @@
+{
+ "path": "grading/dbcopy-final/store.sqlite",
+ "tables": [
+  {
+   "table_name": "conversations",
+   "n": 3
+  },
+  {
+   "table_name": "follows",
+   "n": 12
+  },
+  {
+   "table_name": "likes",
+   "n": 9
+  },
+  {
+   "table_name": "members",
+   "n": 7
+  },
+  {
+   "table_name": "messages",
+   "n": 33
+  },
+  {
+   "table_name": "pollTallies",
+   "n": 1
+  },
+  {
+   "table_name": "polls",
+   "n": 4
+  },
+  {
+   "table_name": "posts",
+   "n": 28
+  },
+  {
+   "table_name": "profiles",
+   "n": 8
+  },
+  {
+   "table_name": "reactions",
+   "n": 4
+  },
+  {
+   "table_name": "reads",
+   "n": 5
+  },
+  {
+   "table_name": "reposts",
+   "n": 4
+  },
+  {
+   "table_name": "votes",
+   "n": 2
+  }
+ ],
+ "meta": [
+  {
+   "key": "created_at",
+   "v": "1789230283419"
+  },
+  {
+   "key": "store_version",
+   "v": "2"
+  },
+  {
+   "key": "owner",
+   "v": "1675445@expose-builder-pixel:1789232327799"
+  },
+  {
+   "key": "schema_hash",
+   "v": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+  },
+  {
+   "key": "generation",
+   "v": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+  },
+  {
+   "key": "program_generation",
+   "v": "7cefed0544a29a837a3484e5a013ac532903f3599d43016c5cb7da28d6cf4f03"
+  },
+  {
+   "key": "schema_json",
+   "v": "{\"tables\":{\"conversations\":{\"columns\":{\"id\":\"Id\",\"kind\":{\"Text\":{\"max\":10}},\"messageCount\":{\"Optional\":\"Int\"},\"name\":{\"T"
+  },
+  {
+   "key": "effects_json",
+   "v": "{}"
+  },
+  {
+   "key": "effects_generation",
+   "v": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+   "key": "evaluator_version",
+   "v": "bounded-spike-rust-search-text-refinements-5"
+  },
+  {
+   "key": "effects_json:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+   "v": "{}"
+  },
+  {
+   "key": "last_successor",
+   "v": "{\"from\":\"eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382\",\"to\":\"077fec9f9adc6d1f5e0b5fbabd37394626573e2"
+  }
+ ],
+ "commitCount": {
+  "n": 115,
+  "mx": 115
+ },
+ "principals": [
+  {
+   "id": "system",
+   "kind": "system",
+   "name": "system",
+   "created_at": 1789230283419
+  },
+  {
+   "id": "user:qaozGeVVhk11WPsju8lZuQ",
+   "kind": "user",
+   "name": "alice@example.com",
+   "created_at": 1789230283730
+  },
+  {
+   "id": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "kind": "user",
+   "name": "bob@example.com",
+   "created_at": 1789230283843
+  },
+  {
+   "id": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+   "kind": "user",
+   "name": "carol@example.com",
+   "created_at": 1789230283947
+  },
+  {
+   "id": "user:3n0jprUZLVMmPHwatu0D-A",
+   "kind": "user",
+   "name": "dave@example.com",
+   "created_at": 1789230284038
+  },
+  {
+   "id": "user:etpcePnmdrui9TAFp9jA-w",
+   "kind": "user",
+   "name": "erin@example.com",
+   "created_at": 1789230284127
+  },
+  {
+   "id": "user:MN_RHgPNH0xduFG6_nnlaA",
+   "kind": "user",
+   "name": "frank@example.com",
+   "created_at": 1789230284211
+  },
+  {
+   "id": "user:BrdvuXnhWwngpSmhPfDJpA",
+   "kind": "user",
+   "name": "grace@example.com",
+   "created_at": 1789230284294
+  },
+  {
+   "id": "user:qzV_EI-dn06mt_7VdL5x-g",
+   "kind": "user",
+   "name": "henry@example.com",
+   "created_at": 1789230284373
+  }
+ ],
+ "conversations": [
+  {
+   "id": "d-alice-bob",
+   "Row": {
+    "id": {
+     "Id": "d-alice-bob"
+    },
+    "kind": {
+     "String": "dm"
+    },
+    "messageCount": {
+     "Int": 18
+    },
+    "name": {
+     "String": "d-alice-bob"
+    },
+    "owner": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter",
+   "Row": {
+    "id": {
+     "Id": "g-starter"
+    },
+    "kind": {
+     "String": "group"
+    },
+    "messageCount": {
+     "Int": 11
+    },
+    "name": {
+     "String": "Weekend Plans"
+    },
+    "owner": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+   "Row": {
+    "id": {
+     "Id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f"
+    },
+    "kind": {
+     "String": "group"
+    },
+    "messageCount": {
+     "Int": 3
+    },
+    "name": {
+     "String": "M7 bounds controls"
+    },
+    "owner": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  }
+ ],
+ "messageTotal": 33,
+ "messagesByConv": {
+  "undefined": {
+   "total": 33,
+   "visible": 33,
+   "tombstone": 0,
+   "byType": {
+    "undefined": 33
+   }
+  }
+ },
+ "messages": [
+  {
+   "id": "0132f65c-d6ce-42ea-a2b6-a788fee96320",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "082365bc-c358-4679-8dc8-9803f2aba929",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "0f5f1d07-c387-4fea-bee0-894be3d522e6",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "2ad416a2-5642-4958-966d-d547906b2fd6",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "4db6093d-4ed3-4b8f-8c6a-f9ed63f3dd41",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "533d0fc0-4ac5-4e00-b399-9b7c677f9baf",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "89e7f6c1-fcab-4427-9069-f32c25816bee",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "9e94d962-6b3b-44f9-b879-3883f49a423d",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "a3ee2a35-f7fe-45a4-a72c-abb7541b0743",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "b89948cc-91b7-4542-912a-1bbe87bfcc7e",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "d7838c8b-1ad7-4aa4-a652-c62ae8cd4abc",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "da630167-e8a0-4045-88e6-410accfeead9",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "ec746685-b96d-44c5-b162-31669d273bdb",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "f33216e7-4cb7-49c8-8437-9a669f423990",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm-m7-tombstone-control",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0001",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0002",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0003",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0004",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0005",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0006",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0007",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0008",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0009",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0010",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0011",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0012",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0013",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0014",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0015",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  }
+ ],
+ "polls": [
+  {
+   "id": "082365bc-c358-4679-8dc8-9803f2aba929",
+   "Row": {
+    "conversationId": {
+     "Id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f"
+    },
+    "id": {
+     "Id": "082365bc-c358-4679-8dc8-9803f2aba929"
+    },
+    "messageId": {
+     "Id": "082365bc-c358-4679-8dc8-9803f2aba929"
+    },
+    "optionA": {
+     "String": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "optionB": {
+     "String": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "optionC": {
+     "String": "cccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "optionD": "Null",
+    "question": {
+     "String": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    }
+   }
+  },
+  {
+   "id": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+    },
+    "messageId": {
+     "Id": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+    },
+    "optionA": {
+     "String": "A"
+    },
+    "optionB": {
+     "String": "B"
+    },
+    "optionC": "Null",
+    "optionD": "Null",
+    "question": {
+     "String": "Where shall we meet?"
+    }
+   }
+  },
+  {
+   "id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+   "Row": {
+    "conversationId": {
+     "Id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f"
+    },
+    "id": {
+     "Id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c"
+    },
+    "messageId": {
+     "Id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c"
+    },
+    "optionA": {
+     "String": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "optionB": {
+     "String": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "optionC": "Null",
+    "optionD": "Null",
+    "question": {
+     "String": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    }
+   }
+  },
+  {
+   "id": "f33216e7-4cb7-49c8-8437-9a669f423990",
+   "Row": {
+    "conversationId": {
+     "Id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f"
+    },
+    "id": {
+     "Id": "f33216e7-4cb7-49c8-8437-9a669f423990"
+    },
+    "messageId": {
+     "Id": "f33216e7-4cb7-49c8-8437-9a669f423990"
+    },
+    "optionA": {
+     "String": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "optionB": {
+     "String": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "optionC": {
+     "String": "cccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "optionD": {
+     "String": "dddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    "question": {
+     "String": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    }
+   }
+  }
+ ],
+ "votes": [
+  {
+   "id": "s3-22d4733325669935a79611f9e06124364df33ab2a3e8440ec8b76482df9d0bb5-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "s3-22d4733325669935a79611f9e06124364df33ab2a3e8440ec8b76482df9d0bb5-0000"
+    },
+    "optionId": {
+     "String": "b"
+    },
+    "pollId": {
+     "Id": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  },
+  {
+   "id": "s3-a118fa2bc4c70b32a865d44c2c886fd6803d345df0682b6562536d8f439c4aed-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "s3-a118fa2bc4c70b32a865d44c2c886fd6803d345df0682b6562536d8f439c4aed-0000"
+    },
+    "optionId": {
+     "String": "b"
+    },
+    "pollId": {
+     "Id": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  }
+ ],
+ "reactions": [
+  {
+   "id": "s3-26999cdf3e51f3e0e4e4cd5ce2f8310399b97e430b9e8d5264510214a6a8fac7-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "emoji": {
+     "String": "☕"
+    },
+    "id": {
+     "Id": "s3-26999cdf3e51f3e0e4e4cd5ce2f8310399b97e430b9e8d5264510214a6a8fac7-0000"
+    },
+    "messageId": {
+     "Id": "sm0007"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "s3-3491f165f800ce37787934bff38b54f57695fa3b97f37b225d8ce407e070d873-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "emoji": {
+     "String": "🎉"
+    },
+    "id": {
+     "Id": "s3-3491f165f800ce37787934bff38b54f57695fa3b97f37b225d8ce407e070d873-0000"
+    },
+    "messageId": {
+     "Id": "sm0007"
+    },
+    "userId": {
+     "Id": "user:jEYG7KOxOLRE6Tm6yxVd-w"
+    }
+   }
+  },
+  {
+   "id": "s3-72bbe74756afa0498ed63c4d6151c577bd65bdd6efcf2f4fda52b2fdecdf7a26-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "emoji": {
+     "String": "❤️"
+    },
+    "id": {
+     "Id": "s3-72bbe74756afa0498ed63c4d6151c577bd65bdd6efcf2f4fda52b2fdecdf7a26-0000"
+    },
+    "messageId": {
+     "Id": "sm0001"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  },
+  {
+   "id": "s3-c86cdf273bd7c383256cac8bbdae593c96f42d307e3ffb855c7ae9523ded33bf-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "emoji": {
+     "String": "👍"
+    },
+    "id": {
+     "Id": "s3-c86cdf273bd7c383256cac8bbdae593c96f42d307e3ffb855c7ae9523ded33bf-0000"
+    },
+    "messageId": {
+     "Id": "sm0001"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  }
+ ],
+ "reads": [
+  {
+   "id": "s3-1fedb8fa0acd5ddcaec292048cf16c55917aa531a42444aece7ac09646d0666b-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "fetchedThrough": {
+     "Int": 1789232557885
+    },
+    "id": {
+     "Id": "s3-1fedb8fa0acd5ddcaec292048cf16c55917aa531a42444aece7ac09646d0666b-0000"
+    },
+    "userId": {
+     "Id": "user:jEYG7KOxOLRE6Tm6yxVd-w"
+    },
+    "viewedThrough": {
+     "Int": 1789232557885
+    }
+   }
+  },
+  {
+   "id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "fetchedThrough": {
+     "Int": 1789232681390
+    },
+    "id": {
+     "Id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "viewedThrough": {
+     "Int": 1789232681390
+    }
+   }
+  },
+  {
+   "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "fetchedThrough": {
+     "Int": 1789232557885
+    },
+    "id": {
+     "Id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "viewedThrough": {
+     "Int": 1789232557885
+    }
+   }
+  },
+  {
+   "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "fetchedThrough": {
+     "Int": 1789232557885
+    },
+    "id": {
+     "Id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    },
+    "viewedThrough": {
+     "Int": 1789232557885
+    }
+   }
+  },
+  {
+   "id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "fetchedThrough": {
+     "Int": 1789232718819
+    },
+    "id": {
+     "Id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    },
+    "viewedThrough": {
+     "Int": 1789232718819
+    }
+   }
+  }
+ ],
+ "members": [
+  {
+   "id": "d-alice-bob:dev:alice",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "id": {
+     "Id": "d-alice-bob:dev:alice"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "d-alice-bob:dev:bob",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "id": {
+     "Id": "d-alice-bob:dev:bob"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter:dev:alice",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "g-starter:dev:alice"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter:dev:bob",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "g-starter:dev:bob"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter:dev:carol",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "g-starter:dev:carol"
+    },
+    "userId": {
+     "Id": "user:jEYG7KOxOLRE6Tm6yxVd-w"
+    }
+   }
+  },
+  {
+   "id": "s3-80d953946ad4987b0405de2d9254e0c01068afb01cd5671c0de318c02863bdf1-0000",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f"
+    },
+    "id": {
+     "Id": "s3-80d953946ad4987b0405de2d9254e0c01068afb01cd5671c0de318c02863bdf1-0000"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "s3-80d953946ad4987b0405de2d9254e0c01068afb01cd5671c0de318c02863bdf1-0001",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f"
+    },
+    "id": {
+     "Id": "s3-80d953946ad4987b0405de2d9254e0c01068afb01cd5671c0de318c02863bdf1-0001"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  }
+ ],
+ "maintained": [
+  {
+   "table_name": "pollTallies",
+   "n": 1
+  }
+ ],
+ "allRowTables": [
+  "conversations",
+  "follows",
+  "likes",
+  "members",
+  "messages",
+  "pollTallies",
+  "polls",
+  "posts",
+  "profiles",
+  "reactions",
+  "reads",
+  "reposts",
+  "votes"
+ ],
+ "outbox": {
+  "n": 0
+ },
+ "clientIntents": {
+  "n": 0
+ }
+}

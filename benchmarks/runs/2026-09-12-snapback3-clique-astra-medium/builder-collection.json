@@ -1,0 +1,306 @@
+{
+  "version": "snapback3-clique-public-collection.v1",
+  "source": "EPYC immutable builder-final snapshot",
+  "selectedFiles": [
+    {
+      "path": "builder/FINAL-builder.md",
+      "bytes": 499,
+      "sha256": "6ee23db1772927d49898385371bcc470f7dfbebddda7d69f50f5e75b5eb922c4"
+    },
+    {
+      "path": "builder/README.md",
+      "bytes": 2549,
+      "sha256": "454cb153b92ef9175e11ee8e43facf94ed6f3f418b723c76fea813da3bee30ac"
+    },
+    {
+      "path": "builder/app/_layout.tsx",
+      "bytes": 339,
+      "sha256": "e89f7869515aa9214d7daa0e0af465567c309bc2e5cb08a40b560af36e1a5c47"
+    },
+    {
+      "path": "builder/app/index.tsx",
+      "bytes": 133,
+      "sha256": "fe67a8f6dcc3f8266bfe33bf383f792771a8d42fd2742980e066a3335fdc6424"
+    },
+    {
+      "path": "builder/app/profile/[handle].tsx",
+      "bytes": 270,
+      "sha256": "4bb9ac38aaff46bd139d6e3d21cd64cfd514a9d8930064c43b6566f5cf72d19a"
+    },
+    {
+      "path": "builder/app/profile/edit.tsx",
+      "bytes": 139,
+      "sha256": "ba07b912339a96bb0c860452deecca2fcd56bab2900a0361305ffef0fbe6dd9f"
+    },
+    {
+      "path": "builder/app/settings.tsx",
+      "bytes": 149,
+      "sha256": "aa112eecba1a84de559892534a9606e186a19489e5b46442a988c91202b6fc26"
+    },
+    {
+      "path": "builder/app.json",
+      "bytes": 182,
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1"
+    },
+    {
+      "path": "builder/builder-assessment.json",
+      "bytes": 1258,
+      "sha256": "0e18013b12fe225254846b5e13a0be965b5a6da4e567c34a049f8e2405b8a411"
+    },
+    {
+      "path": "builder/diary.md",
+      "bytes": 4608,
+      "sha256": "5b22137dafb241fe224c459d2d69b0d8a95eb96e1752274c3f3a0c6712cec935"
+    },
+    {
+      "path": "builder/essay.md",
+      "bytes": 8606,
+      "sha256": "ba49c501315d413f14d17aa3a3820dc44b549ba2c4b449820c4919066d5dad45"
+    },
+    {
+      "path": "builder/evidence/acceptance.log",
+      "bytes": 553,
+      "sha256": "a3b553c6ed5800e4b4066ad8385de7ce6ac6bb466632c516c96608e823aee98c"
+    },
+    {
+      "path": "builder/evidence/auth-probe.json",
+      "bytes": 475,
+      "sha256": "db159303b8364193629acb068eb73f2bfb8c70c377f88359867574658353bd88"
+    },
+    {
+      "path": "builder/evidence/choreography-m1.jsonl",
+      "bytes": 4201,
+      "sha256": "eac10e6a71cf561a1d326f4e332e29fc7736dd4d22249e0d89fb057b03b0923c"
+    },
+    {
+      "path": "builder/evidence/choreography-m1.jsonl.observations.jsonl",
+      "bytes": 1645,
+      "sha256": "f916738ae80dada94cce696b5172e0f2b00a7a3ea07aef53c24eb2342e23f05d"
+    },
+    {
+      "path": "builder/evidence/choreography-m1.log",
+      "bytes": 194,
+      "sha256": "3dfa87f021ced7252f153058475b29a2ce0f97359f588463ca70474547c3c3de"
+    },
+    {
+      "path": "builder/evidence/correction-01.md",
+      "bytes": 658,
+      "sha256": "d07d5e6e15131c17985e53b2d0b5622f067007744399f6d62668b95698c2f20b"
+    },
+    {
+      "path": "builder/evidence/hand-authored-lines.json",
+      "bytes": 720,
+      "sha256": "fcb5481e602068a14b76fae43879d4a3c9b7fd6cfa1a5ae867eac95b462392fd"
+    },
+    {
+      "path": "builder/evidence/installed-parser.txt",
+      "bytes": 53527,
+      "sha256": "4551040f711148c0f483a071382939d107bfae3075f34f418e76d188588b1da5"
+    },
+    {
+      "path": "builder/evidence/ios-export.log",
+      "bytes": 1353,
+      "sha256": "4ff30dd5dab3fdc6c3ac738832b39a720ba3602944606217d998fe86a74e1067"
+    },
+    {
+      "path": "builder/evidence/lock-sync.log",
+      "bytes": 1418,
+      "sha256": "eb3ef467376bd0e0ccfe37ad5df1eb9c8fe019eb43a97fa5903577d13e389872"
+    },
+    {
+      "path": "builder/evidence/m1-coverage.json",
+      "bytes": 598,
+      "sha256": "146fb206a431f853214c27b1699e47019154f5eeabc90e890c9bf006703a4122"
+    },
+    {
+      "path": "builder/evidence/m1-media-check.json",
+      "bytes": 230,
+      "sha256": "1210f6abbb8d4f5e27918f3cbfb039b27c5255b618072f12764099d75dbacfb4"
+    },
+    {
+      "path": "builder/evidence/m1-media-profiles.q",
+      "bytes": 450,
+      "sha256": "c8fc318be6ae118a14bc0909fb73d4f78781f0ba9a73a88be8c621f9b9bcdd72"
+    },
+    {
+      "path": "builder/evidence/m1-media-schema.q",
+      "bytes": 399,
+      "sha256": "db3a8688c10b1e86cde666c885b7cda3df79b919478e34b3dcaecabe0ba002fd"
+    },
+    {
+      "path": "builder/evidence/m1-suite.json",
+      "bytes": 796,
+      "sha256": "94705c5613dbedc4eff60c8632fcbe043e8a61a08e520daba0c67f776323caf4"
+    },
+    {
+      "path": "builder/evidence/m1-terminal.json",
+      "bytes": 380,
+      "sha256": "68d350a12bfcac01df14c0b0472f2ee2ece05892d79550ee4335f616f10e573d"
+    },
+    {
+      "path": "builder/evidence/m1-text-check.json",
+      "bytes": 284,
+      "sha256": "f7d6a37d492f4cbf1b4cf4cdff689c0da2fe56c00f24616155196067be614d96"
+    },
+    {
+      "path": "builder/evidence/record-validation.json",
+      "bytes": 2410,
+      "sha256": "e9b33c939d3fd16e9d0e0a506e05e58404b07b34005b8f085c753a1cf647580d"
+    },
+    {
+      "path": "builder/evidence/resolved-pins.json",
+      "bytes": 342,
+      "sha256": "69c22257d8b271b1c108a6ef2b0b3ae28f4d6441b92c04a39440c5c868eecaae"
+    },
+    {
+      "path": "builder/evidence/seed-m1-partial.json",
+      "bytes": 2358,
+      "sha256": "489745b7084f5af623adbd7d2582d97745a3d7f6f13529cff9f8ec9127e46482"
+    },
+    {
+      "path": "builder/evidence/seed-m1-partial.log",
+      "bytes": 169,
+      "sha256": "c0deb691273cda2ec7d08640c78cd62b5440a707532a5cbf26c97ed85c71b74d"
+    },
+    {
+      "path": "builder/evidence/seed-m1.json",
+      "bytes": 388,
+      "sha256": "47025dff2268a274c750c257ea7c3ef2a2c8960718efcd96152fdf985f807647"
+    },
+    {
+      "path": "builder/evidence/seed-m1.log",
+      "bytes": 204,
+      "sha256": "03eabb0039e0a3761abd28ce8d83ddcbb902f577e5c882cba9bffac270aaca33"
+    },
+    {
+      "path": "builder/evidence/server-pids.jsonl",
+      "bytes": 48,
+      "sha256": "f4b8b04562e2d570cd22c36a10d9c077134c1824a25b50a81c524b96adcfa6d9"
+    },
+    {
+      "path": "builder/evidence/server.log",
+      "bytes": 63,
+      "sha256": "ff1f9b256e0a4f8a2c447cb457a0691d41d7fee4f85dd9acca751254874ecbc4"
+    },
+    {
+      "path": "builder/evidence/typecheck.log",
+      "bytes": 51,
+      "sha256": "8f6188963bf5b4d10b34344423712a8fcbfb0dc8708dabc0ed460688dc54275f"
+    },
+    {
+      "path": "builder/evidence/ui-preservation.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "builder/evidence/web-export.log",
+      "bytes": 1709,
+      "sha256": "486818cde0c71d7d68919bd1d155a7c68d3c9585a3c9167a3ffe919648123a32"
+    },
+    {
+      "path": "builder/final-report.md",
+      "bytes": 8895,
+      "sha256": "f181f5acf64484c32578bde2f429112822d1bf7875336e53b9cc50dfd791b791"
+    },
+    {
+      "path": "builder/artifacts/native-status.json",
+      "bytes": 365,
+      "sha256": "12793d8a839ab970ade9f7ce970a62c00b17eac0f052d6da93a7c75650156bf7"
+    },
+    {
+      "path": "builder/package-lock.json",
+      "bytes": 291358,
+      "sha256": "8e9237fd134ccb086dcc34c3cad36de58081e1daebe23436ed6409593197c0c8"
+    },
+    {
+      "path": "builder/package.json",
+      "bytes": 1039,
+      "sha256": "e3fd6d8f5728a9b0e8eecfed3e42d7d604b798c520a162d23fba02d19f37e0e6"
+    },
+    {
+      "path": "builder/run-log.md",
+      "bytes": 4406,
+      "sha256": "8488c823bf7654b2878fa547c19a99c98da022bd51d50887f5ce09069db1d243"
+    },
+    {
+      "path": "builder/run-record.json",
+      "bytes": 9502,
+      "sha256": "d9cfd685b91f241486feadde63c1b6ce2dd69235e47dbc3d9ae11136408024a2"
+    },
+    {
+      "path": "builder/scripts/acceptance.mjs",
+      "bytes": 3924,
+      "sha256": "5444946521c4e1e4a17ab38a8fe6205f085c2e0edcc768bd7a0f4fadbd2232e0"
+    },
+    {
+      "path": "builder/scripts/auth-probe.mjs",
+      "bytes": 1147,
+      "sha256": "8c60676528336971055c20c1dae9b6a6ffa4bc355a3a4c67472c8884ef68c7b2"
+    },
+    {
+      "path": "builder/scripts/choreography.mjs",
+      "bytes": 615,
+      "sha256": "30c6de37ae871633d85ba561c2833b20f6974bef023f5986d79166850f1e96d9"
+    },
+    {
+      "path": "builder/scripts/seed.mjs",
+      "bytes": 2043,
+      "sha256": "292ce19bbbf25554902420ef5ecbc59c706f3591bc201b5ddd3d7be763c734fe"
+    },
+    {
+      "path": "builder/scripts/server.mjs",
+      "bytes": 567,
+      "sha256": "b68ce9d02d24fd8ba7fbdb02067d09141e870635e2e5f75ae3d9f3d513d014cd"
+    },
+    {
+      "path": "builder/scripts/setup-identity.mjs",
+      "bytes": 1532,
+      "sha256": "4bcd9c1d0d0ec150addb4a85831ae7cdf570b719581ac56f3657100996caa584"
+    },
+    {
+      "path": "builder/setup-identity.json",
+      "bytes": 1249,
+      "sha256": "0fde2fd752f772b627f5aa7e81e3035cd989f552e74cac508aa6053f30cda190"
+    },
+    {
+      "path": "builder/snapback/profiles.q",
+      "bytes": 436,
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685"
+    },
+    {
+      "path": "builder/snapback/schema.q",
+      "bytes": 370,
+      "sha256": "c461b9b5d6347c16148e407408dc782c73e8cb490616f4dcc6c8cbe2cb21b3e2"
+    },
+    {
+      "path": "builder/src/client.tsx",
+      "bytes": 342,
+      "sha256": "f55a84f22e5eafa8b45beaa294b2922b0d2b8cb25a513ea017bb395bc6857ed3"
+    },
+    {
+      "path": "builder/src/screens.tsx",
+      "bytes": 4520,
+      "sha256": "b33c2391c6b58b8ae6224b9c1656c2965820365ec8b6b6deeaaaf767487e8363"
+    },
+    {
+      "path": "builder/suite-status.json",
+      "bytes": 109,
+      "sha256": "9810436640e62c73390503938d152ead7f542eb8c2ed2feea49eb1bcef0e744b"
+    },
+    {
+      "path": "builder/tsconfig.json",
+      "bytes": 137,
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86"
+    }
+  ],
+  "omitted": [
+    ".snapback3 runtime/auth database",
+    ".expo cache",
+    "node_modules",
+    "dist",
+    "Hermes bundle bytes",
+    "copied frozen UI/choreography/metering",
+    "raw native model sessions"
+  ],
+  "omissionReason": "The complete private snapshot and artifact hashes remain on EPYC; public record keeps authored source and relevant evidence. Frozen instrument identity is recorded separately."
+}

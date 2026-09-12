@@ -1,0 +1,134 @@
+{
+  "run": 1789230443593,
+  "checks": [
+    {
+      "id": "IND-auth-restoration",
+      "status": "pass",
+      "ms": 404,
+      "evidence": {
+        "principal": "user:5ocYUJT7yml-j2a-NgjSvA",
+        "inboxText": "Inbox ready",
+        "inboxRows": 2,
+        "rendered": "Coffee after work?\n1789225568714\n✓✓\nReply\nReactions",
+        "reloggedIn": false
+      }
+    },
+    {
+      "id": "IND-rapid-nav-and-account-change",
+      "status": "fail",
+      "ms": 15480,
+      "error": "TimeoutError: locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByTestId('message-sm0001') to be visible\n"
+    },
+    {
+      "id": "IND-unavailable-count-messages-visible",
+      "status": "pass",
+      "ms": 777,
+      "evidence": {
+        "unreadRendered": "Unknown",
+        "renderedMessages": 84,
+        "send": {
+          "durableMs": 2.9000000953674316,
+          "settledMs": 124.5,
+          "receipt": {
+            "data": {
+              "conversationId": "d-alice-bob",
+              "edited": false,
+              "id": "7ad66809-bad3-42da-b24f-d54854b56f16",
+              "replyTo": null,
+              "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+              "serverTimestamp": 1789230461667,
+              "text": "GRADER denied-summary 7ad66809-bad3-42da-b24f-d54854b56f16",
+              "tombstone": false
+            },
+            "effects": [
+              {
+                "id": "7ad66809-bad3-42da-b24f-d54854b56f16",
+                "table": "messages"
+              }
+            ],
+            "intent": "f59a32b9-f286-4005-902f-f5f09aae8c64",
+            "program": {
+              "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+              "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+            },
+            "seq": 611,
+            "state": "committed"
+          }
+        },
+        "recipientCopies": 1
+      }
+    },
+    {
+      "id": "IND-durable-send-during-delayed-read",
+      "status": "pass",
+      "ms": 587,
+      "evidence": {
+        "durable": 3.3999998569488525,
+        "settled": 21.700000047683716,
+        "receipt": {
+          "data": {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "64cc52ed-986a-447c-a995-969f1d11a1fb",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789230462284,
+            "text": "GRADER delayed-read 64cc52ed-986a-447c-a995-969f1d11a1fb",
+            "tombstone": false
+          },
+          "effects": [
+            {
+              "id": "64cc52ed-986a-447c-a995-969f1d11a1fb",
+              "table": "messages"
+            }
+          ],
+          "intent": "5e030705-f5fe-45db-b3cc-ac66ffcb1f95",
+          "program": {
+            "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+            "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+          },
+          "seq": 615,
+          "state": "committed"
+        },
+        "elapsedMs": 171,
+        "historyStatusDuringDelay": "History unknown",
+        "recipientSaw": true
+      }
+    },
+    {
+      "id": "IND-same-account-convergence",
+      "status": "pass",
+      "ms": 10818,
+      "evidence": {
+        "sendState": "committed",
+        "alice2Rendered": "GRADER same-account 798c8ef5-3a39-47c2-8c6d-689ea0329040\n1789230462501\n✓\nReply\nR",
+        "unreadBeforeRead": "0",
+        "unreadAfterRead": "0"
+      }
+    },
+    {
+      "id": "IND-offline-dual-queue-reopen-order",
+      "status": "fail",
+      "ms": 722,
+      "error": "Error: browser not actually offline"
+    },
+    {
+      "id": "IND-receipt-states-distinct",
+      "status": "fail",
+      "ms": 60001,
+      "error": "Error: grader 60s timeout"
+    },
+    {
+      "id": "IND-insights-rendered",
+      "status": "fail",
+      "ms": 20113,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n  - waiting for getByTestId('sm-insights-day-row').first() to be visible\n"
+    }
+  ],
+  "deniedSendId": "7ad66809-bad3-42da-b24f-d54854b56f16",
+  "delayedSendId": "64cc52ed-986a-447c-a995-969f1d11a1fb",
+  "sameAccountIds": [
+    "798c8ef5-3a39-47c2-8c6d-689ea0329040",
+    "63080c42-3b96-45e6-8328-1d44354f0ac3"
+  ]
+}

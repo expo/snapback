@@ -1,0 +1,23 @@
+SNAPBACK_URL=http://127.0.0.1:54900
+Snapback 3 serve is ready.
+SNAPBACK_URL=http://127.0.0.1:54900
+Snapback 3 serve is ready.
+S3_COMPILE: E_QUARRY_TYPE snapback/conversations.q:10:64: ordered comparison > requires present operands
+-- assert optional operands before comparing them
+SNAPBACK_URL=http://127.0.0.1:54900
+Snapback 3 dev is ready.
+Snapback 3 updated; existing data is preserved.
+Snapback 3 updated; existing data is preserved.
+S3_CERTIFICATION: messages.setReaction: E_STRUCTURAL_FANOUT: `for` over reactions.byMessage at messages.setReaction/for/__bound_loopItem_1/0 may end before its range does: reactions has no cap over messageId; 100 is this loop's bound, not a platform maximum. A cap refuses the 101st row per group and prices writes by 100 (guide fanout); rewrite: cap 100 by messageId
+messages.setReaction: E_STRUCTURAL_COUNT: deleted key depends on capped-only site messages.setReaction.2; its read rule is not uniform over the scanned prefix; rewrite: denormalize the authorization scope onto reactions and include it in the byMessage prefix so the rule is uniform, or declare maintain totals: count reactions by <scope> and read the maintained aggregate
+The previous generation is still serving.
+S3_COMPILE: E_QUARRY_SYNTAX snapback/messages.q:45:58: expected "{", got "by"
+-- fix this Quarry declaration and rerun snapback3 check
+
+E_QUARRY_SYNTAX snapback/messages.q:47:58: expected newline, got "by"
+-- fix this Quarry declaration and rerun snapback3 check
+The previous generation is still serving.
+Snapback 3 updated; existing data is preserved.
+S3_SUCCESSOR: E_SUCCESSOR_DESTRUCTIVE: destructive successor requires an explicit migration plan (generation 5bc7ef894c15896a9360f6b4abc26dbf570edd4747c30910c3ee1c107d57bd4d → 79084b358cce84b3e5bf89be9525a7ce5bc3aa0b33c31250a3cb4d5076293d92); rewrite: apply exactly the returned migration plan
+The previous generation is still serving.
+Snapback 3 updated; existing data is preserved.

@@ -1,0 +1,15 @@
+{
+  "diagnosticModel": "gpt-5.6-sol",
+  "diagnosticModelDisplayName": "Sol",
+  "diagnosticReasoningEffort": "high",
+  "identitySource": "Explicit coordinator assignment for this independent diagnostic",
+  "role": "Independent CPU-attribution diagnostic",
+  "builderIdentityIsDistinct": {
+    "modelDisplayName": "Astra",
+    "effort": "medium"
+  },
+  "scope": "One separately labeled instrumented u0500 acquisition; no normal-repeat pooling, M7 work or grading promotion",
+  "collectionRanNewExperiment": false,
+  "originalRemoteLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-profile",
+  "publicModelStream": false
+}

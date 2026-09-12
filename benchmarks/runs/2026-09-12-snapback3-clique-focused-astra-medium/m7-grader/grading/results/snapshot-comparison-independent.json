@@ -1,0 +1,188 @@
+{
+ "personas": [
+  {
+   "actor": "alice",
+   "preIds": [
+    "sm-m7-tombstone-control",
+    "sm0001",
+    "sm0002",
+    "sm0003",
+    "sm0004",
+    "sm0005",
+    "sm0006",
+    "sm0007",
+    "sm0008",
+    "sm0009",
+    "sm0010",
+    "sm0011",
+    "sm0012",
+    "sm0013",
+    "sm0014",
+    "sm0015"
+   ],
+   "missingInPost": [],
+   "addedInPost": [],
+   "controls": {
+    "rows": 16,
+    "visible": 15,
+    "edited": 1,
+    "tombstone": 1,
+    "reactions": 4,
+    "mine": 2,
+    "ownReceipts": 7,
+    "fetchedPopulated": 7,
+    "viewedPopulated": 7,
+    "replies": 6,
+    "typed": {
+     "text": 16
+    }
+   },
+   "controlsNonEmpty": {
+    "edited": true,
+    "tombstone": true,
+    "reply": true,
+    "reaction": true,
+    "mine": true,
+    "receiptFetched": true,
+    "receiptViewed": true
+   }
+  },
+  {
+   "actor": "bob",
+   "preIds": [
+    "sm-m7-tombstone-control",
+    "sm0001",
+    "sm0002",
+    "sm0003",
+    "sm0004",
+    "sm0005",
+    "sm0006",
+    "sm0007",
+    "sm0008",
+    "sm0009",
+    "sm0010",
+    "sm0011",
+    "sm0012",
+    "sm0013",
+    "sm0014",
+    "sm0015"
+   ],
+   "missingInPost": [],
+   "addedInPost": [],
+   "controls": {
+    "rows": 16,
+    "visible": 15,
+    "edited": 1,
+    "tombstone": 1,
+    "reactions": 4,
+    "mine": 1,
+    "ownReceipts": 5,
+    "fetchedPopulated": 5,
+    "viewedPopulated": 5,
+    "replies": 6,
+    "typed": {
+     "text": 16
+    }
+   },
+   "controlsNonEmpty": {
+    "edited": true,
+    "tombstone": true,
+    "reply": true,
+    "reaction": true,
+    "mine": true,
+    "receiptFetched": true,
+    "receiptViewed": true
+   }
+  },
+  {
+   "actor": "carol",
+   "preIds": [
+    "sm-m7-tombstone-control",
+    "sm0007",
+    "sm0008",
+    "sm0009",
+    "sm0010",
+    "sm0011",
+    "sm0012",
+    "sm0013",
+    "sm0014",
+    "sm0015"
+   ],
+   "missingInPost": [],
+   "addedInPost": [],
+   "controls": {
+    "rows": 10,
+    "visible": 9,
+    "edited": 1,
+    "tombstone": 1,
+    "reactions": 2,
+    "mine": 1,
+    "ownReceipts": 4,
+    "fetchedPopulated": 4,
+    "viewedPopulated": 4,
+    "replies": 3,
+    "typed": {
+     "text": 10
+    }
+   },
+   "controlsNonEmpty": {
+    "edited": true,
+    "tombstone": true,
+    "reply": true,
+    "reaction": true,
+    "mine": true,
+    "receiptFetched": true,
+    "receiptViewed": true
+   }
+  }
+ ],
+ "coverageFailures": [],
+ "differences": [
+  {
+   "actor": "alice",
+   "principal": [
+    {
+     "id": "user:qaozGeVVhk11WPsju8lZuQ",
+     "kind": "user",
+     "name": "alice@example.com"
+    },
+    {
+     "id": "user:qaozGeVVhk11WPsju8lZuQ",
+     "kind": "user",
+     "name": "alice@example.com"
+    }
+   ]
+  },
+  {
+   "actor": "bob",
+   "principal": [
+    {
+     "id": "user:sz5PoX0IaexAFZfTzzf_tQ",
+     "kind": "user",
+     "name": "bob@example.com"
+    },
+    {
+     "id": "user:sz5PoX0IaexAFZfTzzf_tQ",
+     "kind": "user",
+     "name": "bob@example.com"
+    }
+   ]
+  },
+  {
+   "actor": "carol",
+   "principal": [
+    {
+     "id": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+     "kind": "user",
+     "name": "carol@example.com"
+    },
+    {
+     "id": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+     "kind": "user",
+     "name": "carol@example.com"
+    }
+   ]
+  }
+ ],
+ "pass": false
+}

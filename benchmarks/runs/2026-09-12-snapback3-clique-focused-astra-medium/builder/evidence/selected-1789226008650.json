@@ -1,0 +1,662 @@
+{
+  "details": {
+    "run": 1789226008650
+  },
+  "results": [
+    {
+      "id": "m3-a01",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226010186,
+      "end": 1789226010349,
+      "evidence": {
+        "x": {
+          "id": "4dc6d88e-f629-4f7d-8f0a-2ffad6d62bcd",
+          "durable": 2.5,
+          "settled": 13,
+          "receipt": {
+            "data": {
+              "conversationId": "d-alice-bob",
+              "edited": false,
+              "id": "4dc6d88e-f629-4f7d-8f0a-2ffad6d62bcd",
+              "replyTo": null,
+              "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+              "serverTimestamp": 1789226010196,
+              "text": "Alice live 1789226008650",
+              "tombstone": false
+            },
+            "effects": [
+              {
+                "id": "4dc6d88e-f629-4f7d-8f0a-2ffad6d62bcd",
+                "table": "messages"
+              }
+            ],
+            "intent": "5053c62c-11fe-4133-a7be-2338cdf37b65",
+            "program": {
+              "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+              "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+            },
+            "seq": 106,
+            "state": "committed"
+          }
+        },
+        "y": {
+          "id": "16802745-f9a2-48c7-a51e-463bf9c08ac9",
+          "durable": 31.700000047683716,
+          "settled": 91,
+          "receipt": {
+            "data": {
+              "conversationId": "d-alice-bob",
+              "edited": false,
+              "id": "16802745-f9a2-48c7-a51e-463bf9c08ac9",
+              "replyTo": null,
+              "senderId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+              "serverTimestamp": 1789226010301,
+              "text": "Bob live 1789226008650",
+              "tombstone": false
+            },
+            "effects": [
+              {
+                "id": "16802745-f9a2-48c7-a51e-463bf9c08ac9",
+                "table": "messages"
+              }
+            ],
+            "intent": "78f27433-1a47-4b57-969c-19801f87cdd3",
+            "program": {
+              "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+              "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+            },
+            "seq": 111,
+            "state": "committed"
+          }
+        }
+      }
+    },
+    {
+      "id": "m8-a13",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226010349,
+      "end": 1789226010476,
+      "evidence": {
+        "id": "f00c2e1a-9e7c-4ced-b620-ea230f7ee49a",
+        "durable": 18.700000047683716,
+        "settled": 97.90000009536743,
+        "receipt": {
+          "data": {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "f00c2e1a-9e7c-4ced-b620-ea230f7ee49a",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226010413,
+            "text": "Same account 1789226008650",
+            "tombstone": false
+          },
+          "effects": [
+            {
+              "id": "f00c2e1a-9e7c-4ced-b620-ea230f7ee49a",
+              "table": "messages"
+            }
+          ],
+          "intent": "d1a21e10-44e8-45ef-8ab9-d739684457cb",
+          "program": {
+            "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+            "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+          },
+          "seq": 115,
+          "state": "committed"
+        }
+      }
+    },
+    {
+      "id": "membership-authorization",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226010477,
+      "end": 1789226010887,
+      "evidence": {
+        "rows": [],
+        "receipt": {
+          "id": "c73425f6-49f3-4cbc-bab0-37e8959649bf",
+          "durable": 2.799999952316284,
+          "settled": 11.299999952316284,
+          "receipt": {
+            "code": "NOT_MEMBER",
+            "family": "rule",
+            "guide": "rule/runtime",
+            "intent": "1f88542f-e1aa-444e-a87b-8bd86911d842",
+            "message": "E_REQUIRE:NOT_MEMBER: program requirement failed",
+            "rewrite": "fix the rejected mutation input and retry",
+            "rule": "NOT_MEMBER",
+            "seq": 118,
+            "site": "snapback/messages.q:14:3",
+            "state": "rejected"
+          }
+        }
+      }
+    },
+    {
+      "id": "m8-a14",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226010887,
+      "end": 1789226011165,
+      "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0"
+    },
+    {
+      "id": "m8-a01",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226011166,
+      "end": 1789226011519,
+      "evidence": {
+        "expectedSource": "starter fixture independently counted: Alice three top-level posts + one reply, likes2/reposts1/replies1/followers4/following2",
+        "actual": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 0,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 2,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        }
+      }
+    },
+    {
+      "id": "m8-a03",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226011166,
+      "end": 1789226011519,
+      "evidence": {
+        "expectedSource": "starter fixture independently counted: Alice three top-level posts + one reply, likes2/reposts1/replies1/followers4/following2",
+        "actual": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 0,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 2,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        }
+      }
+    },
+    {
+      "id": "m8-a04",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226011166,
+      "end": 1789226011519,
+      "evidence": {
+        "expectedSource": "starter fixture independently counted: Alice three top-level posts + one reply, likes2/reposts1/replies1/followers4/following2",
+        "actual": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 0,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 2,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        }
+      }
+    },
+    {
+      "id": "m8-a02",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226011519,
+      "end": 1789226011633,
+      "evidence": {
+        "before": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 0,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 2,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        },
+        "after": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 1,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 3,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        },
+        "receipt": {
+          "data": true,
+          "effects": [
+            {
+              "id": "s3-555ef83380db020b9e719afe52e35786e99439143dac8a9d2e1b221ff8dffb33-0000",
+              "table": "likes"
+            }
+          ],
+          "intent": "03fb0a16-aa98-4756-b663-97a0b8573c88",
+          "program": {
+            "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+            "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+          },
+          "seq": 126,
+          "state": "committed"
+        }
+      }
+    },
+    {
+      "id": "s3-resource-independence",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226011634,
+      "end": 1789226041635,
+      "error": "Error: Assertion timeout 30s"
+    },
+    {
+      "id": "stale-account-and-rapid-navigation",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226041636,
+      "end": 1789226042440,
+      "evidence": {
+        "switches": 5,
+        "accountRestored": true
+      }
+    },
+    {
+      "id": "m6-a05",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226042440,
+      "end": 1789226043083,
+      "evidence": {
+        "ids": [
+          "dc6e157e-a184-48c9-8d55-50e4c4d7e533",
+          "7065485c-32c2-4f15-9b05-d9325b6ca115"
+        ],
+        "received": [
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "dc6e157e-a184-48c9-8d55-50e4c4d7e533",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226042658,
+            "text": "Dual offline 1789226008650 false 0",
+            "tombstone": false
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "7065485c-32c2-4f15-9b05-d9325b6ca115",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226042963,
+            "text": "Dual offline 1789226008650 false 1",
+            "tombstone": false
+          }
+        ],
+        "actualNetworkDisconnected": true,
+        "reopened": false
+      }
+    },
+    {
+      "id": "m6-a06",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226042440,
+      "end": 1789226043083,
+      "evidence": {
+        "ids": [
+          "dc6e157e-a184-48c9-8d55-50e4c4d7e533",
+          "7065485c-32c2-4f15-9b05-d9325b6ca115"
+        ],
+        "received": [
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "dc6e157e-a184-48c9-8d55-50e4c4d7e533",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226042658,
+            "text": "Dual offline 1789226008650 false 0",
+            "tombstone": false
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "7065485c-32c2-4f15-9b05-d9325b6ca115",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226042963,
+            "text": "Dual offline 1789226008650 false 1",
+            "tombstone": false
+          }
+        ],
+        "actualNetworkDisconnected": true,
+        "reopened": false
+      }
+    },
+    {
+      "id": "m8-a15",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226042440,
+      "end": 1789226043083,
+      "evidence": {
+        "ids": [
+          "dc6e157e-a184-48c9-8d55-50e4c4d7e533",
+          "7065485c-32c2-4f15-9b05-d9325b6ca115"
+        ],
+        "received": [
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "dc6e157e-a184-48c9-8d55-50e4c4d7e533",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226042658,
+            "text": "Dual offline 1789226008650 false 0",
+            "tombstone": false
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "7065485c-32c2-4f15-9b05-d9325b6ca115",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226042963,
+            "text": "Dual offline 1789226008650 false 1",
+            "tombstone": false
+          }
+        ],
+        "actualNetworkDisconnected": true,
+        "reopened": false
+      }
+    },
+    {
+      "id": "m6-a01",
+      "scope": "browser substitution; acquired first page and page search only",
+      "status": "pass",
+      "start": 1789226043086,
+      "end": 1789226045851,
+      "evidence": {
+        "ids": [
+          "1ff0799e-8568-4ff7-8300-c3b76e7ac9d9",
+          "67341313-7ba4-4e62-9232-23012efdb69d"
+        ],
+        "received": [
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "1ff0799e-8568-4ff7-8300-c3b76e7ac9d9",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226044258,
+            "text": "Dual offline 1789226008650 true 0",
+            "tombstone": false
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "67341313-7ba4-4e62-9232-23012efdb69d",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226045536,
+            "text": "Dual offline 1789226008650 true 1",
+            "tombstone": false
+          }
+        ],
+        "actualNetworkDisconnected": true,
+        "reopened": true
+      }
+    },
+    {
+      "id": "m6-a03",
+      "scope": "browser substitution; acquired first page and page search only",
+      "status": "pass",
+      "start": 1789226043086,
+      "end": 1789226045851,
+      "evidence": {
+        "ids": [
+          "1ff0799e-8568-4ff7-8300-c3b76e7ac9d9",
+          "67341313-7ba4-4e62-9232-23012efdb69d"
+        ],
+        "received": [
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "1ff0799e-8568-4ff7-8300-c3b76e7ac9d9",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226044258,
+            "text": "Dual offline 1789226008650 true 0",
+            "tombstone": false
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "67341313-7ba4-4e62-9232-23012efdb69d",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226045536,
+            "text": "Dual offline 1789226008650 true 1",
+            "tombstone": false
+          }
+        ],
+        "actualNetworkDisconnected": true,
+        "reopened": true
+      }
+    },
+    {
+      "id": "m8-a17",
+      "scope": "browser substitution; acquired first page and page search only",
+      "status": "pass",
+      "start": 1789226043086,
+      "end": 1789226045851,
+      "evidence": {
+        "ids": [
+          "1ff0799e-8568-4ff7-8300-c3b76e7ac9d9",
+          "67341313-7ba4-4e62-9232-23012efdb69d"
+        ],
+        "received": [
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "1ff0799e-8568-4ff7-8300-c3b76e7ac9d9",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226044258,
+            "text": "Dual offline 1789226008650 true 0",
+            "tombstone": false
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "67341313-7ba4-4e62-9232-23012efdb69d",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789226045536,
+            "text": "Dual offline 1789226008650 true 1",
+            "tombstone": false
+          }
+        ],
+        "actualNetworkDisconnected": true,
+        "reopened": true
+      }
+    },
+    {
+      "id": "m6-a07",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226045852,
+      "end": 1789226045964,
+      "evidence": {
+        "last": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "67341313-7ba4-4e62-9232-23012efdb69d",
+          "replyTo": null,
+          "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+          "serverTimestamp": 1789226045536,
+          "text": "Dual offline 1789226008650 true 1",
+          "tombstone": false
+        },
+        "receipts": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226045536,
+            "id": "s3-add6ff5df46234efca0ce92ffa3c4fdcdcabd564c68be0560aadd60fc9bbdde8-0000",
+            "userId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "viewedThrough": 1789226045536
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226045536,
+            "id": "s3-f643092cd48a6aa0b185c9e588f480f2bd48362e8b0f69aa273bea5f1df7f4b7-0000",
+            "userId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+            "viewedThrough": 1789226045536
+          }
+        ],
+        "semantics": "explicit recipient view watermark; committed write alone never establishes read"
+      }
+    },
+    {
+      "id": "m8-a16",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226045852,
+      "end": 1789226045964,
+      "evidence": {
+        "last": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "67341313-7ba4-4e62-9232-23012efdb69d",
+          "replyTo": null,
+          "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+          "serverTimestamp": 1789226045536,
+          "text": "Dual offline 1789226008650 true 1",
+          "tombstone": false
+        },
+        "receipts": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226045536,
+            "id": "s3-add6ff5df46234efca0ce92ffa3c4fdcdcabd564c68be0560aadd60fc9bbdde8-0000",
+            "userId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "viewedThrough": 1789226045536
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226045536,
+            "id": "s3-f643092cd48a6aa0b185c9e588f480f2bd48362e8b0f69aa273bea5f1df7f4b7-0000",
+            "userId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+            "viewedThrough": 1789226045536
+          }
+        ],
+        "semantics": "explicit recipient view watermark; committed write alone never establishes read"
+      }
+    },
+    {
+      "id": "m8-a18",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789226045852,
+      "end": 1789226045964,
+      "evidence": {
+        "last": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "67341313-7ba4-4e62-9232-23012efdb69d",
+          "replyTo": null,
+          "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+          "serverTimestamp": 1789226045536,
+          "text": "Dual offline 1789226008650 true 1",
+          "tombstone": false
+        },
+        "receipts": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226045536,
+            "id": "s3-add6ff5df46234efca0ce92ffa3c4fdcdcabd564c68be0560aadd60fc9bbdde8-0000",
+            "userId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "viewedThrough": 1789226045536
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226045536,
+            "id": "s3-f643092cd48a6aa0b185c9e588f480f2bd48362e8b0f69aa273bea5f1df7f4b7-0000",
+            "userId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+            "viewedThrough": 1789226045536
+          }
+        ],
+        "semantics": "explicit recipient view watermark; committed write alone never establishes read"
+      }
+    }
+  ]
+}

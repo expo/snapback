@@ -1,0 +1,16 @@
+{
+  "basis": "Written after essay.md and before final metrics. Qualitative N=1 diagnostic; no weighted total.",
+  "B1": null,
+  "B2": {"score": 80, "reason": "Built-in password auth, browser persistence, expiry and server-side logout revocation worked through public APIs."},
+  "B3": null,
+  "B4": null,
+  "B5": null,
+  "B6": null,
+  "B7": null,
+  "B8": null,
+  "B9": {"score": 45, "reason": "Package installed directly, but a minimal Quarry declaration required installed-parser discovery; media gap prevents first milestone completion."},
+  "B10": {"score": 75, "reason": "Specific implicit-id/index and uniqueness errors helped. Admission refusal accurately matched documented omissions; generic syntax advice was less useful."},
+  "B11": {"score": 55, "reason": "One local owner and compiled static files worked. Backup, deployment, migration and lifecycle recovery remain untested."},
+  "holistic": {"score": 35, "reason": "Compact live profile wiring; parser discovery for basic authoring; mandatory avatar capability refused by the actual worker."},
+  "nullReason": "The brief requires every observing milestone to be attempted for each B dimension. This run only attempted M1; blocked milestones do not qualify. Outcome grading was not performed."
+}

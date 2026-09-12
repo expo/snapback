@@ -1,0 +1,168 @@
+[
+  {
+    "id": "distinct-server-fetched-viewed-receipts",
+    "status": "pass",
+    "evidence": {
+      "id": "7516355c-dfb5-4509-b5a2-087314cf7995",
+      "receipt": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "7516355c-dfb5-4509-b5a2-087314cf7995",
+          "replyTo": "sm0001",
+          "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+          "serverTimestamp": 1789234220264,
+          "text": "Receipt boundary control",
+          "tombstone": false,
+          "type": null
+        },
+        "effects": [
+          {
+            "id": "d-alice-bob",
+            "table": "conversations"
+          },
+          {
+            "id": "7516355c-dfb5-4509-b5a2-087314cf7995",
+            "table": "messages"
+          }
+        ],
+        "intent": "129beeed-d06a-400a-9d91-0fb4513845e8",
+        "program": {
+          "planHash": "8555576ef42ed48622be8695c7d26aa26d166db4fad2b3e1eb5f2aecf5ff3405",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "seq": 179,
+        "state": "committed"
+      },
+      "before": {
+        "data": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789234202926,
+            "id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000",
+            "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+            "viewedThrough": 1789234202926
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789234202926,
+            "id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000",
+            "userId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+            "viewedThrough": 1789234202926
+          }
+        ],
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 179
+          }
+        ]
+      },
+      "fetched": {
+        "rows": 28,
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 179
+          }
+        ]
+      },
+      "delivered": {
+        "data": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789234202926,
+            "id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000",
+            "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+            "viewedThrough": 1789234202926
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789234220264,
+            "id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000",
+            "userId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+            "viewedThrough": 1789234202926
+          }
+        ],
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 180
+          }
+        ]
+      },
+      "viewed": {
+        "data": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789234202926,
+            "id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000",
+            "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+            "viewedThrough": 1789234202926
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789234220264,
+            "id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000",
+            "userId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+            "viewedThrough": 1789234220264
+          }
+        ],
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 181
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "populated-reaction-own-state",
+    "status": "pass",
+    "evidence": {
+      "data": [
+        {
+          "conversationId": "d-alice-bob",
+          "emoji": "❤️",
+          "id": "s3-72bbe74756afa0498ed63c4d6151c577bd65bdd6efcf2f4fda52b2fdecdf7a26-0000",
+          "messageId": "sm0001",
+          "userId": "user:sz5PoX0IaexAFZfTzzf_tQ"
+        },
+        {
+          "conversationId": "d-alice-bob",
+          "emoji": "👍",
+          "id": "s3-c86cdf273bd7c383256cac8bbdae593c96f42d307e3ffb855c7ae9523ded33bf-0000",
+          "messageId": "sm0001",
+          "userId": "user:qaozGeVVhk11WPsju8lZuQ"
+        }
+      ],
+      "samples": [
+        {
+          "complete": true,
+          "status": "ready",
+          "seq": 183
+        }
+      ]
+    }
+  },
+  {
+    "id": "delayed-old-account-response-fenced",
+    "status": "pass",
+    "evidence": {
+      "data": [],
+      "samples": [
+        {
+          "complete": true,
+          "status": "ready",
+          "seq": 183
+        }
+      ]
+    }
+  }
+]
+exit=0

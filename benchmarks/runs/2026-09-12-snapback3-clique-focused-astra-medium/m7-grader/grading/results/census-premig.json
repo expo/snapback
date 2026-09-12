@@ -1,0 +1,572 @@
+{
+ "path": "grading/app-premig/.snapback3/store.sqlite",
+ "tables": [
+  {
+   "table_name": "conversations",
+   "n": 2
+  },
+  {
+   "table_name": "follows",
+   "n": 12
+  },
+  {
+   "table_name": "likes",
+   "n": 8
+  },
+  {
+   "table_name": "members",
+   "n": 5
+  },
+  {
+   "table_name": "messages",
+   "n": 16
+  },
+  {
+   "table_name": "posts",
+   "n": 28
+  },
+  {
+   "table_name": "profiles",
+   "n": 8
+  },
+  {
+   "table_name": "reactions",
+   "n": 4
+  },
+  {
+   "table_name": "reads",
+   "n": 5
+  },
+  {
+   "table_name": "reposts",
+   "n": 4
+  }
+ ],
+ "meta": [
+  {
+   "key": "created_at",
+   "v": "1789230283419"
+  },
+  {
+   "key": "store_version",
+   "v": "2"
+  },
+  {
+   "key": "owner",
+   "v": "1629138@expose-builder-pixel:1789230801422"
+  },
+  {
+   "key": "schema_hash",
+   "v": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+  },
+  {
+   "key": "generation",
+   "v": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+  },
+  {
+   "key": "program_generation",
+   "v": "195331c910aa78c5a25ab579a3f44bd9b3ac508eaf299665072fa1d39ca96ae4"
+  },
+  {
+   "key": "schema_json",
+   "v": "{\"tables\":{\"conversations\":{\"columns\":{\"id\":\"Id\",\"kind\":{\"Text\":{\"max\":10}},\"name\":{\"Text\":{\"max\":100}},\"owner\":\"Princip"
+  },
+  {
+   "key": "effects_json",
+   "v": "{}"
+  },
+  {
+   "key": "effects_generation",
+   "v": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+   "key": "evaluator_version",
+   "v": "bounded-spike-rust-search-text-refinements-5"
+  },
+  {
+   "key": "effects_json:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+   "v": "{}"
+  }
+ ],
+ "commitCount": {
+  "n": 15,
+  "mx": 15
+ },
+ "principals": [
+  {
+   "id": "system",
+   "kind": "system",
+   "name": "system",
+   "created_at": 1789230283419
+  },
+  {
+   "id": "user:qaozGeVVhk11WPsju8lZuQ",
+   "kind": "user",
+   "name": "alice@example.com",
+   "created_at": 1789230283730
+  },
+  {
+   "id": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "kind": "user",
+   "name": "bob@example.com",
+   "created_at": 1789230283843
+  },
+  {
+   "id": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+   "kind": "user",
+   "name": "carol@example.com",
+   "created_at": 1789230283947
+  },
+  {
+   "id": "user:3n0jprUZLVMmPHwatu0D-A",
+   "kind": "user",
+   "name": "dave@example.com",
+   "created_at": 1789230284038
+  },
+  {
+   "id": "user:etpcePnmdrui9TAFp9jA-w",
+   "kind": "user",
+   "name": "erin@example.com",
+   "created_at": 1789230284127
+  },
+  {
+   "id": "user:MN_RHgPNH0xduFG6_nnlaA",
+   "kind": "user",
+   "name": "frank@example.com",
+   "created_at": 1789230284211
+  },
+  {
+   "id": "user:BrdvuXnhWwngpSmhPfDJpA",
+   "kind": "user",
+   "name": "grace@example.com",
+   "created_at": 1789230284294
+  },
+  {
+   "id": "user:qzV_EI-dn06mt_7VdL5x-g",
+   "kind": "user",
+   "name": "henry@example.com",
+   "created_at": 1789230284373
+  }
+ ],
+ "conversations": [
+  {
+   "id": "d-alice-bob",
+   "Row": {
+    "id": {
+     "Id": "d-alice-bob"
+    },
+    "kind": {
+     "String": "dm"
+    },
+    "name": {
+     "String": "d-alice-bob"
+    },
+    "owner": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter",
+   "Row": {
+    "id": {
+     "Id": "g-starter"
+    },
+    "kind": {
+     "String": "group"
+    },
+    "name": {
+     "String": "Weekend Plans"
+    },
+    "owner": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  }
+ ],
+ "messageTotal": 16,
+ "messagesByConv": {
+  "undefined": {
+   "total": 16,
+   "visible": 16,
+   "tombstone": 0,
+   "byType": {
+    "undefined": 16
+   }
+  }
+ },
+ "messages": [
+  {
+   "id": "sm-m7-tombstone-control",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0001",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0002",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0003",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0004",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0005",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0006",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0007",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0008",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0009",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0010",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0011",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0012",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0013",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0014",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  },
+  {
+   "id": "sm0015",
+   "type": "<absent>",
+   "replyTo": "<absent>"
+  }
+ ],
+ "polls": [],
+ "votes": [],
+ "reactions": [
+  {
+   "id": "s3-26999cdf3e51f3e0e4e4cd5ce2f8310399b97e430b9e8d5264510214a6a8fac7-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "emoji": {
+     "String": "☕"
+    },
+    "id": {
+     "Id": "s3-26999cdf3e51f3e0e4e4cd5ce2f8310399b97e430b9e8d5264510214a6a8fac7-0000"
+    },
+    "messageId": {
+     "Id": "sm0007"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "s3-3491f165f800ce37787934bff38b54f57695fa3b97f37b225d8ce407e070d873-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "emoji": {
+     "String": "🎉"
+    },
+    "id": {
+     "Id": "s3-3491f165f800ce37787934bff38b54f57695fa3b97f37b225d8ce407e070d873-0000"
+    },
+    "messageId": {
+     "Id": "sm0007"
+    },
+    "userId": {
+     "Id": "user:jEYG7KOxOLRE6Tm6yxVd-w"
+    }
+   }
+  },
+  {
+   "id": "s3-72bbe74756afa0498ed63c4d6151c577bd65bdd6efcf2f4fda52b2fdecdf7a26-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "emoji": {
+     "String": "❤️"
+    },
+    "id": {
+     "Id": "s3-72bbe74756afa0498ed63c4d6151c577bd65bdd6efcf2f4fda52b2fdecdf7a26-0000"
+    },
+    "messageId": {
+     "Id": "sm0001"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  },
+  {
+   "id": "s3-c86cdf273bd7c383256cac8bbdae593c96f42d307e3ffb855c7ae9523ded33bf-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "emoji": {
+     "String": "👍"
+    },
+    "id": {
+     "Id": "s3-c86cdf273bd7c383256cac8bbdae593c96f42d307e3ffb855c7ae9523ded33bf-0000"
+    },
+    "messageId": {
+     "Id": "sm0001"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  }
+ ],
+ "reads": [
+  {
+   "id": "s3-1fedb8fa0acd5ddcaec292048cf16c55917aa531a42444aece7ac09646d0666b-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "fetchedThrough": {
+     "Int": 1789230284893
+    },
+    "id": {
+     "Id": "s3-1fedb8fa0acd5ddcaec292048cf16c55917aa531a42444aece7ac09646d0666b-0000"
+    },
+    "userId": {
+     "Id": "user:jEYG7KOxOLRE6Tm6yxVd-w"
+    },
+    "viewedThrough": {
+     "Int": 1789230284893
+    }
+   }
+  },
+  {
+   "id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "fetchedThrough": {
+     "Int": 1789225750326
+    },
+    "id": {
+     "Id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "viewedThrough": {
+     "Int": 1789225750326
+    }
+   }
+  },
+  {
+   "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "fetchedThrough": {
+     "Int": 1789230284893
+    },
+    "id": {
+     "Id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "viewedThrough": {
+     "Int": 1789230284893
+    }
+   }
+  },
+  {
+   "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "fetchedThrough": {
+     "Int": 1789230284893
+    },
+    "id": {
+     "Id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    },
+    "viewedThrough": {
+     "Int": 1789230284893
+    }
+   }
+  },
+  {
+   "id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000",
+   "Row": {
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "fetchedThrough": {
+     "Int": 1789225750326
+    },
+    "id": {
+     "Id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    },
+    "viewedThrough": {
+     "Int": 1789225750326
+    }
+   }
+  }
+ ],
+ "members": [
+  {
+   "id": "d-alice-bob:dev:alice",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "id": {
+     "Id": "d-alice-bob:dev:alice"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "d-alice-bob:dev:bob",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "d-alice-bob"
+    },
+    "id": {
+     "Id": "d-alice-bob:dev:bob"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter:dev:alice",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "g-starter:dev:alice"
+    },
+    "userId": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter:dev:bob",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "g-starter:dev:bob"
+    },
+    "userId": {
+     "Id": "user:sz5PoX0IaexAFZfTzzf_tQ"
+    }
+   }
+  },
+  {
+   "id": "g-starter:dev:carol",
+   "Row": {
+    "addedBy": {
+     "Id": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "conversationId": {
+     "Id": "g-starter"
+    },
+    "id": {
+     "Id": "g-starter:dev:carol"
+    },
+    "userId": {
+     "Id": "user:jEYG7KOxOLRE6Tm6yxVd-w"
+    }
+   }
+  }
+ ],
+ "maintained": [],
+ "allRowTables": [
+  "conversations",
+  "follows",
+  "likes",
+  "members",
+  "messages",
+  "posts",
+  "profiles",
+  "reactions",
+  "reads",
+  "reposts"
+ ],
+ "outbox": {
+  "n": 0
+ },
+ "clientIntents": {
+  "n": 0
+ }
+}

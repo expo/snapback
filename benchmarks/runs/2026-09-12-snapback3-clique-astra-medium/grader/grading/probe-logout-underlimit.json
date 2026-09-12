@@ -1,0 +1,20 @@
+{
+  "burnStatuses": [
+    401,
+    401,
+    401,
+    401,
+    401,
+    401,
+    401,
+    401
+  ],
+  "reachedAuthScreen": true,
+  "visibleTextAfterLogoutClick": "Clique | Clique | Sign in | Don't have an account? Sign up",
+  "url": "/",
+  "apiAfterClick": [
+    "200 /api/auth/logout"
+  ],
+  "consoleErrors": [],
+  "err": ""
+}

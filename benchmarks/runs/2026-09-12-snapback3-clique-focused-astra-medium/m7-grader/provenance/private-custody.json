@@ -1,0 +1,22 @@
+{
+  "schema": "snapback3-focused-m7-grader-private-custody.v1",
+  "remote": {
+    "snapshotManifestSha256": "549b277cb8d7843a4b71b7455a078b563f5bd8ce8fca7aef28eefd502b503525",
+    "contentSymlinkDigestSha256": "6c979ba9ddcc87efcdbf89afca8ef76ad325f9e78ab61d914afed41bacea08ba",
+    "freezeReceiptSha256": "d87d660bf53fec44c49450bf893e34e26af88300bf805b87a5fea82c0ba7d68d",
+    "privateArchiveSha256": "eb3a92dc7ac3b0d4aaa4176e2b2f09cc87f4cd630c4e1c2b7092ba556539d4e3",
+    "privateArchiveBytes": 9717380
+  },
+  "local": {
+    "archiveSha256": "eb3a92dc7ac3b0d4aaa4176e2b2f09cc87f4cd630c4e1c2b7092ba556539d4e3",
+    "bytes": 9717380
+  },
+  "privateContents": "Raw native model stream, all SQLite/WAL/SHM database copies, and authenticated extracted/profile archives.",
+  "publicExclusions": [
+    "raw native model stream",
+    "all SQLite/WAL/SHM/database copies",
+    "authenticated extracted browser profile",
+    "profile.tar.gz",
+    "dependency/store contents"
+  ]
+}

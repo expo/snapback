@@ -1,0 +1,35 @@
+{
+  "schema": "snapback3-clique-focused-static-asset-supplement-provenance.v1",
+  "cause": "The immutable builder snapshot excluded every path matching **/node_modules/**. That dependency filter also matched delivered Expo static assets under dist/assets/node_modules.",
+  "originalSnapshot": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/builder-final",
+    "manifestSha256": "0c7209793b26dc00f634e57c7eeb2c57e4685a587322e8be94486357239605b3",
+    "unchanged": true
+  },
+  "sourceVerification": {
+    "sourcePath": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3/dist/assets/node_modules",
+    "builderSourceFreezePath": "builder/artifacts/source-freeze.json",
+    "builderSourceFreezeSha256": "4538b941ad5e0bbb32c37e9906b114380b3a4f4a8365f3dfff41ff5048596608",
+    "expectedFiles": 18,
+    "matchedFiles": 18,
+    "matchedBytes": 20261,
+    "missing": [],
+    "mismatches": []
+  },
+  "remoteSupplement": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/builder-final-static-assets",
+    "readOnlyByMode": true,
+    "files": 18,
+    "symlinks": 0,
+    "bytes": 20261,
+    "contentSymlinkDigest": "sha256:b4375fc0ff0a459d0df3d3d4e661abe0f414f4e9baa1e322e90be85bbf3fc59a",
+    "manifestPath": "provenance/packet/snapshots/builder-final-static-assets.manifest.json",
+    "manifestSha256": "aa1e0a0432602df18a63e90689d99022434957378e5f42bba05cc07e9efaea09"
+  },
+  "localPrivateArchive": {
+    "path": "/Users/ccheever/projects/snapback/.llp/ship-runs/snapback3-clique-focused-20260912/retained/builder-final-static-assets-supplement.tar.gz",
+    "sha256": "47a71b814caea902f5564c819e5a625d2052ec7ceeca1b252669b961b421c5fc",
+    "gzipValidated": true
+  },
+  "classification": "Private custody supplement for delivered build assets; not a source repair, package change, grader mutation, or M7-preparation mutation."
+}

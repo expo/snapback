@@ -1,0 +1,395 @@
+{
+  "before": {
+    "ok": true,
+    "pid": 1616312,
+    "seq": 1,
+    "version": "0.0.1"
+  },
+  "after": {
+    "ok": true,
+    "pid": 1616312,
+    "seq": 15,
+    "version": "0.0.1"
+  },
+  "ledger": [
+    {
+      "name": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "op": "messages.setReaction",
+      "args": {
+        "messageId": "sm0001",
+        "emoji": "👍"
+      },
+      "id": "9915eaca-c5dc-4879-9a83-fe59ad9ac1a5",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-c86cdf273bd7c383256cac8bbdae593c96f42d307e3ffb855c7ae9523ded33bf-0000",
+            "table": "reactions"
+          }
+        ],
+        "intent": "9915eaca-c5dc-4879-9a83-fe59ad9ac1a5",
+        "program": {
+          "planHash": "cde167107457ea01f27dd51b6ddcdd79361a7b9e935d84fbdaa18b4829108252",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 2,
+        "state": "committed"
+      },
+      "at": 1789230301315
+    },
+    {
+      "name": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "op": "messages.setReaction",
+      "args": {
+        "messageId": "sm0001",
+        "emoji": "❤️"
+      },
+      "id": "37fa6ceb-278a-4dcf-948b-8b1c556362f9",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-72bbe74756afa0498ed63c4d6151c577bd65bdd6efcf2f4fda52b2fdecdf7a26-0000",
+            "table": "reactions"
+          }
+        ],
+        "intent": "37fa6ceb-278a-4dcf-948b-8b1c556362f9",
+        "program": {
+          "planHash": "cde167107457ea01f27dd51b6ddcdd79361a7b9e935d84fbdaa18b4829108252",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 3,
+        "state": "committed"
+      },
+      "at": 1789230301319
+    },
+    {
+      "name": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "op": "messages.setReaction",
+      "args": {
+        "messageId": "sm0007",
+        "emoji": "☕"
+      },
+      "id": "95387a10-d1f2-49e6-bc97-7b6e257269cd",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-26999cdf3e51f3e0e4e4cd5ce2f8310399b97e430b9e8d5264510214a6a8fac7-0000",
+            "table": "reactions"
+          }
+        ],
+        "intent": "95387a10-d1f2-49e6-bc97-7b6e257269cd",
+        "program": {
+          "planHash": "cde167107457ea01f27dd51b6ddcdd79361a7b9e935d84fbdaa18b4829108252",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 4,
+        "state": "committed"
+      },
+      "at": 1789230301324
+    },
+    {
+      "name": "carol",
+      "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+      "op": "messages.setReaction",
+      "args": {
+        "messageId": "sm0007",
+        "emoji": "🎉"
+      },
+      "id": "f947688b-3634-4962-824e-45a0f817788d",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-3491f165f800ce37787934bff38b54f57695fa3b97f37b225d8ce407e070d873-0000",
+            "table": "reactions"
+          }
+        ],
+        "intent": "f947688b-3634-4962-824e-45a0f817788d",
+        "program": {
+          "planHash": "cde167107457ea01f27dd51b6ddcdd79361a7b9e935d84fbdaa18b4829108252",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 5,
+        "state": "committed"
+      },
+      "at": 1789230301328
+    },
+    {
+      "name": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "op": "messages.fetched",
+      "args": {
+        "conversationId": "d-alice-bob",
+        "through": 1789225750326
+      },
+      "id": "30ed7670-2d44-4f66-b77b-fced50269fd3",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "30ed7670-2d44-4f66-b77b-fced50269fd3",
+        "program": {
+          "planHash": "ec4d4b9d900b29949a871ea71a28715bf2c75110eb0bb23da8a39222e4ebc3b8",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 6,
+        "state": "committed"
+      },
+      "at": 1789230301345
+    },
+    {
+      "name": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "op": "messages.viewed",
+      "args": {
+        "conversationId": "d-alice-bob",
+        "through": 1789225750326
+      },
+      "id": "55ae5cf3-584c-47d0-a18e-509090c67120",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-5a7558a6bf8303e3a36199391ef6307b4c1429a13371f1cef83b7d6cdc91912e-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "55ae5cf3-584c-47d0-a18e-509090c67120",
+        "program": {
+          "planHash": "3d4367791207b4a3344ba391905cbd641188e94f9eaed74024f10e6e99b73605",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 7,
+        "state": "committed"
+      },
+      "at": 1789230301349
+    },
+    {
+      "name": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "op": "messages.fetched",
+      "args": {
+        "conversationId": "g-starter",
+        "through": 1789230284893
+      },
+      "id": "cc82222c-28de-471b-996b-656a2da546ee",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "cc82222c-28de-471b-996b-656a2da546ee",
+        "program": {
+          "planHash": "ec4d4b9d900b29949a871ea71a28715bf2c75110eb0bb23da8a39222e4ebc3b8",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 8,
+        "state": "committed"
+      },
+      "at": 1789230301364
+    },
+    {
+      "name": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "op": "messages.viewed",
+      "args": {
+        "conversationId": "g-starter",
+        "through": 1789230284893
+      },
+      "id": "aa63e22d-27ff-49b4-8fc5-4a4daf913dd2",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "aa63e22d-27ff-49b4-8fc5-4a4daf913dd2",
+        "program": {
+          "planHash": "3d4367791207b4a3344ba391905cbd641188e94f9eaed74024f10e6e99b73605",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 9,
+        "state": "committed"
+      },
+      "at": 1789230301367
+    },
+    {
+      "name": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "op": "messages.fetched",
+      "args": {
+        "conversationId": "d-alice-bob",
+        "through": 1789225750326
+      },
+      "id": "8759ed10-69ad-413b-867b-e6c08423536d",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "8759ed10-69ad-413b-867b-e6c08423536d",
+        "program": {
+          "planHash": "ec4d4b9d900b29949a871ea71a28715bf2c75110eb0bb23da8a39222e4ebc3b8",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 10,
+        "state": "committed"
+      },
+      "at": 1789230301375
+    },
+    {
+      "name": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "op": "messages.viewed",
+      "args": {
+        "conversationId": "d-alice-bob",
+        "through": 1789225750326
+      },
+      "id": "dca6ba2a-db45-4f16-9c6e-5da54ee1d44c",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-c7b106964a81ddd7d426a8bdb08dfeadd6356558a6d1d32529487f2907d5c103-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "dca6ba2a-db45-4f16-9c6e-5da54ee1d44c",
+        "program": {
+          "planHash": "3d4367791207b4a3344ba391905cbd641188e94f9eaed74024f10e6e99b73605",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 11,
+        "state": "committed"
+      },
+      "at": 1789230301379
+    },
+    {
+      "name": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "op": "messages.fetched",
+      "args": {
+        "conversationId": "g-starter",
+        "through": 1789230284893
+      },
+      "id": "e4c99fb5-9425-4a25-a2e2-aa39395e309e",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "e4c99fb5-9425-4a25-a2e2-aa39395e309e",
+        "program": {
+          "planHash": "ec4d4b9d900b29949a871ea71a28715bf2c75110eb0bb23da8a39222e4ebc3b8",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 12,
+        "state": "committed"
+      },
+      "at": 1789230301390
+    },
+    {
+      "name": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "op": "messages.viewed",
+      "args": {
+        "conversationId": "g-starter",
+        "through": 1789230284893
+      },
+      "id": "730548cd-bba0-4274-a1b4-b99af17108e8",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "730548cd-bba0-4274-a1b4-b99af17108e8",
+        "program": {
+          "planHash": "3d4367791207b4a3344ba391905cbd641188e94f9eaed74024f10e6e99b73605",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 13,
+        "state": "committed"
+      },
+      "at": 1789230301394
+    },
+    {
+      "name": "carol",
+      "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+      "op": "messages.fetched",
+      "args": {
+        "conversationId": "g-starter",
+        "through": 1789230284893
+      },
+      "id": "82cc81a0-9654-447b-888c-508e3896706f",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-1fedb8fa0acd5ddcaec292048cf16c55917aa531a42444aece7ac09646d0666b-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "82cc81a0-9654-447b-888c-508e3896706f",
+        "program": {
+          "planHash": "ec4d4b9d900b29949a871ea71a28715bf2c75110eb0bb23da8a39222e4ebc3b8",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 14,
+        "state": "committed"
+      },
+      "at": 1789230301407
+    },
+    {
+      "name": "carol",
+      "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+      "op": "messages.viewed",
+      "args": {
+        "conversationId": "g-starter",
+        "through": 1789230284893
+      },
+      "id": "ad20f93b-f987-4cf0-adea-cfaa943e3e34",
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-1fedb8fa0acd5ddcaec292048cf16c55917aa531a42444aece7ac09646d0666b-0000",
+            "table": "reads"
+          }
+        ],
+        "intent": "ad20f93b-f987-4cf0-adea-cfaa943e3e34",
+        "program": {
+          "planHash": "3d4367791207b4a3344ba391905cbd641188e94f9eaed74024f10e6e99b73605",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 15,
+        "state": "committed"
+      },
+      "at": 1789230301410
+    }
+  ],
+  "scope": "Authenticated public app setReaction/fetched/viewed only; watermarks are client reports, not device attestation."
+}

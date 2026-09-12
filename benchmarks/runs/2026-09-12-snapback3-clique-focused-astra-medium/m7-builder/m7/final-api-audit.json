@@ -1,0 +1,127 @@
+{
+  "at": 1789232798591,
+  "offlineReceipts": [
+    {
+      "actor": "alice",
+      "id": "05743ea1-246b-4685-9fd2-e61883e2c60f",
+      "status": 200,
+      "body": {
+        "data": true,
+        "intent": "05743ea1-246b-4685-9fd2-e61883e2c60f",
+        "program": {
+          "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "seq": 37,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "bob",
+      "id": "72f38afb-a2c5-4cae-9f5e-ac84305a0662",
+      "status": 200,
+      "body": {
+        "data": true,
+        "intent": "72f38afb-a2c5-4cae-9f5e-ac84305a0662",
+        "program": {
+          "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "seq": 39,
+        "state": "committed"
+      }
+    }
+  ],
+  "conversations": [
+    {
+      "id": "d-alice-bob",
+      "field": 18,
+      "visible": 18,
+      "stored": 18,
+      "ids": [
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006",
+        "b89948cc-91b7-4542-912a-1bbe87bfcc7e",
+        "9e94d962-6b3b-44f9-b879-3883f49a423d",
+        "a3ee2a35-f7fe-45a4-a72c-abb7541b0743",
+        "0f5f1d07-c387-4fea-bee0-894be3d522e6",
+        "89e7f6c1-fcab-4427-9069-f32c25816bee",
+        "0132f65c-d6ce-42ea-a2b6-a788fee96320",
+        "4db6093d-4ed3-4b8f-8c6a-f9ed63f3dd41",
+        "ec746685-b96d-44c5-b162-31669d273bdb",
+        "d7838c8b-1ad7-4aa4-a652-c62ae8cd4abc",
+        "da630167-e8a0-4045-88e6-410accfeead9",
+        "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+        "2ad416a2-5642-4958-966d-d547906b2fd6"
+      ]
+    },
+    {
+      "id": "g-starter",
+      "field": 11,
+      "visible": 11,
+      "stored": 12,
+      "ids": [
+        "sm0007",
+        "sm0008",
+        "sm0009",
+        "sm0010",
+        "sm0011",
+        "sm0012",
+        "sm0013",
+        "sm0014",
+        "sm0015",
+        "sm-m7-tombstone-control",
+        "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "533d0fc0-4ac5-4e00-b399-9b7c677f9baf"
+      ]
+    },
+    {
+      "id": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+      "field": 3,
+      "visible": 3,
+      "stored": 3,
+      "ids": [
+        "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+        "082365bc-c358-4679-8dc8-9803f2aba929",
+        "f33216e7-4cb7-49c8-8437-9a669f423990"
+      ]
+    }
+  ],
+  "build": [
+    {
+      "url": "/_expo/static/js/web/entry-61bbab2af9602bcf8a604b838e01cda7.js",
+      "sha256": "31d843a553cbc145fb9f2db961509c1edd06da7f9d88dfbcabf1c130dc8bc4d5",
+      "bytes": 1354979,
+      "servedEqualsDisk": true
+    }
+  ],
+  "poll": {
+    "data": {
+      "a": 0,
+      "b": 2,
+      "c": 0,
+      "d": 0,
+      "mine": "b",
+      "poll": {
+        "conversationId": "g-starter",
+        "id": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "messageId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "optionA": "A",
+        "optionB": "B",
+        "optionC": null,
+        "optionD": null,
+        "question": "Where shall we meet?"
+      }
+    },
+    "status": "ready",
+    "complete": true,
+    "fresh": true,
+    "next": null,
+    "seq": 115
+  },
+  "pass": true
+}

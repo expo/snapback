@@ -1,0 +1,48 @@
+PASS IND-auth-restoration
+FAIL IND-rapid-nav-and-account-change TimeoutError: locator.waitFor: Timeout 15000ms exceeded.
+Call log:
+  - waiting for getByTestId('message-sm0001') to be visible
+
+PASS IND-unavailable-count-messages-visible
+PASS IND-durable-send-during-delayed-read
+PASS IND-same-account-convergence
+FAIL IND-offline-dual-queue-reopen-order Error: browser not actually offline
+FAIL IND-receipt-states-distinct Error: grader 60s timeout
+FAIL IND-insights-rendered TimeoutError: locator.waitFor: Timeout 20000ms exceeded.
+Call log:
+  - waiting for getByTestId('sm-insights-day-row').first() to be visible
+
+[
+ {
+  "id": "IND-auth-restoration",
+  "status": "pass"
+ },
+ {
+  "id": "IND-rapid-nav-and-account-change",
+  "status": "fail"
+ },
+ {
+  "id": "IND-unavailable-count-messages-visible",
+  "status": "pass"
+ },
+ {
+  "id": "IND-durable-send-during-delayed-read",
+  "status": "pass"
+ },
+ {
+  "id": "IND-same-account-convergence",
+  "status": "pass"
+ },
+ {
+  "id": "IND-offline-dual-queue-reopen-order",
+  "status": "fail"
+ },
+ {
+  "id": "IND-receipt-states-distinct",
+  "status": "fail"
+ },
+ {
+  "id": "IND-insights-rendered",
+  "status": "fail"
+ }
+]

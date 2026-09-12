@@ -1,0 +1,54 @@
+{
+  "epoch": 1789228324.9365942,
+  "status": "pass",
+  "method": "independent Python shlex parse of frozen inputs, compared every projected actor/time/verb/argument; checked quote membership, entity counts and authorization scopes",
+  "actions": 105134,
+  "verbs": {
+    "register": 1008,
+    "profile-set": 1008,
+    "follow": 12,
+    "post": 24,
+    "reply": 4,
+    "like": 8,
+    "repost": 4,
+    "dm-create": 901,
+    "group-create": 101,
+    "member-add": 49,
+    "send": 100015,
+    "react": 2000
+  },
+  "converted": {
+    "profile-avatar-omission": 1008,
+    "media-post": 6,
+    "media-message": 910
+  },
+  "omitted": {
+    "follow": 5909,
+    "post": 48200,
+    "reply": 2000,
+    "like": 5000,
+    "repost": 1000
+  },
+  "scopes": {
+    "u0001": {
+      "conversations": 1000,
+      "messages": 100000
+    },
+    "u0500": {
+      "conversations": 100,
+      "messages": 10000
+    },
+    "alice": {
+      "conversations": 2,
+      "messages": 15
+    },
+    "bob": {
+      "conversations": 2,
+      "messages": 15
+    },
+    "carol": {
+      "conversations": 1,
+      "messages": 9
+    }
+  }
+}

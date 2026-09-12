@@ -1,0 +1,9 @@
+PASS IND2-rapid-nav
+PASS IND2-account-change-isolation
+PASS IND2-offline-reality
+PASS IND2-two-offline-queues-order
+FAIL IND2-unread-converges Error: unread never rose above 0 (rendered 0)
+PASS IND2-receipts-distinct
+PASS IND2-insights-rendered
+[{"id":"IND2-rapid-nav","status":"pass"},{"id":"IND2-account-change-isolation","status":"pass"},{"id":"IND2-offline-reality","status":"pass"},{"id":"IND2-two-offline-queues-order","status":"pass"},{"id":"IND2-unread-converges","status":"fail"},{"id":"IND2-receipts-distinct","status":"pass"},{"id":"IND2-insights-rendered","status":"pass"}]
+EXIT=0

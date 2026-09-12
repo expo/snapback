@@ -1,0 +1,122 @@
+{
+  "start": 1789232357074,
+  "surface": "public authenticated Quarry mutation; owner additive schema installation",
+  "conversations": [
+    {
+      "id": "d-alice-bob",
+      "before": {
+        "id": "d-alice-bob",
+        "kind": "dm",
+        "messageCount": null,
+        "name": "d-alice-bob",
+        "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+      },
+      "stored": 6,
+      "visible": 6,
+      "after": {
+        "id": "d-alice-bob",
+        "kind": "dm",
+        "messageCount": 6,
+        "name": "d-alice-bob",
+        "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+      },
+      "ids": [
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006"
+      ]
+    },
+    {
+      "id": "g-starter",
+      "before": {
+        "id": "g-starter",
+        "kind": "group",
+        "messageCount": null,
+        "name": "Weekend Plans",
+        "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+      },
+      "stored": 10,
+      "visible": 9,
+      "after": {
+        "id": "g-starter",
+        "kind": "group",
+        "messageCount": 9,
+        "name": "Weekend Plans",
+        "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+      },
+      "ids": [
+        "sm0007",
+        "sm0008",
+        "sm0009",
+        "sm0010",
+        "sm0011",
+        "sm0012",
+        "sm0013",
+        "sm0014",
+        "sm0015",
+        "sm-m7-tombstone-control"
+      ]
+    }
+  ],
+  "receipts": [
+    {
+      "actor": "alice",
+      "id": "d-alice-bob",
+      "operationId": "757da10a-f276-4aca-9e9f-66fbbcc1b1fa",
+      "receipt": {
+        "data": {
+          "id": "d-alice-bob",
+          "kind": "dm",
+          "messageCount": 6,
+          "name": "d-alice-bob",
+          "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+        },
+        "effects": [
+          {
+            "id": "d-alice-bob",
+            "table": "conversations"
+          }
+        ],
+        "intent": "757da10a-f276-4aca-9e9f-66fbbcc1b1fa",
+        "program": {
+          "planHash": "fd4985700d6bb3d13ad191cf7a1bcb5748460684c9a0d8026781d0a2021bee45",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "seq": 16,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "alice",
+      "id": "g-starter",
+      "operationId": "e07a873a-4c87-48e3-b267-db330dbd8333",
+      "receipt": {
+        "data": {
+          "id": "g-starter",
+          "kind": "group",
+          "messageCount": 9,
+          "name": "Weekend Plans",
+          "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+        },
+        "effects": [
+          {
+            "id": "g-starter",
+            "table": "conversations"
+          }
+        ],
+        "intent": "e07a873a-4c87-48e3-b267-db330dbd8333",
+        "program": {
+          "planHash": "fd4985700d6bb3d13ad191cf7a1bcb5748460684c9a0d8026781d0a2021bee45",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "seq": 17,
+        "state": "committed"
+      }
+    }
+  ],
+  "error": "SnapbackError: E_AUTH_INVALID: invalid email or password",
+  "end": 1789232357766
+}

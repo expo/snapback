@@ -1,0 +1,33 @@
+{
+  "epoch": 1789228707446,
+  "files": [
+    {
+      "path": ".snapback3/store.sqlite",
+      "bytes": 1433600
+    },
+    {
+      "path": ".snapback3/store.sqlite-wal",
+      "bytes": 4152992
+    },
+    {
+      "path": ".snapback3/store.sqlite-shm",
+      "bytes": 32768
+    },
+    {
+      "path": "artifacts/scale-app/.snapback3/store.sqlite",
+      "bytes": 113209344
+    },
+    {
+      "path": "artifacts/scale-app/.snapback3/store.sqlite-wal",
+      "bytes": 112908632
+    },
+    {
+      "path": "artifacts/starter-app/.snapback3/store.sqlite",
+      "bytes": 487424
+    },
+    {
+      "path": "artifacts/starter-app/.snapback3/store.sqlite-wal",
+      "bytes": 4144752
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "version": "snapback3-focused-preflight.v1",
+  "ready": true,
+  "host": "expose-builder-pixel",
+  "recordedAt": "2026-09-12T14:54:38Z",
+  "recordedEpoch": 1789224878,
+  "loadAverage": [
+    0.50439453125,
+    0.5537109375,
+    0.51123046875
+  ],
+  "memoryAvailable": "252915904 kB",
+  "diskAvailableBytes": 298186780672,
+  "reservation": {
+    "lane": "astra-snapback3",
+    "ports": [
+      {
+        "port": 54900,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54901,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54902,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54903,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54904,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54905,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54906,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54907,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54908,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54909,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54910,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54911,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54912,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54913,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54914,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54915,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54916,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54917,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54918,
+        "availableAtProbe": true,
+        "errors": []
+      },
+      {
+        "port": 54919,
+        "availableAtProbe": true,
+        "errors": []
+      }
+    ],
+    "policy": "recorded-exclusive-band-54900-54919"
+  },
+  "concurrencyLimit": {
+    "actors": 2,
+    "heavyBuilds": 1
+  },
+  "knownConcurrentService": {
+    "actorPid": 1453923,
+    "serverPid": 1456624,
+    "port": 54800,
+    "purpose": "old immutable packet Opus grader and its server; untouched"
+  }
+}

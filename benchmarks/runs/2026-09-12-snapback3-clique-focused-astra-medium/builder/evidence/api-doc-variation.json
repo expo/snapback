@@ -1,0 +1,24 @@
+{
+  "id": "m6-a12",
+  "status": "pass",
+  "scope": "builder-authored API.md variation, not independent grader proof",
+  "snapshot": {
+    "data": [
+      {
+        "conversationId": "g-starter",
+        "edited": false,
+        "id": "sm0015",
+        "replyTo": null,
+        "senderId": "user:yPESCpaBcw5cjFZxlVklwQ",
+        "serverTimestamp": 1789226888336,
+        "text": "Locked in. See you Saturday.",
+        "tombstone": false
+      }
+    ],
+    "status": "ready",
+    "complete": false,
+    "fresh": true,
+    "next": null,
+    "seq": 78
+  }
+}

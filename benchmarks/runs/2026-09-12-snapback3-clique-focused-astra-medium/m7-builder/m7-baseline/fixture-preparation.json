@@ -1,0 +1,367 @@
+{
+  "status": "ready-for-coordinator-staging-not-migrated",
+  "completedEpochMs": 1789231090457,
+  "lane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare",
+  "fixedPackage": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/packages/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "sha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "verifiedPayloadFiles": 108
+  },
+  "source": {
+    "originalManifestSha256": "0c7209793b26dc00f634e57c7eeb2c57e4685a587322e8be94486357239605b3",
+    "freezeReceiptSha256": "a02a4fc4b8c98cd9b94a841437a23983a81800d0f2688835375aeab6466c0a32",
+    "preparedManifest": {
+      "path": "m7-preparation/prepared-source-manifest.json",
+      "bytes": 34745,
+      "sha256": "745ce2551f75d77bb38873faaea66c5cc57c9b5e379b8bc0abfe443f70a8b909"
+    },
+    "staticAssetsSupplementManifestSha256": "aa1e0a0432602df18a63e90689d99022434957378e5f42bba05cc07e9efaea09",
+    "restoration": {
+      "path": "m7-preparation/static-assets-restoration.json",
+      "bytes": 4643,
+      "sha256": "08ccc4f4b54745f80f0807c243504e80e2402138e93b4d243430e3f80728af9e"
+    },
+    "schemaFile": {
+      "path": "snapback/schema.q",
+      "bytes": 3577,
+      "sha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017"
+    },
+    "seed": {
+      "path": "snapback/seed.ts",
+      "bytes": 14267,
+      "sha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27"
+    }
+  },
+  "database": {
+    "applicationSeq": 15,
+    "stopped": true,
+    "files": [
+      {
+        "path": ".snapback3/store.sqlite",
+        "bytes": 405504,
+        "sha256": "79dc997ef76cbe47a689f612ef88bc89a2e21a361460aa4e58dca2acb07d1487",
+        "inode": 96867262,
+        "device": 66310
+      },
+      {
+        "path": ".snapback3/store.sqlite-shm",
+        "bytes": 32768,
+        "sha256": "94f17bd265590cf6dbb049295fb5d296d97cbfe6bc1fa2dbb0e8ca75d25c1660",
+        "inode": 96867266,
+        "device": 66310
+      },
+      {
+        "path": ".snapback3/store.sqlite-wal",
+        "bytes": 49472,
+        "sha256": "c0568d69af5afbb9bf66770cbbee96ada98399568e1f79f6d07885060e54ae52",
+        "inode": 96867267,
+        "device": 66310
+      }
+    ],
+    "custody": "Copy the complete stopped .snapback3/store.sqlite + store.sqlite-wal + store.sqlite-shm set together before any next owner. Do not replace with a snapshot from any other DB. The preparer did not perform SQL writes, checkpoints, migrations or resets."
+  },
+  "snapshots": [
+    {
+      "path": "m7-preparation/pre-m7-alice.json",
+      "bytes": 16968,
+      "sha256": "8064fe23f0222806140725b34141364437269f4890ec37e44406d09e2f305093",
+      "persona": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "conversations": [
+        {
+          "id": "d-alice-bob",
+          "storedMessages": 6,
+          "visibleMessages": 6,
+          "idsSha256": "20ec53844bd9728e01e2bfc2f282bf61902d4961090b44125e783a5167972b66",
+          "ids": [
+            "sm0001",
+            "sm0002",
+            "sm0003",
+            "sm0004",
+            "sm0005",
+            "sm0006"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        },
+        {
+          "id": "g-starter",
+          "storedMessages": 10,
+          "visibleMessages": 9,
+          "idsSha256": "c3701f5846e64ae122ecca2799575b9dc7e16d2f916443ea47d5fd795e4ef105",
+          "ids": [
+            "sm-m7-tombstone-control",
+            "sm0007",
+            "sm0008",
+            "sm0009",
+            "sm0010",
+            "sm0011",
+            "sm0012",
+            "sm0013",
+            "sm0014",
+            "sm0015"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        }
+      ]
+    },
+    {
+      "path": "m7-preparation/pre-m7-bob.json",
+      "bytes": 14921,
+      "sha256": "123db821f1ee69849e2a1258a67a6a5610d187b4a53deb4831b000630077f1fc",
+      "persona": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "conversations": [
+        {
+          "id": "d-alice-bob",
+          "storedMessages": 6,
+          "visibleMessages": 6,
+          "idsSha256": "20ec53844bd9728e01e2bfc2f282bf61902d4961090b44125e783a5167972b66",
+          "ids": [
+            "sm0001",
+            "sm0002",
+            "sm0003",
+            "sm0004",
+            "sm0005",
+            "sm0006"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        },
+        {
+          "id": "g-starter",
+          "storedMessages": 10,
+          "visibleMessages": 9,
+          "idsSha256": "c3701f5846e64ae122ecca2799575b9dc7e16d2f916443ea47d5fd795e4ef105",
+          "ids": [
+            "sm-m7-tombstone-control",
+            "sm0007",
+            "sm0008",
+            "sm0009",
+            "sm0010",
+            "sm0011",
+            "sm0012",
+            "sm0013",
+            "sm0014",
+            "sm0015"
+          ],
+          "reactionRows": 2,
+          "mineRows": 0
+        }
+      ]
+    },
+    {
+      "path": "m7-preparation/pre-m7-carol.json",
+      "bytes": 10997,
+      "sha256": "fde8fddb3542692d75081565d35865173b9c50a7b1a81bb87e31c8b4f519bb6c",
+      "persona": "carol",
+      "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+      "conversations": [
+        {
+          "id": "g-starter",
+          "storedMessages": 10,
+          "visibleMessages": 9,
+          "idsSha256": "c3701f5846e64ae122ecca2799575b9dc7e16d2f916443ea47d5fd795e4ef105",
+          "ids": [
+            "sm-m7-tombstone-control",
+            "sm0007",
+            "sm0008",
+            "sm0009",
+            "sm0010",
+            "sm0011",
+            "sm0012",
+            "sm0013",
+            "sm0014",
+            "sm0015"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        }
+      ]
+    }
+  ],
+  "controls": {
+    "passwordAccounts": 8,
+    "signupOnlyApplicationSeq": 0,
+    "afterSupportedStaticSeedSeq": 1,
+    "publicCommittedReactions": 4,
+    "publicCommittedReceiptMutations": 10,
+    "editedExistingId": "sm0007",
+    "extraTombstoneId": "sm-m7-tombstone-control",
+    "perPersonaNonemptyAssertions": {
+      "at": 1789230881509,
+      "manifest": [
+        {
+          "persona": "alice",
+          "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+          "rows": 16,
+          "visible": 15,
+          "edited": 1,
+          "tombstones": 1,
+          "reactionRows": 4,
+          "ownReceiptRows": 7,
+          "quotedMessages": 6,
+          "file": "pre-m7-alice.json"
+        },
+        {
+          "persona": "bob",
+          "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+          "rows": 16,
+          "visible": 15,
+          "edited": 1,
+          "tombstones": 1,
+          "reactionRows": 4,
+          "ownReceiptRows": 5,
+          "quotedMessages": 6,
+          "file": "pre-m7-bob.json"
+        },
+        {
+          "persona": "carol",
+          "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+          "rows": 10,
+          "visible": 9,
+          "edited": 1,
+          "tombstones": 1,
+          "reactionRows": 2,
+          "ownReceiptRows": 4,
+          "quotedMessages": 3,
+          "file": "pre-m7-carol.json"
+        }
+      ],
+      "nonemptyAssertionsPassed": true
+    },
+    "ledger": {
+      "path": "m7-preparation/public-control-receipts.json",
+      "bytes": 12042,
+      "sha256": "d3d19368dbf71a60eb6696abccaeba494e8d3fc68415f62af1526fad38cd1932"
+    }
+  },
+  "oldClient": {
+    "status": "ready-offline-not-reconnected",
+    "profile": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-prepare/m7-preparation/old-client-profile",
+    "profileManifest": {
+      "path": "m7-preparation/old-client-profile-manifest.private.json",
+      "bytes": 28464,
+      "sha256": "c94076d817bd1004c134954b7d44e3d6745ad385894866934fa9302f4b51fad5"
+    },
+    "origin": "http://127.0.0.1:54910",
+    "playwright": "1.62.1",
+    "node": "v24.13.1",
+    "operationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+    "messageId": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+    "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382",
+    "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+    "intentBodySha256": "f4c689237949c897dea1081aafd436375d946e302d013bd1d0171a9647a04c15",
+    "persistedStatus": "queued",
+    "observedNetworkFailure": true,
+    "navigatorOnLine": true,
+    "certification": {
+      "path": "m7-preparation/old-client-certification.json",
+      "bytes": 3768,
+      "sha256": "2dae411fcfe91227c3131c45cd2d66a78b8d7d504f0ab0bfc6e6ee2b9db77be1"
+    },
+    "journal": {
+      "path": "m7-preparation/old-client-journal.json",
+      "bytes": 770,
+      "sha256": "8c56fda7de29708196d32ae3dc790aaea72e533faf9046595363a3065f6d4730"
+    },
+    "serverAbsence": {
+      "path": "m7-preparation/old-client-server-absence.json",
+      "bytes": 973,
+      "sha256": "890b0fab4f25761fcf2a397179d1c4430b900522f1f06a138cffaacdf0b78139"
+    },
+    "handoff": "Keep exact closed profile private in preparation lane; do not expose to fresh actor. Root may resume it at http://127.0.0.1:54910 only after all M7 immediate/post-poll count checkpoints and after stopping every other DB owner. Do not recreate the send or replace its intent ID."
+  },
+  "processes": [
+    {
+      "record": "m7-preparation/authenticated-controls.process.json",
+      "ownerPid": 1616294,
+      "childPids": [
+        1616312
+      ],
+      "stoppedEpoch": 1789230752.0789077
+    },
+    {
+      "record": "m7-preparation/failed-permission-preparation/signup-only.process.json",
+      "ownerPid": 1610703,
+      "childPids": [
+        1610716
+      ],
+      "stoppedEpoch": 1789230191.8455868
+    },
+    {
+      "record": "m7-preparation/failed-permission-preparation/static-seed.process.json",
+      "ownerPid": 1613697,
+      "childPids": [
+        1613715
+      ],
+      "stoppedEpoch": 1789230282.9020145
+    },
+    {
+      "record": "m7-preparation/old-client-retry.process.json",
+      "ownerPid": 1629125,
+      "childPids": [
+        1629138
+      ],
+      "stoppedEpoch": 1789230881.6825526
+    },
+    {
+      "record": "m7-preparation/signup-final.process.json",
+      "ownerPid": 1615825,
+      "childPids": [
+        1615838
+      ],
+      "stoppedEpoch": 1789230284.5984905
+    },
+    {
+      "record": "m7-preparation/static-seed-final.process.json",
+      "ownerPid": 1615849,
+      "childPids": [
+        1615862
+      ],
+      "stoppedEpoch": 1789230300.2381954
+    }
+  ],
+  "portsConfirmedFree": [
+    54910,
+    54911,
+    54912
+  ],
+  "priorBuilderSelectedResults": {
+    "root": {
+      "path": "selected-results.json",
+      "bytes": 79473,
+      "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b"
+    },
+    "privateCopy": {
+      "path": "m7-preparation/builder-selected-results.json",
+      "bytes": 79473,
+      "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b"
+    },
+    "provenance": "Frozen builder-selected output only, not independently graded result."
+  },
+  "deviations": [
+    "Initial top-level copied-directory modes prevented seed write; missing fail-fast allowed empty seed attempt in separate DB. That failed DB and identities are archived in failed-permission-preparation; none reused.",
+    "Coordinator snapshot excluded nested static assets. First optional shell attempt hit 18 precache404s before any send. Exact original assets restored against frozen builder hashes and independently frozen supplement; no rebuild or product edit.",
+    "navigator.onLine remained true under Chromium/Playwright actual offline network emulation. Offline certification uses explicit offline:true/setOffline(true), failing uncached API request while owner healthy, closed/reopened shell, same original persisted operation ID. First strict navigator assertion retained as preparation failure.",
+    "The final read-only queue journal inspection closed its context and asserted no matching browser processes; controller/browser PID list was not additionally captured for that one inspection. Other server/browser launches have exact PID records."
+  ],
+  "limitations": [
+    "Static seed fixture uses actual issued user principals with normal password auth; seeded edit/tombstone are preservation controls, not proof of public edit/delete operations.",
+    "Existing timestamps are preserved frozen fixture-generation epochs, not documentary timestamps or public-send timestamps. Extra tombstone uses recorded actual preparation time.",
+    "Fetched/viewed states are public client-reported watermarks, not device-attested observations.",
+    "Text-only starter scope: media/expiry, typing/presence, scheduling/jobs/push omitted.",
+    "No M7 model, migration, poll implementation or grading performed."
+  ],
+  "failedPreparationIdentity": {
+    "directory": "m7-preparation/failed-permission-preparation",
+    "databaseSha256": "c3c1b192e6e6f917c6ec3755d1f7de761ad289c687b1494e90d93fb7bceee0fe",
+    "failureRecordSha256": "95c83489b4617ea0d85f6f21642cc73e61d38ebaf07d62b2f839574c5ccb92de",
+    "reused": false
+  },
+  "readme": {
+    "path": "m7-preparation/README.md",
+    "sha256": "3d556a3ebc3266739a4fcccad0b9cadd326d5877043433abcaef9a688002160d"
+  }
+}

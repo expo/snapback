@@ -1,0 +1,5 @@
+
+> astra-snapback3@1.0.0 seed
+> node scripts/seed.mjs --segment m1 --diagnostic-text-only
+
+Diagnostic textual personas loaded. This is NOT an installed starter segment.

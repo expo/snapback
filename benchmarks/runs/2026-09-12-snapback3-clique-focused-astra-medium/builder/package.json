@@ -1,0 +1,39 @@
+{
+  "name": "astra-snapback3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "node scripts/server.mjs",
+    "check": "snapback3 check . --json",
+    "build:web": "expo export --platform web --output-dir dist",
+    "build:ios": "expo export --platform ios --output-dir artifacts/m1-ios",
+    "acceptance": "node scripts/selected-checks.mjs",
+    "seed": "node scripts/seed-starter.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:controls": "node scripts/controls-check.mjs",
+    "snapshot": "node scripts/snapshot-export.mjs",
+    "build:shell": "node scripts/build-shell.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@expo/metro-runtime": "57.0.15",
+    "expo": "57.0.22",
+    "expo-router": "57.0.21",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.26.0",
+    "react-native-web": "0.21.2",
+    "snapback3": "file:/home/ccheever/snapback3-clique-20260912/packet/packages/snapback3-0.0.1-experimental.0-linux-x64.tgz"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/react": "19.2.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "id": "resume-same-poll",
+    "status": "pass",
+    "start": 1789232593570,
+    "end": 1789232593640,
+    "evidence": {
+      "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+      "optionIds": [
+        "a",
+        "b"
+      ],
+      "precondition": [
+        0,
+        2
+      ]
+    }
+  },
+  {
+    "id": "live-two-members",
+    "status": "pass",
+    "start": 1789232593641,
+    "end": 1789232594050,
+    "evidence": {
+      "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+      "optionIds": [
+        "a",
+        "b"
+      ],
+      "clients": [
+        "alice",
+        "bob",
+        "carol"
+      ],
+      "counts": [
+        2,
+        0
+      ],
+      "manualRefresh": false
+    }
+  },
+  {
+    "id": "offline-both-change-reopen",
+    "status": "pass",
+    "start": 1789232594050,
+    "end": 1789232596965,
+    "evidence": {
+      "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+      "optionIds": [
+        "a",
+        "b"
+      ],
+      "final": [
+        0,
+        2
+      ],
+      "total": 2,
+      "actualNetworkOffline": true,
+      "reopenedBoth": true
+    }
+  },
+  {
+    "id": "set-state-repeat",
+    "status": "pass",
+    "start": 1789232596965,
+    "end": 1789232597105,
+    "evidence": {
+      "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+      "final": [
+        0,
+        2
+      ],
+      "repeatedSetState": true
+    }
+  },
+  {
+    "id": "final-canonical-count",
+    "status": "pass",
+    "start": 1789232597105,
+    "end": 1789232597252,
+    "evidence": {
+      "group": 11,
+      "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+    }
+  }
+]

@@ -1,0 +1,1062 @@
+{
+  "start": 1789232591771,
+  "scope": "authored selected web/text checks; frozen PollCompose/PollDisplay semantics, not full canonical segment",
+  "results": [
+    {
+      "id": "resume-same-poll",
+      "status": "pass",
+      "start": 1789232593570,
+      "end": 1789232593640,
+      "evidence": {
+        "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "optionIds": [
+          "a",
+          "b"
+        ],
+        "precondition": [
+          0,
+          2
+        ]
+      }
+    },
+    {
+      "id": "live-two-members",
+      "status": "pass",
+      "start": 1789232593641,
+      "end": 1789232594050,
+      "evidence": {
+        "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "optionIds": [
+          "a",
+          "b"
+        ],
+        "clients": [
+          "alice",
+          "bob",
+          "carol"
+        ],
+        "counts": [
+          2,
+          0
+        ],
+        "manualRefresh": false
+      }
+    },
+    {
+      "id": "offline-both-change-reopen",
+      "status": "pass",
+      "start": 1789232594050,
+      "end": 1789232596965,
+      "evidence": {
+        "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "optionIds": [
+          "a",
+          "b"
+        ],
+        "final": [
+          0,
+          2
+        ],
+        "total": 2,
+        "actualNetworkOffline": true,
+        "reopenedBoth": true
+      }
+    },
+    {
+      "id": "set-state-repeat",
+      "status": "pass",
+      "start": 1789232596965,
+      "end": 1789232597105,
+      "evidence": {
+        "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "final": [
+          0,
+          2
+        ],
+        "repeatedSetState": true
+      }
+    },
+    {
+      "id": "final-canonical-count",
+      "status": "pass",
+      "start": 1789232597105,
+      "end": 1789232597252,
+      "evidence": {
+        "group": 11,
+        "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+      }
+    }
+  ],
+  "receipts": [
+    {
+      "actor": "alice",
+      "offlinePending": {
+        "id": "05743ea1-246b-4685-9fd2-e61883e2c60f",
+        "op": "polls.vote",
+        "args": {
+          "optionId": "b",
+          "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+        },
+        "status": "queued"
+      }
+    },
+    {
+      "actor": "bob",
+      "offlinePending": {
+        "id": "72f38afb-a2c5-4cae-9f5e-ac84305a0662",
+        "op": "polls.vote",
+        "args": {
+          "optionId": "b",
+          "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+        },
+        "status": "queued"
+      }
+    },
+    {
+      "actor": "alice",
+      "op": "polls.vote",
+      "args": {
+        "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "optionId": "b"
+      },
+      "operationId": "cb48e4f9-6130-475e-96c1-ed48edecc206",
+      "durableMs": 7,
+      "receipt": {
+        "data": true,
+        "intent": "cb48e4f9-6130-475e-96c1-ed48edecc206",
+        "program": {
+          "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "seq": 41,
+        "state": "committed"
+      },
+      "settledMs": 29.799999952316284
+    },
+    {
+      "actor": "bob",
+      "op": "polls.vote",
+      "args": {
+        "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+        "optionId": "b"
+      },
+      "operationId": "7471f7a9-b962-41fe-a5be-23a3c915fab0",
+      "durableMs": 26,
+      "receipt": {
+        "data": true,
+        "intent": "7471f7a9-b962-41fe-a5be-23a3c915fab0",
+        "program": {
+          "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+          "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+        },
+        "seq": 42,
+        "state": "committed"
+      },
+      "settledMs": 43.09999990463257
+    }
+  ],
+  "requests": [
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          }
+        ]
+      },
+      "at": 1789232592278
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          }
+        ]
+      },
+      "at": 1789232592690
+    },
+    {
+      "actor": "carol",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          }
+        ]
+      },
+      "at": 1789232593117
+    },
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          }
+        ]
+      },
+      "at": 1789232593239
+    },
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593278
+    },
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/mutation",
+      "body": {
+        "args": {
+          "conversationId": "g-starter",
+          "through": 1789232557885
+        },
+        "intent": "88f48492-6175-4e05-ba3e-774ad3c7aaff",
+        "op": "messages.viewed",
+        "planHash": "383caa19aa8c517f3aa53a6874e307020d36771ebe96ce9784e3f12ac3ac5003",
+        "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+      },
+      "at": 1789232593309
+    },
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/read",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593363
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          }
+        ]
+      },
+      "at": 1789232593386
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593427
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/mutation",
+      "body": {
+        "args": {
+          "conversationId": "g-starter",
+          "through": 1789232557885
+        },
+        "intent": "88bd4ac1-f847-4d2a-b624-3952d88de1ea",
+        "op": "messages.viewed",
+        "planHash": "383caa19aa8c517f3aa53a6874e307020d36771ebe96ce9784e3f12ac3ac5003",
+        "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+      },
+      "at": 1789232593455
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/read",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593468
+    },
+    {
+      "actor": "carol",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          }
+        ]
+      },
+      "at": 1789232593532
+    },
+    {
+      "actor": "carol",
+      "url": "http://127.0.0.1:54900/api/events",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593569
+    },
+    {
+      "actor": "carol",
+      "url": "http://127.0.0.1:54900/api/mutation",
+      "body": {
+        "args": {
+          "conversationId": "g-starter",
+          "through": 1789232557885
+        },
+        "intent": "16597386-f58a-444c-b0ed-7c2b2e856f28",
+        "op": "messages.viewed",
+        "planHash": "383caa19aa8c517f3aa53a6874e307020d36771ebe96ce9784e3f12ac3ac5003",
+        "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+      },
+      "at": 1789232593598
+    },
+    {
+      "actor": "carol",
+      "url": "http://127.0.0.1:54900/api/read",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593634
+    },
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/mutation",
+      "body": {
+        "args": {
+          "optionId": "a",
+          "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+        },
+        "intent": "0dfd1611-cce9-4a72-a3eb-a80291e5101a",
+        "op": "polls.vote",
+        "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+        "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+      },
+      "at": 1789232593699
+    },
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/read",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593732
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/mutation",
+      "body": {
+        "args": {
+          "optionId": "a",
+          "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+        },
+        "intent": "e6acc791-e2e0-4d08-aebc-ca069f8e3b82",
+        "op": "polls.vote",
+        "planHash": "119889026ce37f3c0ad2800a5ee885e63da89214ee0b738931f96ef7df066185",
+        "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+      },
+      "at": 1789232593934
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/read",
+      "body": {
+        "queries": [
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          }
+        ]
+      },
+      "at": 1789232593957
+    },
+    {
+      "actor": "alice",
+      "url": "http://127.0.0.1:54900/api/read",
+      "body": {
+        "queries": [
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          },
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          }
+        ]
+      },
+      "at": 1789232594059
+    },
+    {
+      "actor": "bob",
+      "url": "http://127.0.0.1:54900/api/read",
+      "body": {
+        "queries": [
+          {
+            "key": "bfa13825be63f38dde6843dda140040b454f7e65dcd9de14a2d00cdb0255c4ef",
+            "op": "polls.get",
+            "args": {
+              "conversationId": "g-starter",
+              "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea"
+            }
+          },
+          {
+            "key": "13daca8248776ff3cd9228af16f750e7eb9ccdd7e828f392f03409d8ec8cd720",
+            "op": "conversations.inbox",
+            "args": {
+              "c": null
+            }
+          },
+          {
+            "key": "d580e9d64992666a011b7ec4470ee789fb94d008ac0e9a9068809364194b6526",
+            "op": "messages.page",
+            "args": {
+              "c": null,
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "07675f517cddf24a2a7a438071cc6f96a4165327a524f0156b9edb8de8f2e7e4",
+            "op": "messages.latest",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "8eae810d9a75ebd2b5f17e5253809a1d1299ab6533b7e8908ffa0708dbb45748",
+            "op": "conversations.unread",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "806a1f37c2d7bfbda1b29437b8a2e1d0c4c008c28eca607ea0fa454350b50ea4",
+            "op": "messages.receipts",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          },
+          {
+            "key": "939c5ca5adbd00f12fcaf704ce4121a571f85ff174b230aa71959ce585231a0f",
+            "op": "conversations.settings",
+            "args": {
+              "conversationId": "g-starter"
+            }
+          }
+        ]
+      },
+      "at": 1789232594482
+    }
+  ],
+  "checkpoints": [
+    {
+      "at": 1789232597173,
+      "expected": 11,
+      "actual": {
+        "data": {
+          "id": "g-starter",
+          "kind": "group",
+          "messageCount": 11,
+          "name": "Weekend Plans",
+          "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+        },
+        "complete": true,
+        "seq": 42
+      }
+    }
+  ],
+  "pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+  "optionIds": [
+    "a",
+    "b"
+  ],
+  "end": 1789232597253
+}

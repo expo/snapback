@@ -1,0 +1,536 @@
+{
+  "schema": "snapback3-focused-m7-grader-source-relations.v1",
+  "frozenSnapshotManifestSha256": "549b277cb8d7843a4b71b7455a078b563f5bd8ce8fca7aef28eefd502b503525",
+  "relations": [
+    {
+      "publicPath": "grading/DONE",
+      "frozenSnapshotPath": "grading/DONE",
+      "sha256": "d19c3e0d5c3e4c9fd1c86e72c3d10f21b8c7018aa81a7aa6b54370f4d8241f45",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/app.json",
+      "frozenSnapshotPath": "grading/app-final/app.json",
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/package.json",
+      "frozenSnapshotPath": "grading/app-final/package.json",
+      "sha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/snapback/conversations.q",
+      "frozenSnapshotPath": "grading/app-final/snapback/conversations.q",
+      "sha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/snapback/messages.q",
+      "frozenSnapshotPath": "grading/app-final/snapback/messages.q",
+      "sha256": "c323f3f216cc9566d3b91141b98de8fc2382fa50621c93a6d6869bf396dd92f5",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/snapback/polls.q",
+      "frozenSnapshotPath": "grading/app-final/snapback/polls.q",
+      "sha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/snapback/profiles.q",
+      "frozenSnapshotPath": "grading/app-final/snapback/profiles.q",
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/snapback/schema.q",
+      "frozenSnapshotPath": "grading/app-final/snapback/schema.q",
+      "sha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/snapback/seed.ts",
+      "frozenSnapshotPath": "grading/app-final/snapback/seed.ts",
+      "sha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/snapback/social.q",
+      "frozenSnapshotPath": "grading/app-final/snapback/social.q",
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-final/tsconfig.json",
+      "frozenSnapshotPath": "grading/app-final/tsconfig.json",
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/app.json",
+      "frozenSnapshotPath": "grading/app-oldclient/app.json",
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/package.json",
+      "frozenSnapshotPath": "grading/app-oldclient/package.json",
+      "sha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/snapback/conversations.q",
+      "frozenSnapshotPath": "grading/app-oldclient/snapback/conversations.q",
+      "sha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/snapback/messages.q",
+      "frozenSnapshotPath": "grading/app-oldclient/snapback/messages.q",
+      "sha256": "c323f3f216cc9566d3b91141b98de8fc2382fa50621c93a6d6869bf396dd92f5",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/snapback/polls.q",
+      "frozenSnapshotPath": "grading/app-oldclient/snapback/polls.q",
+      "sha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/snapback/profiles.q",
+      "frozenSnapshotPath": "grading/app-oldclient/snapback/profiles.q",
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/snapback/schema.q",
+      "frozenSnapshotPath": "grading/app-oldclient/snapback/schema.q",
+      "sha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/snapback/seed.ts",
+      "frozenSnapshotPath": "grading/app-oldclient/snapback/seed.ts",
+      "sha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/snapback/social.q",
+      "frozenSnapshotPath": "grading/app-oldclient/snapback/social.q",
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-oldclient/tsconfig.json",
+      "frozenSnapshotPath": "grading/app-oldclient/tsconfig.json",
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/app.json",
+      "frozenSnapshotPath": "grading/app-premig/app.json",
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/package.json",
+      "frozenSnapshotPath": "grading/app-premig/package.json",
+      "sha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/snapback/conversations.q",
+      "frozenSnapshotPath": "grading/app-premig/snapback/conversations.q",
+      "sha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/snapback/messages.q",
+      "frozenSnapshotPath": "grading/app-premig/snapback/messages.q",
+      "sha256": "c323f3f216cc9566d3b91141b98de8fc2382fa50621c93a6d6869bf396dd92f5",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/snapback/polls.q",
+      "frozenSnapshotPath": "grading/app-premig/snapback/polls.q",
+      "sha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/snapback/profiles.q",
+      "frozenSnapshotPath": "grading/app-premig/snapback/profiles.q",
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/snapback/schema.q",
+      "frozenSnapshotPath": "grading/app-premig/snapback/schema.q",
+      "sha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/snapback/seed.ts",
+      "frozenSnapshotPath": "grading/app-premig/snapback/seed.ts",
+      "sha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/snapback/social.q",
+      "frozenSnapshotPath": "grading/app-premig/snapback/social.q",
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/app-premig/tsconfig.json",
+      "frozenSnapshotPath": "grading/app-premig/tsconfig.json",
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/custom-client/check-copy.mjs",
+      "frozenSnapshotPath": "grading/custom-client/check-copy.mjs",
+      "sha256": "19b645301f9914f5d1c058c7f037aa42f3e5f3e02f119d322c85c065d197144e",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/grader-report.json",
+      "frozenSnapshotPath": "grading/grader-report.json",
+      "sha256": "7f44cb5d83cee730ad05dde13ba9d7ce84ed2644b362e7be856f15322d5c4066",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/census-final.err",
+      "frozenSnapshotPath": "grading/logs/census-final.err",
+      "sha256": "dec318a453fbc733b9438394cde53a8013b7be5f429fb15dbe38433fde0939e8",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/census-premig.err",
+      "frozenSnapshotPath": "grading/logs/census-premig.err",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/controls-check-grader.log",
+      "frozenSnapshotPath": "grading/logs/controls-check-grader.log",
+      "sha256": "dfaf0565c5a30f7ef94c58c5cc43f1f750772624ac4de29aae95e83e5b26cec8",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/custom-client-check-grader.log",
+      "frozenSnapshotPath": "grading/logs/custom-client-check-grader.log",
+      "sha256": "0e4d53181a4c8fb796927df1e2e74b0f61488356ff97f0b7820175d547f5ce83",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/custom-client-demo-grader.log",
+      "frozenSnapshotPath": "grading/logs/custom-client-demo-grader.log",
+      "sha256": "a80c3e4b7063018412b4ad6dbec97210f950e1e106298cd94cff0fb1e755c492",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/owner-54900.log",
+      "frozenSnapshotPath": "grading/logs/owner-54900.log",
+      "sha256": "ec37eedc3f3e0620818374aceb86cb0c3d4facadaa05be51be17bb00447bcc94",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/owner-54900b.log",
+      "frozenSnapshotPath": "grading/logs/owner-54900b.log",
+      "sha256": "ec37eedc3f3e0620818374aceb86cb0c3d4facadaa05be51be17bb00447bcc94",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/owner-54901.log",
+      "frozenSnapshotPath": "grading/logs/owner-54901.log",
+      "sha256": "779d8d781811061683c69a52ec26fe2034a913319212ed8248888daba0e9635e",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/owner-54910.log",
+      "frozenSnapshotPath": "grading/logs/owner-54910.log",
+      "sha256": "6dbca776a36190b232903b760d369269261fe6f9d6c517911e8166927aa57ce7",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/logs/selected-checks-grader.log",
+      "frozenSnapshotPath": "grading/logs/selected-checks-grader.log",
+      "sha256": "7fcaf6325001b61dc3b651db79b7681760736a58a50125b39701cafc04b918d1",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/api-bounds.mjs",
+      "frozenSnapshotPath": "grading/probes/api-bounds.mjs",
+      "sha256": "fc4b350a19ec2a66907946668141457233247ab2e05939dcc56e798c0da19e58",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/controls-check-copy.mjs",
+      "frozenSnapshotPath": "grading/probes/controls-check-copy.mjs",
+      "sha256": "eef6c8e684e311413e81eae2d4a5a51faf23acd99a05f297d038d34c2d34f253",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/custom-client-check-copy.mjs",
+      "frozenSnapshotPath": "grading/probes/custom-client-check-copy.mjs",
+      "sha256": "19b645301f9914f5d1c058c7f037aa42f3e5f3e02f119d322c85c065d197144e",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/db-census.mjs",
+      "frozenSnapshotPath": "grading/probes/db-census.mjs",
+      "sha256": "ba551461ea58fe6fe74ac0f6e5cee27cea41b69401b87aa64d3d4ccfed1a36ba",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/decode.mjs",
+      "frozenSnapshotPath": "grading/probes/decode.mjs",
+      "sha256": "841191d46d050fcf81fbff3af15409db4553ea41faa7f0b8e2324a8398f4a911",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/msg-compare.mjs",
+      "frozenSnapshotPath": "grading/probes/msg-compare.mjs",
+      "sha256": "933b7d4b3031c325ad50bb483d6c7031e52133fae6303edc0a82f8afc3c6b3f8",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/old-client.mjs",
+      "frozenSnapshotPath": "grading/probes/old-client.mjs",
+      "sha256": "a120152551e126a55ce8b75a779a647eca2fce8657baefb8d70fa304789aea7d",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/poll-browser.mjs",
+      "frozenSnapshotPath": "grading/probes/poll-browser.mjs",
+      "sha256": "0c7e501db51ea56a40d45f5243e468d3c7d3524588cc404dd2d4c7756c4f67bd",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/poll-offline.mjs",
+      "frozenSnapshotPath": "grading/probes/poll-offline.mjs",
+      "sha256": "0bac6a2c9447a85f117dd285f6b83b9a8dad22ef3931ddf789e516ce92f23d12",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/replay-migration.mjs",
+      "frozenSnapshotPath": "grading/probes/replay-migration.mjs",
+      "sha256": "c64517db81b45fcadbdd1583c01413afc3dcf8138eee2094242c9610d69abe8f",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/selected-checks-copy.mjs",
+      "frozenSnapshotPath": "grading/probes/selected-checks-copy.mjs",
+      "sha256": "da73d9e982e4e8ab7e3ab8887bf200d601c262c5b3e38b379ad72298d30f2794",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/probes/snapcmp.mjs",
+      "frozenSnapshotPath": "grading/probes/snapcmp.mjs",
+      "sha256": "9e3c2b2541e95cd8618daa8c5c74ba66cd1fb5e9660583ca5dafb719b19a3c0d",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/api-bounds-grader.json",
+      "frozenSnapshotPath": "grading/results/api-bounds-grader.json",
+      "sha256": "0b84613987764c8c1638855a248462b131860667f0f39a94e783f866bdedeadd",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/census-final.json",
+      "frozenSnapshotPath": "grading/results/census-final.json",
+      "sha256": "d274c896be9eac0692cf21b0301246346e00dcaf619424a37ac27177832687d0",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/census-premig.json",
+      "frozenSnapshotPath": "grading/results/census-premig.json",
+      "sha256": "9feec882b978da5870550351e575bffc31e7249a134f5582cca160ff97e7a095",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/custom-api-results-grader.json",
+      "frozenSnapshotPath": "grading/results/custom-api-results-grader.json",
+      "sha256": "3a76d98069c0587603b14c82fab1188607decb06222d2de9d1cdf0ea7d1dc925",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/msg-compare.json",
+      "frozenSnapshotPath": "grading/results/msg-compare.json",
+      "sha256": "0f61b7c92c8b7f6e6d97f222d02cec0bc110b7c9c810954982e6a5654b875c87",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/old-client-offline.json",
+      "frozenSnapshotPath": "grading/results/old-client-offline.json",
+      "sha256": "c7d74da7e82c02dfe450a29cad73bc0e0a1ef988bd0ef1357c1dc244dccf0178",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/old-client-reconnect.json",
+      "frozenSnapshotPath": "grading/results/old-client-reconnect.json",
+      "sha256": "ec350763043dbd4566752ce4a335a8d61a9d10fe69b0ac2568b735898a9e82df",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/poll-browser-grader.json",
+      "frozenSnapshotPath": "grading/results/poll-browser-grader.json",
+      "sha256": "c5a25e2e1f90c186d86f83d07afdc96f1f49e95d35fb3c7a9e35dff95e75f1cb",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/poll-offline-grader.json",
+      "frozenSnapshotPath": "grading/results/poll-offline-grader.json",
+      "sha256": "c5c0a941dd497e850223b9a49f723e96a9c597e316f0f9442b494b04ca0b11df",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/replay-migration.json",
+      "frozenSnapshotPath": "grading/results/replay-migration.json",
+      "sha256": "8181a44382ade5aec2105f2fd37c9d5e20a882b5c0ba9973f04e7fd6ab6cec88",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/snapshot-comparison-independent.json",
+      "frozenSnapshotPath": "grading/results/snapshot-comparison-independent.json",
+      "sha256": "d75e7c1368d55e42571f9cfcd4d0c989b6c62581b9c74aa3a5fd8542d1c33586",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/suite/controls-1789234219364.json",
+      "frozenSnapshotPath": "grading/results/suite/controls-1789234219364.json",
+      "sha256": "6cfd9c3fe50fd8a51b1ce5837060b7997f393ace9341853eb07e8cd29c59f8bd",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/results/suite/selected-1789234192869.json",
+      "frozenSnapshotPath": "grading/results/suite/selected-1789234192869.json",
+      "sha256": "8635dbd8df672dfa9a8ae2669e7aa63916ed2cc522d360f1498b4e868eb6d446",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "grading/trace.md",
+      "frozenSnapshotPath": "grading/trace.md",
+      "sha256": "41313b1fa6d65cee31795b88f91817b649b04bc14a6fcb97590cf1fbac4e3ae9",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/execution-input.json",
+      "frozenSnapshotPath": "execution-input.json",
+      "sha256": "fb953bb0bcc99bf30f6b2400bcd81932835b906993bc6930b69306ed8e8fdc88",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/input-hashes.json",
+      "frozenSnapshotPath": "m7/input-hashes.json",
+      "sha256": "30bfec05ad588c936cb538f7d86d136b7c083912bc7f29cf714ff59578512a88",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/migration-verification.json",
+      "frozenSnapshotPath": "m7/migration-verification.json",
+      "sha256": "2fff567ccf571478498e4417a7cc0cfe7e1ef0564c517266de99d9f22a73dcdf",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/old-client/old-client-certification.json",
+      "frozenSnapshotPath": "grading-input/old-client/old-client-certification.json",
+      "sha256": "2dae411fcfe91227c3131c45cd2d66a78b8d7d504f0ab0bfc6e6ee2b9db77be1",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/old-client/old-client-journal.json",
+      "frozenSnapshotPath": "grading-input/old-client/old-client-journal.json",
+      "sha256": "8c56fda7de29708196d32ae3dc790aaea72e533faf9046595363a3065f6d4730",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/old-client/profile-archive-manifest.json",
+      "frozenSnapshotPath": "grading-input/old-client/profile-archive-manifest.json",
+      "sha256": "dff1fd459d86f22eb0953bd7e4bbcc6222b90706bd1c9cbcd058bc4cdcedafa9",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/package-reverification.json",
+      "frozenSnapshotPath": "m7/package-reverification.json",
+      "sha256": "b6a4795074f2ac05838f6878f88bb3b788b4cdedf85c800189059d3e53f288fe",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/post-m7-snapshots/post-m7-alice.json",
+      "frozenSnapshotPath": "m7/post-m7-alice.json",
+      "sha256": "8f585a37241939ff552d49c9c27bced7dccb318c05f83d613c880c5cb184302f",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/post-m7-snapshots/post-m7-bob.json",
+      "frozenSnapshotPath": "m7/post-m7-bob.json",
+      "sha256": "07d1a093a56a87dd951d804275a884ad663abab460477dcc7bbe8105fed018f6",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/post-m7-snapshots/post-m7-carol.json",
+      "frozenSnapshotPath": "m7/post-m7-carol.json",
+      "sha256": "b0b57745c8611b3359fb08140b7b34c41545955ce695347941238dc80f46bbfe",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/pre-m7-selected-results.json",
+      "frozenSnapshotPath": "selected-results.json",
+      "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/pre-m7-snapshots/pre-m7-alice.json",
+      "frozenSnapshotPath": "grading-input/pre-m7-snapshots/pre-m7-alice.json",
+      "sha256": "8064fe23f0222806140725b34141364437269f4890ec37e44406d09e2f305093",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/pre-m7-snapshots/pre-m7-bob.json",
+      "frozenSnapshotPath": "grading-input/pre-m7-snapshots/pre-m7-bob.json",
+      "sha256": "123db821f1ee69849e2a1258a67a6a5610d187b4a53deb4831b000630077f1fc",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/pre-m7-snapshots/pre-m7-carol.json",
+      "frozenSnapshotPath": "grading-input/pre-m7-snapshots/pre-m7-carol.json",
+      "sha256": "fde8fddb3542692d75081565d35865173b9c50a7b1a81bb87e31c8b4f519bb6c",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/selected-results.json",
+      "frozenSnapshotPath": "m7/selected-results.json",
+      "sha256": "f93597cc9928ce66ab4b30737f4c3c9e188bbb6f8496886d05650e25a3f3d47e",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "inputs/updated-build-manifest.json",
+      "frozenSnapshotPath": "m7/updated-build-manifest.json",
+      "sha256": "cffe39d896d50059114aa7aaecbd24fe4d57212a876c0642e55f9ead5d4fca48",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "provenance/astra-snapback3-m7-grade.end.json",
+      "frozenSnapshotPath": "_launcher/astra-snapback3-m7-grade.end.json",
+      "sha256": "30b9f54c47fdf513213904b8b30332bd80c362202f4cae81572b73d2f7e47ba2",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "provenance/astra-snapback3-m7-grade.md",
+      "frozenSnapshotPath": "_launcher/astra-snapback3-m7-grade.md",
+      "sha256": "64fad784fcb52899083d80310a38a3cff17942354e3f525518ab247158779fda",
+      "byteExactCopy": true
+    },
+    {
+      "publicPath": "provenance/astra-snapback3-m7-grade.start.json",
+      "frozenSnapshotPath": "_launcher/astra-snapback3-m7-grade.start.json",
+      "sha256": "f2b7854b2c04bbcbe5a58f9e4f53063cac01b3e57f969f11da1c19842e79a535",
+      "byteExactCopy": true
+    }
+  ],
+  "relationCount": 88,
+  "qualification": "Hashes were recomputed after copying from the read-only frozen snapshot. Generated collection/provenance summaries and external coordinator/freeze receipts are not represented as frozen-lane payload relations."
+}

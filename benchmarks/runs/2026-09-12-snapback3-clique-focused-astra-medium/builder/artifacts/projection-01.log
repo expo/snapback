@@ -1,0 +1,67 @@
+{
+  createdEpoch: 1789225728.009,
+  identity: 'focused-messaging-plus-starter-social-text-projection',
+  canonicalConformance: false,
+  inputs: {
+    'starter-m1.log': {
+      sha256: '35265421454ed708dd0af1b3cfc4a9b48af2b96525c8d9a16b45ad5f358cef1c',
+      bytes: 1889
+    },
+    'starter-m2.log': {
+      sha256: 'e74ec486e34ffb5d6fc0dac19d1312d3dd061c87912083be130a71e5658d3be6',
+      bytes: 3755
+    },
+    'starter-m3.log': {
+      sha256: '8ccf67728c225b44739c681a1a26020b13b31387c32264b4a208505863832f7b',
+      bytes: 1429
+    },
+    'scale.log': {
+      sha256: 'b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9',
+      bytes: 13014016
+    }
+  },
+  rules: [
+    'Retain registrations, textual profile fields, all conversation/membership/send/reaction actions',
+    'Retain all starter M2 actions only; media posts become labeled text',
+    'Scale media sends become distinctly labeled text preserving source ID, actor, chat, caption and quote; original args retained',
+    'Omit all scale social actions and avatar bytes; documentary times are not server times'
+  ],
+  included: 105134,
+  counts: {
+    register: 1008,
+    'profile-set': 1008,
+    follow: 12,
+    post: 24,
+    reply: 4,
+    like: 8,
+    repost: 4,
+    'dm-create': 901,
+    'group-create': 101,
+    'member-add': 49,
+    send: 100015,
+    react: 2000
+  },
+  converted: {
+    'profile-avatar-omission': 1008,
+    'media-post': 6,
+    'media-message': 910
+  },
+  omitted: { follow: 5909, post: 48200, reply: 2000, like: 5000, repost: 1000 },
+  output: {
+    sha256: '8f3221a92446db210758532dfca3d46073ea55b3eca05d6162cdca7c8b3e353a',
+    bytes: 15286324
+  },
+  entities: {
+    users: 1008,
+    conversations: 1002,
+    messages: 100015,
+    reactions: 2000
+  },
+  scopes: {
+    u0001: { conversations: 1000, messages: 100000, groups: 100 },
+    u0500: { conversations: 100, messages: 10000, groups: 100 },
+    alice: { conversations: 2, messages: 15, groups: 1 },
+    bob: { conversations: 2, messages: 15, groups: 1 },
+    carol: { conversations: 1, messages: 9, groups: 1 }
+  }
+}

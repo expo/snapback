@@ -1,0 +1,119 @@
+{
+  "at": 1789232429.8120542,
+  "requiredFields": [
+    "id",
+    "conversationId",
+    "senderId",
+    "serverTimestamp",
+    "type",
+    "text",
+    "caption",
+    "mediaReference",
+    "edited",
+    "tombstone",
+    "replyTo",
+    "reactions",
+    "ownMessageReceiptState"
+  ],
+  "personas": [
+    {
+      "actor": "alice",
+      "counts": {
+        "rows": 16,
+        "visible": 15,
+        "edited": 1,
+        "tombstones": 1,
+        "reactions": 4,
+        "mine": 2,
+        "ownReceipts": 7,
+        "populatedFetched": 7,
+        "populatedViewed": 7,
+        "quotes": 6
+      },
+      "comparedIds": [
+        "sm-m7-tombstone-control",
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006",
+        "sm0007",
+        "sm0008",
+        "sm0009",
+        "sm0010",
+        "sm0011",
+        "sm0012",
+        "sm0013",
+        "sm0014",
+        "sm0015"
+      ],
+      "allRequiredControlsPopulated": true
+    },
+    {
+      "actor": "bob",
+      "counts": {
+        "rows": 16,
+        "visible": 15,
+        "edited": 1,
+        "tombstones": 1,
+        "reactions": 4,
+        "mine": 1,
+        "ownReceipts": 5,
+        "populatedFetched": 5,
+        "populatedViewed": 5,
+        "quotes": 6
+      },
+      "comparedIds": [
+        "sm-m7-tombstone-control",
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006",
+        "sm0007",
+        "sm0008",
+        "sm0009",
+        "sm0010",
+        "sm0011",
+        "sm0012",
+        "sm0013",
+        "sm0014",
+        "sm0015"
+      ],
+      "allRequiredControlsPopulated": true
+    },
+    {
+      "actor": "carol",
+      "counts": {
+        "rows": 10,
+        "visible": 9,
+        "edited": 1,
+        "tombstones": 1,
+        "reactions": 2,
+        "mine": 1,
+        "ownReceipts": 4,
+        "populatedFetched": 4,
+        "populatedViewed": 4,
+        "quotes": 3
+      },
+      "comparedIds": [
+        "sm-m7-tombstone-control",
+        "sm0007",
+        "sm0008",
+        "sm0009",
+        "sm0010",
+        "sm0011",
+        "sm0012",
+        "sm0013",
+        "sm0014",
+        "sm0015"
+      ],
+      "allRequiredControlsPopulated": true
+    }
+  ],
+  "coverageFailures": [],
+  "differences": [],
+  "pass": true
+}

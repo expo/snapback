@@ -1,0 +1,150 @@
+{
+ "extraIds": [
+  "21fac831-0f93-49e1-a879-03f1c97beb31",
+  "260efcf4-276b-483f-a40d-2f301455d011",
+  "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+  "4c26daae-2207-4d3e-88d4-7eab5345af64",
+  "6084abd1-285c-4add-aed0-c6a8dd3b4623",
+  "845f95a1-533a-4e67-b55c-298618a84466",
+  "8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+  "a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+  "b297ceab-e581-4784-b082-1143f6884295",
+  "b8979d9c-8e2b-496e-b651-6c46811ad252",
+  "b9a94254-9709-4550-83d9-0d2f24271af9",
+  "c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+  "ca1d55a6-2506-4582-9371-3036eb03b1f0",
+  "cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+  "dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+  "e28a6219-3823-443f-8ca3-f845be43c84a",
+  "e8752337-857a-48c0-ae46-e4f84bc9ea91",
+  "ff4f7019-367c-4258-b0fe-3f75ba2e2a13"
+ ],
+ "extraDetail": {
+  "21fac831-0f93-49e1-a879-03f1c97beb31": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789227887371,
+   "text": "Foreground acquisition 21fac831-0f93-49e1-a879-03f1c97beb31",
+   "reply": null
+  },
+  "260efcf4-276b-483f-a40d-2f301455d011": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789226934714,
+   "text": "Foreground acquisition 260efcf4-276b-483f-a40d-2f301455d011",
+   "reply": null
+  },
+  "31d9ff6f-e700-4dbf-9c45-70f6857b8f5c": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789226497070,
+   "text": "Foreground acquisition 31d9ff6f-e700-4dbf-9c45-70f6857b8f5c",
+   "reply": null
+  },
+  "4c26daae-2207-4d3e-88d4-7eab5345af64": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789226462446,
+   "text": "Foreground acquisition 4c26daae-2207-4d3e-88d4-7eab5345af64",
+   "reply": null
+  },
+  "6084abd1-285c-4add-aed0-c6a8dd3b4623": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789226898017,
+   "text": "Foreground acquisition 6084abd1-285c-4add-aed0-c6a8dd3b4623",
+   "reply": null
+  },
+  "845f95a1-533a-4e67-b55c-298618a84466": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789227561539,
+   "text": "Foreground acquisition 845f95a1-533a-4e67-b55c-298618a84466",
+   "reply": null
+  },
+  "8c12e19c-0bf9-40a1-8c9c-25978230a0f7": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789226427302,
+   "text": "Foreground acquisition 8c12e19c-0bf9-40a1-8c9c-25978230a0f7",
+   "reply": null
+  },
+  "a7a57cab-f509-45a8-b895-4ebb7ffb4886": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789227849616,
+   "text": "Foreground acquisition a7a57cab-f509-45a8-b895-4ebb7ffb4886",
+   "reply": null
+  },
+  "b297ceab-e581-4784-b082-1143f6884295": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789228069366,
+   "text": "Foreground acquisition b297ceab-e581-4784-b082-1143f6884295",
+   "reply": null
+  },
+  "b8979d9c-8e2b-496e-b651-6c46811ad252": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789226499187,
+   "text": "Foreground acquisition b8979d9c-8e2b-496e-b651-6c46811ad252",
+   "reply": null
+  },
+  "b9a94254-9709-4550-83d9-0d2f24271af9": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789226393167,
+   "text": "Foreground acquisition b9a94254-9709-4550-83d9-0d2f24271af9",
+   "reply": null
+  },
+  "c11d3bbb-b740-445b-9356-f1a0ed0d65e2": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789227776623,
+   "text": "Foreground acquisition c11d3bbb-b740-445b-9356-f1a0ed0d65e2",
+   "reply": null
+  },
+  "ca1d55a6-2506-4582-9371-3036eb03b1f0": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789228251768,
+   "text": "Foreground acquisition ca1d55a6-2506-4582-9371-3036eb03b1f0",
+   "reply": null
+  },
+  "cc19efb0-3246-4a99-bfb4-42bcea98afeb": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789227007256,
+   "text": "Foreground acquisition cc19efb0-3246-4a99-bfb4-42bcea98afeb",
+   "reply": null
+  },
+  "dd321d23-7a00-4f28-b34c-bf10235ea2f5": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789227812819,
+   "text": "Foreground acquisition dd321d23-7a00-4f28-b34c-bf10235ea2f5",
+   "reply": null
+  },
+  "e28a6219-3823-443f-8ca3-f845be43c84a": {
+   "conv": "g0001",
+   "sender": "dev:u0500",
+   "ts": 1789226971015,
+   "text": "Foreground acquisition e28a6219-3823-443f-8ca3-f845be43c84a",
+   "reply": null
+  },
+  "e8752337-857a-48c0-ae46-e4f84bc9ea91": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789227187959,
+   "text": "Foreground acquisition e8752337-857a-48c0-ae46-e4f84bc9ea91",
+   "reply": null
+  },
+  "ff4f7019-367c-4258-b0fe-3f75ba2e2a13": {
+   "conv": "g0001",
+   "sender": "dev:u0001",
+   "ts": 1789227368608,
+   "text": "Foreground acquisition ff4f7019-367c-4258-b0fe-3f75ba2e2a13",
+   "reply": null
+  }
+ }
+}

@@ -1,0 +1,438 @@
+{
+  "status": "ready-for-fresh-actor-not-launched-not-migrated",
+  "createdEpochMs": 1789231870741,
+  "stagedLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-staged",
+  "futureLauncherLane": "lanes/astra-snapback3",
+  "phase": "m7",
+  "actorAllowedPaths": [
+    ".snapback3/**",
+    "app/**",
+    "artifacts/**",
+    "choreography/**",
+    "dist/**",
+    "evidence/**",
+    "metering/**",
+    "node_modules/**",
+    "scripts/**",
+    "snapback/**",
+    "src/**",
+    "ui/**",
+    "API.md",
+    "BUILD.md",
+    "app.json",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "selected-results.json",
+    "instrument",
+    "m7-baseline/**",
+    "m7-input.json"
+  ],
+  "excludedFromActor": [
+    "m7-preparation/old-client-profile/**",
+    "m7-preparation/issued-principals.json",
+    "m7-preparation/failed-permission-preparation/**",
+    "m7-preparation/failed-static-assets-preparation/**",
+    "all builder FINAL/diary/essay/final-report/run-log/self-assessment/model traces",
+    "all grader lanes, outputs, prompts and narratives"
+  ],
+  "fixedPackage": {
+    "archivePath": "/home/ccheever/snapback3-clique-focused-20260912/packet/packages/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "archiveSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "installedRoot": "node_modules/snapback3",
+    "verifiedPayloadFiles": 108,
+    "payloadVerificationSha256": "6f1d492ecc38010b0f31b1bf716c19920cab1ce47197b999ea0ece3581c40f5e",
+    "payloadProblems": []
+  },
+  "dependencies": {
+    "fileCount": 34596,
+    "symlinkCount": 46,
+    "bytes": 430790750,
+    "contentSymlinkDigestSha256": "3b81ead33df5ddcff478a512e144d2abdd29ee4b31d0b76d6470cd5733d9476a",
+    "sourceDigestSha256": "3b81ead33df5ddcff478a512e144d2abdd29ee4b31d0b76d6470cd5733d9476a",
+    "exactCopy": true
+  },
+  "instrument": {
+    "laneSymlink": "instrument",
+    "target": "../../instrument",
+    "validatedReceiptSha256": "d07aa646d3901c104ffd362d85cf77ba6b257a043017e0aaf0878dbf5b664eff",
+    "fileListSha256": "b183d949bb4c5871747afb92f0eccb153c813765037507ef4d888f76a6da07a6",
+    "frozenFileCount": 185
+  },
+  "preparedSource": {
+    "manifestPath": "m7-baseline/prepared-source-manifest.json",
+    "manifestSha256": "745ce2551f75d77bb38873faaea66c5cc57c9b5e379b8bc0abfe443f70a8b909",
+    "fileCount": 200,
+    "contentDigestSha256": "c880fe800d1f47a97bb9958f3018097ea896991c2a4aeade2929b1f6f3a15319",
+    "verificationProblems": []
+  },
+  "database": {
+    "applicationSeq": 15,
+    "stopped": true,
+    "files": [
+      {
+        "path": ".snapback3/store.sqlite",
+        "bytes": 405504,
+        "sha256": "79dc997ef76cbe47a689f612ef88bc89a2e21a361460aa4e58dca2acb07d1487",
+        "inode": 96867262,
+        "device": 66310
+      },
+      {
+        "path": ".snapback3/store.sqlite-shm",
+        "bytes": 32768,
+        "sha256": "94f17bd265590cf6dbb049295fb5d296d97cbfe6bc1fa2dbb0e8ca75d25c1660",
+        "inode": 96867266,
+        "device": 66310
+      },
+      {
+        "path": ".snapback3/store.sqlite-wal",
+        "bytes": 49472,
+        "sha256": "c0568d69af5afbb9bf66770cbbee96ada98399568e1f79f6d07885060e54ae52",
+        "inode": 96867267,
+        "device": 66310
+      }
+    ],
+    "custody": "The sqlite, WAL, and SHM files are one stopped root database set and must remain together."
+  },
+  "baselineSnapshots": [
+    {
+      "path": "m7-baseline/pre-m7-alice.json",
+      "bytes": 16968,
+      "sha256": "8064fe23f0222806140725b34141364437269f4890ec37e44406d09e2f305093",
+      "persona": "alice",
+      "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+      "conversations": [
+        {
+          "id": "d-alice-bob",
+          "storedMessages": 6,
+          "visibleMessages": 6,
+          "idsSha256": "20ec53844bd9728e01e2bfc2f282bf61902d4961090b44125e783a5167972b66",
+          "ids": [
+            "sm0001",
+            "sm0002",
+            "sm0003",
+            "sm0004",
+            "sm0005",
+            "sm0006"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        },
+        {
+          "id": "g-starter",
+          "storedMessages": 10,
+          "visibleMessages": 9,
+          "idsSha256": "c3701f5846e64ae122ecca2799575b9dc7e16d2f916443ea47d5fd795e4ef105",
+          "ids": [
+            "sm-m7-tombstone-control",
+            "sm0007",
+            "sm0008",
+            "sm0009",
+            "sm0010",
+            "sm0011",
+            "sm0012",
+            "sm0013",
+            "sm0014",
+            "sm0015"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        }
+      ]
+    },
+    {
+      "path": "m7-baseline/pre-m7-bob.json",
+      "bytes": 14921,
+      "sha256": "123db821f1ee69849e2a1258a67a6a5610d187b4a53deb4831b000630077f1fc",
+      "persona": "bob",
+      "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+      "conversations": [
+        {
+          "id": "d-alice-bob",
+          "storedMessages": 6,
+          "visibleMessages": 6,
+          "idsSha256": "20ec53844bd9728e01e2bfc2f282bf61902d4961090b44125e783a5167972b66",
+          "ids": [
+            "sm0001",
+            "sm0002",
+            "sm0003",
+            "sm0004",
+            "sm0005",
+            "sm0006"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        },
+        {
+          "id": "g-starter",
+          "storedMessages": 10,
+          "visibleMessages": 9,
+          "idsSha256": "c3701f5846e64ae122ecca2799575b9dc7e16d2f916443ea47d5fd795e4ef105",
+          "ids": [
+            "sm-m7-tombstone-control",
+            "sm0007",
+            "sm0008",
+            "sm0009",
+            "sm0010",
+            "sm0011",
+            "sm0012",
+            "sm0013",
+            "sm0014",
+            "sm0015"
+          ],
+          "reactionRows": 2,
+          "mineRows": 0
+        }
+      ]
+    },
+    {
+      "path": "m7-baseline/pre-m7-carol.json",
+      "bytes": 10997,
+      "sha256": "fde8fddb3542692d75081565d35865173b9c50a7b1a81bb87e31c8b4f519bb6c",
+      "persona": "carol",
+      "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+      "conversations": [
+        {
+          "id": "g-starter",
+          "storedMessages": 10,
+          "visibleMessages": 9,
+          "idsSha256": "c3701f5846e64ae122ecca2799575b9dc7e16d2f916443ea47d5fd795e4ef105",
+          "ids": [
+            "sm-m7-tombstone-control",
+            "sm0007",
+            "sm0008",
+            "sm0009",
+            "sm0010",
+            "sm0011",
+            "sm0012",
+            "sm0013",
+            "sm0014",
+            "sm0015"
+          ],
+          "reactionRows": 2,
+          "mineRows": 1
+        }
+      ]
+    }
+  ],
+  "visibleCounts": {
+    "d-alice-bob": {
+      "stored": 6,
+      "visible": 6
+    },
+    "g-starter": {
+      "stored": 10,
+      "visible": 9
+    }
+  },
+  "controls": {
+    "scope": "Static seeded edit/tombstone are preservation controls; they do not prove public delete/edit. Reactions and fetched/viewed mutations used the public authenticated SDK. Text-only scope excludes media/expiry, presence/typing, jobs/scheduling/push.",
+    "editedExistingId": "sm0007",
+    "extraTombstoneId": "sm-m7-tombstone-control",
+    "publicCommittedReactions": 4,
+    "publicCommittedReceiptMutations": 10,
+    "coverage": {
+      "at": 1789230881509,
+      "manifest": [
+        {
+          "persona": "alice",
+          "principal": "user:qaozGeVVhk11WPsju8lZuQ",
+          "rows": 16,
+          "visible": 15,
+          "edited": 1,
+          "tombstones": 1,
+          "reactionRows": 4,
+          "ownReceiptRows": 7,
+          "quotedMessages": 6,
+          "file": "pre-m7-alice.json"
+        },
+        {
+          "persona": "bob",
+          "principal": "user:sz5PoX0IaexAFZfTzzf_tQ",
+          "rows": 16,
+          "visible": 15,
+          "edited": 1,
+          "tombstones": 1,
+          "reactionRows": 4,
+          "ownReceiptRows": 5,
+          "quotedMessages": 6,
+          "file": "pre-m7-bob.json"
+        },
+        {
+          "persona": "carol",
+          "principal": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+          "rows": 10,
+          "visible": 9,
+          "edited": 1,
+          "tombstones": 1,
+          "reactionRows": 2,
+          "ownReceiptRows": 4,
+          "quotedMessages": 3,
+          "file": "pre-m7-carol.json"
+        }
+      ],
+      "nonemptyAssertionsPassed": true
+    }
+  },
+  "originalProgram": {
+    "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382",
+    "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+    "schemaFile": {
+      "path": "snapback/schema.q",
+      "bytes": 3577,
+      "sha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017"
+    }
+  },
+  "priorRegressionSelection": {
+    "path": "selected-results.json",
+    "bytes": 79473,
+    "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+    "fullMilestoneGreen": false,
+    "weightedScore": null,
+    "assertionStatuses": [
+      {
+        "id": "m3-a01",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a13",
+        "status": "pass"
+      },
+      {
+        "id": "membership-authorization",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a14",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a01",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a03",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a04",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a02",
+        "status": "pass"
+      },
+      {
+        "id": "s3-resource-independence-denied",
+        "status": "pass"
+      },
+      {
+        "id": "stale-account-and-rapid-navigation",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a05",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a06",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a15",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a01",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a03",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a17",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a07",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a16",
+        "status": "pass"
+      },
+      {
+        "id": "m8-a18",
+        "status": "pass"
+      },
+      {
+        "id": "distinct-server-fetched-viewed-receipts",
+        "status": "pass"
+      },
+      {
+        "id": "populated-reaction-own-state",
+        "status": "pass"
+      },
+      {
+        "id": "delayed-old-account-response-fenced",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a10",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a11",
+        "status": "pass"
+      },
+      {
+        "id": "m6-a12",
+        "status": "pass"
+      },
+      {
+        "id": "s3-resource-independence-http-batch-failure",
+        "status": "fail"
+      }
+    ],
+    "statusDigestSha256": "427e24b09504cb42af797a725c520027ab1a6f2f9db437654b4eb1fbf86ba462",
+    "authority": "Frozen builder-reported selected result; not independent grade authority."
+  },
+  "preM7Snapshot": {
+    "path": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-prechange",
+    "manifestPath": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-prechange.manifest.json",
+    "manifestSha256": "817681b532a9a2e01a1931942e1af57706b2b878b705cb4a3cddb3b834bf7fde",
+    "contentSymlinkDigestSha256": "560077b3f6f1b30da01feb9b1ce62fb88fb277b90d21743d8f2cf9da544e4d6c",
+    "immutable": true
+  },
+  "oldClientHeldSeparately": {
+    "actorAccess": false,
+    "status": "ready-offline-not-reconnected",
+    "persistedStatus": "queued",
+    "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382",
+    "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+    "archiveManifestPath": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-old-client-profile-private.manifest.json",
+    "archiveManifestSha256": "dff1fd459d86f22eb0953bd7e4bbcc6222b90706bd1c9cbcd058bc4cdcedafa9",
+    "instruction": "Independent coordinator custody only after immediate migration and poll checkpoints; not actor work."
+  },
+  "fixtureReceipt": {
+    "path": "m7-baseline/fixture-preparation.json",
+    "sha256": "7f79d335b09453ef36272785d5992d989c8c99653452a19fafec5bce984789d9"
+  },
+  "noExecutionPerformed": true,
+  "activeLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3",
+  "snapshotPathCorrection": [
+    {
+      "from": "m7-preparation/pre-m7-alice.json",
+      "to": "m7-baseline/pre-m7-alice.json"
+    },
+    {
+      "from": "m7-preparation/pre-m7-bob.json",
+      "to": "m7-baseline/pre-m7-bob.json"
+    },
+    {
+      "from": "m7-preparation/pre-m7-carol.json",
+      "to": "m7-baseline/pre-m7-carol.json"
+    }
+  ]
+}

@@ -1,0 +1,329 @@
+{
+  "details": {
+    "run": 1789225932867
+  },
+  "results": [
+    {
+      "id": "m3-a01",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789225934529,
+      "end": 1789225934750,
+      "evidence": {
+        "x": {
+          "id": "58320df8-bba7-41b6-8e0d-7444960d8a44",
+          "durable": 4.299999952316284,
+          "settled": 50,
+          "receipt": {
+            "data": {
+              "conversationId": "d-alice-bob",
+              "edited": false,
+              "id": "58320df8-bba7-41b6-8e0d-7444960d8a44",
+              "replyTo": null,
+              "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+              "serverTimestamp": 1789225934544,
+              "text": "Alice live 1789225932867",
+              "tombstone": false
+            },
+            "effects": [
+              {
+                "id": "58320df8-bba7-41b6-8e0d-7444960d8a44",
+                "table": "messages"
+              }
+            ],
+            "intent": "906be8d9-bfd5-4e06-b2d1-2564897da3ff",
+            "program": {
+              "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+              "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+            },
+            "seq": 83,
+            "state": "committed"
+          }
+        },
+        "y": {
+          "id": "b18f2480-ee2b-4355-bc6e-0ebc72cca356",
+          "durable": 2,
+          "settled": 56.299999952316284,
+          "receipt": {
+            "data": {
+              "conversationId": "d-alice-bob",
+              "edited": false,
+              "id": "b18f2480-ee2b-4355-bc6e-0ebc72cca356",
+              "replyTo": null,
+              "senderId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+              "serverTimestamp": 1789225934636,
+              "text": "Bob live 1789225932867",
+              "tombstone": false
+            },
+            "effects": [
+              {
+                "id": "b18f2480-ee2b-4355-bc6e-0ebc72cca356",
+                "table": "messages"
+              }
+            ],
+            "intent": "d34bb7f2-9259-47c2-82ec-c0b32e475bc4",
+            "program": {
+              "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+              "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+            },
+            "seq": 86,
+            "state": "committed"
+          }
+        }
+      }
+    },
+    {
+      "id": "m8-a13",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789225934750,
+      "end": 1789225934845,
+      "evidence": {
+        "id": "984810ea-1318-4e47-91bb-9dafe18b2b4f",
+        "durable": 17.899999856948853,
+        "settled": 80.39999985694885,
+        "receipt": {
+          "data": {
+            "conversationId": "d-alice-bob",
+            "edited": false,
+            "id": "984810ea-1318-4e47-91bb-9dafe18b2b4f",
+            "replyTo": null,
+            "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "serverTimestamp": 1789225934792,
+            "text": "Same account 1789225932867",
+            "tombstone": false
+          },
+          "effects": [
+            {
+              "id": "984810ea-1318-4e47-91bb-9dafe18b2b4f",
+              "table": "messages"
+            }
+          ],
+          "intent": "ddff0749-70d8-466c-a96c-a659c4f8cb3d",
+          "program": {
+            "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+            "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+          },
+          "seq": 91,
+          "state": "committed"
+        }
+      }
+    },
+    {
+      "id": "membership-authorization",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789225934845,
+      "end": 1789225935256,
+      "evidence": {
+        "rows": [],
+        "receipt": {
+          "id": "e306b9e8-5ec6-4cab-b69f-34c3306549ce",
+          "durable": 3,
+          "settled": 12.300000190734863,
+          "receipt": {
+            "code": "NOT_MEMBER",
+            "family": "rule",
+            "guide": "rule/runtime",
+            "intent": "9bbcf47b-7aba-4804-b3b7-2b9b2cb862cd",
+            "message": "E_REQUIRE:NOT_MEMBER: program requirement failed",
+            "rewrite": "fix the rejected mutation input and retry",
+            "rule": "NOT_MEMBER",
+            "seq": 94,
+            "site": "snapback/messages.q:14:3",
+            "state": "rejected"
+          }
+        }
+      }
+    },
+    {
+      "id": "m8-a14",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789225935256,
+      "end": 1789225935495,
+      "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0"
+    },
+    {
+      "id": "m8-a01",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789225935496,
+      "end": 1789225935539,
+      "error": "Error: page.evaluate: SnapbackError: This resource is not available yet.\n    at sr.query (http://127.0.0.1:54900/_expo/static/js/web/entry-59cac5870e39a0fe3b9a93e9513b1285.js:859:143117)\n    at async <anonymous>:337:30"
+    },
+    {
+      "id": "m8-a03",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789225935496,
+      "end": 1789225935539,
+      "error": "Error: page.evaluate: SnapbackError: This resource is not available yet.\n    at sr.query (http://127.0.0.1:54900/_expo/static/js/web/entry-59cac5870e39a0fe3b9a93e9513b1285.js:859:143117)\n    at async <anonymous>:337:30"
+    },
+    {
+      "id": "m8-a04",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789225935496,
+      "end": 1789225935539,
+      "error": "Error: page.evaluate: SnapbackError: This resource is not available yet.\n    at sr.query (http://127.0.0.1:54900/_expo/static/js/web/entry-59cac5870e39a0fe3b9a93e9513b1285.js:859:143117)\n    at async <anonymous>:337:30"
+    },
+    {
+      "id": "m8-a02",
+      "scope": "selected web text",
+      "status": "pass",
+      "start": 1789225935539,
+      "end": 1789225935621,
+      "evidence": {
+        "before": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 0,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 2,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        },
+        "after": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 1,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 3,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        },
+        "receipt": {
+          "data": true,
+          "effects": [
+            {
+              "id": "s3-e61c2aafffafdcba5c6cd7a0e25ace3053f5632e4aa002763f1d3113f3165c3e-0000",
+              "table": "likes"
+            }
+          ],
+          "intent": "b83e6e81-039b-41a1-b611-43d1891e5dc2",
+          "program": {
+            "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+            "schemaHash": "de9204f26663c46b041784d230ee0028a9b8718be090adafa85012212819dd34"
+          },
+          "seq": 100,
+          "state": "committed"
+        }
+      }
+    },
+    {
+      "id": "s3-resource-independence",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789225935622,
+      "end": 1789226008353,
+      "error": "Error: page.evaluate: Target page, context or browser has been closed"
+    },
+    {
+      "id": "stale-account-and-rapid-navigation",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226008354,
+      "end": 1789226008358,
+      "error": "Error: locator.fill: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for getByTestId('conversation-id')\u001b[22m\n"
+    },
+    {
+      "id": "m6-a05",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226008359,
+      "end": 1789226008360,
+      "error": "Error: locator.fill: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m6-a06",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226008359,
+      "end": 1789226008360,
+      "error": "Error: locator.fill: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m8-a15",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226008359,
+      "end": 1789226008360,
+      "error": "Error: locator.fill: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m6-a01",
+      "scope": "browser substitution; acquired first page and page search only",
+      "status": "fail",
+      "start": 1789226008362,
+      "end": 1789226008362,
+      "error": "Error: locator.fill: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m6-a03",
+      "scope": "browser substitution; acquired first page and page search only",
+      "status": "fail",
+      "start": 1789226008362,
+      "end": 1789226008362,
+      "error": "Error: locator.fill: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m8-a17",
+      "scope": "browser substitution; acquired first page and page search only",
+      "status": "fail",
+      "start": 1789226008362,
+      "end": 1789226008362,
+      "error": "Error: locator.fill: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m6-a07",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226008363,
+      "end": 1789226008364,
+      "error": "Error: page.evaluate: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m8-a16",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226008363,
+      "end": 1789226008364,
+      "error": "Error: page.evaluate: Target page, context or browser has been closed"
+    },
+    {
+      "id": "m8-a18",
+      "scope": "selected web text",
+      "status": "fail",
+      "start": 1789226008363,
+      "end": 1789226008364,
+      "error": "Error: page.evaluate: Target page, context or browser has been closed"
+    }
+  ]
+}

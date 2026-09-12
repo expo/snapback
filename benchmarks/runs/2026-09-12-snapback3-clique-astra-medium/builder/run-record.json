@@ -1,0 +1,372 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API diagnostic",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "@expo/metro-runtime": "57.0.15",
+      "expo": "57.0.22",
+      "expo-router": "57.0.21",
+      "react": "19.2.3",
+      "react-dom": "19.2.3",
+      "react-native": "0.86.2",
+      "react-native-safe-area-context": "5.7.0",
+      "react-native-screens": "4.26.0",
+      "react-native-web": "0.21.2",
+      "snapback3": "0.0.1-experimental.0",
+      "@types/react": "19.2.0",
+      "node": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node v24.13.1",
+      "host": "Ubuntu Linux x86_64 expose-builder-pixel",
+      "backend": "snapback3-0.0.1-experimental.0",
+      "packageSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-12T14:17:40.000Z",
+    "finishedAt": "2026-09-12T14:33:05.000Z"
+  },
+  "firstGreenProofAt": null,
+  "wallClock": {
+    "totalSeconds": 586,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": null,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": null,
+      "m7Session": null
+    }
+  },
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "Retain useful S3 uniqueness message in profile error UI.",
+      "evidence": "evidence/correction-01.md"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 183,
+    "files": 18,
+    "sharedUiLines": null
+  },
+  "diary": "diary.md",
+  "notes": "N=1 diagnostic. Authoring wall excludes post-terminal narrative/reporting. Native usage, authenticated controller, phase accounting and first-edit byte meter unavailable; no token estimate. Base-schema record only; composed post-grading/metering record is not claimed. All server PIDs stopped.",
+  "socialMessenger": {
+    "extensionVersion": 2,
+    "instrumentVersion": "social-messenger@0.3.8-m8",
+    "runScope": "full",
+    "capFamily": "gpt-frontier",
+    "deploymentPosture": "local-binary",
+    "milestones": {
+      "M1": {
+        "status": "aborted",
+        "nonGreenCause": "suite-failed",
+        "authoring": {
+          "wallSeconds": 586,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": "2026-09-12T14:27:26.000Z",
+          "terminalSequence": 0,
+          "terminalReason": "abort"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 14400,
+          "chargedTokens": null,
+          "flags": [
+            "aborted"
+          ]
+        }
+      },
+      "M2": {
+        "status": "blocked",
+        "blockedBy": [
+          "M1"
+        ],
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M3": {
+        "status": "blocked",
+        "blockedBy": [
+          "M1"
+        ],
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M4": {
+        "status": "blocked",
+        "blockedBy": [
+          "M1"
+        ],
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M5": {
+        "status": "blocked",
+        "blockedBy": [
+          "M1"
+        ],
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M6": {
+        "status": "blocked",
+        "blockedBy": [
+          "M1"
+        ],
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M7": {
+        "status": "not-run",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M8": {
+        "status": "blocked",
+        "blockedBy": [
+          "M1"
+        ],
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      }
+    },
+    "termination": {
+      "terminatedEarly": true,
+      "reason": "mandatory-media-unavailable-no-runnable-descendants",
+      "afterMilestone": "M1"
+    },
+    "compaction": {
+      "policy": "harness-managed; no observed compaction",
+      "events": []
+    },
+    "firstProductEdit": {
+      "at": null,
+      "orientationBytes": null,
+      "orientationTokens": {
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
+      },
+      "selectedSkills": []
+    },
+    "coverageManifest": {
+      "path": "evidence/m1-coverage.json",
+      "validated": true
+    },
+    "assertionManifest": {
+      "path": "instrument/schema/social-messenger/assertions.json"
+    },
+    "clocks": {
+      "grading": {
+        "sessions": []
+      },
+      "replay": {
+        "attempted": false,
+        "wallSeconds": null,
+        "capSeconds": null,
+        "capExhausted": null
+      },
+      "m7Session": {
+        "wallSeconds": null,
+        "tokens": {
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
+        }
+      }
+    },
+    "grading": {
+      "graderReportPath": null,
+      "graderFamily": null,
+      "sameFamilyGraded": false,
+      "usableGradingRecord": false
+    }
+  }
+}

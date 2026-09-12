@@ -1,0 +1,404 @@
+{
+  "type": "public profiling diagnostic collection",
+  "collectedEpochMs": 1789233423522,
+  "diagnosticModel": "gpt-5.6-sol",
+  "diagnosticEffort": "high",
+  "timingScope": "Distinct instrumented attempt; no ordinary-repeat, builder-grade or M7 claim",
+  "newExperimentRunDuringCollection": false,
+  "originalRemoteEvidenceManifestSha256": "d1084d0ba676e5e610271692f027c11b95d69aaa17614f0446a4fa4ea920742b",
+  "unchangedOriginalReportSha256": "3f9169b592d71e44aaca2ba2df97b6b8611ff04e48bae6503eb5ca6e457aebfd",
+  "unchangedOriginalReadmeSha256": "d5b129471d1f3eb2d2418de7b40331076e96eca7298430cb71fe5997334e0288",
+  "sourceIdentityLinks": [
+    {
+      "profilePath": "source/app/app/_layout.tsx",
+      "publicBuilderPath": "../builder/app/_layout.tsx",
+      "sha256": "e89f7869515aa9214d7daa0e0af465567c309bc2e5cb08a40b560af36e1a5c47"
+    },
+    {
+      "profilePath": "source/app/app/index.tsx",
+      "publicBuilderPath": "../builder/app/index.tsx",
+      "sha256": "fe67a8f6dcc3f8266bfe33bf383f792771a8d42fd2742980e066a3335fdc6424"
+    },
+    {
+      "profilePath": "source/app/app/profile/[handle].tsx",
+      "publicBuilderPath": "../builder/app/profile/[handle].tsx",
+      "sha256": "4bb9ac38aaff46bd139d6e3d21cd64cfd514a9d8930064c43b6566f5cf72d19a"
+    },
+    {
+      "profilePath": "source/app/app/profile/edit.tsx",
+      "publicBuilderPath": "../builder/app/profile/edit.tsx",
+      "sha256": "ba07b912339a96bb0c860452deecca2fcd56bab2900a0361305ffef0fbe6dd9f"
+    },
+    {
+      "profilePath": "source/app/app/settings.tsx",
+      "publicBuilderPath": "../builder/app/settings.tsx",
+      "sha256": "aa112eecba1a84de559892534a9606e186a19489e5b46442a988c91202b6fc26"
+    },
+    {
+      "profilePath": "source/app/app.json",
+      "publicBuilderPath": "../builder/app.json",
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1"
+    },
+    {
+      "profilePath": "source/app/package-lock.json",
+      "publicBuilderPath": "../builder/package-lock.json",
+      "sha256": "6ef4c3f3db4ed656e421d20b8318eb590227ac7490fb648524f4b1bb6d140355"
+    },
+    {
+      "profilePath": "source/app/package.json",
+      "publicBuilderPath": "../builder/package.json",
+      "sha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da"
+    },
+    {
+      "profilePath": "source/app/snapback/conversations.q",
+      "publicBuilderPath": "../builder/snapback/conversations.q",
+      "sha256": "e79c85672489da38a994ae4fc1a370216191599f7cbcb683df145ed7873cedc2"
+    },
+    {
+      "profilePath": "source/app/snapback/messages.q",
+      "publicBuilderPath": "../builder/snapback/messages.q",
+      "sha256": "5f7a71a6fbcf9910d9641cc38232b046f9dd38faf95b9fcdf70d6a59372fa8c2"
+    },
+    {
+      "profilePath": "source/app/snapback/profiles.q",
+      "publicBuilderPath": "../builder/snapback/profiles.q",
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685"
+    },
+    {
+      "profilePath": "source/app/snapback/schema.q",
+      "publicBuilderPath": "../builder/snapback/schema.q",
+      "sha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017"
+    },
+    {
+      "profilePath": "source/app/snapback/social.q",
+      "publicBuilderPath": "../builder/snapback/social.q",
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15"
+    },
+    {
+      "profilePath": "source/app/src/acquire.ts",
+      "publicBuilderPath": "../builder/src/acquire.ts",
+      "sha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4"
+    },
+    {
+      "profilePath": "source/app/src/chat.tsx",
+      "publicBuilderPath": "../builder/src/chat.tsx",
+      "sha256": "e9d8d1b9543b2546637a2f3a5007af1730b7a267528dde836fb24a76c26dd4cb"
+    },
+    {
+      "profilePath": "source/app/src/client.tsx",
+      "publicBuilderPath": "../builder/src/client.tsx",
+      "sha256": "85d46218c7624043ad592df92c90abf1923df2bf6674379c42cec32d434098d6"
+    },
+    {
+      "profilePath": "source/app/src/screens.tsx",
+      "publicBuilderPath": "../builder/src/screens.tsx",
+      "sha256": "b91273365e9d2843b5dc64c18db24638869f7bd2212f61a4b9bbf71cc604b1d4"
+    },
+    {
+      "profilePath": "source/app/tsconfig.json",
+      "publicBuilderPath": "../builder/tsconfig.json",
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86"
+    }
+  ],
+  "privateCustody": {
+    "archiveName": "profile-private.tar.gz",
+    "archiveBytes": 69641823,
+    "archiveSha256": "5b778a4939655ffb7f85e7fc798241af9cdeb7aa4d57a301447bf5de48c76ab2",
+    "privateManifestSha256": "cb2dd88960983850e7eca1ee24f3115ea215c38eb57ad4e1ec432a8a9b46096d",
+    "location": ".llp/ship-runs/snapback3-clique-focused-20260912/retained/",
+    "publication": "Private archive and manifest are intentionally ignored, not public links. No DB/profile/session/auth material or model stream is in the public selection."
+  },
+  "publicFiles": [
+    {
+      "path": "COLLECTION.md",
+      "bytes": 3599,
+      "sha256": "228057c1728470aa2135e44bbe03bd10d088bf1de4ba942017f1bae55a78dc3a"
+    },
+    {
+      "path": "README.md",
+      "bytes": 7588,
+      "sha256": "d5b129471d1f3eb2d2418de7b40331076e96eca7298430cb71fe5997334e0288"
+    },
+    {
+      "path": "acquired-ids.json",
+      "bytes": 150002,
+      "sha256": "0c7bc8a0bbd35fbb710f0a2d9be96905e83f8a0e213cabc873e3c9eeb70c1453"
+    },
+    {
+      "path": "analyze-profile.mjs",
+      "bytes": 6109,
+      "sha256": "3e4cd3589cf1792f614beeb141095df5c49d919110bef15f38b999b509beeeb6"
+    },
+    {
+      "path": "analyze.stdout.log",
+      "bytes": 3172,
+      "sha256": "d8a738757ba7f2bbe35474ed871331d70dd80cf84d2e7453bcf7296e2abb12ef"
+    },
+    {
+      "path": "attempt-1/browser-main-thread.cpuprofile",
+      "bytes": 1546218,
+      "sha256": "a3005a90ef0c5474f23cefcd4b9da4bc92f2751d8dadc2d7f080ab0c9ab7949c"
+    },
+    {
+      "path": "attempt-1/controller.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-1/controller.stdout.log",
+      "bytes": 587,
+      "sha256": "fa90653e668256324414d39939620e75f0f848ed0d81af11c23f89bfb72ac152"
+    },
+    {
+      "path": "attempt-1/harness-error.json",
+      "bytes": 504,
+      "sha256": "eedc36edb3d0fae1192576a0ec1f7c787fbe6797eaeb2279ff1b3368cc3acca3"
+    },
+    {
+      "path": "attempt-1/owner.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "attempt-1/owner.stdout.log",
+      "bytes": 61,
+      "sha256": "049fbc7683a4b503a7a6395cc3233b2fa12d3318b0d0df57550fff5add0705d6"
+    },
+    {
+      "path": "attempt-1/profile.mjs",
+      "bytes": 12189,
+      "sha256": "b81a21fc81e0790a1d3e9f064a6bdc1def17f12edee518b79960f47eda03dcb3"
+    },
+    {
+      "path": "attempt-1/run.json",
+      "bytes": 173597,
+      "sha256": "f016b4cc20629bbce56dd93a89f6829d863c5293d7a6981884f2c5528efcd11a"
+    },
+    {
+      "path": "browser-main-thread.cpuprofile",
+      "bytes": 1647855,
+      "sha256": "131d69cbd75d42125e1e36838770bf222fb4f71253e462c8c8fa5d19771af02d"
+    },
+    {
+      "path": "collection-selection.json",
+      "bytes": 19384,
+      "sha256": "9a583957acc715028ae4100999f6347c938725775ce6aa62f570c04965579f43"
+    },
+    {
+      "path": "controller.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "controller.stdout.log",
+      "bytes": 722,
+      "sha256": "cb0418a155961ad4a3ebb46ff4b10e07ac5dffab1dea350c40ec510f9673838b"
+    },
+    {
+      "path": "diagnostic.json",
+      "bytes": 42755,
+      "sha256": "3f9169b592d71e44aaca2ba2df97b6b8611ff04e48bae6503eb5ca6e457aebfd"
+    },
+    {
+      "path": "evidence-manifest.json",
+      "bytes": 1674,
+      "sha256": "d1084d0ba676e5e610271692f027c11b95d69aaa17614f0446a4fa4ea920742b"
+    },
+    {
+      "path": "expected-u0500-ids.json",
+      "bytes": 150001,
+      "sha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac"
+    },
+    {
+      "path": "inputs.json",
+      "bytes": 8026,
+      "sha256": "bbf8ec23f6c3f530661f26b254c9350a79644318a827e63d21597f64032dce61"
+    },
+    {
+      "path": "owner.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "owner.stdout.log",
+      "bytes": 61,
+      "sha256": "049fbc7683a4b503a7a6395cc3233b2fa12d3318b0d0df57550fff5add0705d6"
+    },
+    {
+      "path": "preflight.json",
+      "bytes": 306,
+      "sha256": "0ee38aba778ce357964579d9da1d34d42b61c20b61b29c0d9f2bc9bf9cf21b83"
+    },
+    {
+      "path": "preparation-error.json",
+      "bytes": 286,
+      "sha256": "570bd37bcb52d197d0a4e3cd71b5ef4245eda08be25080c07c1b956060aa7d1f"
+    },
+    {
+      "path": "profile.mjs",
+      "bytes": 12345,
+      "sha256": "67a0c235f464ed5bef8b26a2ca28310d8d589af119b7a9b9f6cdd3a58b2adf9f"
+    },
+    {
+      "path": "provenance.json",
+      "bytes": 656,
+      "sha256": "4448b40d111e0d2e780dc9a270349a4ff8d18ab2eb1586fedb4e2b66c813d7d7"
+    },
+    {
+      "path": "run.json",
+      "bytes": 351861,
+      "sha256": "4433e2877dc06c695b0fa5580c0ef53abe6d53484a5e122737780911c6c679ca"
+    },
+    {
+      "path": "source/app/app/_layout.tsx",
+      "bytes": 339,
+      "sha256": "e89f7869515aa9214d7daa0e0af465567c309bc2e5cb08a40b560af36e1a5c47"
+    },
+    {
+      "path": "source/app/app/index.tsx",
+      "bytes": 133,
+      "sha256": "fe67a8f6dcc3f8266bfe33bf383f792771a8d42fd2742980e066a3335fdc6424"
+    },
+    {
+      "path": "source/app/app/profile/[handle].tsx",
+      "bytes": 270,
+      "sha256": "4bb9ac38aaff46bd139d6e3d21cd64cfd514a9d8930064c43b6566f5cf72d19a"
+    },
+    {
+      "path": "source/app/app/profile/edit.tsx",
+      "bytes": 139,
+      "sha256": "ba07b912339a96bb0c860452deecca2fcd56bab2900a0361305ffef0fbe6dd9f"
+    },
+    {
+      "path": "source/app/app/settings.tsx",
+      "bytes": 149,
+      "sha256": "aa112eecba1a84de559892534a9606e186a19489e5b46442a988c91202b6fc26"
+    },
+    {
+      "path": "source/app/app.json",
+      "bytes": 182,
+      "sha256": "9ece029d9b59b6dbb386edf06959d425f04bb223278cf99ca9f1831951359fe1"
+    },
+    {
+      "path": "source/app/package-lock.json",
+      "bytes": 305336,
+      "sha256": "6ef4c3f3db4ed656e421d20b8318eb590227ac7490fb648524f4b1bb6d140355"
+    },
+    {
+      "path": "source/app/package.json",
+      "bytes": 1274,
+      "sha256": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da"
+    },
+    {
+      "path": "source/app/snapback/conversations.q",
+      "bytes": 1207,
+      "sha256": "e79c85672489da38a994ae4fc1a370216191599f7cbcb683df145ed7873cedc2"
+    },
+    {
+      "path": "source/app/snapback/messages.q",
+      "bytes": 2868,
+      "sha256": "5f7a71a6fbcf9910d9641cc38232b046f9dd38faf95b9fcdf70d6a59372fa8c2"
+    },
+    {
+      "path": "source/app/snapback/profiles.q",
+      "bytes": 436,
+      "sha256": "3e617571515fcdbf73b101c1f028445f9a8cffe1cc1b61d4ec62deaa4e769685"
+    },
+    {
+      "path": "source/app/snapback/schema.q",
+      "bytes": 3577,
+      "sha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017"
+    },
+    {
+      "path": "source/app/snapback/social.q",
+      "bytes": 2465,
+      "sha256": "230c14b0e9666f7b1a34ef3e561f8c0720c98d463396baf4e6fdbe889c621f15"
+    },
+    {
+      "path": "source/app/src/acquire.ts",
+      "bytes": 2876,
+      "sha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4"
+    },
+    {
+      "path": "source/app/src/chat.tsx",
+      "bytes": 7908,
+      "sha256": "e9d8d1b9543b2546637a2f3a5007af1730b7a267528dde836fb24a76c26dd4cb"
+    },
+    {
+      "path": "source/app/src/client.tsx",
+      "bytes": 1482,
+      "sha256": "85d46218c7624043ad592df92c90abf1923df2bf6674379c42cec32d434098d6"
+    },
+    {
+      "path": "source/app/src/screens.tsx",
+      "bytes": 4024,
+      "sha256": "b91273365e9d2843b5dc64c18db24638869f7bd2212f61a4b9bbf71cc604b1d4"
+    },
+    {
+      "path": "source/app/tsconfig.json",
+      "bytes": 137,
+      "sha256": "06e465722132ec384d64b947a4621d8e9adc9ae11d7fb8b5f1a976e87baffb86"
+    },
+    {
+      "path": "source/browser/_expo/static/js/web/entry-ee964aba8b4e61f47dc5a2b7f72c4c62.js",
+      "bytes": 1352985,
+      "sha256": "593a46784348afe0435a00760401f2b7a1a17280ed14d0b9262c1f673ee4ba29"
+    },
+    {
+      "path": "source/browser/index.html",
+      "bytes": 1173,
+      "sha256": "63c1d0db3319de77f0552bf654803dcb6b3793a2857119fcf0ac195c9f618cbf"
+    },
+    {
+      "path": "source/browser/metadata.json",
+      "bytes": 49,
+      "sha256": "aa5f19cc84d41c0f8c70ececb2bc82e863227ea1e121632aca879eb616056991"
+    },
+    {
+      "path": "source/browser/sw.js",
+      "bytes": 2558,
+      "sha256": "88f8360236163c25726bff5a3c889f9c980d0f199dc8e40c98f17f686dc448a3"
+    },
+    {
+      "path": "source/sdk/client.mjs",
+      "bytes": 164808,
+      "sha256": "d4385e49591a449c3d2fdca8c2dc7c8752e79e8cb21ec69f59c6ce7437fb5628"
+    },
+    {
+      "path": "source/sdk/client.mjs.map",
+      "bytes": 549861,
+      "sha256": "d19404ffed501740dd5a4944d94d83f4b2acd094ab79b1ec7af33297f5ff951d"
+    },
+    {
+      "path": "source/seed.ts.gz",
+      "bytes": 960846,
+      "sha256": "375db71f79b05c1a8f779d451f33dfa616fd8db3fd2f04069b95bc21bcaaba63"
+    },
+    {
+      "path": "summarize.py",
+      "bytes": 10045,
+      "sha256": "cb4679403397daf8e5a1b3ae2ac7145c10365864c6237a1f5076cf420c44b80e"
+    },
+    {
+      "path": "summary.stdout.log",
+      "bytes": 8974,
+      "sha256": "3d693b57200665ea62449b95ccd9487068688afabb98c11753ba21b5b00d521e"
+    },
+    {
+      "path": "top-self-time-functions.json",
+      "bytes": 492694,
+      "sha256": "7808812c8a99629aa4c3ce6eff8a87ec1c128f33c7c252efcb11f8d412c360e7"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 3949,
+      "sha256": "c9afc4fc937cb2fb0c9838c3ba9fe08d2ec49250b55770f0477d61b5920498e6"
+    },
+    {
+      "path": "verify-collection.py",
+      "bytes": 3967,
+      "sha256": "6a58419435a5328104614c452dae09ed9a6b5993e8e9edf91c98dd29de495925"
+    }
+  ],
+  "publicPrivateBoundaryClarifiedEpochMs": 1789233497354
+}

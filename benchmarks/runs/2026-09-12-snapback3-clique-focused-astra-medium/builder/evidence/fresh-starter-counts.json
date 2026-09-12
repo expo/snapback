@@ -1,0 +1,9 @@
+{
+  "epoch": 1789227057238,
+  "status": "pass",
+  "counts": {
+    "d-alice-bob": 6,
+    "g-starter": 9
+  },
+  "method": "Persona-authenticated snapshot export from separately seeded fresh starter DB"
+}

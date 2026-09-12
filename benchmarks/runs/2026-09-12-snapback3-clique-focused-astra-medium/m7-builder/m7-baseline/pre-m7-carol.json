@@ -1,0 +1,337 @@
+{
+  "exportedAt": 1789230881509,
+  "principal": {
+    "id": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+    "kind": "user",
+    "name": "carol@example.com"
+  },
+  "fixtureAuth": "password signup/login with server-issued principal; static rows seeded under those same principals",
+  "scope": "Populated text-only pre-M7 snapshot; every receipt/reaction resource force-refreshed; no mutations in exporter",
+  "inboxPages": [
+    {
+      "cursor": null,
+      "next": null,
+      "seq": 15,
+      "rows": 1
+    }
+  ],
+  "conversations": [
+    {
+      "id": "g-starter",
+      "kind": "group",
+      "name": "Weekend Plans",
+      "historyPages": [
+        {
+          "cursor": null,
+          "next": null,
+          "seq": 15,
+          "rows": 10
+        }
+      ],
+      "receiptSeq": 15,
+      "messages": [
+        {
+          "id": "sm0007",
+          "conversationId": "g-starter",
+          "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+          "serverTimestamp": 1789225750327,
+          "type": "text",
+          "text": "Saturday plan: coffee, lake, then noodles. [M7 pre-change edited fixture]",
+          "caption": null,
+          "mediaReference": null,
+          "edited": true,
+          "tombstone": false,
+          "replyTo": null,
+          "reactions": [
+            {
+              "conversationId": "g-starter",
+              "emoji": "☕",
+              "id": "s3-26999cdf3e51f3e0e4e4cd5ce2f8310399b97e430b9e8d5264510214a6a8fac7-0000",
+              "messageId": "sm0007",
+              "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+              "mine": false
+            },
+            {
+              "conversationId": "g-starter",
+              "emoji": "🎉",
+              "id": "s3-3491f165f800ce37787934bff38b54f57695fa3b97f37b225d8ce407e070d873-0000",
+              "messageId": "sm0007",
+              "userId": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+              "mine": true
+            }
+          ],
+          "ownMessageReceiptState": null,
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0008",
+          "conversationId": "g-starter",
+          "senderId": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+          "serverTimestamp": 1789225750328,
+          "type": "text",
+          "text": "Coffee is a definite yes.",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": "sm0007",
+          "reactions": [],
+          "ownMessageReceiptState": {
+            "serverAccepted": true,
+            "recipientFetched": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "recipientViewed": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "watermarks": [
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+                "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+                "viewedThrough": 1789230284893
+              },
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+                "userId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+                "viewedThrough": 1789230284893
+              }
+            ]
+          },
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0009",
+          "conversationId": "g-starter",
+          "senderId": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+          "serverTimestamp": 1789225750329,
+          "type": "text",
+          "text": "I can meet everyone at ten.",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": null,
+          "reactions": [],
+          "ownMessageReceiptState": {
+            "serverAccepted": true,
+            "recipientFetched": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "recipientViewed": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "watermarks": [
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+                "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+                "viewedThrough": 1789230284893
+              },
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+                "userId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+                "viewedThrough": 1789230284893
+              }
+            ]
+          },
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0010",
+          "conversationId": "g-starter",
+          "senderId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+          "serverTimestamp": 1789225750330,
+          "type": "text",
+          "text": "The west trail is dry now.",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": null,
+          "reactions": [],
+          "ownMessageReceiptState": null,
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0011",
+          "conversationId": "g-starter",
+          "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+          "serverTimestamp": 1789225750331,
+          "type": "text",
+          "text": "West trail it is.",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": "sm0010",
+          "reactions": [],
+          "ownMessageReceiptState": null,
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0012",
+          "conversationId": "g-starter",
+          "senderId": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+          "serverTimestamp": 1789225750332,
+          "type": "text",
+          "text": "I will bring snacks.",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": null,
+          "reactions": [],
+          "ownMessageReceiptState": {
+            "serverAccepted": true,
+            "recipientFetched": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "recipientViewed": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "watermarks": [
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+                "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+                "viewedThrough": 1789230284893
+              },
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+                "userId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+                "viewedThrough": 1789230284893
+              }
+            ]
+          },
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0013",
+          "conversationId": "g-starter",
+          "senderId": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+          "serverTimestamp": 1789225750333,
+          "type": "text",
+          "text": "Should I book dinner?",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": null,
+          "reactions": [],
+          "ownMessageReceiptState": {
+            "serverAccepted": true,
+            "recipientFetched": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "recipientViewed": [
+              "user:qaozGeVVhk11WPsju8lZuQ",
+              "user:sz5PoX0IaexAFZfTzzf_tQ"
+            ],
+            "watermarks": [
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-72045cc525fe7746fff70c91c2ce1c61ab5b4d715a6d1bb41f62309beeeb4966-0000",
+                "userId": "user:qaozGeVVhk11WPsju8lZuQ",
+                "viewedThrough": 1789230284893
+              },
+              {
+                "conversationId": "g-starter",
+                "fetchedThrough": 1789230284893,
+                "id": "s3-a9885e53e0137d2f46199f0e76103cce947400c7ccf4eab33f71200e1e332611-0000",
+                "userId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+                "viewedThrough": 1789230284893
+              }
+            ]
+          },
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0014",
+          "conversationId": "g-starter",
+          "senderId": "user:sz5PoX0IaexAFZfTzzf_tQ",
+          "serverTimestamp": 1789225750334,
+          "type": "text",
+          "text": "Please do, for three.",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": "sm0013",
+          "reactions": [],
+          "ownMessageReceiptState": null,
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm0015",
+          "conversationId": "g-starter",
+          "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+          "serverTimestamp": 1789225750335,
+          "type": "text",
+          "text": "Locked in. See you Saturday.",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": false,
+          "replyTo": null,
+          "reactions": [],
+          "ownMessageReceiptState": null,
+          "evidence": {
+            "reactionSeq": 15
+          }
+        },
+        {
+          "id": "sm-m7-tombstone-control",
+          "conversationId": "g-starter",
+          "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+          "serverTimestamp": 1789230284893,
+          "type": "text",
+          "text": "This message was deleted",
+          "caption": null,
+          "mediaReference": null,
+          "edited": false,
+          "tombstone": true,
+          "replyTo": null,
+          "reactions": [],
+          "ownMessageReceiptState": null,
+          "evidence": {
+            "reactionSeq": 15
+          }
+        }
+      ]
+    }
+  ]
+}

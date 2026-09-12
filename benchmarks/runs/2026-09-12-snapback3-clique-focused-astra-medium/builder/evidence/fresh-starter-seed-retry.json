@@ -1,0 +1,2802 @@
+{
+  "start": 1789226887208,
+  "end": 1789226888339,
+  "scope": "starter text projection; public mutations; avatar omitted, six media posts converted",
+  "principals": {
+    "alice": "user:yPESCpaBcw5cjFZxlVklwQ",
+    "bob": "user:LUxZCsBzObuYlz7_daZ0xg",
+    "carol": "user:BvgROYb0e9WPwbh9O3gSdg",
+    "dave": "user:nRe4IxGF3oDbsn3_N8Kz1Q",
+    "erin": "user:FXK8hqseSJGqCPAS4mxnLg",
+    "frank": "user:EuF9axeX3SBSpsqztr2N7g",
+    "grace": "user:aT0jdDlzdcQD2NoLoHcf1Q",
+    "henry": "user:2bgrMuckdM_c7R-tMStXNQ"
+  },
+  "receipts": [
+    {
+      "file": "starter-m1.log",
+      "actor": "alice",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Alice Alvarez",
+        "handle": "alice",
+        "bio": "Coffee, cameras, and neighborhood walks.",
+        "location": "Oakland, CA",
+        "link": "https://example.com/alice"
+      },
+      "documentaryTime": "2026-01-01T00:00:01Z",
+      "started": 1789226888066,
+      "settled": 1789226888073,
+      "result": {
+        "data": {
+          "bio": "Coffee, cameras, and neighborhood walks.",
+          "displayName": "Alice Alvarez",
+          "handle": "alice",
+          "id": "s3-1ff2896c86d32a28f1f56f2e06beabd1c98f47a8fb975e22a1e651508b8035f8-0000",
+          "link": "https://example.com/alice",
+          "location": "Oakland, CA",
+          "owner": "user:yPESCpaBcw5cjFZxlVklwQ"
+        },
+        "effects": [
+          {
+            "id": "s3-1ff2896c86d32a28f1f56f2e06beabd1c98f47a8fb975e22a1e651508b8035f8-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "243f9a4c-9fa0-4ca9-b6d0-eacba6604b4f",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 1,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m1.log",
+      "actor": "bob",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Bob Bennett",
+        "handle": "bob",
+        "bio": "Bikes, bread, and tiny software tools.",
+        "location": "Berkeley, CA",
+        "link": "https://example.com/bob"
+      },
+      "documentaryTime": "2026-01-01T00:00:03Z",
+      "started": 1789226888073,
+      "settled": 1789226888078,
+      "result": {
+        "data": {
+          "bio": "Bikes, bread, and tiny software tools.",
+          "displayName": "Bob Bennett",
+          "handle": "bob",
+          "id": "s3-c3f336d892c65c74830e4fa701a6a10bf268ffcc447227c580f705c83346dcc2-0000",
+          "link": "https://example.com/bob",
+          "location": "Berkeley, CA",
+          "owner": "user:LUxZCsBzObuYlz7_daZ0xg"
+        },
+        "effects": [
+          {
+            "id": "s3-c3f336d892c65c74830e4fa701a6a10bf268ffcc447227c580f705c83346dcc2-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "86186317-cea8-4f77-a920-27c70854db7e",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 2,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m1.log",
+      "actor": "carol",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Carol Chen",
+        "handle": "carol",
+        "bio": "Ceramics student and relentless list maker.",
+        "location": "San Francisco, CA",
+        "link": "https://example.com/carol"
+      },
+      "documentaryTime": "2026-01-01T00:00:05Z",
+      "started": 1789226888078,
+      "settled": 1789226888083,
+      "result": {
+        "data": {
+          "bio": "Ceramics student and relentless list maker.",
+          "displayName": "Carol Chen",
+          "handle": "carol",
+          "id": "s3-1d26bd11cdaae3d4988ed6c262069b445da4146c15e0d5f4c74519406658e45f-0000",
+          "link": "https://example.com/carol",
+          "location": "San Francisco, CA",
+          "owner": "user:BvgROYb0e9WPwbh9O3gSdg"
+        },
+        "effects": [
+          {
+            "id": "s3-1d26bd11cdaae3d4988ed6c262069b445da4146c15e0d5f4c74519406658e45f-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "8d63cb40-3099-41c6-be57-b03b57bf5d33",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 3,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m1.log",
+      "actor": "dave",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Dave Diaz",
+        "handle": "dave",
+        "bio": "Live music, trail maps, and spicy noodles.",
+        "location": "Portland, OR",
+        "link": "https://example.com/dave"
+      },
+      "documentaryTime": "2026-01-01T00:00:07Z",
+      "started": 1789226888083,
+      "settled": 1789226888086,
+      "result": {
+        "data": {
+          "bio": "Live music, trail maps, and spicy noodles.",
+          "displayName": "Dave Diaz",
+          "handle": "dave",
+          "id": "s3-816066c357d13903577d77889c678d11023c731055e73d4d9146d37d81db1384-0000",
+          "link": "https://example.com/dave",
+          "location": "Portland, OR",
+          "owner": "user:nRe4IxGF3oDbsn3_N8Kz1Q"
+        },
+        "effects": [
+          {
+            "id": "s3-816066c357d13903577d77889c678d11023c731055e73d4d9146d37d81db1384-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "7940e7f3-2a89-45ca-be31-4970f006e1d4",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 4,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m1.log",
+      "actor": "erin",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Erin Evans",
+        "handle": "erin",
+        "bio": "Designing kinder interfaces and growing herbs.",
+        "location": "Seattle, WA",
+        "link": "https://example.com/erin"
+      },
+      "documentaryTime": "2026-01-01T00:00:09Z",
+      "started": 1789226888086,
+      "settled": 1789226888090,
+      "result": {
+        "data": {
+          "bio": "Designing kinder interfaces and growing herbs.",
+          "displayName": "Erin Evans",
+          "handle": "erin",
+          "id": "s3-44a93feecde3d67738e6a594b612b7dc528279d5415a9fb3649f2e7176794fcf-0000",
+          "link": "https://example.com/erin",
+          "location": "Seattle, WA",
+          "owner": "user:FXK8hqseSJGqCPAS4mxnLg"
+        },
+        "effects": [
+          {
+            "id": "s3-44a93feecde3d67738e6a594b612b7dc528279d5415a9fb3649f2e7176794fcf-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "6ffe715e-a98b-425a-a8cb-f7305c16d498",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 5,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m1.log",
+      "actor": "frank",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Frank Flores",
+        "handle": "frank",
+        "bio": "Weekend cook and weekday data wrangler.",
+        "location": "Austin, TX",
+        "link": "https://example.com/frank"
+      },
+      "documentaryTime": "2026-01-01T00:00:11Z",
+      "started": 1789226888090,
+      "settled": 1789226888094,
+      "result": {
+        "data": {
+          "bio": "Weekend cook and weekday data wrangler.",
+          "displayName": "Frank Flores",
+          "handle": "frank",
+          "id": "s3-5d4f7dd1e25b7c78965ad7fa2b4af45fd32b66dd32694a6e442e373c57e385ee-0000",
+          "link": "https://example.com/frank",
+          "location": "Austin, TX",
+          "owner": "user:EuF9axeX3SBSpsqztr2N7g"
+        },
+        "effects": [
+          {
+            "id": "s3-5d4f7dd1e25b7c78965ad7fa2b4af45fd32b66dd32694a6e442e373c57e385ee-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "7a6bdf1d-e30c-47c8-97c2-03748d963f8a",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 6,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m1.log",
+      "actor": "grace",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Grace Green",
+        "handle": "grace",
+        "bio": "Gardens, graphic novels, and good questions.",
+        "location": "Chicago, IL",
+        "link": "https://example.com/grace"
+      },
+      "documentaryTime": "2026-01-01T00:00:13Z",
+      "started": 1789226888094,
+      "settled": 1789226888097,
+      "result": {
+        "data": {
+          "bio": "Gardens, graphic novels, and good questions.",
+          "displayName": "Grace Green",
+          "handle": "grace",
+          "id": "s3-7dfae1d20c0cd9f2645ef8f426a9c2206ae855ffb32b112400f8270fea5702dc-0000",
+          "link": "https://example.com/grace",
+          "location": "Chicago, IL",
+          "owner": "user:aT0jdDlzdcQD2NoLoHcf1Q"
+        },
+        "effects": [
+          {
+            "id": "s3-7dfae1d20c0cd9f2645ef8f426a9c2206ae855ffb32b112400f8270fea5702dc-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "13994538-9906-4bf8-a2d4-ba18c0db5830",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 7,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m1.log",
+      "actor": "henry",
+      "verb": "profile-set",
+      "op": "profiles.save",
+      "args": {
+        "displayName": "Henry Hall",
+        "handle": "henry",
+        "bio": "History podcasts and pickup basketball.",
+        "location": "Brooklyn, NY",
+        "link": "https://example.com/henry"
+      },
+      "documentaryTime": "2026-01-01T00:00:15Z",
+      "started": 1789226888097,
+      "settled": 1789226888101,
+      "result": {
+        "data": {
+          "bio": "History podcasts and pickup basketball.",
+          "displayName": "Henry Hall",
+          "handle": "henry",
+          "id": "s3-e526f87c47780aca3e191787e0ae5a6da54fb1f4b911b743a8002eccaf83a605-0000",
+          "link": "https://example.com/henry",
+          "location": "Brooklyn, NY",
+          "owner": "user:2bgrMuckdM_c7R-tMStXNQ"
+        },
+        "effects": [
+          {
+            "id": "s3-e526f87c47780aca3e191787e0ae5a6da54fb1f4b911b743a8002eccaf83a605-0000",
+            "table": "profiles"
+          }
+        ],
+        "intent": "76184138-ded2-4d06-87dd-223db03d7f10",
+        "program": {
+          "planHash": "e624f842d637cce66fc9a32bd92e225bd9aba6a9ee038e36ef9b7de0ba612954",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 8,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:LUxZCsBzObuYlz7_daZ0xg"
+      },
+      "documentaryTime": "2026-01-01T00:00:16Z",
+      "started": 1789226888101,
+      "settled": 1789226888104,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-4d4a0dba5d9dcc0c314c727d19bce0f9ca5114801c216cf6dcc3da444df81ca1-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "43873905-60b0-4d9a-89ea-5a94979af4e0",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 9,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:BvgROYb0e9WPwbh9O3gSdg"
+      },
+      "documentaryTime": "2026-01-01T00:00:17Z",
+      "started": 1789226888104,
+      "settled": 1789226888108,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-68d50e9a4c513d3d8d7f912af7e76fd45c32caffbb9e59db64ad5a280c98d4f1-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "ac86b930-3ffb-4feb-bf5e-dd3c5f64e6c5",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 10,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:yPESCpaBcw5cjFZxlVklwQ"
+      },
+      "documentaryTime": "2026-01-01T00:00:18Z",
+      "started": 1789226888108,
+      "settled": 1789226888111,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-13ba57180a496b7768623588b546b8a1086f2aca0283df2b869921813d305d55-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "ab94a621-4938-469e-ae9c-002ef83050ee",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 11,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:nRe4IxGF3oDbsn3_N8Kz1Q"
+      },
+      "documentaryTime": "2026-01-01T00:00:19Z",
+      "started": 1789226888111,
+      "settled": 1789226888115,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-dbd21e3f09d18ef479467462aafc1d5ceb994a32982235c9936d07d30d8151d4-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "3e99b5dd-cb0e-4ecc-8a84-2caf55acefa7",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 12,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "carol",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:yPESCpaBcw5cjFZxlVklwQ"
+      },
+      "documentaryTime": "2026-01-01T00:00:20Z",
+      "started": 1789226888115,
+      "settled": 1789226888118,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-6dd8141f7cc221352359c4d8b00e0e1e78d9a0a9479c7ee7d2de931b6a6a9c06-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "43b403af-1eeb-4427-8ed0-c4bf6f4ddf9f",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 13,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "dave",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:FXK8hqseSJGqCPAS4mxnLg"
+      },
+      "documentaryTime": "2026-01-01T00:00:21Z",
+      "started": 1789226888118,
+      "settled": 1789226888121,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-7e42818123d96cd7bc9c2f2f8770c5c82cc458c925df0f2b71d25b80bc1e5de6-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "0d2bb1ab-7c5a-4575-982f-8d8550e7ee68",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 14,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "erin",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:yPESCpaBcw5cjFZxlVklwQ"
+      },
+      "documentaryTime": "2026-01-01T00:00:22Z",
+      "started": 1789226888121,
+      "settled": 1789226888125,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-5002be2738b55961a1bdea9500bc6487b655c215368dd6ceacf1bc88102071cd-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "2fe0fc5f-56f3-474e-b329-2c19eba7f61d",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 15,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "erin",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:EuF9axeX3SBSpsqztr2N7g"
+      },
+      "documentaryTime": "2026-01-01T00:00:23Z",
+      "started": 1789226888125,
+      "settled": 1789226888128,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-5aa6e1625b33bc07b9d763b89de2b9764060d54c76375dd24f1e913815fa60ad-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "17aec977-2dae-4bdc-91fd-4f09a7a1d405",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 16,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "frank",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:aT0jdDlzdcQD2NoLoHcf1Q"
+      },
+      "documentaryTime": "2026-01-01T00:00:24Z",
+      "started": 1789226888128,
+      "settled": 1789226888131,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-fe5a11e90e983c08dd8d192cd037adad36ae8eeac9baf0885dbf647f92a0cf65-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "8f69693d-037d-4b11-b32f-ca5aa7bd8a68",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 17,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "grace",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:yPESCpaBcw5cjFZxlVklwQ"
+      },
+      "documentaryTime": "2026-01-01T00:00:25Z",
+      "started": 1789226888131,
+      "settled": 1789226888135,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-4e81aed72c7669144653b767f3ddcea4991bd8c161b20a60d734cfc15e2ff19a-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "b434c1b1-4ee7-44a1-ac2f-3771faf8ad6e",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 18,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "henry",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:LUxZCsBzObuYlz7_daZ0xg"
+      },
+      "documentaryTime": "2026-01-01T00:00:26Z",
+      "started": 1789226888135,
+      "settled": 1789226888139,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-2b53b2e418594265c7c87f27b5155565745ef0df5e5f46f55958c7e15ab1ca60-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "dbbe574d-c310-48cf-b345-854af798a1a4",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 19,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "henry",
+      "verb": "follow",
+      "op": "social.follow",
+      "args": {
+        "targetId": "user:aT0jdDlzdcQD2NoLoHcf1Q"
+      },
+      "documentaryTime": "2026-01-01T00:00:27Z",
+      "started": 1789226888139,
+      "settled": 1789226888143,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-21b0c801303803f03a0f9a0e3204c1965e3d7d0fa81d571b6c69854787a8b2b4-0000",
+            "table": "follows"
+          }
+        ],
+        "intent": "ae3dce79-9884-4dfb-b5ba-e3f82d1f9309",
+        "program": {
+          "planHash": "085f47865db26f6ca2b8523916a2b611a74c96eb813390cc45e8d2827742f29d",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 20,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0001",
+        "text": "Coffee time at the corner table https://example.com/cafe",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:28Z",
+      "started": 1789226888143,
+      "settled": 1789226888146,
+      "result": {
+        "data": {
+          "authorId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "day": 20708,
+          "id": "sp0001",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888144,
+          "text": "Coffee time at the corner table https://example.com/cafe"
+        },
+        "effects": [
+          {
+            "id": "sp0001",
+            "table": "posts"
+          }
+        ],
+        "intent": "c0062ce4-cf0a-4a32-bb09-8df880721567",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 21,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0002",
+        "text": "[Projected images: media/img-02.png,media/img-03.png] Two colors from this morning's walk.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:29Z",
+      "started": 1789226888146,
+      "settled": 1789226888150,
+      "result": {
+        "data": {
+          "authorId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "day": 20708,
+          "id": "sp0002",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888148,
+          "text": "[Projected images: media/img-02.png,media/img-03.png] Two colors from this morning's walk."
+        },
+        "effects": [
+          {
+            "id": "sp0002",
+            "table": "posts"
+          }
+        ],
+        "intent": "9b8da791-d174-41ef-9c15-9b4213a6f494",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 22,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0003",
+        "text": "[Projected video: media/vid-01.mp4] A five-second hello from the lake.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:30Z",
+      "started": 1789226888150,
+      "settled": 1789226888154,
+      "result": {
+        "data": {
+          "authorId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "day": 20708,
+          "id": "sp0003",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888151,
+          "text": "[Projected video: media/vid-01.mp4] A five-second hello from the lake."
+        },
+        "effects": [
+          {
+            "id": "sp0003",
+            "table": "posts"
+          }
+        ],
+        "intent": "273d8639-93db-4253-b8ac-630f92589e96",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 23,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0004",
+        "text": "Fresh bread, still warm.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:31Z",
+      "started": 1789226888154,
+      "settled": 1789226888158,
+      "result": {
+        "data": {
+          "authorId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "day": 20708,
+          "id": "sp0004",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888155,
+          "text": "Fresh bread, still warm."
+        },
+        "effects": [
+          {
+            "id": "sp0004",
+            "table": "posts"
+          }
+        ],
+        "intent": "3e16cee1-f59a-4a57-9eb1-4c11b10d3fa8",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 24,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0005",
+        "text": "Bike route notes for Saturday.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:32Z",
+      "started": 1789226888158,
+      "settled": 1789226888161,
+      "result": {
+        "data": {
+          "authorId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "day": 20708,
+          "id": "sp0005",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888159,
+          "text": "Bike route notes for Saturday."
+        },
+        "effects": [
+          {
+            "id": "sp0005",
+            "table": "posts"
+          }
+        ],
+        "intent": "57820ab7-0044-42b7-ad2d-37b09f25df42",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 25,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0006",
+        "text": "Small tools should have sharp edges.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:33Z",
+      "started": 1789226888161,
+      "settled": 1789226888165,
+      "result": {
+        "data": {
+          "authorId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "day": 20708,
+          "id": "sp0006",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888162,
+          "text": "Small tools should have sharp edges."
+        },
+        "effects": [
+          {
+            "id": "sp0006",
+            "table": "posts"
+          }
+        ],
+        "intent": "6844d498-136b-41a2-b8c7-1814fd058ecb",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 26,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "carol",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0007",
+        "text": "The blue glaze finally worked.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:34Z",
+      "started": 1789226888165,
+      "settled": 1789226888169,
+      "result": {
+        "data": {
+          "authorId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "day": 20708,
+          "id": "sp0007",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888166,
+          "text": "The blue glaze finally worked."
+        },
+        "effects": [
+          {
+            "id": "sp0007",
+            "table": "posts"
+          }
+        ],
+        "intent": "868ccd03-b41d-4560-b893-2afde0be3a66",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 27,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "carol",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0008",
+        "text": "[Projected images: media/img-02.png,media/img-03.png] Studio shelf before cleanup.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:35Z",
+      "started": 1789226888169,
+      "settled": 1789226888172,
+      "result": {
+        "data": {
+          "authorId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "day": 20708,
+          "id": "sp0008",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888170,
+          "text": "[Projected images: media/img-02.png,media/img-03.png] Studio shelf before cleanup."
+        },
+        "effects": [
+          {
+            "id": "sp0008",
+            "table": "posts"
+          }
+        ],
+        "intent": "757b52b9-34e8-4276-9d40-c8a2e32cdb90",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 28,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "carol",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0009",
+        "text": "[Projected video: media/vid-01.mp4] A quiet clip from class.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:36Z",
+      "started": 1789226888172,
+      "settled": 1789226888176,
+      "result": {
+        "data": {
+          "authorId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "day": 20708,
+          "id": "sp0009",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888174,
+          "text": "[Projected video: media/vid-01.mp4] A quiet clip from class."
+        },
+        "effects": [
+          {
+            "id": "sp0009",
+            "table": "posts"
+          }
+        ],
+        "intent": "b40831ff-aa6f-408f-b0ad-838a9f36ee69",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 29,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "dave",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0010",
+        "text": "Tonight's set starts at eight.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:37Z",
+      "started": 1789226888176,
+      "settled": 1789226888179,
+      "result": {
+        "data": {
+          "authorId": "user:nRe4IxGF3oDbsn3_N8Kz1Q",
+          "day": 20708,
+          "id": "sp0010",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888177,
+          "text": "Tonight's set starts at eight."
+        },
+        "effects": [
+          {
+            "id": "sp0010",
+            "table": "posts"
+          }
+        ],
+        "intent": "24e61638-82b2-4383-8cdd-1084b4a838c2",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 30,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "dave",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0011",
+        "text": "Trail conditions: dry and windy.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:38Z",
+      "started": 1789226888179,
+      "settled": 1789226888182,
+      "result": {
+        "data": {
+          "authorId": "user:nRe4IxGF3oDbsn3_N8Kz1Q",
+          "day": 20708,
+          "id": "sp0011",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888180,
+          "text": "Trail conditions: dry and windy."
+        },
+        "effects": [
+          {
+            "id": "sp0011",
+            "table": "posts"
+          }
+        ],
+        "intent": "d0098869-fb18-42c7-aeb4-a6c1beeea6da",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 31,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "dave",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0012",
+        "text": "Noodles worth crossing town for.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:39Z",
+      "started": 1789226888182,
+      "settled": 1789226888186,
+      "result": {
+        "data": {
+          "authorId": "user:nRe4IxGF3oDbsn3_N8Kz1Q",
+          "day": 20708,
+          "id": "sp0012",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888183,
+          "text": "Noodles worth crossing town for."
+        },
+        "effects": [
+          {
+            "id": "sp0012",
+            "table": "posts"
+          }
+        ],
+        "intent": "df9bc3d5-5d15-4247-9dff-fe4e28d29a72",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 32,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "erin",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0013",
+        "text": "Basil has officially taken over.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:40Z",
+      "started": 1789226888186,
+      "settled": 1789226888189,
+      "result": {
+        "data": {
+          "authorId": "user:FXK8hqseSJGqCPAS4mxnLg",
+          "day": 20708,
+          "id": "sp0013",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888187,
+          "text": "Basil has officially taken over."
+        },
+        "effects": [
+          {
+            "id": "sp0013",
+            "table": "posts"
+          }
+        ],
+        "intent": "efecec33-a3b1-4d87-a157-666e0b6b3898",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 33,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "erin",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0014",
+        "text": "[Projected images: media/img-02.png,media/img-03.png] Sketching a calmer settings screen.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:41Z",
+      "started": 1789226888189,
+      "settled": 1789226888192,
+      "result": {
+        "data": {
+          "authorId": "user:FXK8hqseSJGqCPAS4mxnLg",
+          "day": 20708,
+          "id": "sp0014",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888190,
+          "text": "[Projected images: media/img-02.png,media/img-03.png] Sketching a calmer settings screen."
+        },
+        "effects": [
+          {
+            "id": "sp0014",
+            "table": "posts"
+          }
+        ],
+        "intent": "135fee34-a9c5-440c-afef-53e7dda0f756",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 34,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "erin",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0015",
+        "text": "Three interface details I keep noticing.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:42Z",
+      "started": 1789226888192,
+      "settled": 1789226888196,
+      "result": {
+        "data": {
+          "authorId": "user:FXK8hqseSJGqCPAS4mxnLg",
+          "day": 20708,
+          "id": "sp0015",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888193,
+          "text": "Three interface details I keep noticing."
+        },
+        "effects": [
+          {
+            "id": "sp0015",
+            "table": "posts"
+          }
+        ],
+        "intent": "86eee879-1ad6-48da-819b-38772140d5ca",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 35,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "frank",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0016",
+        "text": "Beans, tomatoes, and too much garlic.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:43Z",
+      "started": 1789226888196,
+      "settled": 1789226888199,
+      "result": {
+        "data": {
+          "authorId": "user:EuF9axeX3SBSpsqztr2N7g",
+          "day": 20708,
+          "id": "sp0016",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888197,
+          "text": "Beans, tomatoes, and too much garlic."
+        },
+        "effects": [
+          {
+            "id": "sp0016",
+            "table": "posts"
+          }
+        ],
+        "intent": "8f073b0c-65c3-43c5-a9ba-b70880b781b3",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 36,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "frank",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0017",
+        "text": "Data cleanup can be satisfying.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:44Z",
+      "started": 1789226888199,
+      "settled": 1789226888202,
+      "result": {
+        "data": {
+          "authorId": "user:EuF9axeX3SBSpsqztr2N7g",
+          "day": 20708,
+          "id": "sp0017",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888200,
+          "text": "Data cleanup can be satisfying."
+        },
+        "effects": [
+          {
+            "id": "sp0017",
+            "table": "posts"
+          }
+        ],
+        "intent": "52c076f4-4eb8-4522-a458-ef10ace88ca6",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 37,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "frank",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0018",
+        "text": "Sunday lunch test number four.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:45Z",
+      "started": 1789226888202,
+      "settled": 1789226888205,
+      "result": {
+        "data": {
+          "authorId": "user:EuF9axeX3SBSpsqztr2N7g",
+          "day": 20708,
+          "id": "sp0018",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888203,
+          "text": "Sunday lunch test number four."
+        },
+        "effects": [
+          {
+            "id": "sp0018",
+            "table": "posts"
+          }
+        ],
+        "intent": "8156a92f-9bd4-4d6c-af2c-f50ecd39e37c",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 38,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "grace",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0019",
+        "text": "The tomatoes are showing off.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:46Z",
+      "started": 1789226888205,
+      "settled": 1789226888209,
+      "result": {
+        "data": {
+          "authorId": "user:aT0jdDlzdcQD2NoLoHcf1Q",
+          "day": 20708,
+          "id": "sp0019",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888206,
+          "text": "The tomatoes are showing off."
+        },
+        "effects": [
+          {
+            "id": "sp0019",
+            "table": "posts"
+          }
+        ],
+        "intent": "2acefebd-5c14-45f3-a221-44f9bebeab42",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 39,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "grace",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0020",
+        "text": "[Projected images: media/img-02.png,media/img-03.png] A graphic novel with perfect pacing.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:47Z",
+      "started": 1789226888209,
+      "settled": 1789226888212,
+      "result": {
+        "data": {
+          "authorId": "user:aT0jdDlzdcQD2NoLoHcf1Q",
+          "day": 20708,
+          "id": "sp0020",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888210,
+          "text": "[Projected images: media/img-02.png,media/img-03.png] A graphic novel with perfect pacing."
+        },
+        "effects": [
+          {
+            "id": "sp0020",
+            "table": "posts"
+          }
+        ],
+        "intent": "c25d22b9-7c47-4393-8d0e-76803cb8d64e",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 40,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "grace",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0021",
+        "text": "Questions for the garden club.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:48Z",
+      "started": 1789226888212,
+      "settled": 1789226888215,
+      "result": {
+        "data": {
+          "authorId": "user:aT0jdDlzdcQD2NoLoHcf1Q",
+          "day": 20708,
+          "id": "sp0021",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888213,
+          "text": "Questions for the garden club."
+        },
+        "effects": [
+          {
+            "id": "sp0021",
+            "table": "posts"
+          }
+        ],
+        "intent": "b1fca435-4637-4c27-b41e-deb77b4cd725",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 41,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "henry",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0022",
+        "text": "A history episode for the train ride.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:49Z",
+      "started": 1789226888215,
+      "settled": 1789226888217,
+      "result": {
+        "data": {
+          "authorId": "user:2bgrMuckdM_c7R-tMStXNQ",
+          "day": 20708,
+          "id": "sp0022",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888216,
+          "text": "A history episode for the train ride."
+        },
+        "effects": [
+          {
+            "id": "sp0022",
+            "table": "posts"
+          }
+        ],
+        "intent": "4e2856b3-67ba-48a1-8ca9-d96977a649d8",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 42,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "henry",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0023",
+        "text": "Pickup game moved to six.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:50Z",
+      "started": 1789226888217,
+      "settled": 1789226888220,
+      "result": {
+        "data": {
+          "authorId": "user:2bgrMuckdM_c7R-tMStXNQ",
+          "day": 20708,
+          "id": "sp0023",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888218,
+          "text": "Pickup game moved to six."
+        },
+        "effects": [
+          {
+            "id": "sp0023",
+            "table": "posts"
+          }
+        ],
+        "intent": "04c37e3e-acda-464f-82ba-aaf35f3bb905",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 43,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "henry",
+      "verb": "post",
+      "op": "social.post",
+      "args": {
+        "id": "sp0024",
+        "text": "Brooklyn looked silver after rain.",
+        "parentId": null
+      },
+      "documentaryTime": "2026-01-01T00:00:51Z",
+      "started": 1789226888220,
+      "settled": 1789226888223,
+      "result": {
+        "data": {
+          "authorId": "user:2bgrMuckdM_c7R-tMStXNQ",
+          "day": 20708,
+          "id": "sp0024",
+          "parentAuthor": null,
+          "parentId": null,
+          "serverTimestamp": 1789226888221,
+          "text": "Brooklyn looked silver after rain."
+        },
+        "effects": [
+          {
+            "id": "sp0024",
+            "table": "posts"
+          }
+        ],
+        "intent": "5de9c64d-8871-44a5-97e6-797ca6de7cb4",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 44,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "reply",
+      "op": "social.post",
+      "args": {
+        "id": "sr0001",
+        "text": "Save me a cup.",
+        "parentId": "sp0001"
+      },
+      "documentaryTime": "2026-01-01T00:00:52Z",
+      "started": 1789226888223,
+      "settled": 1789226888226,
+      "result": {
+        "data": {
+          "authorId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "day": 20708,
+          "id": "sr0001",
+          "parentAuthor": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "parentId": "sp0001",
+          "serverTimestamp": 1789226888224,
+          "text": "Save me a cup."
+        },
+        "effects": [
+          {
+            "id": "sr0001",
+            "table": "posts"
+          }
+        ],
+        "intent": "8beaeb3f-9b1b-415f-b416-296014abf43f",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 45,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "carol",
+      "verb": "reply",
+      "op": "social.post",
+      "args": {
+        "id": "sr0002",
+        "text": "That crust looks perfect.",
+        "parentId": "sp0004"
+      },
+      "documentaryTime": "2026-01-01T00:00:53Z",
+      "started": 1789226888226,
+      "settled": 1789226888230,
+      "result": {
+        "data": {
+          "authorId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "day": 20708,
+          "id": "sr0002",
+          "parentAuthor": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "parentId": "sp0004",
+          "serverTimestamp": 1789226888227,
+          "text": "That crust looks perfect."
+        },
+        "effects": [
+          {
+            "id": "sr0002",
+            "table": "posts"
+          }
+        ],
+        "intent": "9ac197a2-cba7-45da-a245-cd17c8becda5",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 46,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "reply",
+      "op": "social.post",
+      "args": {
+        "id": "sr0003",
+        "text": "I need your basil secrets.",
+        "parentId": "sp0013"
+      },
+      "documentaryTime": "2026-01-01T00:00:54Z",
+      "started": 1789226888230,
+      "settled": 1789226888233,
+      "result": {
+        "data": {
+          "authorId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "day": 20708,
+          "id": "sr0003",
+          "parentAuthor": "user:FXK8hqseSJGqCPAS4mxnLg",
+          "parentId": "sp0013",
+          "serverTimestamp": 1789226888231,
+          "text": "I need your basil secrets."
+        },
+        "effects": [
+          {
+            "id": "sr0003",
+            "table": "posts"
+          }
+        ],
+        "intent": "7cbd489e-6f23-44ec-ad2c-288831d42cbb",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 47,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "grace",
+      "verb": "reply",
+      "op": "social.post",
+      "args": {
+        "id": "sr0004",
+        "text": "Adding it to my queue.",
+        "parentId": "sp0022"
+      },
+      "documentaryTime": "2026-01-01T00:00:55Z",
+      "started": 1789226888233,
+      "settled": 1789226888236,
+      "result": {
+        "data": {
+          "authorId": "user:aT0jdDlzdcQD2NoLoHcf1Q",
+          "day": 20708,
+          "id": "sr0004",
+          "parentAuthor": "user:2bgrMuckdM_c7R-tMStXNQ",
+          "parentId": "sp0022",
+          "serverTimestamp": 1789226888234,
+          "text": "Adding it to my queue."
+        },
+        "effects": [
+          {
+            "id": "sr0004",
+            "table": "posts"
+          }
+        ],
+        "intent": "2cd1e4e0-60c3-4eb5-9a7b-8446f949a2df",
+        "program": {
+          "planHash": "4842be3bf11dd221586d68ae281a5d9b0f4e4b0b359832b9b8db8436bcbe0007",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 48,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0001",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:00:56Z",
+      "started": 1789226888236,
+      "settled": 1789226888240,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-2497bf6252bfec0fde24f44d8ea7655018102f4176972a7b07ec520168b3e6ff-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "8d0d4453-0b2e-4512-8542-7578f11f3d8d",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 49,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "carol",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0001",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:00:57Z",
+      "started": 1789226888240,
+      "settled": 1789226888243,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-940e9ae70d50dbf1548921ef21ef74ccf80e3c1d95ff6c9d11c3889c0a33bb06-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "693c320c-ea50-40d8-8e33-2912fec0aa1b",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 50,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "dave",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0004",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:00:58Z",
+      "started": 1789226888243,
+      "settled": 1789226888247,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-a1a3680598e878b9bb5d7f6a8189541c97ec682feea0858460fedc25885e0d7a-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "6c95aacd-7b71-49fc-8bc4-0c9b13a8d67d",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 51,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "erin",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0007",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:00:59Z",
+      "started": 1789226888247,
+      "settled": 1789226888251,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-9cb584dcac002b6f483050f1c9e7bb388d74662fae10db451fc690f2764f75bb-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "fa19e323-0e3a-4b48-9aa4-d3cc38085e41",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 52,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "frank",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0013",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:00Z",
+      "started": 1789226888251,
+      "settled": 1789226888254,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-ca4371671c116437a0d089da8f310692e5d204ec280f4aa21c6b9d0de6acbe2c-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "d8e947c2-2c17-4a53-a1dd-a96b121fde5a",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 53,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "grace",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0016",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:01Z",
+      "started": 1789226888254,
+      "settled": 1789226888257,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-af147f0addf61a246abf6e8455bed56a7df5750d3fff778277de6a0f2a9cc14f-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "2a2d6ae8-c74b-4a36-b8e1-72b9ed35b84a",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 54,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "henry",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0019",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:02Z",
+      "started": 1789226888257,
+      "settled": 1789226888262,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-c0264298be1b9fd002b9db767827e33ceaa53c14d4b3acd8dfb7903348bcc38c-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "0d12ea54-05dd-4f55-a558-cadbec99f16c",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 55,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "like",
+      "op": "social.likes",
+      "args": {
+        "postId": "sp0022",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:03Z",
+      "started": 1789226888262,
+      "settled": 1789226888266,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-3e6623369892fa9a1422ecf3901877fd9b74c3bba6c5130050e4fbeb73742ba9-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "71ea72d3-ae11-4c2d-980d-64bb7d375dbf",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 56,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "carol",
+      "verb": "repost",
+      "op": "social.reposts",
+      "args": {
+        "postId": "sp0001",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:04Z",
+      "started": 1789226888266,
+      "settled": 1789226888269,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-8410e48429886788fe2a1d949826b5d2c5443aa87353c184546fdf3150de622c-0000",
+            "table": "reposts"
+          }
+        ],
+        "intent": "0ce47582-c3a0-4d1b-b527-e9cd29ee6737",
+        "program": {
+          "planHash": "65733408f053f4de0c197af46a138317081265a0d6da4887806385a16b53f0f0",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 57,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "alice",
+      "verb": "repost",
+      "op": "social.reposts",
+      "args": {
+        "postId": "sp0004",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:05Z",
+      "started": 1789226888269,
+      "settled": 1789226888273,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-f87ec9b7c4dcc22d4ae518635204ff5cd555089d0a16f7694b5711ae0bd0b94f-0000",
+            "table": "reposts"
+          }
+        ],
+        "intent": "3d57b028-7804-4911-b3c2-e4392d138913",
+        "program": {
+          "planHash": "65733408f053f4de0c197af46a138317081265a0d6da4887806385a16b53f0f0",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 58,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "henry",
+      "verb": "repost",
+      "op": "social.reposts",
+      "args": {
+        "postId": "sp0013",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:06Z",
+      "started": 1789226888273,
+      "settled": 1789226888276,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-26dcd32bec7c0688d1b0686fe014bf3c87050e9f64ce04d02507ac9cb4a0db05-0000",
+            "table": "reposts"
+          }
+        ],
+        "intent": "1097f0a8-a0cf-4c2d-a7c2-6e4056d198c0",
+        "program": {
+          "planHash": "65733408f053f4de0c197af46a138317081265a0d6da4887806385a16b53f0f0",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 59,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m2.log",
+      "actor": "bob",
+      "verb": "repost",
+      "op": "social.reposts",
+      "args": {
+        "postId": "sp0019",
+        "active": true
+      },
+      "documentaryTime": "2026-01-01T00:01:07Z",
+      "started": 1789226888276,
+      "settled": 1789226888280,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-9d77171799bf6f84f1c18d68d51673b322c753dd80298c096b53882c50856cce-0000",
+            "table": "reposts"
+          }
+        ],
+        "intent": "2e54f4b1-d437-4b0f-8c98-d452ce5463c0",
+        "program": {
+          "planHash": "65733408f053f4de0c197af46a138317081265a0d6da4887806385a16b53f0f0",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 60,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "dm-create",
+      "op": "conversations.create",
+      "args": {
+        "id": "d-alice-bob",
+        "other": "user:LUxZCsBzObuYlz7_daZ0xg",
+        "name": "Alice / Bob",
+        "kind": "dm"
+      },
+      "documentaryTime": "2026-01-01T00:01:08Z",
+      "started": 1789226888280,
+      "settled": 1789226888283,
+      "result": {
+        "data": {
+          "id": "d-alice-bob",
+          "kind": "dm",
+          "name": "Alice / Bob",
+          "owner": "user:yPESCpaBcw5cjFZxlVklwQ"
+        },
+        "effects": [
+          {
+            "id": "d-alice-bob",
+            "table": "conversations"
+          },
+          {
+            "id": "s3-cd16e21360d28a739cce787604a55a1cb464839a51d7325136aad4c047a86ece-0000",
+            "table": "members"
+          },
+          {
+            "id": "s3-cd16e21360d28a739cce787604a55a1cb464839a51d7325136aad4c047a86ece-0001",
+            "table": "members"
+          }
+        ],
+        "intent": "fe07698c-e3a3-4441-9238-e604d2bb2776",
+        "program": {
+          "planHash": "dd64a2a6e781ba01e458eaa1c7538098e9a4c62875d5ba04a6eced815ae3eeb6",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 61,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "group-create",
+      "op": "conversations.create",
+      "args": {
+        "id": "g-starter",
+        "other": "user:LUxZCsBzObuYlz7_daZ0xg",
+        "name": "Weekend Plans",
+        "kind": "group"
+      },
+      "documentaryTime": "2026-01-01T00:01:09Z",
+      "started": 1789226888283,
+      "settled": 1789226888286,
+      "result": {
+        "data": {
+          "id": "g-starter",
+          "kind": "group",
+          "name": "Weekend Plans",
+          "owner": "user:yPESCpaBcw5cjFZxlVklwQ"
+        },
+        "effects": [
+          {
+            "id": "g-starter",
+            "table": "conversations"
+          },
+          {
+            "id": "s3-b03f67e7d5fc930f1caffff1de527b248efb8141ce666cb5009e081640ba361d-0000",
+            "table": "members"
+          },
+          {
+            "id": "s3-b03f67e7d5fc930f1caffff1de527b248efb8141ce666cb5009e081640ba361d-0001",
+            "table": "members"
+          }
+        ],
+        "intent": "047f0ac4-2243-420b-ad19-eacfd285805a",
+        "program": {
+          "planHash": "dd64a2a6e781ba01e458eaa1c7538098e9a4c62875d5ba04a6eced815ae3eeb6",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 62,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "member-add",
+      "op": "conversations.add",
+      "args": {
+        "conversationId": "g-starter",
+        "userId": "user:BvgROYb0e9WPwbh9O3gSdg"
+      },
+      "documentaryTime": "2026-01-01T00:01:10Z",
+      "started": 1789226888286,
+      "settled": 1789226888289,
+      "result": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-2a226d62602b4aee28c34f1b98494f5ff231bc5916866c595a95509798ea247d-0000",
+            "table": "members"
+          }
+        ],
+        "intent": "f4ccd03d-b7cb-4f69-9c08-671598977710",
+        "program": {
+          "planHash": "04d648360c5fea38a84cd2279e6879b0810cd695c962991fce122085b017e361",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 63,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0001",
+        "conversationId": "d-alice-bob",
+        "text": "Coffee after work?",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:12Z",
+      "started": 1789226888289,
+      "settled": 1789226888293,
+      "result": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "sm0001",
+          "replyTo": null,
+          "senderId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "serverTimestamp": 1789226888290,
+          "text": "Coffee after work?",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0001",
+            "table": "messages"
+          }
+        ],
+        "intent": "1a3ce239-cd10-4912-8a72-42a868c402e7",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 64,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "bob",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0002",
+        "conversationId": "d-alice-bob",
+        "text": "Yes. Corner place?",
+        "replyTo": "sm0001"
+      },
+      "documentaryTime": "2026-01-01T00:01:13Z",
+      "started": 1789226888293,
+      "settled": 1789226888296,
+      "result": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "sm0002",
+          "replyTo": "sm0001",
+          "senderId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "serverTimestamp": 1789226888294,
+          "text": "Yes. Corner place?",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0002",
+            "table": "messages"
+          }
+        ],
+        "intent": "aee7f673-a9c2-4e5a-987e-56c1e4216539",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 65,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0003",
+        "conversationId": "d-alice-bob",
+        "text": "Exactly. Six thirty.",
+        "replyTo": "sm0002"
+      },
+      "documentaryTime": "2026-01-01T00:01:14Z",
+      "started": 1789226888296,
+      "settled": 1789226888299,
+      "result": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "sm0003",
+          "replyTo": "sm0002",
+          "senderId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "serverTimestamp": 1789226888297,
+          "text": "Exactly. Six thirty.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0003",
+            "table": "messages"
+          }
+        ],
+        "intent": "c12f3e54-9312-4f93-b1c0-751f454c752a",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 66,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "bob",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0004",
+        "conversationId": "d-alice-bob",
+        "text": "I will bring the route map.",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:15Z",
+      "started": 1789226888299,
+      "settled": 1789226888303,
+      "result": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "sm0004",
+          "replyTo": null,
+          "senderId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "serverTimestamp": 1789226888300,
+          "text": "I will bring the route map.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0004",
+            "table": "messages"
+          }
+        ],
+        "intent": "329a959c-c183-4837-b970-76f2fc4cd460",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 67,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0005",
+        "conversationId": "d-alice-bob",
+        "text": "Perfect, see you there.",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:16Z",
+      "started": 1789226888303,
+      "settled": 1789226888306,
+      "result": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "sm0005",
+          "replyTo": null,
+          "senderId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "serverTimestamp": 1789226888304,
+          "text": "Perfect, see you there.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0005",
+            "table": "messages"
+          }
+        ],
+        "intent": "1a4f92d9-0c62-4b64-9a67-0edae2ac2ac0",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 68,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "bob",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0006",
+        "conversationId": "d-alice-bob",
+        "text": "On my way.",
+        "replyTo": "sm0005"
+      },
+      "documentaryTime": "2026-01-01T00:01:17Z",
+      "started": 1789226888306,
+      "settled": 1789226888309,
+      "result": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "sm0006",
+          "replyTo": "sm0005",
+          "senderId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "serverTimestamp": 1789226888307,
+          "text": "On my way.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0006",
+            "table": "messages"
+          }
+        ],
+        "intent": "65175021-4aed-4c07-9996-e76fa8b1a7ed",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 69,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0007",
+        "conversationId": "g-starter",
+        "text": "Saturday plan: coffee, lake, then noodles.",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:18Z",
+      "started": 1789226888309,
+      "settled": 1789226888313,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0007",
+          "replyTo": null,
+          "senderId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "serverTimestamp": 1789226888310,
+          "text": "Saturday plan: coffee, lake, then noodles.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0007",
+            "table": "messages"
+          }
+        ],
+        "intent": "7e3a87c9-5669-4830-9d70-41a9a1be1247",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 70,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "carol",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0008",
+        "conversationId": "g-starter",
+        "text": "Coffee is a definite yes.",
+        "replyTo": "sm0007"
+      },
+      "documentaryTime": "2026-01-01T00:01:19Z",
+      "started": 1789226888313,
+      "settled": 1789226888316,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0008",
+          "replyTo": "sm0007",
+          "senderId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "serverTimestamp": 1789226888314,
+          "text": "Coffee is a definite yes.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0008",
+            "table": "messages"
+          }
+        ],
+        "intent": "7f962da3-7dc8-49d6-9eee-4c33c3168c70",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 71,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "carol",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0009",
+        "conversationId": "g-starter",
+        "text": "I can meet everyone at ten.",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:20Z",
+      "started": 1789226888316,
+      "settled": 1789226888319,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0009",
+          "replyTo": null,
+          "senderId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "serverTimestamp": 1789226888317,
+          "text": "I can meet everyone at ten.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0009",
+            "table": "messages"
+          }
+        ],
+        "intent": "c77d3fa1-4bd8-4958-8b5a-b868825a2eb0",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 72,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "bob",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0010",
+        "conversationId": "g-starter",
+        "text": "The west trail is dry now.",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:21Z",
+      "started": 1789226888319,
+      "settled": 1789226888323,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0010",
+          "replyTo": null,
+          "senderId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "serverTimestamp": 1789226888320,
+          "text": "The west trail is dry now.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0010",
+            "table": "messages"
+          }
+        ],
+        "intent": "3ea28b95-cb82-48c0-bb90-2581cbb56135",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 73,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0011",
+        "conversationId": "g-starter",
+        "text": "West trail it is.",
+        "replyTo": "sm0010"
+      },
+      "documentaryTime": "2026-01-01T00:01:22Z",
+      "started": 1789226888323,
+      "settled": 1789226888326,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0011",
+          "replyTo": "sm0010",
+          "senderId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "serverTimestamp": 1789226888324,
+          "text": "West trail it is.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0011",
+            "table": "messages"
+          }
+        ],
+        "intent": "b1bbaefe-5cd5-476d-967b-fc0075bf99ab",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 74,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "carol",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0012",
+        "conversationId": "g-starter",
+        "text": "I will bring snacks.",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:23Z",
+      "started": 1789226888326,
+      "settled": 1789226888329,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0012",
+          "replyTo": null,
+          "senderId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "serverTimestamp": 1789226888327,
+          "text": "I will bring snacks.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0012",
+            "table": "messages"
+          }
+        ],
+        "intent": "d8f862f4-e9dd-4870-b093-a9e26eb05794",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 75,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "carol",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0013",
+        "conversationId": "g-starter",
+        "text": "Should I book dinner?",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:24Z",
+      "started": 1789226888329,
+      "settled": 1789226888332,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0013",
+          "replyTo": null,
+          "senderId": "user:BvgROYb0e9WPwbh9O3gSdg",
+          "serverTimestamp": 1789226888330,
+          "text": "Should I book dinner?",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0013",
+            "table": "messages"
+          }
+        ],
+        "intent": "73a73123-0b2a-4296-ada4-e943d49bebc8",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 76,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "bob",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0014",
+        "conversationId": "g-starter",
+        "text": "Please do, for three.",
+        "replyTo": "sm0013"
+      },
+      "documentaryTime": "2026-01-01T00:01:25Z",
+      "started": 1789226888332,
+      "settled": 1789226888335,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0014",
+          "replyTo": "sm0013",
+          "senderId": "user:LUxZCsBzObuYlz7_daZ0xg",
+          "serverTimestamp": 1789226888333,
+          "text": "Please do, for three.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0014",
+            "table": "messages"
+          }
+        ],
+        "intent": "2d46af25-553a-4154-a5b1-98ac6f794a3f",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 77,
+        "state": "committed"
+      }
+    },
+    {
+      "file": "starter-m3.log",
+      "actor": "alice",
+      "verb": "send",
+      "op": "messages.send",
+      "args": {
+        "id": "sm0015",
+        "conversationId": "g-starter",
+        "text": "Locked in. See you Saturday.",
+        "replyTo": null
+      },
+      "documentaryTime": "2026-01-01T00:01:26Z",
+      "started": 1789226888335,
+      "settled": 1789226888338,
+      "result": {
+        "data": {
+          "conversationId": "g-starter",
+          "edited": false,
+          "id": "sm0015",
+          "replyTo": null,
+          "senderId": "user:yPESCpaBcw5cjFZxlVklwQ",
+          "serverTimestamp": 1789226888336,
+          "text": "Locked in. See you Saturday.",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "sm0015",
+            "table": "messages"
+          }
+        ],
+        "intent": "0998eb9e-4a8a-4ac7-9fa4-2638c6fb67d3",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 78,
+        "state": "committed"
+      }
+    }
+  ]
+}

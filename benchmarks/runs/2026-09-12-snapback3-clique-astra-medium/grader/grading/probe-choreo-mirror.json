@@ -1,0 +1,59 @@
+[
+  {
+    "run": 1,
+    "reachedAuthScreen": true,
+    "visibleText": "Clique | Clique | Sign in | Don't have an account? Sign up",
+    "url": "/",
+    "tailApi": [
+      "alice 200 /api/manifest",
+      "alice 200 /api/events",
+      "alice 200 /api/operation/e292470a-1552-4a0e-93b4-1c6a808984f9",
+      "alice 200 /api/mutation",
+      "alice 200 /api/events",
+      "alice 200 /api/read",
+      "alice 200 /api/manifest",
+      "alice 200 /api/events",
+      "alice 200 /api/manifest",
+      "alice 200 /api/auth/logout"
+    ],
+    "err": ""
+  },
+  {
+    "run": 2,
+    "reachedAuthScreen": true,
+    "visibleText": "Clique | Clique | Sign in | Don't have an account? Sign up",
+    "url": "/",
+    "tailApi": [
+      "alice 200 /api/read",
+      "alice 200 /api/manifest",
+      "alice 200 /api/events",
+      "alice 200 /api/operation/d35672ad-dfda-4786-a028-46b15275c879",
+      "alice 200 /api/mutation",
+      "alice 200 /api/events",
+      "alice 200 /api/manifest",
+      "alice 200 /api/events",
+      "alice 200 /api/manifest",
+      "alice 200 /api/auth/logout"
+    ],
+    "err": ""
+  },
+  {
+    "run": 3,
+    "reachedAuthScreen": true,
+    "visibleText": "Clique | Clique | Sign in | Don't have an account? Sign up",
+    "url": "/",
+    "tailApi": [
+      "alice 200 /api/operation/ac938e5f-df1b-48b1-9423-6ef99a9aa0bd",
+      "alice 200 /api/mutation",
+      "alice 200 /api/manifest",
+      "alice 200 /api/events",
+      "alice 200 /api/operation/f1b53e58-6634-4b6d-927f-ce9ee7d5181a",
+      "alice 200 /api/mutation",
+      "alice 200 /api/manifest",
+      "alice 200 /api/events",
+      "alice 200 /api/manifest",
+      "alice 200 /api/auth/logout"
+    ],
+    "err": ""
+  }
+]

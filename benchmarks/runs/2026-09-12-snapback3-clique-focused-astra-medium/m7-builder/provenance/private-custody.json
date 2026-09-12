@@ -1,0 +1,40 @@
+{
+  "schema": "snapback3-focused-m7-builder-private-custody.v1",
+  "publicContents": false,
+  "fullM7Final": {
+    "localPath": "/Users/ccheever/projects/snapback/.llp/ship-runs/snapback3-clique-focused-20260912/retained/m7-final-private.tar.gz",
+    "archiveBytes": 2698075,
+    "archiveSha256": "ba1a9afcc93a9c21dfa602fd5da7eab45f44b2e8ff4d7368f0602c40f9177d23",
+    "manifestSha256": "058c2aa189587b68d53ed4de9cd20ff0443a31d6a1539c61ff1a08e688768e6e",
+    "includes": [
+      "full immutable M7 final snapshot",
+      "post-M7 SQLite/WAL/SHM",
+      "raw Codex transport and native rollout"
+    ]
+  },
+  "preM7AndOldClient": {
+    "localPath": "/Users/ccheever/projects/snapback/.llp/ship-runs/snapback3-clique-focused-20260912/retained/m7-prechange-oldclient-private.tar.gz",
+    "archiveBytes": 2291124,
+    "archiveSha256": "7effe1e5f838071c464e7444988c41a295a34a96089c164c37f950a2163b514c",
+    "manifestSha256": "72afdcafe8095fcf1188910adb01e2c9a1956a28b73e7d7196125babd9aa6771",
+    "includes": [
+      "pre-M7 SQLite/WAL/SHM",
+      "three pre-M7 persona snapshots",
+      "closed old-client profile archive",
+      "certification, journal and server-absence records"
+    ]
+  },
+  "sourceSnapshotManifest": {
+    "privatePath": "/tmp/m7-final.manifest.json",
+    "sha256": "98d6a0e2125833d4b330adc6be21963e4d1cd3ea4a02c269832f81210c2be6ea",
+    "contentSymlinkDigestSha256": "1224fb48d2711fdedcc96083987c0f8c95ae2770aaf359108aafbaf7de84dea1"
+  },
+  "externallyRetainedPublicOmissions": [
+    ".snapback3/store.sqlite{,-wal,-shm}",
+    "_run-custody raw transport/native rollout",
+    "node_modules/**",
+    "m7/custom-client/node_modules/**",
+    "dist/** built runtime assets except hashes/manifests"
+  ],
+  "verificationProblems": []
+}

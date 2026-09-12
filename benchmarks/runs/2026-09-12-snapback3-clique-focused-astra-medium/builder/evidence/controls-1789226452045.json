@@ -1,0 +1,138 @@
+[
+  {
+    "id": "distinct-server-fetched-viewed-receipts",
+    "status": "pass",
+    "evidence": {
+      "id": "4cc2d222-6442-4eba-be92-ec6690869269",
+      "receipt": {
+        "data": {
+          "conversationId": "d-alice-bob",
+          "edited": false,
+          "id": "4cc2d222-6442-4eba-be92-ec6690869269",
+          "replyTo": "sm0001",
+          "senderId": "user:5ocYUJT7yml-j2a-NgjSvA",
+          "serverTimestamp": 1789226452873,
+          "text": "Receipt boundary control",
+          "tombstone": false
+        },
+        "effects": [
+          {
+            "id": "4cc2d222-6442-4eba-be92-ec6690869269",
+            "table": "messages"
+          }
+        ],
+        "intent": "8bdd3b3d-a01d-4d9d-b190-589d3eadc82f",
+        "program": {
+          "planHash": "2c9ade3548b6cc014132f02cffe183fae6fc23453d5eb73a318ae1965d3a7d62",
+          "schemaHash": "5bc7ef894c15896a9360f6b4abc26dbf570edd4747c30910c3ee1c107d57bd4d"
+        },
+        "seq": 266,
+        "state": "committed"
+      },
+      "before": {
+        "data": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226383323,
+            "id": "s3-add6ff5df46234efca0ce92ffa3c4fdcdcabd564c68be0560aadd60fc9bbdde8-0000",
+            "userId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "viewedThrough": 1789226383323
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226383323,
+            "id": "s3-f643092cd48a6aa0b185c9e588f480f2bd48362e8b0f69aa273bea5f1df7f4b7-0000",
+            "userId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+            "viewedThrough": 1789226383323
+          }
+        ],
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 266
+          }
+        ]
+      },
+      "fetched": {
+        "rows": 37,
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 266
+          }
+        ]
+      },
+      "delivered": {
+        "data": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226383323,
+            "id": "s3-add6ff5df46234efca0ce92ffa3c4fdcdcabd564c68be0560aadd60fc9bbdde8-0000",
+            "userId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "viewedThrough": 1789226383323
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226452873,
+            "id": "s3-f643092cd48a6aa0b185c9e588f480f2bd48362e8b0f69aa273bea5f1df7f4b7-0000",
+            "userId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+            "viewedThrough": 1789226383323
+          }
+        ],
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 267
+          }
+        ]
+      },
+      "viewed": {
+        "data": [
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226383323,
+            "id": "s3-add6ff5df46234efca0ce92ffa3c4fdcdcabd564c68be0560aadd60fc9bbdde8-0000",
+            "userId": "user:5ocYUJT7yml-j2a-NgjSvA",
+            "viewedThrough": 1789226383323
+          },
+          {
+            "conversationId": "d-alice-bob",
+            "fetchedThrough": 1789226452873,
+            "id": "s3-f643092cd48a6aa0b185c9e588f480f2bd48362e8b0f69aa273bea5f1df7f4b7-0000",
+            "userId": "user:XTNBcyFxnMjJ5OJJsSUfcQ",
+            "viewedThrough": 1789226452873
+          }
+        ],
+        "samples": [
+          {
+            "complete": true,
+            "status": "ready",
+            "seq": 268
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "populated-reaction-own-state",
+    "status": "fail",
+    "error": "Error: page.evaluate: Error: [{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270},{\"complete\":false,\"status\":\"ready\",\"seq\":270}]\n    at eval (eval at evaluate (:311:30), <anonymous>:1:257)\n    at async <anonymous>:337:30"
+  },
+  {
+    "id": "delayed-old-account-response-fenced",
+    "status": "pass",
+    "evidence": {
+      "data": [],
+      "samples": [
+        {
+          "complete": true,
+          "status": "ready",
+          "seq": 270
+        }
+      ]
+    }
+  }
+]

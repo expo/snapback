@@ -1,0 +1,20 @@
+db messages 100033
+header ['messageId', 'conversationId', 'senderId', 'replyTo', 'originalKind']
+oracle messages 100015
+missing from db: 0 []
+extra in db: 18
+fixture msgId digest: eed0292b4876742fed7268fac0562a94d9d39689002d2e6725940732c9e40a51 | oracle: eed0292b4876742fed7268fac0562a94d9d39689002d2e6725940732c9e40a51
+conversations 1002 digest 68df36c40fc1f9341d10e66a02a0fc3c3ce6ced3b384f7c5decce51939b13091 | oracle 68df36c40fc1f9341d10e66a02a0fc3c3ce6ced3b384f7c5decce51939b13091
+conv mismatches 0 []
+sender mismatches 0 []
+replyTo mismatches 0 []
+dev:u0001 conversations 1000 fixture msgs 100000 incl diagnostics 100018
+dev:u0500 conversations 100 fixture msgs 10000 incl diagnostics 10018
+dev:alice conversations 2 fixture msgs 15 incl diagnostics 15
+dev:bob conversations 2 fixture msgs 15 incl diagnostics 15
+dev:carol conversations 1 fixture msgs 9 incl diagnostics 9
+u0001 groups 100 dms 900
+g0001 members 50
+g0001 fixture msgs 10000
+starter d-alice-bob 6 g-starter 9
+u0001 sees starter? False

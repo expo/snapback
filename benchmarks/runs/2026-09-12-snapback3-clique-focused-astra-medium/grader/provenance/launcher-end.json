@@ -1,0 +1,67 @@
+{
+  "phase": "continuous",
+  "pid": 1606961,
+  "wrapperPid": 1606960,
+  "processIdentity": {
+    "pid": 1606961,
+    "parentPid": 1606960,
+    "state": "R",
+    "startTicks": 158888246,
+    "cwd": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-grade",
+    "command": [
+      "/home/ccheever/.local/bin/claude",
+      "-p",
+      "--bare",
+      "--dangerously-skip-permissions",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--model",
+      "claude-opus-5",
+      "--tools",
+      "Bash,Read,Write,Edit,Glob,Grep"
+    ]
+  },
+  "startedEpoch": 1789229964,
+  "modelRequested": "claude-opus-5",
+  "command": [
+    "/home/ccheever/.local/bin/claude",
+    "-p",
+    "--bare",
+    "--dangerously-skip-permissions",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--model",
+    "claude-opus-5",
+    "--tools",
+    "Bash,Read,Write,Edit,Glob,Grep"
+  ],
+  "prompt": "/home/ccheever/snapback3-clique-focused-20260912/packet/prompts/astra-snapback3-continuous-grade.md",
+  "promptBytes": 8782,
+  "promptSha256": "03bff7b01b224bd6175818221aa200b3d582ec58fcc28094c961d31d1253bb70",
+  "inputSha256": "0b618dedfdcb33ec10b7afc0a2b75f84ec66ecb5e0f74551c4c17d61fc737fbd",
+  "wrapperSha256": "13536cab1ddab2660837e2bef9c76ed6633d0d57162e92d28396b73fa6fdbf37",
+  "custody": "foreground CLI; actor-only; prompt owns server cleanup",
+  "promptSafetyLimitMinutes": 90,
+  "authenticatedCap": false,
+  "endedEpoch": 1789231326,
+  "actorExit": 0,
+  "exit": 0,
+  "interrupted": null,
+  "artifacts": {
+    "grading/grader-report.json": {
+      "bytes": 43788,
+      "sha256": "dac354d1e082650d989f580cd3dc9b09e13ebe8a03616e9225cc2845b23ce5e6"
+    },
+    "grading/trace.md": {
+      "bytes": 9160,
+      "sha256": "cf0d37b886af904e81ccfd3da428eda74b9a51829adb34a79ffe1816a73ba5ca"
+    },
+    "grading/DONE": {
+      "bytes": 168,
+      "sha256": "61059226e56e80d54ccea6a4f47ae710136072a0ea6ae7079811375b5ba9d793"
+    }
+  },
+  "evidenceErrors": []
+}

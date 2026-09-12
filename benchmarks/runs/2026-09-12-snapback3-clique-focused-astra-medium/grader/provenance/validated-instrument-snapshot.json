@@ -1,0 +1,122 @@
+{
+  "root": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks",
+  "manifest": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/instrument.manifest.json",
+    "logicalPath": "instrument.manifest.json",
+    "sha256": "3d449efbafb178cdc923bd2e69c01e692afbe2a2daf625ba7cb281255c5a5df4",
+    "instrumentPin": "social-messenger@0.3.8-m8",
+    "versions": {
+      "schema": "0.3.0-m8",
+      "ui": "0.3.3-m8",
+      "choreography": "0.3.8-m8"
+    }
+  },
+  "brief": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/briefs/social-messenger.md",
+    "logicalPath": "briefs/social-messenger.md",
+    "kind": "file",
+    "sha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6"
+  },
+  "contract": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/CONTRACT.md",
+    "logicalPath": "tools/social-messenger/CONTRACT.md",
+    "kind": "file",
+    "sha256": "ecb7b0a706703c271f67be81d1899414bfb50c79f85d5b03a585c76ca02085be"
+  },
+  "assertions": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/schema/social-messenger/assertions.json",
+    "logicalPath": "schema/social-messenger/assertions.json",
+    "kind": "file",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "applicability": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/schema/social-messenger/applicability.json",
+    "logicalPath": "schema/social-messenger/applicability.json",
+    "kind": "file",
+    "sha256": "b3d45805202375949b657cc30609e9d1de51da6a188469e9bf2c60f8fd1e37a1"
+  },
+  "fixtureReadme": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/fixtures/social-messenger/README.md",
+    "logicalPath": "fixtures/social-messenger/README.md",
+    "kind": "file",
+    "sha256": "b3793a0bb8778f9e990a1c2b645d969f4886069eaff9fde1a548e7e946ee14d6"
+  },
+  "fixtureRoot": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/fixtures/social-messenger",
+    "logicalPath": "fixtures/social-messenger",
+    "kind": "directory",
+    "sha256": "6174ba9fd6a68897d416bd29853f54286bb4350a31964ae158e8335e06104d5a"
+  },
+  "uiRoot": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/ui",
+    "logicalPath": "tools/social-messenger/ui",
+    "kind": "directory",
+    "sha256": "e1dc7a4055abb876d773f13e37d1d7d93f07c066b879afb1d38696895245cd91"
+  },
+  "uiVersion": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/ui/VERSION",
+    "logicalPath": "tools/social-messenger/ui/VERSION",
+    "kind": "file",
+    "sha256": "a3fa57c8819a0fb2e1bef13c68adf699188b995c7ee870cccdd30a98760b10d7"
+  },
+  "choreographyRoot": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/choreography",
+    "logicalPath": "tools/social-messenger/choreography",
+    "kind": "directory",
+    "sha256": "9408b9a05de08905744fc9a28e7ebe226ce73279da6863ae3d9a0c154cdd0209"
+  },
+  "choreographyVersion": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/choreography/VERSION",
+    "logicalPath": "tools/social-messenger/choreography/VERSION",
+    "kind": "file",
+    "sha256": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95"
+  },
+  "schemaVersion": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/schema/social-messenger/VERSION",
+    "logicalPath": "schema/social-messenger/VERSION",
+    "kind": "file",
+    "sha256": "56ff5020017eb5d91c9b14b2993d9d4204af1fd03076d5aebd16fa2e97abe5e5"
+  },
+  "baseRunRecordSchema": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/schema/run-record.schema.json",
+    "logicalPath": "schema/run-record.schema.json",
+    "kind": "file",
+    "sha256": "48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3"
+  },
+  "runRecordSchema": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/schema/social-messenger/run-record.schema.json",
+    "logicalPath": "schema/social-messenger/run-record.schema.json",
+    "kind": "file",
+    "sha256": "3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6"
+  },
+  "runRecordExtensionSchema": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/schema/social-messenger/run-record-extension.schema.json",
+    "logicalPath": "schema/social-messenger/run-record-extension.schema.json",
+    "kind": "file",
+    "sha256": "d57d0a6ff6fec431f7f169d6f046b1bdbf2c6d0031f0528d78866c4e9477e0fd"
+  },
+  "recordValidator": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/record-validator.mjs",
+    "logicalPath": "tools/social-messenger/record-validator.mjs",
+    "kind": "file",
+    "sha256": "fcaec358ac3ace5bb30c4432fc74a035af5e0869d2684f9de763d21cc0450155"
+  },
+  "meteringRoot": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/metering",
+    "logicalPath": "tools/social-messenger/metering",
+    "kind": "directory",
+    "sha256": "71adc75289de20ba5a19584754d7a01a8498f5d91674865496a76e4acee3bd2b"
+  },
+  "observabilityRoot": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/social-messenger/observability",
+    "logicalPath": "tools/social-messenger/observability",
+    "kind": "directory",
+    "sha256": "b2beaf6e953939ad46e0c27388ecf9c9415db3320c50c40247e5d65512a47656"
+  },
+  "toolsLibRoot": {
+    "path": "/home/ccheever/clique-0029-20260912/preflight/frozen-source/benchmarks/tools/lib",
+    "logicalPath": "tools/lib",
+    "kind": "directory",
+    "sha256": "eeb5fce768a974502e028d3ba794be7c2b0331b54dc431876b1b2108ee45bf91"
+  }
+}

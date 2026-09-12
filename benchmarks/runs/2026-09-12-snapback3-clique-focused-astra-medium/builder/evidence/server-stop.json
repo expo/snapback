@@ -1,0 +1,77 @@
+{
+  "epoch": 1789228707947,
+  "stopped": [
+    {
+      "pid": 1495093,
+      "role": "owner",
+      "port": 54900,
+      "root": ".",
+      "epoch": 1789225497.709,
+      "action": "already exited",
+      "error": "ENOENT"
+    },
+    {
+      "pid": 1496061,
+      "role": "owner",
+      "port": 54900,
+      "root": ".",
+      "epoch": 1789225535.478,
+      "action": "already exited",
+      "error": "ENOENT"
+    },
+    {
+      "pid": 1501668,
+      "role": "owner",
+      "port": 54900,
+      "root": ".",
+      "epoch": 1789225767.145,
+      "action": "already exited",
+      "error": "ENOENT"
+    },
+    {
+      "pid": 1502108,
+      "role": "owner",
+      "port": 54900,
+      "root": ".",
+      "epoch": 1789228707446,
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 1504359,
+      "role": "owner",
+      "port": 54901,
+      "root": "artifacts/scale-app",
+      "epoch": 1789228707446,
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 1531113,
+      "role": "owner",
+      "port": 54902,
+      "root": "artifacts/starter-app",
+      "epoch": 1789228707446,
+      "action": "SIGTERM"
+    },
+    {
+      "pid": 1502145,
+      "role": "owned-worker",
+      "epoch": 1789226124.255,
+      "action": "worker already exited",
+      "error": "ENOENT"
+    },
+    {
+      "pid": 1504440,
+      "role": "owned-worker",
+      "epoch": 1789226124.255,
+      "action": "worker already exited",
+      "error": "ENOENT"
+    },
+    {
+      "pid": 1531186,
+      "role": "owned-worker",
+      "epoch": 1789227270.687,
+      "action": "worker already exited",
+      "error": "ENOENT"
+    }
+  ]
+}

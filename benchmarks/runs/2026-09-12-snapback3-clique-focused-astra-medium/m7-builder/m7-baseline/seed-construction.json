@@ -1,0 +1,58 @@
+{
+  "sourcePath": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/builder-final/artifacts/scale-app/snapback/seed.ts",
+  "sourceSha256": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2",
+  "fixtureSha256": "303b2d94f9e1709b2bcc3d2c1bd7e655e6a673c59fa2e3f4479bc81a7a342c27",
+  "issuedPrincipalsSha256": "5cdd4ff7774ab121e45c3d0613fc9ca38bf18744fcb634211a63a0d270c54dc6",
+  "personas": [],
+  "tableCounts": {
+    "profiles": 8,
+    "conversations": 2,
+    "members": 5,
+    "messages": 16,
+    "reads": 0,
+    "reactions": 0,
+    "posts": 28,
+    "follows": 12,
+    "likes": 8,
+    "reposts": 4
+  },
+  "visibleCounts": {
+    "d-alice-bob": 6,
+    "g-starter": 9
+  },
+  "existingRowIdsPreserved": true,
+  "principalFieldMapping": "Exact dev:<starter> scalar principals replaced with the principals issued by signup in this same DB. Generated row IDs, including embedded dev strings in membership IDs, are preserved.",
+  "timestampProvenance": "Existing frozen builder seed timestamps preserved exactly; they are actual builder fixture-generation epochs, not documentary log timestamps or proof of public sends. New tombstone uses this host's recorded wall clock in milliseconds.",
+  "newTombstone": {
+    "id": "sm-m7-tombstone-control",
+    "conversationId": "g-starter",
+    "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+    "text": "This message was deleted",
+    "serverTimestamp": 1789230284893,
+    "replyTo": null,
+    "edited": false,
+    "tombstone": true
+  },
+  "editedBefore": {
+    "id": "sm0007",
+    "conversationId": "g-starter",
+    "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+    "text": "Saturday plan: coffee, lake, then noodles.",
+    "serverTimestamp": 1789225750327,
+    "replyTo": null,
+    "edited": false,
+    "tombstone": false
+  },
+  "editedAfter": {
+    "id": "sm0007",
+    "conversationId": "g-starter",
+    "senderId": "user:qaozGeVVhk11WPsju8lZuQ",
+    "text": "Saturday plan: coffee, lake, then noodles. [M7 pre-change edited fixture]",
+    "serverTimestamp": 1789225750327,
+    "replyTo": null,
+    "edited": true,
+    "tombstone": false
+  },
+  "clockEpochMs": 1789230284893,
+  "scope": "Supported static-development-seed fixture preparation only; does not prove public edit/delete or password-authored creation of these rows."
+}

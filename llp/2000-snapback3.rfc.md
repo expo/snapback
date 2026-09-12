@@ -7,7 +7,7 @@
 live data, offline behavior, performance, developer tools, deployment and operations
 **Author:** Codex / GPT-6 Astra, at Charlie Cheever's request
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (first runnable slice; completed S2 wave response and inherited repairs)
+**Revised:** 2026-09-12 (first slice, focused Clique evidence, and acquisition speed plan)
 **Related:** LLP 2000.000 (second opinion: keep the core, flip two substrates), LLP 3000 (Snapback 4, the sibling candidate that builds it), LLP 0000, LLP 0329, LLP 1000, LLP 1014, LLP 1018,
 LLP 1018.008, LLP 1018.008.008, LLP 1018.008.009, LLP 1020, LLP 1023
 
@@ -612,3 +612,269 @@ belongs outside builder-owned status inputs so grading cannot change regression
 selection. A focused green receipt does not replace a whole-app assessment.
 These additions refine the existing experiment; they neither declare S3 the
 winner nor require a new release-gate system.
+
+## 15. Focused Clique evaluation
+
+The first [outside-builder attempt](../benchmarks/runs/2026-09-12-snapback3-clique-astra-medium/README.md)
+used Astra medium and the qualified private Linux package at source
+`409954115f151a72dd95e897c5f00f36877f11e0`. It built a text account/profile
+slice, but the full instrument stopped at M1's required avatar capability.
+The required suite passed five of seven assertions; three browser choreography
+checks passed. The independent, uncalibrated Opus 5 assessment also found
+intermittent silent logout failure and authentication rate limiting in the
+documented seed/acceptance sequence. No messaging or performance outcome was
+established by that attempt.
+
+Charlie then explicitly requested the Clique scenarios concerning client
+coordination and performance without making avatar uploads a prerequisite.
+The [focused run](../benchmarks/runs/2026-09-12-snapback3-clique-focused-astra-medium/README.md)
+is a new diagnostic variant with its scope frozen before a fresh Astra medium
+session. It starts from the prior frozen text account/profile source, without
+prior narratives, grades, receipts, runtime data, or installed dependencies.
+The package and public guide remain fixed; implementation-team assistance and
+platform patches are excluded from the builder experiment.
+
+The selected work exercises independent resources through one client, browser
+offline close/reopen and durable sends, same-account convergence, starter
+Insights correctness, and browser acquisition, paging and storage. A separate
+fresh session adds polls and backfills counts in a populated starter database.
+Each selected result stands independently; missing media, presence, push,
+scheduling, or native support cannot block unrelated checks. Selected failures
+must still be recorded, and browser analogues cannot establish native behavior.
+
+The large messaging projection preserves identities, membership, quoted
+references and reactions while converting media messages to labeled text.
+It contains 1,002 conversations and 100,015 messages globally; the hub can
+read 100,000 messages and the other scale probe 10,000. First useful UI,
+complete durable acquisition, offline reopen, and foreground send phases are
+separate measurements. Server storage attribution names the projection and
+cannot be compared directly with the prior full app's 5.2 GB total.
+
+The frozen [scope](../benchmarks/runs/2026-09-12-snapback3-clique-focused-astra-medium/SCOPE.md)
+defines repeated attempts, timeouts, field-complete persona snapshots, populated
+migration controls, and independent checks. This run does not earn full Clique
+milestone passes or a weighted score.
+
+### Continuous-session results and design consequences
+
+The independent assessment verifies one ordinary app client, restored
+authentication, account isolation, same-account messaging and the selected
+starter offline close/reopen workflows. A denied unread resource renders
+Unknown while authorized messages remain usable and a send settles once.
+Starter Insights totals, seven-day buckets and the exact increment from a new
+like are independently checked. Rendered positive-to-zero unread convergence
+and a delivered-only UI state remain unproven. A retained whole-HTTP-batch
+failure is builder-observed and unresolved, not an independent reproduction.
+
+One client did not remove all application coordination. The builder authored a
+serial page walker, bounded waits for in-flight resources, unread calculation
+over a bounded summary and explicit acquisition before offline use. Fresh
+paged data sometimes carried `complete: false`; the builder changed its
+readiness predicate and independently checked exact IDs. The
+[guide-gap ticket](../snapback3/issues/20260912-guide-gap-paginated-resource-readiness.md)
+requires the public readiness semantics and acquisition example to be brought
+into agreement. These responsibilities count against the product hypothesis,
+even though no extra authenticated app reader or private cache was added.
+
+The browser measurements invalidate any inference of complete acquisition
+performance from the earlier 3,899 ms worker result. Final 10,000-message
+builder acquisitions take 32.649–33.646 seconds, with 33.573–34.571 seconds
+including initial online setup. All three final 100,000-message attempts time
+out at 180 seconds, as does the independent repetition. A separate instrumented
+CPU profile identifies material SDK, React and persistence-await work; its
+single no-send timing is not a replacement cohort or an additive wall-time
+breakdown. The run retains both useful first-screen latency and full acquisition
+failure.
+
+More seriously, two independent later-send controls fetched all 10,000 expected
+IDs but made 9,800 inaccessible through offline pagination after page reopen.
+A startup-send control retained the full history. Server data remained intact.
+The current sequence-wide storage and fact-pool fences are consistent with
+replacement by the currently admitted resources. The
+[retention issue](../snapback3/issues/20260912-acquired-history-lost-across-sequence-advance.md)
+requires an explicit durable-dataset contract that survives ordinary writes
+while preserving authorization, revocation and completeness. A fetched-ID
+accumulator and a passing first offline page cannot certify that contract.
+
+Storage remains an inherited cost: the generic index family occupies 55,689,216
+of 113,262,592 logical database bytes (49.17%). The static seed's touched
+inventory dominates the commit table; the projection omits full social scale
+and per-message public-mutation receipt load. The
+[acquisition/storage issue](../snapback3/issues/20260912-browser-acquisition-cost-and-storage-amplification.md)
+records the profile, heap boundaries and physical byte attribution without a
+comparison to Snapback2's full database. These results support further work on
+client ownership and storage representation, not a declaration that either is
+solved.
+
+Assessment itself needed a correction. The first independent rapid-navigation
+probe ended on the group and immediately asserted a DM-only message. Its
+timeout was expected under correct isolation; the corrected probe selected the
+DM and passed. The raw report is retained with a separate
+[coordinator disposition](../benchmarks/runs/2026-09-12-snapback3-clique-focused-astra-medium/coordinator-audit.md).
+Independent model output is evidence to audit, not an authority that can turn
+a bad precondition into a product defect.
+
+### Fresh-session change results
+
+The fresh Astra medium builder added polls and a persisted count backfill in
+976 seconds. The independent assessment supports the nine selected M7
+assertions and reran the 25 prior passing regression IDs. Its public migration
+replay preserves the original database and principals, backfills both existing
+conversations, and checks visible counts DM6/group9 → group10 after a poll →
+group11 after a text. Required fields in all 42 persona-visible records remain
+unchanged, with populated timestamps, reactions, replies, receipt, edit and
+tombstone controls. The original offline vote survives browser close/reopen and
+settles without duplicate tally growth. Earlier UI qualifications and large
+acquisition failures remain; they are not displaced by the M7 passes.
+
+The migration only supports up to 200 visible messages per conversation; no
+larger resumable backfill was supplied or exercised. The builder corrected
+compiler errors and changed a bounded vote scan into a maintained tally. A
+wrong persona list caused its first migration census to fail explicitly; the
+independent physical census and correct eight-persona enumeration establish
+coverage for this starter database. These are material authoring costs.
+
+The original pre-change queued operation retained its identity after the
+migration but did not settle in the independent observation. A separate
+coordinator control corrects the grader's invalid operation-state accessor:
+the original intent is `parked` with `S3_OPERATION_CHANGED`, unchanged through
+25.036 seconds online, with no server message. The guide's promised parked
+dismissal conflicts with the implementation's terminal-receipt requirement;
+the recovery issue records that gap. The control also corrects a false denial
+finding by preserving the actual resource status and `NOT_MEMBER` error.
+There is no automatic-compatibility pass. The
+[M7 report](../benchmarks/runs/2026-09-12-snapback3-clique-focused-astra-medium/m7-grader/grading/grader-report.json)
+and coordinator dispositions preserve raw failures and distinguish test errors
+from product limitations. This completes the selected experiment, not the
+whole product or a comparison win.
+
+## 16. Making acquisition fast
+
+Charlie identified acquisition time as a primary concern during the focused
+run and asked what could make it fast. The response is a concrete optimization
+program, with the measured endpoint kept fixed. This section describes planned
+experiments and acceptance criteria; the fixed benchmark package does not yet
+implement the proposed bulk path, and no measured fast result is claimed.
+
+### Target and measurement contract
+
+The first engineering target is **a candidate median under three seconds for
+the complete 10,000-message workflow** on the checked EPYC browser host with a
+local owner. Every repetition must complete correctly; report slower individual
+runs explicitly rather than treating the median as a per-run guarantee.
+The endpoint includes the exact authorized dataset, required query evidence,
+durable admission, required index construction and the first offline history
+and search query. The clock starts before loading the client and its automated
+authentication using the fixed fixture's existing auth route; fixture preparation
+and human typing are outside it. Any receipt obligations of the declared
+workflow must also be complete. Report authentication, first-use and inner
+acquisition intervals separately without substituting them for this total.
+Physical offline close/reopen is additionally timed and must preserve the same
+content; it is a distinct control rather than hidden preparation for the primary
+timer. The current projection has no per-message delivery
+acknowledgement stream, so qualification at this scope does not establish the
+cost of adding that feature later.
+
+First useful content should appear substantially earlier than full acquisition.
+The 100,000-message account must complete and retain its entire declared data;
+its scaling, first-use latency and memory remain explicit qualification rows.
+Meeting the 10k target cannot stand in for that result. Measure a shaped network
+as well as localhost so request round trips and compressed byte volume remain
+visible. A first-page-only cache, a smaller dataset or an unbounded background
+queue does not satisfy the complete endpoint.
+
+Use fresh browser storage, a production app build, fixed fixture and source
+identities, the same owner/compiler and recorded host load. Start with short
+diagnostics; qualify the resulting candidate with ten alternating pairs (ten
+runs per variant), preserving every failure and cutoff. Report medians and
+ranges without calling ten samples a population p95. Keep profiling hooks out
+of the ordinary cohort. Offline physical reopen and foreground writes are
+correctness controls alongside the timing, not optional later checks.
+
+### Why the current path is expensive
+
+The [separate instrumented profile](../benchmarks/runs/2026-09-12-snapback3-clique-focused-astra-medium/profile/README.md)
+acquires 10,000 messages across 100 conversations and 151 pages. It records
+151 completed main-page API read responses carrying 25,072,206 encoded bytes,
+and 151 storage writes during acquisition carrying 85,697 row entries. Row entries
+include supporting facts and repeated occurrences; they are not 85,697 unique
+messages. Most conversations in this probe are empty, but the authored walker
+still performs their individual reads. Acquisition currently follows ordinary
+interactive page boundaries all the way through transport and persistence.
+
+SDK self samples account for 6.124 seconds, React for 2.832 seconds, other
+framework/helpers for 2.692 seconds and GC for 1.334 seconds. Persistence-await
+intervals total 8.037 seconds. These overlap process CPU and other activity;
+adding or subtracting them does not predict the resulting wall time. Source
+mapping remains partial. The numbers identify repeated data handling, browser
+publication and many small storage transactions as concrete investigation
+targets, while the Node owner and Rust worker consume 1.08 and 3.22 CPU-seconds
+in the same profile interval. Server CPU improvements alone cannot establish
+the browser target.
+
+### Implementation sequence
+
+| Step | Concrete experiment | Evidence required to retain it |
+| --- | --- | --- |
+| 1. Establish the browser data cost | On the fixed authorized fixture, measure a compact export through transfer, decoding, IndexedDB and the first offline queries. Count unique facts, repeated row/evidence bytes, preparation calls, index visits and publications in the current path | A diagnostic feasibility result with explicit omitted machinery, never a product qualification. Determine whether transfer, storage or representation already prevents the target before building a larger subsystem |
+| 2. Make acquisition one SDK responsibility | Provide an SDK-owned operation for a declared offline dataset: traversal, bounded scheduling, durable progress, cancellation/resume and completion. Ordinary interactive queries continue to serve the visible screen | The Clique builder can replace its serial page walker and in-flight readiness loop with the supported operation, without adding readers, private caches or mutation reconciliation |
+| 3. Use a compact, bounded bulk delivery path | Let the owner advance existing authorized reads across several page/room boundaries per request. Share repeated rows, schema and evidence within an explicitly bound acquisition unit; measure normal HTTP compression. Bound response bytes, row count and owner work, and yield between units | Fewer requests and repeated bytes at the same authorization and completeness requirements. Empty rooms still need truthful absence evidence. A limit or interruption exposes a resumable prefix, never false completion |
+| 4. Prepare and persist changed data once | Reuse validated owned representations and indexes within their schema/program/authority lifetime. Deduplicate repeated facts at the admitted identity/version. Commit a bounded group in one IndexedDB transaction and publish only after it succeeds | Algorithmic counters show work proportional to new or changed facts, plus genuine boundary/authority work. No repeated full-pool clone, rebuild or scan per chunk. Failed persistence and reopening preserve exact durable custody |
+| 5. Bound publication and preserve foreground work | Publish useful query changes and periodic acquisition progress instead of driving the entire app for every internal row/page event. Keep background concurrency and memory bounded, yielding to user writes and visible resources | Responsive first content and sends under acquisition, with all final results observable. Deletion, denial, account changes and terminal operations cannot disappear inside coalesced updates |
+| 6. Qualify the complete path | Run the fixed full endpoint, offline reopen, sends at early/middle/late acquisition, and 1k/10k/100k scaling cases | Exact content and evidence, no missing offline pages, no lost/recreated operations, scoped latency and memory results. A faster fetch counter without retained data fails |
+
+The compact-export experiment is isolated evaluation code using a known
+authorized fixture. It cannot become a production bypass around read rules,
+closure validation or revocation. It answers what the browser representation
+costs, then the real path must reach that neighborhood with its obligations
+intact. Keep each step measurable; reject an optimization whose improvement
+disappears at the complete endpoint.
+
+### Retention and authority are part of the speed work
+
+The current whole-frame sequence fence discards earlier acquired resources
+when a later sequence arrives. The two delayed-send failures demonstrate that
+speed and retention cannot be qualified independently. Define durable retained
+facts, a query's snapshot/completeness evidence and its current freshness as
+separate responsibilities. Ordinary writes should update or invalidate their
+affected state without erasing an otherwise usable acquired dataset.
+
+That separation requires a sound protocol boundary, not merely deleting the
+sequence equality check. Each bulk unit must keep its principal, auth epoch,
+schema, program, real sequence and cursor identities. Deduplication cannot join
+contradictory versions, infer missing negative evidence or turn observations
+from different sequences into a common snapshot. If acquisition spans commits,
+the owner must provide a qualified continuation/change boundary or explicitly
+require reacquisition; it cannot invent a maximum-sequence proof over older
+pages. Denial, account changes, revocation and generation changes must still
+take effect through failure and interruption.
+
+Keep a durable resume cursor with the data/evidence it certifies, in the same
+atomic admission. Never hold an IndexedDB transaction or SQLite read snapshot
+across a network wait. Foreground operations retain their original identity,
+durable admission and settlement behavior while background acquisition yields.
+The SDK owns those transitions so every application does not design them again.
+
+### Reuse and decision points
+
+Adapt useful Snapback2 work: [incremental bookkeeping and publication](./1018.008.007.001-acquisition-with-incremental-work.plan.md),
+[bounded transport/commit grouping](./1018.008.007.002-bounded-bulk-acquisition.plan.md),
+and measured preparation/index reuse. Fit it to S3's existing resource and
+operation owners. Its [remaining acquisition record](../issues/20260911-snapback2-full-acquisition-and-foreground-send.md)
+also warns against expecting batching alone to reach three seconds: later
+individual diagnostics still took about 25 seconds and did not qualify that
+target. Those measurements use a different receipt-bearing workflow and are
+not S3 comparison samples.
+
+After the compact path and first integrated candidate, inspect the residual.
+If certification, repeated local reconstruction or the storage representation
+still dominates, change that boundary deliberately and compare it at equal
+requirements. Do not keep accumulating minor optimizations around a structural
+cost, or hide required work after the completion signal. A worker/WASM move is
+an experiment only if the measured residual warrants it; moving the same work
+off the main thread may improve responsiveness without improving completion.
+
+The immediate next work is the compact-path diagnostic and SDK acquisition /
+retention design, using the frozen Clique evidence as the baseline. The current
+benchmark finishes on its original package. Implementation and its performance
+claims belong to a subsequent source-bound run, with the results added here.

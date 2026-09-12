@@ -1,0 +1,15 @@
+{
+  "signupStatus": 200,
+  "sessionExpiresInMs": 86399958,
+  "queryBeforeLogout": 200,
+  "logout": 200,
+  "queryAfterLogout": {
+    "status": 401,
+    "code": "S3_AUTH",
+    "message": "E_AUTH_SESSION: session is missing or expired"
+  },
+  "mutateAfterLogout": {
+    "status": 404,
+    "code": "S3_NOT_FOUND"
+  }
+}

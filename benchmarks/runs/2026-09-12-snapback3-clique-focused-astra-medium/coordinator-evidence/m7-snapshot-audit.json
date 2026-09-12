@@ -1,0 +1,84 @@
+{
+  "scope": "exact retained pre-M7 and first post-migration exports",
+  "inputs": [
+    {
+      "path": "m7-grader/inputs/pre-m7-snapshots/pre-m7-alice.json",
+      "bytes": 16968,
+      "sha256": "8064fe23f0222806140725b34141364437269f4890ec37e44406d09e2f305093"
+    },
+    {
+      "path": "m7-grader/inputs/post-m7-snapshots/post-m7-alice.json",
+      "bytes": 15651,
+      "sha256": "8f585a37241939ff552d49c9c27bced7dccb318c05f83d613c880c5cb184302f"
+    },
+    {
+      "path": "m7-grader/inputs/pre-m7-snapshots/pre-m7-bob.json",
+      "bytes": 14921,
+      "sha256": "123db821f1ee69849e2a1258a67a6a5610d187b4a53deb4831b000630077f1fc"
+    },
+    {
+      "path": "m7-grader/inputs/post-m7-snapshots/post-m7-bob.json",
+      "bytes": 13604,
+      "sha256": "07d1a093a56a87dd951d804275a884ad663abab460477dcc7bbe8105fed018f6"
+    },
+    {
+      "path": "m7-grader/inputs/pre-m7-snapshots/pre-m7-carol.json",
+      "bytes": 10997,
+      "sha256": "fde8fddb3542692d75081565d35865173b9c50a7b1a81bb87e31c8b4f519bb6c"
+    },
+    {
+      "path": "m7-grader/inputs/post-m7-snapshots/post-m7-carol.json",
+      "bytes": 10117,
+      "sha256": "b0b57745c8611b3359fb08140b7b34c41545955ce695347941238dc80f46bbfe"
+    }
+  ],
+  "personas": [
+    {
+      "actor": "alice",
+      "messages": 16,
+      "visible": 15,
+      "principalContentEqual": true,
+      "controls": {
+        "edited": 1,
+        "tombstone": 1,
+        "replies": 6,
+        "reactions": 4,
+        "ownReactions": 2,
+        "ownFetchedReceipts": 7,
+        "ownViewedReceipts": 7
+      }
+    },
+    {
+      "actor": "bob",
+      "messages": 16,
+      "visible": 15,
+      "principalContentEqual": true,
+      "controls": {
+        "edited": 1,
+        "tombstone": 1,
+        "replies": 6,
+        "reactions": 4,
+        "ownReactions": 1,
+        "ownFetchedReceipts": 5,
+        "ownViewedReceipts": 5
+      }
+    },
+    {
+      "actor": "carol",
+      "messages": 10,
+      "visible": 9,
+      "principalContentEqual": true,
+      "controls": {
+        "edited": 1,
+        "tombstone": 1,
+        "replies": 3,
+        "reactions": 2,
+        "ownReactions": 1,
+        "ownFetchedReceipts": 4,
+        "ownViewedReceipts": 4
+      }
+    }
+  ],
+  "problems": [],
+  "pass": true
+}

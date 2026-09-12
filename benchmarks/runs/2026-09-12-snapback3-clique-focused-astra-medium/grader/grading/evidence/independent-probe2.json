@@ -1,0 +1,231 @@
+{
+  "run": 1789230618644,
+  "checks": [
+    {
+      "id": "IND2-rapid-nav",
+      "status": "pass",
+      "ms": 619,
+      "evidence": {
+        "switchObservations": [
+          {
+            "id": "d-alice-bob",
+            "status": "History ready",
+            "rendered": 88
+          },
+          {
+            "id": "g-starter",
+            "status": "History unknown",
+            "rendered": 0
+          },
+          {
+            "id": "d-alice-bob",
+            "status": "History ready",
+            "rendered": 88
+          },
+          {
+            "id": "g-starter",
+            "status": "History unknown",
+            "rendered": 0
+          },
+          {
+            "id": "d-alice-bob",
+            "status": "History ready",
+            "rendered": 88
+          },
+          {
+            "id": "g-starter",
+            "status": "History unknown",
+            "rendered": 0
+          },
+          {
+            "id": "d-alice-bob",
+            "status": "History ready",
+            "rendered": 88
+          },
+          {
+            "id": "g-starter",
+            "status": "History unknown",
+            "rendered": 0
+          }
+        ],
+        "finalRecovery": {
+          "st": "History ready",
+          "sm0001": 1,
+          "total": 88
+        }
+      }
+    },
+    {
+      "id": "IND2-account-change-isolation",
+      "status": "pass",
+      "ms": 2963,
+      "evidence": {
+        "carol": {
+          "count": 0,
+          "principal": "user:ufqMpInyBMv152B8BthCgg",
+          "history": "History ready"
+        },
+        "aliceBack": 88
+      }
+    },
+    {
+      "id": "IND2-offline-reality",
+      "status": "pass",
+      "ms": 1573,
+      "evidence": {
+        "id": "1a6d112c-35ae-4069-8498-9293022492f0",
+        "before": {
+          "onLine": false,
+          "apiFails": "threw TypeError: Failed to fetch"
+        },
+        "pendingBefore": 1,
+        "reopen": {
+          "onLineAtNewPage": 200,
+          "navigatorOnLine": true,
+          "apiFetch": "threw TypeError: Failed to fetch",
+          "rendered": 88,
+          "pending": 1,
+          "searchHits": 1
+        },
+        "recipientCopies": 1
+      }
+    },
+    {
+      "id": "IND2-two-offline-queues-order",
+      "status": "pass",
+      "ms": 1911,
+      "evidence": {
+        "ids": [
+          "05871d58-8dd8-44b2-897b-b4795b6361df",
+          "43135c09-94ac-4084-a340-560c2b51ace2"
+        ],
+        "pendingRendered": [
+          1,
+          1
+        ],
+        "arrival": [
+          {
+            "id": "05871d58-8dd8-44b2-897b-b4795b6361df",
+            "ts": 1789230625690
+          },
+          {
+            "id": "43135c09-94ac-4084-a340-560c2b51ace2",
+            "ts": 1789230626524
+          }
+        ]
+      }
+    },
+    {
+      "id": "IND2-unread-converges",
+      "status": "fail",
+      "ms": 12340,
+      "error": "Error: unread never rose above 0 (rendered 0)"
+    },
+    {
+      "id": "IND2-receipts-distinct",
+      "status": "pass",
+      "ms": 760,
+      "evidence": {
+        "accepted": "committed",
+        "ts": 1789230639620,
+        "atAccept": {
+          "fetchedThrough": 1789230627315,
+          "viewedThrough": 1789230627315
+        },
+        "afterFetched": {
+          "fetchedThrough": 1789230639620,
+          "viewedThrough": 1789230639620
+        },
+        "afterViewed": {
+          "fetchedThrough": 1789230639620,
+          "viewedThrough": 1789230639620
+        }
+      }
+    },
+    {
+      "id": "IND2-insights-rendered",
+      "status": "pass",
+      "ms": 2711,
+      "evidence": {
+        "dayRowCount": 7,
+        "dayRows": [
+          "2026-09-06\nPosts\n0\nLikes received\n0",
+          "2026-09-07\nPosts\n0\nLikes received\n0",
+          "2026-09-08\nPosts\n0\nLikes received\n0",
+          "2026-09-09\nPosts\n0\nLikes received\n0",
+          "2026-09-10\nPosts\n0\nLikes received\n0",
+          "2026-09-11\nPosts\n0\nLikes received\n0",
+          "2026-09-12\nPosts\n4\nLikes received\n3"
+        ],
+        "raw": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 3,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 3,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        },
+        "before": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 3,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 3,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        },
+        "after": {
+          "d0": 4,
+          "d1": 0,
+          "d2": 0,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "followers": 4,
+          "following": 2,
+          "l0": 4,
+          "l1": 0,
+          "l2": 0,
+          "l3": 0,
+          "l4": 0,
+          "l5": 0,
+          "l6": 0,
+          "likesReceived": 4,
+          "posts": 4,
+          "repliesReceived": 1,
+          "repostsReceived": 1
+        },
+        "screenBefore": "Clique\nClique · Text chats\nChats\nLog out\nStarter Insights · bounded to 100 per aggregate\nRefresh Insights\n4\nPosts\n3\nLikes received\n1\nReposts received\n1\nReplies received\n4\nFollowers\n2\nFollowing\n2026-09-06\nPosts\n0\nLikes received\n0\n2026-09-07\nPosts\n0\nLikes received\n0\n2026-09-08\nPosts\n0\nLikes received\n0\n2026-09-09\nPosts\n0\nLikes received\n0\n2026-09-10\nPosts\n0\nLikes received\n0\n2026-09-11\nPosts\n0\nLikes received\n0\n2026-09-12\nPosts\n4\nLikes received\n3",
+        "screenAfter": "Clique\nClique · Text chats\nChats\nLog out\nStarter Insights · bounded to 100 per aggregate\nRefresh Insights\n4\nPosts\n4\nLikes received\n1\nReposts received\n1\nReplies received\n4\nFollowers\n2\nFollowing\n2026-09-06\nPosts\n0\nLikes received\n0\n2026-09-07\nPosts\n0\nLikes received\n0\n2026-09-08\nPosts\n0\nLikes received\n0\n2026-09-09\nPosts\n0\nLikes received\n0\n2026-09-10\nPosts\n0\nLikes received\n0\n2026-09-11\nPosts\n0\nLikes received\n0\n2026-09-12\nPosts\n4\nLikes received\n4"
+      }
+    }
+  ]
+}

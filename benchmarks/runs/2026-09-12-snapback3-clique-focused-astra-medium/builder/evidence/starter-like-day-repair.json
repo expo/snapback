@@ -1,0 +1,381 @@
+{
+  "reason": "Original main starter seed preceded addition of optional like day field. Reapply all eight fixture likes via public clear/set mutations so UTC bucket expectations include them. Fresh starter DB needs no repair.",
+  "receipts": [
+    {
+      "actor": "bob",
+      "postId": "sp0001",
+      "active": false,
+      "start": 1789227258161,
+      "end": 1789227258168,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-5671da58e37bcd20634e7de9a2000c23eefa0bc5c0496a44a178b6fe9184b9a9-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "128dc35d-15b1-4bb3-ac75-d077b1d9630d",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 347,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "bob",
+      "postId": "sp0001",
+      "active": true,
+      "start": 1789227258168,
+      "end": 1789227258177,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-899a979f3c7c2bb7ad52d0a9c2b920a753b5394c87de07a3398dbb2fcdbf8339-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "ca9ebb5e-4c5b-4cf0-b7e5-2bc053ed16fe",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 348,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "carol",
+      "postId": "sp0001",
+      "active": false,
+      "start": 1789227258280,
+      "end": 1789227258285,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-bebefb9d2fb5a9eb46bce2e9015305161d740e315168b0dfc73fce3ed274f5eb-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "263b68e4-0aa6-41cf-a551-c34f44bc345e",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 349,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "carol",
+      "postId": "sp0001",
+      "active": true,
+      "start": 1789227258285,
+      "end": 1789227258289,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-6ae35ae3ab0ea0ec10c62392d97c1fb1834ac306c1e0316500a98a32f8f59f3f-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "9da8f24c-c1d1-4e5b-a2f5-c9dadabc56be",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 350,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "dave",
+      "postId": "sp0004",
+      "active": false,
+      "start": 1789227258383,
+      "end": 1789227258388,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-45c99cb2a1e343f29ca2b1559ca89eae7d10e98a9c540740ae2ed0006871a1f9-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "e5c07a3f-0347-4de7-8c31-68909aed2e34",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 351,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "dave",
+      "postId": "sp0004",
+      "active": true,
+      "start": 1789227258388,
+      "end": 1789227258392,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-ed4abd5c352b9e83f1d8ed8c336ecb0befc9525b59d8cfc5278f443b51153238-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "74e9a652-ebca-4857-a793-03f7fd7ad833",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 352,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "erin",
+      "postId": "sp0007",
+      "active": false,
+      "start": 1789227258491,
+      "end": 1789227258496,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-def61fc6db2603292be11ecfaca44900cb6b96d2972199b198613bb2b41d0ace-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "652740f2-2e9e-47f4-a0ad-6742f479e97b",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 353,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "erin",
+      "postId": "sp0007",
+      "active": true,
+      "start": 1789227258496,
+      "end": 1789227258500,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-ae219755a89d1be86624f0279f4ce44feead921f9c0abd6cc1af2d8f0e893a0e-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "636a75b3-9e2e-4622-9700-3a68762e5339",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 354,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "frank",
+      "postId": "sp0013",
+      "active": false,
+      "start": 1789227258589,
+      "end": 1789227258594,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-42ae4c25311d1a37430227b2e79ba056c3f4db9bf18deee7aff68213902bb60e-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "3261914d-a9df-4f1c-96da-4d426420e56f",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 355,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "frank",
+      "postId": "sp0013",
+      "active": true,
+      "start": 1789227258594,
+      "end": 1789227258597,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-d004e0c9042423b12d1b2944b7c4ef8882e6525a735fa9dff76053139a2a3c90-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "69c6fdfd-2bb0-499f-8f79-53276cdd53e5",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 356,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "grace",
+      "postId": "sp0016",
+      "active": false,
+      "start": 1789227258697,
+      "end": 1789227258702,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-a435f2653160f8838bf3583a85d07a0570447e28a49b4ace1e2509acaa8bb885-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "eeb50f65-6edc-4fc1-9f72-d6743b0d18d0",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 357,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "grace",
+      "postId": "sp0016",
+      "active": true,
+      "start": 1789227258702,
+      "end": 1789227258706,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-34b181c60b928eecd2d058a119a9f3455126f1e785fdc19b8bec520c57468f67-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "2046b396-4768-44c2-959e-19ad1a957a59",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 358,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "henry",
+      "postId": "sp0019",
+      "active": false,
+      "start": 1789227258816,
+      "end": 1789227258823,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-d33bd60f22b9464426fcbb380f2917b77668ca0100f1ee55ad01ff0811c7d86e-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "0a3e20b2-7b9c-44a5-9da5-c265d51f6ad5",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 359,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "henry",
+      "postId": "sp0019",
+      "active": true,
+      "start": 1789227258823,
+      "end": 1789227258828,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-0c2fea9e223c152cfd4996ae7fab85068a17fd1081787ee1baf16e7bd50d519b-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "f7e0f534-de0d-4dce-ac8d-c1c681bacdf9",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 360,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "alice",
+      "postId": "sp0022",
+      "active": false,
+      "start": 1789227258943,
+      "end": 1789227258949,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-bcf3bad8e4b811186fcef2ceeb73e1c40562db44de47036cd545b91de67e2ef1-0000",
+            "removed": true,
+            "table": "likes"
+          }
+        ],
+        "intent": "9d89350e-900c-4b18-9ec0-63c82693eeed",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 361,
+        "state": "committed"
+      }
+    },
+    {
+      "actor": "alice",
+      "postId": "sp0022",
+      "active": true,
+      "start": 1789227258949,
+      "end": 1789227258954,
+      "receipt": {
+        "data": true,
+        "effects": [
+          {
+            "id": "s3-313c28a58e9322fdb8a7d1dc46159a4b788fa34439afdbf8072778cf0c3fbcb5-0000",
+            "table": "likes"
+          }
+        ],
+        "intent": "628be930-076c-4aa7-96d0-2b0d7eff69de",
+        "program": {
+          "planHash": "38187abd496cdfebeb41195da5694846e3400c5cd3615b63701c373b08129274",
+          "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382"
+        },
+        "seq": 362,
+        "state": "committed"
+      }
+    }
+  ]
+}

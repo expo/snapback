@@ -1,0 +1,77 @@
+import fs from 'node:fs';
+import {authenticate} from '../../scripts/api-lib.mjs';
+import {randomUUID} from 'node:crypto';
+const url='http://127.0.0.1:54901';
+const out={url,checks:[]};
+const add=(id,expectation,result,detail)=>{out.checks.push({id,expectation,result,detail});console.log(id,result,JSON.stringify(detail).slice(0,200));};
+const {client:alice}=await authenticate({url,actor:'alice'});
+const {client:bob}=await authenticate({url,actor:'bob'});
+const {client:dave}=await authenticate({url,actor:'dave'});
+const settle=async(c,op,args)=>{const o=c.mutate(op,args);try{await o.durable;const r=await o.settled;return {state:r.state,code:r.code??r.reason??r.error??null,data:r.data??null,opId:o.id};}catch(e){return {state:'threw',code:String(e).slice(0,200),opId:o.id};}};
+const q=async(c,op,args)=>{try{const s=await c.watch(op,args).refresh();return {ok:true,complete:s.complete,data:s.data};}catch(e){return {ok:false,error:String(e).slice(0,200)};}};
+// grader-owned group for bounds
+const gid='grader-bounds-'+randomUUID();
+const bobPrincipal=(await q(alice,'conversations.inbox',{c:null})).data?null:null;
+const created=await settle(alice,'conversations.create',{id:gid,other:'user:sz5PoX0IaexAFZfTzzf_tQ',name:'Grader bounds',kind:'group'});
+add('setup.group','created group for bounds',created.state,created);
+const Q200='q'.repeat(200), Q201='q'.repeat(201), O50='o'.repeat(50), O51='o'.repeat(51);
+let r;
+r=await settle(alice,'polls.create',{id:randomUUID(),conversationId:gid,question:Q200,optionA:O50,optionB:O50,optionC:null,optionD:null});
+add('m7-a02.question-200-accepted','committed',r.state==='committed'?'pass':'fail',r);
+r=await settle(alice,'polls.create',{id:randomUUID(),conversationId:gid,question:Q201,optionA:'a',optionB:'b',optionC:null,optionD:null});
+add('m7-a02.question-201-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+r=await settle(alice,'polls.create',{id:randomUUID(),conversationId:gid,question:'ok',optionA:O51,optionB:'b',optionC:null,optionD:null});
+add('m7-a02.option-51-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+r=await settle(alice,'polls.create',{id:randomUUID(),conversationId:gid,question:'',optionA:'a',optionB:'b',optionC:null,optionD:null});
+add('m7-a02.empty-question-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+r=await settle(alice,'polls.create',{id:randomUUID(),conversationId:gid,question:'one option',optionA:'a',optionB:null,optionC:null,optionD:null});
+add('m7-a02.one-option-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+const fourId=randomUUID();
+r=await settle(alice,'polls.create',{id:fourId,conversationId:gid,question:'four options',optionA:'a',optionB:'b',optionC:'c',optionD:'d'});
+add('m7-a02.four-options-accepted','committed',r.state==='committed'?'pass':'fail',r);
+r=await settle(alice,'polls.create',{id:randomUUID(),conversationId:gid,question:'d without c',optionA:'a',optionB:'b',optionC:null,optionD:'d'});
+add('m7-a02.d-without-c-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+r=await settle(alice,'polls.create',{id:randomUUID(),conversationId:'d-alice-bob',question:'dm poll',optionA:'a',optionB:'b',optionC:null,optionD:null});
+add('m7-a02.dm-poll-rejected','rejected (group only)',r.state!=='committed'?'pass':'fail',r);
+// two-option poll for vote bounds
+const voteId=randomUUID();
+r=await settle(alice,'polls.create',{id:voteId,conversationId:gid,question:'vote bounds',optionA:'A',optionB:'B',optionC:null,optionD:null});
+add('setup.vote-poll',' committed',r.state,r);
+r=await settle(alice,'polls.vote',{pollId:voteId,optionId:'c'});
+add('m7-a04.invalid-option-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+r=await settle(alice,'polls.vote',{pollId:voteId,optionId:'x'});
+add('m7-a04.unknown-option-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+r=await settle(dave,'polls.vote',{pollId:voteId,optionId:'a'});
+add('m7-a05.nonmember-vote-rejected','rejected',r.state!=='committed'?'pass':'fail',r);
+const dq=await q(dave,'polls.get',{conversationId:gid,pollId:voteId});
+add('m7-a05.nonmember-read-rejected','rejected/incomplete',(!dq.ok||dq.data==null)?'pass':'fail',dq);
+const dc=await settle(dave,'polls.create',{id:randomUUID(),conversationId:gid,question:'nonmember poll',optionA:'a',optionB:'b',optionC:null,optionD:null});
+add('m7-a05.nonmember-create-rejected','rejected',dc.state!=='committed'?'pass':'fail',dc);
+// unauthenticated HTTP
+const res=await fetch(url+'/api/query',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({op:'polls.get',args:{conversationId:gid,pollId:voteId}})});
+const body=await res.text();
+add('m7-a05.unauthenticated-rejected','rejected',(res.status>=400||/error|denied|unauth/i.test(body))?'pass':'fail',{status:res.status,body:body.slice(0,200)});
+// stable IDs and tallies as a set operation via API
+await settle(bob,'polls.vote',{pollId:voteId,optionId:'a'});
+let g=await q(alice,'polls.get',{conversationId:gid,pollId:voteId});
+add('m7-a03.tally-after-bob-a','a=1',JSON.stringify({a:g.data?.a,b:g.data?.b}),g.data);
+await settle(bob,'polls.vote',{pollId:voteId,optionId:'b'});
+g=await q(alice,'polls.get',{conversationId:gid,pollId:voteId});
+add('m7-a03.tally-after-bob-change-b','a=0,b=1',JSON.stringify({a:g.data?.a,b:g.data?.b}),g.data);
+await settle(bob,'polls.vote',{pollId:voteId,optionId:'b'});
+g=await q(alice,'polls.get',{conversationId:gid,pollId:voteId});
+add('m7-a06.repeat-same-option-no-increment','a=0,b=1',JSON.stringify({a:g.data?.a,b:g.data?.b}),g.data);
+// counts maintained forward + retry idempotence
+const settings=async(c,id)=>(await q(c,'conversations.settings',{conversationId:id})).data;
+const s0=await settings(alice,gid);
+const msgId=randomUUID();
+const m1=await settle(alice,'messages.send',{id:msgId,conversationId:gid,text:'grader forward count message',replyTo:null});
+const s1=await settings(alice,gid);
+const m2=await settle(alice,'messages.send',{id:msgId,conversationId:gid,text:'grader forward count message',replyTo:null});
+const s2=await settings(alice,gid);
+add('m7-a08.count-forward-and-retry',`before=${s0?.messageCount} after=${s1?.messageCount} afterRetry=${s2?.messageCount}`,(s1?.messageCount===s0?.messageCount+1&&s2?.messageCount===s1?.messageCount)?'pass':'fail',{s0,s1,s2,m1state:m1.state,m2state:m2.state,m2code:m2.code});
+// backfill guard on already-migrated + new conversation initialized to 0
+const bf=await settle(alice,'conversations.backfillCount',{conversationId:gid});
+add('m7-a07.backfill-rejects-initialized','rejected',bf.state!=='committed'?'pass':'fail',bf);
+for(const c of [alice,bob,dave]) c.close();
+fs.writeFileSync(process.argv[2],JSON.stringify(out,null,1));

@@ -1,0 +1,9 @@
+Z [SnapbackError]: fetch failed
+    at Q (file:///home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3/node_modules/snapback3/dist/client.mjs:1:129362)
+    at ni.request (file:///home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3/node_modules/snapback3/dist/client.mjs:6:3180)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async ni.signIn (file:///home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3/node_modules/snapback3/dist/client.mjs:1:145872)
+    at async file:///home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3/scripts/seed-starter.mjs:9:187 {
+  code: 'S3_NETWORK',
+  details: undefined
+}

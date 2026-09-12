@@ -1,0 +1,179 @@
+{
+ "url": "http://127.0.0.1:54901",
+ "start": 1789233841164,
+ "actors": [
+  {
+   "actor": "alice",
+   "conversations": [
+    "d-alice-bob",
+    "g-starter"
+   ]
+  },
+  {
+   "actor": "bob",
+   "conversations": [
+    "d-alice-bob",
+    "g-starter"
+   ]
+  },
+  {
+   "actor": "carol",
+   "conversations": [
+    "g-starter"
+   ]
+  },
+  {
+   "actor": "dave",
+   "conversations": []
+  },
+  {
+   "actor": "erin",
+   "conversations": []
+  },
+  {
+   "actor": "frank",
+   "conversations": []
+  },
+  {
+   "actor": "grace",
+   "conversations": []
+  },
+  {
+   "actor": "henry",
+   "conversations": []
+  }
+ ],
+ "attempts": [
+  {
+   "actor": "alice",
+   "id": "d-alice-bob",
+   "kind": "backfill",
+   "operationId": "59206308-dfb6-4105-8259-f5ab16c3d0fb",
+   "before": {
+    "id": "d-alice-bob",
+    "kind": "dm",
+    "messageCount": null,
+    "name": "d-alice-bob",
+    "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+   },
+   "storedRows": 6,
+   "visible": 6,
+   "receipt": {
+    "data": {
+     "id": "d-alice-bob",
+     "kind": "dm",
+     "messageCount": 6,
+     "name": "d-alice-bob",
+     "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "effects": [
+     {
+      "id": "d-alice-bob",
+      "table": "conversations"
+     }
+    ],
+    "intent": "59206308-dfb6-4105-8259-f5ab16c3d0fb",
+    "program": {
+     "planHash": "fd4985700d6bb3d13ad191cf7a1bcb5748460684c9a0d8026781d0a2021bee45",
+     "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+    },
+    "seq": 16,
+    "state": "committed"
+   }
+  },
+  {
+   "actor": "alice",
+   "id": "g-starter",
+   "kind": "backfill",
+   "operationId": "040371aa-56f9-4954-a915-d2ab40e09356",
+   "before": {
+    "id": "g-starter",
+    "kind": "group",
+    "messageCount": null,
+    "name": "Weekend Plans",
+    "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+   },
+   "storedRows": 10,
+   "visible": 9,
+   "receipt": {
+    "data": {
+     "id": "g-starter",
+     "kind": "group",
+     "messageCount": 9,
+     "name": "Weekend Plans",
+     "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+    },
+    "effects": [
+     {
+      "id": "g-starter",
+      "table": "conversations"
+     }
+    ],
+    "intent": "040371aa-56f9-4954-a915-d2ab40e09356",
+    "program": {
+     "planHash": "fd4985700d6bb3d13ad191cf7a1bcb5748460684c9a0d8026781d0a2021bee45",
+     "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121"
+    },
+    "seq": 17,
+    "state": "committed"
+   }
+  },
+  {
+   "actor": "bob",
+   "id": "d-alice-bob",
+   "kind": "repeat-guard",
+   "before": {
+    "id": "d-alice-bob",
+    "kind": "dm",
+    "messageCount": 6,
+    "name": "d-alice-bob",
+    "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+   },
+   "receipt": {
+    "state": "rejected",
+    "error": null,
+    "data": null
+   }
+  },
+  {
+   "actor": "bob",
+   "id": "g-starter",
+   "kind": "repeat-guard",
+   "before": {
+    "id": "g-starter",
+    "kind": "group",
+    "messageCount": 9,
+    "name": "Weekend Plans",
+    "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+   },
+   "receipt": {
+    "state": "rejected",
+    "error": null,
+    "data": null
+   }
+  },
+  {
+   "actor": "carol",
+   "id": "g-starter",
+   "kind": "repeat-guard",
+   "before": {
+    "id": "g-starter",
+    "kind": "group",
+    "messageCount": 9,
+    "name": "Weekend Plans",
+    "owner": "user:qaozGeVVhk11WPsju8lZuQ"
+   },
+   "receipt": {
+    "state": "rejected",
+    "error": null,
+    "data": null
+   }
+  }
+ ],
+ "errors": [],
+ "migratedMap": {
+  "d-alice-bob": 6,
+  "g-starter": 9
+ },
+ "end": 1789233842390
+}

@@ -1,0 +1,69 @@
+{
+  "schema": "snapback3-focused-m7-grader-process-cleanup.v1",
+  "checkedAfterTerminal": true,
+  "actorAndWrapper": [
+    {
+      "pid": 1711285,
+      "role": "grader actor",
+      "absent": true
+    },
+    {
+      "pid": 1711284,
+      "role": "launcher wrapper",
+      "absent": true
+    }
+  ],
+  "reportedOwnedServers": [
+    {
+      "pid": 1713498,
+      "port": 54900,
+      "role": "grading/app-final",
+      "absent": true
+    },
+    {
+      "pid": 1717541,
+      "port": 54901,
+      "role": "grading/app-premig",
+      "absent": true
+    },
+    {
+      "pid": 1732131,
+      "port": 54910,
+      "role": "grading/app-oldclient",
+      "absent": true
+    },
+    {
+      "pid": 1736186,
+      "port": 54900,
+      "role": "grading/app-final second window",
+      "absent": true
+    }
+  ],
+  "ports": [
+    {
+      "port": 54900,
+      "free": true
+    },
+    {
+      "port": 54901,
+      "free": true
+    },
+    {
+      "port": 54902,
+      "free": true
+    },
+    {
+      "port": 54903,
+      "free": true
+    },
+    {
+      "port": 54910,
+      "free": true
+    }
+  ],
+  "gradeLaneProcessScan": {
+    "matchingProcesses": 0,
+    "method": "read-only /proc cwd and command-line match after terminal; scanner process excluded"
+  },
+  "browserProcessQualification": "The retained grader report did not record individual browser child PIDs. Browser probes and old-client profile operations are preserved, but exact per-browser PID cleanup cannot be asserted from the evidence. No remaining process matched the grade-lane path."
+}

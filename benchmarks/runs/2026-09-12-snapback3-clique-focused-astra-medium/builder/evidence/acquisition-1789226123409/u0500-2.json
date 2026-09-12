@@ -1,0 +1,454 @@
+{
+  "actor": "u0500",
+  "repetition": 2,
+  "startEpoch": 1789226154247,
+  "attemptLimitMs": 180000,
+  "progress": [],
+  "foreground": {},
+  "requests": [
+    {
+      "id": "272DB68FEB483BA0C51EB17AC53308A4",
+      "url": "http://127.0.0.1:54901/",
+      "method": "GET",
+      "timestamp": 1585072.534897
+    },
+    {
+      "id": "1513506.2",
+      "url": "http://127.0.0.1:54901/_expo/static/js/web/entry-807025a3462a4cf2a39936d36a6281bc.js",
+      "method": "GET",
+      "timestamp": 1585072.540976
+    },
+    {
+      "id": "1513506.26",
+      "url": "http://127.0.0.1:54901/api/manifest",
+      "method": "GET",
+      "timestamp": 1585072.697626
+    },
+    {
+      "id": "1513506.27",
+      "url": "http://127.0.0.1:54901/api/auth/persona",
+      "method": "POST",
+      "timestamp": 1585072.76981
+    },
+    {
+      "id": "1513506.28",
+      "url": "http://127.0.0.1:54901/api/manifest",
+      "method": "GET",
+      "timestamp": 1585072.778322
+    },
+    {
+      "id": "1513506.29",
+      "url": "http://127.0.0.1:54901/api/events",
+      "method": "POST",
+      "timestamp": 1585072.828136
+    },
+    {
+      "id": "4D29052C028B4E17D21C05A04AE79E13",
+      "url": "http://127.0.0.1:54901/",
+      "method": "GET",
+      "timestamp": 1585072.857046
+    },
+    {
+      "id": "1513506.32",
+      "url": "http://127.0.0.1:54901/_expo/static/js/web/entry-807025a3462a4cf2a39936d36a6281bc.js",
+      "method": "GET",
+      "timestamp": 1585072.889321
+    },
+    {
+      "id": "1513506.34",
+      "url": "http://127.0.0.1:54901/api/manifest",
+      "method": "GET",
+      "timestamp": 1585073.007588
+    },
+    {
+      "id": "1513506.35",
+      "url": "http://127.0.0.1:54901/api/events",
+      "method": "POST",
+      "timestamp": 1585073.07034
+    }
+  ],
+  "heap": [
+    {
+      "epoch": 1789226154249,
+      "TaskDuration": 0.000036,
+      "JSHeapUsedSize": 538772,
+      "JSHeapTotalSize": 1048576
+    },
+    {
+      "epoch": 1789226154750,
+      "TaskDuration": 0.115371,
+      "JSHeapUsedSize": 31221172,
+      "JSHeapTotalSize": 50446336
+    },
+    {
+      "epoch": 1789226155252,
+      "TaskDuration": 0.190909,
+      "JSHeapUsedSize": 16280364,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226155754,
+      "TaskDuration": 0.193739,
+      "JSHeapUsedSize": 16316984,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226156256,
+      "TaskDuration": 0.195124,
+      "JSHeapUsedSize": 16351760,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226156758,
+      "TaskDuration": 0.196453,
+      "JSHeapUsedSize": 16380124,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226157261,
+      "TaskDuration": 0.197705,
+      "JSHeapUsedSize": 16435420,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226157762,
+      "TaskDuration": 0.198968,
+      "JSHeapUsedSize": 16464076,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226158264,
+      "TaskDuration": 0.200133,
+      "JSHeapUsedSize": 16492152,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226158766,
+      "TaskDuration": 0.201343,
+      "JSHeapUsedSize": 16519976,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226159268,
+      "TaskDuration": 0.202446,
+      "JSHeapUsedSize": 16547812,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226159770,
+      "TaskDuration": 0.203689,
+      "JSHeapUsedSize": 16575636,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226160271,
+      "TaskDuration": 0.204786,
+      "JSHeapUsedSize": 16603460,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226160773,
+      "TaskDuration": 0.205946,
+      "JSHeapUsedSize": 16631284,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226161276,
+      "TaskDuration": 0.207069,
+      "JSHeapUsedSize": 16659108,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226161778,
+      "TaskDuration": 0.208374,
+      "JSHeapUsedSize": 16688748,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226162279,
+      "TaskDuration": 0.2095,
+      "JSHeapUsedSize": 16716572,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226162782,
+      "TaskDuration": 0.210968,
+      "JSHeapUsedSize": 16745264,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226163283,
+      "TaskDuration": 0.212079,
+      "JSHeapUsedSize": 16773088,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226163785,
+      "TaskDuration": 0.213334,
+      "JSHeapUsedSize": 16800912,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226164287,
+      "TaskDuration": 0.214465,
+      "JSHeapUsedSize": 16828740,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226164789,
+      "TaskDuration": 0.215691,
+      "JSHeapUsedSize": 16856564,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226165290,
+      "TaskDuration": 0.216789,
+      "JSHeapUsedSize": 16884388,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226165793,
+      "TaskDuration": 0.218062,
+      "JSHeapUsedSize": 16912212,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226166295,
+      "TaskDuration": 0.219234,
+      "JSHeapUsedSize": 16940036,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226166797,
+      "TaskDuration": 0.220426,
+      "JSHeapUsedSize": 16967860,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226167298,
+      "TaskDuration": 0.221483,
+      "JSHeapUsedSize": 17008236,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226167800,
+      "TaskDuration": 0.222692,
+      "JSHeapUsedSize": 17036968,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226168302,
+      "TaskDuration": 0.223966,
+      "JSHeapUsedSize": 17064784,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226168803,
+      "TaskDuration": 0.22521,
+      "JSHeapUsedSize": 17094288,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226169305,
+      "TaskDuration": 0.226373,
+      "JSHeapUsedSize": 17122104,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226169808,
+      "TaskDuration": 0.227568,
+      "JSHeapUsedSize": 17149920,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226170310,
+      "TaskDuration": 0.228816,
+      "JSHeapUsedSize": 17177736,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226170812,
+      "TaskDuration": 0.230011,
+      "JSHeapUsedSize": 17205552,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226171313,
+      "TaskDuration": 0.231133,
+      "JSHeapUsedSize": 17233368,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226171816,
+      "TaskDuration": 0.23234,
+      "JSHeapUsedSize": 17261184,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226172317,
+      "TaskDuration": 0.233416,
+      "JSHeapUsedSize": 17289000,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226172820,
+      "TaskDuration": 0.234962,
+      "JSHeapUsedSize": 17344388,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226173322,
+      "TaskDuration": 0.236138,
+      "JSHeapUsedSize": 17372260,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226173824,
+      "TaskDuration": 0.237365,
+      "JSHeapUsedSize": 17400088,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226174325,
+      "TaskDuration": 0.238479,
+      "JSHeapUsedSize": 17427904,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226174827,
+      "TaskDuration": 0.239652,
+      "JSHeapUsedSize": 17455720,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226175329,
+      "TaskDuration": 0.24074,
+      "JSHeapUsedSize": 17483536,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226175831,
+      "TaskDuration": 0.241903,
+      "JSHeapUsedSize": 17511352,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226176332,
+      "TaskDuration": 0.243107,
+      "JSHeapUsedSize": 17539168,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226176834,
+      "TaskDuration": 0.244308,
+      "JSHeapUsedSize": 17566984,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226177336,
+      "TaskDuration": 0.245522,
+      "JSHeapUsedSize": 17594800,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226177838,
+      "TaskDuration": 0.246695,
+      "JSHeapUsedSize": 17622616,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226178339,
+      "TaskDuration": 0.247782,
+      "JSHeapUsedSize": 17650432,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226178840,
+      "TaskDuration": 0.249007,
+      "JSHeapUsedSize": 17678252,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226179342,
+      "TaskDuration": 0.250096,
+      "JSHeapUsedSize": 17706068,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226179843,
+      "TaskDuration": 0.251327,
+      "JSHeapUsedSize": 17735396,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226180345,
+      "TaskDuration": 0.252436,
+      "JSHeapUsedSize": 17763212,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226180848,
+      "TaskDuration": 0.253626,
+      "JSHeapUsedSize": 17791028,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226181349,
+      "TaskDuration": 0.254731,
+      "JSHeapUsedSize": 17818844,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226181851,
+      "TaskDuration": 0.255951,
+      "JSHeapUsedSize": 17846660,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226182354,
+      "TaskDuration": 0.257023,
+      "JSHeapUsedSize": 17874476,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226182855,
+      "TaskDuration": 0.258472,
+      "JSHeapUsedSize": 17903420,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226183357,
+      "TaskDuration": 0.25957,
+      "JSHeapUsedSize": 17931236,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226183859,
+      "TaskDuration": 0.260749,
+      "JSHeapUsedSize": 17959052,
+      "JSHeapTotalSize": 54173696
+    },
+    {
+      "epoch": 1789226184360,
+      "TaskDuration": 0.267981,
+      "JSHeapUsedSize": 17992888,
+      "JSHeapTotalSize": 54173696
+    }
+  ],
+  "firstRequest": {
+    "id": "272DB68FEB483BA0C51EB17AC53308A4",
+    "url": "http://127.0.0.1:54901/",
+    "method": "GET",
+    "timestamp": 1585072.534897
+  },
+  "loginStart": 1789226154397,
+  "loginEnd": 1789226154568,
+  "restoreStart": 1789226154568,
+  "restoreEnd": 1789226154785,
+  "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('inbox-status').filter({ hasText: 'Inbox ready' }) to be visible\u001b[22m\n",
+  "status": "failed",
+  "transferredBytes": 2167191,
+  "endEpoch": 1789226184861,
+  "peakHeap": 31221172,
+  "retainedHeap": 17992888
+}

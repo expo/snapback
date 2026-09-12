@@ -1,0 +1,18 @@
+{
+  "m7Selected": {
+    "m7-a01": "pass",
+    "m7-a02": "pass",
+    "m7-a03": "pass",
+    "m7-a04": "pass",
+    "m7-a05": "pass",
+    "m7-a06": "pass",
+    "m7-a07": "pass",
+    "m7-a08": "pass",
+    "m7-a09": "pass"
+  },
+  "eligible": 25,
+  "regressionPassed": true,
+  "packagePayloadFiles": 108,
+  "packageDifferences": 0,
+  "elapsedSeconds": 863.2526090145111
+}

@@ -1,0 +1,20 @@
+quoted-references top keys <class 'list'>
+reactions keys 2000
+db quoted count 2736
+db reactions 2000 sample {"conversationId": {"Id": "g0001"}, "emoji": {"String": "\u2764\ufe0f"}, "id": {"Id": "mx-000001"}, "messageId": {"Id": "mg0001-00001"}, "userId": {"Id": "dev:u0008"}}
+media controls keys 916
+oracle quotes 2736 sample ['md0001-025', 'd0001', 'md0001-024']
+oracle reactions sample {'messageId': 'mg0001-00001', 'actor': 'u0008', 'emoji': '❤️', 'mutationId': 'mx-000001'}
+quote keys None
+db quote count 2736
+reaction keys ['messageId', 'actor', 'emoji', 'mutationId']
+db quotes 2736 digest compact 282e52f35ad4b5040c8f3dc58ac77154c5e2cf3fea6d830e4e79392efd011391 spaced f0525fda823902b1b88f9ce0e660672e72da4df0a9ca64a391f74619d1c61b3e oracle 282e52f35ad4b5040c8f3dc58ac77154c5e2cf3fea6d830e4e79392efd011391
+db reactions 2000 digest compact 2b1f3cb51ba135a23a5cd0347689218ace983482eeceac7782591e561aa566c4 spaced f2e6ffb33e74629c8312938c4b646496a2148c1ca31b3ad23e39c523ca9a1c7f oracle 2a04e96a97131d6c6d81afcbd4a6a7f8e940c861e3abaa809915eec7fcb3e417
+Traceback (most recent call last):
+  File "<stdin>", line 27, in <module>
+TypeError: list indices must be integers or slices, not dict
+db 2000 oracle 2000
+differing entries 0 []
+type <class 'list'> len 916 sample {"entity": "post", "id": "sp0002", "authorId": "alice", "parentPostId": null, "text": "Two colors from this morning's walk.", "originalKind": "images", "source": "starter-m2.log:14", "documentaryTimestamp": "2026-01-01T00:00:29Z", "originalMediaReference": "media/img-02.png,media/img-03.png", "proje
+media caption preserved 910 of 916 bad 6 [('sp0002', 'missing'), ('sp0003', 'missing'), ('sp0008', 'missing')]
+label patterns 7 ['[Projected media image: media/img-04.png', '[Projected media image: media/img-02.png', '[Projected media image: media/img-05.png', '[Projected media image: media/img-03.png', '[Projected media image: media/img-06.png', '[Projected media image: media/img-01.png']

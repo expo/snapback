@@ -1,0 +1,329 @@
+{
+  "schema": "snapback3-focused-m7-independent-grade-report.v1",
+  "assessor": {
+    "role": "fresh independent outcome assessor (single assessor, no delegation, no other model calls, no clones or remote commands)",
+    "model": "Anthropic Claude (Claude Agent SDK assessor; commit attribution identity 'Claude Opus 5'); exact internal version string not exposed to the agent",
+    "lane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-grade",
+    "startedEpoch": 1789233664,
+    "endedEpoch": 1789234560,
+    "narrativeExposure": "None. No builder diary, essay, final report, raw model transcript, other grader narrative, or other lane was read. Builder run-log/FINAL files were excluded from this copy. Only machine-readable receipts, drivers, source, BUILD.md/API.md and the frozen SCOPE.md were read."
+  },
+  "inputHashes": {
+    "executionInput": {"path": "execution-input.json", "bytes": 21253, "sha256": "fb953bb0bcc99bf30f6b2400bcd81932835b906993bc6930b69306ed8e8fdc88", "verified": true},
+    "scope": {"path": "../../SCOPE.md", "sha256": "98ad61d33e321f5106a346edcd3ad449b60a042911cf853656c24613d9cd1c0d", "verified": true},
+    "finalSourceManifest": {"path": "../../snapshots/m7-final.manifest.json", "sha256": "98d6a0e2125833d4b330adc6be21963e4d1cd3ea4a02c269832f81210c2be6ea", "verified": true},
+    "builderPrompt": {"path": "../../prompts/astra-snapback3-m7.md", "sha256": "1f8b9c073d870fbf48d4128fba032815562182faf15ca789017c9af67addb2a4", "verified": true, "note": "hash only; prompt content not read by this assessor"},
+    "package": {"archive": "snapback3-0.0.1-experimental.0-linux-x64.tgz", "sha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e", "verified": true, "platformSource": "409954115f151a72dd95e897c5f00f36877f11e0", "patched": false},
+    "instrumentManifest": {"path": "../../preflight/instrument-files.sha256", "sha256": "b183d949bb4c5871747afb92f0eccb153c813765037507ef4d888f76a6da07a6", "verified": true},
+    "appSourceSpotChecks": [
+      {"path": "src/chat.tsx", "sha256": "feae8ecc91dab39038b846935ea83eed6de261dd592dce45a6d1aa772b6fcea6", "matchesExecutionInput": true},
+      {"path": "snapback/polls.q", "sha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148", "matchesExecutionInput": true},
+      {"path": "snapback/schema.q", "sha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179", "matchesExecutionInput": true},
+      {"path": "snapback/conversations.q", "sha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e", "matchesExecutionInput": true},
+      {"path": "dist/index.html", "sha256": "59ed052e766cef638607d18b2abf197c6f87ad8c978769e2798365aae6033afd", "matchesExecutionInput": true}
+    ],
+    "suppliedDatabasesAndControls": [
+      {"path": ".snapback3/store.sqlite", "sha256": "936bf1ac473b358961adb62e1fd4f1681a16e661d6b3055c9247f364faa12773", "verifiedBeforeAndAfter": true},
+      {"path": ".snapback3/store.sqlite-wal", "sha256": "546bb18ae9f6a12efbd91fe4b576a4c4addb84293d6faf1e10978aa25571ccc6", "verifiedBefore": true},
+      {"path": "grading-input/pre-m7-db/store.sqlite", "sha256": "79dc997ef76cbe47a689f612ef88bc89a2e21a361460aa4e58dca2acb07d1487", "verifiedBeforeAndAfter": true},
+      {"path": "grading-input/pre-m7-snapshots/pre-m7-alice.json", "sha256": "8064fe23f0222806140725b34141364437269f4890ec37e44406d09e2f305093", "verified": true},
+      {"path": "grading-input/pre-m7-snapshots/pre-m7-bob.json", "sha256": "123db821f1ee69849e2a1258a67a6a5610d187b4a53deb4831b000630077f1fc", "verified": true},
+      {"path": "grading-input/pre-m7-snapshots/pre-m7-carol.json", "sha256": "fde8fddb3542692d75081565d35865173b9c50a7b1a81bb87e31c8b4f519bb6c", "verified": true},
+      {"path": "grading-input/old-client/profile.tar.gz", "sha256": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e", "verifiedBeforeAndAfter": true},
+      {"path": "selected-results.json (pre-M7 builder-owned regression selection)", "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b", "verifiedBeforeAndAfter": true},
+      {"path": "m7/selected-results.json (builder M7 claim)", "sha256": "f93597cc9928ce66ab4b30737f4c3c9e188bbb6f8496886d05650e25a3f3d47e", "verifiedUnchanged": true}
+    ]
+  },
+  "isolationAndMethod": {
+    "writes": "All grader artifacts under grading/. No builder result, snapshot, database or evidence file was modified; verified by re-hashing after the run.",
+    "replicas": [
+      {"dir": "grading/app-final", "db": "byte copy of root .snapback3 three-file set (completed M7 database)", "port": 54900},
+      {"dir": "grading/app-premig", "db": "byte copy of grading-input/pre-m7-db three-file set (application sequence 15)", "port": 54901, "use": "independent migration replay and canonical poll/count sequence"},
+      {"dir": "grading/app-oldclient", "db": "copy of the migrated replay database", "port": 54910, "use": "old-client reconnect control only"}
+    ],
+    "sqliteAccess": "Read-only census through node:sqlite on copies only; no writes to private SQLite internals of any supplied database.",
+    "ownedPids": [
+      {"pid": 1713498, "port": 54900, "role": "serve grading/app-final", "stopped": true},
+      {"pid": 1717541, "port": 54901, "role": "serve grading/app-premig", "stopped": true},
+      {"pid": 1732131, "port": 54910, "role": "serve grading/app-oldclient", "stopped": true},
+      {"pid": 1736186, "port": 54900, "role": "serve grading/app-final (second window for custom-client regression)", "stopped": true}
+    ],
+    "portsUsed": [54900, 54901, 54910]
+  },
+  "phases": [
+    {"name": "input binding + hash verification", "epochStart": 1789233664, "epochEnd": 1789233720, "commands": ["sha256sum execution-input.json ../../SCOPE.md ../../snapshots/m7-final.manifest.json ../../preflight/instrument-files.sha256", "sha256sum .snapback3/store.sqlite* grading-input/**"]},
+    {"name": "isolated replicas + owner start", "epochStart": 1789233700, "epochEnd": 1789233730, "commands": ["node node_modules/snapback3/dist/cli.mjs serve grading/app-final --port 54900"]},
+    {"name": "read-only database census and preservation diff", "epochStart": 1789233730, "epochEnd": 1789233800, "commands": ["node grading/probes/db-census.mjs <copy>", "node grading/probes/msg-compare.mjs <pre> <final>"]},
+    {"name": "independent migration replay", "epochStart": 1789233810, "epochEnd": 1789233845, "commands": ["node node_modules/snapback3/dist/cli.mjs serve grading/app-premig --port 54901", "node grading/probes/replay-migration.mjs grading/results/replay-migration.json"]},
+    {"name": "independent snapshot comparison", "epochStart": 1789233860, "epochEnd": 1789233875, "commands": ["node grading/probes/snapcmp.mjs"]},
+    {"name": "browser poll/count canonical checkpoints", "epochStart": 1789233880, "epochEnd": 1789234025, "commands": ["node grading/probes/poll-browser.mjs grading/results/poll-browser-grader.json"]},
+    {"name": "browser offline vote durability", "epochStart": 1789234050, "epochEnd": 1789234117, "commands": ["node grading/probes/poll-offline.mjs grading/results/poll-offline-grader.json"]},
+    {"name": "API bounds/authorization/idempotence/forward counts", "epochStart": 1789234120, "epochEnd": 1789234157, "commands": ["node grading/probes/api-bounds.mjs grading/results/api-bounds-grader.json"]},
+    {"name": "documented regression suites rerun on final build", "epochStart": 1789234160, "epochEnd": 1789234250, "commands": ["node grading/probes/selected-checks-copy.mjs", "node grading/probes/controls-check-copy.mjs", "node scripts/custom-client-demo.mjs"]},
+    {"name": "old-client pending-operation control", "epochStart": 1789234260, "epochEnd": 1789234370, "commands": ["tar -xzf grading-input/old-client/profile.tar.gz -C grading/private/oldclient", "node grading/probes/old-client.mjs offline ...", "node .../cli.mjs serve grading/app-oldclient --port 54910", "node grading/probes/old-client.mjs reconnect ..."]},
+    {"name": "separate-install custom client regression + shutdown", "epochStart": 1789234480, "epochEnd": 1789234540, "commands": ["node grading/custom-client/check-copy.mjs", "kill <owned pids>"]}
+  ],
+  "selectedOutcomes": {
+    "note": "Independent assessor verdicts for the frozen selected text/web subset of m7-a01..a09. Builder-reported statuses are listed separately and are not authority. No full M7/Clique green, no weighted score, no calibrated holdout, no Snapback2 comparison is claimed.",
+    "builderReported": {"m7-a01": "pass", "m7-a02": "pass", "m7-a03": "pass", "m7-a04": "pass", "m7-a05": "pass", "m7-a06": "pass", "m7-a07": "pass", "m7-a08": "pass", "m7-a09": "pass", "source": "m7/selected-results.json (claim, sha256 f93597cc...)"},
+    "independent": [
+      {"id": "m7-a01", "subject": "poll creation with question/option bounds (group, text scope)", "verdict": "pass",
+       "evidence": ["grading/results/api-bounds-grader.json", "grading/results/poll-browser-grader.json"],
+       "detail": "Through the real API on an isolated migrated replica: question of exactly 200 chars accepted; 201 rejected (E_INPUT text max 200); option of 50 accepted, 51 rejected (E_INPUT text max 50); empty question rejected (text min 1); a single option rejected (optionB required); 4 options accepted; option D without C rejected (BAD_OPTIONS); poll in a DM rejected (GROUP_ONLY). UI creation through the frozen PollCompose also created poll e47a8bdc-70f4-4ad0-91f3-038fba2c0987 in g-starter."},
+      {"id": "m7-a02", "subject": "live tallies in two independent browser contexts; stable poll/option IDs", "verdict": "pass",
+       "evidence": ["grading/results/poll-browser-grader.json"],
+       "detail": "Alice and Bob in separate Chromium browser contexts (separate storage/profile) both rendered poll id e47a8bdc-70f4-4ad0-91f3-038fba2c0987 with option IDs a,b (aria-valuetext), identical across contexts. Alice's vote appeared in Bob's context without reload (a=0,b=1,total 1 vote) and Bob's vote raised the total to 2 in his own context; final tallies agreed in both contexts and in server rows."},
+      {"id": "m7-a03", "subject": "one changeable vote per member; set semantics A->B", "verdict": "pass",
+       "evidence": ["grading/results/poll-browser-grader.json", "grading/results/poll-offline-grader.json", "grading/results/api-bounds-grader.json"],
+       "detail": "Alice voted a (a=1,b=0), changed to b (a=0,b=1) with no total growth. Bob voted a online then changed to b while actually browser-offline. Final canonical state: a=0, b=2, total 2 votes; stored rows show exactly two vote rows (one per principal) and maintained pollTallies b=2 with no 'a' row. API-level repetition of the same state also left a=0,b=1 unchanged on a separate control poll."},
+      {"id": "m7-a04", "subject": "repeat of same chosen option adds no second vote/count", "verdict": "pass",
+       "evidence": ["grading/results/poll-offline-grader.json", "grading/results/api-bounds-grader.json"],
+       "detail": "After settlement Bob re-clicked the same option b in the UI: tallies stayed a=0,b=2,total 2 and no pending operation remained. Independent API repeat of polls.vote with the identical option produced no tally change (unique (pollId,userId) upsert)."},
+      {"id": "m7-a05", "subject": "offline vote durability: pending survives close/reopen offline and settles once on reconnect", "verdict": "pass",
+       "evidence": ["grading/results/poll-offline-grader.json"],
+       "detail": "Playwright context set actually offline (app status text 'offline'); Bob's vote became a pending operation 251794fe-c566-484d-8ebd-05284d6dcea5 shown as busy/selected without a synthetic tally bump. The page was closed and a new page opened while still offline: the app shell was restored from the service-worker cache, the session persisted, and the same durable operation ID was still queued. On reconnect the queue drained once (pending empty) and the tally moved to b=2 exactly once; no duplicate vote rows exist. No synthetic network fault was substituted."},
+      {"id": "m7-a06", "subject": "persisted conversation messageCount field plus real backfill in the same prepared database", "verdict": "pass",
+       "evidence": ["grading/results/census-premig.json", "grading/results/census-final.json", "grading/results/msg-compare.json", "grading/results/replay-migration.json"],
+       "detail": "Same-database identity proven: pre-M7 and final stores share _meta created_at 1789230283419 and identical principal IDs for all 8 personas; _commits extends 15 -> 115 (pre-M7 application sequence 15 as declared) rather than restarting. Schema hash changed eef6037731... -> 077fec9f9a... (additive). conversations rows in the final store carry a persisted messageCount column (d-alice-bob 18, g-starter 11, builder bounds group 3) - server-side stored state, not a client-computed total. Independent replay on an isolated copy of the supplied pre-M7 database through the public conversations.backfillCount mutation produced messageCount 6 and 9 with both chunks committed."},
+      {"id": "m7-a07", "subject": "counts DM 6 / group 9 (tombstone excluded), +poll = 10, +text = 11, maintained forward, retries do not double-increment", "verdict": "pass",
+       "evidence": ["grading/results/poll-browser-grader.json", "grading/results/api-bounds-grader.json", "grading/results/census-final.json"],
+       "detail": "See countCheckpoints below. Reachable Chat settings UI values and public API/row values agreed at each checkpoint."},
+      {"id": "m7-a08", "subject": "preservation of all preexisting messages, fields, controls and receipts", "verdict": "pass",
+       "evidence": ["grading/results/msg-compare.json", "grading/results/snapshot-comparison-independent.json"],
+       "detail": "See snapshotComparison and migrationPreservation below."},
+      {"id": "m7-a09", "subject": "previously passing selected regressions still pass on the final build", "verdict": "pass (25/25 previously passing IDs re-covered; see regressionSelection)", "evidence": ["grading/results/suite/selected-1789234192869.json", "grading/results/suite/controls-1789234219364.json", "grading/logs/custom-client-demo-grader.log", "grading/results/custom-api-results-grader.json"]}
+    ],
+    "scopeOmissionsHonoured": "Media/avatar lifecycle, view-once, expiry, scheduling, push/presence and native Apple proof were outside the frozen selected scope and were not exercised; they are recorded as omissions, not passes. Omitted prerequisites did not block any selected scenario."
+  },
+  "migrationPreservation": {
+    "sameDatabase": true,
+    "freshReplacementDetected": false,
+    "clientComputedTotalDetected": false,
+    "evidence": {
+      "preM7": {"conversations": 2, "messages": 16, "commitsMax": 15, "schemaHash": "eef603773168d623e6e68e8df186158ce049c57da35fa8494093838ec4ab1382", "conversationsHaveMessageCount": false},
+      "final": {"conversations": 3, "messages": 33, "commitsMax": 115, "schemaHash": "077fec9f9adc6d1f5e0b5fbabd37394626573e240026040d5cf5fbf35b761121", "conversationsHaveMessageCount": true, "createdAtUnchanged": true, "principalsUnchanged": true}
+    },
+    "preexistingMessagePreservation": {"comparedIds": 16, "fieldDiffs": 0, "fields": ["id", "conversationId", "senderId", "serverTimestamp", "type", "text", "edited", "tombstone", "replyTo"], "note": "All 16 pre-M7 message rows including sm-m7-tombstone-control are byte-identical in the final store; existing rows retain absent/null type and export as text."},
+    "coverageProof": {
+      "method": "Physical row-store census of the supplied pre-M7 database (table_name='conversations') plus an 8-persona authenticated inbox enumeration on the replay replica.",
+      "physicalConversationTotal": 2,
+      "conversationsBackfilled": ["d-alice-bob", "g-starter"],
+      "uncoveredConversations": 0,
+      "note": "Coverage is proven against the physical total, not against a named first page."
+    },
+    "replay": {
+      "database": "isolated copy of grading-input/pre-m7-db (three-file set)",
+      "schemaInstall": "automatic additive install by the supported owner when the M7 program was served against the pre-M7 store; messageCount read back as null before backfill",
+      "results": [
+        {"conversationId": "d-alice-bob", "beforeCount": null, "visibleMessages": 6, "receipt": "committed", "afterCount": 6},
+        {"conversationId": "g-starter", "beforeCount": null, "visibleMessages": 9, "storedRows": 10, "receipt": "committed", "afterCount": 9, "tombstoneExcluded": true}
+      ],
+      "guardChecks": [
+        {"check": "repeat backfill on an already-initialized conversation (bob on d-alice-bob, bob and carol on g-starter)", "result": "rejected (ALREADY_MIGRATED) x3"},
+        {"check": "backfill on a freshly created conversation initialized to 0", "result": "rejected (ALREADY_MIGRATED)"}
+      ],
+      "graderFailuresRetained": [
+        {"what": "first db-census run against the live-served final store", "error": "SQLITE_BUSY 'database is locked'", "resolution": "re-ran census on a static byte copy (grading/dbcopy-final); retained in grading/logs/census-final.err"},
+        {"what": "first browser probe offline phase", "error": "window.clique.state is undefined (assessor used the wrong accessor; correct accessor is getSnapshot())", "resolution": "retried once in grading/probes/poll-offline.mjs; failure retained in grading/results/poll-browser-grader.json (field 'fatal')"},
+        {"what": "two shell invocations of `timeout 300 $N --no-warnings ...`", "error": "timeout: failed to run command '--no-warnings'", "resolution": "re-invoked with the interpreter path directly"}
+      ]
+    },
+    "builderReportedMigration": {
+      "file": "m7/migration.json",
+      "claims": "two conversations backfilled to 6 and 9, both chunks committed, seq 16 and 17",
+      "retainedBuilderFailureTail": "The builder driver iterated persona names ['alice','bob','carol','dave','eve','frank','grace','heidi']; 'eve' and 'heidi' are not seeded accounts (the database has erin and henry), so the driver ended with E_AUTH_INVALID after the two successful chunks. The failure is retained in the builder record and is reproduced here as an evidence weakness, not as data loss: independent physical census shows only two conversations existed, so coverage is nevertheless complete.",
+      "reducedChunkAttempts": "None found in the builder record or in my replay; both conversations were under the 201-visible-message guard, so no reduced-chunk or retry sequence was needed. No larger-than-guard migration was attempted by either party."
+    }
+  },
+  "snapshotComparison": {
+    "boundary": "Compared the immutable supplied pre-M7 persona snapshots against the builder's FIRST post-migration exports (m7/post-m7-{alice,bob,carol}.json) before any later polling or read/view mutation. Later legitimate receipt advancement was not substituted.",
+    "builderBaselineIntegrity": "m7-baseline/pre-m7-{alice,bob,carol}.json hash-match the supplied grading-input snapshots exactly, so the builder's own comparison used the same immutable inputs.",
+    "independentResult": {
+      "coverageFailures": 0,
+      "messageFieldDifferences": 0,
+      "personas": [
+        {"actor": "alice", "messages": 16, "visible": 15, "edited": 1, "tombstone": 1, "replies": 6, "reactions": 4, "ownMine": 2, "ownReceiptsWithFetched": 7, "ownReceiptsWithViewed": 7, "missingInPost": 0, "addedInPost": 0},
+        {"actor": "bob", "messages": 16, "visible": 15, "edited": 1, "tombstone": 1, "replies": 6, "reactions": 4, "ownMine": 1, "ownReceiptsWithFetched": 5, "ownReceiptsWithViewed": 5, "missingInPost": 0, "addedInPost": 0},
+        {"actor": "carol", "messages": 10, "visible": 9, "edited": 1, "tombstone": 1, "replies": 3, "reactions": 2, "ownMine": 1, "ownReceiptsWithFetched": 4, "ownReceiptsWithViewed": 4, "missingInPost": 0, "addedInPost": 0}
+      ],
+      "requiredFieldsChecked": ["id", "conversationId", "senderId", "serverTimestamp", "type", "text", "caption", "mediaReference (explicit null)", "edited", "tombstone", "replyTo", "reactions[] with mine", "ownMessageReceiptState{serverAccepted,recipientFetched,recipientViewed,watermarks}"],
+      "controlsAssertedNonEmptyBeforeComparison": true,
+      "personaCoverage": "all three supplied personas present; none omitted",
+      "falsePositiveNote": "My comparator's strict object identity check flagged 'principal' for all three personas; manual inspection shows identical id/kind/name content. Not a product difference."
+    },
+    "exporterAudit": {
+      "tool": "scripts/snapshot-export.mjs (read-only, persona-authenticated Node exporter)",
+      "typeProjection": "exports m.type ?? 'text'; pre-M7 rows with absent type export as text and new polls export as poll - consistent in both boundary exports",
+      "forceRefresh": "Independently exercised the real public resources with forced refreshes on live replicas (conversations.inbox, messages.page, messages.latest, messages.receipts, messages.reactions, conversations.settings, conversations.unread, polls.get) through grading/probes/* and the rerun documented drivers; all returned live server data rather than cached receipts."
+    }
+  },
+  "countCheckpoints": {
+    "canonicalSequenceSource": "Independent sequence on an isolated copy of the supplied pre-M7 database (port 54901), migrated by my own replay; the retained final database already contained the builder's later poll/bounds/regression mutations and was therefore NOT used as the baseline.",
+    "checkpoints": [
+      {"checkpoint": "initial after backfill", "dm": {"conversationId": "d-alice-bob", "uiChatSettings": "6", "apiSettings": 6, "storedRows": 6}, "group": {"conversationId": "g-starter", "uiChatSettings": "9", "apiSettings": 9, "visibleRows": 9, "storedRowsIncludingTombstone": 10, "tombstoneExcluded": true}},
+      {"checkpoint": "one new group poll", "group": {"uiChatSettings": "10", "pollMessageId": "e47a8bdc-70f4-4ad0-91f3-038fba2c0987", "optionIds": ["a", "b"]}},
+      {"checkpoint": "one new group text", "group": {"uiChatSettings": "11", "textMessageId": "b7eebef6-b220-4b72-a7e5-37412fe8151d", "rowLevelStored": 11}},
+      {"checkpoint": "maintained-forward with a distinct new message + retry", "conversationId": "grader-bounds-ddf44d13-75f4-411e-ba56-35d2d12cf5ea", "before": 3, "afterNewMessage": 4, "afterRetryOfSameMessageIdentity": 4, "doubleIncrement": false}
+    ],
+    "retainedFinalDatabaseAccounting": {
+      "d-alice-bob": {"storedMessageCount": 18, "visibleRows": 18, "agrees": true},
+      "g-starter": {"storedMessageCount": 11, "visibleRows": 11, "totalRowsIncludingTombstone": 12, "agrees": true, "composition": "9 preexisting visible + builder poll 36efd241-c410-42bc-bf35-891eb6fbdcea + builder text 533d0fc0-4ac5-4e00-b399-9b7c677f9baf"},
+      "m7-bounds-046108a4-0416-4586-866f-09a88563a99f": {"storedMessageCount": 3, "visibleRows": 3, "agrees": true, "note": "builder bounds-control conversation created after the canonical checkpoints"},
+      "builderPollTallies": {"pollId": "36efd241-c410-42bc-bf35-891eb6fbdcea", "b": 2, "voteRows": 2, "consistentWithA0B2Total2": true}
+    },
+    "notNewM7Features": "Query-derived social/Insights totals, client-derived unread, fetched/viewed watermarks and per-post day fields already existed pre-M7 (documented in API.md before the change and present in the pre-M7 store); they are not counted as new M7 work."
+  },
+  "pollAndOfflineIndependentOutcomes": {
+    "boundsThroughRealBehaviour": [
+      {"case": "question length 200", "result": "committed"},
+      {"case": "question length 201", "result": "rejected E_INPUT polls.create.question exceeds text max 200"},
+      {"case": "question length 0", "result": "rejected E_INPUT text min 1"},
+      {"case": "option length 50", "result": "committed"},
+      {"case": "option length 51", "result": "rejected E_INPUT polls.create.optionA exceeds text max 50"},
+      {"case": "1 option only", "result": "rejected E_INPUT optionB must be text"},
+      {"case": "4 options", "result": "committed"},
+      {"case": "option D without C", "result": "rejected BAD_OPTIONS"},
+      {"case": "poll in a DM", "result": "rejected GROUP_ONLY"},
+      {"case": "vote optionId 'c' on a 2-option poll", "result": "rejected BAD_OPTION"},
+      {"case": "vote optionId 'x'", "result": "rejected BAD_OPTION"}
+    ],
+    "authorization": [
+      {"case": "nonmember (dave) polls.vote", "result": "rejected NOT_FOUND"},
+      {"case": "nonmember (dave) polls.create", "result": "rejected NOT_MEMBER"},
+      {"case": "nonmember (dave) polls.get", "result": "denied: resource never completes, no poll data returned"},
+      {"case": "unauthenticated HTTP POST /api/query polls.get", "result": "HTTP 401 S3_AUTH"}
+    ],
+    "stableIdentifiers": {"pollIdSameAcrossContexts": true, "optionIdsSameAcrossContexts": ["a", "b"], "pollIdEqualsMessageId": true},
+    "offlineRecovery": {
+      "realBrowserOffline": true,
+      "syntheticFaultOnly": false,
+      "pendingOperationId": "251794fe-c566-484d-8ebd-05284d6dcea5",
+      "survivedCloseReopenOffline": true,
+      "sameDurableIdentityAfterReopen": true,
+      "settledExactlyOnce": true,
+      "finalTally": {"a": 0, "b": 2, "total": 2},
+      "repeatSameOptionAfterSettle": {"tallyChanged": false, "extraPending": false}
+    }
+  },
+  "oldClientControl": {
+    "supplied": true,
+    "archiveHashVerifiedBefore": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+    "archiveHashVerifiedAfter": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+    "originalFrozenArchiveUnchanged": true,
+    "extraction": "separate writable copy under grading/private/oldclient (custody kept private; profile contents, storage bearer tokens and credentials not printed or published)",
+    "orderOfOperations": "performed only after migration-preservation and the canonical poll/count checkpoints; the pre-migration replay owner (54901) was stopped and the old client was pointed at its own copy of a migrated database, so no other owner of that database was running",
+    "phase1OfflineAtOriginalOrigin": {
+      "origin": "http://127.0.0.1:54910",
+      "serverRunning": false,
+      "contextOffline": true,
+      "appShellRestored": true,
+      "sessionRestored": true,
+      "originalQueuedOperationPresent": true,
+      "operationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+      "messageId": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "journalMatch": "matches grading-input/old-client/old-client-journal.json (op messages.send, conversation d-alice-bob, pre-M7 schemaHash eef6037731..., planHash 2c9ade3548...)"
+    },
+    "phase2ReconnectToMigratedDatabase": {
+      "serverDatabase": "copy of the migrated replay database (schema 077fec9f9a..., program 7cefed0544...)",
+      "observationWindow": "~45 s online polling plus one full page reload (~60 s total)",
+      "clientStatus": "online",
+      "outcome": "recoverably parked",
+      "committedExactlyOnce": false,
+      "terminallyRejected": false,
+      "lost": false,
+      "serverSideCheck": {"messagesInDm": 6, "containsQueuedMessageId": false, "dmMessageCountUnchanged": 6},
+      "replacementOperationManufactured": false,
+      "journalDiscarded": false,
+      "indexedDbCleared": false,
+      "interpretation": "The original durable operation retained its identity and journal across the schema/program change and remained queued in the client, but it did not automatically commit, was not terminally rejected, and produced no user-visible resolution during the observation window. Recoverably parked is reported as such and is NOT treated as automatic compatibility. This control's state was kept separate from the canonical DM/group count checkpoints (it ran against its own database copy)."
+    }
+  },
+  "regressionSelection": {
+    "provenance": "IDs taken only from the frozen pre-M7 builder-owned selection root selected-results.json (sha256 32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b), field selectedAssertions: 25 pass, 1 fail.",
+    "excludedFromSelection": [{"id": "s3-resource-independence-http-batch-failure", "priorStatus": "fail", "handling": "excluded; a prior failure is not relabeled as a new regression"}],
+    "graderWrittenStatusesUsed": false,
+    "reran": {
+      "driver": "unchanged scripts/selected-checks.mjs and scripts/controls-check.mjs, copied to grading/probes with only the output path redirected (diff proves only the output path differs); run against the isolated final-database replica on 54900",
+      "documentedSuiteRawOutputs": ["grading/results/suite/selected-1789234192869.json", "grading/results/suite/controls-1789234219364.json", "grading/results/custom-api-results-grader.json", "grading/logs/custom-client-demo-grader.log"],
+      "results": [
+        {"id": "m3-a01", "status": "pass"}, {"id": "m8-a13", "status": "pass"}, {"id": "membership-authorization", "status": "pass"},
+        {"id": "m8-a14", "status": "pass"}, {"id": "m8-a01", "status": "pass"}, {"id": "m8-a03", "status": "pass"},
+        {"id": "m8-a04", "status": "pass"}, {"id": "m8-a02", "status": "pass"}, {"id": "s3-resource-independence-denied", "status": "pass"},
+        {"id": "stale-account-and-rapid-navigation", "status": "pass"}, {"id": "m6-a05", "status": "pass"}, {"id": "m6-a06", "status": "pass"},
+        {"id": "m8-a15", "status": "pass"}, {"id": "m6-a01", "status": "pass"}, {"id": "m6-a03", "status": "pass"},
+        {"id": "m8-a17", "status": "pass"}, {"id": "m6-a07", "status": "pass"}, {"id": "m8-a16", "status": "pass"}, {"id": "m8-a18", "status": "pass"},
+        {"id": "distinct-server-fetched-viewed-receipts", "status": "pass"}, {"id": "populated-reaction-own-state", "status": "pass"},
+        {"id": "delayed-old-account-response-fenced", "status": "pass"},
+        {"id": "m6-a10", "status": "pass", "via": "separately installed custom client (grading/custom-client/check-copy.mjs) plus scripts/custom-client-demo.mjs"},
+        {"id": "m6-a11", "status": "pass", "via": "same"}, {"id": "m6-a12", "status": "pass", "via": "same; documented messages.latest path returns the current latest group message"}
+      ],
+      "nonVacuityChecks": [
+        {"area": "auth/navigation", "evidence": "m3-a01 and stale-account-and-rapid-navigation exercise login/logout, rapid chat switching and a stale-account fence; delayed-old-account-response-fenced passed as a distinct control; my own probes independently logged in as alice/bob/carol/dave with fixture credentials and observed principal-scoped data."},
+        {"area": "unavailable ancillary resource", "evidence": "s3-resource-independence-denied drives ?denyUnread=1 (conversations.unavailable always denies): unread shows 'Unknown' (not 0), authorized history stays usable, and the send settles exactly once with a single copy at the recipient."},
+        {"area": "delayed-read send / offline queued send / same-account convergence", "evidence": "m6-a01/a03/a05-a07 and m8-a13-a18 passed on the final build, including dual-Alice offline queue, close/reopen while offline and two-message arrival ordering; row-level inspection of the replica shows the 'Dual offline ... false 0/1/true 0/1' messages in arrival order without duplicates."},
+        {"area": "public API pagination", "evidence": "grading/probes/replay-migration.mjs and the custom-client regression walk conversations.inbox and messages.page with strict cursor traversal and complete-flag assertions."},
+        {"area": "starter Insights reachability", "evidence": "m8-a01-a04 passed on the final build via the reachable Insights screen (server-computed six totals, seven UTC-day buckets, +1 likes-received after a control like)."}
+      ]
+    },
+    "notRerunByThisAssessor": ["large-scale acquisition/paging measurements (outside the selected day-two scope and explicitly not a gate)"]
+  },
+  "ordinaryClientResponsibilitiesAudit": {
+    "appClients": {"createClientCallsInAppSource": 1, "instance": "src/client.tsx exports one client; window.clique is that same instance (test bridge, not an extra reader)", "extraAuthenticatedAppReaders": 0},
+    "notASuccessCriterionByItself": "A single createClient call does not by itself establish ergonomic success; the layers below are counted explicitly.",
+    "appSideLayersCounted": [
+      {"layer": "IndexedDB storage adapter wrapper (src/client.tsx)", "purpose": "timestamp loads/writes only; delegates to public createIndexedDBStorage unchanged", "kind": "instrumentation", "newInM7": false},
+      {"layer": "acquisition helper (src/acquire.ts)", "purpose": "after refresh() returns a non-fresh snapshot it subscribes and waits up to 15 s for a fresh array, then follows every cursor and verifies IDs itself", "kind": "coordination workaround for SDK snapshot freshness/completeness", "newInM7": false},
+      {"layer": "service worker (dist/sw.js)", "purpose": "versioned app-shell cache enabling offline reopen", "kind": "app responsibility", "newInM7": false},
+      {"layer": "pending-vote presentation (src/chat.tsx PollMessage)", "purpose": "renders state.pending for the offline vote without synthesizing a tally", "kind": "app responsibility", "newInM7": true},
+      {"layer": "app-authored backfill mutation + one-shot operational driver (snapback/conversations.q backfillCount, m7/migrate.mjs)", "purpose": "the platform provides no migration/backfill facility; the app had to author a guarded per-conversation mutation and a manual multi-persona enumeration driver", "kind": "migration chunk design + manual coordination", "newInM7": true},
+      {"layer": "write-path coupling", "purpose": "messages.send and polls.create must reject unbackfilled conversations (COUNT_NOT_MIGRATED) and must increment the count in the same transaction", "kind": "app-maintained invariant", "newInM7": true}
+    ],
+    "customRetryLoops": {"inAppSource": 0, "inHarness": "test observation refresh retries in the documented drivers (pre-existing)"},
+    "cacheOrAcquisitionHelpers": {"privateCaches": 0, "acquisitionHelper": 1},
+    "pendingOperationReconciliation": {"appSide": "none beyond displaying state.pending; the SDK owns the durable queue", "observedGap": "no app or SDK affordance surfaces or resolves an operation parked by a program-identity change (see defect D3)"},
+    "migrationChunkDesign": {"guard": "rejects a conversation with >= 201 visible messages", "manualCoordination": "conversation discovery by enumerating 8 persona inboxes; no server-side enumeration surface for all conversations", "implication": "a larger database would need a different, unimplemented strategy; the limit is disclosed in API.md"}
+  },
+  "defects": [
+    {"id": "D1", "category": "test/evidence gap (builder)", "severity": "low", "title": "Migration driver persona list contains two non-existent accounts",
+     "reproduction": "m7/migrate.mjs iterates ['alice','bob','carol','dave','eve','frank','grace','heidi']; the seeded accounts are dave/erin/frank/grace/henry. The retained m7/migration.json ends with error 'E_AUTH_INVALID: invalid email or password'.",
+     "practicalImplication": "The builder's persona-sweep coverage argument is weaker than stated because the sweep aborted after the first two personas; coverage is nevertheless complete here only because a physical census shows exactly two conversations existed. On a database where a conversation was visible only to a later persona, this driver would have silently missed it.",
+     "evidence": ["m7/migration.json", "grading/results/replay-migration.json (my sweep with the correct persona names)"]},
+    {"id": "D2", "category": "product limitation (disclosed)", "severity": "medium", "title": "Backfill cannot migrate a conversation with 201 or more visible messages",
+     "reproduction": "snapback/conversations.q backfillCount counts `first 201 by byVisible` and rejects with BACKFILL_CHUNK_TOO_LARGE at >= 201; no chunked or resumable path exists.",
+     "practicalImplication": "The day-two migration works for this prepared starter database only. Any realistic conversation over 200 visible messages cannot be migrated with the shipped mutation, and messages.send/polls.create reject unbackfilled conversations (COUNT_NOT_MIGRATED), so such a conversation would become unwritable after the schema change. Neither the builder nor I exercised a reduced-chunk attempt because no conversation exceeded the guard.",
+     "evidence": ["snapback/conversations.q", "API.md M7 section", "grading/results/replay-migration.json"]},
+    {"id": "D3", "category": "package behaviour", "severity": "medium", "title": "An old client's queued operation parks indefinitely with no terminal outcome after a schema/program identity change",
+     "reproduction": "Reopen the saved pre-M7 profile offline at http://127.0.0.1:54910 (operation 731cbc48-b0ea-4e0a-819d-a74e5bc59a19 present), then serve a migrated database at that origin and reconnect. Over ~60 s online plus a reload the operation stays in state.pending, never commits (server DM still has 6 messages and no m7-old-client-... message) and is never rejected.",
+     "practicalImplication": "A user who composed a message before a deployment sees it queued forever with no error and no delivery; the app offers no surface to retire or resubmit it, and the platform provides no terminal receipt. Parked is not automatic compatibility. The builder's API.md documents parking honestly and did not claim old-client success.",
+     "evidence": ["grading/results/old-client-offline.json", "grading/results/old-client-reconnect.json"]},
+    {"id": "D4", "category": "package behaviour (pre-existing, informational)", "severity": "low", "title": "Resource completeness flag is false on fresh single-row/paged results",
+     "reproduction": "messages.latest via the separately installed client returns status 'ready', fresh true, data present, complete false (grading/results/custom-api-results-grader.json); API.md documents the same behaviour for large paginated refreshes and src/acquire.ts contains an explicit workaround.",
+     "practicalImplication": "Applications cannot rely on the SDK completeness flag to decide acquisition is finished, so every client must verify IDs itself; this is an ergonomic cost carried by the app, not a defect introduced by M7.",
+     "evidence": ["grading/results/custom-api-results-grader.json", "src/acquire.ts", "API.md"]},
+    {"id": "D5", "category": "unsupported surface / UX nit", "severity": "low", "title": "Nonmember poll read is denied by never completing rather than by an explicit error",
+     "reproduction": "dave (nonmember) calls polls.get: the resource returns ok with complete=false and no data instead of an explicit NOT_MEMBER error, unlike polls.vote/create which return explicit codes.",
+     "practicalImplication": "Authorization holds (no data leaks), but a client cannot distinguish denial from a slow/incomplete resource without extra logic.",
+     "evidence": ["grading/results/api-bounds-grader.json"]},
+    {"id": "D6", "category": "test/evidence gap (assessor-visible)", "severity": "low", "title": "Chat settings count is only visible while the settings panel is toggled open and resets when the conversation is reselected",
+     "reproduction": "Open a conversation, press Chat settings (count appears), switch conversation and back: the panel is closed again and the count is not shown until re-toggled.",
+     "practicalImplication": "Minor discoverability issue only; the value itself was reachable and correct at every checkpoint. It also caused one of my waits to time out before I re-read the value successfully (retained in grading/results/poll-browser-grader.json).",
+     "evidence": ["src/chat.tsx", "grading/results/poll-browser-grader.json"]}
+  ],
+  "distinctions": {
+    "appDefects": ["D1 (builder evidence)", "D2 (app migration design limit)", "D6 (app UI nit)"],
+    "packageBehaviour": ["D3 (parked old operation)", "D4 (completeness flag)"],
+    "unsupportedSurface": ["D5 (denial style)", "no public delete/expiry/media/scheduling workflow exists in this text-only change (declared omission, not tested as a pass)"],
+    "testOrEvidenceGaps": ["D1", "builder's own poll-browser-attempt-01 baseline is stale relative to the changed state (builder documents it as retained failed attempt evidence; I did not rerun it, per BUILD.md and to avoid mutating a builder artifact)"]
+  },
+  "claimsExplicitlyNotMade": [
+    "No full M7 or Clique milestone green is reported.",
+    "No weighted or comparative score is reported.",
+    "No calibrated holdout result is reported.",
+    "No like-for-like comparison with Snapback2 is reported.",
+    "Media, expiry, native/iOS, scheduling, push/presence and full-scale acquisition remain omissions, not passes."
+  ],
+  "overallIndependentAssessment": {
+    "selectedTextWebSubset": "All nine selected m7 assertions in the frozen text/web subset were independently reproduced as passing on the frozen final app, including a real migration replay on an isolated copy of the supplied pre-M7 database, complete preservation of all 16 preexisting message rows and every required exported field/control for all three personas, canonical counts 6/9 -> 10 -> 11 with reachable UI and API agreement, genuine browser-offline vote durability with a single settlement, and the 25 previously passing selected regressions.",
+    "qualifications": "Findings are limited to this small prepared starter database and the text/web projection. The migration approach does not generalize past 200 visible messages (D2), the old-client pending operation parks without resolution (D3), and the builder's migration sweep contained a persona-name error (D1)."
+  }
+}

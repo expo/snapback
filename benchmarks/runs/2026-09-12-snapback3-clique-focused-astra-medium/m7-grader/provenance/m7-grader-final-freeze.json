@@ -1,0 +1,183 @@
+{
+  "schema": "snapback3-focused-m7-grader-final-freeze.v1",
+  "createdEpoch": 1789235226,
+  "gradeLane": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-grade",
+  "snapshot": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-grader-final",
+  "manifest": "/home/ccheever/snapback3-clique-focused-20260912/packet/snapshots/m7-grader-final.manifest.json",
+  "manifestSha256": "549b277cb8d7843a4b71b7455a078b563f5bd8ce8fca7aef28eefd502b503525",
+  "contentSymlinkDigestSha256": "6c979ba9ddcc87efcdbf89afca8ef76ad325f9e78ab61d914afed41bacea08ba",
+  "terminal": {
+    "actorPid": 1711285,
+    "wrapperPid": 1711284,
+    "actorExit": 0,
+    "startedEpoch": 1789233661,
+    "endedEpoch": 1789234846,
+    "elapsedSeconds": 1185,
+    "evidenceErrors": []
+  },
+  "ownedPidChecks": [
+    {
+      "pid": 1711284,
+      "absent": true
+    },
+    {
+      "pid": 1711285,
+      "absent": true
+    },
+    {
+      "pid": 1713498,
+      "absent": true
+    },
+    {
+      "pid": 1717541,
+      "absent": true
+    },
+    {
+      "pid": 1732131,
+      "absent": true
+    },
+    {
+      "pid": 1736186,
+      "absent": true
+    }
+  ],
+  "portChecks": [
+    {
+      "port": 54900,
+      "free": true
+    },
+    {
+      "port": 54901,
+      "free": true
+    },
+    {
+      "port": 54902,
+      "free": true
+    },
+    {
+      "port": 54903,
+      "free": true
+    },
+    {
+      "port": 54910,
+      "free": true
+    }
+  ],
+  "outputHashes": {
+    "grading/grader-report.json": "7f44cb5d83cee730ad05dde13ba9d7ce84ed2644b362e7be856f15322d5c4066",
+    "grading/trace.md": "41313b1fa6d65cee31795b88f91817b649b04bc14a6fcb97590cf1fbac4e3ae9",
+    "grading/DONE": "d19c3e0d5c3e4c9fd1c86e72c3d10f21b8c7018aa81a7aa6b54370f4d8241f45"
+  },
+  "inputVerification": {
+    "executionInput": {
+      "path": "execution-input.json",
+      "bytes": 21253,
+      "sha256": "fb953bb0bcc99bf30f6b2400bcd81932835b906993bc6930b69306ed8e8fdc88",
+      "verified": true
+    },
+    "scope": {
+      "path": "../../SCOPE.md",
+      "sha256": "98ad61d33e321f5106a346edcd3ad449b60a042911cf853656c24613d9cd1c0d",
+      "verified": true
+    },
+    "finalSourceManifest": {
+      "path": "../../snapshots/m7-final.manifest.json",
+      "sha256": "98d6a0e2125833d4b330adc6be21963e4d1cd3ea4a02c269832f81210c2be6ea",
+      "verified": true
+    },
+    "builderPrompt": {
+      "path": "../../prompts/astra-snapback3-m7.md",
+      "sha256": "1f8b9c073d870fbf48d4128fba032815562182faf15ca789017c9af67addb2a4",
+      "verified": true,
+      "note": "hash only; prompt content not read by this assessor"
+    },
+    "package": {
+      "archive": "snapback3-0.0.1-experimental.0-linux-x64.tgz",
+      "sha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+      "verified": true,
+      "platformSource": "409954115f151a72dd95e897c5f00f36877f11e0",
+      "patched": false
+    },
+    "instrumentManifest": {
+      "path": "../../preflight/instrument-files.sha256",
+      "sha256": "b183d949bb4c5871747afb92f0eccb153c813765037507ef4d888f76a6da07a6",
+      "verified": true
+    },
+    "appSourceSpotChecks": [
+      {
+        "path": "src/chat.tsx",
+        "sha256": "feae8ecc91dab39038b846935ea83eed6de261dd592dce45a6d1aa772b6fcea6",
+        "matchesExecutionInput": true
+      },
+      {
+        "path": "snapback/polls.q",
+        "sha256": "4719bd3117f07f4ff261da09a8eac5a8d09180c7f7affaa35513cace41a2d148",
+        "matchesExecutionInput": true
+      },
+      {
+        "path": "snapback/schema.q",
+        "sha256": "652dd567eedd49fb1419718da9b27464e7a9dab9471a4b0557a94273a27db179",
+        "matchesExecutionInput": true
+      },
+      {
+        "path": "snapback/conversations.q",
+        "sha256": "a76c403177947c639cbe6882a468c75e9ece7b115b0cfef88e4b854b0d67dc2e",
+        "matchesExecutionInput": true
+      },
+      {
+        "path": "dist/index.html",
+        "sha256": "59ed052e766cef638607d18b2abf197c6f87ad8c978769e2798365aae6033afd",
+        "matchesExecutionInput": true
+      }
+    ],
+    "suppliedDatabasesAndControls": [
+      {
+        "path": ".snapback3/store.sqlite",
+        "sha256": "936bf1ac473b358961adb62e1fd4f1681a16e661d6b3055c9247f364faa12773",
+        "verifiedBeforeAndAfter": true
+      },
+      {
+        "path": ".snapback3/store.sqlite-wal",
+        "sha256": "546bb18ae9f6a12efbd91fe4b576a4c4addb84293d6faf1e10978aa25571ccc6",
+        "verifiedBefore": true
+      },
+      {
+        "path": "grading-input/pre-m7-db/store.sqlite",
+        "sha256": "79dc997ef76cbe47a689f612ef88bc89a2e21a361460aa4e58dca2acb07d1487",
+        "verifiedBeforeAndAfter": true
+      },
+      {
+        "path": "grading-input/pre-m7-snapshots/pre-m7-alice.json",
+        "sha256": "8064fe23f0222806140725b34141364437269f4890ec37e44406d09e2f305093",
+        "verified": true
+      },
+      {
+        "path": "grading-input/pre-m7-snapshots/pre-m7-bob.json",
+        "sha256": "123db821f1ee69849e2a1258a67a6a5610d187b4a53deb4831b000630077f1fc",
+        "verified": true
+      },
+      {
+        "path": "grading-input/pre-m7-snapshots/pre-m7-carol.json",
+        "sha256": "fde8fddb3542692d75081565d35865173b9c50a7b1a81bb87e31c8b4f519bb6c",
+        "verified": true
+      },
+      {
+        "path": "grading-input/old-client/profile.tar.gz",
+        "sha256": "5b8c58f8b17cfb145c82bbdfbdce44f91e30a32521cf1d6f3378314acfa4858e",
+        "verifiedBeforeAndAfter": true
+      },
+      {
+        "path": "selected-results.json (pre-M7 builder-owned regression selection)",
+        "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+        "verifiedBeforeAndAfter": true
+      },
+      {
+        "path": "m7/selected-results.json (builder M7 claim)",
+        "sha256": "f93597cc9928ce66ab4b30737f4c3c9e188bbb6f8496886d05650e25a3f3d47e",
+        "verifiedUnchanged": true
+      }
+    ]
+  },
+  "sourceAndPackageInterpretation": "The independent report records the fixed 108-file package payload exact and its listed app source spot checks matching execution-input; no source or package repair was performed during freeze.",
+  "snapshotComparisonPreservedRaw": true
+}

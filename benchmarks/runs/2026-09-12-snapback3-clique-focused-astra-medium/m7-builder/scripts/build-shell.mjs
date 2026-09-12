@@ -1,0 +1,5 @@
+import fs from 'node:fs';import crypto from 'node:crypto';
+const files=fs.readdirSync('dist',{recursive:true}).filter(f=>fs.statSync('dist/'+f).isFile()&&f!=='sw.js').map(f=>'/'+f);
+const version=crypto.createHash('sha256').update(files.map(f=>fs.readFileSync('dist'+f)).join('')).digest('hex').slice(0,16);
+fs.writeFileSync('dist/sw.js',`const CACHE='clique-${version}';const ASSETS=${JSON.stringify(files)};self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;if(e.request.mode==='navigate'){e.respondWith(fetch(e.request).catch(()=>caches.match('/index.html')));return;}if(ASSETS.includes(u.pathname))e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});`);
+console.log({version,files:files.length,bytes:files.reduce((n,f)=>n+fs.statSync('dist'+f).size,0)});

@@ -1,0 +1,6 @@
+{"actor":"u0500","repetition":1,"status":"complete","acquisitionMs":32976,"verified":true}
+{"actor":"u0500","repetition":2,"status":"complete","acquisitionMs":33110,"verified":true}
+{"actor":"u0500","repetition":3,"status":"complete","acquisitionMs":32989,"verified":true}
+{"actor":"u0001","repetition":1,"status":"timeout","error":"Error: page.evaluate: Target page, context or browser has been closed","acquisitionMs":null}
+{"actor":"u0001","repetition":2,"status":"timeout","error":"Error: page.evaluate: Target page, context or browser has been closed","acquisitionMs":null}
+{"actor":"u0001","repetition":3,"status":"timeout","error":"Error: page.evaluate: Target page, context or browser has been closed","acquisitionMs":null}

@@ -1,0 +1,27 @@
+grading/evidence/gacq-1789230357769/u0500-1.json
+  status complete acqMs 34778 fgDelayMs 20003 fgAtProgress {'ids': 10018, 'pages': 98}
+  inMemoryIds 10018 verificationComplete True missing 0 dupes 0
+  idbRows [(503, 110446)] idbMsgIds [402]
+  offlineAllPages ids 200 failures 96 missingFixture 9800 complete False
+  offlineReopenMs 262 offlineQuery {'rows': 200, 'queryMs': 10.899999856948853}
+  requests 168 transferred 27777224 peakHeap 264635188 lastHeap 43130488 longTasks 135 storageEstimate {'caches': 4391506, 'indexedDB': 3140818, 'serviceWorkerRegistrations': 2558}
+  progress [{'mark': 30000, 'elapsed': 30511, 'count': 10018, 'pages': 137}] last {'elapsed': 34778, 'count': 10018, 'pages': 152, 'status': 'complete'}
+  foreground durable 20749.800000190735 settled 20933 state committed recipientFetchedEpoch 1789230379538 visible 1789230380245
+grading/evidence/gacq-1789230699958/u0001-1.json
+  status timeout acqMs 180843 fgDelayMs 20002 fgAtProgress {'ids': 7100, 'pages': 91}
+  inMemoryIds 38900 verificationComplete False missing 61100 dupes 0
+  idbRows [] idbMsgIds []
+  offlineAllPages ids 0 failures 0 missingFixture 0 complete None
+  offlineReopenMs 0 offlineQuery None
+  requests 430 transferred 74335488 peakHeap 371173192 lastHeap 212617552 longTasks 415 storageEstimate {'caches': 4391506, 'indexedDB': 18107273, 'serviceWorkerRegistrations': 2558}
+  progress [{'mark': 30000, 'elapsed': 30413, 'count': 10000, 'pages': 120}, {'mark': 60000, 'elapsed': 60462, 'count': 17400, 'pages': 194}] last {'elapsed': 180343, 'count': 38900, 'pages': 409, 'status': 'running'}
+  foreground durable 20782.10000014305 settled 21025 state committed recipientFetchedEpoch 1789230721681 visible 1789230722802
+grading/evidence/gacq-1789230882838/u0500-1.json
+  status complete acqMs 33797 fgDelayMs 4 fgAtProgress {'ids': 0, 'pages': 0}
+  inMemoryIds 10021 verificationComplete True missing 0 dupes 0
+  idbRows [(10221, 2413534)] idbMsgIds [10021]
+  offlineAllPages ids 10021 failures 0 missingFixture 0 complete True
+  offlineReopenMs 796 offlineQuery {'rows': 200, 'queryMs': 11.200000047683716}
+  requests 166 transferred 27992878 peakHeap 250388176 lastHeap 224268040 longTasks 153 storageEstimate {'caches': 4391506, 'indexedDB': 3960508, 'serviceWorkerRegistrations': 2558}
+  progress [{'mark': 30000, 'elapsed': 30276, 'count': 10021, 'pages': 139}] last {'elapsed': 33797, 'count': 10021, 'pages': 152, 'status': 'complete'}
+  foreground durable 654.9000000953674 settled 832 state committed recipientFetchedEpoch 1789230884700 visible 1789230884827

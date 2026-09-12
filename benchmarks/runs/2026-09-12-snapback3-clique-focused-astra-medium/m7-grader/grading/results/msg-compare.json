@@ -1,0 +1,372 @@
+{
+ "preCount": 16,
+ "finalCount": 33,
+ "preservedDiffs": [],
+ "preMessages": [
+  {
+   "id": "sm0001",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789225750321,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Coffee after work?"
+  },
+  {
+   "id": "sm0002",
+   "c": "d-alice-bob",
+   "s": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "ts": 1789225750322,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0001",
+   "text": "Yes. Corner place?"
+  },
+  {
+   "id": "sm0003",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789225750323,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0002",
+   "text": "Exactly. Six thirty."
+  },
+  {
+   "id": "sm0004",
+   "c": "d-alice-bob",
+   "s": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "ts": 1789225750324,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "I will bring the route map."
+  },
+  {
+   "id": "sm0005",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789225750325,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Perfect, see you there."
+  },
+  {
+   "id": "sm0006",
+   "c": "d-alice-bob",
+   "s": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "ts": 1789225750326,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0005",
+   "text": "On my way."
+  },
+  {
+   "id": "sm0007",
+   "c": "g-starter",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789225750327,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": true,
+   "rep": null,
+   "text": "Saturday plan: coffee, lake, then noodles. [M7 pre-change edited fixture]"
+  },
+  {
+   "id": "sm0008",
+   "c": "g-starter",
+   "s": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+   "ts": 1789225750328,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0007",
+   "text": "Coffee is a definite yes."
+  },
+  {
+   "id": "sm0009",
+   "c": "g-starter",
+   "s": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+   "ts": 1789225750329,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "I can meet everyone at ten."
+  },
+  {
+   "id": "sm0010",
+   "c": "g-starter",
+   "s": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "ts": 1789225750330,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "The west trail is dry now."
+  },
+  {
+   "id": "sm0011",
+   "c": "g-starter",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789225750331,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0010",
+   "text": "West trail it is."
+  },
+  {
+   "id": "sm0012",
+   "c": "g-starter",
+   "s": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+   "ts": 1789225750332,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "I will bring snacks."
+  },
+  {
+   "id": "sm0013",
+   "c": "g-starter",
+   "s": "user:jEYG7KOxOLRE6Tm6yxVd-w",
+   "ts": 1789225750333,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Should I book dinner?"
+  },
+  {
+   "id": "sm0014",
+   "c": "g-starter",
+   "s": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "ts": 1789225750334,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0013",
+   "text": "Please do, for three."
+  },
+  {
+   "id": "sm0015",
+   "c": "g-starter",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789225750335,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Locked in. See you Saturday."
+  },
+  {
+   "id": "sm-m7-tombstone-control",
+   "c": "g-starter",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789230284893,
+   "type": "<absent>",
+   "tomb": true,
+   "ed": false,
+   "rep": null,
+   "text": "This message was deleted"
+  }
+ ],
+ "newInFinal": [
+  {
+   "id": "36efd241-c410-42bc-bf35-891eb6fbdcea",
+   "c": "g-starter",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232557374,
+   "type": "poll",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Where shall we meet?"
+  },
+  {
+   "id": "533d0fc0-4ac5-4e00-b399-9b7c677f9baf",
+   "c": "g-starter",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232557885,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "M7 canonical text after poll"
+  },
+  {
+   "id": "41754bad-bbdc-4aa5-9ccb-d3049d469a7c",
+   "c": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232671469,
+   "type": "poll",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+  },
+  {
+   "id": "082365bc-c358-4679-8dc8-9803f2aba929",
+   "c": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232671474,
+   "type": "poll",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+  },
+  {
+   "id": "f33216e7-4cb7-49c8-8437-9a669f423990",
+   "c": "m7-bounds-046108a4-0416-4586-866f-09a88563a99f",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232671479,
+   "type": "poll",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+  },
+  {
+   "id": "b89948cc-91b7-4542-912a-1bbe87bfcc7e",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232673778,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Alice live 1789232671875"
+  },
+  {
+   "id": "9e94d962-6b3b-44f9-b879-3883f49a423d",
+   "c": "d-alice-bob",
+   "s": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "ts": 1789232673884,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Bob live 1789232671875"
+  },
+  {
+   "id": "a3ee2a35-f7fe-45a4-a72c-abb7541b0743",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232674109,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Same account 1789232671875"
+  },
+  {
+   "id": "0f5f1d07-c387-4fea-bee0-894be3d522e6",
+   "c": "d-alice-bob",
+   "s": "user:sz5PoX0IaexAFZfTzzf_tQ",
+   "ts": 1789232674945,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Unread probe 1789232671875"
+  },
+  {
+   "id": "89e7f6c1-fcab-4427-9069-f32c25816bee",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232676597,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Ancillary failure 1789232671875"
+  },
+  {
+   "id": "0132f65c-d6ce-42ea-a2b6-a788fee96320",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232678194,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Dual offline 1789232671875 false 0"
+  },
+  {
+   "id": "4db6093d-4ed3-4b8f-8c6a-f9ed63f3dd41",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232678427,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Dual offline 1789232671875 false 1"
+  },
+  {
+   "id": "ec746685-b96d-44c5-b162-31669d273bdb",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232680086,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Dual offline 1789232671875 true 0"
+  },
+  {
+   "id": "d7838c8b-1ad7-4aa4-a652-c62ae8cd4abc",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232681390,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Dual offline 1789232671875 true 1"
+  },
+  {
+   "id": "da630167-e8a0-4045-88e6-410accfeead9",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232718819,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0001",
+   "text": "Receipt boundary control"
+  },
+  {
+   "id": "dd2079ea-be7a-4af1-8c0f-08ce90de9253",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232751618,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": "sm0001",
+   "text": "M7 separate npm custom-client regression"
+  },
+  {
+   "id": "2ad416a2-5642-4958-966d-d547906b2fd6",
+   "c": "d-alice-bob",
+   "s": "user:qaozGeVVhk11WPsju8lZuQ",
+   "ts": 1789232751934,
+   "type": "<absent>",
+   "tomb": false,
+   "ed": false,
+   "rep": null,
+   "text": "Custom API demo 2ad416a2-5642-4958-966d-d547906b2fd6"
+  }
+ ]
+}

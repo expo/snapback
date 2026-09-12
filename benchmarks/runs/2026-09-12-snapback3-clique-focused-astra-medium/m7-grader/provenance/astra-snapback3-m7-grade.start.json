@@ -1,0 +1,48 @@
+{
+  "phase": "m7",
+  "pid": 1711285,
+  "wrapperPid": 1711284,
+  "processIdentity": {
+    "pid": 1711285,
+    "parentPid": 1711284,
+    "state": "R",
+    "startTicks": 159257940,
+    "cwd": "/home/ccheever/snapback3-clique-focused-20260912/packet/lanes/astra-snapback3-m7-grade",
+    "command": [
+      "/home/ccheever/.local/bin/claude",
+      "-p",
+      "--bare",
+      "--dangerously-skip-permissions",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--model",
+      "claude-opus-5",
+      "--tools",
+      "Bash,Read,Write,Edit,Glob,Grep"
+    ]
+  },
+  "startedEpoch": 1789233661,
+  "modelRequested": "claude-opus-5",
+  "command": [
+    "/home/ccheever/.local/bin/claude",
+    "-p",
+    "--bare",
+    "--dangerously-skip-permissions",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--model",
+    "claude-opus-5",
+    "--tools",
+    "Bash,Read,Write,Edit,Glob,Grep"
+  ],
+  "prompt": "/home/ccheever/snapback3-clique-focused-20260912/packet/prompts/astra-snapback3-m7-grade.md",
+  "promptBytes": 11287,
+  "promptSha256": "64fad784fcb52899083d80310a38a3cff17942354e3f525518ab247158779fda",
+  "inputSha256": "fb953bb0bcc99bf30f6b2400bcd81932835b906993bc6930b69306ed8e8fdc88",
+  "wrapperSha256": "13536cab1ddab2660837e2bef9c76ed6633d0d57162e92d28396b73fa6fdbf37",
+  "custody": "foreground CLI; actor-only; prompt owns server cleanup",
+  "promptSafetyLimitMinutes": 90,
+  "authenticatedCap": false
+}

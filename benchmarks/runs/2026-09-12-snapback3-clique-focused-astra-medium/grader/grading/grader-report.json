@@ -1,0 +1,980 @@
+{
+  "schema": "snapback3-clique-focused-grader-report.v1",
+  "grader": {
+    "actualModel": "claude-opus-5 (Claude Agent SDK CLI, single grader, no delegation)",
+    "role": "independent outcome assessor, focused diagnostic variant",
+    "calibratedHoldoutClaim": false
+  },
+  "window": {
+    "startEpoch": 1789229980,
+    "startUtc": "2026-09-12T16:19:40Z",
+    "endEpoch": 1789231308,
+    "endUtc": "2026-09-12T16:41:48.237Z",
+    "promptSafetyLimitMinutes": 90
+  },
+  "scopeAndIdentity": {
+    "scopePath": "../../SCOPE.md",
+    "scopeSha256": "98ad61d33e321f5106a346edcd3ad449b60a042911cf853656c24613d9cd1c0d",
+    "scopeSha256Expected": "98ad61d33e321f5106a346edcd3ad449b60a042911cf853656c24613d9cd1c0d",
+    "scopeMatches": true,
+    "package": {
+      "name": "snapback3",
+      "version": "0.0.1-experimental.0",
+      "installedVersionVerified": "0.0.1-experimental.0",
+      "tarballSha256Recorded": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+      "lockfileReferencesPriorPacketTarball": true,
+      "platformPatchObserved": false
+    },
+    "gradeCopyHashes": {
+      "package.json": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "package-lock.json": "6ef4c3f3db4ed656e421d20b8318eb590227ac7490fb648524f4b1bb6d140355",
+      "API.md": "c5c47153d1f47470a7fec3d2eaf1a2a3a291214ca07795bf6f7209f5c5b2b2e0",
+      "BUILD.md": "bb8cc633e2bb96195c8fef9ecd9d7c7ce0d25c166d7be6058bf8ecd0281df625",
+      "selected-results.json": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+      "measurement-summary.json": "5e836f55e01eea6856863527e847b4658d52c18697f51e35d392da8083d957dd",
+      "artifacts/fixture/projection-manifest.json": "4c6744810dd3421f11c7e76f6e656d0fc32dcbaf54078a67d59b38cd73c023d2"
+    },
+    "appSourceAggregateSha256": "addc5f6f6d12673447574305773a5033fe560332a8e7bfc8b47424f00b3c6f77 (sha256 of sorted sha256sum lines for src/ app/ ui/ scripts/ snapback/)",
+    "appSourceFileCounts": {
+      "src": 4,
+      "app": 5,
+      "ui": 35,
+      "scripts": 38,
+      "snapback(.q)": 5
+    },
+    "instrument": {
+      "path": "instrument -> ../../instrument",
+      "readOnlyUsage": true,
+      "fixtureFilesVerifiedAgainstOracle": "31/31 byte-identical"
+    },
+    "oracle": {
+      "path": "../../coordinator-oracle",
+      "inputHashesVerifiedAgainstFrozenInstrument": "31/31 match",
+      "oracleScriptSha256Matches": true,
+      "artifactHashesMatch": "6/6"
+    }
+  },
+  "commandsAndPhases": [
+    {
+      "phase": "intake+hashing",
+      "commands": [
+        "sha256sum SCOPE.md",
+        "oracle input hash verification against instrument/fixtures"
+      ],
+      "utc": "16:19-16:23"
+    },
+    {
+      "phase": "servers",
+      "commands": [
+        "node node_modules/snapback3/dist/cli.mjs serve . --port 54900 (grader-owned PID 1609943)",
+        "node node_modules/snapback3/dist/cli.mjs dev artifacts/scale-app --port 54901 (grader-owned PID 1609944)"
+      ],
+      "utc": "16:21",
+      "note": "scripts/start-owned.mjs could not be used: builder evidence/*.log are read-only (EACCES). Grader logs under grading/evidence/."
+    },
+    {
+      "phase": "builder documented selected suite rerun",
+      "commands": [
+        "node scripts/selected-checks.mjs"
+      ],
+      "wallSeconds": 11.6,
+      "utc": "16:22",
+      "raw": "grading/evidence/rerun-selected-checks.log"
+    },
+    {
+      "phase": "read-only database audit vs oracle",
+      "commands": [
+        "cp store.sqlite* grading/dbcopy/",
+        "python3 sqlite3 read-only queries + dbstat"
+      ],
+      "utc": "16:22-16:30"
+    },
+    {
+      "phase": "independent browser probes",
+      "commands": [
+        "node grading/independent-probe.mjs",
+        "node grading/independent-probe2.mjs"
+      ],
+      "utc": "16:26-16:31"
+    },
+    {
+      "phase": "independent acquisition repetitions",
+      "commands": [
+        "ACQUIRE_ACTOR=u0500 FG_DELAY_MS=20000",
+        "ACQUIRE_ACTOR=u0001 FG_DELAY_MS=20000",
+        "ACQUIRE_ACTOR=u0500 FG_DELAY_MS=0",
+        "ACQUIRE_ACTOR=u0500 FG_DELAY_MS=20000 (repeat)"
+      ],
+      "utc": "16:26-16:36"
+    },
+    {
+      "phase": "API/pagination + custom client + controls rerun",
+      "commands": [
+        "node grading/api-pagination.mjs",
+        "node scripts/custom-client-demo.mjs",
+        "node scripts/controls-check.mjs",
+        "grader script following API.md latest-message recipe"
+      ],
+      "utc": "16:33-16:38"
+    },
+    {
+      "phase": "report",
+      "commands": [
+        "node grading/build-report.mjs"
+      ],
+      "utc": "16:38-"
+    }
+  ],
+  "builderSuiteRawResult": {
+    "command": "node scripts/selected-checks.mjs",
+    "exit": 0,
+    "wallSeconds": 11.6,
+    "allPass": 19,
+    "fail": 0,
+    "idsRun": [
+      "m3-a01",
+      "m8-a13",
+      "membership-authorization",
+      "m8-a14",
+      "m8-a01",
+      "m8-a03",
+      "m8-a04",
+      "m8-a02",
+      "s3-resource-independence-denied",
+      "stale-account-and-rapid-navigation",
+      "m6-a05",
+      "m6-a06",
+      "m8-a15",
+      "m6-a01",
+      "m6-a03",
+      "m8-a17",
+      "m6-a07",
+      "m8-a16",
+      "m8-a18"
+    ],
+    "evidence": "grading/evidence/rerun-selected-checks.log"
+  },
+  "builderControlsRerun": {
+    "command": "node scripts/controls-check.mjs",
+    "exit": 0,
+    "pass": [
+      "distinct-server-fetched-viewed-receipts",
+      "populated-reaction-own-state",
+      "delayed-old-account-response-fenced"
+    ],
+    "evidence": "grading/evidence/rerun-controls-check.log"
+  },
+  "selectedOutcomes": [
+    {
+      "id": "m3-a01",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Builder suite rerun + grader probe: real rendered bidirectional delivery, durable/settled receipts read from live client",
+      "evidence": [
+        "grading/evidence/rerun-selected-checks.log",
+        "grading/evidence/independent-probe.json"
+      ],
+      "notes": "One ordinary SDK client per browser context confirmed in src/client.tsx; no additional authenticated reader in app code."
+    },
+    {
+      "id": "m8-a13",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Grader IND-same-account-convergence: Alice1 send rendered on Alice2 (message-<id> node text read)",
+      "evidence": [
+        "grading/evidence/independent-probe.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "membership-authorization",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Grader IND2-account-change-isolation (carol renders 0 rows in d-alice-bob) + read-only DB scope audit",
+      "evidence": [
+        "grading/evidence/independent-probe2.json",
+        "grading/evidence/scale-db-vs-oracle.txt"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m8-a14",
+      "builderResult": "pass",
+      "independentResult": "pass-with-qualification",
+      "method": "Resource-level convergence reproduced by builder-suite rerun. Grader UI attempt could not observe a non-zero unread in rendered UI: opening the conversation auto-issues messages.viewed, and inbox rows carry no unread badge.",
+      "evidence": [
+        "grading/evidence/rerun-selected-checks.log",
+        "grading/evidence/independent-probe2.json (IND2-unread-converges failed on rendered-UI observability)"
+      ],
+      "notes": "Not scored as a failure of convergence; recorded as a rendered-observability limitation (defect D4)."
+    },
+    {
+      "id": "m8-a01",
+      "builderResult": "pass",
+      "independentResult": "pass-with-declared-ambiguity",
+      "method": "Independent read-only DB computation of Alice relations + rendered Insights screen",
+      "evidence": [
+        "grading/evidence/insights-independent.txt",
+        "grading/evidence/independent-probe2.json",
+        "grading/evidence/insights-grader-after.png"
+      ],
+      "notes": "App Posts=4 counts 3 top-level posts + 1 authored reply (sr0003). Oracle explicitly flags this label ambiguity (topLevelOriginals=3 vs allAuthoredPostEntities=4). Reported, not silently resolved."
+    },
+    {
+      "id": "m8-a03",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Six totals independently computed from DB rows and matched: posts(entities)=4, likesReceived=fixture2+recorded mutations, reposts=1, replies=1, followers=4, following=2",
+      "evidence": [
+        "grading/evidence/insights-independent.txt"
+      ],
+      "notes": "Oracle starter-social.json agrees on every relation ID."
+    },
+    {
+      "id": "m8-a04",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Seven rendered UTC-day rows read from the screen: 2026-09-06..2026-09-12 with six zero-filled empty days and today 4 posts",
+      "evidence": [
+        "grading/evidence/independent-probe2.json",
+        "grading/evidence/insights-grader-before.png"
+      ],
+      "notes": "All authoritative server mutation timestamps fall on the seed day (epochDay 20708), so six empty days are structural, not distributional."
+    },
+    {
+      "id": "m8-a02",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Grader-issued fresh like by Bob on previously unliked Alice post sp0003: likesReceived 3 -> 4 exactly, screen refreshed",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": "Expected value derived from fixture(2) + recorded mutations, never from the app aggregate."
+    },
+    {
+      "id": "s3-resource-independence-denied",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Grader IND-unavailable-count-messages-visible: rendered unread-state \"Unknown\", 84 authorized message nodes rendered, send committed once, exactly one recipient copy",
+      "evidence": [
+        "grading/evidence/independent-probe.json"
+      ],
+      "notes": "Count remains unknown rather than zero, as required."
+    },
+    {
+      "id": "stale-account-and-rapid-navigation",
+      "builderResult": "pass",
+      "independentResult": "mixed",
+      "method": "Two independent runs: probe2 passed (8 rapid switches + logout/login churn recovered); probe1 failed to re-render DM history (message-sm0001) within 15s after the same pattern",
+      "evidence": [
+        "grading/evidence/independent-probe.json",
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": "Intermittent; recorded as defect D3 with reproduction."
+    },
+    {
+      "id": "m6-a05",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Grader IND2-two-offline-queues-order with real Playwright offline (fetch throws) and rendered pending badges",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m6-a06",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Same; reconnect client0 then client1, exactly one copy each, non-decreasing server arrival timestamps",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m8-a15",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Two Alice clients queued offline and both settled after reconnect in server-arrival order",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m6-a01",
+      "builderResult": "pass",
+      "independentResult": "pass (starter/browser scope only)",
+      "method": "Grader IND2-offline-reality: network truly offline (window fetch to /api/query throws), page closed and reopened offline, shell restored from service worker, 88 acquired messages rendered from IndexedDB, pending send preserved",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": "Browser analogue only; no Apple/native proof. Large-account offline completeness fails separately (defect D1)."
+    },
+    {
+      "id": "m6-a03",
+      "builderResult": "pass",
+      "independentResult": "pass (starter scope)",
+      "method": "Offline search over acquired page returned the exact expected row (sm0001 \"Coffee after work?\")",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": "Search is a filter over the currently acquired page, as API.md discloses."
+    },
+    {
+      "id": "m8-a17",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Close/reopen while still offline retained exactly one pending send per client and then converged after reconnect",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m6-a07",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Reconnect ordering and no-loss/no-duplicate verified from the independent recipient page traversal",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m8-a16",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Recipient viewed watermark advanced past the target server timestamp; sender receipt label reached read",
+      "evidence": [
+        "grading/evidence/independent-probe2.json",
+        "grading/evidence/rerun-selected-checks.log"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m8-a18",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Repeat round after close/reopen while still offline exercised in the builder suite rerun and by grader dual-queue probe",
+      "evidence": [
+        "grading/evidence/rerun-selected-checks.log",
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "distinct-server-fetched-viewed-receipts",
+      "builderResult": "pass",
+      "independentResult": "pass-with-caveat",
+      "method": "Grader IND2-receipts-distinct: acceptance did not set viewed; messages.fetched then messages.viewed each advanced watermarks past the target timestamp. Isolation of a fetched-only state was confounded because the recipient UI auto-issues messages.viewed when it renders complete first-page history.",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "notes": "Three states exist as distinct server fields; a committed write alone never produced delivered/read. Caveat recorded as D5."
+    },
+    {
+      "id": "populated-reaction-own-state",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "scripts/controls-check.mjs rerun by grader; two populated reaction rows with caller-own identity",
+      "evidence": [
+        "grading/evidence/rerun-controls-check.log"
+      ],
+      "notes": null
+    },
+    {
+      "id": "delayed-old-account-response-fenced",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Controls rerun passed",
+      "evidence": [
+        "grading/evidence/rerun-controls-check.log"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m6-a10",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Grader ran node scripts/custom-client-demo.mjs: token auth, inbox page, 94-row history page, send, poll-observed exactly one copy",
+      "evidence": [
+        "grading/evidence/api-pagination.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m6-a11",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Documented HTTP path exercised directly by grader: POST /api/auth/login then POST /api/query with bearer token returned authorized inbox and message pages",
+      "evidence": [
+        "grading/evidence/api-pagination.json"
+      ],
+      "notes": null
+    },
+    {
+      "id": "m6-a12",
+      "builderResult": "pass (builder-authored variation)",
+      "independentResult": "pass (independent)",
+      "method": "Grader followed API.md prose independently on port 54900 and obtained messages.latest for g-starter = sm0015 \"Locked in. See you Saturday.\"",
+      "evidence": [
+        "grading/evidence/api-pagination.json"
+      ],
+      "notes": "Builder had marked independent grader execution of m6-a12 as an omission; it is now independently satisfied."
+    },
+    {
+      "id": "s3-resource-independence-http-batch-failure",
+      "builderResult": "fail",
+      "independentResult": "fail (preserved, not re-exercised)",
+      "method": "Builder-retained failure: an injected whole-read-batch HTTP failure that contains the ancillary unread resource also takes down authorized reads",
+      "evidence": [
+        "selected-results.json",
+        "evidence/selected-1789226008650.json"
+      ],
+      "notes": "Honest retention. Real coordination limitation: resource independence holds for an explicitly denied resource but not for a failed transport batch."
+    },
+    {
+      "id": "acquisition-u0500 (SCOPE 5 / measurement boundaries)",
+      "builderResult": "pass (3 complete reps, all-pages offline verified)",
+      "independentResult": "fail under mandated mid-acquisition foreground send",
+      "method": "Grader repetitions: 1 unmodified rep reproduced the builder result (10,221 IndexedDB rows, offline all-pages complete). 2 reps with the foreground send issued 20s into acquisition completed in-memory (10,000/10,000 IDs) but left only 503 IndexedDB rows (402 message IDs); offline reopen served 200 of 10,000 and 92-96 page queries failed.",
+      "evidence": [
+        "grading/evidence/gacq-summary.txt",
+        "grading/evidence/gacq-1789230357769/u0500-1.json",
+        "grading/evidence/gacq-1789230955890/u0500-1.json",
+        "grading/evidence/gacq-1789230882838/u0500-1.json"
+      ],
+      "notes": "Defect D1. SCOPE requires the foreground send while the same client acquires history and requires all authorized content to survive offline reopen."
+    },
+    {
+      "id": "acquisition-u0001 (hub)",
+      "builderResult": "fail (3/3 timeouts, 42.5k-42.9k of 100k)",
+      "independentResult": "fail (independent 1/1 timeout, 38,900 of 100,000 at 180s)",
+      "method": "Grader repetition with 180s deadline, progress retained at 30s (10,000 ids/120 pages) and 60s (17,400/194)",
+      "evidence": [
+        "grading/evidence/gacq-1789230699958/u0001-1.json",
+        "measurement-summary.json"
+      ],
+      "notes": "Builder reported this failure honestly; independently confirmed."
+    },
+    {
+      "id": "paging p50/p95 busy g0001 page1 vs page50",
+      "builderResult": "pass",
+      "independentResult": "pass (evidence audit)",
+      "method": "Audited the 20-sample-after-3-warmup record: every sample carries >=1 real HTTP request and 200 rows, page1 ids mg0001-00001..00200, page50 ids mg0001-09801..10000, zero failures; p95 137.4ms vs 237.8ms, ratio 0.578 <= 3",
+      "evidence": [
+        "grading/evidence/paging-and-storage-audit.txt",
+        "evidence/paging-1789228475274.json"
+      ],
+      "notes": "No cached zero-request read stood in for a measurement. Grader did not re-run this diagnostic (evidence was complete and internally consistent)."
+    },
+    {
+      "id": "fixture projection + authorization scopes",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Read-only SQLite audit of the live scale database against the independent oracle",
+      "evidence": [
+        "grading/evidence/scale-db-vs-oracle.txt",
+        "grading/evidence/fixture-idfiles-check.txt",
+        "grading/evidence/scale-quotes-reactions-media.txt"
+      ],
+      "notes": "Every commitment digest matched."
+    },
+    {
+      "id": "storage accounting",
+      "builderResult": "pass",
+      "independentResult": "pass",
+      "method": "Independent read-only page_size/page_count and dbstat per table/index; matched builder physical byte table exactly (e.g. _commits 23,511,040 bytes)",
+      "evidence": [
+        "grading/evidence/paging-and-storage-audit.txt",
+        "evidence/storage-scale.json"
+      ],
+      "notes": "No comparison made to the prior 5.2GB full app."
+    },
+    {
+      "id": "M7 polls / conversation message-count field",
+      "builderResult": "omitted (reserved)",
+      "independentResult": "omitted (correctly out of this phase)",
+      "method": "Scope check only; grader did not implement or exercise M7",
+      "evidence": [
+        "../../SCOPE.md"
+      ],
+      "notes": "Not a failure in this phase."
+    },
+    {
+      "id": "native Apple/iOS proof, media/avatar, presence/typing, push/digest, full 50-action conformance, full social scale",
+      "builderResult": "omitted",
+      "independentResult": "omitted (out of selected scope, not gates)",
+      "method": "n/a",
+      "evidence": [
+        "selected-results.json omissions"
+      ],
+      "notes": "Browser analogues were never treated as native proof."
+    }
+  ],
+  "verifiedCounts": {
+    "method": "read-only copies of the live SQLite stores compared against ../../coordinator-oracle (independently generated from the frozen fixture logs)",
+    "scaleDatabase": {
+      "conversations": 1002,
+      "conversationIdDigestMatchesOracle": true,
+      "fixtureMessages": 100015,
+      "messageIdDigestMatchesOracle": true,
+      "diagnosticExtraMessages": 18,
+      "members": 2053,
+      "reactions": 2000,
+      "reactionTuplesIdenticalToOracle": true,
+      "quotedReferences": 2736,
+      "quoteTupleDigestMatchesOracle": true,
+      "profiles": 1008
+    },
+    "authorizationScopes": {
+      "u0001": {
+        "conversations": 1000,
+        "groups": 100,
+        "dms": 900,
+        "authorizedFixtureMessages": 100000,
+        "seesStarterMessages": false
+      },
+      "u0500": {
+        "conversations": 100,
+        "authorizedFixtureMessages": 10000,
+        "g0001Members": 50,
+        "g0001Messages": 10000
+      },
+      "starter": {
+        "alice": {
+          "conversations": 2,
+          "messages": 15
+        },
+        "bob": {
+          "conversations": 2,
+          "messages": 15
+        },
+        "carol": {
+          "conversations": 1,
+          "messages": 9
+        },
+        "dm": 6,
+        "group": 9
+      }
+    },
+    "projectionManifest": {
+      "originalActions": 167243,
+      "selectedActions": 105134,
+      "omittedActions": 62109,
+      "mediaMessageConversions": 910,
+      "starterMediaPostConversions": 6,
+      "avatarFieldOmissions": 1008,
+      "allMatchOracle": true,
+      "omittedBreakdownSumsCorrectly": true
+    },
+    "mediaProjection": {
+      "convertedMessagesWithExactCaptionPreserved": "910/910",
+      "labelPattern": "[Projected media image: <file>] <caption> (6 distinct image/video label variants)",
+      "starterMediaPosts": "6/6 converted in posts table with [Projected images:/video:] labels"
+    },
+    "expectedIdFilesUsedByBuilderHarness": {
+      "u0500-ids.json": "10000, exactly equals oracle-derived authorized set",
+      "u0001-ids.json": "100000, exact match",
+      "alice/bob/carol": "15/15/9 exact match"
+    },
+    "starterInsightsIndependent": {
+      "alicePostEntities": 4,
+      "aliceTopLevelPosts": 3,
+      "aliceAuthoredReplies": 1,
+      "fixtureLikesReceived": 2,
+      "likesAfterRecordedMutations": "3 then 4 after the grader fresh like",
+      "repostsReceived": 1,
+      "repliesReceived": 1,
+      "followers": 4,
+      "following": 2,
+      "postEpochDay": 20708,
+      "allSevenDayBucketsFromAuthoritativeServerTimestamps": true
+    },
+    "apiPagination": {
+      "scaleU0500": {
+        "conversationPages": 2,
+        "conversations": 100,
+        "messagePages": 51,
+        "pageSizes": [
+          200,
+          19
+        ],
+        "messageIds": 10019,
+        "duplicates": 0,
+        "missingFixture": 0
+      },
+      "http": {
+        "loginStatus": 200,
+        "bearerAccepted": true,
+        "inbox": [
+          "d-alice-bob",
+          "g-starter"
+        ],
+        "dAliceBobRows": 93
+      }
+    }
+  },
+  "measurementAudit": {
+    "builderDisclosures": [
+      "heap sampled every 500ms, includes instrumentation, not forced-GC retained",
+      "viewport times are driver upper bounds, not compositor tracing",
+      "completed-HTTP bytes and data-event bytes must not be summed",
+      "hub acquisition failed at the 180s watchdog and partial IDs are not full acquisition",
+      "earlier DOM-presence paint labels corrected in evidence/measurement-corrections.json"
+    ],
+    "graderFindings": [
+      "Peak and last-sampled heap include the IndexedDB audit step: the harness calls getAll() on every object store and JSON.stringify()s the result (~2.4MB of records) while the 500ms heap sampler is still running, and the sampler is only stopped after the offline reopen/all-page replay. Last sampled heap is therefore not steady-state retained heap in any row. The builder discloses instrumentation inclusion generically but does not name this getAll/JSON inflation.",
+      "u0500 peak sampled heap 227-250MB and u0001 peak 371-453MB are upper bounds that include both the full in-memory acquisition arrays held by the driver state object and the database-inspection serialization.",
+      "IndexedDB bytes are reported twice with correct provenance: navigator.storage.estimate (estimated physical, ~3.96MB for u0500) and direct UTF-8 JSON serialization of records (logical, ~2.41MB). No estimate was passed off as a direct measurement.",
+      "transferredBytes (27.7-27.9MB for u0500; 74-81MB for the hub partial) come from CDP Network.loadingFinished encodedDataLength, and are kept separate from streamed data-event bytes.",
+      "Foreground-send placement: the builder harness issues the foreground send immediately at acquisition start (t~0.3-0.7s), not after substantial acquisition work. Its reported local durability (255-604ms) and settlement (379-833ms) therefore measure an unloaded client. The grader re-ran with the send at t=20s: durability 655ms-20.7s-relative values remained sub-second (durable 20749.8ms-20618ms start = 131.8ms; second run comparable), but the previously acquired content did not remain durable (defect D1).",
+      "acquisition.lastFetched/lastDurable in src/acquire.ts are resource-publication timestamps, not storage-admission timestamps; the builder states this and derives last durable admission from the public storage adapter timings instead. Confirmed correct in the artifacts.",
+      "No attempt was made by the builder to attribute an unmeasured HTTP/SDK/persistence/render split. No Chrome CPU profile was taken; the grader also did not take one within the time budget, so processing-cost attribution for the 33s/180s acquisitions remains unattributed (gap G1).",
+      "Database/WAL accounting: the grader reproduced the physical per-table/index byte table read-only (scale rows 30,523,392 B; _commits 23,511,040 B; index_entries family 55,689,216 B total; file 113,262,592 B at 4,096 B x 27,652 pages). Builder recorded pre-stop file sizes (113,209,344 B + 112,908,632 B WAL) and disclosed that owner shutdown may checkpoint. No vacuum/compaction was issued; no comparison to the old 5.2GB full app appears anywhere."
+    ],
+    "builderAttemptRetention": "All 24 acquisition attempt records (including 5 early harness failures, 2 interrupted/timeout batches and every hub timeout) are retained in selected-results.json and on disk; none were dropped or relabeled."
+  },
+  "independentMeasurements": {
+    "acquisitionRepetitions": [
+      {
+        "actor": "u0500",
+        "variant": "foreground send at t=20s (SCOPE-mandated placement)",
+        "status": "complete",
+        "acquisitionMs": 34778,
+        "inMemoryFixtureIds": "10000/10000",
+        "duplicates": 0,
+        "indexedDbRows": 503,
+        "indexedDbMessageIds": 402,
+        "offlineReopenMs": 262,
+        "offlineFirstQueryRows": 200,
+        "offlineAllPages": {
+          "ids": 200,
+          "failures": 96,
+          "missingFixtureIds": 9800,
+          "complete": false
+        },
+        "requests": 168,
+        "transferredBytes": 27777224,
+        "peakSampledHeap": 264635188,
+        "lastSampledHeap": 43130488,
+        "longTasks": 135,
+        "longTaskTotalMs": 10939,
+        "progress30s": {
+          "ids": 10018,
+          "pages": 137
+        },
+        "foreground": {
+          "durableMsAfterSubmit": 131.8,
+          "settledMsAfterSubmit": 315,
+          "state": "committed",
+          "recipientFetchedEpoch": 1789230379538,
+          "viewportObservedEpoch": 1789230380245
+        }
+      },
+      {
+        "actor": "u0500",
+        "variant": "repeat of the same delayed-send placement",
+        "status": "complete",
+        "acquisitionMs": 35432,
+        "inMemoryFixtureIds": "10000/10000",
+        "indexedDbRows": 503,
+        "indexedDbMessageIds": 402,
+        "offlineAllPages": {
+          "ids": 200,
+          "failures": 92,
+          "missingFixtureIds": 9800,
+          "complete": false
+        }
+      },
+      {
+        "actor": "u0500",
+        "variant": "unmodified builder placement (send at t~0)",
+        "status": "complete",
+        "acquisitionMs": 33797,
+        "inMemoryFixtureIds": "10000/10000",
+        "indexedDbRows": 10221,
+        "indexedDbMessageIds": 10021,
+        "offlineReopenMs": 796,
+        "offlineAllPages": {
+          "ids": 10021,
+          "failures": 0,
+          "missingFixtureIds": 0,
+          "complete": true
+        },
+        "requests": 166,
+        "transferredBytes": 27992878,
+        "peakSampledHeap": 250388176,
+        "longTasks": 153
+      },
+      {
+        "actor": "u0001",
+        "variant": "foreground send at t=20s",
+        "status": "timeout at 180s",
+        "acquisitionMs": 180843,
+        "inMemoryFixtureIds": "38900/100000",
+        "progress30s": {
+          "ids": 10000,
+          "pages": 120
+        },
+        "progress60s": {
+          "ids": 17400,
+          "pages": 194
+        },
+        "requests": 430,
+        "transferredBytes": 74335488,
+        "peakSampledHeap": 371173192,
+        "lastSampledHeap": 212617552,
+        "longTasks": 415,
+        "indexedDbAtCutoff": "not capturable after watchdog context close; navigator.storage.estimate indexedDB 18,107,273 B",
+        "foreground": {
+          "durableMsAfterSubmit": "sub-second",
+          "state": "committed",
+          "recipientFetchedEpoch": 1789230721681
+        }
+      }
+    ],
+    "authRestoration": {
+      "method": "login, full page reload, no re-login",
+      "principalRestored": true,
+      "renderedHistoryAfterRestore": "message-sm0001 rendered with exact fixture text"
+    },
+    "offlineReality": {
+      "navigatorOnLineBeforeClose": false,
+      "windowFetchToApiBeforeClose": "TypeError: Failed to fetch",
+      "afterReopenNavigatorOnLine": true,
+      "afterReopenWindowFetchToApi": "TypeError: Failed to fetch",
+      "interpretation": "network is genuinely disabled; navigator.onLine is stale on the reopened page. The offline claim is real."
+    },
+    "recipientExactlyOnce": {
+      "deniedSummarySend": 1,
+      "delayedReadSend": 1,
+      "dualOfflineQueue": [
+        1,
+        1
+      ]
+    },
+    "durableSendDuringDelayedRead": {
+      "routeDelayMsOnMessagesPageAndUnread": 4000,
+      "durableMs": 3.4,
+      "settledMs": 21.7,
+      "receiptState": "committed",
+      "recipientObserved": true
+    },
+    "insightsRendered": {
+      "dayRowCount": 7,
+      "dayRows": [
+        "2026-09-06 0/0",
+        "2026-09-07 0/0",
+        "2026-09-08 0/0",
+        "2026-09-09 0/0",
+        "2026-09-10 0/0",
+        "2026-09-11 0/0",
+        "2026-09-12 posts 4 / likes 3 (4 after grader like)"
+      ],
+      "likeDelta": 1
+    },
+    "pagingAuditOnly": true
+  },
+  "defects": [
+    {
+      "id": "D1",
+      "severity": "high",
+      "title": "Acquired history is not durably retained when a foreground send occurs after substantial acquisition",
+      "detail": "With the mandated mid-acquisition foreground send (t=20s, 98 pages/10,018 rows already acquired), every subsequent public storage-adapter write carried only 503 rows (the currently live resource set). At the end of a complete 10,000-message acquisition the IndexedDB rows store held 503 rows / 402 message IDs; after closing and reopening the page offline, only 200 of 10,000 authorized messages could be served and 92-96 of 98 page queries failed with \"This resource is not available yet\". Reproduced 2/2. With the builder ordering (send at t~0) the same run persists 10,221 rows and offline all-pages verification passes (1/1 grader rep, 6/6 builder reps).",
+      "reproduction": "ACQUIRE_ACTOR=u0500 ACQUIRE_REPS=1 FG_DELAY_MS=20000 node grading/measure-acq-grader.mjs against dev server on 54901; inspect report.indexedDB and report.offlineAllPages",
+      "evidence": [
+        "grading/evidence/gacq-1789230357769/u0500-1.json",
+        "grading/evidence/gacq-1789230955890/u0500-1.json"
+      ],
+      "impact": "The \"complete durable acquisition + offline reopen\" claim for u0500 is order-dependent and does not hold under the SCOPE-required foreground-send-during-acquisition condition. Causation is correlational (2/2 vs 0/7) and not proven to be the send itself."
+    },
+    {
+      "id": "D2",
+      "severity": "high",
+      "title": "Hub (u0001) acquisition cannot complete",
+      "detail": "100,000 authorized messages: builder 3/3 timeouts at 180s with 42,500-42,900 IDs; grader 1/1 timeout with 38,900 IDs. Rates ~333 msg/s early (10,000 by 30s) degrading to ~215 msg/s average, with 415-437 long tasks totalling 33.8s of main-thread blocking.",
+      "reproduction": "ACQUIRE_ACTOR=u0001 ACQUIRE_REPS=1 node grading/measure-acq-grader.mjs",
+      "evidence": [
+        "grading/evidence/gacq-1789230699958/u0001-1.json",
+        "measurement-summary.json"
+      ],
+      "impact": "Selected acquisition scope fails for the large account. Builder reported this honestly as a failure."
+    },
+    {
+      "id": "D3",
+      "severity": "medium",
+      "title": "Intermittent failure to re-render conversation history after rapid switching plus account churn",
+      "detail": "In grader probe 1, after 8 rapid conversation switches the DM view did not render message-sm0001 within 15s; probe 2 with the same pattern recovered immediately and the builder suite passes consistently. Observed once in two attempts.",
+      "reproduction": "node grading/independent-probe.mjs (IND-rapid-nav-and-account-change)",
+      "evidence": [
+        "grading/evidence/independent-probe.json",
+        "grading/evidence/independent-probe2.json"
+      ],
+      "impact": "Rapid-navigation robustness is not reliably demonstrated."
+    },
+    {
+      "id": "D4",
+      "severity": "low",
+      "title": "Non-zero unread count is not observable in the rendered UI",
+      "detail": "unread-state is rendered only for the open conversation, and opening a conversation immediately issues messages.viewed, so the rendered value is 0 or Unknown. Inbox rows carry no unread badge. The m8-a14 convergence assertion is therefore satisfied at the resource level (conversations.unread query), not through rendered UI.",
+      "reproduction": "node grading/independent-probe2.mjs (IND2-unread-converges)",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "impact": "Unread semantics are correct at the API level; UI evidence is weaker than the resource evidence."
+    },
+    {
+      "id": "D5",
+      "severity": "low",
+      "title": "Delivered (fetched) state cannot be isolated from read (viewed) in the running app",
+      "detail": "Because History auto-issues messages.viewed when complete first-page history renders online, a recipient with the conversation open advances fetched and viewed together. The grader confirmed the three states are distinct server fields and that acceptance alone sets neither, but could not observe a stable delivered-only state through the UI.",
+      "reproduction": "node grading/independent-probe2.mjs (IND2-receipts-distinct)",
+      "evidence": [
+        "grading/evidence/independent-probe2.json"
+      ],
+      "impact": "Receipt distinctness is proven at the field/mutation level; UI-level delivered-only state is unproven. API.md already discloses client-reported watermarks and no group completeness claim."
+    },
+    {
+      "id": "D6",
+      "severity": "medium",
+      "title": "Ancillary-resource independence fails for a failed HTTP read batch",
+      "detail": "Builder-retained failing assertion s3-resource-independence-http-batch-failure: when an injected network failure kills a whole read batch containing the ancillary unread resource, authorized reads go down with it. The denied-resource variant passes.",
+      "reproduction": "see evidence/selected-1789226008650.json",
+      "evidence": [
+        "selected-results.json"
+      ],
+      "impact": "Partial resource independence only."
+    }
+  ],
+  "workaroundsAndExtraClients": {
+    "extraAuthenticatedReadersInApp": 0,
+    "evidence": "src/client.tsx creates exactly one createClient instance and exposes that same instance as window.clique; src/chat.tsx uses only useQuery/useClientState/client.mutate from it. No second token, no second session.",
+    "extraAuthenticatedClientsOutsideApp": [
+      "scripts/measure-acquisition.mjs creates a separate node recipient client (u0002) purely as an independent observer",
+      "scripts/custom-client-demo.mjs, scripts/snapshot-export.mjs, scripts/verify-recipient.mjs, grading/api-pagination.mjs are test/tooling clients"
+    ],
+    "appLevelHelpers": [
+      {
+        "name": "src/acquire.ts explicit page-walk acquisition helper (103 lines)",
+        "kind": "coordination workaround",
+        "detail": "Follows every cursor on the same client, tolerates snapshot.complete=false, and waits up to 15s on an in-flight resource subscription. Declared by the builder and disclosed in API.md."
+      },
+      {
+        "name": "bounded client-side unread aggregation in src/chat.tsx",
+        "kind": "client aggregation workaround",
+        "detail": "Counts other-sender rows newer than the viewer watermark only when the last-200 summary is complete and under 200 rows; otherwise renders Unknown. Explicitly not a stored counter."
+      },
+      {
+        "name": "createIndexedDBStorage wrapper in src/client.tsx",
+        "kind": "instrumentation",
+        "detail": "Times load/write and records admitted message IDs; delegates unchanged. Grader confirmed it adds no cache, no retry and no alternate data path."
+      },
+      {
+        "name": "driver-side refresh polling in scripts/selected-checks.mjs (up to 20 refreshes, 100ms apart)",
+        "kind": "test-harness retry",
+        "detail": "Read-side observation retries only; no mutation is ever re-submitted. Confirmed by reading the driver source."
+      }
+    ],
+    "customRetryOrCacheInProduct": "none found beyond the above; no manual mutation retry, no private cache, no second transport.",
+    "complexityNote": "Line counts (src 4 files / ~315 lines, 5 .q files / 233 lines) understate complexity: the acquisition helper, the bounded unread aggregation, the storage wrapper and the auto-viewed effect each encode nontrivial coordination policy."
+  },
+  "gapsAndUnfinished": [
+    {
+      "id": "G1",
+      "item": "Chrome CPU profile and owner/worker CPU attribution for slow acquisition",
+      "status": "not performed by builder; not performed by grader within the 90-minute limit",
+      "consequence": "The cost split among subscription demand, HTTP transfer, SDK processing, persistence and rendering remains unattributed. Neither party invented an attribution."
+    },
+    {
+      "id": "G2",
+      "item": "Grader re-execution of the 20-refresh paging diagnostic",
+      "status": "audited from the preserved record rather than re-run",
+      "consequence": "Record was complete, internally consistent and non-vacuous (per-sample request counts, IDs, bytes, zero failures); no sign of cached zero-request substitution."
+    },
+    {
+      "id": "G3",
+      "item": "Full-social-scale Insights/storage",
+      "status": "explicitly omitted and separately labelled by the builder; scope allows this",
+      "consequence": "Insights claims are limited to starter correctness; storage claims limited to the messaging projection."
+    },
+    {
+      "id": "G4",
+      "item": "Grader repetition budget",
+      "status": "4 independent acquisition attempts (3x u0500, 1x u0001) instead of 3 per account",
+      "consequence": "Sufficient to reproduce both the builder result and the D1 divergence; not a full independent 3+3 series."
+    }
+  ],
+  "honestyAssessment": {
+    "contaminationEvents": "none; no builder diary, essay, final report, self-assessment or transcript was opened. Excluded files are absent from this copy.",
+    "observations": [
+      "selected-results.json declares fullMilestoneGreen=false, weightedScore=null, nativeProof=false, and retains a failing assertion.",
+      "All hub acquisition failures, early harness failures and interrupted batches are retained with errors.",
+      "evidence/measurement-corrections.json voluntarily downgrades earlier DOM-presence paint labels.",
+      "API.md discloses the incomplete-resource workaround, the persona dev seed, client-derived unread, absence of a stored message-count field and the lack of group receipt completeness.",
+      "No claim of public-API replay throughput or canonical O5 was found."
+    ],
+    "overstatementFound": [
+      "The u0500 \"complete durable acquisition with all-pages offline verification\" result is presented without the qualification that it depends on the foreground send occurring at acquisition start; under the SCOPE-mandated later send the durable result does not hold (D1)."
+    ]
+  },
+  "scoring": {
+    "fullMilestoneGreen": false,
+    "weightedOrOScore": "not computed by design",
+    "statement": "This is a targeted diagnostic assessment of selected assertions only. No full M3/M6/M7/M8 verdict and no comparative efficiency score is expressed."
+  },
+  "processes": {
+    "graderOwned": [
+      {
+        "pid": 1609943,
+        "port": 54900,
+        "root": "."
+      },
+      {
+        "pid": 1609944,
+        "port": 54901,
+        "root": "artifacts/scale-app"
+      }
+    ],
+    "stoppedAtEnd": {
+      "pids": [
+        1609943,
+        1609944
+      ],
+      "verified": "both confirmed not running; no 549xx listeners remained"
+    },
+    "builderOwnedPidsTouched": "none (all recorded builder PIDs were already dead at freeze)",
+    "portsUsed": [
+      54900,
+      54901
+    ],
+    "portsAvoided": "54910-54912 coordinator, 54800 other grader"
+  },
+  "evidenceIndex": [
+    "grading/evidence/rerun-selected-checks.log",
+    "grading/evidence/rerun-controls-check.log",
+    "grading/evidence/independent-probe.json",
+    "grading/evidence/independent-probe2.json",
+    "grading/evidence/scale-db-vs-oracle.txt",
+    "grading/evidence/scale-quotes-reactions-media.txt",
+    "grading/evidence/fixture-idfiles-check.txt",
+    "grading/evidence/insights-independent.txt",
+    "grading/evidence/api-pagination.json",
+    "grading/evidence/paging-and-storage-audit.txt",
+    "grading/evidence/gacq-summary.txt",
+    "grading/evidence/gacq-1789230357769/u0500-1.json",
+    "grading/evidence/gacq-1789230882838/u0500-1.json",
+    "grading/evidence/gacq-1789230955890/u0500-1.json",
+    "grading/evidence/gacq-1789230699958/u0001-1.json",
+    "grading/evidence/insights-grader-before.png",
+    "grading/evidence/insights-grader-after.png",
+    "grading/evidence/oracle-input-verify.txt",
+    "grading/measure-acq-grader.mjs",
+    "grading/independent-probe.mjs",
+    "grading/independent-probe2.mjs",
+    "grading/api-pagination.mjs",
+    "grading/evidence/dbcopy-hashes.txt"
+  ]
+}

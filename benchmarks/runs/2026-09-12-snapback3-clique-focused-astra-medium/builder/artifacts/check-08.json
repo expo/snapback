@@ -1,0 +1,6 @@
+
+> astra-snapback3@1.0.0 check
+> snapback3 check . --json
+
+S3_COMPILE: E_QUARRY_TYPE snapback/social.q:28:429: bounded arrays require scalar items; got object
+-- use [id] <=N (or another scalar item type), or call one typed operation per object

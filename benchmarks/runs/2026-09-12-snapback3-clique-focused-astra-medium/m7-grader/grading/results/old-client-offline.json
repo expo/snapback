@@ -1,0 +1,54 @@
+{
+ "origin": "http://127.0.0.1:54910",
+ "phases": [
+  {
+   "t": 1789234292414,
+   "name": "navigated",
+   "phase": "offline",
+   "nav": "ok"
+  },
+  {
+   "t": 1789234298426,
+   "name": "shell",
+   "hasClient": true,
+   "title": "Clique",
+   "authForm": false,
+   "convInput": true
+  },
+  {
+   "t": 1789234298429,
+   "name": "pending-initial",
+   "pending": [
+    {
+     "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+     "op": "messages.send",
+     "args": {
+      "conversationId": "d-alice-bob",
+      "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+      "replyTo": null,
+      "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+     },
+     "state": null
+    }
+   ],
+   "hasOriginal": true
+  }
+ ],
+ "finalPending": [
+  {
+   "id": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+   "op": "messages.send",
+   "args": {
+    "conversationId": "d-alice-bob",
+    "id": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100",
+    "replyTo": null,
+    "text": "M7 retained old-client queue m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+   },
+   "state": null
+  }
+ ],
+ "expected": {
+  "operationId": "731cbc48-b0ea-4e0a-819d-a74e5bc59a19",
+  "messageId": "m7-old-client-53b5260a-4163-4f90-bc91-5e937ce2d100"
+ }
+}

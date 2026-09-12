@@ -1,0 +1,39 @@
+{
+  "schema": "snapback3-focused-m7-builder-model-attestation.v1",
+  "phase": "m7",
+  "launcher": {
+    "actorPid": 1668996,
+    "wrapperPid": 1668995,
+    "model": "gpt-6-astra",
+    "reasoningEffort": "medium",
+    "startedEpoch": 1789232141,
+    "endedEpoch": 1789233117,
+    "elapsedSeconds": 976,
+    "exit": 0,
+    "actorExit": 0,
+    "promptBytes": 9124,
+    "promptSha256": "sha256:1f8b9c073d870fbf48d4128fba032815562182faf15ca789017c9af67addb2a4"
+  },
+  "nativeEvidence": {
+    "publicRawStream": false,
+    "publicNativeRollout": false,
+    "transportBytes": 401666,
+    "transportSha256": "734a70849e99dffdbdd60679ade1a268c36f21c0c11f50052b788a9d92830ce4",
+    "nativeManifestSha256": "ec31873f8465854cb2477e9acf677a29cbd7a8bd5169990ac926340dc89d51fb",
+    "retainedRootAndDescendants": 1,
+    "tokenAccountingAgreement": "turn.completed transport usage equals latest retained native token_count total"
+  },
+  "tokenUsage": {
+    "inputTokens": 3408557,
+    "cachedInputTokens": 3310336,
+    "cacheWriteInputTokens": 0,
+    "outputTokens": 26344,
+    "reasoningOutputTokens": 3509,
+    "totalTokens": 3434901
+  },
+  "limitations": {
+    "billingInference": false,
+    "authenticatedTokenCap": false,
+    "authenticCapBoundaryController": false
+  }
+}

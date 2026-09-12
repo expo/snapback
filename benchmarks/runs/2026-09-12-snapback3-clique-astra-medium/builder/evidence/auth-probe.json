@@ -1,0 +1,22 @@
+{
+  "shortPasswordDenied": {
+    "status": 401,
+    "body": {
+      "error": {
+        "code": "S3_AUTH",
+        "message": "E_AUTH_PASSWORD_WEAK: password must contain at least 8 characters and at most 256 UTF-8 bytes"
+      }
+    }
+  },
+  "sessionHasFutureExpiry": true,
+  "logoutRevokes": {
+    "status": 401,
+    "body": {
+      "error": {
+        "code": "S3_AUTH",
+        "message": "E_AUTH_SESSION: session is missing or expired"
+      }
+    }
+  },
+  "pass": true
+}

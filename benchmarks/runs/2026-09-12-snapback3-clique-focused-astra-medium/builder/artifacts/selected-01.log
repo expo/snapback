@@ -1,0 +1,108 @@
+m8-a14 expect(received).toBeGreaterThan(expected)
+
+Expected: > 0
+Received:   0
+m8-a01,m8-a03,m8-a04 page.evaluate: SnapbackError: This resource is not available yet.
+    at sr.query (http://127.0.0.1:54900/_expo/static/js/web/entry-59cac5870e39a0fe3b9a93e9513b1285.js:859:143117)
+    at async <anonymous>:337:30
+s3-resource-independence page.evaluate: Target page, context or browser has been closed
+stale-account-and-rapid-navigation locator.fill: Target page, context or browser has been closed
+Call log:
+[2m  - waiting for getByTestId('conversation-id')[22m
+
+m6-a05,m6-a06,m8-a15 locator.fill: Target page, context or browser has been closed
+m6-a01,m6-a03,m8-a17 locator.fill: Target page, context or browser has been closed
+m6-a07,m8-a16,m8-a18 page.evaluate: Target page, context or browser has been closed
+[
+  {
+    "id": "m3-a01",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a13",
+    "status": "pass"
+  },
+  {
+    "id": "membership-authorization",
+    "status": "pass"
+  },
+  {
+    "id": "m8-a14",
+    "status": "fail",
+    "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0"
+  },
+  {
+    "id": "m8-a01",
+    "status": "fail",
+    "error": "Error: page.evaluate: SnapbackError: This resource is not available yet.\n    at sr.query (http://127.0.0.1:54900/_expo/static/js/web/entry-59cac5870e39a0fe3b9a93e9513b1285.js:859:143117)\n    at async <anonymous>:337:30"
+  },
+  {
+    "id": "m8-a03",
+    "status": "fail",
+    "error": "Error: page.evaluate: SnapbackError: This resource is not available yet.\n    at sr.query (http://127.0.0.1:54900/_expo/static/js/web/entry-59cac5870e39a0fe3b9a93e9513b1285.js:859:143117)\n    at async <anonymous>:337:30"
+  },
+  {
+    "id": "m8-a04",
+    "status": "fail",
+    "error": "Error: page.evaluate: SnapbackError: This resource is not available yet.\n    at sr.query (http://127.0.0.1:54900/_expo/static/js/web/entry-59cac5870e39a0fe3b9a93e9513b1285.js:859:143117)\n    at async <anonymous>:337:30"
+  },
+  {
+    "id": "m8-a02",
+    "status": "pass"
+  },
+  {
+    "id": "s3-resource-independence",
+    "status": "fail",
+    "error": "Error: page.evaluate: Target page, context or browser has been closed"
+  },
+  {
+    "id": "stale-account-and-rapid-navigation",
+    "status": "fail",
+    "error": "Error: locator.fill: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for getByTestId('conversation-id')\u001b[22m\n"
+  },
+  {
+    "id": "m6-a05",
+    "status": "fail",
+    "error": "Error: locator.fill: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m6-a06",
+    "status": "fail",
+    "error": "Error: locator.fill: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m8-a15",
+    "status": "fail",
+    "error": "Error: locator.fill: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m6-a01",
+    "status": "fail",
+    "error": "Error: locator.fill: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m6-a03",
+    "status": "fail",
+    "error": "Error: locator.fill: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m8-a17",
+    "status": "fail",
+    "error": "Error: locator.fill: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m6-a07",
+    "status": "fail",
+    "error": "Error: page.evaluate: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m8-a16",
+    "status": "fail",
+    "error": "Error: page.evaluate: Target page, context or browser has been closed"
+  },
+  {
+    "id": "m8-a18",
+    "status": "fail",
+    "error": "Error: page.evaluate: Target page, context or browser has been closed"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "actor": "u0001",
+  "repetition": 2,
+  "status": "interrupted",
+  "recordedEpoch": 1789226389755,
+  "reason": "Initial driver stalled before completing auth/setup; no whole-attempt watchdog in this version. Stopped exact owned driver PID 1512393; retained first four setup failures. Repetition3 not started in initial series."
+}

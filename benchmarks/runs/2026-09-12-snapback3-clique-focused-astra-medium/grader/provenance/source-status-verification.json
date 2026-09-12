@@ -1,0 +1,54 @@
+{
+  "schema": "snapback3-focused-continuous-grader-source-status.v1",
+  "verifiedAtEpochMs": 1789232735150,
+  "gradeCopyUnmodifiedInputs": {
+    "expected": {
+      "package.json": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "package-lock.json": "6ef4c3f3db4ed656e421d20b8318eb590227ac7490fb648524f4b1bb6d140355",
+      "API.md": "c5c47153d1f47470a7fec3d2eaf1a2a3a291214ca07795bf6f7209f5c5b2b2e0",
+      "BUILD.md": "bb8cc633e2bb96195c8fef9ecd9d7c7ce0d25c166d7be6058bf8ecd0281df625",
+      "selected-results.json": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+      "measurement-summary.json": "5e836f55e01eea6856863527e847b4658d52c18697f51e35d392da8083d957dd",
+      "artifacts/fixture/projection-manifest.json": "4c6744810dd3421f11c7e76f6e656d0fc32dcbaf54078a67d59b38cd73c023d2"
+    },
+    "actual": {
+      "package.json": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+      "package-lock.json": "6ef4c3f3db4ed656e421d20b8318eb590227ac7490fb648524f4b1bb6d140355",
+      "API.md": "c5c47153d1f47470a7fec3d2eaf1a2a3a291214ca07795bf6f7209f5c5b2b2e0",
+      "BUILD.md": "bb8cc633e2bb96195c8fef9ecd9d7c7ce0d25c166d7be6058bf8ecd0281df625",
+      "selected-results.json": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+      "measurement-summary.json": "5e836f55e01eea6856863527e847b4658d52c18697f51e35d392da8083d957dd",
+      "artifacts/fixture/projection-manifest.json": "4c6744810dd3421f11c7e76f6e656d0fc32dcbaf54078a67d59b38cd73c023d2"
+    },
+    "mismatches": [],
+    "appSourceAggregateSha256": "addc5f6f6d12673447574305773a5033fe560332a8e7bfc8b47424f00b3c6f77",
+    "packageTarballSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "packagePayloadRegularFiles": 108,
+    "packagePayloadMismatches": []
+  },
+  "scope": {
+    "path": "../../SCOPE.md",
+    "sha256": "98ad61d33e321f5106a346edcd3ad449b60a042911cf853656c24613d9cd1c0d",
+    "matchesExpected": true
+  },
+  "builderSelectedResult": {
+    "path": "inputs/selected-results.json",
+    "sha256": "32af994372b093cdae5285df1f524f52b268027b28a5c3a76718e5701ea4d60b",
+    "authority": "Builder-reported frozen result, retained as grader input."
+  },
+  "graderOutputs": {
+    "grading/grader-report.json": {
+      "bytes": 43788,
+      "sha256": "dac354d1e082650d989f580cd3dc9b09e13ebe8a03616e9225cc2845b23ce5e6"
+    },
+    "grading/trace.md": {
+      "bytes": 9160,
+      "sha256": "cf0d37b886af904e81ccfd3da428eda74b9a51829adb34a79ffe1816a73ba5ca"
+    },
+    "grading/DONE": {
+      "bytes": 168,
+      "sha256": "61059226e56e80d54ccea6a4f47ae710136072a0ea6ae7079811375b5ba9d793"
+    }
+  },
+  "verificationProblems": []
+}
