@@ -278,3 +278,31 @@ recorded as gaps, not estimated.
   `metrics/witness.jsonl` carries the line. The playwright Chromium cache
   is gone from this machine; the witness falls back to `/Applications/
   Google Chrome.app`.
+
+## 2026-09-12 — week four, in advance: H0 — identity, deploy, rollback, serve
+
+- **Identity (`crates/snapback4-core/src/identity.rs`).** `use identity`
+  (or `guests` / `password`) in the schema opens `POST /auth/guest`
+  (a `guest:<id>` principal) and `POST /auth/signup` and `/auth/login`
+  (`user:<id>` behind argon2id; one refusal for a wrong email or password),
+  `POST /auth/logout`. A session is a 32-byte token whose SHA-256 digest the
+  store keeps for 90 days; the token itself is never stored. The wire takes
+  `authorization: Bearer <token>`; `snapback4/auth` is the client's door.
+- **Two doors, by mode.** `dev` admits `x-snapback-persona` from loopback
+  and `POST /seed`; `serve` (a release) refuses both with a refusal that
+  names the other door. Copied in spirit from Snapback 2's "`serve` refuses
+  personas" (LLP 1002 §1).
+- **Deploy and rollback (H0, LLP 1015 §7 in miniature).** `snapback4 deploy
+  <dir>` compiles the project, classifies the change against the current
+  release with the day-two classifier (a destructive change needs
+  `--allow-destructive`), copies `snapback/*.q` into `<dir>/releases/N/`,
+  installs the schema into the directory's one shared store and records
+  the generation, sets `current`, and appends to `releases.jsonl`.
+  `snapback4 rollback <dir>` moves `current` back and re-installs.
+  `snapback4 serve <dir> --port N --bind H` runs the current release on
+  the shared store with tokens only. Exercised end to end on the chat app:
+  two deploys, a served release refusing a persona, a guest reading an
+  empty inbox, signup, a wrong password, login, seeding refused, logout
+  making the token dead, rollback to release 1 with the ledger.
+- Not yet: a hosted target (the release runs wherever the binary runs), TLS
+  (a proxy's job in slice one), secrets (`snapback4 secret`), effects.

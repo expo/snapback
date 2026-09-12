@@ -7,6 +7,7 @@
 pub mod cursor;
 pub mod engine;
 pub mod error;
+pub mod identity;
 pub mod ids;
 pub mod ir;
 pub mod key;
