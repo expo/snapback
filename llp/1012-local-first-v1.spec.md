@@ -469,8 +469,10 @@ the fallback adds no authority to the unheld target.
 A public (`read <- allow`) unique-key point can also be covered by a held,
 exhausted range whose typed scope contains that complete key. This is read
 coverage: it adds neither an alternate-index negative rule fact nor primary
-mutation authority, and does not infer a maintained row address. A public
-Count query's independently proved empty group range therefore lets an exact
+mutation authority, and does not infer a maintained row address. The point
+lookup validates its complete ordinary key before coverage reuses
+`hasCompleteRange`; no second key preparation or broader authority is needed.
+A public Count query's independently proved empty group range therefore lets an exact
 local rerun keep a row-plus-zero composite. A truncated or bounded fragment
 alone cannot discharge that point; evicted, wrong-scope or wrong-rule evidence
 cannot establish the required complete coverage. Restricted

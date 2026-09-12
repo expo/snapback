@@ -143,7 +143,7 @@ export class ClientStore {
     for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) {
       const table = this.schema.tables[a.table];
       if (table.rules.read !== 'Allow' || !table.indexes[a.index].unique
-        || !this.facts.drained(a.table, a.index, preparePrefix(this.schema, a.table, a.index, scalarAtoms(a.key), []))) partial.add(a.site);
+        || !this.hasCompleteRange(a.table, a.index, a.key)) partial.add(a.site);
     }
     return [...partial].sort();
   }

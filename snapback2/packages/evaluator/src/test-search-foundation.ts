@@ -7,6 +7,33 @@ import { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, normalizeSearch, s
 import { decomposition, composition, combining, folding, boundaries, rangeValue } from './unicode-tables';
 import { compareScalarAtoms, decodeIndexAtom, indexKeysEqual, indexKeyStartsWith, prepareIndexAtom,
   wordPrefixWireMax, type IndexComponent, type LogicalIndexAtom } from './search-key';
+import { sameValueZero, totalCompare, valueFromWire } from './value-runtime';
+
+// Collection equality shares text/ID values; index ordering keeps their types.
+for (const [left, right, equal] of [
+  [{ String: 'alice' }, { Id: 'alice' }, true],
+  [{ Id: 'alice' }, { String: 'bob' }, false],
+  [{ Int: 0 }, { Int: -0 }, true],
+  [{ Int: 0 }, { Bool: false }, false],
+  ['Null', { Bool: false }, false],
+] as const) {
+  assert.equal(sameValueZero(left, right), equal);
+  assert.equal(sameValueZero(right, left), equal);
+}
+assert(totalCompare({ String: 'alice' }, { Id: 'alice' }) < 0);
+for (const value of [{ Bytes: '00' }, { Row: {} }, { Array: [] }, { Map: {} }]) {
+  assert.throws(() => sameValueZero(value, { Int: 0 }), { code: 'E_TYPE' });
+  assert.throws(() => sameValueZero({ Int: 0 }, value), { code: 'E_TYPE' });
+}
+assert(totalCompare({ Bytes: '0f' }, { Bytes: '10' }) < 0);
+for (const bytes of ['FF', '0', 42, null]) {
+  const value = { Bytes: bytes } as any;
+  assert.throws(() => totalCompare(value, { Bytes: '00' }), { code: 'E_INPUT' });
+  assert.throws(() => totalCompare({ Bytes: '00' }, value), { code: 'E_INPUT' });
+  assert.throws(() => valueFromWire({ Bytes: { max: 10 } }, value, 'payload', (path, message) => {
+    throw new Error(`${path}: ${message}`);
+  }), /payload: expected canonical Bytes/);
+}
 
 const root = new URL('../../../unicode/17.0.0/', import.meta.url);
 const lines = (name: string) => readFileSync(new URL(name, root), 'utf8').split('\n');
