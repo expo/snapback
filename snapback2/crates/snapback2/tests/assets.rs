@@ -1200,13 +1200,28 @@ fn concurrent_first_rung_http_requests_spawn_one_helper_and_all_succeed() {
             let barrier = barrier.clone();
             thread::spawn(move || {
                 barrier.wait();
-                wire(
-                    port,
-                    "GET",
-                    &format!("/api/asset/{id}?w=300"),
-                    &[("X-Snapback-As", "alice")],
-                    &[],
-                )
+                // Asset GETs share the bounded media worker class. Keep the
+                // concurrent wave; retry only admission pressure, never a
+                // helper/render failure, until every caller receives its rung.
+                let deadline = Instant::now() + Duration::from_secs(20);
+                loop {
+                    let response = wire(
+                        port,
+                        "GET",
+                        &format!("/api/asset/{id}?w=300"),
+                        &[("X-Snapback-As", "alice")],
+                        &[],
+                    );
+                    if response.status != 503 {
+                        break response;
+                    }
+                    assert_eq!(response.json()["code"], "E_OWNER_BUSY");
+                    assert!(
+                        Instant::now() < deadline,
+                        "asset worker admission stayed full"
+                    );
+                    thread::sleep(Duration::from_millis(20));
+                }
             })
         })
         .collect::<Vec<_>>();

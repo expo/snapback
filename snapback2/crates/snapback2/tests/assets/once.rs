@@ -322,11 +322,14 @@ fn asset_head_is_headers_only_with_the_get_security_headers() {
     let get = wire(port, "GET", &path, &[alice], &[]);
     assert_eq!(get.status, 200);
     assert!(!get.body.is_empty());
+    // Originless CLI/persona requests must not receive a browser CORS grant.
+    for response in [&head, &get] {
+        assert!(!response.headers.contains_key("access-control-allow-origin"));
+    }
     for key in [
         "Content-Type",
         "Content-Length",
         "Cache-Control",
-        "Access-Control-Allow-Origin",
         "Referrer-Policy",
         "X-Content-Type-Options",
     ] {
@@ -361,12 +364,15 @@ fn asset_head_is_headers_only_with_the_get_security_headers() {
     assert!(head.body.is_empty());
     assert_eq!(get.status, 200);
     assert!(!get.body.is_empty());
+    // Originless CLI/persona requests must not receive a browser CORS grant.
+    for response in [&head, &get] {
+        assert!(!response.headers.contains_key("access-control-allow-origin"));
+    }
     for key in [
         "Content-Type",
         "Content-Length",
         "Cache-Control",
         "ETag",
-        "Access-Control-Allow-Origin",
         "Referrer-Policy",
         "X-Content-Type-Options",
     ] {
