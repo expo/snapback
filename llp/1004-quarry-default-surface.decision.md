@@ -233,8 +233,10 @@ The packaged guide now puts the executable form first for the common guesses
 found in the Clique build: maintains use `read <- allow`; comments use `--`;
 text clamps use `slice`; text composition returns separate fields or queries;
 arrays contain scalar items; ambiguous reads name `by <index>`; and optional
-point deletes read, test for non-null, then delete. The corresponding compiler
-and runtime refusals name those same repairs. Dynamic search scopes use typed
+point deletes read, test for non-null, then delete only when read authority is
+available. Delete-only callers keep direct by-id delete and handle an expected
+`NOT_FOUND` outside Quarry. The corresponding compiler and runtime refusals
+name those same repairs. Dynamic search scopes use typed
 `searchScopes` and scoped-search arguments with the installed global-search
 pager; authored dynamic merge lanes and object-array batching remain outside
 the language.

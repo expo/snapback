@@ -39,13 +39,15 @@ Acceptance: a cold builder following `snapback2 guide` for maintain + a caption 
 ## Resolution (2026-09-11)
 
 The packaged guide now leads with `read <- allow`, `--` comments, `slice` for
-captions, separate text fields, scalar arrays, explicit `by` selection, guarded
-optional deletes, generated Quarry functions for JSON integer windows, and the
-typed two-query global-search pager. The parser, binder, certifier, and runtime
-refusals name those legal forms without widening Quarry or its bounds.
+captions, separate text fields, scalar arrays, explicit `by` selection,
+read-authorized guarded deletes, delete-only direct by-id handling, generated
+Quarry functions for JSON integer windows, and the typed two-query global-search
+pager. The parser, binder, certifier, and runtime refusals name those legal
+forms without widening Quarry or its bounds.
 
 An installed-package test resolves the public `maintain`, `expressions`, and
 `config` guide topics, runs the packaged JSON generator, and completes the
 resulting first `snapback2 check`. Compiler coverage executes absent and present
-guarded deletes; Rust coverage pins the held-search and missing-row rewrites.
-The integrated compiler suite passes 317/317 with the rebuilt checker.
+read-authorized guards plus direct and guarded delete-only cases; Rust coverage
+pins the held-search and authority-qualified missing-row rewrites.
+The integrated compiler suite passes 318/318 with the rebuilt checker.

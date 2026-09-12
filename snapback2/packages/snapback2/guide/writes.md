@@ -16,8 +16,8 @@ writes add no result read. Delete yields no value. A final write is an implicit
 return, except in a proc. Search re-derivation is priced only when an update
 patch names an indexed source column; upsert carries insert derivation cost.
 
-Optional cleanup must read and guard before deleting; a direct delete of a
-missing point refuses `E_REQUIRE:NOT_FOUND`:
+With read authority, optional cleanup may read and guard before deleting; a
+direct delete of a missing point refuses `E_REQUIRE:NOT_FOUND`:
 
 ```q
 mutation clearDigest(digest: text <=64):
@@ -26,6 +26,10 @@ mutation clearDigest(digest: text <=64):
     delete messages[row]
   return null
 ```
+
+Read and delete authority are independent. With delete-only authority, keep a
+direct by-id delete and handle an expected `NOT_FOUND` at its authorized caller;
+Quarry cannot guard an unreadable row without silently skipping an existing one.
 
 See `guide quarry` for related topics.
 

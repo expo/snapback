@@ -138,6 +138,38 @@ schedule hourly every 1h: cleanup()
     }, declarations);
   });
 
+  test("delete-only authority keeps direct by-id deletion distinct from an unreadable guard", async () => {
+    const declarations = `table cleanup:
+  token: text <=64
+  read <- deny
+  delete <- allow
+`;
+    await project(`mutation direct(rowId: cleanup):
+  delete cleanup[rowId]
+  return true
+
+mutation guarded(rowId: cleanup):
+  row = cleanup[rowId]
+  if row != null:
+    delete cleanup[row]
+  return true
+`, (lowered, checked) => {
+      const receipt: ClosureReceipt = { ...empty, rows: [{ table: "cleanup", id: "cleanup-1",
+        row: row({ id: id("cleanup-1"), token: { String: "digest" } }) }] };
+      const execute = (name: string) => {
+        const program = operation(lowered.project.programs, `probe.${name}`);
+        const certificate = checked.find(item => item.program === program.name)!.certificate!;
+        return new ClientStore(lowered.project.schema, receipt, { program })
+          .applyMutation(program, { ...context, args: { rowId: id("cleanup-1") } }, false, certificate as any).execution;
+      };
+      const direct = execute("direct");
+      assert(direct.writes.length === 1 && direct.writes[0]!.table === "cleanup"
+        && direct.writes[0]!.id === "cleanup-1" && direct.writes[0]!.row === null, JSON.stringify(direct));
+      const guarded = execute("guarded");
+      assert(guarded.writes.length === 0, `unreadable guard unexpectedly matched direct delete: ${JSON.stringify(guarded)}`);
+    }, declarations);
+  });
+
   test("decimal literals infer exact descriptors; integer aliases and list defaults never rescale", async () => {
     const declarations = "table amounts:\n  amount: decimal 3\n  values: [decimal 3] <=4\n  public\n  insert <- allow\n";
     await project(`query exact():

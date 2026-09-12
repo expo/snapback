@@ -140,7 +140,7 @@ impl Refusal {
     pub fn from_runtime(error: &RuntimeError) -> Self {
         if let RuntimeError::Require { code, site } = error {
             let rewrite = if code == "NOT_FOUND" {
-                "require the row with `row = table[key] ! else NOT_FOUND`; when absence is allowed, read `row = table[key] by index` then guard `if row != null: delete table[row]`"
+                "require presence with `row = table[key] ! else NOT_FOUND`; only with read authority, allow absence by reading `row = table[key] by index` then guarding `if row != null: delete table[row]`; with delete-only authority keep direct by-id delete and handle expected NOT_FOUND at the authorized caller because Quarry cannot guard an unreadable row"
             } else {
                 "satisfy the program requirement before retrying"
             };
@@ -632,14 +632,17 @@ fn runtime_requirement_message_does_not_embed_its_application_code() {
 
 #[cfg(test)]
 #[test]
-fn missing_point_refusal_names_required_and_optional_delete_forms() {
+fn missing_point_refusal_preserves_delete_only_authority() {
     let refusal = Refusal::from_runtime(&RuntimeError::Require {
         code: "NOT_FOUND".to_owned(),
         site: None,
     });
     let rewrite = refusal.rewrite.as_deref().unwrap();
     assert!(rewrite.contains("! else NOT_FOUND"));
+    assert!(rewrite.contains("only with read authority"));
     assert!(rewrite.contains("if row != null: delete table[row]"));
+    assert!(rewrite.contains("delete-only authority keep direct by-id delete"));
+    assert!(rewrite.contains("Quarry cannot guard an unreadable row"));
 }
 
 pub(crate) fn successor_site(mut refusal: Refusal, next: &crate::project::CompiledProject, previous: Option<&crate::project::CompiledProject>) -> Refusal {

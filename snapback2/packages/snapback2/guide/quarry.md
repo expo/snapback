@@ -4,7 +4,7 @@ Quarry is the backend language. `check` compiles in memory; inspection goes in
 `.snapback/build/quarry/`. `guide grammar` is the syntax map.
 
 `snapback/schema.q` holds `use identity`, tables, maintains and channels.
-.q` stems name API namespaces; `messages.q` exports `api.messages.thread`.
+`.q` stems name API namespaces; `messages.q` exports `api.messages.thread`.
 TypeScript is only seeds, tests, and effect I/O;
 otherwise use Quarry. Effect/`.q` stems differ.
 
