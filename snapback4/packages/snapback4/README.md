@@ -144,11 +144,13 @@ mutation edit(messageId: messages, body: text <=4000):
 
 `maintain counts: count messages by conversationId` (or `maintain totals:
 sum posts of score by authorId`) keeps an aggregate table the engine
-writes: columns are the `by` columns and `value`, the id is the group's
-canonical key, programs read it by group (`counts[conversationId]`,
-`counts[.conversationId]` in a shape).
-It takes its own `read` rule and inherits the source's `sync` when it
-groups by the audience columns.
+writes. A program reads it by group and gets **the number**:
+`counts[conversationId]` and `counts[.conversationId]` in a shape are an
+`int`, 0 when the group has no row. (On the wire and on a device the
+table's rows are `{ id, <by columns>, value }` with the group's canonical
+key as the id; that shape only matters to sync.) It takes its own `read`
+rule and inherits the source's `sync` when it groups by the audience
+columns.
 
 ### Queries and mutations
 
@@ -329,8 +331,10 @@ An `image <=N` or `video <=N` column holds an upload: the client sends
 the bytes first (`upload` → `{ id, type, bytes, width, height,
 duration }`; the server sniffs JPEG, PNG, WebP and MP4 and refuses the
 rest with `E_ASSET_TYPE`, and anything over the largest column's bound
-with `E_ASSET_TOO_LARGE`), then places `{ id }` in the mutation; the row
-carries the facts the server established. One asset, one home: your own
+with `E_ASSET_TOO_LARGE`), then places `{ id }` in the mutation. Inside
+the mutation the argument already carries the facts the server
+established (`require clip.duration <= 60000 else TOO_LONG`; every key
+is present, null where the kind has none), and the row carries them. One asset, one home: your own
 upload, placed once (`E_ASSET_UNKNOWN`, `E_ASSET_PLACED`). Serving is
 the home row's read rule: `client.asset(id)` fetches the bytes under the
 viewer's credentials and returns a blob URL (`useAsset` in React;

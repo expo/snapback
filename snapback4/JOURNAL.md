@@ -1043,3 +1043,21 @@ nothing but its thread, and the engine serializes behind its own lock as
 before. Twelve polls open, `/schema` and a query answer in milliseconds.
 Published `snapback4@0.1.1`; the lane stays on its 0.1.0 pin and the
 record reads the defect against main.
+
+## 2026-09-12 — from the full-brief lane's M2: the facts arrive before the program; 0.1.2
+
+Two lines from the lane's M2. **A video argument carried only the id, so
+`require clip.duration <= 60000` raised `E_FIELD` inside the mutation**:
+the facts the server sniffed were put on the row at the write, after the
+program had already read the argument. Now an `image`/`video` argument
+that names the writer's own upload carries the server's facts before the
+program runs (`type`, `bytes`, `width`, `height`, `duration`, every key
+present and null where the kind has none, on the argument and on the
+row alike; a fixture's placeholder keeps the same shape), so the 60 s
+bound is one `require` and the client needs to send nothing but `{ id }`.
+Test: `tests/clique.rs`, a clip of 4.5 s sent and one of 120 s refused
+with the author's code. **The README said a `maintain` was read "by
+group" and described the row**, and the lane expected a row where the
+read is the number; it is the number (0 when the group has no row), and
+the README now says so, the row shape being sync's business. Published
+`snapback4@0.1.2`.

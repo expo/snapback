@@ -452,6 +452,25 @@ impl Engine {
         }
         let viewer = context.viewer.clone();
         let now = context.now.unwrap_or(0);
+        // An `image`/`video` argument names an upload by id; the program
+        // reads the facts the server established (`clip.duration`), so
+        // they are put in place before it runs. An id that is not the
+        // writer's own upload stays as sent and the write refuses it.
+        for (name, kind) in &program.args {
+            let inner = match kind {
+                crate::ir::ArgType::Optional(inner) => inner.as_ref(),
+                other => other,
+            };
+            if !matches!(inner, crate::ir::ArgType::Image { .. } | crate::ir::ArgType::Video { .. }) {
+                continue;
+            }
+            let Some(id) = asset_id(context.args.get(name)).map(str::to_owned) else { continue };
+            if let Some(asset) = tx.asset(&id)?
+                && (asset.owner == viewer || context.is_system())
+            {
+                context.args.insert(name.clone(), asset.column_value());
+            }
+        }
         tx.savepoint("program")?;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
         let ran = runner.run(&program).and_then(|value| {

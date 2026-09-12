@@ -85,6 +85,27 @@ fn an_expired_row_is_absent_then_swept() {
     assert_eq!(thread(&mut engine, "dev:bob", i64::MAX / 2), vec!["forever"]);
 }
 
+fn boxed(kind: &[u8; 4], payload: &[u8]) -> Vec<u8> {
+    let mut out = ((payload.len() + 8) as u32).to_be_bytes().to_vec();
+    out.extend_from_slice(kind);
+    out.extend_from_slice(payload);
+    out
+}
+
+/// The smallest MP4: an `ftyp` and a `moov` with an `mvhd` of `ms` milliseconds.
+fn boxed_ftyp_with(ms: u32) -> Vec<u8> {
+    let mut mvhd = vec![0u8; 20];
+    mvhd[12..16].copy_from_slice(&1000u32.to_be_bytes());
+    mvhd[16..20].copy_from_slice(&ms.to_be_bytes());
+    let mut mp4 = boxed(b"ftyp", b"isom\x00\x00\x02\x00isomiso2");
+    mp4.extend(boxed(b"moov", &boxed(b"mvhd", &mvhd)));
+    mp4
+}
+
+fn boxed_ftyp() -> Vec<u8> {
+    boxed_ftyp_with(4_500)
+}
+
 fn png(width: u32, height: u32) -> Vec<u8> {
     let mut png = b"\x89PNG\r\n\x1a\n".to_vec();
     png.extend_from_slice(&13u32.to_be_bytes());
@@ -100,7 +121,9 @@ fn png(width: u32, height: u32) -> Vec<u8> {
 /// one-view image is served once per principal.
 #[test]
 fn an_asset_is_served_by_its_home_rows_read_rule() {
-    let once = CHAT.replace("photo: image <=5000000 ?", "photo: image <=5000000 once ?");
+    let once = CHAT
+        .replace("photo: image <=5000000 ?", "photo: image <=5000000 once ?\n  clip: video <=52428800 ?")
+        .replace("mutation edit(", "mutation sendClip(conversationId: conversations, clip: video <=52428800):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  require clip.duration <= 60000 else TOO_LONG\n  row = insert messages { conversationId, authorId: viewer, clip, at: now }\n  return { id: row.id, seconds: clip.duration }\n\nmutation edit(");
     let mut engine = chat_engine_from(&once, &["dev:alice", "dev:bob"]);
     // Bytes that are not an image, and an image larger than the column, are refused.
     assert_eq!(engine.store_asset("dev:alice", b"not an image", 1_000).unwrap_err().code(), "E_ASSET_TYPE");
@@ -131,6 +154,23 @@ fn an_asset_is_served_by_its_home_rows_read_rule() {
     assert_eq!(engine.asset_access("dev:bob", &asset.id, 1_006).unwrap_err().code(), "E_ASSET_VIEWED");
     assert_eq!(engine.asset_access("dev:mallory", &asset.id, 1_006).unwrap_err().code(), "E_ASSET_UNKNOWN");
     assert!(engine.asset_access("dev:alice", &asset.id, 1_007).is_ok(), "the uploader is never counted");
+    // A video: the mutation reads the server's facts from an argument that
+    // carried only the id, and the row keeps every fact key.
+    let mut mp4 = boxed_ftyp();
+    assert_eq!(engine.store_asset("dev:alice", &mp4, 1_007).unwrap().duration, Some(4_500));
+    mp4.push(0);
+    let clip = engine.store_asset("dev:alice", &mp4, 1_007).unwrap();
+    let sent = engine.mutate("sendClip", Some("v1"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("clip", photo(&clip.id))])).at(1_007).with_ids(["clip1".to_owned()])).unwrap();
+    match &sent.state {
+        WriteState::Sent { result, .. } => assert_eq!(result.field("seconds").unwrap(), &Value::Int(4_500)),
+        other => panic!("{other:?}"),
+    }
+    let long = engine.store_asset("dev:alice", &boxed_ftyp_with(120_000), 1_007).unwrap();
+    let refused = engine.mutate("sendClip", Some("v2"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("clip", photo(&long.id))])).at(1_007).with_ids(["clip2".to_owned()])).unwrap();
+    assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "TOO_LONG"), "{:?}", refused.state);
+    let stored = engine.store().rows("messages").unwrap().into_iter().find(|m| m.field("id").unwrap() == &id("clip1")).unwrap();
+    assert_eq!(stored.field("clip").unwrap().field("duration").unwrap(), &Value::Int(4_500));
+    assert_eq!(stored.field("clip").unwrap().field("width").unwrap(), &Value::Null);
     // Deleting the message releases the asset: served to nobody, then unlinked.
     let gone = engine.mutate("unsend", Some("u1"), Context::new("dev:alice", args(&[("messageId", id("msg1"))])).at(1_008)).unwrap();
     assert!(matches!(gone.state, WriteState::Sent { .. }));

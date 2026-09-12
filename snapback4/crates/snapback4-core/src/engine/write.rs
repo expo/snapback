@@ -142,6 +142,12 @@ impl Runner<'_> {
             let Some(id) = asset_id(fields.get(column)).map(str::to_owned) else { continue };
             let Some(asset) = self.tx.asset(&id)? else {
                 if self.context.is_system() {
+                    // A fixture's placeholder: keep it, in the asset shape.
+                    let mut map = fields.get(column).and_then(|value| value.as_object().ok()).cloned().unwrap_or_default();
+                    for fact in crate::assets::FACTS {
+                        map.entry(fact.to_owned()).or_insert(Value::Null);
+                    }
+                    fields.insert(column.clone(), Value::Map(map.into()));
                     continue;
                 }
                 return Err(RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("{table_name}.{column} names an upload {id} that is not yours or does not exist; upload the bytes first (POST /assets) and place the id it returns") });

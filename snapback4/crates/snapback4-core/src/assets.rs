@@ -63,19 +63,23 @@ impl Asset {
     /// The value a row column carries: the id and the facts the server
     /// established, never the client's word for them.
     pub fn column_value(&self) -> Value {
-        let mut fields = BTreeMap::from([("id".to_owned(), Value::Id(self.id.clone())), ("type".to_owned(), Value::String(self.content_type.clone())), ("bytes".to_owned(), Value::Int(self.bytes as i64))]);
-        if let Some(width) = self.width {
-            fields.insert("width".into(), Value::Int(i64::from(width)));
-        }
-        if let Some(height) = self.height {
-            fields.insert("height".into(), Value::Int(i64::from(height)));
-        }
-        if let Some(duration) = self.duration {
-            fields.insert("duration".into(), Value::Int(duration as i64));
-        }
+        let int = |value: Option<u64>| value.map(|v| Value::Int(v as i64)).unwrap_or(Value::Null);
+        // Every fact is a key, null when the kind has none: `.duration` on
+        // an image reads null, never a missing field.
+        let fields = BTreeMap::from([
+            ("id".to_owned(), Value::Id(self.id.clone())),
+            ("type".to_owned(), Value::String(self.content_type.clone())),
+            ("bytes".to_owned(), Value::Int(self.bytes as i64)),
+            ("width".to_owned(), int(self.width.map(u64::from))),
+            ("height".to_owned(), int(self.height.map(u64::from))),
+            ("duration".to_owned(), int(self.duration)),
+        ]);
         Value::Map(fields.into())
     }
 }
+
+/// The fact keys every asset value carries.
+pub const FACTS: [&str; 5] = ["type", "bytes", "width", "height", "duration"];
 
 /// The asset id a column value names, if it is an asset value.
 pub fn asset_id(value: Option<&Value>) -> Option<&str> {
