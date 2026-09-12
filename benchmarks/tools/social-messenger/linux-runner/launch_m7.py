@@ -5,10 +5,12 @@ Reads prompts/<wave>-<backend>.m7.md; cwd = the lane; writes logs/<wave>-<backen
 """
 import json, os, subprocess, sys, time
 from pathlib import Path
-from run_support import retain_codex_rollout_tree, rollout_snapshot, run_env, wait_tracked_process
+from run_support import exclusive_run_root, retain_codex_rollout_tree, rollout_snapshot, run_env, wait_tracked_process
 
 ROOT = Path(__file__).resolve().parent.parent
 wave, backend = sys.argv[1], sys.argv[2]
+RUN_ROOT_LOCK = exclusive_run_root(ROOT)
+RUN_ROOT_LOCK.__enter__()
 lane = ROOT / "lanes" / f"{wave}-{backend}"; logs = ROOT / "logs"; name = f"{wave}-{backend}"
 prompt_path = ROOT / "prompts" / f"{name}.m7.md"
 (lane / "m7").mkdir(exist_ok=True)

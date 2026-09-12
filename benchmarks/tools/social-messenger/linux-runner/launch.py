@@ -12,10 +12,14 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from run_support import retain_codex_rollout_tree, rollout_snapshot, run_env, wait_tracked_process
+from run_support import exclusive_run_root, retain_codex_rollout_tree, rollout_snapshot, run_env, wait_tracked_process
 
 ROOT = Path(__file__).resolve().parent.parent
 wave, backend = sys.argv[1], sys.argv[2]
+# Keep custody for the actor's full lifetime. prepare.py hands its already-held
+# descriptor through exec; a direct launch takes the same lock here.
+RUN_ROOT_LOCK = exclusive_run_root(ROOT)
+RUN_ROOT_LOCK.__enter__()
 lane = ROOT / "lanes" / f"{wave}-{backend}"
 prompt_path = ROOT / "prompts" / f"{wave}-{backend}.md"
 logs = ROOT / "logs"
