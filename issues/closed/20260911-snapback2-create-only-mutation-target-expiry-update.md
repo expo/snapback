@@ -32,11 +32,20 @@ separate certified write site with unchanged authorization and ceilings.
 Conditional, repeated, computed, differently addressed, and independent updates
 keep their existing update or unresolved target semantics.
 
+Generated declarations analyze the lowered mutation flow used by certification.
+That keeps direct aliases, nested object aliases, nested-result writes, and inlined
+proc calls in parity with the Rust target relation. A conditional update and an
+update after a possibly escaping return remain create/update and cannot be used as
+create-only bindings.
+
 The focused cold-builder fixture declares `messages`, optional `expiresAt`, and
 `schedule expireMessage`, then compiles both deadline-before-insert and
 insert-then-expiry-update mutations. Both produce the exact target
 `{ table: "messages", kind: "create", source: { newId: 0 } }`, and a real
 generated-client journey accepts each `mutationTarget` as a create binding.
+The same executable coverage checks the alias, nested-expression, and proc forms,
+plus negative conditional and escaping-return forms, against both generated types
+and Rust certificates.
 
 Evidence: the focused compiler/generated-client check passed; the eight core
 mutation-target tests passed; compiler TypeScript checking and

@@ -98,6 +98,9 @@ void [done, wrong, rowIsNotAny];
       "snapback/messages.q": `query all():
   return messages[] first 10 by byId
 
+proc setExpiry(row: messages, deadline: time):
+  update messages[row] { expiresAt: deadline }
+
 mutation deadlineOnInsert(body: text <=4000):
   deadline = now + 3600000
   insert messages { body, expiresAt: deadline }
@@ -107,33 +110,96 @@ mutation deadlineAfterInsert(body: text <=4000):
   update messages[row] { expiresAt: now + 3600000 }
   return row
 
+mutation deadlineAfterAlias(body: text <=4000):
+  row = insert messages { body, expiresAt: null }
+  alias = row
+  update messages[alias] { expiresAt: now + 3600000 }
+  return alias
+
+mutation deadlineAfterNestedAlias(body: text <=4000):
+  row = insert messages { body, expiresAt: null }
+  box = { message: row }
+  update messages[box.message] { expiresAt: now + 3600000 }
+  return box.message
+
+mutation deadlineInsideResult(body: text <=4000):
+  row = insert messages { body, expiresAt: null }
+  result = { message: update messages[row] { expiresAt: now + 3600000 } }
+  return result.message
+
+mutation deadlineThroughProc(body: text <=4000):
+  row = insert messages { body, expiresAt: null }
+  setExpiry(row, now + 3600000)
+  return row
+
+mutation conditionalDeadline(body: text <=4000, patch: bool):
+  row = insert messages { body, expiresAt: null }
+  if patch:
+    update messages[row] { expiresAt: now + 3600000 }
+  return row
+
+mutation escapingDeadline(body: text <=4000, skip: bool):
+  row = insert messages { body, expiresAt: null }
+  if skip:
+    return row
+  update messages[row] { expiresAt: now + 3600000 }
+  return row
+
 schedule expireMessage on messages at .expiresAt: delete .
 `,
       "snapback/tests/expiry.test.ts": `import { api, defineItems, mutationTarget } from "snapback2/client";
 const before = mutationTarget(api.messages.deadlineOnInsert, "messages");
 const after = mutationTarget(api.messages.deadlineAfterInsert, "messages");
-const beforeKind: "create" | undefined = before.__kind;
-const afterKind: "create" | undefined = after.__kind;
+const alias = mutationTarget(api.messages.deadlineAfterAlias, "messages");
+const nestedAlias = mutationTarget(api.messages.deadlineAfterNestedAlias, "messages");
+const nestedResult = mutationTarget(api.messages.deadlineInsideResult, "messages");
+const viaProc = mutationTarget(api.messages.deadlineThroughProc, "messages");
+const createKinds: ("create" | undefined)[] = [before.__kind, after.__kind, alias.__kind,
+  nestedAlias.__kind, nestedResult.__kind, viaProc.__kind];
 defineItems(api.messages.all, { table: "messages", create: {
-  target: after, belongs: () => true, draft: ({ body }) => ({ body }),
+  target: alias, belongs: () => true, draft: ({ body }) => ({ body }),
 } });
-void [beforeKind, afterKind];
+const conditional = mutationTarget(api.messages.conditionalDeadline, "messages");
+const escaping = mutationTarget(api.messages.escapingDeadline, "messages");
+const conditionalKind: "create" | "update" | undefined = conditional.__kind;
+const escapingKind: "create" | "update" | undefined = escaping.__kind;
+// @ts-expect-error conditional post-create updates are not create-only bindings.
+const conditionalCreate: "create" | undefined = conditional.__kind;
+// @ts-expect-error an escaping return makes the later update conditional.
+const escapingCreate: "create" | undefined = escaping.__kind;
+void [createKinds, conditionalKind, escapingKind, conditionalCreate, escapingCreate];
 `,
     }, undefined, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `expiry target backend refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      for (const name of ["messages.deadlineOnInsert", "messages.deadlineAfterInsert"]) {
+      const creates = ["messages.deadlineOnInsert", "messages.deadlineAfterInsert", "messages.deadlineAfterAlias",
+        "messages.deadlineAfterNestedAlias", "messages.deadlineInsideResult", "messages.deadlineThroughProc"];
+      const guarded = ["messages.conditionalDeadline", "messages.escapingDeadline"];
+      for (const name of creates) {
         const generated = lowered.apiDts.match(new RegExp(`readonly ${name.split(".")[1]}: Op<[^\\n]+`))?.[0] ?? "";
         assert(generated.includes('{ messages: "create" }') && !generated.includes('"update"'),
           `${name} was not create-only: ${generated}`);
       }
+      for (const name of guarded) {
+        const generated = lowered.apiDts.match(new RegExp(`readonly ${name.split(".")[1]}: Op<[^\\n]+`))?.[0] ?? "";
+        assert(generated.includes('messages: "create" | "update"'), `${name} hid its guarded update: ${generated}`);
+      }
       const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
-      for (const name of ["messages.deadlineOnInsert", "messages.deadlineAfterInsert"]) {
+      for (const name of creates) {
         const target = checked.find((item) => item.program === name);
         assert(target?.certificate && !target.error, `${name} did not certify: ${JSON.stringify(target)}`);
         const relation = target.certificate.mutation_targets as { targets: unknown[]; complete: boolean };
         assert(relation.complete && JSON.stringify(relation.targets) === JSON.stringify([
           { table: "messages", kind: "create", source: { newId: 0 } },
+        ]), `${name} target relation: ${JSON.stringify(relation)}`);
+      }
+      for (const name of guarded) {
+        const target = checked.find((item) => item.program === name);
+        assert(target?.certificate && !target.error, `${name} did not certify: ${JSON.stringify(target)}`);
+        const relation = target.certificate.mutation_targets as { targets: unknown[]; complete: boolean };
+        assert(!relation.complete && JSON.stringify(relation.targets) === JSON.stringify([
+          { table: "messages", kind: "create", source: { newId: 0 } },
+          { table: "messages", kind: "update", unresolved: "conditional" },
         ]), `${name} target relation: ${JSON.stringify(relation)}`);
       }
       const journeys = await compileJourneys(root, lowered.apiDts);
