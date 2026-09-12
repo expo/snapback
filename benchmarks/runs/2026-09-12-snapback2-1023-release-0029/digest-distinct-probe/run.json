@@ -1,0 +1,22 @@
+{
+  "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+  "publicVersion": "0.0.29",
+  "candidate": "Existing final fold with full1000 memberships,500follows and functionally reduced maintained key. No expiry guard is claimed.",
+  "command": [
+    "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/snapback2-darwin-arm64/bin/snapback2",
+    "check",
+    "--project",
+    "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final",
+    "--cost",
+    "--json"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final",
+  "compiler": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/shim/dist/compiler.mjs",
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+  "started": "2026-09-12T06:37:49.778483+00:00",
+  "binarySha256": "e0e3dae8793317662cd5cb07c51747b1da01553a84c84cb8879da3fafc8a34d8",
+  "pid": 73483,
+  "exit": 1,
+  "ended": "2026-09-12T06:37:50.440316+00:00",
+  "processExited": true
+}

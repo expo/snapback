@@ -111,8 +111,26 @@ This is source evidence for the remaining expiry gap, not an executed expiry
 qualification. No new read model, ceiling or reduced population is selected.
 
 Precise source/probe/log locations and cost terms are in the child plan's
-implementation record. Publication and the full Clique wave remain separate
-work; the digest requirement is still unmet.
+implementation record. The three read forms subsequently shipped in 0.0.29;
+the fresh Clique wave remains separate work and the digest requirement is unmet.
+
+### Distinct final-counter check — 2026-09-12
+
+One fresh compile against qualified 0.0.29 still refuses the compact final
+500-follow / 1,000-membership fold: 9,922,698 heap bytes and 8,691,704 closure
+bytes, before expiry validation. Its 117,835 steps fit. The earlier
+2,531,718-byte count-evidence term was not the whole transaction.
+
+An earlier prune plus a final guard also fails progress even with correct,
+affordable counters: one message can expire between prune and emission.
+`if` then skips the recipient; `require` parks the job until operator resume,
+including across restart and later timer cleanup. A global guard also depends
+on unrelated expiry. A complete recipe still needs affordable final reads,
+atomic contribution maintenance and automatic retry of the same pending period.
+This is a candidate-specific negative, not a language impossibility claim.
+The [retained source assessment and probe](../benchmarks/runs/2026-09-12-snapback2-1023-release-0029/digest-distinct-probe/assessment.json)
+bind source hashes, exact command, costs and raw output. No runtime success
+or new ceiling is claimed.
 
 ## Owner-stop followup — 2026-09-12
 

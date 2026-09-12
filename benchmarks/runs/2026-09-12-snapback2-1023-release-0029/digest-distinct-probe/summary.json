@@ -1,0 +1,66 @@
+{
+  "run": {
+    "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+    "publicVersion": "0.0.29",
+    "candidate": "Existing final fold with full1000 memberships,500follows and functionally reduced maintained key. No expiry guard is claimed.",
+    "command": [
+      "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/snapback2-darwin-arm64/bin/snapback2",
+      "check",
+      "--project",
+      "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final",
+      "--cost",
+      "--json"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final",
+    "compiler": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/shim/dist/compiler.mjs",
+    "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "started": "2026-09-12T06:37:49.778483+00:00",
+    "binarySha256": "e0e3dae8793317662cd5cb07c51747b1da01553a84c84cb8879da3fafc8a34d8",
+    "pid": 73483,
+    "exit": 1,
+    "ended": "2026-09-12T06:37:50.440316+00:00",
+    "processExited": true
+  },
+  "admitted": false,
+  "program": "digest-recipes.periodDigestSweep",
+  "cost": {
+    "max_closure_bytes": 8691704,
+    "max_examined": 4514,
+    "max_heap_bytes": 9922698,
+    "max_index_entries": 4514,
+    "max_output_bytes": 6,
+    "max_rule_probes": 0,
+    "max_steps": 117835
+  },
+  "ceilings": {
+    "closure_bytes": 4194304,
+    "examined": 10240,
+    "heap_bytes": 8388608,
+    "index_entries": 10240,
+    "output_bytes": 1048576,
+    "rule_probes": 10240,
+    "steps": 1000000,
+    "write_rows": 2048
+  },
+  "errors": [
+    {
+      "code": "E_BOUND",
+      "message": "heap bytes 9922698 exceeds ceiling 8388608; product: search closure scratch = 6151978 + digest-recipes.periodDigestSweep.9 take 1000 (+2 reserve) \u00d7 1 calls on memberships (calls from digest-recipes.periodDigestSweep.0 take 1) \u00d7 5 \u00d7 32 = 160320 + dige",
+      "rewrite": "reduce the named expression, statement, or write repetition bound; for a whole-population digest or backfill, keep the population and reduce a resumable job chunk (guide fanout)"
+    },
+    {
+      "code": "E_BOUND",
+      "message": "closure bytes 8691704 exceeds ceiling 4194304; product: maintained-address closure: whole row pool and actual issuing metadata [public count absence evidence = 2539726 bytes + digest-recipes.periodDigestSweep.10 \u00d7 1000 point reads: separately seriali",
+      "rewrite": "reduce the widest nested collection 1000 pooled periodUnreadByMembershipPeriod first images with table/id envelopes, or narrow the fields carrying its bytes: periodUnreadByMembershipPeriod table/id envelope (429 bytes), periodUnreadByMembershipPeriod.id (375 bytes), periodUnreadByMembershipPeriod.membershipId (160 bytes), periodUnreadByMembershipPeriod.periodStart (47 bytes), periodUnreadByMembershipPeriod.value (41 bytes); split detail reads if necessary (separate reads are two snapshots)"
+    }
+  ],
+  "files": {
+    "compact-final/snapback/push.ts": "a18644d37f66794bc286f3df33f6098658e62b40fdf5c5db2d162ad456dfaa89",
+    "compact-final/snapback/digest-recipes.q": "369c5c7255a71918a29cc5e883aa9eebcb148280918f3e2f0c0016d6327ef13e",
+    "compact-final/snapback/message-recipes.q": "7f52adb1bc2aced5b85072d40312c741d3bfa64eaba1fd824c2b6869e678077a",
+    "compact-final/snapback/admin.q": "db6d9bf25dd2ee1223a8eb9ca572b8c1a90c92d152687c3546d0d5bf16888eba",
+    "compact-final/snapback/schema.q": "8c6e6b3f41baa7c70857653608a97f9129384a3ae5ab33fb10dd370b59ea8b9d"
+  },
+  "guardPresent": false,
+  "interpretation": "This final counter fold already exceeds heap and closure before adding expiry validation. It is a cost probe of the existing two-key maintained count recipe, not an executed digest or proof that every other authored design must fail."
+}

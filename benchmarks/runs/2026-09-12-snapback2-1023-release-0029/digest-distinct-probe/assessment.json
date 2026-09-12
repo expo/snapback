@@ -1,0 +1,152 @@
+{
+  "at": "2026-09-12T06:38:33.949146+00:00",
+  "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+  "publicVersion": "0.0.29",
+  "disposition": "NO COMPLETE DISTINCT FORM ESTABLISHED",
+  "scope": "Read-only source reasoning about direct current counters + indexed due-expiry guard + completed earlier prune. Not a claim of language-level impossibility.",
+  "executions": {
+    "compileProbes": 1,
+    "appOwners": 0,
+    "rebuilds": 0,
+    "benchmarks": 0,
+    "remoteLaneAccess": 0,
+    "repoEdits": 0,
+    "probePid": 73483,
+    "probeProcessExited": true
+  },
+  "positiveFinding": "Final-transaction reads of engine-maintained periodPosts under the current follows can eliminate stale followed-post accumulation and correctly observe deletions, for the public nonexpiring posts in that qualified fixture. Unique recipient/period receipt, log and effect in one transaction can prevent repeated nonzero logical emission. Neither establishes unread/expiry correctness.",
+  "finiteCounterexample": [
+    "At t0, the earlier prune visits a relevant unread message with expiry t2>t0 and leaves it present.",
+    "The job completes that sweep, processes other recipients, then reaches this recipient at t3>t2. The final expiry guard correctly sees remaining due content.",
+    "An if guard suppresses this recipient while the chunk cursor advances; later timer cleanup never revisits the omitted recipient/period.",
+    "A require guard instead parks the chunk. Even if a subsequent finite timer turn cleans every due row, job_head excludes parked jobs. Restart preserves the parked state; explicit operator resume is required.",
+    "If the guard is removed, the earlier sweep supplies no proof that the counter excludes the now-expired contribution. This can emit an incorrect positive count."
+  ],
+  "additionalObligations": {
+    "globalGuard": "A global due-expiry absence guard also depends on unrelated users, non-digest content and possibly unrelated timers. Busy unrelated expiry can prevent emission; absence of due rows proves freshness only with complete, atomic counter provenance. Timer64 is not a drained proof.",
+    "pruneScope": "Existing published schema has no appropriate recipient/expiry counter index. Existing expiresAt is mutable; job sweep indexes require immutable fields. A legal byId/period sweep can still finish before later expirations. No ordinary earlier sweep is a final-time snapshot.",
+    "counterProvenance": "Schedule fixture postPeriodCounters is incremented on create but not paired with all allowed post deletions. Its purgeMessage nulls body/expiresAt without clearing periodUnread, so even an empty expiry index may coexist with stale unread counts. Combining correct engine-maintained post counts repairs that branch, not current-message eligibility.",
+    "memberships": "Original requirement includes1000 memberships as well as500 follows. Current membership incarnation must select the count in the final transaction. Existing schedule sample first100 is incomplete; earlier authorizing/filtering slices cannot replace final validation.",
+    "oldPeriods": "A parked earlier period must not be overtaken by pruning from newer completed periods. Period schedules can skip missed intervals; the persisted daily clock recipe can retain a cutoff but has no automatic same-cutoff retry of a failed eligibility guard. Pruning at ambient current time would discard still-required older buckets.",
+    "zeroOnce": "A nonzero unique receipt/effect transaction proves logical-once emission. It cannot turn a deferred recipient into a completed zero, nor prove correct zero suppression from stale counters. Partial work/restart must retain the same pending period and retry it automatically."
+  },
+  "costEvidence": {
+    "freshProbe": true,
+    "record": "retained-source/raw/scale/digest-compact.log.gz",
+    "historicalCompact1000Membership500FollowProbe": {
+      "heapBytes": 9922666,
+      "heapCeiling": 8388608,
+      "closureBytes": 8683664,
+      "closureCeiling": 4194304
+    },
+    "countOnlyTerm": {
+      "bytes": 2531718,
+      "meaning": "Public count absence evidence within that closure, not the whole final transaction. The same report separately includes1000 serialized point keys/envelopes (1109000 bytes) and pooled maintained-row first images, plus other tables."
+    },
+    "limitation": "The exact staged0.0.29 check refuses this compact1000-membership/500-follow final fold before expiry guards. It uses a simplified schedule fixture, not full private/expiry-safe production semantics. The retained2,531,718-byte count term was not an entire admission. This does not prove every possible authored counter design must refuse.",
+    "freshProbeRecord": "digest-distinct-probe/summary.json",
+    "freshProbeCosts": {
+      "max_closure_bytes": 8691704,
+      "max_examined": 4514,
+      "max_heap_bytes": 9922698,
+      "max_index_entries": 4514,
+      "max_output_bytes": 6,
+      "max_rule_probes": 0,
+      "max_steps": 117835
+    },
+    "freshProbeCeilings": {
+      "closure_bytes": 4194304,
+      "examined": 10240,
+      "heap_bytes": 8388608,
+      "index_entries": 10240,
+      "output_bytes": 1048576,
+      "rule_probes": 10240,
+      "steps": 1000000,
+      "write_rows": 2048
+    },
+    "freshProbeAdmitted": false
+  },
+  "nextDecision": "This check does not justify implementing or teaching the candidate. Closing it would require a concrete affordable final counter program plus a persisted same-period retry/eligibility protocol and atomic source maintenance, then a runtime witness. That is a separately decided authored form, not a demonstrated existing qualified recipe or a ceiling/runtime change.",
+  "sources": [
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/digest-recipes.q",
+      "sha256": "aaf79386f366df40a03ebd78922aac8bbc66185a37d7d7b93cc837a4ff398828",
+      "facts": [
+        "createRecipePost increments an explicit counter; per-user final fold selects500 follows and only100 memberships; later prune covers old periods."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/schema.q",
+      "sha256": "a1a84d1c9829eacc61883ae0f7a92bfcd9510a881c9e9146864e0cd3f35bcb8f",
+      "facts": [
+        "500-follow cap;100-membership cap; periodUnread carries no expiry provenance; explicit post counters have ordinary authored writers."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/admin.q",
+      "sha256": "db6d9bf25dd2ee1223a8eb9ca572b8c1a90c92d152687c3546d0d5bf16888eba",
+      "facts": [
+        "purgeMessage clears body/expiresAt without removing periodUnread; daily clock recipe owns period catch-up but no same-cutoff guard retry."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/packages/compiler/fixtures/quarry-fanout-guide/snapback/schema.q",
+      "sha256": "270b67a22d4cafcfdeb9f02c2d12b5120a1936759031bfc42f36a23215521054",
+      "facts": [
+        "periodPosts is engine-maintained and updates with post deletion; posts have no expiry or private-author eligibility in this fixture."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/crates/snapback2-core/src/jobs.rs",
+      "sha256": "0e4665e70f338440a26b8f1d39653fb6ed2cf778319f8f72e9526c95ccf13f6b",
+      "facts": [
+        "Job chunks reject range/cursor/merge sweep bounds and mutable sweep-index columns; refused chunks require explicit resume."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/crates/snapback2-core/src/store_jobs.rs",
+      "sha256": "4c0a1e81d488f09d2fd6cbffcc2b09285bebe5d746d7daaee735c6aa37a6ee20",
+      "facts": [
+        "job_head selects queued/running only; parked jobs do not automatically resume when the due queue drains."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+      "sha256": "f01a190394ff20d26f3bd22e1b91c60e362049d4a89119bc6625487295b852ae",
+      "facts": [
+        "resume_job_at changes parked to queued by explicit operator action."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/crates/snapback2/src/writer_jobs.rs",
+      "sha256": "87f2f2e1feea14d1b0b7637e3e7eb188489fdd43f550493590d308aea5ff3571",
+      "facts": [
+        "A background turn fires bounded timers then runs one job chunk; jobs do not share a snapshot."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/crates/snapback2/src/writer_timers.rs",
+      "sha256": "42630a724f62dc747987c854321b9ef0a66c8dd9cd6d91295e3738d8f94b0b8a",
+      "facts": [
+        "At most64 oldest due timers per turn."
+      ]
+    },
+    {
+      "source": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "path": "snapback2/packages/snapback2/guide/schedule.md",
+      "sha256": "f6e67663aa5c330f3193841fdf173b8938ce497ba581b97f4d115fa858f9ba4d",
+      "facts": [
+        "Unique receipt/effect transaction and daily retained cutoff solve logical-once/catch-up only if data eligibility is established; zero output and data-maintenance obligations explicit."
+      ]
+    }
+  ]
+}

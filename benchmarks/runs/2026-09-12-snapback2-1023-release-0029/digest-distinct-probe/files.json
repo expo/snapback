@@ -1,0 +1,75 @@
+{
+  "at": 1789195221.132766,
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-form-check.json",
+      "path": "assessment.json",
+      "bytes": 9538,
+      "sha256": "04c73bceeeed5d7c8881129b0abf195bf815353048b9090ae23fd6030aecac1b",
+      "raw_sha256": "04c73bceeeed5d7c8881129b0abf195bf815353048b9090ae23fd6030aecac1b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/run.json",
+      "path": "run.json",
+      "bytes": 1116,
+      "sha256": "a27c9738da95df2e37433543a031c1e65503a4f37d339a99b03ceb3ec005d7c1",
+      "raw_sha256": "a27c9738da95df2e37433543a031c1e65503a4f37d339a99b03ceb3ec005d7c1"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/summary.json",
+      "path": "summary.json",
+      "bytes": 3902,
+      "sha256": "d882c91a5559c0e7b8d93e5a323113b296ffd3b9d604ad43d9804ca03170c680",
+      "raw_sha256": "d882c91a5559c0e7b8d93e5a323113b296ffd3b9d604ad43d9804ca03170c680"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/check.log.gz",
+      "path": "check.log.gz",
+      "bytes": 38472,
+      "sha256": "57646684dec47aefe0e3895170d0d61a5ef51bd3fc14963f10be7b391c32ab5c",
+      "raw_sha256": "b55e668c55e1312cd46dce5c97b23bcdf65c58508de81bbed682e692231e26be"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/check.stderr",
+      "path": "check.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final/snapback/schema.q",
+      "path": "compact-final/snapback/schema.q",
+      "bytes": 3714,
+      "sha256": "8c6e6b3f41baa7c70857653608a97f9129384a3ae5ab33fb10dd370b59ea8b9d",
+      "raw_sha256": "8c6e6b3f41baa7c70857653608a97f9129384a3ae5ab33fb10dd370b59ea8b9d"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final/snapback/admin.q",
+      "path": "compact-final/snapback/admin.q",
+      "bytes": 1453,
+      "sha256": "db6d9bf25dd2ee1223a8eb9ca572b8c1a90c92d152687c3546d0d5bf16888eba",
+      "raw_sha256": "db6d9bf25dd2ee1223a8eb9ca572b8c1a90c92d152687c3546d0d5bf16888eba"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final/snapback/message-recipes.q",
+      "path": "compact-final/snapback/message-recipes.q",
+      "bytes": 3507,
+      "sha256": "7f52adb1bc2aced5b85072d40312c741d3bfa64eaba1fd824c2b6869e678077a",
+      "raw_sha256": "7f52adb1bc2aced5b85072d40312c741d3bfa64eaba1fd824c2b6869e678077a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final/snapback/digest-recipes.q",
+      "path": "compact-final/snapback/digest-recipes.q",
+      "bytes": 4359,
+      "sha256": "369c5c7255a71918a29cc5e883aa9eebcb148280918f3e2f0c0016d6327ef13e",
+      "raw_sha256": "369c5c7255a71918a29cc5e883aa9eebcb148280918f3e2f0c0016d6327ef13e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-1023-20260912/digest-distinct-probe/compact-final/snapback/push.ts",
+      "path": "compact-final/snapback/push.ts",
+      "bytes": 899,
+      "sha256": "a18644d37f66794bc286f3df33f6098658e62b40fdf5c5db2d162ad456dfaa89",
+      "raw_sha256": "a18644d37f66794bc286f3df33f6098658e62b40fdf5c5db2d162ad456dfaa89"
+    }
+  ]
+}

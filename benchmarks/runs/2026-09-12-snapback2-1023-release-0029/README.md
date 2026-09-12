@@ -57,6 +57,14 @@ digest final-emission eligibility, acquisition throughput or a completed
 fresh Clique wave. The [parent](../../../llp/1023-clique-builder-jump.rfc.md)
 and its children retain the actual implemented scope and open digest gap.
 
+A [later distinct digest check](./digest-distinct-probe/assessment.json) uses
+the exact qualified 0.0.29 artifacts. Its direct final-counter fold still
+exceeds heap and closure limits before expiry validation; source reasoning
+also finds that prune plus a final guard can skip or park a required recipient.
+The [probe record](./digest-distinct-probe/summary.json), source and compressed
+output are retained with [file hashes](./digest-distinct-probe/files.json).
+This is a negative check of that proposed form, with no runtime owner launched.
+
 [Retained-file hashes](./retained-files.json) bind the copied raw records and
 compressed logs. No package tarballs, credentials or benchmark application
 data are committed here. Fresh build, independent grading and M7 evidence
