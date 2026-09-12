@@ -19334,6 +19334,1807 @@
         ],
         "conclusion": "The request-flow audit exposes no supported deletion large enough to reach3s. Retain per-intent commits, full explicit-event receipt work and all original endpoint obligations."
       }
+    },
+    "structuralIndexAndStorageAudit": {
+      "status": "Evidence only; bulk-postings source remains outside delivered runtime and sub-three-second goal is unmet",
+      "indexAttribution": {
+        "path": "/tmp/acquisition-20260912-index-attribution.json",
+        "bytes": 38380,
+        "sha256": "604dfec11c257052acee6d423fc11d89308dc33b7963294af16836a623247277",
+        "record": {
+          "profileSha256": "029ff9bb3c2af5ea60503fb9a2f3ade8c1e873aed877802dc5eb2ecb0c39bc4f",
+          "sourceMapSha256": "9cd26084bcebbdae34eba49a6db6919bf5cd518e8f50cc111fa76778ca4652f6",
+          "durationMs": 16611.124000000298,
+          "contentCutMs": 15258.054757999998,
+          "full": {
+            "startMs": 0,
+            "endMs": 16611.124000000298,
+            "inclusiveUnionMs": {
+              "indexKeys": 106.777,
+              "unicode": 210.987,
+              "factChange": 174.12,
+              "factWorkUnion": 269.339,
+              "factMatching": 89.913,
+              "heldPut": 1657.332,
+              "postingChange": 1479.633,
+              "factHeldPut": 121.683,
+              "factHeldMaintenanceUnion": 145.027,
+              "factPostingChange": 96.059,
+              "carrierUpdate": 263.271,
+              "heldValidate": 30.351,
+              "heldRemove": 4.41,
+              "twinSyncIdentity": 2458.468,
+              "twinInstallSnapshot": 54.318,
+              "twinRow": 2011.987,
+              "clientPut": 1972.563,
+              "twinEagerConstructionUnion": 2011.987,
+              "twinStoreInstallUnion": 1972.563,
+              "twinHeldPut": 1535.649,
+              "twinHeldMaintenanceUnion": 1535.649,
+              "twinPostingChange": 1382.513,
+              "dictionary": 4.217,
+              "twinDictionary": 4.217,
+              "heldConstructor": 1.062
+            },
+            "selfMs": {
+              "unicode": 190.779,
+              "factChange": 61.259,
+              "factMatching": 4.212,
+              "carrierUpdate": 12.747,
+              "heldValidate": 30.351,
+              "postingChange": 422.161,
+              "heldPut": 154.554,
+              "twinInstallSnapshot": 2.127,
+              "dictionary": 1.16,
+              "twinRow": 22.277,
+              "clientPut": 32.348,
+              "twinSyncIdentity": 55.25,
+              "heldConstructor": 1.062,
+              "indexKeys": 5.294
+            },
+            "disjointDirectBranchesMs": {
+              "factChangeFact": {
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 89.517,
+                "(self)": 61.259,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 17.872,
+                "packages/evaluator/src/index-store.ts:168 remove": 4.41,
+                "packages/evaluator/src/index-store.ts:145 oh": 1.062
+              },
+              "factMatchingFact": {
+                "packages/evaluator/src/index-store.ts:261 scan": 53.535,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 32.166,
+                "(self)": 4.212
+              },
+              "heldPutFact": {
+                "packages/evaluator/src/posting-tree.ts:6 put": 93.775,
+                "(self)": 26.842,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 1.066
+              },
+              "twinRowTwin": {
+                "packages/evaluator/src/store.ts:172 put": 1972.563,
+                "(self)": 22.277,
+                "packages/evaluator/src/coverage.ts:43 set": 7.429,
+                "packages/snapback2/src/store/asset-policy.ts:51 set": 6.525,
+                "packages/evaluator/src/store.ts:42 setReceipt": 3.193
+              },
+              "clientPutTwin": {
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 1535.649,
+                "packages/evaluator/src/store.ts:228 touchRows": 364.235,
+                "(self)": 32.348,
+                "packages/evaluator/src/coverage.ts:159 changed": 18.014,
+                "packages/evaluator/src/store.ts:156 index": 9.572,
+                "packages/evaluator/src/store.ts:236 record": 6.346,
+                "packages/evaluator/src/value-runtime.ts:81 field": 2.126,
+                "packages/evaluator/src/row-image.ts:68 equal": 1.077,
+                "packages/evaluator/src/row-image.ts:64 is": 1.072,
+                "packages/evaluator/src/store.ts:169 prepareRow": 1.066,
+                "packages/evaluator/src/store.ts:240 byId": 1.058
+              },
+              "heldPutTwin": {
+                "packages/evaluator/src/posting-tree.ts:6 put": 1255.445,
+                "packages/evaluator/src/posting-tree.ts:8 change": 130.219,
+                "(self)": 127.712,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/prefix-dictionary.ts:12 intern": 4.074,
+                "packages/evaluator/src/ordered.ts:47 get": 3.458,
+                "packages/evaluator/src/ordered.ts:45 set": 3.185,
+                "packages/evaluator/src/prefix-dictionary.ts:24 retain": 0.143
+              }
+            },
+            "selectedSelfWithinUnionMs": {
+              "twinEagerConstructionUnion": {
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 526.914,
+                "packages/evaluator/src/posting-tree.ts:8 change": 389.94,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 189.425,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 143.747,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 127.712,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 119.864,
+                "packages/evaluator/src/value-runtime.ts:252 canonicalJson": 71.989,
+                "packages/evaluator/src/hash.ts:9 r": 52.123,
+                "packages/evaluator/src/hash.ts:1 sha256": 47.681,
+                "packages/evaluator/src/store.ts:172 put": 32.348,
+                "packages/evaluator/src/store.ts:228 touchRows": 31.934,
+                "packages/evaluator/src/hash.ts:54 value": 27.621,
+                "packages/evaluator/src/hash.ts:47 byte": 27.314,
+                "packages/snapback2/src/twin-store.ts:212 row": 22.277,
+                "packages/evaluator/src/coverage.ts:159 changed": 18.014,
+                "packages/evaluator/src/held-directory.ts:23 refresh": 14.878,
+                "packages/evaluator/src/hash.ts:66 rotate": 14.864,
+                "packages/evaluator/src/unicode.ts:82 Es": 13.856,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/value-runtime.ts:496 clone": 10.631,
+                "packages/evaluator/src/store.ts:156 index": 9.572,
+                "packages/evaluator/src/coverage.ts:43 set": 9.558,
+                "packages/evaluator/src/slot-tree.ts:15 rotate": 6.407,
+                "packages/evaluator/src/hash.ts:48 byte": 6.374,
+                "packages/evaluator/src/store.ts:236 record": 6.346
+              },
+              "twinHeldPut": {
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 523.732,
+                "packages/evaluator/src/posting-tree.ts:8 change": 389.94,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 189.425,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 143.747,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 127.712,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 116.667,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/slot-tree.ts:15 rotate": 6.407,
+                "packages/evaluator/src/slot-tree.ts:9 get": 4.315,
+                "packages/evaluator/src/value-runtime.ts:158 compareArrays": 3.458,
+                "packages/evaluator/src/slot-tree.ts:31 allocate": 3.265,
+                "packages/evaluator/src/hash.ts:103 compareCodepoints": 3.204,
+                "packages/evaluator/src/posting-tree.ts:6 put": 3.151,
+                "packages/evaluator/src/slot-tree.ts:12 fix": 2.132,
+                "packages/evaluator/src/ordered.ts:51 change": 2.127,
+                "packages/evaluator/src/slot-tree.ts:10 set": 1.661,
+                "packages/evaluator/src/slot-tree.ts:11 height": 1.075,
+                "packages/evaluator/src/prefix-dictionary.ts:12 intern": 1.064,
+                "packages/evaluator/src/ordered.ts:5 fix": 1.058,
+                "packages/evaluator/src/prefix-dictionary.ts:24 retain": 0.096
+              },
+              "factHeldMaintenanceUnion": {
+                "packages/evaluator/src/posting-tree.ts:8 change": 31.16,
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 27.646,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 26.842,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 18.938,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 15.926,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 9.575,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 8.573,
+                "packages/evaluator/src/posting-tree.ts:6 put": 2.126,
+                "packages/evaluator/src/index-store.ts:145 oh": 1.062,
+                "packages/evaluator/src/slot-tree.ts:9 get": 1.061,
+                "packages/evaluator/src/slot-tree.ts:11 height": 1.059,
+                "packages/evaluator/src/slot-tree.ts:50 without": 1.059
+              },
+              "indexKeys": {
+                "packages/evaluator/src/unicode.ts:137 canonical": 29.961,
+                "packages/evaluator/src/unicode.ts:98 run": 23.375,
+                "packages/evaluator/src/unicode-tables.ts:68 composePair": 15.953,
+                "packages/evaluator/src/unicode.ts:82 Es": 8.542,
+                "packages/evaluator/src/unicode.ts:209 tokens": 8.53,
+                "packages/evaluator/src/index-store.ts:40 c": 7.671,
+                "packages/evaluator/src/index-store.ts:39 indexKeys": 5.294,
+                "packages/evaluator/src/unicode-tables.ts:52 rangeValue": 2.13,
+                "packages/evaluator/src/value-runtime.ts:87 fieldOrNull": 2.122,
+                "packages/evaluator/src/unicode.ts:223 searchFieldWords": 1.071,
+                "packages/evaluator/src/unicode.ts:33 validateSearchSource": 1.065,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 1.063
+              },
+              "unicode": {
+                "packages/evaluator/src/unicode.ts:82 Es": 61.725,
+                "packages/evaluator/src/unicode.ts:137 canonical": 54.459,
+                "packages/evaluator/src/unicode.ts:98 run": 48.945,
+                "packages/evaluator/src/unicode-tables.ts:68 composePair": 18.078,
+                "packages/evaluator/src/unicode.ts:209 tokens": 13.941,
+                "packages/evaluator/src/unicode.ts:17 scalarLength": 7.452,
+                "packages/evaluator/src/unicode-tables.ts:52 rangeValue": 2.13,
+                "packages/evaluator/src/unicode.ts:223 searchFieldWords": 2.129,
+                "packages/evaluator/src/unicode.ts:33 validateSearchSource": 2.128
+              }
+            }
+          },
+          "content": {
+            "startMs": 0,
+            "endMs": 15258.054757999998,
+            "inclusiveUnionMs": {
+              "indexKeys": 106.777,
+              "unicode": 208.614,
+              "factChange": 174.12,
+              "factWorkUnion": 257.195,
+              "factMatching": 77.769,
+              "heldPut": 1656.271,
+              "postingChange": 1478.572,
+              "factHeldPut": 120.622,
+              "factHeldMaintenanceUnion": 143.966,
+              "factPostingChange": 94.998,
+              "carrierUpdate": 255.806,
+              "heldValidate": 30.351,
+              "heldRemove": 4.41,
+              "twinSyncIdentity": 2449.97,
+              "twinInstallSnapshot": 54.318,
+              "twinRow": 2011.987,
+              "clientPut": 1972.563,
+              "twinEagerConstructionUnion": 2011.987,
+              "twinStoreInstallUnion": 1972.563,
+              "twinHeldPut": 1535.649,
+              "twinHeldMaintenanceUnion": 1535.649,
+              "twinPostingChange": 1382.513,
+              "dictionary": 4.217,
+              "twinDictionary": 4.217,
+              "heldConstructor": 1.062
+            },
+            "selfMs": {
+              "unicode": 188.406,
+              "factChange": 61.259,
+              "factMatching": 4.212,
+              "carrierUpdate": 11.675,
+              "heldValidate": 30.351,
+              "postingChange": 421.1,
+              "heldPut": 154.554,
+              "twinInstallSnapshot": 2.127,
+              "dictionary": 1.16,
+              "twinRow": 22.277,
+              "clientPut": 32.348,
+              "twinSyncIdentity": 55.25,
+              "heldConstructor": 1.062,
+              "indexKeys": 5.294
+            },
+            "disjointDirectBranchesMs": {
+              "factChangeFact": {
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 89.517,
+                "(self)": 61.259,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 17.872,
+                "packages/evaluator/src/index-store.ts:168 remove": 4.41,
+                "packages/evaluator/src/index-store.ts:145 oh": 1.062
+              },
+              "factMatchingFact": {
+                "packages/evaluator/src/index-store.ts:261 scan": 42.452,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 31.105,
+                "(self)": 4.212
+              },
+              "heldPutFact": {
+                "packages/evaluator/src/posting-tree.ts:6 put": 92.714,
+                "(self)": 26.842,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 1.066
+              },
+              "twinRowTwin": {
+                "packages/evaluator/src/store.ts:172 put": 1972.563,
+                "(self)": 22.277,
+                "packages/evaluator/src/coverage.ts:43 set": 7.429,
+                "packages/snapback2/src/store/asset-policy.ts:51 set": 6.525,
+                "packages/evaluator/src/store.ts:42 setReceipt": 3.193
+              },
+              "clientPutTwin": {
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 1535.649,
+                "packages/evaluator/src/store.ts:228 touchRows": 364.235,
+                "(self)": 32.348,
+                "packages/evaluator/src/coverage.ts:159 changed": 18.014,
+                "packages/evaluator/src/store.ts:156 index": 9.572,
+                "packages/evaluator/src/store.ts:236 record": 6.346,
+                "packages/evaluator/src/value-runtime.ts:81 field": 2.126,
+                "packages/evaluator/src/row-image.ts:68 equal": 1.077,
+                "packages/evaluator/src/row-image.ts:64 is": 1.072,
+                "packages/evaluator/src/store.ts:169 prepareRow": 1.066,
+                "packages/evaluator/src/store.ts:240 byId": 1.058
+              },
+              "heldPutTwin": {
+                "packages/evaluator/src/posting-tree.ts:6 put": 1255.445,
+                "packages/evaluator/src/posting-tree.ts:8 change": 130.219,
+                "(self)": 127.712,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/prefix-dictionary.ts:12 intern": 4.074,
+                "packages/evaluator/src/ordered.ts:47 get": 3.458,
+                "packages/evaluator/src/ordered.ts:45 set": 3.185,
+                "packages/evaluator/src/prefix-dictionary.ts:24 retain": 0.143
+              }
+            },
+            "selectedSelfWithinUnionMs": {
+              "twinEagerConstructionUnion": {
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 526.914,
+                "packages/evaluator/src/posting-tree.ts:8 change": 389.94,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 189.425,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 143.747,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 127.712,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 119.864,
+                "packages/evaluator/src/value-runtime.ts:252 canonicalJson": 71.989,
+                "packages/evaluator/src/hash.ts:9 r": 52.123,
+                "packages/evaluator/src/hash.ts:1 sha256": 47.681,
+                "packages/evaluator/src/store.ts:172 put": 32.348,
+                "packages/evaluator/src/store.ts:228 touchRows": 31.934,
+                "packages/evaluator/src/hash.ts:54 value": 27.621,
+                "packages/evaluator/src/hash.ts:47 byte": 27.314,
+                "packages/snapback2/src/twin-store.ts:212 row": 22.277,
+                "packages/evaluator/src/coverage.ts:159 changed": 18.014,
+                "packages/evaluator/src/held-directory.ts:23 refresh": 14.878,
+                "packages/evaluator/src/hash.ts:66 rotate": 14.864,
+                "packages/evaluator/src/unicode.ts:82 Es": 13.856,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/value-runtime.ts:496 clone": 10.631,
+                "packages/evaluator/src/store.ts:156 index": 9.572,
+                "packages/evaluator/src/coverage.ts:43 set": 9.558,
+                "packages/evaluator/src/slot-tree.ts:15 rotate": 6.407,
+                "packages/evaluator/src/hash.ts:48 byte": 6.374,
+                "packages/evaluator/src/store.ts:236 record": 6.346
+              },
+              "twinHeldPut": {
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 523.732,
+                "packages/evaluator/src/posting-tree.ts:8 change": 389.94,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 189.425,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 143.747,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 127.712,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 116.667,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/slot-tree.ts:15 rotate": 6.407,
+                "packages/evaluator/src/slot-tree.ts:9 get": 4.315,
+                "packages/evaluator/src/value-runtime.ts:158 compareArrays": 3.458,
+                "packages/evaluator/src/slot-tree.ts:31 allocate": 3.265,
+                "packages/evaluator/src/hash.ts:103 compareCodepoints": 3.204,
+                "packages/evaluator/src/posting-tree.ts:6 put": 3.151,
+                "packages/evaluator/src/slot-tree.ts:12 fix": 2.132,
+                "packages/evaluator/src/ordered.ts:51 change": 2.127,
+                "packages/evaluator/src/slot-tree.ts:10 set": 1.661,
+                "packages/evaluator/src/slot-tree.ts:11 height": 1.075,
+                "packages/evaluator/src/prefix-dictionary.ts:12 intern": 1.064,
+                "packages/evaluator/src/ordered.ts:5 fix": 1.058,
+                "packages/evaluator/src/prefix-dictionary.ts:24 retain": 0.096
+              },
+              "factHeldMaintenanceUnion": {
+                "packages/evaluator/src/posting-tree.ts:8 change": 30.099,
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 27.646,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 26.842,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 18.938,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 15.926,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 9.575,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 8.573,
+                "packages/evaluator/src/posting-tree.ts:6 put": 2.126,
+                "packages/evaluator/src/index-store.ts:145 oh": 1.062,
+                "packages/evaluator/src/slot-tree.ts:9 get": 1.061,
+                "packages/evaluator/src/slot-tree.ts:11 height": 1.059,
+                "packages/evaluator/src/slot-tree.ts:50 without": 1.059
+              },
+              "indexKeys": {
+                "packages/evaluator/src/unicode.ts:137 canonical": 29.961,
+                "packages/evaluator/src/unicode.ts:98 run": 23.375,
+                "packages/evaluator/src/unicode-tables.ts:68 composePair": 15.953,
+                "packages/evaluator/src/unicode.ts:82 Es": 8.542,
+                "packages/evaluator/src/unicode.ts:209 tokens": 8.53,
+                "packages/evaluator/src/index-store.ts:40 c": 7.671,
+                "packages/evaluator/src/index-store.ts:39 indexKeys": 5.294,
+                "packages/evaluator/src/unicode-tables.ts:52 rangeValue": 2.13,
+                "packages/evaluator/src/value-runtime.ts:87 fieldOrNull": 2.122,
+                "packages/evaluator/src/unicode.ts:223 searchFieldWords": 1.071,
+                "packages/evaluator/src/unicode.ts:33 validateSearchSource": 1.065,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 1.063
+              },
+              "unicode": {
+                "packages/evaluator/src/unicode.ts:82 Es": 59.595,
+                "packages/evaluator/src/unicode.ts:137 canonical": 54.38,
+                "packages/evaluator/src/unicode.ts:98 run": 48.874,
+                "packages/evaluator/src/unicode-tables.ts:68 composePair": 18.078,
+                "packages/evaluator/src/unicode.ts:209 tokens": 13.848,
+                "packages/evaluator/src/unicode.ts:17 scalarLength": 7.452,
+                "packages/evaluator/src/unicode-tables.ts:52 rangeValue": 2.13,
+                "packages/evaluator/src/unicode.ts:223 searchFieldWords": 2.129,
+                "packages/evaluator/src/unicode.ts:33 validateSearchSource": 2.128
+              }
+            }
+          },
+          "contentPlus125": {
+            "startMs": 0,
+            "endMs": 15383.054757999998,
+            "inclusiveUnionMs": {
+              "indexKeys": 106.777,
+              "unicode": 209.681,
+              "factChange": 174.12,
+              "factWorkUnion": 257.607,
+              "factMatching": 78.181,
+              "heldPut": 1656.271,
+              "postingChange": 1478.572,
+              "factHeldPut": 120.622,
+              "factHeldMaintenanceUnion": 143.966,
+              "factPostingChange": 94.998,
+              "carrierUpdate": 255.806,
+              "heldValidate": 30.351,
+              "heldRemove": 4.41,
+              "twinSyncIdentity": 2451.046,
+              "twinInstallSnapshot": 54.318,
+              "twinRow": 2011.987,
+              "clientPut": 1972.563,
+              "twinEagerConstructionUnion": 2011.987,
+              "twinStoreInstallUnion": 1972.563,
+              "twinHeldPut": 1535.649,
+              "twinHeldMaintenanceUnion": 1535.649,
+              "twinPostingChange": 1382.513,
+              "dictionary": 4.217,
+              "twinDictionary": 4.217,
+              "heldConstructor": 1.062
+            },
+            "selfMs": {
+              "unicode": 189.473,
+              "factChange": 61.259,
+              "factMatching": 4.212,
+              "carrierUpdate": 11.675,
+              "heldValidate": 30.351,
+              "postingChange": 421.1,
+              "heldPut": 154.554,
+              "twinInstallSnapshot": 2.127,
+              "dictionary": 1.16,
+              "twinRow": 22.277,
+              "clientPut": 32.348,
+              "twinSyncIdentity": 55.25,
+              "heldConstructor": 1.062,
+              "indexKeys": 5.294
+            },
+            "disjointDirectBranchesMs": {
+              "factChangeFact": {
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 89.517,
+                "(self)": 61.259,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 17.872,
+                "packages/evaluator/src/index-store.ts:168 remove": 4.41,
+                "packages/evaluator/src/index-store.ts:145 oh": 1.062
+              },
+              "factMatchingFact": {
+                "packages/evaluator/src/index-store.ts:261 scan": 42.864,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 31.105,
+                "(self)": 4.212
+              },
+              "heldPutFact": {
+                "packages/evaluator/src/posting-tree.ts:6 put": 92.714,
+                "(self)": 26.842,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 1.066
+              },
+              "twinRowTwin": {
+                "packages/evaluator/src/store.ts:172 put": 1972.563,
+                "(self)": 22.277,
+                "packages/evaluator/src/coverage.ts:43 set": 7.429,
+                "packages/snapback2/src/store/asset-policy.ts:51 set": 6.525,
+                "packages/evaluator/src/store.ts:42 setReceipt": 3.193
+              },
+              "clientPutTwin": {
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 1535.649,
+                "packages/evaluator/src/store.ts:228 touchRows": 364.235,
+                "(self)": 32.348,
+                "packages/evaluator/src/coverage.ts:159 changed": 18.014,
+                "packages/evaluator/src/store.ts:156 index": 9.572,
+                "packages/evaluator/src/store.ts:236 record": 6.346,
+                "packages/evaluator/src/value-runtime.ts:81 field": 2.126,
+                "packages/evaluator/src/row-image.ts:68 equal": 1.077,
+                "packages/evaluator/src/row-image.ts:64 is": 1.072,
+                "packages/evaluator/src/store.ts:169 prepareRow": 1.066,
+                "packages/evaluator/src/store.ts:240 byId": 1.058
+              },
+              "heldPutTwin": {
+                "packages/evaluator/src/posting-tree.ts:6 put": 1255.445,
+                "packages/evaluator/src/posting-tree.ts:8 change": 130.219,
+                "(self)": 127.712,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/prefix-dictionary.ts:12 intern": 4.074,
+                "packages/evaluator/src/ordered.ts:47 get": 3.458,
+                "packages/evaluator/src/ordered.ts:45 set": 3.185,
+                "packages/evaluator/src/prefix-dictionary.ts:24 retain": 0.143
+              }
+            },
+            "selectedSelfWithinUnionMs": {
+              "twinEagerConstructionUnion": {
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 526.914,
+                "packages/evaluator/src/posting-tree.ts:8 change": 389.94,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 189.425,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 143.747,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 127.712,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 119.864,
+                "packages/evaluator/src/value-runtime.ts:252 canonicalJson": 71.989,
+                "packages/evaluator/src/hash.ts:9 r": 52.123,
+                "packages/evaluator/src/hash.ts:1 sha256": 47.681,
+                "packages/evaluator/src/store.ts:172 put": 32.348,
+                "packages/evaluator/src/store.ts:228 touchRows": 31.934,
+                "packages/evaluator/src/hash.ts:54 value": 27.621,
+                "packages/evaluator/src/hash.ts:47 byte": 27.314,
+                "packages/snapback2/src/twin-store.ts:212 row": 22.277,
+                "packages/evaluator/src/coverage.ts:159 changed": 18.014,
+                "packages/evaluator/src/held-directory.ts:23 refresh": 14.878,
+                "packages/evaluator/src/hash.ts:66 rotate": 14.864,
+                "packages/evaluator/src/unicode.ts:82 Es": 13.856,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/value-runtime.ts:496 clone": 10.631,
+                "packages/evaluator/src/store.ts:156 index": 9.572,
+                "packages/evaluator/src/coverage.ts:43 set": 9.558,
+                "packages/evaluator/src/slot-tree.ts:15 rotate": 6.407,
+                "packages/evaluator/src/hash.ts:48 byte": 6.374,
+                "packages/evaluator/src/store.ts:236 record": 6.346
+              },
+              "twinHeldPut": {
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 523.732,
+                "packages/evaluator/src/posting-tree.ts:8 change": 389.94,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 189.425,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 143.747,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 127.712,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 116.667,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 11.413,
+                "packages/evaluator/src/slot-tree.ts:15 rotate": 6.407,
+                "packages/evaluator/src/slot-tree.ts:9 get": 4.315,
+                "packages/evaluator/src/value-runtime.ts:158 compareArrays": 3.458,
+                "packages/evaluator/src/slot-tree.ts:31 allocate": 3.265,
+                "packages/evaluator/src/hash.ts:103 compareCodepoints": 3.204,
+                "packages/evaluator/src/posting-tree.ts:6 put": 3.151,
+                "packages/evaluator/src/slot-tree.ts:12 fix": 2.132,
+                "packages/evaluator/src/ordered.ts:51 change": 2.127,
+                "packages/evaluator/src/slot-tree.ts:10 set": 1.661,
+                "packages/evaluator/src/slot-tree.ts:11 height": 1.075,
+                "packages/evaluator/src/prefix-dictionary.ts:12 intern": 1.064,
+                "packages/evaluator/src/ordered.ts:5 fix": 1.058,
+                "packages/evaluator/src/prefix-dictionary.ts:24 retain": 0.096
+              },
+              "factHeldMaintenanceUnion": {
+                "packages/evaluator/src/posting-tree.ts:8 change": 30.099,
+                "packages/evaluator/src/value-runtime.ts:129 totalCompare": 27.646,
+                "packages/evaluator/src/index-store.ts:200 putPrepared": 26.842,
+                "packages/evaluator/src/index-store.ts:189 validatePrepared": 18.938,
+                "packages/evaluator/src/slot-tree.ts:19 balance": 15.926,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 9.575,
+                "packages/evaluator/src/index-store.ts:128 (anonymous)": 8.573,
+                "packages/evaluator/src/posting-tree.ts:6 put": 2.126,
+                "packages/evaluator/src/index-store.ts:145 oh": 1.062,
+                "packages/evaluator/src/slot-tree.ts:9 get": 1.061,
+                "packages/evaluator/src/slot-tree.ts:11 height": 1.059,
+                "packages/evaluator/src/slot-tree.ts:50 without": 1.059
+              },
+              "indexKeys": {
+                "packages/evaluator/src/unicode.ts:137 canonical": 29.961,
+                "packages/evaluator/src/unicode.ts:98 run": 23.375,
+                "packages/evaluator/src/unicode-tables.ts:68 composePair": 15.953,
+                "packages/evaluator/src/unicode.ts:82 Es": 8.542,
+                "packages/evaluator/src/unicode.ts:209 tokens": 8.53,
+                "packages/evaluator/src/index-store.ts:40 c": 7.671,
+                "packages/evaluator/src/index-store.ts:39 indexKeys": 5.294,
+                "packages/evaluator/src/unicode-tables.ts:52 rangeValue": 2.13,
+                "packages/evaluator/src/value-runtime.ts:87 fieldOrNull": 2.122,
+                "packages/evaluator/src/unicode.ts:223 searchFieldWords": 1.071,
+                "packages/evaluator/src/unicode.ts:33 validateSearchSource": 1.065,
+                "packages/evaluator/src/value-runtime.ts:206 kindOf": 1.063
+              },
+              "unicode": {
+                "packages/evaluator/src/unicode.ts:82 Es": 60.662,
+                "packages/evaluator/src/unicode.ts:137 canonical": 54.38,
+                "packages/evaluator/src/unicode.ts:98 run": 48.874,
+                "packages/evaluator/src/unicode-tables.ts:68 composePair": 18.078,
+                "packages/evaluator/src/unicode.ts:209 tokens": 13.848,
+                "packages/evaluator/src/unicode.ts:17 scalarLength": 7.452,
+                "packages/evaluator/src/unicode-tables.ts:52 rangeValue": 2.13,
+                "packages/evaluator/src/unicode.ts:223 searchFieldWords": 2.129,
+                "packages/evaluator/src/unicode.ts:33 validateSearchSource": 2.128
+              }
+            }
+          },
+          "matchingNodeLabels": {
+            "twinRow": [
+              {
+                "nodeId": 619,
+                "label": "packages/snapback2/src/twin-store.ts:212 row",
+                "parent": "packages/snapback2/src/twin-store.ts:165 installSnapshot"
+              },
+              {
+                "nodeId": 961,
+                "label": "packages/snapback2/src/twin-store.ts:212 row",
+                "parent": "packages/snapback2/src/twin-store.ts:122 syncIdentity"
+              }
+            ],
+            "twinInstallSnapshot": [
+              {
+                "nodeId": 618,
+                "label": "packages/snapback2/src/twin-store.ts:165 installSnapshot",
+                "parent": "packages/snapback2/src/twin-store.ts:122 syncIdentity"
+              }
+            ],
+            "twinSyncIdentity": [
+              {
+                "nodeId": 594,
+                "label": "packages/snapback2/src/twin-store.ts:122 syncIdentity",
+                "parent": "(root)"
+              }
+            ],
+            "clientConstructor": [],
+            "clientPut": [
+              {
+                "nodeId": 620,
+                "label": "packages/evaluator/src/store.ts:172 put",
+                "parent": "packages/snapback2/src/twin-store.ts:212 row"
+              },
+              {
+                "nodeId": 962,
+                "label": "packages/evaluator/src/store.ts:172 put",
+                "parent": "packages/snapback2/src/twin-store.ts:212 row"
+              }
+            ],
+            "clientRemove": [],
+            "heldPut": [
+              {
+                "nodeId": 423,
+                "label": "packages/evaluator/src/index-store.ts:200 putPrepared",
+                "parent": "packages/snapback2/src/store/fact-index.ts:62 matching"
+              },
+              {
+                "nodeId": 545,
+                "label": "packages/evaluator/src/index-store.ts:200 putPrepared",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              },
+              {
+                "nodeId": 621,
+                "label": "packages/evaluator/src/index-store.ts:200 putPrepared",
+                "parent": "packages/evaluator/src/store.ts:172 put"
+              },
+              {
+                "nodeId": 939,
+                "label": "packages/evaluator/src/index-store.ts:200 putPrepared",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              },
+              {
+                "nodeId": 967,
+                "label": "packages/evaluator/src/index-store.ts:200 putPrepared",
+                "parent": "packages/evaluator/src/store.ts:172 put"
+              }
+            ],
+            "heldRemove": [
+              {
+                "nodeId": 557,
+                "label": "packages/evaluator/src/index-store.ts:168 remove",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              },
+              {
+                "nodeId": 2306,
+                "label": "packages/evaluator/src/index-store.ts:168 remove",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              }
+            ],
+            "heldValidate": [
+              {
+                "nodeId": 481,
+                "label": "packages/evaluator/src/index-store.ts:189 validatePrepared",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              },
+              {
+                "nodeId": 509,
+                "label": "packages/evaluator/src/index-store.ts:189 validatePrepared",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              },
+              {
+                "nodeId": 567,
+                "label": "packages/evaluator/src/index-store.ts:189 validatePrepared",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              },
+              {
+                "nodeId": 622,
+                "label": "packages/evaluator/src/index-store.ts:189 validatePrepared",
+                "parent": "packages/evaluator/src/index-store.ts:200 putPrepared"
+              },
+              {
+                "nodeId": 1398,
+                "label": "packages/evaluator/src/index-store.ts:189 validatePrepared",
+                "parent": "packages/evaluator/src/index-store.ts:200 putPrepared"
+              },
+              {
+                "nodeId": 1808,
+                "label": "packages/evaluator/src/index-store.ts:189 validatePrepared",
+                "parent": "packages/evaluator/src/index-store.ts:200 putPrepared"
+              },
+              {
+                "nodeId": 1954,
+                "label": "packages/evaluator/src/index-store.ts:189 validatePrepared",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              }
+            ],
+            "heldConstructor": [
+              {
+                "nodeId": 1176,
+                "label": "packages/evaluator/src/index-store.ts:145 oh",
+                "parent": "packages/snapback2/src/store/fact-index.ts:20 change"
+              }
+            ],
+            "factChange": [
+              {
+                "nodeId": 387,
+                "label": "packages/snapback2/src/store/fact-index.ts:20 change",
+                "parent": "packages/snapback2/src/store/fact-integrity.ts:116 indexPositive"
+              },
+              {
+                "nodeId": 480,
+                "label": "packages/snapback2/src/store/fact-index.ts:20 change",
+                "parent": "packages/snapback2/src/store/carrier-index.ts:122 positive"
+              },
+              {
+                "nodeId": 556,
+                "label": "packages/snapback2/src/store/fact-index.ts:20 change",
+                "parent": "packages/snapback2/src/store/carrier-index.ts:142 setRow"
+              },
+              {
+                "nodeId": 1918,
+                "label": "packages/snapback2/src/store/fact-index.ts:20 change",
+                "parent": "packages/snapback2/src/store/fact-integrity.ts:116 indexPositive"
+              },
+              {
+                "nodeId": 2305,
+                "label": "packages/snapback2/src/store/fact-index.ts:20 change",
+                "parent": "packages/snapback2/src/store/carrier-index.ts:122 positive"
+              }
+            ],
+            "factMatching": [
+              {
+                "nodeId": 422,
+                "label": "packages/snapback2/src/store/fact-index.ts:62 matching",
+                "parent": "packages/snapback2/src/store/fact-integrity.ts:181 close"
+              },
+              {
+                "nodeId": 1353,
+                "label": "packages/snapback2/src/store/fact-index.ts:62 matching",
+                "parent": "packages/snapback2/src/store/range-store.ts:931 applyCoverage"
+              }
+            ],
+            "carrierUpdate": [
+              {
+                "nodeId": 476,
+                "label": "packages/snapback2/src/store/carrier-index.ts:199 update",
+                "parent": "packages/snapback2/src/store/range-store.ts:711 (anonymous)"
+              }
+            ],
+            "indexKeys": [
+              {
+                "nodeId": 289,
+                "label": "packages/evaluator/src/index-store.ts:39 indexKeys",
+                "parent": "packages/evaluator/src/row-image.ts:44 name"
+              },
+              {
+                "nodeId": 806,
+                "label": "packages/evaluator/src/index-store.ts:39 indexKeys",
+                "parent": "packages/evaluator/src/row-image.ts:44 name"
+              },
+              {
+                "nodeId": 2407,
+                "label": "packages/evaluator/src/index-store.ts:39 indexKeys",
+                "parent": "packages/evaluator/src/row-image.ts:44 name"
+              }
+            ]
+          },
+          "limits": [
+            "CPU sample weights, not invocation counts or operation table/index identifiers.",
+            "Each named union counts a sample once; named unions overlap and must not be added except explicit disjoint categories.",
+            "Function-start sourcemap locations do not identify per-callsite values. Shared posting comparator and tree cannot distinguish ordinary versus derived indexes.",
+            "A generous elimination envelope assumes zero replacement work and does not estimate wall time, GC/allocation effects or the full endpoint."
+          ],
+          "additionalDisjointBoundsMs": {
+            "imageKeyPreparation": 208.307,
+            "searchWords": 155.422,
+            "fact": 269.339,
+            "twin": 2464.238,
+            "snapshot": 54.318,
+            "rowSnapshotUnion": 2022.62,
+            "row": 2011.987,
+            "rowSnapshotOverlap": 43.685
+          },
+          "additionalDirectBranchesMs": {
+            "keyPreparation": {
+              "packages/evaluator/src/row-image.ts:44 name": 35.474,
+              "packages/evaluator/src/row-image.ts:33 Qc": 17.565,
+              "(self)": 4.266
+            },
+            "snapshot": {
+              "packages/snapback2/src/twin-store.ts:212 row": 43.685,
+              "packages/snapback2/src/twin-store.ts:274 answer": 7.442,
+              "(self)": 2.127,
+              "packages/evaluator/src/store.ts:198 registerHeld": 1.064
+            },
+            "touchRows": {
+              "packages/evaluator/src/held-directory.ts:23 refresh": 248.88,
+              "packages/evaluator/src/store.ts:224 touchAuthority": 73.861,
+              "(self)": 31.934,
+              "packages/evaluator/src/store.ts:231 c": 6.379,
+              "packages/evaluator/src/index-store.ts:15 ordinaryColumns": 2.125,
+              "packages/evaluator/src/index-store.ts:16 c": 1.056
+            }
+          },
+          "imageKeyPreparationSelfMs": {
+            "packages/evaluator/src/unicode.ts:137 canonical": 54.38,
+            "packages/evaluator/src/unicode.ts:98 run": 48.874,
+            "packages/evaluator/src/unicode-tables.ts:68 composePair": 18.078,
+            "packages/evaluator/src/unicode.ts:82 Es": 13.855,
+            "packages/evaluator/src/unicode.ts:209 tokens": 13.848,
+            "packages/evaluator/src/index-store.ts:40 c": 13.001,
+            "packages/evaluator/src/row-image.ts:22 immutable": 12.732,
+            "packages/evaluator/src/row-image.ts:44 name": 6.385,
+            "packages/evaluator/src/index-store.ts:39 indexKeys": 5.294,
+            "packages/evaluator/src/row-image.ts:33 Qc": 4.833,
+            "packages/evaluator/src/row-image.ts:42 forRow": 4.266,
+            "packages/evaluator/src/value-runtime.ts:206 kindOf": 3.189,
+            "packages/evaluator/src/unicode-tables.ts:52 rangeValue": 2.13,
+            "packages/evaluator/src/unicode.ts:223 searchFieldWords": 2.129,
+            "packages/evaluator/src/unicode.ts:33 validateSearchSource": 2.128,
+            "packages/evaluator/src/value-runtime.ts:87 fieldOrNull": 2.122,
+            "packages/evaluator/src/value-runtime.ts:92 asObject": 1.063
+          },
+          "findings": {
+            "constructionEnvelope": "TwinStore.row union installSnapshot = 2022.620 ms; startup 54.318 ms overlaps rows by 43.685 ms. This includes proof/overlay/assets/setup unrelated to index construction, so it is a deliberately generous sampled direct-work envelope, not removable work or wall-time saving.",
+            "sharedPostingOwnership": "Of all putPrepared 1657.332 ms, TwinStore accounts for 1535.649 ms and FactIndex 121.683 ms, disjoint. Carrier integrity HeldIndex constructor/validate/put/remove union145.027 ms; all FactIndex work269.339 ms includes53.535ms scans and refs. CarrierIndex.update263.271ms overlaps those and must not be added.",
+            "tableAndIndexAttribution": "Unknown. CPU sampling has function-start source locations and call-tree identities, not receiver/arguments. Ordinary and WordPrefixes indexes call the same putPrepared/tree/comparator. No invocation or index/posting counts can be inferred from sample hits.",
+            "derivedSpecificWork": "searchFieldWords155.422ms inclusive is identifiable derived word preparation, outside TwinStore eager row insertion. Dictionary work4.217ms and scopes get/set6.643ms under TwinStore putPrepared are identifiable derived-only paths. Shared putPrepared self127.712ms, validation11.413ms and tree/comparator1385.664ms cannot be separated by index kind. Thus a search-versus-ordinary dominance claim is unsupported.",
+            "keys": "ImageKeys.forRow/key callback union includes normal and derived key preparation; search word preparation is nested, not additive. It is required by immutable image/index-key admission before TwinStore and CarrierIndex consume it, so not all of it belongs to eager TwinStore construction."
+          }
+        }
+      },
+      "bulkPostings": {
+        "pair": {
+          "path": "/tmp/acquisition-20260912-bulk-postings-samples.json",
+          "bytes": 15698,
+          "sha256": "0a94b57faae1cada087bf004a325ef14c4169ae0092a662ce987411475d22d12",
+          "record": {
+            "kind": "One sequential adjacent original-primary control/candidate pair, diagnostic only; bulk-postings candidate exceeds unchanged runtime ceiling",
+            "endpoint": "Navigation to durable 10008-message content, settled earned acknowledgements, first owner-cut offline history/search; full row hash and physical reopen verified afterward.",
+            "fixedInputs": {
+              "ownerSha256": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+              "mediaSha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+              "compilerCoreSha256": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+              "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+              "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+              "sessionHelperSourceSha256": "7b0817643def0993d7f8e1a6cdd4dcda49e33693be60f7a7047d8d3f79bc580c",
+              "sessionHelperBinarySha256": "e178b2bd94cb9b1382e260a5511a250ac889b1dd3acf675d39c286d5d18dea2e"
+            },
+            "authScope": "Ordinary finite dev bearer session for existing dev:alice fixture principal, prepared on stopped disposable copy before clock; no serve/live-account signup qualification.",
+            "unchangedScope": {
+              "messages": 10008,
+              "conversations": 100,
+              "memberships": 199,
+              "initialReceiptsTrue": 4450,
+              "initialReceiptsFalse": 5558,
+              "freshCommittedTerminals": 201,
+              "freshEmptyTerminals": 89,
+              "freshEffects": 5558
+            },
+            "instrumented": false,
+            "physicalPacking": false,
+            "networkCounts": "Not collected by original primary endpoint; no observer was added.",
+            "samples": [
+              {
+                "experiment": "sub3-20260912-bearer-bulk-postings-control-01",
+                "variant": "control-explicit-idb-commit89998-original-primary",
+                "startedAt": "2026-09-12T15:20:09.422Z",
+                "finishedAt": "2026-09-12T15:20:43.144Z",
+                "instrumented": false,
+                "firstInboxMs": 1224.2032500000005,
+                "coldSyncedMs": 15112.369268,
+                "ackCompleteMs": 16438.501943000003,
+                "completeAcquisitionMs": 16480.004992000002,
+                "primaryPass": true,
+                "contentPass": true,
+                "ackPostPass": true,
+                "fullRowHashPass": true,
+                "ownerReceipts": {
+                  "total": 10008,
+                  "received": 10008,
+                  "unreceived": 0
+                },
+                "stop": 0,
+                "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+                "runtimeSha": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+                "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+                "appSha": "1aead75d7fdf41fffdfa22721c0a25ff18446695673f2252bffc94c723db6b18",
+                "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+                "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+                "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+                "error": null,
+                "primaryError": null,
+                "candidateSource": "f8742a22d4cfd2906cdc7b5b3222f78d3b6babcd",
+                "candidateArchiveSha256": "421666aeea461b2aa6f2b37f15dbf4f93b4e8deaca653b34cbf22ec9c2e8d608",
+                "runtimeGzipBytes": 89998,
+                "runtimeCeilingPass": true,
+                "publicationQualified": false,
+                "cohortQualified": false,
+                "resultSha256": "e7da16670ca3b9aea4178448790079827bf9e2d6cec67ca9554e975d25528c09",
+                "moduleHashes": {
+                  "dist/client-runtime.mjs": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+                  "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                  "dist/react.mjs": "4d71fb906d1d446a812f4f7aba31a4a6d864847d1c835968e2af7fd4a5b36875",
+                  "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+                  "dist/image-runtime.mjs": "cb1758e47d91e0cc5d8ff56d5c7848eafb042e5c7052460d1f99ca3d584ecd4e"
+                },
+                "firstUsePass": true,
+                "firstOfflineHistoryMs": 1.5,
+                "firstOfflineSearchMs": 1.7000007629394531,
+                "reopenPass": true,
+                "reopenMs": 6064.568589999999,
+                "reopenIdentityPass": true,
+                "messageCount": 10008,
+                "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+                "fixtureRowsUnchangedDuringSetup": true,
+                "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+                "ownerPidGone": true,
+                "ownerStopMs": 167.51382100000046,
+                "freshTerminalCount": 201,
+                "freshTerminalHistogram": [
+                  {
+                    "state": "committed",
+                    "effects": 0,
+                    "count": 89
+                  },
+                  {
+                    "state": "committed",
+                    "effects": 8,
+                    "count": 1
+                  },
+                  {
+                    "state": "committed",
+                    "effects": 50,
+                    "count": 111
+                  }
+                ],
+                "freshActualEffects": 5558,
+                "exactAcknowledgementWorkloadPass": true,
+                "startedLoad": [
+                  0.08,
+                  0.31,
+                  0.29
+                ],
+                "finishedLoad": [
+                  1.17,
+                  0.58,
+                  0.38
+                ],
+                "postflight": {
+                  "load": [
+                    1.06201171875,
+                    0.58203125,
+                    0.380859375
+                  ],
+                  "browserOwners": []
+                },
+                "pageErrorCount": 0,
+                "logicalCounts": {
+                  "rows": 20216,
+                  "answers": 203,
+                  "outbox": 112,
+                  "meta": 50912
+                },
+                "reopenLogicalCounts": {
+                  "rows": 20216,
+                  "answers": 203,
+                  "outbox": 112,
+                  "meta": 50912
+                }
+              },
+              {
+                "experiment": "sub3-20260912-bearer-bulk-postings-01",
+                "variant": "non-delivering-bulk-postings90286-original-primary",
+                "startedAt": "2026-09-12T15:21:22.552Z",
+                "finishedAt": "2026-09-12T15:21:55.198Z",
+                "instrumented": false,
+                "firstInboxMs": 1241.7321670000001,
+                "coldSyncedMs": 14193.839564999998,
+                "ackCompleteMs": 15699.702233,
+                "completeAcquisitionMs": 16235.841409,
+                "primaryPass": true,
+                "contentPass": true,
+                "ackPostPass": true,
+                "fullRowHashPass": true,
+                "ownerReceipts": {
+                  "total": 10008,
+                  "received": 10008,
+                  "unreceived": 0
+                },
+                "stop": 0,
+                "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+                "runtimeSha": "7f727dee94a99286b94ea7d31a5540dce9680dd415b74eb1e9b30762a5ee6f36",
+                "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+                "appSha": "d05d7b61576e49adf5e275fd2dbf7bd773ead0ff65c2e2005f5d89107a25d0b3",
+                "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+                "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+                "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+                "error": null,
+                "primaryError": null,
+                "candidateSource": "98d6f09e6a120998f002d220a87fe44e716bd4f3",
+                "candidateArchiveSha256": "f880cb404cd64ede8bbb8be8ddb936dc5d3905befb91c1a06d9fcd32386b9355",
+                "runtimeGzipBytes": 90286,
+                "runtimeCeilingPass": false,
+                "publicationQualified": false,
+                "cohortQualified": false,
+                "resultSha256": "4fa4375cc7b58a7a4f1f3d19fbd416fd871bd30ffe4acfddb81f93197a1ee2c1",
+                "moduleHashes": {
+                  "dist/client-runtime.mjs": "7f727dee94a99286b94ea7d31a5540dce9680dd415b74eb1e9b30762a5ee6f36",
+                  "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                  "dist/react.mjs": "4d71fb906d1d446a812f4f7aba31a4a6d864847d1c835968e2af7fd4a5b36875",
+                  "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+                  "dist/image-runtime.mjs": "56f4a38647d4acf5baf73bd7fa72510f474772ecfbeeb429f954e17e108fdced"
+                },
+                "firstUsePass": true,
+                "firstOfflineHistoryMs": 9,
+                "firstOfflineSearchMs": 490.5999984741211,
+                "reopenPass": true,
+                "reopenMs": 5184.852372000001,
+                "reopenIdentityPass": true,
+                "messageCount": 10008,
+                "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+                "fixtureRowsUnchangedDuringSetup": true,
+                "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+                "ownerPidGone": true,
+                "ownerStopMs": 216.5885159999998,
+                "freshTerminalCount": 201,
+                "freshTerminalHistogram": [
+                  {
+                    "state": "committed",
+                    "effects": 0,
+                    "count": 89
+                  },
+                  {
+                    "state": "committed",
+                    "effects": 8,
+                    "count": 1
+                  },
+                  {
+                    "state": "committed",
+                    "effects": 50,
+                    "count": 111
+                  }
+                ],
+                "freshActualEffects": 5558,
+                "exactAcknowledgementWorkloadPass": true,
+                "startedLoad": [
+                  0.7,
+                  0.53,
+                  0.37
+                ],
+                "finishedLoad": [
+                  1.26,
+                  0.69,
+                  0.43
+                ],
+                "postflight": {
+                  "load": [
+                    0.76318359375,
+                    0.62353515625,
+                    0.412109375
+                  ],
+                  "browserOwners": []
+                },
+                "pageErrorCount": 0,
+                "logicalCounts": {
+                  "rows": 20216,
+                  "answers": 203,
+                  "outbox": 112,
+                  "meta": 50912
+                },
+                "reopenLogicalCounts": {
+                  "rows": 20216,
+                  "answers": 203,
+                  "outbox": 112,
+                  "meta": 50912
+                }
+              }
+            ],
+            "adjacentDifferences": {
+              "completeAcquisitionMsCandidateMinusControl": -244.16358300000138,
+              "coldSyncedMsCandidateMinusControl": -918.529703000002,
+              "ackCompleteMsCandidateMinusControl": -738.799710000003,
+              "firstOfflineHistoryMsCandidateMinusControl": 7.5,
+              "firstOfflineSearchMsCandidateMinusControl": 488.89999771118164,
+              "reopenMsCandidateMinusControl": -879.7162179999978
+            },
+            "primaryAllControlsPass": true,
+            "candidateNonDelivering": true,
+            "candidateRuntimeGzipBytes": 90286,
+            "candidateRuntimeCeilingPass": false,
+            "candidateOverCeilingBytes": 286,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "fullSub3GoalMet": false,
+            "failures": [],
+            "candidateManifestSha256": "ff8e8b59700252f8f8de0b52f413e5abfa2551f35174078ff4de08d984ef7ae2",
+            "candidateSource": "98d6f09e6a120998f002d220a87fe44e716bd4f3",
+            "candidateBase": "16dfe07e1e918c05ad65f52a00833958b4a0ff09",
+            "candidateSemantics": {
+              "scope": "PostingTree numeric materialization and HeldIndex direct reverse membership; no durable format, protocol, row-body custody, journal, certificate, or workload changes.",
+              "materialization": "put allocates a numeric slot and appends its index. Seek/removal materializes pending slots. Large runs sort existing in-order nodes plus pending and build one balanced numeric AVL; small deltas use incremental insertion. Active seek generators force immediate incremental insertion. Materialization precedes row/dictionary/handle release.",
+              "failures": "Small flush removes only its completed pending prefix after comparison failure. Bulk sorting/deduplication completes before tree rewiring or duplicate freeing. Active insertion frees the uninserted allocated slot on failure.",
+              "admissionChange": "Each scalar prepared key self-compares eagerly. Malformed restored keys can now fail E_INPUT on first admission, rather than remaining latent until later comparison. This is comparability preflight, not a full schema/key-integrity verifier. Unchanged-state tests scope to HeldIndex, not ClientStore cross-index atomicity.",
+              "allocation": "Pending owns numeric slots only, bounded by retained postings. Standalone duplicate puts temporarily allocate duplicates; materialization frees extras. HeldIndex already guarantees unique live row/token pairs.",
+              "firstUse": "All required first offline query/search materialization remains within the original timed endpoint."
+            },
+            "candidateValidation": {
+              "evaluatorCasesPassed": 266,
+              "affectedPackageTestsPassed": 515,
+              "canonicalNode": "v24.18.0",
+              "sourceBaseIdentity": "Recipe verified git diff f8742a22d4 16dfe07e1e -- snapback2/packages/evaluator snapback2/packages/snapback2 is empty; current control source equals candidate base."
+            },
+            "limits": [
+              "One descriptive adjacent pair, no qualifying cohort or isolated causal estimate.",
+              "All first-use materialization remains in the original full timed endpoint; candidate search costs 490.600 ms versus 1.700 ms control. Content-only improvement is not full acquisition improvement.",
+              "Original primary harness and physical inspector are byte-identical for both arms. No profiling, request observer, packing, scope reduction or acknowledgement skip.",
+              "Candidate exceeds the fixed 90000-byte runtime ceiling and is not deliverable; successful workload controls do not waive that ceiling.",
+              "The separate final-image carrier replay diagnostic is not a sample in this pair and is not used as an acquisition endpoint."
+            ],
+            "preflight": {
+              "load": [
+                0.10595703125,
+                0.3310546875,
+                0.2919921875
+              ],
+              "memoryAvailableKiB": 129205472,
+              "browserOwnerProcesses": [],
+              "moduleCountVerified": 247,
+              "candidate": {
+                "source": "98d6f09e6a120998f002d220a87fe44e716bd4f3",
+                "base": "16dfe07e1e918c05ad65f52a00833958b4a0ff09",
+                "archiveSha256": "f880cb404cd64ede8bbb8be8ddb936dc5d3905befb91c1a06d9fcd32386b9355",
+                "manifestSha256": "ff8e8b59700252f8f8de0b52f413e5abfa2551f35174078ff4de08d984ef7ae2",
+                "runtimeGzipBytes": 90286,
+                "runtimeCeilingPass": false,
+                "nonDelivering": true,
+                "publicationQualified": false,
+                "cohortQualified": false
+              },
+              "timedModuleHashes": {
+                "dist/client-runtime.mjs": "7f727dee94a99286b94ea7d31a5540dce9680dd415b74eb1e9b30762a5ee6f36",
+                "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                "dist/image-runtime.mjs": "56f4a38647d4acf5baf73bd7fa72510f474772ecfbeeb429f954e17e108fdced",
+                "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+                "dist/react.mjs": "4d71fb906d1d446a812f4f7aba31a4a6d864847d1c835968e2af7fd4a5b36875"
+              }
+            },
+            "artifacts": [
+              {
+                "path": "/tmp/sub3-20260912-bearer-bulk-postings-control-01.json",
+                "sha256": "e7da16670ca3b9aea4178448790079827bf9e2d6cec67ca9554e975d25528c09",
+                "bytes": 41491
+              },
+              {
+                "path": "/tmp/sub3-20260912-bearer-bulk-postings-control-01-summary.json",
+                "sha256": "57b6d67d841c70c91f83fd1f880e960629936b40476e3006fb8073abeb757fcf",
+                "bytes": 2697
+              },
+              {
+                "path": "/tmp/sub3-20260912-bearer-bulk-postings-control-01-extra.json",
+                "sha256": "5c8f02ae5c33ee94da2e0abf55d6babec814ec14ca37fd4e25f486bb8c5a66eb",
+                "bytes": 965
+              },
+              {
+                "path": "/tmp/sub3-20260912-bearer-bulk-postings-01.json",
+                "sha256": "4fa4375cc7b58a7a4f1f3d19fbd416fd871bd30ffe4acfddb81f93197a1ee2c1",
+                "bytes": 41428
+              },
+              {
+                "path": "/tmp/sub3-20260912-bearer-bulk-postings-01-summary.json",
+                "sha256": "50c82e8dc888a4b5d595e61c7f2cf7a277d19a6cc493df8df3d2788aaeb025ed",
+                "bytes": 2681
+              },
+              {
+                "path": "/tmp/sub3-20260912-bearer-bulk-postings-01-extra.json",
+                "sha256": "1c77e7596edbb2284a9b8f34411ea0086312362a55e2494f2aff4878883721df",
+                "bytes": 967
+              },
+              {
+                "path": "/tmp/bulk-postings-primary-preflight-01.json",
+                "sha256": "1e58797ddb302b6f79d1a3e9e9fc430fa9376551cfd2d619a92c39ad126b8a4b",
+                "bytes": 1142
+              },
+              {
+                "path": "/tmp/acquisition-bulk-postings-manifest.json",
+                "sha256": "ff8e8b59700252f8f8de0b52f413e5abfa2551f35174078ff4de08d984ef7ae2",
+                "bytes": 52353
+              }
+            ]
+          }
+        },
+        "candidateBuild": {
+          "source": "98d6f09e6a120998f002d220a87fe44e716bd4f3",
+          "base": "16dfe07e1e918c05ad65f52a00833958b4a0ff09",
+          "branch": "llp-ship/acquisition-20260912/bulk-postings",
+          "archive": {
+            "path": "/tmp/acquisition-20260912-candidate-bulk-postings-dist.tar.gz",
+            "bytes": 1709202,
+            "sha256": "f880cb404cd64ede8bbb8be8ddb936dc5d3905befb91c1a06d9fcd32386b9355"
+          },
+          "sourceFiles": [
+            {
+              "path": "snapback2/packages/evaluator/src/posting-tree.ts",
+              "bytes": 3965,
+              "sha256": "b914b6b633fb7b70b2fa42d9df503194b8a99a5fc9dd54a145d1ab5ba4fd2584"
+            },
+            {
+              "path": "snapback2/packages/evaluator/src/index-store.ts",
+              "bytes": 16300,
+              "sha256": "e2aeb35e5533d6d2a817ea71c801ea97a359c52db7be8ab2918a4a19290e5910"
+            },
+            {
+              "path": "snapback2/packages/evaluator/src/test-search-foundation.ts",
+              "bytes": 19075,
+              "sha256": "68f883fa449d253ec2358122f9fb997743eba4571f8b7fd7bb6b801dc3a49f98"
+            },
+            {
+              "path": "llp/1018.008.007.002-bounded-bulk-acquisition.plan.md",
+              "bytes": 69487,
+              "sha256": "b0ac354cf203e40c9615fd5661bcd9ccf3915941049af3bb3e09401d57bc4f4f"
+            },
+            {
+              "path": "snapback2/metrics/twin.jsonl",
+              "bytes": 367216,
+              "sha256": "3e0b7f10b37b31c2cd2061395e72c7627b0e90afffab32a98802176ec33a12fe"
+            }
+          ],
+          "validation": {
+            "build": {
+              "path": "/tmp/acquisition-bulk-postings-build.log",
+              "bytes": 277,
+              "sha256": "4212e002c75ed0c7a686723c107fd45bfdf98dedc53d5130aa4d2dcffc778d74"
+            },
+            "focused": {
+              "log": {
+                "path": "/tmp/acquisition-bulk-postings-focused.log",
+                "bytes": 185,
+                "sha256": "7edd8f957b9fde041273da66212ec22a1f230247882a8cad52b985d32033e131"
+              },
+              "controls": [
+                "bulk ordering and reverse ordering",
+                "remove before first seek",
+                "duplicate collapse and slot reuse",
+                "small warm update comparison bound",
+                "partial-small-flush failure recovery",
+                "bulk sort/dedup failure recovery",
+                "paused and overlapping generators",
+                "active duplicate and comparator refusal",
+                "malformed first/replacement HeldIndex admission without mutation"
+              ]
+            },
+            "evaluator": {
+              "corpusCases": 266,
+              "passed": 266,
+              "serverOnly": 27,
+              "additional": "Unicode/search/indexed rollback, receipt/range, rule-hash, maintain, delivery, merge controls",
+              "log": {
+                "path": "/tmp/acquisition-bulk-postings-evaluator.log",
+                "bytes": 3570,
+                "sha256": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f"
+              }
+            },
+            "affected": {
+              "tests": 515,
+              "passed": 515,
+              "failed": 0,
+              "concurrency": 2,
+              "files": [
+                "twin.test.ts",
+                "store-review.test.ts",
+                "store-review-custody.test.ts",
+                "delivery-custody.test.ts"
+              ],
+              "log": {
+                "path": "/tmp/acquisition-bulk-postings-carriers.log",
+                "bytes": 42922,
+                "sha256": "ecc7ce4afd5a6079950dfc742292ece2826d68891b1bfc63580e32ba7d439387"
+              }
+            },
+            "diffCheck": "pass",
+            "sourceStatus": "clean after commit; no build/test processes remain"
+          },
+          "canonicalFiveRoot": {
+            "baselineGzip": 89998,
+            "candidateGzip": 90286,
+            "deltaGzip": 288,
+            "ceiling": 90000,
+            "overCeiling": 286,
+            "result": "REFUSED; not deliverable",
+            "records": [
+              {
+                "at": "2026-09-12T15:02:05.690Z",
+                "sha": "16dfe07e1e918c05ad65f52a00833958b4a0ff09",
+                "entry": "complete-local-runtime",
+                "minified": 272737,
+                "gzip": 90194,
+                "runtime_gzip_bytes": 90194,
+                "ceiling": 90000,
+                "target": 80000,
+                "toolchain": {
+                  "node": "v24.18.0",
+                  "esbuild": "0.25.9",
+                  "gzipLevel": 9
+                },
+                "inputs": [
+                  "../evaluator/src/hash.ts",
+                  "../evaluator/src/errors.ts",
+                  "../evaluator/src/certificate-identity.ts",
+                  "../evaluator/src/ordered.ts",
+                  "../evaluator/src/slot-tree.ts",
+                  "../evaluator/src/posting-tree.ts",
+                  "../evaluator/src/prefix-dictionary.ts",
+                  "../../crates/snapback2-core/ir-contract.json",
+                  "../evaluator/src/cursor.ts",
+                  "../evaluator/dist/unicode-tables.ts",
+                  "../evaluator/src/unicode-tables.ts",
+                  "../evaluator/src/unicode.ts",
+                  "../evaluator/src/value-runtime.ts",
+                  "../evaluator/src/search-key.ts",
+                  "../evaluator/src/index-store.ts",
+                  "../evaluator/src/row-image.ts",
+                  "src/store/row-values.ts",
+                  "src/store/asset-policy.ts",
+                  "../evaluator/src/search-runtime.ts",
+                  "src/local-cursor.ts",
+                  "../evaluator/src/merge.ts",
+                  "../evaluator/src/delivery-prediction.ts",
+                  "../evaluator/src/text.ts",
+                  "../evaluator/src/runner.ts",
+                  "src/held-program.ts",
+                  "../evaluator/src/range-preparation.ts",
+                  "../evaluator/src/held-directory.ts",
+                  "../evaluator/src/coverage-spans.ts",
+                  "../evaluator/src/coverage.ts",
+                  "../evaluator/src/store.ts",
+                  "src/offline-schema.ts",
+                  "src/offline-protocol.ts",
+                  "src/store/swap-journal.ts",
+                  "src/store/byte-cache.ts",
+                  "src/store/canonical.ts",
+                  "src/query-frame.ts",
+                  "src/store/extent-facts.ts",
+                  "src/store/extent-index.ts",
+                  "src/store/fact-integrity.ts",
+                  "src/store/query-inputs.ts",
+                  "src/query-items.ts",
+                  "src/twin-store.ts",
+                  "src/store/inbox.ts",
+                  "src/api.ts",
+                  "src/mutation-targets.ts",
+                  "src/store/outbox.ts",
+                  "src/twin-hydrate.ts",
+                  "src/twin.ts",
+                  "src/types.ts",
+                  "src/store/overlay-retirement.ts",
+                  "src/delivery-acknowledgements.ts",
+                  "src/store/fact-index.ts",
+                  "src/store/success-compaction.ts",
+                  "src/store/carrier-index.ts",
+                  "src/store/maintained-coherence.ts",
+                  "src/store/range-store.ts",
+                  "src/tombstones.ts",
+                  "src/client-wire.ts",
+                  "src/offline.ts",
+                  "src/store/metadata.ts",
+                  "src/store/projection.ts",
+                  "<stdin>"
+                ]
+              },
+              {
+                "at": "2026-09-12T15:11:08.874Z",
+                "sha": "16dfe07e1e918c05ad65f52a00833958b4a0ff09",
+                "entry": "complete-local-runtime",
+                "minified": 272959,
+                "gzip": 90286,
+                "runtime_gzip_bytes": 90286,
+                "ceiling": 90000,
+                "target": 80000,
+                "toolchain": {
+                  "node": "v24.18.0",
+                  "esbuild": "0.25.9",
+                  "gzipLevel": 9
+                },
+                "inputs": [
+                  "../evaluator/src/hash.ts",
+                  "../evaluator/src/errors.ts",
+                  "../evaluator/src/certificate-identity.ts",
+                  "../evaluator/src/ordered.ts",
+                  "../evaluator/src/slot-tree.ts",
+                  "../evaluator/src/posting-tree.ts",
+                  "../evaluator/src/prefix-dictionary.ts",
+                  "../../crates/snapback2-core/ir-contract.json",
+                  "../evaluator/src/cursor.ts",
+                  "../evaluator/dist/unicode-tables.ts",
+                  "../evaluator/src/unicode-tables.ts",
+                  "../evaluator/src/unicode.ts",
+                  "../evaluator/src/value-runtime.ts",
+                  "../evaluator/src/search-key.ts",
+                  "../evaluator/src/index-store.ts",
+                  "../evaluator/src/row-image.ts",
+                  "src/store/row-values.ts",
+                  "src/store/asset-policy.ts",
+                  "../evaluator/src/search-runtime.ts",
+                  "src/local-cursor.ts",
+                  "../evaluator/src/merge.ts",
+                  "../evaluator/src/delivery-prediction.ts",
+                  "../evaluator/src/text.ts",
+                  "../evaluator/src/runner.ts",
+                  "src/held-program.ts",
+                  "../evaluator/src/range-preparation.ts",
+                  "../evaluator/src/held-directory.ts",
+                  "../evaluator/src/coverage-spans.ts",
+                  "../evaluator/src/coverage.ts",
+                  "../evaluator/src/store.ts",
+                  "src/offline-schema.ts",
+                  "src/offline-protocol.ts",
+                  "src/store/swap-journal.ts",
+                  "src/store/byte-cache.ts",
+                  "src/store/canonical.ts",
+                  "src/query-frame.ts",
+                  "src/store/extent-facts.ts",
+                  "src/store/extent-index.ts",
+                  "src/store/fact-integrity.ts",
+                  "src/store/query-inputs.ts",
+                  "src/query-items.ts",
+                  "src/twin-store.ts",
+                  "src/store/inbox.ts",
+                  "src/api.ts",
+                  "src/mutation-targets.ts",
+                  "src/store/outbox.ts",
+                  "src/twin-hydrate.ts",
+                  "src/twin.ts",
+                  "src/types.ts",
+                  "src/store/overlay-retirement.ts",
+                  "src/delivery-acknowledgements.ts",
+                  "src/store/fact-index.ts",
+                  "src/store/success-compaction.ts",
+                  "src/store/carrier-index.ts",
+                  "src/store/maintained-coherence.ts",
+                  "src/store/range-store.ts",
+                  "src/tombstones.ts",
+                  "src/client-wire.ts",
+                  "src/offline.ts",
+                  "src/store/metadata.ts",
+                  "src/store/projection.ts",
+                  "<stdin>"
+                ]
+              }
+            ],
+            "rawRecords": {
+              "path": "/tmp/acquisition-bulk-postings-twin-records.jsonl",
+              "bytes": 4088,
+              "sha256": "af94a7b96081d936154c101351fddf2ed601d432f93bbc53ebd960f092eeb42e"
+            },
+            "logs": [
+              {
+                "path": "/tmp/acquisition-bulk-postings-round1-bytes.log",
+                "bytes": 2400,
+                "sha256": "f4128a36811fd1b4275de9d2cfc79ed351beaa8e4ee74c8266e174c904bdaac3"
+              },
+              {
+                "path": "/tmp/acquisition-bulk-postings-round2-bytes.log",
+                "bytes": 2400,
+                "sha256": "78338dbde30fc1b72d84517c03f24ffa46c3c34c2dc0b30bca4551fc91ac35be"
+              }
+            ],
+            "provenance": "build.mjs records base HEAD while source is modified; final round source later committed as 98d6f09e6a120998f002d220a87fe44e716bd4f3. First prototype lacks the subsequent iterator/failure controls and was never selected."
+          }
+        },
+        "review": {
+          "reviewer": "/root/review",
+          "commit": "98d6f09e6a120998f002d220a87fe44e716bd4f3",
+          "verdict": "No material correctness or custody finding blocking the explicitly non-delivering experiment; one performance finding remains",
+          "finding": "Successful ClientStore.lookup abandons its iterator and leaves PostingTree.readers positive; partly consumed merge lanes do likewise. Later insertion remains eager. Independently reproduced; existing tests exhaust or close iterators and miss this lifecycle.",
+          "limit": "The endpoint measures this implementation, including this limitation; it cannot establish the potential of corrected bulk construction. Peak scratch/heap remains unqualified."
+        },
+        "disposition": "Do not integrate.90286gzip exceeds90000 ceiling. One pair improves full endpoint244.164ms while first offline search grows488.900ms. Preserve experiment commit and raw failed byte records; no third byte-funding round."
+      },
+      "carrierFinalImageReplay": {
+        "sample": {
+          "path": "/tmp/acquisition-20260912-carrier-replay-sample.json",
+          "bytes": 9101,
+          "sha256": "2223f3650d63eec3d2cfa046325fdddce8f5b6c28027f7322672dbbf19f21eb4",
+          "record": {
+            "kind": "one isolated optimistic final-image IndexedDB replay observation",
+            "experiment": "sub3-20260912-carrier-final-image-replay-01",
+            "startedAt": "2026-09-12T15:11:04.778Z",
+            "finishedAt": "2026-09-12T15:14:09.840Z",
+            "pass": true,
+            "fullAcquisitionQualified": false,
+            "cohortQualified": false,
+            "universalStorageFloor": false,
+            "trial": {
+              "createdMs": 34,
+              "queueMs": 853.2999992370605,
+              "commitCallMs": 0,
+              "postQueueToCompleteMs": 1993.1000003814697,
+              "totalMs": 2880.3999996185303,
+              "puts": 71443,
+              "putsByStore": {
+                "answers": 203,
+                "bytes": 0,
+                "inbox": 0,
+                "meta": 50912,
+                "outbox": 112,
+                "rows": 20216
+              },
+              "readwriteTransactions": 1,
+              "explicitCommit": true,
+              "completionObserved": true,
+              "durability": "default"
+            },
+            "sourceExperiment": "sub3-20260912-bearer-explicit-idb-commit-control-01",
+            "sourceOriginalResultSha256": "aea619aebe43b063201c4ac0ae3843066511f43d28460ae3fa1733936e9c54ee",
+            "sourcePrimaryHarnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "browserExecutableSha256": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+            "sourceRawRecords": {
+              "version": 4,
+              "schema": [
+                {
+                  "name": "answers",
+                  "keyPath": "key",
+                  "autoIncrement": false,
+                  "indexes": []
+                },
+                {
+                  "name": "bytes",
+                  "keyPath": "key",
+                  "autoIncrement": false,
+                  "indexes": []
+                },
+                {
+                  "name": "inbox",
+                  "keyPath": "key",
+                  "autoIncrement": true,
+                  "indexes": []
+                },
+                {
+                  "name": "meta",
+                  "keyPath": "key",
+                  "autoIncrement": false,
+                  "indexes": []
+                },
+                {
+                  "name": "outbox",
+                  "keyPath": "key",
+                  "autoIncrement": false,
+                  "indexes": []
+                },
+                {
+                  "name": "rows",
+                  "keyPath": "key",
+                  "autoIncrement": false,
+                  "indexes": []
+                }
+              ],
+              "messageCount": 10008,
+              "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+              "stores": [
+                {
+                  "name": "answers",
+                  "count": 203,
+                  "typedGraphBytes": 12225742,
+                  "sha256": "82b448fda6dba0c7ab9f6a8ae9b7db48e2ecb2762c4b4f737ca29c930294e002",
+                  "graphNodeTypes": {
+                    "Object": 53378,
+                    "Array": 2028
+                  }
+                },
+                {
+                  "name": "bytes",
+                  "count": 0,
+                  "typedGraphBytes": 0,
+                  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "graphNodeTypes": {}
+                },
+                {
+                  "name": "inbox",
+                  "count": 0,
+                  "typedGraphBytes": 0,
+                  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "graphNodeTypes": {}
+                },
+                {
+                  "name": "meta",
+                  "count": 50912,
+                  "typedGraphBytes": 37178796,
+                  "sha256": "2c45da786bc93889b15756a3bb100cf3b42406831335e050a12768460198c4a6",
+                  "graphNodeTypes": {
+                    "Object": 370992,
+                    "Array": 62027
+                  }
+                },
+                {
+                  "name": "outbox",
+                  "count": 112,
+                  "typedGraphBytes": 1569613,
+                  "sha256": "5047925286234d7d5a285f4260e50b4892192a0f9c0da60685ac8995d134a635",
+                  "graphNodeTypes": {
+                    "Object": 6566,
+                    "Array": 784
+                  }
+                },
+                {
+                  "name": "rows",
+                  "count": 20216,
+                  "typedGraphBytes": 16439767,
+                  "sha256": "579a6ed7184539246ae79fd0ac00d11a95b2550f6bcebab08ec33adc24cd4021",
+                  "graphNodeTypes": {
+                    "Object": 80864
+                  }
+                }
+              ]
+            },
+            "allKeysValuesSchemasCompared": true,
+            "sourceMessageHashMatchesFrozen10008": true,
+            "sourcePhysicalJsonRecordBytesFromOriginalPrimary": 33832164,
+            "typedGraphBytesAreDiagnosticTransportOnly": true,
+            "targetBackingStore": "Fresh persistent Chromium user-data directory, separate from disposable source profile; never incognito.",
+            "sourceProfileScope": "Only the original origin IndexedDB LevelDB/blob directories were copied into a private disposable source profile; original browser profile and its localStorage were not launched/read/exported. Static same-origin page only. No app, SDK or owner boot. All raw values stayed in browser and Node memory.",
+            "scopeLimits": [
+              "One final-image write of 71443 retained records; excludes historical updates/deletes and repeated writes.",
+              "Timed fresh database creation, synchronous queueing, explicit commit, and readwrite oncomplete with default durability.",
+              "Source extraction, type-preserving graph transfer/decoding, hashes and readback are outside the clock.",
+              "Target used a fresh persistent Chromium user-data directory after source Chromium fully closed; no incognito storage or same-profile backing store.",
+              "Readback closes and reopens the IndexedDB connection in the same target browser. It is not process-kill durability, power-loss or fsync qualification.",
+              "Source extraction and target preparation can warm host caches; this is an optimistic final-image storage-only observation, not a cold-storage lower bound.",
+              "AutoIncrement key-path/schema and all retained keys are preserved, but historical generator high-watermark is excluded.",
+              "No SDK validation/indexing/receipt execution, server work, navigation, first offline queries or acknowledgement workload is represented by this isolated clock; it makes no full endpoint qualification claim.",
+              "Stored data in this fixture uses Object/Array graph nodes; bytes/inbox are empty. Synthetic codec controls cover binary views/Blob/cycles but this sample does not time nonempty binary/inbox records."
+            ],
+            "network": {
+              "allowedStaticRequests": 2,
+              "blockedRequests": 0
+            },
+            "preflight": {
+              "load": [
+                0.1,
+                0.09,
+                0.09
+              ],
+              "cpus": 12,
+              "memoryAvailableBytes": 132325957632,
+              "memoryTotalBytes": 134966546432
+            },
+            "originalIdbManifest": {
+              "files": 32,
+              "bytes": 47804036,
+              "sha256": "5a5d9c52169e1a65f097377093ba15347b111f652da5e1237bfc4a2d76821681"
+            },
+            "originalManifestUnchanged": true,
+            "connectionReopenPass": true,
+            "exactAllStoresPass": true,
+            "targetDatabaseDeleted": true,
+            "disposableProfilesRemoved": true,
+            "processStages": [
+              {
+                "label": "source-extraction",
+                "at": "2026-09-12T15:11:05.737Z",
+                "pids": [
+                  {
+                    "pid": 90483,
+                    "ppid": 90469,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 90490,
+                    "ppid": 90483,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 90491,
+                    "ppid": 90483,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 90513,
+                    "ppid": 90490,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 90515,
+                    "ppid": 90483,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 90530,
+                    "ppid": 90491,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 90565,
+                    "ppid": 90491,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 90566,
+                    "ppid": 90491,
+                    "comm": "chrome"
+                  }
+                ]
+              },
+              {
+                "label": "source-closed",
+                "at": "2026-09-12T15:12:04.014Z",
+                "pids": []
+              },
+              {
+                "label": "fresh-target-transfer",
+                "at": "2026-09-12T15:12:04.242Z",
+                "pids": [
+                  {
+                    "pid": 91291,
+                    "ppid": 90469,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 91298,
+                    "ppid": 91291,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 91299,
+                    "ppid": 91291,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 91321,
+                    "ppid": 91298,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 91323,
+                    "ppid": 91291,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 91338,
+                    "ppid": 91299,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 91373,
+                    "ppid": 91299,
+                    "comm": "chrome"
+                  },
+                  {
+                    "pid": 91374,
+                    "ppid": 91299,
+                    "comm": "chrome"
+                  }
+                ]
+              },
+              {
+                "label": "target-closed",
+                "at": "2026-09-12T15:14:09.588Z",
+                "pids": []
+              },
+              {
+                "label": "final-cleanup",
+                "at": "2026-09-12T15:14:09.637Z",
+                "pids": []
+              }
+            ],
+            "postflight": {
+              "load": [
+                1.64,
+                0.87,
+                0.4
+              ],
+              "browserOwnerProcesses": [],
+              "ownBrowserPids": []
+            },
+            "errors": [],
+            "artifacts": [
+              {
+                "path": "/tmp/sub3-20260912-carrier-final-image-replay-01.json",
+                "bytes": 10832,
+                "sha256": "60e9b5f20b08216258605fd03b529e4c11a9d46fabd9078f5cb9e9af5cb8e0c9"
+              },
+              {
+                "path": "/tmp/acquisition-carrier-final-image-replay-20260912.mjs",
+                "bytes": 18007,
+                "sha256": "f67ccdf2c27771fbf49bc1dbd370d6d2fcf7697e28f2d1b1cc8b663be77aa9f3"
+              },
+              {
+                "path": "/tmp/acquisition-carrier-replay-codec-controls.json",
+                "bytes": 651,
+                "sha256": "65a78c620da759a1b37db05856a6b8bcf7a4aa1af5e894c83d4fc4071a5e00f1"
+              }
+            ]
+          }
+        },
+        "review": {
+          "reviewer": "/root/review",
+          "verdict": "No material findings within explicitly limited storage-only scope",
+          "checks": "Harness and result hashes, exact all-store schemas/keys/values, arithmetic, source physical-byte total and process/profile cleanup verified."
+        },
+        "disposition": "One optimistic observed2880.4ms final-image write, not a universal physical floor or actual acquisition. The71,443-record representation is substantial remaining work, not a contract-mandated record count."
+      },
+      "feasibility": "Sub-three-second acquisition is not likely through current local optimizations. No demonstrated structural prototype reaches the unchanged endpoint; no impossibility proof is claimed. Future work must remove substantial owner and client work and preserve first offline use, receipts, custody, byte ceiling and durable state.",
+      "qualification": {
+        "productionChange": false,
+        "fullSub3GoalMet": false,
+        "cohortQualified": false,
+        "publicationQualified": false
+      },
+      "cleanup": "Both original-primary control/candidate runs and isolated replay completed normally; all owned browser/owner processes stopped. Integration and preserved candidate worktrees remain recoverable."
     }
   }
 }
