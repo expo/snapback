@@ -698,3 +698,9 @@ Three fresh Astra sessions at medium, serial, each on the published
   each line, and names every query it still cannot run and why.
 - The online client's HTTP 400 refusals now reach the card as the refusal
   (0.0.4 said "unreachable"). Published `snapback4@0.0.5`.
+- **Loop bar, run 1 (0.0.4):** green in 433 s wall (415 s by the agent's own
+  clock), one Snapback-attributed correction loop (the `??` defect above),
+  two docs gaps, two agent errors, two environment items; `check`, the
+  fixture test and the acceptance script pass under independent
+  verification. The bar is met by this run (≤ 1,200 s, ≤ 1 loop); runs 2
+  and 3 follow on the same pin.

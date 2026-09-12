@@ -302,8 +302,11 @@ flips the link.
 - **`snapback4 run <op> '<json args>' --as alice [--json]`** runs one
   operation against the local store and prints the result and the meter.
 - **`snapback4 test [--fixture dir] [--as persona]`** loads a fixture
-  (one `<table>.jsonl` per table), runs every query, and prints the
-  meters beside the ceilings.
+  (one `<table>.jsonl` per table), runs every query as each persona with
+  arguments derived from the data (a reference is the table's first row,
+  a principal the persona, a text the shortest that fits), prints the
+  meters beside the ceilings and the arguments it used, and names any
+  query it could not run.
 - **`snapback4 check [--cost] [--json]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's
