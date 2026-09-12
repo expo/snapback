@@ -75,18 +75,49 @@ export function indexTuple(schema: any, table: string, parts: IndexComponent[], 
   });
   return values;
 }
+export interface ScanBounds {
+  after: Value[] | null; before: Value[] | null;
+  gt?: Value[] | null; gte?: Value[] | null; lt?: Value[] | null; lte?: Value[] | null;
+}
 export function prepareScanBounds(schema: any, table: string, parts: IndexComponent[], input: Omit<IndexScan, 'prefix'> & { prefix: readonly unknown[] }) {
   const suffix = parts.slice(input.prefix.length);
   const after = indexTuple(schema, table, suffix, input.after), before = indexTuple(schema, table, suffix, input.before);
   if (input.order !== 'Asc' && input.order !== 'Desc') throw new EvalError('E_INPUT', 'invalid scan order');
+  const bounds: ScanBounds = { after, before };
   for (const [kind, value] of Object.entries<Value | null>(input.range ?? {})) {
     if (!['gt', 'gte', 'lt', 'lte'].includes(kind)) throw new EvalError('E_INPUT', 'invalid scan bound');
     if (value === null) continue;
     const c = suffix[0];
     if (!c || !('Column' in c)) throw new EvalError('E_INPUT', 'range requires an ordinary suffix');
     if (value !== 'Null') validateColumnValue(schema, table, c.Column, value);
+    bounds[kind as keyof ScanBounds] = [value];
   }
-  return { after, before };
+  return bounds;
+}
+
+// @ref LLP 1012#indexed-held-search — execution and retained fact checks share admitted interval meaning.
+/** Compare an already admitted suffix with the same interval in scans and retained facts.
+ * Scalar bounds are prepared once, so candidate traversal allocates no bound entries. */
+export function compareScanBounds(suffix: Value[], bounds: ScanBounds, order: 'Asc' | 'Desc', first?: Value[], last?: Value[]): number {
+  if (first && compareArrays(suffix, first) < 0) return -1;
+  if (last && compareArrays(suffix, last) > 0) return 1;
+  const descending = order === 'Desc';
+  if (bounds.after) {
+    const compared = compareArrays(suffix, bounds.after);
+    if (descending ? compared >= 0 : compared <= 0) return descending ? 1 : -1;
+  }
+  if (bounds.before) {
+    const compared = compareArrays(suffix, bounds.before);
+    if (descending ? compared <= 0 : compared >= 0) return descending ? -1 : 1;
+  }
+  for (const kind of ['gt', 'gte', 'lt', 'lte'] as const) {
+    const bound = bounds[kind];
+    if (!bound) continue;
+    const compared = totalCompare(suffix[0], bound[0]);
+    if (kind === 'gt' ? compared <= 0 : kind === 'gte' ? compared < 0 : kind === 'lt' ? compared >= 0 : compared > 0)
+      return kind[0] === 'g' ? -1 : 1;
+  }
+  return 0;
 }
 
 /** One physical index with compact trie handles; source spelling never enters postings. */
@@ -237,22 +268,12 @@ export class HeldIndex<Row = Value> {
         prefix.push({ Int: id ?? 0 });
       }
     }
-    const { after, before } = prepareScanBounds(this.schema, this.table, this.parts, input), desc = input.order === 'Desc';
+    const bounds = prepareScanBounds(this.schema, this.table, this.parts, input), desc = input.order === 'Desc';
     if (empty) return;
     const compare = (key: Value[]): number => {
       const p = prefixCompare(key, prefix); if (p) return p;
       const suffix = key.slice(prefix.length, this.parts.length);
-      if (input.first && compareArrays(suffix, input.first) < 0) return -1;
-      if (input.last && compareArrays(suffix, input.last) > 0) return 1;
-      if (after) { const c = compareArrays(suffix, after); if (desc ? c >= 0 : c <= 0) return desc ? 1 : -1; }
-      if (before) { const c = compareArrays(suffix, before); if (desc ? c <= 0 : c >= 0) return desc ? -1 : 1; }
-      for (const [kind, bound] of Object.entries<Value | null>(input.range ?? {})) {
-        if (bound === null) continue;
-        if (!suffix.length) throw new EvalError('E_TYPE', 'range has no ordinary suffix');
-        const c = totalCompare(suffix[0], bound);
-        if (kind === 'gt' ? c <= 0 : kind === 'gte' ? c < 0 : kind === 'lt' ? c >= 0 : c > 0) return kind[0] === 'g' ? -1 : 1;
-      }
-      return 0;
+      return compareScanBounds(suffix, bounds, input.order, input.first, input.last);
     };
     for (const handle of this.tree.seek((handle, token) => {
       const record = this.records[handle]!;

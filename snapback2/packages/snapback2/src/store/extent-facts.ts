@@ -1,6 +1,6 @@
 // @ref LLP 1012#5-retention-revocation-and-the-fence — checked range nonmembership is scoped to its immutable typed extent.
-import { compareArrays, totalCompare } from '../../../evaluator/src/value-runtime.js';
-import { logicalKey } from '../../../evaluator/src/index-store.js';
+import { totalCompare } from '../../../evaluator/src/value-runtime.js';
+import { compareScanBounds, logicalKey } from '../../../evaluator/src/index-store.js';
 import { canonical } from './canonical.js';
 import type { LogicalIndexAtom } from '../../../evaluator/src/search-key.js';
 import type { Value } from '../../../evaluator/src/types.js';
@@ -44,11 +44,5 @@ export function extentContains(image: KeyImage, extent: ExtentCondition): boolea
   const suffix = key.slice(extent.prefix.length).map(value => {
     if (!('Scalar' in value)) throw new TypeError('derived suffix is not orderable'); return value.Scalar;
   });
-  if (extent.after && (extent.order === 'Asc' ? compareArrays(suffix, extent.after) <= 0 : compareArrays(suffix, extent.after) >= 0)) return false;
-  if (extent.before && (extent.order === 'Asc' ? compareArrays(suffix, extent.before) >= 0 : compareArrays(suffix, extent.before) <= 0)) return false;
-  for (const name of ['gt', 'gte', 'lt', 'lte'] as const) if (extent[name]) {
-    const c = totalCompare(suffix[0], extent[name]![0]);
-    if (name === 'gt' ? c <= 0 : name === 'gte' ? c < 0 : name === 'lt' ? c >= 0 : c > 0) return false;
-  }
-  return (!extent.first || compareArrays(suffix, extent.first) >= 0) && (!extent.last || compareArrays(suffix, extent.last) <= 0);
+  return compareScanBounds(suffix, extent, extent.order, extent.first, extent.last) === 0;
 }

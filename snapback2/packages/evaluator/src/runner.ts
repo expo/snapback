@@ -785,17 +785,13 @@ export class Runner {
     this.checkConstraints(table, null, row, "insert");
     if (this.store.byId(table, asString(field(row, "id"))) !== null)
       fail("E_CONSTRAINT", `duplicate id on ${table}`);
-    this.store.put(table, row);
-    this.recordWrite(table, row);
-    this.rememberCreatedRow(table, row);
+    this.putRow(table, row, true);
     this.insertedRows.push({ table, row: clone(row) });
     this.ruleMemo.clear();
     this.maintain(table, null, row);
     const event = this.delivery?.event(table, row, this.context.now ?? 0);
     if (event) {
-      this.store.put(event.table, event.row);
-      this.recordWrite(event.table, event.row);
-      this.rememberCreatedRow(event.table, event.row);
+      this.putRow(event.table, event.row, true);
       this.maintain(event.table, null, event.row);
     }
     this.delivery?.changed(table);
@@ -828,9 +824,7 @@ export class Runner {
     if (!this.checkRule(table, "update", old, row))
       fail("E_RULE", `${table} update`);
     this.checkConstraints(table, old, row, "update");
-    this.store.put(table, row);
-    this.recordWrite(table, row, fields);
-    this.refreshCreatedPoints(table, row);
+    this.putRow(table, row, false, fields);
     this.ruleMemo.clear();
     this.maintain(table, old, row);
     this.delivery?.changed(table);
@@ -845,10 +839,7 @@ export class Runner {
     if (!this.checkRule(table, "delete", null, old))
       fail("E_RULE", `${table} delete`);
     this.checkConstraints(table, old, old, "delete");
-    this.store.remove(table, id);
-    this.writes.set(`${table}\0${id}`, { table, id, row: null });
-    this.forgetCreatedPoints(table, id);
-    this.ruleMemo.clear();
+    this.removeRow(table, id);
     this.maintain(table, old, null);
     this.delivery?.changed(table);
   }
@@ -922,14 +913,7 @@ export class Runner {
     if (empty) {
       if (existing !== null) {
         this.checkConstraints(maintain.target, existing, existing, "delete");
-        this.store.remove(maintain.target, idValue);
-        this.writes.set(`${maintain.target}\0${idValue}`, {
-          table: maintain.target,
-          id: idValue,
-          row: null,
-        });
-        this.forgetCreatedPoints(maintain.target, idValue);
-        this.ruleMemo.clear();
+        this.removeRow(maintain.target, idValue);
       }
       return;
     }
@@ -946,12 +930,8 @@ export class Runner {
     // while retaining the same constraints and created-row provenance as Rust.
     validateWriteRow(this.schema, maintain.target, row);
     this.checkConstraints(maintain.target, existing, row, effect);
-    this.store.put(maintain.target, row);
-    this.recordWrite(maintain.target, row);
-    if (existing === null) {
-      this.rememberCreatedRow(maintain.target, row);
-      this.insertedRows.push({ table: maintain.target, row: clone(row) });
-    } else this.refreshCreatedPoints(maintain.target, row);
+    this.putRow(maintain.target, row, existing === null);
+    if (existing === null) this.insertedRows.push({ table: maintain.target, row: clone(row) });
     this.ruleMemo.clear();
   }
 
@@ -960,22 +940,29 @@ export class Runner {
     if (!this.pooled.has(key)) { this.pooled.add(key); (this.trace.rows ??= []).push({ table, id, row }); }
   }
 
-  private recordWrite(table: string, row: Value, fields?: string[]): void {
+  // @ref LLP 1012#7-writes-offline — trace assignments and created-point provenance survive every successful local write.
+  /** Validation and authored authority stay with each caller; successful row writes
+   * share trace merging and transaction-local created-point maintenance. */
+  private putRow(table: string, row: Value, created: boolean, fields?: string[]): void {
+    this.store.put(table, row);
     const id = asString(field(row, "id")), key = `${table}\0${id}`, prior = this.writes.get(key);
     // A later patch carries only its assignments. Rejected earlier intents cannot leak through a saved whole image.
     if (prior && !prior.fields) fields = undefined;
     else if (fields && prior?.fields) fields = [...new Set([...prior.fields, ...fields])];
     this.writes.set(key, { table, id, row: clone(row), ...(fields ? { fields } : {}) });
+    if (created) this.createdRows.add(key);
+    this.refreshCreatedPoints(table, row);
+  }
+
+  private removeRow(table: string, id: string): void {
+    this.store.remove(table, id);
+    this.writes.set(`${table}\0${id}`, { table, id, row: null });
+    this.forgetCreatedPoints(table, id);
+    this.ruleMemo.clear();
   }
 
   private validateAddressedRowId(table: string, key: Value, row: Value): void {
     requireRowIdentity(table, "addressed write", asString(key), asString(field(row, "id")));
-  }
-
-  private rememberCreatedRow(table: string, row: Value): void {
-    const id = asString(field(row, "id"));
-    this.createdRows.add(`${table}\0${id}`);
-    this.refreshCreatedPoints(table, row);
   }
 
   private refreshCreatedPoints(table: string, row: Value): void {

@@ -64,13 +64,12 @@ export class PreparedRange {
     private readonly schema: string, private readonly site: string | undefined) { immutable(this); }
   static finish(schema: any, value: Parameters, logical: LogicalIndexAtom[], program: any, identity: string): PreparedRange {
     const parts = components(schema,value.table,value.index);
-    const { after,before } = prepareScanBounds(schema,value.table,parts,{ ...value,
+    const bounds = prepareScanBounds(schema,value.table,parts,{ ...value,
       range: Object.fromEntries(boundNames.slice(2).map(name => [name,value[name]])) });
-    const scalar = (value: Value | null): Value[] | null => value === null ? null : [value];
     const ownedParts = clone(parts);
     value.prefix = value.prefix.map((atom,i) => 'Scalar' in atom ? logical[i] as IndexAtom : atom);
     return new PreparedRange(value,{ site: value.site,ruleHash: value.rule_hash,table: value.table,index: value.index,
-      prefix: logical,order: value.order,after,before,gt: scalar(value.gt),gte: scalar(value.gte),lt: scalar(value.lt),lte: scalar(value.lte) },
+      prefix: logical,order: value.order,gt: null,gte: null,lt: null,lte: null,...bounds },
       ownedParts,ownedParts.filter(c => 'Column' in c),ownedParts.slice(value.prefix.length),identity,issuing(value,program));
   }
   static tagged(schema: any, range: ReceiptRange, program?: any, identity = rangeSchemaIdentity(schema)): { value: ReceiptRange; prepared: PreparedRange } {
