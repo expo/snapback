@@ -55,6 +55,11 @@ pub struct Runner<'a> {
     /// the program's `next`.
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
+    /// Whether a scan ran whose read rule the prefix does not decide. Such a
+    /// result is `capped` whatever the meter found (LLP 1001 §3): a page
+    /// that was `complete` only when few hidden rows were walked would
+    /// count them.
+    pub(crate) non_uniform: bool,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
     pub(crate) seq: u64,
@@ -83,6 +88,7 @@ impl<'a> Runner<'a> {
             outbox: Vec::new(),
             page_depth: 0,
             page: None,
+            non_uniform: false,
             seq,
             statement_site: String::new(),
         }

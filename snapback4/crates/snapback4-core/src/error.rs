@@ -169,9 +169,11 @@ impl RuntimeError {
                 refusal.message = format!("the program refused with {code}");
                 refusal.guide = Some("expressions".into());
             }
-            Self::Bound { kind, actual, ceiling, site } => {
+            Self::Bound { kind, ceiling, site, .. } => {
+                // The ceiling, never the count: the count would measure rows
+                // the viewer may not read.
                 refusal.site = Some(site.clone());
-                refusal.message = format!("{} reached {actual} against the ceiling {ceiling}", kind.word());
+                refusal.message = format!("{} reached the ceiling {ceiling}", kind.word());
                 refusal.rewrite = Some(match kind {
                     MeterKind::Examined | MeterKind::IndexEntries | MeterKind::RuleProbes => "read a smaller page, or add an index whose prefix pins the rows this site needs".into(),
                     MeterKind::Steps | MeterKind::HeapBytes => "move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows".into(),

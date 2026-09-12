@@ -16,7 +16,10 @@ use std::collections::BTreeSet;
 
 impl Probe for Runner<'_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
-        self.meter.charge(MeterKind::RuleProbes, 1)?;
+        if !self.meter.charge(MeterKind::RuleProbes, 1)? {
+            // Cut: no lookup and no verdict; the site stops on `capped_at`.
+            return Ok(false);
+        }
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
@@ -70,16 +73,23 @@ impl Runner<'_> {
             // A null key on a required column addresses nothing.
             return Ok(Value::Null);
         }
+        // Absent, hidden or visible: one examined row, so the meter says the
+        // same of a miss and of a row the viewer may not read; the probes
+        // that decided a hidden row are rolled back.
+        let mark = self.meter.mark();
         let found = self.tx.lookup(&read.table, &read.index, index, &key)?;
-        let Some(mut row) = found else {
-            self.meter.charge(MeterKind::IndexEntries, 1)?;
-            return Ok(Value::Null);
-        };
-        materialize_optional_fields(&mut row, table);
         if !self.meter.charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
-        if self.check_rule(&read.table, Effect::Read, None, &row)? { Ok(row) } else { Ok(Value::Null) }
+        let Some(mut row) = found else { return Ok(Value::Null) };
+        materialize_optional_fields(&mut row, table);
+        if self.check_rule(&read.table, Effect::Read, None, &row)? {
+            Ok(row)
+        } else {
+            self.meter.restore(mark);
+            self.meter.charge(MeterKind::Examined, 1)?;
+            Ok(Value::Null)
+        }
     }
 
     /// The scan's prefix values, evaluated.
@@ -161,6 +171,9 @@ impl Runner<'_> {
         };
         let visibility = rules::scan_visibility(self.schema, scan);
         let always_visible = self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        if !visibility.uniform && !always_visible {
+            self.non_uniform = true;
+        }
         let mut visible: Vec<Value> = Vec::new();
         let mut keys: Vec<Vec<u8>> = Vec::new();
         let mut has_more = false;
@@ -171,6 +184,7 @@ impl Runner<'_> {
         // batch of take + 1 decides the page.
         let mut cursor = bounds.clone();
         let batch = if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        let mark = self.meter.mark();
         'outer: loop {
             let fetched = self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)?;
             if fetched.is_empty() {
@@ -205,7 +219,9 @@ impl Runner<'_> {
                     visible.push(row);
                     keys.push(key.clone());
                 } else if visibility.uniform {
-                    // One hidden row hides the prefix: stop without reading it.
+                    // One hidden row hides the prefix: stop without reading
+                    // it, and at the cost of an empty range.
+                    self.meter.restore(mark);
                     break 'outer;
                 }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().take(index.components.len()).skip(prefix.len()).collect());
@@ -216,11 +232,11 @@ impl Runner<'_> {
         }
         if self.page_depth == 0 && scan.opaque_cursor {
             let components = index.components.len();
-            let next = if capped || !has_more {
-                None
-            } else {
-                keys.last().and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect())
-            };
+            // A capped page continues from its last visible row whether or not
+            // the range went on, and an empty capped page is the end: the
+            // presence of `next` then says nothing about hidden rows.
+            let continues = if capped || self.non_uniform { !visible.is_empty() } else { has_more };
+            let next = if continues { keys.last().and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
             self.page = Some(PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), next });
         }
         Ok((visible, keys))
@@ -304,7 +320,8 @@ impl Runner<'_> {
         let has_more = candidates.len() > take;
         candidates.truncate(take);
         if self.page_depth == 0 && first.scan.opaque_cursor {
-            let next = if has_more { candidates.last().map(|(key, _)| key.clone()) } else { None };
+            let continues = if self.meter.capped_at.is_some() || self.non_uniform { !candidates.is_empty() } else { has_more };
+            let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
             self.page = Some(PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next });
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())

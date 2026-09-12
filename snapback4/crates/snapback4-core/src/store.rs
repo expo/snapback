@@ -424,8 +424,17 @@ pub struct LogEvent {
 
 impl Tx<'_> {
     pub fn read_log(&self, partition: &str, after: u64, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> {
-        let mut statement = self.tx.prepare_cached("SELECT seq, ord, t, kind, id, data FROM _log WHERE partition = ?1 AND seq > ?2 ORDER BY seq, ord LIMIT ?3")?;
-        let rows = statement.query_map(params![partition, after as i64, limit as i64], |row| {
+        self.log_rows("SELECT seq, ord, t, kind, id, data FROM _log WHERE partition = ?1 AND seq > ?2 ORDER BY seq, ord LIMIT ?3", params![partition, after as i64, limit as i64])
+    }
+
+    /// Every event of one commit in a partition, however many.
+    pub fn read_log_seq(&self, partition: &str, seq: u64) -> Result<Vec<LogEvent>, RuntimeError> {
+        self.log_rows("SELECT seq, ord, t, kind, id, data FROM _log WHERE partition = ?1 AND seq = ?2 ORDER BY ord", params![partition, seq as i64])
+    }
+
+    fn log_rows(&self, sql: &str, params: &[&dyn rusqlite::ToSql]) -> Result<Vec<LogEvent>, RuntimeError> {
+        let mut statement = self.tx.prepare_cached(sql)?;
+        let rows = statement.query_map(params, |row| {
             Ok((row.get::<_, i64>(0)? as u64, row.get::<_, i64>(1)? as u32, row.get::<_, String>(2)?, row.get::<_, String>(3)?, row.get::<_, String>(4)?, row.get::<_, Option<String>>(5)?))
         })?;
         rows.map(|row| {

@@ -302,27 +302,49 @@ time-ordered 128-bit form.
   (`api.feed.home`). Generated types are built into
   `snapback/generated/api.ts` by `check` and `dev`, never committed.
 
+- **2026-09-12 — delivery is bound to the rule's probe (lead, after the
+  partition review).** `sync to target[.prefix]` is sound only when the
+  table's read rule is exactly `exists target[.prefix, viewer]` (a second
+  disjunct or a conjunct is refused with the rewrite) and the audience
+  index is unique; the partition log delivers by that probe's index and
+  never by a mapping reconstructed from column names or types; principal
+  partitions are tagged so no principal's name collides with `public`; a
+  commit is delivered whole however large; a grant that ends inside its
+  own commit delivers nothing; a delivered aggregate's audience is its
+  source's. Horizons bound acquisition, not holdings: a device holds what
+  was delivered, and a local read past the horizon says `complete: false`.
+- **2026-09-12 — completeness is a class, not a count (lead, after the
+  meter review).** As Snapback 2 (LLP 1001 §3): a query with a scan the
+  prefix does not decide is `complete: false` whatever the meter found,
+  and a capped page's `next` continues from its last visible row or ends
+  on an empty page; the meter's numbers, its cut site and a refusal's
+  count stay off the viewer wire; a hidden row costs what a miss costs and
+  a hoisted-false range what an empty one costs. The device runs the same
+  hoist; its `complete` speaks of the horizon and the meter alone, since a
+  device holds only its partition.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
-carries the chronology. Week two, day one, 2026-09-12:
+carries the chronology. Week four, 2026-09-12:
 
 | Piece | What runs | Landed |
 | --- | --- | --- |
-| `crates/snapback4-core` | the value model and IR (Snapback 2's serialized forms); the schema with `sync` and the leave policy; one order-preserving key encoding; the two-table SQLite store; rule evaluation with `decided_true`/uniform hoisting; the runtime meter with capped reads and aborted writes; the interpreter (points, scans with opaque cursors, merges, walks, writes with unique/cap/immutable/after-insert constraints, maintained aggregates); the partition log (audience inversion, bootstrap on join, scope tombstones, snapshot, merged stream); at-most-once mutations by client-minted id; the day-two classifier; the plain-JSON wire forms. Corpus: 172 pass, 0 fail, 121 skipped by named reason | this landing |
+| `crates/snapback4-core` | the value model and IR (Snapback 2's serialized forms); the schema with `sync` and the leave policy; one order-preserving key encoding; the two-table SQLite store; rule evaluation with `decided_true`/uniform hoisting; the runtime meter with capped reads and aborted writes; the interpreter (points, scans with opaque cursors, merges, walks, writes with unique/cap/immutable/after-insert constraints, maintained aggregates); the partition log (audience inversion, bootstrap on join, scope tombstones, snapshot, merged stream); at-most-once mutations by client-minted id, replayed before the current generation judges a resend; generations on adopt; the day-two classifier; the plain-JSON wire forms; after the two blind reviews: tagged partitions, the audience bound to the read rule's probe index, whole commits per page, same-commit grants withdrawn, completeness as a class, meter marks. Corpus: 172 pass, 0 fail, 121 skipped by named reason | `b7449cdaac`, `1ff36fe04d`, the reviews landing |
 | `crates/snapback4-lang` | the Quarry lexer and parser (ported), the catalog with generated maintain targets, schema binding (rules, probes, constraints, sync with the principal resolved, inherited audiences), program lowering to the IR with typed scope, diagnostics with rewrites and did-you-mean names, the TypeScript emitter | this landing |
 | `crates/snapback4` | `init`, `check [--cost]`, `dev` (serve + watch + adopt with the day-two class), `run`, `test [--fixture]` (meters beside ceilings), `why`, `guide`, `data`, `doctor`, `deploy`, `rollback`, `serve` (a release, tokens only); the HTTP wire (`/q`, `/m`, `/sync`, `/changes`, `/schema`, `/seed`, `/auth/*`) | `b7449cdaac`, then H0 |
-| `crates/snapback4-core/src/identity.rs` | guests and password accounts (argon2id), bearer sessions by digest, logout | H0 |
-| `packages/snapback4/src/replica/*`, `local.ts`, `auth.ts` | the key encoding (held to Rust's vectors), the store in memory and on IndexedDB, opaque cursors, the interpreter on the device with the meter and predictions, the replica following the stream, the local-first client on the card, sign-in helpers; bytes: online 3,176 B gzip, local-first 13,957 B (anchors: Convex React 21,713 B, PowerSync web 3,697,919 B) | `c5db8c1585`, then H0 |
+| `crates/snapback4-core/src/identity.rs` | guests and password accounts (argon2id), bearer sessions by digest, logout | `c3f983744a` |
+| `llp/reviews/3000-*.md`, `crates/snapback4-sim/tests/reviews.rs` | decision 4's two blind reviews (partition inversion, gpt; the meter's cut, grok), each finding reproduced as a test against the fix | the reviews landing |
+| `packages/snapback4/src/replica/*`, `local.ts`, `auth.ts` | the key encoding (held to Rust's vectors), the store in memory and on IndexedDB, opaque cursors, the interpreter on the device with the meter and predictions, the replica following the stream, the local-first client on the card (re-bootstrapping on a new generation), sign-in helpers, a SQLite store for `node:sqlite` and `expo-sqlite`; the device hoists as the server does; bytes: online 3,218 B gzip, local-first 14,846 B (anchors: Convex React 21,713 B, PowerSync web 3,697,919 B) | `c5db8c1585`, `c3f983744a`, `1ff36fe04d` |
 | `witness/idb.mjs` | the Chromium/IndexedDB witness on the local-first client | `c5db8c1585` |
-| `crates/snapback4-sim` | seeded scheduler, virtual clock, faulty network and disks, kill/restart, trace digest; the real engine as a host; a replica device with a durable outbox and predictions; the chat world under faults with §6's invariants 1, 2, 3, 5, 6 per event and 4, 7 at quiescence | `1700c1c755`, this landing |
+| `crates/snapback4-sim` | seeded scheduler, virtual clock, faulty network and disks, kill/restart, trace digest; the real engine as a host; a replica device with a durable outbox and predictions that survive a re-bootstrap; the chat world under faults with §6's invariants 1, 2, 3, 5, 6 per event and 4, 7 at quiescence; the five day-two scenarios with a partitioned device and queued writes | `1700c1c755`, `b7449cdaac`, `1ff36fe04d` |
 | `packages/snapback4` | the card (`contract.ts`), the online-tier client (`client.ts`), the React hooks, the labelled mock; `snapback4@0.0.1` on npm (week one's client only; republish pending) | `39af0c81a6`, this landing |
 | `apps/chat` | the reference app on the real client and the generated `api.ts`; `snapback/schema.q` with `sync` lines, `invite`, `leave`, `send`, `edit`, `unsend`, `thread`, `inbox` | this landing |
 | `fixtures/`, `floors/`, `corpus/`, `scripts/`, `metrics/` | as week one | `1700c1c755`, `224fb1d24e`, `6bc29eab02` |
 
 Not started: effects execution, jobs at runtime, word search, assets, the
-Expo client (week 4), the day-two scenarios in the simulator, the loop bar
-and the Clique hub run.
+Expo app (the SQLite store is written), the loop bar and the Clique hub
+run.
 
 ## How to orient
 

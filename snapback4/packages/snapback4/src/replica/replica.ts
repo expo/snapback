@@ -93,12 +93,14 @@ export class Replica {
 
   /** Apply one page atomically: rows, tombstones and the watermark together. */
   async apply(page: StreamPage, touched: Set<string>): Promise<void> {
+    if (page.snapshot) {
+      // A snapshot is the whole partition: clear, then load. Predicted rows
+      // are re-applied from the outbox by the client, not kept here.
+      await this.store.clearRows();
+      for (const table of Object.keys(this.schema.tables)) touched.add(table);
+    }
     await this.store.write(async (tx) => {
-      if (page.snapshot) {
-        // A snapshot is the whole partition: clear, then load. Predicted rows
-        // are re-applied from the outbox by the client, not kept here.
-        await tx.setMeta(WATERMARK, 0);
-      }
+      if (page.snapshot) await tx.setMeta(WATERMARK, 0);
       for (const event of page.events) {
         touched.add(event.table);
         switch (event.kind) {

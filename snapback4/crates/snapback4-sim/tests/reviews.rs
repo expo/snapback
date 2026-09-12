@@ -1,0 +1,227 @@
+//! The two blind reviews of LLP 3000 decision 4 (llp/reviews/3000-partition-
+//! inversion.gpt.md, 3000-meter-cut.grok.md), each finding reproduced as
+//! the scenario the reviewer gave, against the fix.
+
+use snapback4_core::engine::{Context, Engine, WriteState};
+use snapback4_core::error::{MeterKind, RuntimeError};
+use snapback4_core::meter::Ceilings;
+use snapback4_core::partition::holdings;
+use snapback4_core::value::{Value, object};
+use snapback4_sim::chat::{CHAT, chat_engine, chat_engine_from};
+use std::collections::BTreeMap;
+
+fn id(s: &str) -> Value {
+    Value::Id(s.into())
+}
+
+fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
+    pairs.iter().map(|(k, v)| ((*k).to_owned(), v.clone())).collect()
+}
+
+fn sent(engine: &mut Engine, op: &str, viewer: &str, name: &str, a: &[(&str, Value)], ids: &[&str]) -> u64 {
+    let outcome = engine.mutate(name, Some(op), Context::new(viewer, args(a)).at(5_000).with_ids(ids.iter().map(|s| (*s).to_owned()))).unwrap();
+    match outcome.state {
+        WriteState::Sent { seq, .. } => seq,
+        WriteState::Failed { why, .. } => panic!("{name} failed: {why:?}"),
+    }
+}
+
+// ---- partition inversion (gpt) ----
+
+/// Finding 1: a membership for a principal literally named `public` must
+/// deliver to that principal alone, never to the partition every device holds.
+#[test]
+fn p1_a_principal_named_public_is_only_itself() {
+    let mut engine = chat_engine(&["dev:alice", "dev:bob"]);
+    sent(&mut engine, "s1", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("secret".into()))], &["m-secret"]);
+    let before = engine.seq().unwrap();
+    sent(&mut engine, "i1", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("public"))], &["mem-public"]);
+    // A stranger's stream carries nothing of c1; the principal named public holds it.
+    let stranger = engine.stream("dev:charlie", before, 1_000).unwrap();
+    assert!(stranger.events.is_empty(), "{:?}", stranger.events);
+    let (events, _) = engine.snapshot("dev:charlie").unwrap();
+    assert!(!holdings(&events).contains_key("messages"));
+    let (events, _) = engine.snapshot("public").unwrap();
+    assert!(holdings(&events)["messages"].contains("m-secret"));
+}
+
+/// Finding 3: a commit larger than the page is delivered whole, so a leave's
+/// scopes land with its puts instead of being skipped for good.
+#[test]
+fn p3_a_commit_larger_than_the_page_streams_whole() {
+    let mut engine = chat_engine(&["dev:alice", "dev:bob"]);
+    sent(&mut engine, "s1", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("hi".into()))], &["m1"]);
+    let before = engine.seq().unwrap();
+    let seq = sent(&mut engine, "l1", "dev:bob", "leave", &[("conversationId", id("c1"))], &[]);
+    let page = engine.stream("dev:bob", before, 1).unwrap();
+    assert!(page.events.len() >= 4, "the whole commit: {:?}", page.events);
+    assert!(page.events.iter().all(|e| e.seq == seq));
+    assert_eq!(page.watermark, seq);
+    assert!(!page.more);
+    let scoped: Vec<&str> = page.events.iter().filter(|e| e.kind == "scope").map(|e| e.table.as_str()).collect();
+    assert!(scoped.contains(&"messages") && scoped.contains(&"conversations"), "{scoped:?}");
+}
+
+/// Finding 4: a membership inserted and deleted within one mutation was never
+/// an authority; the rows it would have bootstrapped never cross the wire.
+#[test]
+fn p4_a_grant_that_ends_in_its_commit_delivers_nothing() {
+    let source = format!(
+        "{CHAT}\nmutation blip(conversationId: conversations, principal: principal):\n  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN\n  row = insert memberships {{ conversationId, principal, role: 'member', joinedAt: now }}\n  delete memberships[row]\n  return null\n"
+    );
+    let mut engine = chat_engine_from(&source, &["dev:alice", "dev:bob"]);
+    sent(&mut engine, "s1", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("secret".into()))], &["m-secret"]);
+    let before = engine.seq().unwrap();
+    sent(&mut engine, "b1", "dev:alice", "blip", &[("conversationId", id("c1")), ("principal", id("dev:mallory"))], &["mem-mallory"]);
+    let page = engine.stream("dev:mallory", before, 1_000).unwrap();
+    assert!(page.events.iter().all(|e| e.kind != "put"), "a temporary grant delivered rows: {:?}", page.events);
+    let (events, _) = engine.snapshot("dev:mallory").unwrap();
+    assert!(holdings(&events).values().all(|ids| ids.is_empty()), "{:?}", holdings(&events));
+    // The members' partitions never saw the blip's membership row either.
+    let page = engine.stream("dev:bob", before, 1_000).unwrap();
+    assert!(page.events.iter().all(|e| e.kind != "put"), "{:?}", page.events);
+}
+
+/// Findings 2, 5, 7, 8: the validator refuses an audience the read rule does
+/// not establish exactly, a non-unique audience index, a recipient column
+/// other than the probe's, and an aggregate delivered wider than its source.
+#[test]
+fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
+    let refused = |source: String, expect: &str| {
+        let bound = snapback4_lang::compile(&[("schema.q".to_owned(), source)]);
+        let messages: Vec<String> = bound.diagnostics.iter().map(|d| d.message.clone()).collect();
+        assert!(messages.iter().any(|m| m.contains(expect)), "expected a diagnostic containing {expect:?}; got {messages:?}");
+    };
+    // 8: a second disjunct admits viewers the sync never delivers to.
+    refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "is only sound when the read rule is exactly");
+    // 7: a non-unique audience index would revoke a group another row still grants.
+    refused(CHAT.replace("unique byConversationPrincipal: conversationId, principal", "by byConversationPrincipal: conversationId, principal"), "must be unique");
+    // 2: the recipient column is the probe's, not any principal column of the target.
+    refused(
+        CHAT.replace("  role: enum('member', 'admin')\n", "  role: enum('member', 'admin')\n  invitedBy: principal\n")
+            .replace("sync to memberships[.id]  ", "sync to memberships[.id] by .principal  ")
+            .replace("sync to memberships[.conversationId]     -- and the roster", "sync to memberships[.conversationId] by .principal     -- and the roster")
+            .replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId] by .invitedBy last 500 by byConvTime")
+            .replace("insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent", "insert memberships { conversationId, principal, invitedBy: viewer, role: 'member', joinedAt: now } if absent"),
+        "binds viewer to memberships.principal",
+    );
+    // 5: an aggregate delivered wider than its source, at the core boundary.
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut schema = bound.schema.clone();
+    schema.tables.get_mut("messageCounts").unwrap().sync = Some(snapback4_core::schema::Sync { audience: snapback4_core::schema::Audience::Public, horizon: None });
+    schema.tables.get_mut("messageCounts").unwrap().rules.read = snapback4_core::schema::RuleExpr::Allow;
+    let issues = snapback4_core::schema::validate(&schema);
+    assert!(issues.iter().any(|i| i.message.contains("syncs to an audience its source")), "{issues:?}");
+}
+
+// ---- the meter's cut (grok) ----
+
+const NOTES: &str = "use personas alice, bob
+
+table notes:
+  owner: principal
+  day: int
+  at: time
+  body: text <=100
+  by byDayTime: day, at, id
+  by byOwnerTime: owner, at, id
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- deny
+  delete <- deny
+
+query feed(day: int, c: cursor ?):
+  return notes[day] after c last 5 by byDayTime
+
+query theirs(owner: principal, c: cursor ?):
+  return notes[owner] after c last 5 by byOwnerTime
+
+query one(noteId: notes):
+  return notes[noteId]
+";
+
+fn notes_engine(rows: &[(&str, &str, i64)]) -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), NOTES.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    let rows: Vec<(String, Value)> = rows.iter().enumerate().map(|(n, (id_, owner, day))| ("notes".to_owned(), object([("id", id(id_)), ("owner", id(owner)), ("day", Value::Int(*day)), ("at", Value::Int(n as i64)), ("body", Value::String("n".into()))]))).collect();
+    engine.seed(rows).unwrap();
+    engine
+}
+
+fn feed(engine: &mut Engine, viewer: &str, day: i64, cursor: Option<String>) -> snapback4_core::engine::QueryOutcome {
+    engine.query("feed", Context::new(viewer, args(&[("day", Value::Int(day)), ("c", cursor.map(Value::String).unwrap_or(Value::Null))]))).unwrap()
+}
+
+/// H1: a scan the prefix does not decide is capped whatever the meter found,
+/// and its `next` continues from the last visible row (or ends on an empty
+/// page) whether or not hidden rows follow: the hidden population is not
+/// on the card.
+#[test]
+fn h1_a_non_uniform_scan_is_capped_whatever_the_meter_found() {
+    let mut empty = notes_engine(&[]);
+    let none = feed(&mut empty, "dev:alice", 1, None);
+    let bobs: Vec<(String, String, i64)> = (0..100).map(|n| (format!("b{n}"), "dev:bob".to_owned(), 1)).collect();
+    let bobs_ref: Vec<(&str, &str, i64)> = bobs.iter().map(|(a, b, c)| (a.as_str(), b.as_str(), *c)).collect();
+    let mut hidden = notes_engine(&bobs_ref);
+    let all_hidden = feed(&mut hidden, "dev:alice", 1, None);
+    for outcome in [&none, &all_hidden] {
+        assert!(!outcome.complete);
+        assert_eq!(outcome.data, Value::Array(Vec::new()));
+        assert_eq!(outcome.next, None);
+    }
+    // Three visible rows (the newest, so the page meets them first) then a
+    // hidden run, at a ceiling the run exceeds and at one it does not: the
+    // same card either way.
+    let mut mixed_rows = bobs_ref.clone();
+    mixed_rows.extend([("a1", "dev:alice", 1), ("a2", "dev:alice", 1), ("a3", "dev:alice", 1)]);
+    for ceiling in [8_192, 20] {
+        let mut mixed = notes_engine(&mixed_rows);
+        mixed.set_ceilings(Ceilings { examined: ceiling, ..Ceilings::default() });
+        let first = feed(&mut mixed, "dev:alice", 1, None);
+        assert!(!first.complete);
+        assert_eq!(first.data.as_array().ok().map(|a| a.len()), Some(3));
+        assert!(first.next.is_some(), "a capped page continues from its last visible row");
+        let second = feed(&mut mixed, "dev:alice", 1, first.next.clone());
+        assert!(!second.complete);
+        assert_eq!(second.data, Value::Array(Vec::new()));
+        assert_eq!(second.next, None, "an empty capped page is the end");
+    }
+}
+
+/// H4: a point read of an absent row and of a hidden one cost the same.
+#[test]
+fn h4_a_miss_and_a_hidden_hit_cost_the_same() {
+    let mut engine = notes_engine(&[("b1", "dev:bob", 1)]);
+    let miss = engine.query("one", Context::new("dev:alice", args(&[("noteId", id("nope"))]))).unwrap();
+    let hidden = engine.query("one", Context::new("dev:alice", args(&[("noteId", id("b1"))]))).unwrap();
+    assert_eq!(miss.data, Value::Null);
+    assert_eq!(hidden.data, Value::Null);
+    assert_eq!(miss.metered, hidden.metered, "the meter told them apart");
+    assert_eq!(miss.complete, hidden.complete);
+}
+
+/// M1: a range the prefix decides false costs what an empty range costs.
+#[test]
+fn m1_a_hoisted_false_range_costs_what_an_empty_one_costs() {
+    let bobs: Vec<(String, String, i64)> = (0..50).map(|n| (format!("b{n}"), "dev:bob".to_owned(), 1)).collect();
+    let bobs_ref: Vec<(&str, &str, i64)> = bobs.iter().map(|(a, b, c)| (a.as_str(), b.as_str(), *c)).collect();
+    let mut engine = notes_engine(&bobs_ref);
+    let theirs = engine.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:bob")), ("c", Value::Null)]))).unwrap();
+    let nobody = engine.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:nobody")), ("c", Value::Null)]))).unwrap();
+    assert_eq!(theirs.data, Value::Array(Vec::new()));
+    assert_eq!(theirs.complete, nobody.complete);
+    assert_eq!(theirs.next, nobody.next);
+    assert_eq!(theirs.metered, nobody.metered, "the meter told a hidden range from an empty one");
+    assert_eq!(theirs.metered.examined, 0);
+}
+
+/// M3: a refusal at the ceiling names the ceiling, never the count.
+#[test]
+fn m3_e_bound_names_the_ceiling_not_the_count() {
+    let refusal = RuntimeError::Bound { kind: MeterKind::Examined, actual: 8_193, ceiling: 8_192, site: "m.sweep:2".into() }.refusal();
+    assert_eq!(refusal.code, "E_BOUND");
+    assert!(!refusal.message.contains("8193"), "{}", refusal.message);
+    assert!(refusal.message.contains("8192"), "{}", refusal.message);
+}

@@ -86,6 +86,12 @@ pub enum Cut {
 }
 
 #[derive(Clone, Debug)]
+pub struct MeterMark {
+    used: Metered,
+    capped_at: Option<(MeterKind, String)>,
+}
+
+#[derive(Clone, Debug)]
 pub struct Meter {
     pub ceilings: Ceilings,
     pub used: Metered,
@@ -128,6 +134,19 @@ impl Meter {
                 Ok(false)
             }
         }
+    }
+
+    /// The meter's position, to roll back to: the work spent deciding that a
+    /// row is hidden is not the viewer's to see (LLP 1001 §3's
+    /// `rollback_candidate`), so a hidden hit costs what a miss costs and a
+    /// hoisted-false range costs what an empty one costs.
+    pub fn mark(&self) -> MeterMark {
+        MeterMark { used: self.used, capped_at: self.capped_at.clone() }
+    }
+
+    pub fn restore(&mut self, mark: MeterMark) {
+        self.used = mark.used;
+        self.capped_at = mark.capped_at;
     }
 
     /// Whether `kind` has room for `amount` more without charging.

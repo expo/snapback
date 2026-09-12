@@ -27,6 +27,9 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **Observability beyond `why`, `trace`, `logs`, `data`.**
 - **A guide corpus.** The compiler's facts, a one-screen grammar and keyword cards, as Snapback 2; no freshness dates.
 
+- **Union audiences.** One `sync` line per table. A read rule with a second disjunct is refused with the rewrite, never partially delivered; `retain delivered-history` covers the author who keeps their own rows. Several `sync` lines per table wait for an app that needs them.
+- **Exact horizon maintenance.** The horizon bounds acquisition (a snapshot, a bootstrap); the log never evicts or back-fills to hold a device's group at exactly N rows. A local read past the horizon says `complete: false`.
+
 ## Process not doing
 
 - **No drift registries, inventories, line-pinned diagnostics registries, claim digests or frozen-record gates.** Generated projections are built, not committed.

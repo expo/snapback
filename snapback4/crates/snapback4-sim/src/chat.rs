@@ -54,7 +54,7 @@ pub enum DayTwo {
     Widening,
     /// `body` shrinks to 5 characters: a queued longer send is refused, typed.
     Narrowing,
-    /// The read rule and the horizon change: every partition re-derives.
+    /// A rule and the horizon change: every partition re-derives.
     RuleChange,
     /// `body` is renamed: a queued send under the old name is refused, typed.
     Rename,
@@ -66,7 +66,9 @@ impl DayTwo {
             DayTwo::Additive => CHAT.replace("  editedAt: time ?\n", "  editedAt: time ?\n  reactions: int ?\n"),
             DayTwo::Widening => CHAT.replace("role: enum('member', 'admin')", "role: enum('member', 'admin', 'owner')"),
             DayTwo::Narrowing => CHAT.replace("body: text <=4000 ?", "body: text <=5 ?").replace("mutation send(conversationId: conversations, body: text <=4000):", "mutation send(conversationId: conversations, body: text <=5):").replace("mutation edit(messageId: messages, body: text <=4000):", "mutation edit(messageId: messages, body: text <=5):"),
-            DayTwo::RuleChange => CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]").replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId] last 3 by byConvTime"),
+            DayTwo::RuleChange => CHAT
+                .replace("  update <- .authorId = viewer\n  delete <- .authorId = viewer\n  retain delivered-history", "  update <- deny\n  delete <- .authorId = viewer\n  retain delivered-history")
+                .replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId] last 3 by byConvTime"),
             DayTwo::Rename => CHAT.replace("body: text <=4000 ?", "text: text <=4000 ?").replace("mutation send(conversationId: conversations, body: text <=4000):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages { conversationId, authorId: viewer, body, at: now }", "mutation send(conversationId: conversations, text: text <=4000):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages { conversationId, authorId: viewer, text, at: now }").replace("mutation edit(messageId: messages, body: text <=4000):", "mutation edit(messageId: messages, text: text <=4000):").replace("update messages[msg] { body, editedAt: now }", "update messages[msg] { text, editedAt: now }"),
         }
     }

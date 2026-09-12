@@ -236,10 +236,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 // current generation gets to judge its shape.
                 let body = match outcome.state {
                     WriteState::Sent { seq, result } => {
-                        json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "replayed": true, "metered": outcome.metered })
+                        json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "replayed": true })
                     }
                     WriteState::Failed { why, current } => {
-                        json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "replayed": true, "metered": outcome.metered })
+                        json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "replayed": true })
                     }
                 };
                 respond(request, 200, body);
@@ -278,7 +278,9 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
                 let outcome = shared.engine.lock().unwrap().query(&op, context);
                 match outcome {
-                    Ok(outcome) => respond(request, 200, json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "seq": outcome.seq, "next": outcome.next, "capped": outcome.capped_at.map(|(kind, site)| json!({ "meter": kind, "site": site })), "metered": outcome.metered })),
+                    // The meter's numbers and its cut site stay off the wire: they
+                    // measure hidden rows. `complete` is the one word.
+                    Ok(outcome) => respond(request, 200, json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "seq": outcome.seq, "next": outcome.next })),
                     Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
                 }
             } else {
@@ -299,10 +301,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         }
                         let body = match outcome.state {
                             WriteState::Sent { seq, result } => {
-                                json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "metered": outcome.metered })
+                                json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result) })
                             }
                             WriteState::Failed { why, current } => {
-                                json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "metered": outcome.metered })
+                                json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)) })
                             }
                         };
                         respond(request, 200, body);

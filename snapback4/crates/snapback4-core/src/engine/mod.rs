@@ -196,10 +196,12 @@ impl Engine {
         let data = runner.run(&program)?;
         runner.charge_output(&data)?;
         let next = runner.next_cursor()?;
+        // `complete` is a class, not a count: a query with a scan the prefix
+        // does not decide is capped whatever the meter found (LLP 1001 §3).
         let outcome = QueryOutcome {
-            complete: runner.meter.capped_at.is_none(),
+            complete: runner.meter.capped_at.is_none() && !runner.non_uniform,
             capped_at: runner.meter.capped_at.clone(),
-            next: if runner.meter.capped_at.is_some() { None } else { next },
+            next,
             data,
             seq,
             metered: runner.meter.used,
