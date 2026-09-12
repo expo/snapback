@@ -24,7 +24,7 @@ fn the_chat_schema_compiles_and_runs() {
     }
     assert!(bound.diagnostics.is_empty(), "the chat schema binds without diagnostics");
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["thread", "inbox", "send", "edit", "unsend"]);
+    assert_eq!(names, ["thread", "inbox", "invite", "leave", "send", "edit", "unsend"]);
     let messages = &bound.schema.tables["messages"];
     assert!(messages.sync.is_some(), "messages sync to memberships");
     assert!(bound.schema.tables["messageCounts"].sync.is_some(), "the count inherits the audience");
@@ -89,4 +89,17 @@ fn the_chat_schema_compiles_and_runs() {
     assert_eq!(removed, 1);
     let page = engine.stream(bob, before, 100).unwrap();
     assert!(page.events.iter().any(|e| e.kind == EventKind::Scope.word() && e.table == "messages"), "{:?}", page.events);
+}
+
+#[test]
+fn the_chat_api_types_are_inferred() {
+    let bound = compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
+    assert!(bound.diagnostics.is_empty());
+    let ts = snapback4_lang::emit::typescript(&bound);
+    assert!(ts.contains("thread: Query<{ conversationId: string; c?: Cursor | null }, Rows[\"messages\"][]>;"), "{ts}");
+    assert!(ts.contains("inbox: Query<Record<string, never>, { conversation: Rows[\"conversations\"] | null; conversationId: string; count: number }[]>;"), "{ts}");
+    assert!(ts.contains("role: \"member\" | \"admin\";"));
+    assert!(ts.contains("send: Mutation<{ conversationId: string; body: string }, { id: string }>;"), "{ts}");
+    assert!(ts.contains("unsend: Mutation<{ messageId: string }, null>;"), "{ts}");
+    assert!(ts.contains("export const api: Ops = {"));
 }

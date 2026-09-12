@@ -2,8 +2,12 @@
   "name": "snapback4",
   "version": "0.0.1",
   "type": "module",
-  "description": "Snapback 4 client: the contract (the card), a labelled mock client, and React hooks. Week one of LLP 3000; nothing here talks to a server yet.",
+  "description": "Snapback 4 client: the contract (the card), the online-tier client, React hooks, and a labelled mock. Week two of LLP 3000.",
   "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    },
     "./contract": {
       "types": "./dist/contract.d.ts",
       "import": "./dist/contract.js"

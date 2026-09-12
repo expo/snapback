@@ -437,7 +437,7 @@ impl<'a> Binder<'a> {
             A::Read(read) => self.read(read, out),
             A::Merge(merge) => self.merge(merge, out),
             A::Exists { read, .. } => {
-                let (point, _) = self.point(read, out)?;
+                let (point, _) = self.point(read, ReadMode::Exists, out)?;
                 Ok((Expr::Exists(point), Ty::Bool))
             }
             A::Created { .. } => Err(unknown(site, "created is valid only in an insert table rule", "use exists here")),
@@ -785,7 +785,7 @@ impl<'a> Binder<'a> {
             return Ok((Expr::Scan(scan), Ty::Page(read.table.clone(), take)));
         }
         let info = self.table(&read.table, &read.site)?;
-        let (point, _) = self.point(read, out)?;
+        let (point, _) = self.point(read, ReadMode::Point, out)?;
         if let Some(maintain) = &info.maintained {
             // A maintained point read is the typed value: zero when absent.
             let tmp = self.temp("total");
@@ -805,12 +805,12 @@ impl<'a> Binder<'a> {
 
     /// Bind a point read: a full unique key, its index chosen by arity,
     /// names, and types.
-    fn point(&mut self, read: &ReadExpr, out: &mut Vec<Stmt>) -> Fallible<(Read, &'a TableInfo)> {
+    fn point(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<(Read, &'a TableInfo)> {
         let info = self.table(&read.table, &read.site)?;
         if read.keys.is_empty() {
             return Err(unknown(&read.site, format!("{}[] reads nothing; a point read needs a key", read.table), format!("{}[id]", read.table)));
         }
-        let (keys, index) = self.select_index(info, read, true, out)?;
+        let (keys, index) = self.select_index(info, read, mode, out)?;
         let key = self.order_keys(info, &index, keys)?;
         Ok((Read { site: self.site(), table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape }, info))
     }
@@ -818,7 +818,7 @@ impl<'a> Binder<'a> {
     fn scan(&mut self, read: &ReadExpr, out: &mut Vec<Stmt>) -> Fallible<(Scan, u32)> {
         let info = self.table(&read.table, &read.site)?;
         let range = read.range.as_ref().expect("a range read");
-        let (keys, index) = self.select_index(info, read, false, out)?;
+        let (keys, index) = self.select_index(info, read, ReadMode::Range, out)?;
         let prefix = self.order_keys(info, &index, keys)?;
         if range.take == 0 {
             return Err(type_error(&range.site, "a page holds at least one row", print::read_expr(&ReadExpr { range: Some(ast::RangeSpec { take: 50, ..range.clone() }), ..read.clone() })));
@@ -857,7 +857,8 @@ impl<'a> Binder<'a> {
     /// Evaluate the keys, then choose the index: explicit `by`, else by
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
-    fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, point: bool, out: &mut Vec<Stmt>) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl)> {
+    fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl)> {
+        let point = mode != ReadMode::Range;
         let mut keys = Vec::new();
         for part in &read.keys {
             let expected_column = part.column.clone();
@@ -876,7 +877,11 @@ impl<'a> Binder<'a> {
             .indexes
             .iter()
             .filter(|index| read.index.as_ref().is_none_or(|explicit| explicit == &index.name))
-            .filter(|index| if point { index.unique && index.columns.len() == keys.len() } else { index.columns.len() > keys.len() })
+            .filter(|index| match mode {
+                ReadMode::Point => index.unique && index.columns.len() == keys.len(),
+                ReadMode::Exists => index.columns.len() == keys.len(),
+                ReadMode::Range => index.columns.len() > keys.len(),
+            })
             .filter(|index| {
                 if named {
                     keys.iter().all(|(c, _, _)| index.columns[..keys.len()].contains(c.as_ref().unwrap()))
@@ -885,18 +890,17 @@ impl<'a> Binder<'a> {
                 }
             })
             .collect();
-        // Untyped key positions: a text literal in an identity column is an id.
+        // Positional keys select by type; a text literal may meet an
+        // identity column (it becomes an id once the index is chosen).
         if !named {
-            for (position, (_, e, t)) in keys.iter_mut().enumerate() {
-                let expected: Vec<Ty> = candidates.iter().filter_map(|index| index.columns.get(position)).map(|column| self.column_ty(info, column)).collect();
-                if expected.iter().any(Ty::is_identity)
-                    && let Expr::Literal(Value::String(text)) = e
-                {
-                    *e = Expr::Literal(Value::Id(text.clone()));
-                    *t = Ty::Id;
-                }
-            }
-            candidates.retain(|index| keys.iter().enumerate().all(|(position, (_, _, t))| index.columns.get(position).is_some_and(|column| t.comparable(&self.column_ty(info, column)))));
+            candidates.retain(|index| {
+                keys.iter().enumerate().all(|(position, (_, e, t))| {
+                    index.columns.get(position).is_some_and(|column| {
+                        let expected = self.column_ty(info, column);
+                        t.comparable(&expected) || (expected.is_identity() && matches!(e, Expr::Literal(Value::String(_))))
+                    })
+                })
+            });
         }
         if let Some(explicit) = &read.index
             && candidates.is_empty()
@@ -908,7 +912,21 @@ impl<'a> Binder<'a> {
             });
         }
         match candidates.len() {
-            1 => Ok((keys, candidates[0].clone())),
+            1 => {
+                let index = candidates[0].clone();
+                if !named {
+                    for (position, (_, e, t)) in keys.iter_mut().enumerate() {
+                        if let Some(column) = index.columns.get(position)
+                            && self.column_ty(info, column).is_identity()
+                            && let Expr::Literal(Value::String(text)) = e
+                        {
+                            *e = Expr::Literal(Value::Id(text.clone()));
+                            *t = Ty::Id;
+                        }
+                    }
+                }
+                Ok((keys, index))
+            }
             0 => {
                 let declared: Vec<String> = info.indexes.iter().map(|i| format!("{} ({})", i.name, i.columns.join(", "))).collect();
                 if point {
@@ -1248,7 +1266,7 @@ impl<'a> Binder<'a> {
             }
         }
         let read = ReadExpr { table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, site: site.clone() };
-        let (bound, index) = self.select_index(info, &read, true, out)?;
+        let (bound, index) = self.select_index(info, &read, ReadMode::Point, out)?;
         let named: Vec<(String, A)> = keys.iter().enumerate().map(|(position, part)| (part.column.clone().unwrap_or_else(|| index.columns[position].clone()), part.value.clone())).collect();
         let key = self.order_keys(info, &index, bound)?;
         if index.name == "byId" {
@@ -1334,6 +1352,16 @@ impl<'a> Binder<'a> {
             None => self.name(&field.name, &field.site),
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReadMode {
+    /// A full unique key: one row.
+    Point,
+    /// A full key of any index: presence.
+    Exists,
+    /// A strict prefix: a page.
+    Range,
 }
 
 struct WriteKey {

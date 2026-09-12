@@ -16,6 +16,7 @@ pub mod schema;
 pub mod store;
 pub mod successor;
 pub mod value;
+pub mod wire;
 
 pub use engine::{Context, Engine, MutationOutcome, QueryOutcome, WriteState};
 pub use error::{MeterKind, Refusal, RuntimeError};

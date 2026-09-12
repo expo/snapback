@@ -112,9 +112,14 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
     }
 }
 
-pub fn validate_inputs(schema: &Schema, program: &Program, inputs: &BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+/// Validate the arguments and fill each omitted optional with `null`, so
+/// a caller that leaves `c` out reads page one.
+pub fn validate_inputs(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
     for (name, kind) in &program.args {
-        let value = inputs.get(name).or_else(|| kind.is_optional().then_some(&Value::Null)).ok_or_else(|| RuntimeError::Input(format!("missing argument {name}")))?;
+        if !inputs.contains_key(name) && (kind.is_optional() || matches!(kind, ArgType::Cursor)) {
+            inputs.insert(name.clone(), Value::Null);
+        }
+        let value = inputs.get(name).ok_or_else(|| RuntimeError::Input(format!("missing argument {name}")))?;
         validate_arg(schema, kind, value, name)?;
     }
     if let Some(extra) = inputs.keys().find(|name| !program.args.contains_key(*name)) {

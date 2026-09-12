@@ -1,0 +1,488 @@
+//! The verbs that do not serve: `check`, `run`, `types`, `why`, `doctor`,
+//! `init`, `data`, `test`. Each prints one honest answer and exits with it.
+
+use crate::project::{GITIGNORE, Project, persona_principal};
+use snapback4_core::engine::rules::scan_visibility;
+use snapback4_core::ir::{self, ProgramKind};
+use snapback4_core::schema::Audience;
+use snapback4_core::{Context, WriteState, wire};
+use snapback4_lang::Bound;
+use serde_json::{Value as Json, json};
+use std::collections::BTreeMap;
+use std::path::Path;
+use std::time::Instant;
+
+pub struct Options {
+    pub positionals: Vec<String>,
+    pub flags: BTreeMap<String, String>,
+    pub json: bool,
+}
+
+pub fn parse(args: &[String]) -> Options {
+    let mut positionals = Vec::new();
+    let mut flags = BTreeMap::new();
+    let mut json = false;
+    let mut iter = args.iter().skip(1).peekable();
+    while let Some(arg) = iter.next() {
+        if arg == "--json" {
+            json = true;
+        } else if let Some(flag) = arg.strip_prefix("--") {
+            let (name, value) = match flag.split_once('=') {
+                Some((name, value)) => (name.to_owned(), value.to_owned()),
+                None => (flag.to_owned(), iter.next().cloned().unwrap_or_default()),
+            };
+            flags.insert(name, value);
+        } else {
+            positionals.push(arg.clone());
+        }
+    }
+    Options { positionals, flags, json }
+}
+
+fn project_or_exit() -> Project {
+    match std::env::current_dir().ok().and_then(|dir| Project::locate(&dir)) {
+        Some(project) => project,
+        None => {
+            eprintln!("no snapback/schema.q here or above; run `snapback4 init` to start one");
+            std::process::exit(2);
+        }
+    }
+}
+
+fn compile_or_exit(project: &Project, json: bool) -> Bound {
+    let bound = match project.compile() {
+        Ok(bound) => bound,
+        Err(error) => {
+            eprintln!("cannot read snapback/: {error}");
+            std::process::exit(2);
+        }
+    };
+    if !bound.diagnostics.is_empty() {
+        report_diagnostics(&bound, json);
+        std::process::exit(1);
+    }
+    bound
+}
+
+fn report_diagnostics(bound: &Bound, json: bool) {
+    if json {
+        println!("{}", json!({ "ok": false, "problems": bound.diagnostics }));
+        return;
+    }
+    for diagnostic in &bound.diagnostics {
+        eprintln!("{diagnostic}\n");
+    }
+    eprintln!("check: {} problem{}", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" });
+}
+
+pub fn check(options: &Options) -> i32 {
+    let project = project_or_exit();
+    let started = Instant::now();
+    let bound = match project.compile() {
+        Ok(bound) => bound,
+        Err(error) => {
+            eprintln!("cannot read snapback/: {error}");
+            return 2;
+        }
+    };
+    if !bound.diagnostics.is_empty() {
+        report_diagnostics(&bound, options.json);
+        return 1;
+    }
+    let _ = project.write_generated(&bound);
+    let elapsed = started.elapsed();
+    let synced = bound.schema.synced().count();
+    if options.json {
+        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "ms": elapsed.as_millis() }));
+    } else {
+        println!("check: ok — {} tables ({synced} synced), {} operations, no problems, {:.1} ms", bound.schema.tables.len(), bound.programs.len(), elapsed.as_secs_f64() * 1000.0);
+    }
+    if options.flags.contains_key("cost") {
+        for program in &bound.programs {
+            println!("{}", cost_report(&bound, &program.program));
+        }
+    }
+    0
+}
+
+/// The structural cost class of a program: what `check --cost` prints
+/// instead of a price (LLP 2000.000 §6).
+fn cost_report(bound: &Bound, program: &ir::Program) -> String {
+    let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name)];
+    let sites = ir::read_sites(program);
+    if sites.is_empty() {
+        lines.push("    reads nothing".into());
+    }
+    for site in &sites {
+        let hoist = match site.kind {
+            "scan" => {
+                let scan = find_scan(&program.body, &site.site);
+                match scan.map(|scan| scan_visibility(&bound.schema, scan)) {
+                    Some(v) if v.decided_true => "rule decided by the prefix: no probes",
+                    Some(v) if v.uniform => "rule uniform over the prefix: one verdict",
+                    Some(_) => "rule checked per row",
+                    None => "",
+                }
+            }
+            "point" => "one row, one rule check",
+            _ => "bounded walk",
+        };
+        let take = if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
+        lines.push(format!("    {} {}.{}{take} — {hoist}", site.kind, site.table, site.index));
+    }
+    let writes = ir::write_tables(program);
+    for (table, kind) in &writes {
+        let audience = bound.schema.tables.get(table).and_then(|t| t.sync.as_ref()).map(|s| format!(", fans out to {}", match &s.audience { Audience::Public => "everyone".to_owned(), Audience::Column(c) => format!(".{c}"), Audience::Target { table, .. } => format!("the members in {table}") })).unwrap_or_default();
+        lines.push(format!("    {kind} {table}{audience}"));
+    }
+    lines.join("\n")
+}
+
+fn find_scan<'a>(stmts: &'a [ir::Stmt], site: &str) -> Option<&'a ir::Scan> {
+    fn in_expr<'a>(expr: &'a ir::Expr, site: &str) -> Option<&'a ir::Scan> {
+        match expr {
+            ir::Expr::Scan(scan) if scan.site == site => Some(scan),
+            ir::Expr::Merge(merge) => merge.lanes.iter().find_map(|lane| if lane.scan.site == site { Some(&lane.scan) } else { lane.source.as_ref().filter(|s| s.site == site) }),
+            ir::Expr::Field { base, .. } => in_expr(base, site),
+            ir::Expr::Array(items) | ir::Expr::Builtin { args: items, .. } => items.iter().find_map(|e| in_expr(e, site)),
+            ir::Expr::Object(fields) => fields.values().find_map(|e| in_expr(e, site)),
+            ir::Expr::Binary { left, right, .. } => in_expr(left, site).or_else(|| in_expr(right, site)),
+            ir::Expr::Unary { value, .. } => in_expr(value, site),
+            _ => None,
+        }
+    }
+    for stmt in stmts {
+        let found = match stmt {
+            ir::Stmt::For { domain: ir::LoopDomain::Page(scan), body, .. } => {
+                if scan.site == site {
+                    Some(scan)
+                } else {
+                    find_scan(body, site)
+                }
+            }
+            ir::Stmt::For { body, .. } => find_scan(body, site),
+            ir::Stmt::If { then_body, else_body, .. } => find_scan(then_body, site).or_else(|| find_scan(else_body, site)),
+            ir::Stmt::Const { value, .. } | ir::Stmt::Let { value, .. } | ir::Stmt::Assign { value, .. } | ir::Stmt::Push { value, .. } | ir::Stmt::Return(value) => in_expr(value, site),
+            _ => None,
+        };
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
+}
+
+pub fn types(options: &Options) -> i32 {
+    let project = project_or_exit();
+    let bound = compile_or_exit(&project, options.json);
+    match project.write_generated(&bound) {
+        Ok(path) => {
+            println!("types: {}", path.display());
+            0
+        }
+        Err(error) => {
+            eprintln!("cannot write generated types: {error}");
+            2
+        }
+    }
+}
+
+pub fn run(options: &Options) -> i32 {
+    let Some(op) = options.positionals.first() else {
+        eprintln!("usage: snapback4 run <operation> [json-args] --as <persona> [--json]");
+        return 2;
+    };
+    let project = project_or_exit();
+    let bound = compile_or_exit(&project, options.json);
+    let Some(program) = bound.programs.iter().find(|p| &p.program.name == op).map(|p| p.program.clone()) else {
+        let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
+        eprintln!("unknown operation {op}; operations: {}", names.join(", "));
+        return 1;
+    };
+    let args_json: Json = match options.positionals.get(1) {
+        Some(text) => match serde_json::from_str(text) {
+            Ok(json) => json,
+            Err(error) => {
+                eprintln!("arguments are JSON: {error}");
+                return 2;
+            }
+        },
+        None => json!({}),
+    };
+    let mut args = BTreeMap::new();
+    if let Json::Object(fields) = &args_json {
+        for (name, value) in fields {
+            let Some(kind) = program.args.get(name) else {
+                eprintln!("{op} takes no argument {name}");
+                return 1;
+            };
+            match wire::from_json(kind, value) {
+                Ok(typed) => {
+                    args.insert(name.clone(), typed);
+                }
+                Err(why) => {
+                    eprintln!("argument {name}: {why}");
+                    return 1;
+                }
+            }
+        }
+    }
+    let persona = options.flags.get("as").cloned().unwrap_or_else(|| "alice".into());
+    let mut engine = match project.open_engine(&bound) {
+        Ok(engine) => engine,
+        Err(error) => {
+            eprintln!("cannot open the store: {error}");
+            return 2;
+        }
+    };
+    let context = Context::new(persona_principal(&persona), args);
+    if program.kind == ProgramKind::Query {
+        match engine.query(op, context) {
+            Ok(outcome) => {
+                let body = json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "metered": outcome.metered });
+                println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
+                0
+            }
+            Err(refusal) => {
+                println!("{}", if options.json { json!({ "denied": refusal }).to_string() } else { format!("denied {refusal}") });
+                1
+            }
+        }
+    } else {
+        match engine.mutate(op, None, context) {
+            Ok(outcome) => match outcome.state {
+                WriteState::Sent { seq, result } => {
+                    let body = json!({ "state": "sent", "seq": seq, "result": wire::to_json(&result), "events": outcome.events, "metered": outcome.metered });
+                    println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
+                    0
+                }
+                WriteState::Failed { why, current } => {
+                    let body = json!({ "state": "failed", "why": why, "current": current.map(|c| wire::to_json(&c)) });
+                    println!("{}", if options.json { body.to_string() } else { format!("failed {why}") });
+                    1
+                }
+            },
+            Err(error) => {
+                eprintln!("{error}");
+                2
+            }
+        }
+    }
+}
+
+pub fn data(options: &Options) -> i32 {
+    let Some(table) = options.positionals.first() else {
+        eprintln!("usage: snapback4 data <table> [--limit N]");
+        return 2;
+    };
+    let project = project_or_exit();
+    let bound = compile_or_exit(&project, options.json);
+    let engine = match project.open_engine(&bound) {
+        Ok(engine) => engine,
+        Err(error) => {
+            eprintln!("cannot open the store: {error}");
+            return 2;
+        }
+    };
+    let limit: usize = options.flags.get("limit").and_then(|s| s.parse().ok()).unwrap_or(50);
+    match engine.store().rows(table) {
+        Ok(rows) => {
+            let total = rows.len();
+            for row in rows.iter().take(limit) {
+                println!("{}", wire::to_json(row));
+            }
+            if total > limit {
+                println!("… {} more (--limit {total})", total - limit);
+            }
+            0
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            1
+        }
+    }
+}
+
+pub fn doctor(options: &Options) -> i32 {
+    let started = Instant::now();
+    let mut lines = Vec::new();
+    let mut ok = true;
+    let version = env!("CARGO_PKG_VERSION");
+    let Some(project) = std::env::current_dir().ok().and_then(|dir| Project::locate(&dir)) else {
+        println!("snapback4 {version}: no project here (no snapback/schema.q); `snapback4 init` starts one");
+        return 1;
+    };
+    lines.push(format!("project   {}", project.root.display()));
+    match project.compile() {
+        Ok(bound) if bound.diagnostics.is_empty() => {
+            lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));
+            match project.open_engine(&bound) {
+                Ok(engine) => lines.push(format!("store     {} at seq {}", project.store_path().display(), engine.seq().unwrap_or(0))),
+                Err(error) => {
+                    ok = false;
+                    lines.push(format!("store     FAIL {error}"));
+                }
+            }
+            lines.push(format!("types     {}", if project.generated_dir().join("api.ts").is_file() { "generated" } else { "not generated yet (`snapback4 check` writes them)" }));
+        }
+        Ok(bound) => {
+            ok = false;
+            lines.push(format!("schema    {} problem{} (`snapback4 check`)", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
+        }
+        Err(error) => {
+            ok = false;
+            lines.push(format!("schema    FAIL {error}"));
+        }
+    }
+    let personas = project.compile().ok().map(|b| b.personas).unwrap_or_default();
+    if !personas.is_empty() {
+        lines.push(format!("personas  {}", personas.join(", ")));
+    }
+    if options.json {
+        println!("{}", json!({ "ok": ok, "lines": lines, "ms": started.elapsed().as_millis() }));
+    } else {
+        println!("snapback4 {version}");
+        for line in lines {
+            println!("  {line}");
+        }
+        println!("  {} in {:.1} ms", if ok { "ok" } else { "not ok" }, started.elapsed().as_secs_f64() * 1000.0);
+    }
+    if ok { 0 } else { 1 }
+}
+
+pub fn init(options: &Options) -> i32 {
+    let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
+    let schema = dir.join("snapback").join("schema.q");
+    if schema.exists() {
+        eprintln!("{} already exists", schema.display());
+        return 1;
+    }
+    if let Err(error) = std::fs::create_dir_all(schema.parent().unwrap()) {
+        eprintln!("cannot create {}: {error}", schema.display());
+        return 2;
+    }
+    std::fs::write(&schema, crate::guide::TEMPLATE).expect("write template");
+    let gitignore = dir.join(".gitignore");
+    let existing = std::fs::read_to_string(&gitignore).unwrap_or_default();
+    if !existing.contains(".snapback4/") {
+        let _ = std::fs::write(&gitignore, format!("{existing}{}{GITIGNORE}", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }));
+    }
+    println!("init: wrote {} — next: `snapback4 check`, then `snapback4 dev`", schema.display());
+    0
+}
+
+pub fn why(options: &Options) -> i32 {
+    let Some(subject) = options.positionals.first() else {
+        eprintln!("usage: snapback4 why <E_CODE | operation | table>");
+        return 2;
+    };
+    if let Some(explanation) = crate::guide::explain_code(subject) {
+        println!("{explanation}");
+        return 0;
+    }
+    let project = project_or_exit();
+    let bound = compile_or_exit(&project, options.json);
+    if let Some(program) = bound.programs.iter().find(|p| &p.program.name == subject) {
+        println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
+        println!("  returns {}", program.result.name());
+        println!("{}", cost_report(&bound, &program.program));
+        return 0;
+    }
+    if let Some(table) = bound.schema.tables.get(subject) {
+        println!("table {subject}");
+        println!("  read   <- {}", table.rules.read.quarry());
+        println!("  insert <- {}", table.rules.insert.quarry());
+        println!("  update <- {}", table.rules.update.quarry());
+        println!("  delete <- {}", table.rules.delete.quarry());
+        match &table.sync {
+            Some(sync) => println!("  {} — a device holds these rows; {}", sync.line(), match &sync.audience { Audience::Public => "everyone holds the same partition".to_owned(), Audience::Column(c) => format!("each row reaches the principal in .{c}"), Audience::Target { table, principal, .. } => format!("each row reaches every principal in {table}.{principal} whose group matches") }),
+            None => println!("  online-only — no sync line; reads go to the server"),
+        }
+        for (name, index) in &table.indexes {
+            println!("  {} {name}: {}", if index.unique { "unique" } else { "by" }, index.columns().join(", "));
+        }
+        return 0;
+    }
+    eprintln!("nothing named {subject}: not a refusal code, an operation, or a table");
+    1
+}
+
+/// `test`: run every argument-free query as each persona against the store
+/// (optionally loaded from a fixture) and print the meters beside the
+/// ceilings, so a builder reads numbers instead of being refused on a bound.
+pub fn test(options: &Options) -> i32 {
+    let project = project_or_exit();
+    let bound = compile_or_exit(&project, options.json);
+    let mut engine = match project.open_engine(&bound) {
+        Ok(engine) => engine,
+        Err(error) => {
+            eprintln!("cannot open the store: {error}");
+            return 2;
+        }
+    };
+    if let Some(fixture) = options.flags.get("fixture") {
+        let started = Instant::now();
+        let mut loaded = 0;
+        for entry in std::fs::read_dir(fixture).into_iter().flatten().flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let Some(table) = name.strip_suffix(".jsonl") else { continue };
+            let Some(definition) = bound.schema.tables.get(table).cloned() else { continue };
+            let text = std::fs::read_to_string(entry.path()).unwrap_or_default();
+            let mut rows = Vec::new();
+            for line in text.lines().filter(|l| !l.trim().is_empty()) {
+                let json: Json = match serde_json::from_str(line) {
+                    Ok(json) => json,
+                    Err(error) => {
+                        eprintln!("{name}: {error}");
+                        return 1;
+                    }
+                };
+                match wire::row_from_json(&definition, &json) {
+                    Ok(row) => rows.push((table.to_owned(), row)),
+                    Err(why) => {
+                        eprintln!("{name}: {why}");
+                        return 1;
+                    }
+                }
+            }
+            match engine.load(rows) {
+                Ok(count) => loaded += count,
+                Err(error) => {
+                    eprintln!("{name}: {error}");
+                    return 1;
+                }
+            }
+        }
+        println!("test: loaded {loaded} rows from {fixture} in {:.1} s", started.elapsed().as_secs_f64());
+    }
+    let personas: Vec<String> = match options.flags.get("as") {
+        Some(persona) => vec![persona.clone()],
+        None if bound.personas.is_empty() => vec!["alice".into()],
+        None => bound.personas.clone(),
+    };
+    let ceilings = engine.ceilings();
+    let mut failures = 0;
+    println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "output B");
+    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.output_bytes);
+    for program in &bound.programs {
+        if program.program.kind != ProgramKind::Query || program.program.args.values().any(|a| !a.is_optional() && !matches!(a, ir::ArgType::Cursor)) {
+            continue;
+        }
+        for persona in &personas {
+            let principal = if persona.contains(':') { persona.clone() } else { persona_principal(persona) };
+            let started = Instant::now();
+            match engine.query(&program.program.name, Context::new(principal, BTreeMap::new())) {
+                Ok(outcome) => {
+                    let m = outcome.metered;
+                    let state = if outcome.complete { "complete" } else { "capped" };
+                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}  {state} in {:.1} ms", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
+                }
+                Err(refusal) => {
+                    failures += 1;
+                    println!("      {:<28} denied {}: {}", format!("{} ({persona})", program.program.name), refusal.code, refusal.message);
+                }
+            }
+        }
+    }
+    if failures > 0 { 1 } else { 0 }
+}

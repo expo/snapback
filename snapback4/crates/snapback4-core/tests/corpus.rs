@@ -59,7 +59,6 @@ struct Expected {
     local_state: String,
     #[serde(rename = "canonicalResult")]
     canonical_result: Option<String>,
-    next: Option<String>,
 }
 
 enum Verdict {

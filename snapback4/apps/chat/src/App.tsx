@@ -1,21 +1,21 @@
 import { useMemo, useState } from "react";
-import type { Principal } from "snapback4/contract";
-import { createMockClient } from "snapback4/mock";
-import { SnapbackProvider, useLink, useClient } from "snapback4/react";
-import { ops, seed } from "../mock/api.ts";
+import { createClient } from "snapback4/client";
+import { SnapbackProvider, useLink } from "snapback4/react";
 import { Inbox } from "./Inbox.tsx";
 import { Thread } from "./Thread.tsx";
 
-const viewer = "dev:alice" as Principal;
+// The real client on the online tier: `snapback4 dev` serves snapback/schema.q
+// at 127.0.0.1:4400; the persona comes from the URL (?as=bob), default alice.
+const persona = new URLSearchParams(location.search).get("as") ?? "alice";
+const url = import.meta.env.VITE_SNAPBACK_URL ?? "http://127.0.0.1:4400";
 
 export function App() {
-  // MOCK client: the app is real, the client is not (LLP 2000 §4).
-  const client = useMemo(() => createMockClient({ viewer, tables: seed(viewer), ops, commitDelayMs: 400 }), []);
+  const client = useMemo(() => createClient({ url, persona }), []);
   return <SnapbackProvider client={client}><Home /></SnapbackProvider>;
 }
 
 function Home() {
-  const [selected, setSelected] = useState<string | undefined>("c1");
+  const [selected, setSelected] = useState<string | undefined>(undefined);
   return <>
     <Inbox selected={selected} onSelect={setSelected} />
     <main>
@@ -27,11 +27,9 @@ function Home() {
 
 function LinkBar() {
   const link = useLink();
-  const client = useClient() as ReturnType<typeof createMockClient>;
   return <header>
     <strong>Snapback 4 chat</strong>
     <span role="status">{link === "online" ? "Online" : link === "offline" ? "Offline" : "Signed out"}</span>
-    <button type="button" onClick={() => client.setLink(link === "online" ? "offline" : "online")}>{link === "online" ? "Go offline" : "Go online"}</button>
-    <small className="note">MOCK client — no server behind this page</small>
+    <small className="note">as {persona} · {url}</small>
   </header>;
 }

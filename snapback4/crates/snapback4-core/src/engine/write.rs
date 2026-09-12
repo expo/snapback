@@ -6,7 +6,7 @@ use super::runner::Runner;
 use super::validate::validate_row;
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
-use crate::schema::{Constraint, Effect, Maintain, MaintainKind, materialize_optional_fields, maintained_key};
+use crate::schema::{Constraint, Effect, Maintain, MaintainKind, maintained_id, maintained_key, materialize_optional_fields};
 use crate::store::index_values;
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json};
 use std::collections::BTreeMap;
@@ -267,7 +267,7 @@ impl Runner<'_> {
     }
 
     fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128) -> Result<(), RuntimeError> {
-        let id = canonical_json(&key);
+        let id = maintained_id(&key);
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         let existing = self.tx.get(&maintain.target, &id)?;
         let old_value = existing.as_ref().and_then(|row| row.field("value").ok()).map(Value::as_int).transpose()?.unwrap_or(0);

@@ -6,6 +6,7 @@
 pub mod ast;
 pub mod bind;
 pub mod diag;
+pub mod emit;
 pub mod lexer;
 pub mod parser;
 pub mod print;

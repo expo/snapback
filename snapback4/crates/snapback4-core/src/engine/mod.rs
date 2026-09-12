@@ -177,7 +177,7 @@ impl Engine {
         if program.kind != ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());
         }
-        validate::validate_inputs(&self.schema, &program, &context.args)?;
+        validate::validate_inputs(&self.schema, &program, &mut context.args)?;
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
         }
@@ -208,7 +208,7 @@ impl Engine {
         if program.kind == ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
         }
-        if let Err(error) = validate::validate_inputs(&self.schema, &program, &context.args) {
+        if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
             return Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
         }
         if context.now.is_none() {

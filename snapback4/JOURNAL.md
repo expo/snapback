@@ -151,3 +151,81 @@ recorded as gaps, not estimated.
   is 25.9 and selected 24.18.0 explicitly — run the suite with the pinned
   runtime on PATH.
 - Week one, day one, is complete apart from the expo-sqlite floor (week 4).
+
+## 2026-09-12 — week two, day one: the server core runs the chat schema
+
+- **Quarry is bound in Rust, not TypeScript.** Snapback 2's compiler is a
+  TypeScript worker the Rust binary spawns; Snapback 4's `snapback4-lang`
+  crate ports the lexer and parser (with `sync` in place of `deliver` and a
+  continuation line for shapes) and binds to the core IR in Rust. `check`
+  on the chat schema takes 3–6 ms with no other runtime, the simulator can
+  compile programs, and one grammar serves every host. Recorded in LLP 3000
+  §7. Ported from `snapback2/packages/compiler/src/quarry/`, split across
+  `lexer.rs`, `parser.rs`, `bind/{catalog,schema,program}.rs`; the binder
+  is written fresh against the IR rather than ported (the Snapback 2 binder
+  carries receipt-era typing).
+- **The IR and value model are Snapback 2's, in their serialized form**, so
+  the conformance corpus runs unchanged against the engine as a server with
+  exactly the rows the twin held: 172 comparable cases pass, 0 fail, 121 are
+  skipped as receipt-, pricing-, search- or asset-era forms (the harness
+  names each reason). Maintained rows keep the corpus's canonical-key id.
+- **The store is one key encoding.** Two SQLite tables carry every table:
+  row images by (table, id) and index entries as one order-preserving byte
+  key (`key.rs`: the value model's total order, self-terminating, so a
+  prefix is a byte prefix). A point lookup, a prefix scan, a cursor position
+  and a cap count are all one B-tree range. The same encoding is what the
+  IndexedDB store will use in week 3.
+- **The meter replaces the certificate's prices.** Examined rows, index
+  entries, rule probes, steps, heap, output bytes and rows written are
+  charged as a program runs; a query past a ceiling returns `complete:
+  false` with no continuation; a mutation aborts with `E_BOUND` naming the
+  meter, the actual, the ceiling and the site. Snapback 2's uniformity and
+  `decided_true` hoisting are copied: `check --cost` prints each site's
+  structural class (decided by the prefix / one verdict / per row).
+- **The partition log.** `sync public | to .col | to target[.prefix]` with an
+  optional `last N by index` horizon. Binding checks the read rule carries
+  the matching disjunct, resolves the target's principal column, and demands
+  the two indexes the engine needs (group → principals, principal →
+  groups). Every row change fans out `put`/`del` events per recipient; a
+  target row appearing bootstraps the group's rows (within the horizon) to
+  the new member and disappearing sends one `scope` tombstone; a fresh
+  device takes a snapshot then follows the merged stream (own partition +
+  `public`) from its watermark, pages never split a commit. A `maintain`
+  grouped by the audience inherits it and is delivered as a value row.
+- **At most once.** A mutation carries a client-minted id; the engine records
+  the outcome under `(principal, id)` and a replay returns it. Ids are 26
+  base32 digits (48 bits of ms, 80 of entropy), the same on the device.
+- **The binary and the wire.** `init`, `check [--cost]`, `dev` (serves on
+  127.0.0.1:4400, re-adopts the schema on every save and prints the
+  day-two class of the change), `run`, `test [--fixture dir]` (prints the
+  meters beside the ceilings per persona), `why <code|op|table>`, `guide`,
+  `data`, `doctor`. The wire is `POST /q/<op>`, `POST /m/<op>` (with `id`
+  and `newIds`), `GET /sync?from=W` (snapshot at 0), `GET /changes?since=S
+  &wait=25` (long poll), `POST /seed`; plain JSON, typed by the declared
+  arguments; personas by `x-snapback-persona` on loopback.
+- **The client.** `packages/snapback4/src/client.ts` is the online tier on
+  the card: reads are `fresh` when the server answered and carry `since`
+  when it did not; observed reads re-run when a commit touches their tables;
+  writes are sent with a minted id and wait as `pending` while the link is
+  down. `snapback4 check` writes `snapback/generated/api.ts` with the row
+  types and every operation's argument and result types by inference;
+  `apps/chat` now imports it and the real client (the mock stays in the
+  package, labelled). Operations in `schema.q` are `api.<name>`; a module
+  `snapback/feed.q` gives `api.feed.<name>`.
+- **The simulator hosts the real server.** `crates/snapback4-sim` gained
+  `host.rs` (the engine as a host under the virtual clock), `replica.rs` (a
+  device: replica, watermark, durable outbox, predictions the stream
+  replaces, screens counted by the card's words) and `chat.rs` (three
+  devices on the chat schema under rough faults, kills of devices and the
+  server, one member leaving). LLP 3000 §6's invariants 1, 2, 3, 5 and 6
+  are checked after every event; 4 and 7 at quiescence; a seed replays to
+  one digest. Three seeds run in the blocking suite.
+- Not yet: authentication beyond personas (H0, week 4), effects execution
+  (the outbox fills; no host runs it), jobs and `chunk` at runtime, word
+  search, assets, the web replica (week 3).
+- Loop numbers at this landing (`metrics/loop.jsonl`): blocking suite 27.2 s
+  (of 60; the chat simulation is 16 s of it, in debug), incremental rebuild
+  0.25 s, chat app 71,101 gzip bytes (React 19 is most of it; the client is
+  measured alone once the replica lands), production binary 2,010,800 bytes
+  with SQLite and the engine inside (PocketBase, the anchor named in LLP
+  2000.000 §12, ships ~30 MB).

@@ -6,16 +6,20 @@
 //! `fsync` can fail, and hosts that can be killed at any event boundary and
 //! restarted from their durable state. Every run replays from its seed; the
 //! trace digest is the proof. Nothing here allocates randomness or time from
-//! the operating system. Zero dependencies on purpose.
+//! the operating system.
 //!
-//! The real server and client cores are hosted here from week 2 (LLP 3000
-//! §5). `demo` is the week-one witness that the machinery is sound: a
-//! replicated counter with durable admission, at-most-once application and
-//! convergence after faults stop.
+//! `host` is the real server core as a host; `replica` is a device with a
+//! partition replica and a durable outbox; `chat` runs the chat schema under
+//! faults and checks LLP 3000 §6's invariants. `demo` is the week-one
+//! witness that the machinery is sound: a replicated counter with durable
+//! admission, at-most-once application and convergence after faults stop.
 
+pub mod chat;
 pub mod demo;
 pub mod disk;
+pub mod host;
 pub mod net;
+pub mod replica;
 pub mod rng;
 pub mod trace;
 pub mod world;

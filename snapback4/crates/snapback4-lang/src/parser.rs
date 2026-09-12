@@ -1392,7 +1392,7 @@ mod tests {
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
         assert_eq!(document.tables.len(), 4);
         assert_eq!(document.maintains.len(), 1);
-        assert_eq!(document.programs.len(), 5);
+        assert_eq!(document.programs.len(), 7);
         let messages = &document.tables[3];
         assert_eq!(messages.name, "messages");
         let sync = messages.sync.as_ref().unwrap();

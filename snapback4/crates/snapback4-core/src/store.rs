@@ -164,6 +164,11 @@ impl Store {
         rows.map(|data| serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))).collect()
     }
 
+    /// How many client-minted operation ids have been applied (sent or failed).
+    pub fn applied_ops(&self) -> Result<u64, RuntimeError> {
+        Ok(self.conn.query_row("SELECT COUNT(*) FROM _ops WHERE outcome LIKE '%\"state\":\"sent\"%'", [], |row| row.get::<_, i64>(0))? as u64)
+    }
+
     pub fn count(&self, table: &str) -> Result<u64, RuntimeError> {
         let Some(t) = self.catalog.get(table) else { return Ok(0) };
         Ok(self.conn.query_row("SELECT COUNT(*) FROM r WHERE t = ?1", [t], |row| row.get::<_, i64>(0))? as u64)

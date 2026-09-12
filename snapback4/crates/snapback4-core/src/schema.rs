@@ -785,6 +785,14 @@ pub fn maintained_key(source: &Value, by: &[String]) -> Vec<Value> {
     by.iter().map(|field| source.field(field).cloned().unwrap_or(Value::Null)).collect()
 }
 
+/// The id of a maintained row is its group's canonical form, as Snapback 2
+/// spelled it: an aggregate's identity is its key, and the conformance
+/// corpus holds it to this spelling. Programs read aggregates by group,
+/// never by id.
+pub fn maintained_id(key: &[Value]) -> String {
+    crate::value::canonical_json(&key)
+}
+
 /// Whether a value is (or contains) the reserved system principal.
 pub fn contains_system_principal(value: &Value) -> bool {
     match value {
