@@ -86,7 +86,7 @@ export class FakeObjectStore {
     const request = new FakeRequest<Key>();
     if (factory.abortNextPut) {
       factory.abortNextPut = false;
-      this.transaction.abortWith(new Error("injected asynchronous put failure"));
+      queueMicrotask(() => this.transaction.abortWith(new Error("injected asynchronous put failure")));
       return request;
     }
     this.transaction.run(() => {
@@ -159,6 +159,7 @@ export class FakeTransaction {
   private started = false;
   private finished = false;
   private aborted = false;
+  private committing = false;
 
   constructor(factory: FakeIndexedDb, record: DatabaseRecord, names: readonly string[], mode: "readonly" | "readwrite") {
     this.factory = factory;
@@ -193,8 +194,19 @@ export class FakeTransaction {
 
   /** Runs now when started, else once the scheduler starts this transaction (requests are queued, as the browser does). */
   run(op: () => void): void {
+    if (this.committing) throw fakeError("TransactionInactiveError", "a committing transaction accepts no more requests");
     if (this.aborted) return;
     if (this.started) op(); else this.queued.push(op);
+  }
+
+  commit(): void {
+    if (this.committing || this.finished) throw fakeError("InvalidStateError", "the transaction is no longer active");
+    this.factory.commits.push({ scope: [...this.scope], writes: this.factory.writes.length });
+    if (this.factory.failNextCommit) {
+      this.factory.failNextCommit = false;
+      throw new Error("injected commit setup failure");
+    }
+    this.committing = true;
   }
 
   nextKey(name: string): Key | undefined {
@@ -215,7 +227,7 @@ export class FakeTransaction {
   }
 
   abort(): void {
-    if (this.aborted) return;
+    if (this.committing || this.finished) throw fakeError("InvalidStateError", "the transaction is no longer active");
     this.abortWith(fakeError("AbortError", "transaction aborted"));
   }
 
@@ -228,8 +240,13 @@ export class FakeTransaction {
     queueMicrotask(() => this.onabort?.());
   }
 
-  private finish(): void {
+  private async finish(): Promise<void> {
     if (this.aborted || this.finished) return;
+    if (this.committing) {
+      try { await this.factory.beforeCommitComplete?.(); }
+      catch (error) { this.abortWith(error as Error); return; }
+      if (this.aborted || this.finished) return;
+    }
     if (this.mode === "readwrite") for (const [name, values] of this.local) this.record.stores.set(name, values);
     this.finished = true;
     this.release();
@@ -293,6 +310,10 @@ export class FakeDatabase {
 
 export class FakeIndexedDb {
   readonly writes: Array<{ store: string; action: "put" | "add" | "delete" | "clear"; key?: Key }> = [];
+  readonly commits: Array<{ scope: string[]; writes: number }> = [];
+  failNextCommit = false;
+  /** An engine-side barrier/failure reached after commit() has returned. */
+  beforeCommitComplete?: () => Promise<void>;
   /** The next `put` into this object store throws, aborting its transaction. */
   failNextPutIn?: string;
   /** The next `put` into any object store throws synchronously. */

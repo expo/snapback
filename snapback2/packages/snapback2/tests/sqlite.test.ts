@@ -20,6 +20,67 @@ import { sqliteFactory } from "./sqlite-fixture.ts";
 const temporary = () => mkdtemp(join(tmpdir(), "s2-sqlite-"));
 const noBytes = { put: [], remove: [] };
 
+test('explicit IndexedDB commit publishes all state, bytes and inbox only after completion, including a late engine failure', async t => {
+  for (const fail of [false, true]) await t.test(fail ? 'late abort' : 'delayed completion', async () => {
+    const database = new FakeIndexedDb(), backend: any = (indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks() })() as any).backend;
+    const row = (key: number) => ({ key, kind: 'mutation', scope: 'scope', principal: 'commit', followerId: 'tab',
+      op: 'send', args: { key }, state: 'queued', ids: [], createdAt: key, updatedAt: key });
+    const records = () => structuredClone([...(database as any).databases.get('snapback2:commit').stores]);
+    const keys = () => Object.fromEntries(Object.entries(backend.projection.keys).map(([key, value]) => [key, [...value as any]]));
+    let release!: () => void, reject!: (error: Error) => void, entered!: () => void;
+    const gate = new Promise<void>((resolve, fail) => { release = resolve; reject = fail; });
+    const waiting = new Promise<void>(resolve => { entered = resolve; });
+    try {
+      await backend.open('commit');
+      await backend.replace(sqliteState(1), { put: [{ key: 'old', bytes: new Uint8Array([1]) }], remove: [] },
+        undefined, undefined, { put: [row(1)] });
+      const before = records(), beforeKeys = keys();
+      database.beforeCommitComplete = () => { entered(); return gate; };
+      let settled = false;
+      const next = () => backend.replace(sqliteState(2), { put: [{ key: 'new', bytes: new Uint8Array([2]) }], remove: ['old'] },
+        undefined, undefined, { put: [row(2)], remove: [1] });
+      const pending = next().then(() => { settled = true; }, (error: Error) => { settled = true; return error; });
+      await waiting;
+      assert.equal(settled, false, 'commit() returning cannot resolve the replacement');
+      assert.deepEqual(database.commits.at(-1), { scope: ['rows', 'answers', 'outbox', 'meta', 'bytes', 'inbox'], writes: database.writes.length });
+      assert.deepEqual(records(), before, 'no physical record publishes before transaction completion');
+      assert.deepEqual(keys(), beforeKeys, 'projection key custody still names the old committed state');
+      const error = new Error('engine failed after commit returned');
+      if (fail) reject(error); else release();
+      assert.equal(await pending, fail ? error : undefined);
+      database.beforeCommitComplete = undefined;
+      if (fail) {
+        assert.deepEqual(records(), before, 'late abort retains all old physical stores');
+        assert.deepEqual(keys(), beforeKeys, 'late abort never advances projection custody');
+      }
+      await backend.close();
+      assert.deepEqual(await backend.open('commit'), sqliteState(fail ? 1 : 2));
+      assert.deepEqual(await backend.readBytes(fail ? 'old' : 'new'), new Uint8Array([fail ? 1 : 2]));
+      assert.equal(await backend.readBytes(fail ? 'new' : 'old'), undefined);
+      assert.deepEqual(await backend.inboxRows(), [row(fail ? 1 : 2)]);
+      if (fail) {
+        await next(); await backend.close();
+        assert.deepEqual(await backend.open('commit'), sqliteState(2), 'a refused explicit commit remains retryable after reopen');
+      }
+    } finally { release(); database.beforeCommitComplete = undefined; await backend.close(); }
+  });
+});
+
+test('IndexedDB setup and explicit-commit throws retain old custody without an unhandled completion rejection', async () => {
+  const database = new FakeIndexedDb(), backend: any = (indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks() })() as any).backend;
+  try {
+    await backend.open('commit-setup'); await backend.replace(sqliteState(1), noBytes);
+    for (const failure of ['failNextPut', 'failNextCommit'] as const) {
+      const commits = database.commits.length;
+      database[failure] = true;
+      await assert.rejects(backend.replace(sqliteState(2), noBytes), /injected/);
+      assert.equal(database.commits.length - commits, failure === 'failNextPut' ? 0 : 1, 'a synchronous put failure never calls commit');
+      await backend.close();
+      assert.deepEqual(await backend.open('commit-setup'), sqliteState(1));
+    }
+  } finally { await backend.close(); }
+});
+
 test('equal retained image proofs preserve complete custody without rewriting image records', async (context) => {
   const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json',import.meta.url),'utf8'));
   context.mock.method(Date,'now',() => halo.last.readTime + 1000);

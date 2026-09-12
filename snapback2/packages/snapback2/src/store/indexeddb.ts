@@ -284,6 +284,7 @@ class IndexedDbBackend implements RangeStoreBackend {
 
   // @ref LLP 1012#4-the-range-store — one readwrite transaction spans the state
   // stores and the byte payloads, so a row and its bytes leave together or not at all.
+  // Explicit commit starts persistence; only completion publishes the projection.
   async replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords, inbox?: InboxDelta): Promise<void> {
     const database = this.database;
     if (!database) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "IndexedDB carrier is not open");
@@ -292,6 +293,7 @@ class IndexedDbBackend implements RangeStoreBackend {
     await this.beforeReplace?.(jsonState(imageState(state)));
     const touchesInbox = inbox !== undefined && ((inbox.put?.length ?? 0) > 0 || (inbox.remove?.length ?? 0) > 0);
     const transaction = database.transaction(touchesInbox ? [...ALL_STORES, INBOX_STORE] : ALL_STORES, "readwrite");
+    const done = transactionDone(transaction);
     try {
       for (const name of STORE_NAMES) {
         const store = transaction.objectStore(name);
@@ -309,12 +311,13 @@ class IndexedDbBackend implements RangeStoreBackend {
         for (const key of inbox!.remove ?? []) store.delete(key);
         for (const row of inbox!.put ?? []) store.put(inboxRecord(row));
       }
+      transaction.commit();
     } catch (error) {
-      transaction.abort();
-      try { await transactionDone(transaction); } catch { /* Preserve the request/setup failure. */ }
+      try { transaction.abort(); } catch { /* It may already have finished. */ }
+      try { await done; } catch { /* Preserve the request/setup failure. */ }
       throw error;
     }
-    await transactionDone(transaction);
+    await done;
     committed();
   }
 
