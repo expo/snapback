@@ -297,7 +297,7 @@ carries the chronology. Week one, 2026-09-12:
 | `floors/` | the five floor scripts; numbers in the journal | `1700c1c755` |
 | `corpus/` | Snapback 2's 295 conformance cases and `ir-contract.json`; not yet read by anything | `1700c1c755` |
 | `scripts/` | `test.sh` (2.2 s), `measure.mjs` (loop numbers, budgets), `publish.mjs` | the publish commit |
-| `fixtures/` | the Clique hub fixture wrapper (a Codex lane, in flight) | — |
+| `fixtures/` | the frozen Clique action log replayed into JSONL seed tables; `stats` asserts the hub facts against the manifest (1,000 memberships for `u0001`, 500 follows for `u0500`, 99,090 text and 910 media sends); nine tests; written by a Codex lane, verified out of sandbox | the fixtures commit |
 
 Not started: everything in §5's weeks 2–4. No engine, no store, no wire, no
 partition log, no interpreter, no Expo client, no deployment.

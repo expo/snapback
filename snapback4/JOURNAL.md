@@ -134,3 +134,20 @@ recorded as gaps, not estimated.
   binary 286,112 bytes.
 - The blocking suite now builds the package to `dist/` before the app
   typechecks, so the app consumes the package exactly as a consumer would.
+
+## 2026-09-12 — the hub fixture wrapper landed (Codex lane)
+
+- `fixtures/clique.mjs` (Codex gpt-6-astra, xhigh, in `~/projects/snapback-sb4-fixtures`,
+  brief in `~/projects/snapback-sb4-lanes/fixtures/`) replays the frozen
+  social-messenger action log into JSONL seed tables. Verified outside the
+  sandbox on Node 24.18.0: 9/9 tests in 5.0 s; `stats --log scale` prints
+  1,000 users, 5,909 follows, 48,200 posts, 1,000 conversations, 2,048
+  memberships, 100,000 messages; `u0001` has 1,000 memberships, `u0500` 500
+  follows; 99,090 text and 910 media sends; the largest conversation is
+  `g0001` with 10,000 messages; the manifest check passes including both
+  checkpoints. The lane touched nothing outside `fixtures/`.
+- The fixture tests join the blocking suite (5 s of the 60 s budget). Node
+  24 is now declared in `engines`; the lane found the ambient Homebrew node
+  is 25.9 and selected 24.18.0 explicitly — run the suite with the pinned
+  runtime on PATH.
+- Week one, day one, is complete apart from the expo-sqlite floor (week 4).

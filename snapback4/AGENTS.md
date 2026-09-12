@@ -17,6 +17,7 @@ bun run --cwd packages/snapback4 typecheck   # the contract, the mock client and
 (cd apps/chat && bun run dev)               # the chat app on the MOCK client (Vite 8 / rolldown); `bun run build` measures its bytes
 node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; exits 1 on a missed budget
 node scripts/publish.mjs --dry-run   # build, pack, installed-consumer proof; drop --dry-run to publish snapback4@<version>
+node fixtures/clique.mjs stats       # the hub fixture facts, asserted against the Clique manifest; `build` writes JSONL seed tables to fixtures/out/
 ```
 
 What exists, by week (LLP 3000 §5):
@@ -30,7 +31,7 @@ What exists, by week (LLP 3000 §5):
 
 Gotchas you cannot derive from the code:
 
-- Own Cargo and Bun workspaces; the repository root excludes them. Run cargo/bun from `snapback4/`.
+- Own Cargo and Bun workspaces; the repository root excludes them. Run cargo/bun from `snapback4/`. Node 24.x (`engines`): run the suite with the pinned runtime on PATH, not the ambient Homebrew node.
 - One owner on the core (LLP 3000 decision 4): the engine, the store and the client contract are written by the lead session; Codex lanes take the fixture generator, the reference apps, the device witnesses and the periphery. Do not reshape `contract.ts` from a lane; propose the change in the journal.
 - No ceiling is raised in slice one (LLP 2000.000 §12). A thing that does not fit changes the design or waits.
 - The journal is append-only and dated; never rewrite an entry. LLP 3000 §7 carries decisions that must outlive it.
