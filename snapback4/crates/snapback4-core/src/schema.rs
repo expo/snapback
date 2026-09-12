@@ -734,6 +734,18 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
             }
         }
     }
+    // Without a horizon, a group's rows are taken from an index leading with
+    // the audience columns; `check` says so, or the first sync would.
+    if sync.horizon.is_none() {
+        let group: Vec<String> = match &sync.audience {
+            Audience::Public => Vec::new(),
+            Audience::Column(column) => vec![column.clone()],
+            Audience::Target { prefix, .. } => prefix.clone(),
+        };
+        if !group.is_empty() && !table.indexes.values().any(|index| index.columns().starts_with(&group)) {
+            issue(issues, format!("{} needs an index on {table_name} leading with {} so a device can take a group's rows: `by by{}: {}, id`", sync.line(), group.join(", "), group.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>(), group.join(", ")));
+        }
+    }
     if let Some(horizon) = &sync.horizon {
         match table.index(&horizon.by) {
             None => issue(issues, format!("horizon names unknown index {table_name}.{}", horizon.by)),

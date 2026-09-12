@@ -300,8 +300,11 @@ flips the link.
 
 ## 5. Development
 
-- **`snapback4 dev [--port N] [--no-watch]`** serves `snapback/*.q` on
-  `127.0.0.1:4400`, recompiling and re-adopting on every save. Personas
+- **`snapback4 dev [--port N] [--no-watch] [--fresh]`** serves
+  `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on every
+  save; the store lives in `.snapback4/` and persists across runs, and
+  `--fresh` uses one in memory that dies with the process (acceptance
+  scripts start from nothing). Personas
   (`use personas ..`) sign requests from the same machine with the
   `x-snapback-persona: alice` header (the client's `persona: "alice"`),
   acting as `dev:alice`.

@@ -93,6 +93,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
   let sessionDead = false;
+  let partitionDenied: Refusal | null = null;
   const refusedSession = async (denied: unknown) => {
     if (session && !sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") {
       sessionDead = true;
@@ -137,12 +138,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async sync(from, limit) {
       try {
         const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}`, { headers });
-        if (response.status >= 500) return { denied: offline() };
-        const page = (await response.json()) as StreamPage & { denied?: unknown };
+        if (response.status === 503) return { denied: offline() };
+        const page = (await response.json()) as StreamPage & { denied?: Refusal };
         if (page.denied) {
           await refusedSession(page.denied);
+          if (!page.denied.retryable) {
+            // The server refuses this device's partition (a schema the store
+            // cannot serve, a dead session): every read says so, once
+            // loudly here, and until the next successful sync.
+            if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${page.denied.code}: ${page.denied.message}`);
+            partitionDenied = page.denied;
+            for (const watch of watches.values()) void rerun(watch);
+          }
           return { denied: page.denied };
         }
+        partitionDenied = null;
         if (link !== "online") setLink("online");
         if (page.watermark > seq) seq = page.watermark;
         if (page.generation !== undefined && page.generation !== backend.generation) {
@@ -189,6 +199,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function runLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string> }> {
     const program = backend.programs[op.name];
     if (!program) return { read: { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } }, tables: new Set() };
+    if (partitionDenied) return { read: { denied: partitionDenied }, tables: new Set(Object.keys(backend.schema.tables)) };
     try {
       const outcome: LocalRead = await store.read((tx) => new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint: mintId }, "query").run(program));
       const read: Read<R> = { data: outcome.data as R, complete: outcome.complete, fresh: link === "online" && replica.isCaughtUp, next: outcome.next as Cursor | null, ...(link === "online" && replica.isCaughtUp ? {} : { since: lastSyncAt }) };

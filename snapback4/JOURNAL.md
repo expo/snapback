@@ -754,3 +754,21 @@ Three fresh Astra sessions at medium, serial, each on the published
 - `crates/snapback4-sim/tests/loopbar.rs` carries the loop bar's three
   attributed findings as tests (the merge continuation, the cursorless
   page, `??` after an optional reference). Published `snapback4@0.0.8`.
+
+## 2026-09-12 — from the lane's M4 and set B; 0.0.9
+
+- **`check` accepted a synced table that the first sync refused.** The
+  lane's `reactions` synced to a conversation's members with no index
+  leading with `conversationId`; `check` passed, `/sync` failed
+  `E_SCHEMA` (a 503), and the client showed an empty partition with
+  `fresh: false` — silent on both sides. The validator now requires an
+  index leading with the audience columns when there is no horizon (the
+  rewrite names it); a refusal's status follows its retryability (500 for
+  what will not change, 503 for what may); and a device whose partition
+  the server refuses makes every read `denied` with that refusal, logged
+  once, until a sync succeeds. Test in `tests/reviews.rs`.
+- **`snapback4 dev --fresh`**: a store in memory that dies with the
+  process, for acceptance scripts that must start from nothing (set B's
+  agent found the dev store persisting between runs and moved its
+  acceptance into a disposable directory).
+- Published `snapback4@0.0.9`.
