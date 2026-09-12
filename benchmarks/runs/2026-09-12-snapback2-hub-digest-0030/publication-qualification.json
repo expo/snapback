@@ -1,0 +1,131 @@
+{
+  "format": 1,
+  "status": "ready-with-publish-hold",
+  "source": "f1867f540b5752d62cc8fa6bd918bab4a3c3291a",
+  "sourceParents": [
+    "a9cc16e04038ca2fa6c16d40a5d212823bff15da",
+    "05b71a418158693b400e1bf5bb0d62c94713bb98"
+  ],
+  "fixedCommit": "05b71a418158693b400e1bf5bb0d62c94713bb98",
+  "rejectedPredecessor": "a9cc16e04038ca2fa6c16d40a5d212823bff15da",
+  "version": "0.0.30",
+  "productionEngine": true,
+  "qualificationVerification": "pass",
+  "finalReceipt": {
+    "path": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.30/resume.json",
+    "sha256": "82a9c6178a0ac3adc8b7e477ecf0f350714b8cdabddd145442f1049265361d25"
+  },
+  "finalTransferArchive": {
+    "path": "/Users/ccheever/projects/snapback/.llp/ship-runs/clique-tickets-20260911/publication-0030/fixed-f186-darwin-final-transfer.tar",
+    "sha256": "855c0574ad7647116e4693ba1069568538e80b1da5e1d5d8c891050c4b1544a2"
+  },
+  "artifacts": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.30",
+      "basename": "snapback2-darwin-arm64-0.0.30.tgz",
+      "bytes": 5357659,
+      "sha256": "525ac38b746d413162fe6010b3918997921eda9b1495a63939e6c57d8280fbb6",
+      "integrity": "sha512-GlPoI6QjYVNFDIUkfH6aH0fgwezL/Wfz8fkLLRV7HrMF9N7H4JEHeieM4WmtE/+btPGJsv0ATtv+FCSY3NQPQQ=="
+    },
+    {
+      "name": "snapback2-linux-x64",
+      "version": "0.0.30",
+      "basename": "snapback2-linux-x64-0.0.30.tgz",
+      "bytes": 22209972,
+      "sha256": "45cfce6416e4e47fe4bc58a505fe56cb6f9539901f5a9bd81fb74264d760da08",
+      "integrity": "sha512-AWXigCTN/hP6J63HSu9Auqxrlg7AXDH+xuzY464E6S+Sd18DKKfwSt3zeByWVUx+PdhgtsflGoHZoEnqwE/KCQ=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.30",
+      "basename": "snapback2-0.0.30.tgz",
+      "bytes": 1392584,
+      "sha256": "d009cbd31c9caac6cbe673ff5fc88ec4c43bf9a478b1d63bd5c152060d2b4bf6",
+      "integrity": "sha512-/MGMfIUMz//5lfxRmraeaYRJDXxLgXs3GrfxsMN9q+WpmEVNl+KKjuftY0jbkC+oMFxhwY2HSxBW+7USgcSIXw=="
+    }
+  ],
+  "finalShimIntegrity": "sha512-/MGMfIUMz//5lfxRmraeaYRJDXxLgXs3GrfxsMN9q+WpmEVNl+KKjuftY0jbkC+oMFxhwY2HSxBW+7USgcSIXw==",
+  "platforms": {
+    "snapback2-linux-x64": {
+      "host": {
+        "platform": "linux",
+        "arch": "x64"
+      },
+      "artifactIntegrity": "sha512-AWXigCTN/hP6J63HSu9Auqxrlg7AXDH+xuzY464E6S+Sd18DKKfwSt3zeByWVUx+PdhgtsflGoHZoEnqwE/KCQ==",
+      "shimIntegrity": "sha512-/MGMfIUMz//5lfxRmraeaYRJDXxLgXs3GrfxsMN9q+WpmEVNl+KKjuftY0jbkC+oMFxhwY2HSxBW+7USgcSIXw==",
+      "sameFinalShim": true,
+      "mediaDigest": "0ad19a7b1b29ccea7cbf39de3ab45f217e46959c75dde1e19a451afbd5ba10d5",
+      "mediaCliChecksPassed": 4,
+      "consumerVerdict": "pass",
+      "consumerSteps": 29,
+      "consumerStepsPassed": 29
+    },
+    "snapback2-darwin-arm64": {
+      "host": {
+        "platform": "darwin",
+        "arch": "arm64"
+      },
+      "artifactIntegrity": "sha512-GlPoI6QjYVNFDIUkfH6aH0fgwezL/Wfz8fkLLRV7HrMF9N7H4JEHeieM4WmtE/+btPGJsv0ATtv+FCSY3NQPQQ==",
+      "shimIntegrity": "sha512-/MGMfIUMz//5lfxRmraeaYRJDXxLgXs3GrfxsMN9q+WpmEVNl+KKjuftY0jbkC+oMFxhwY2HSxBW+7USgcSIXw==",
+      "sameFinalShim": true,
+      "mediaDigest": "f58fbd608b604cb00a65a80385b9bf789913ff5f83539554c04c4b23f75fe66f",
+      "mediaCliChecksPassed": 4,
+      "consumerVerdict": "pass",
+      "consumerSteps": 29,
+      "consumerStepsPassed": 29
+    }
+  },
+  "sameFinalShim": true,
+  "footprint": {
+    "clientGzipBytes": 142989,
+    "reactGzipBytes": 152942,
+    "expoGzipBytes": 156395,
+    "runtimeGzipBytes": 89843,
+    "runtimeCeiling": 90000,
+    "guideMarkdownFiles": 32,
+    "guideMarkdownBytes": 98202,
+    "guideMarkdownCeiling": 98304,
+    "toolchain": {
+      "node": "v24.18.0",
+      "esbuild": "0.25.9",
+      "gzipLevel": 9
+    },
+    "format": "packaged-esm-closure-gzip-v1",
+    "baselineAccepted": false
+  },
+  "stagedRecipe": {
+    "digest.q": {
+      "sourceSha256": "49294ae9afc8bfba49a8202ab04685d8b4cd4b88033e6432816f54a33577348d",
+      "stagedSha256": "49294ae9afc8bfba49a8202ab04685d8b4cd4b88033e6432816f54a33577348d",
+      "exact": true
+    },
+    "feeds.q": {
+      "sourceSha256": "4d52778848ea7711624838a5756745f19d33f7be6a43b2a2979b19289a357147",
+      "stagedSha256": "4d52778848ea7711624838a5756745f19d33f7be6a43b2a2979b19289a357147",
+      "exact": true
+    },
+    "messages.q": {
+      "sourceSha256": "ad5141730e3a1940db2ee7c0ac3042146147464976edb60c3dfa7b9dfd573990",
+      "stagedSha256": "ad5141730e3a1940db2ee7c0ac3042146147464976edb60c3dfa7b9dfd573990",
+      "exact": true
+    },
+    "push.ts": {
+      "sourceSha256": "68c0e0402e8727e7e3eb1abd8c61c03786848f86516b53e4a8cf414c527cac2f",
+      "stagedSha256": "68c0e0402e8727e7e3eb1abd8c61c03786848f86516b53e4a8cf414c527cac2f",
+      "exact": true
+    },
+    "schema.q": {
+      "sourceSha256": "3321396e7e4ae33fd17186c1b313d3cc5fb9359bf8d5d217816094263a9451d2",
+      "stagedSha256": "3321396e7e4ae33fd17186c1b313d3cc5fb9359bf8d5d217816094263a9451d2",
+      "exact": true
+    }
+  },
+  "recipeAssertions": {
+    "monotonicMessageSequence": true,
+    "markReadUsesConversationMessageCount": true,
+    "digestUsesReadThroughSequenceComparison": true
+  },
+  "published": false,
+  "pushed": false
+}

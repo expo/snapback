@@ -1,0 +1,19 @@
+{
+  "candidate": "eccad684a76d4c5ca4294cc63a8ad17d4d8414b2",
+  "scratch": "/Users/ccheever/projects/snapback-s2-b1/snapback2/target/b2-hub-isolated.pifofplz",
+  "cwd": "/Users/ccheever/projects/snapback-s2-b1/snapback2/target/b2-hub-isolated.pifofplz/package-workspace/packages/snapback2",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "--test",
+    "--test-concurrency=6",
+    "--test-timeout=10000",
+    "--test-name-pattern=hub guide reaches final membership slice, rich history, and exact scheduled digest",
+    "tests/real-owner.test.ts"
+  ],
+  "startedAt": "2026-09-12T07:00:35.394653+00:00",
+  "startupDeadlineMs": 10000,
+  "endedAt": "2026-09-12T07:01:04.152812+00:00",
+  "elapsedSeconds": 28.758159,
+  "exit": 0,
+  "log": "/Users/ccheever/projects/snapback/.llp/ship-runs/clique-tickets-20260911/hub-digest-evidence/hub-isolated-rerun.log"
+}

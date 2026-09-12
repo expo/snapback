@@ -1,0 +1,11 @@
+✔ hub guide reaches final membership slice, rich history, and exact scheduled digest (27909.972333ms)
+ℹ 1000 memberships (100 groups+900 DMs), 99 empty slices, final-slice match, 125 tied-time messages; warm/cold held reads
+ℹ scheduled digest: 500 follows + 1000 memberships, 900 expiries over 64-timer turns, late real-author deletion, same-target later-period messages, restart retry, one logged effect
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 28722.815125

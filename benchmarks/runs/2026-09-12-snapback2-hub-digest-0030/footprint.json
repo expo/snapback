@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-12T07:24:48.359Z",
+  "sha": "f1867f540b",
+  "client_gzip_bytes": 142989,
+  "react_gzip_bytes": 152942,
+  "expo_gzip_bytes": 156395,
+  "runtime_gzip_bytes": 89843,
+  "byte_measurement": {
+    "values": {
+      "client_gzip_bytes": 142989,
+      "react_gzip_bytes": 152942,
+      "expo_gzip_bytes": 156395,
+      "runtime_gzip_bytes": 89843
+    },
+    "toolchain": {
+      "node": "v24.18.0",
+      "esbuild": "0.25.9",
+      "gzipLevel": 9
+    },
+    "format": "packaged-esm-closure-gzip-v1",
+    "ok": true
+  },
+  "byte_toolchain": {
+    "node": "v24.18.0",
+    "esbuild": "0.25.9",
+    "gzipLevel": 9
+  },
+  "byte_format": "packaged-esm-closure-gzip-v1",
+  "source": "f1867f540b5752d62cc8fa6bd918bab4a3c3291a",
+  "artifact": {
+    "name": "snapback2",
+    "version": "0.0.30",
+    "sha256": "d009cbd31c9caac6cbe673ff5fc88ec4c43bf9a478b1d63bd5c152060d2b4bf6",
+    "bytes": 1392584
+  },
+  "guide_markdown": {
+    "files": 32,
+    "bytes": 98202,
+    "ceiling": 98304
+  },
+  "runtime_ceiling": 90000
+}

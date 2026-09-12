@@ -1,22 +1,27 @@
-# Snapback 2 hub-scale reads: final digest eligibility remains open
+# Snapback 2 hub-scale reads: exact final digest eligibility
 
-**Status:** Open
+**Status:** Resolved
 **Priority:** P1
 **Date:** 2026-09-11
 **Systems:** Snapback 2 Quarry certifier (LLP 1001, LLP 1010 A5 merge), Clique brief envelopes
-**Related:** [closed/20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md](./closed/20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md) (500-follow 20-row merge, resolved); `benchmarks/briefs/social-messenger.md`
+**Related:** [closed/20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md](./20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md) (500-follow 20-row merge, resolved); `benchmarks/briefs/social-messenger.md`
 
-## Current scope — reopened 2026-09-12
+## Resolution — 2026-09-12
 
-The read forms now compile and pass scoped owner controls. Exact final-time
-digest eligibility remains unmet, so this ticket is open. Concurrent main
-closed the original ticket for its compiling recipes; the later LLP 1023
-counterexample invalidates that closure for digest. Its resolution and
-validation record are retained below, with one canonical ticket path.
+The read forms and exact final-time digest now compile and pass scoped owner
+controls. The reopened digest gap is resolved by fresh per-user attempts with
+transactional invalidation and a final current-source recount; the earlier
+counterexample remains below as the regression this repair closes.
 The interim globally ordered search helper and its measured request cost
-remain shipped; [LLP 1024](../llp/1024-single-lane-delivered-search.rfc.md)
+remain shipped; [LLP 1024](../../llp/1024-single-lane-delivered-search.rfc.md)
 owns its one-lane successor. This program's grouped-search form does not use
 that client merge.
+
+The corrected form is published in **0.0.30**. Both fresh final reviewers
+cleared `05b71a4181`; source landed at `f47f667c7e`. Both native platforms
+qualified the same shim and all three registry integrities were verified.
+[Release evidence](../../benchmarks/runs/2026-09-12-snapback2-hub-digest-0030/README.md)
+retains the source, tests, certificates, received verdicts and publication record.
 
 ## Symptom
 
@@ -43,7 +48,7 @@ Also: `held_search` `E_ARGS_TYPE` and dynamic merge `E_QUARRY_SYNTAX` blocked th
 
 ## Requested outcome and acceptance — corrected 2026-09-12
 
-Implement [LLP 1023.001](../llp/1023.001-hub-scale-certified-reads.plan.md)
+Implement [LLP 1023.001](../../llp/1023.001-hub-scale-certified-reads.plan.md)
 without changing frozen instrument f40559f37722c79178be664a11f8a6485f1508fd.
 The earlier requested brief reduction is rejected. The named u0500 probe has
 500 follows and 100 conversations; u0001 actually has 100 groups plus 900 DMs.
@@ -94,7 +99,7 @@ revocation. The shipped fanout card's grouped-search consumer is executed
 verbatim. All 18 affected compiler fanout checks plus packaged guide discovery
 pass; the package builds with 97,853 / 98,304 guide bytes.
 
-Digest keeps this ticket open. An executed negative witness closes both clients,
+Digest kept this ticket open at that checkpoint. An executed negative witness closes both clients,
 completes the old 500-follow accumulation, deletes one contributing post, and
 restarts the owner. Its maintained source count becomes zero, while the cached
 total remains 500 and the job remains done. This does not qualify final emission.
@@ -103,18 +108,58 @@ The retained app's compact authored counters do not resolve that gap:
 periodUnread has no expiry provenance; clearSeat removes only the current and
 previous periods, without a period cap covering paused older work. Cached
 postDigestContribution values need final deletion/expiry validation. Current
-[writer_timers.rs](../snapback2/crates/snapback2/src/writer_timers.rs) processes at
-most 64 due timers before [writer_jobs.rs](../snapback2/crates/snapback2/src/writer_jobs.rs)
+[writer_timers.rs](../../snapback2/crates/snapback2/src/writer_timers.rs) processes at
+most 64 due timers before [writer_jobs.rs](../../snapback2/crates/snapback2/src/writer_jobs.rs)
 runs a job chunk, without proving that all due expiry work has drained. Thus
 timer-driven decrement alone cannot establish exact eligibility at emission.
 This is source evidence for the remaining expiry gap, not an executed expiry
 qualification. No new read model, ceiling or reduced population is selected.
 
 Precise source/probe/log locations and cost terms are in the child plan's
-implementation record. The three read forms subsequently shipped in 0.0.29;
-the fresh Clique wave remains separate work and the digest requirement is unmet.
+implementation record. Publication and the full Clique wave remain separate
+work; the digest requirement was still unmet at that checkpoint.
+
+## Exact digest completion — 2026-09-12
+
+The compiled fanout fixture now buckets application writes from the owner's
+clock, records append-only period and recipient revisions, and processes each
+recipient through fresh bounded jobs. Unread contributions retain source, exact
+membership incarnation, send time, expiry and a monotonic conversation send
+sequence. Read marks bind the current membership incarnation and sequence, so
+equal millisecond timestamps cannot invert commit order. The sequence high-water
+mark never decrements on remove/expiry; imports initialize it to at least the
+largest persisted message sequence. The final transaction rechecks
+eligibility/period revisions and earliest expiry. At the required 500-follow
+population it recounts every current followed author's maintained period total
+in that transaction; larger populations retain the complete chunk accumulator
+behind the conservative period fence. Unique digest and log rows plus one
+idempotent effect commit atomically, and zero activity only settles the run.
+
+The real-owner regression runs with clients closed at the scheduled boundary.
+It covers 500 follows, 1,000 memberships and 1,000 unread contributions; 900
+expiries become due after accumulation and cross the owner's 64-timer turns. A
+real membership leave follows the first unread chunk, a real post author deletes
+a cached source, five same-target sends enter the next period, and the owner
+restarts before the fresh attempt. Deterministic controls force equal persisted
+timestamps for read-then-send and send-then-read and replace one membership
+incarnation. The result is exactly 1 new follower, 499
+followed posts, 99 unread messages and 98 unread chats, with one logged effect,
+no zero-activity emission and no replay duplicate. The final chunk certifies at
+3,221,762 heap bytes, 3,446,773 closure bytes, 31,461 steps and 1,515 examined
+rows under the unchanged ceilings.
+
+The copyable compiled project ships at
+`dist/guide/recipes/exact-hub-digest/`; `guide fanout` states the finite relevant
+change liveness condition. Same-target later-period messages have their own
+revision key and cannot postpone a closed period. Permanent changes that affect that
+recipient and period can continue to retry, because exact emission requires a
+current point.
 
 ### Distinct final-counter check — 2026-09-12
+
+This retained negative concerns a different recipe checked against 0.0.29.
+The exact attempt/recount repair recorded here addresses its remaining
+affordable-read and automatic-retry obligations.
 
 One fresh compile against qualified 0.0.29 still refuses the compact final
 500-follow / 1,000-membership fold: 9,922,698 heap bytes and 8,691,704 closure
@@ -128,7 +173,7 @@ including across restart and later timer cleanup. A global guard also depends
 on unrelated expiry. A complete recipe still needs affordable final reads,
 atomic contribution maintenance and automatic retry of the same pending period.
 This is a candidate-specific negative, not a language impossibility claim.
-The [retained source assessment and probe](../benchmarks/runs/2026-09-12-snapback2-1023-release-0029/digest-distinct-probe/assessment.json)
+The [retained source assessment and probe](../../benchmarks/runs/2026-09-12-snapback2-1023-release-0029/digest-distinct-probe/assessment.json)
 bind source hashes, exact command, costs and raw output. No runtime success
 or new ceiling is claimed.
 
@@ -156,7 +201,7 @@ before two seconds elapsed, as also observed in the
 The repair makes the first observed exit terminal, keeping the deadline and
 still-running refusal unchanged. Deterministic tests exercise an exit observation
 followed by a false probe result, plus a genuinely running owner at the deadline.
-The digest eligibility gap above remains open.
+The digest eligibility gap above remained open at that checkpoint.
 
 Qualification: all nine owner unit checks and all three existing native stop
 tests pass, including a genuinely surviving PID's timeout. The exact new
@@ -206,7 +251,7 @@ records a legal preserving form for all five rows:
   first 20 rows cost 1,030 HTTP queries (10 scope pages, 1,000 heads, 20
   refills), measured at 669/616 ms on localhost EPYC; an absent term costs
   1,010 queries/576 ms. The cost is now visible in the fanout card and recipe.
-  [LLP 1024](../llp/1024-single-lane-delivered-search.rfc.md) records the
+  [LLP 1024](../../llp/1024-single-lane-delivered-search.rfc.md) records the
   one-lane capability gap, measurement method, delivery-authority distinction
   and write-side price; it remains Draft. This close establishes a complete
   composition, not constant-request hub search.

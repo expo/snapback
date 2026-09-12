@@ -1,0 +1,1 @@
+publish: existing publication resume /Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.30/resume.json does not match snapback2-darwin-arm64@0.0.30 and the requested platform artifacts; refusing to replace its immutable stage. Re-run with --stage-only to intentionally reassemble it
