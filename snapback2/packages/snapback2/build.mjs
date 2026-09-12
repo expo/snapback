@@ -230,6 +230,7 @@ await rm(declarations, { recursive: true, force: true });
 const guideSource = resolve(here, "guide");
 const guide = resolve(dist, "guide");
 await cp(guideSource, guide, { recursive: true });
+await rm(resolve(guide, "README.md"));
 let families = [];
 const familyErrors = [];
 try {
@@ -263,7 +264,7 @@ const quarryFixtureText = (await Promise.all([...fixturePaths, ...templateQuarry
   .filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
 const parseDocument = await loadQuarryParser();
 const guidePages = await Promise.all(
-  (await readdir(guideSource)).filter(name => name.endsWith(".md")).sort().map(async filename => ({
+  (await readdir(guideSource)).filter(name => name.endsWith(".md") && name !== "README.md").sort().map(async filename => ({
     name: filename.slice(0, -3),
     markdown: await readFile(resolve(guideSource, filename), "utf8"),
     limit: 8192,
@@ -297,6 +298,8 @@ if (snapshot) {
   await mkdir(snapshotPath, { recursive: true });
   await cp(resolve(here, "package.json"), resolve(snapshotPath, "package.json"));
   await cp(resolve(here, "README.md"), resolve(snapshotPath, "README.md"));
+  await mkdir(resolve(snapshotPath, "guide"), { recursive: true });
+  await cp(resolve(guideSource, "README.md"), resolve(snapshotPath, "guide/README.md"));
   await cp(resolve(here, "bin"), resolve(snapshotPath, "bin"), { recursive: true });
   await cp(dist, resolve(snapshotPath, "dist"), { recursive: true });
   for (const file of ["ios", "android/build.gradle", "android/src", "expo-module.config.json"]) {
