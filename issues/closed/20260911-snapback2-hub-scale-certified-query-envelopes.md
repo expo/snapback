@@ -17,6 +17,12 @@ remain shipped; [LLP 1024](../../llp/1024-single-lane-delivered-search.rfc.md)
 owns its one-lane successor. This program's grouped-search form does not use
 that client merge.
 
+The corrected form is published in **0.0.30**. Both fresh final reviewers
+cleared `05b71a4181`; source landed at `f47f667c7e`. Both native platforms
+qualified the same shim and all three registry integrities were verified.
+[Release evidence](../../benchmarks/runs/2026-09-12-snapback2-hub-digest-0030/README.md)
+retains the source, tests, certificates, received verdicts and publication record.
+
 ## Symptom
 
 Two independent Astra Clique lanes on published `snapback2@0.0.24` and `0.0.25` (expo-build-1000, 2026-09-11) could not certify the brief’s hub-scale reads. The 500-follow feed fix did **not** cover these envelopes. Builders shipped workarounds (smaller pages, client-side merges, chunked jobs) and still marked M8 green.

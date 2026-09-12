@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-09-12T07:34:40Z",
+  "version": "0.0.30",
+  "status": "published-and-propagated",
+  "packages": {
+    "snapback2": {
+      "integrity": "sha512-/MGMfIUMz//5lfxRmraeaYRJDXxLgXs3GrfxsMN9q+WpmEVNl+KKjuftY0jbkC+oMFxhwY2HSxBW+7USgcSIXw==",
+      "latest": "0.0.30"
+    },
+    "snapback2-darwin-arm64": {
+      "integrity": "sha512-GlPoI6QjYVNFDIUkfH6aH0fgwezL/Wfz8fkLLRV7HrMF9N7H4JEHeieM4WmtE/+btPGJsv0ATtv+FCSY3NQPQQ==",
+      "latest": "0.0.30"
+    },
+    "snapback2-linux-x64": {
+      "integrity": "sha512-AWXigCTN/hP6J63HSu9Auqxrlg7AXDH+xuzY464E6S+Sd18DKKfwSt3zeByWVUx+PdhgtsflGoHZoEnqwE/KCQ==",
+      "latest": "0.0.30"
+    }
+  },
+  "allIntegritiesMatchFinalReceipt": true,
+  "allLatestTagsMatchVersion": true
+}

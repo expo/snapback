@@ -1,0 +1,40 @@
+{
+  "source": "05b71a418158693b400e1bf5bb0d62c94713bb98",
+  "at": "2026-09-12T07:15:43.978088+00:00",
+  "author": "hub_digest_final_eligibility",
+  "files": {
+    "ordering-compiler.log": {
+      "sha256": "ac60f472d32ac47796d1feee0d960afa261b364595b32f086d10758a95d44920",
+      "bytes": 24978
+    },
+    "ordering-owner.log": {
+      "sha256": "2fa1bed909f5aee66120da373ca014129694431f5445035f180b7d2216678b5f",
+      "bytes": 528
+    },
+    "ordering-cost.json": {
+      "sha256": "6b534cc808c86e936d4aaedffb31f8ba89d1fda07a4e9ba5dd2204ec82b2ee20",
+      "bytes": 601138
+    }
+  },
+  "checks": "compiler319/0; owner1/0 test28.630s harness29.411s; refs456docs8146refs0; guide98267/98304",
+  "cwd": "/Users/ccheever/projects/snapback-s2-b1/snapback2/packages/snapback2",
+  "layout": "normal package root; prior isolated-layout control remains separate",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "--test",
+    "--test-timeout=120000",
+    "--test-name-pattern=hub guide reaches final membership slice, rich history, and exact scheduled digest",
+    "tests/real-owner.test.ts"
+  ],
+  "environment": {
+    "SNAPBACK2_TEST_BINARY_PREBUILT": "1",
+    "SNAPBACK_URL": "absent"
+  },
+  "expected_digest": {
+    "newFollowers": 1,
+    "newPostsInFollowing": 499,
+    "unreadMessages": 99,
+    "unreadChats": 98
+  },
+  "compiler_provenance": "Author confirms fresh bun src/test.ts after all sequence edits; stable pass labels explain identical output hash."
+}

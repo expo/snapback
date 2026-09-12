@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-12T07:28:49.426103+00:00",
+  "source": "f1867f540b5752d62cc8fa6bd918bab4a3c3291a",
+  "receiptSha256": "82a9c6178a0ac3adc8b7e477ecf0f350714b8cdabddd145442f1049265361d25",
+  "verifiedArtifacts": [
+    "snapback2-darwin-arm64",
+    "snapback2-linux-x64",
+    "snapback2"
+  ],
+  "allSizeSha256SriMatches": true,
+  "sameFinalShim": true,
+  "stageOnly": true
+}

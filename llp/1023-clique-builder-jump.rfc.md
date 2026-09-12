@@ -384,7 +384,7 @@ Source review is complete: both independent reviewers issued READY for
 `cee80bc1d` and for the manual guide reconciliation at `4229f31439`. The later
 59-byte reserved-binding restoration states the existing compiler rule and
 is covered by the repaired guide assertions. No material product finding
-remains in the implemented scope. The digest gap remains explicit.
+remains in the implemented scope. The digest gap remained explicit at that checkpoint.
 
 ### Publication and fresh wave
 
@@ -416,3 +416,16 @@ The earlier serial host plan is retained as preparation history. These are
 N=1 diagnostic cells: prompt-only caps, unjoined raw usage, no held-out probes
 or calibration, and no Apple-native witness remain explicit limits. No new score
 or strict M1–M8 qualification is claimed before those phases finish.
+
+### Subsequent hub completion — 0.0.30
+
+The separate Clique ticket program resolved the remaining final-time digest gap
+and published the corrected recipe in 0.0.30. Both fresh final reviewers cleared
+`05b71a4181`; source landed at `f47f667c7e`. Both native platforms qualified the
+same final shim with 29 consumer and four media checks each, and all three
+registry integrities and latest tags were verified on 2026-09-12 at 07:34:40 UTC.
+[LLP 1023.001](./1023.001-hub-scale-certified-reads.plan.md) is now Implemented;
+its [release evidence](../benchmarks/runs/2026-09-12-snapback2-hub-digest-0030/README.md)
+retains the exactness regression, ordering repair, reviewed source and publication
+receipts. Runtime/public closure bytes match 0.0.29. The fresh diagnostic wave
+above retains its selected 0.0.29 package identity and its stated comparison limits.
