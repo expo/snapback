@@ -274,7 +274,8 @@ evaluator runner (27,987), offline runtime (23,641), Unicode data (17,186), and
 value runtime (13,006). `client.ts` does not participate in the fixed five roots;
 public-entry sizes remain separate. The `cee80bc1d` guide was
 **98,073 / 98,304 bytes**; after integrating main's Quarry guidance and restoring
-the complete typed pager operations it builds at **98,178 / 98,304 bytes**.
+the complete typed pager operations it builds at **98,178 / 98,304 bytes**; restoring the reserved-binding sentence omitted
+by main brings the final guide to **98,237 / 98,304 bytes**.
 
 The timed Insights consumer passes in **3.29 seconds** against the integrated
 owner's current authentication rules. Its controlled UTC rollover stays inside
@@ -356,3 +357,26 @@ development consumer (effects off) 23.32s, project check 0.896s, doctor
 all prior records remain byte-for-byte unchanged and the new loop row keeps
 byte_baseline_accepted=false. Full output and process evidence are retained on
 EPYC under /home/ccheever/snapback-1023-20260912/qualification-complete/.
+
+### Final source exit after concurrent main — 2026-09-12
+
+The combined candidate's literal `scripts/test.sh` passes at `75ee110fa1`
+in **58 seconds**: 1,450 package, 318 compiler, 1,199 native tests, both
+evaluator engines, doctests and final artifact verification. Root integration
+`220d87c51b` has the same Snapback 2 product source; only retained publication
+metrics differ. The prior `4229f31439` run remains failed: two inherited native
+guide tests expected main's removed wording. Their meaningful clock, artifact
+location and immutability assertions were reconciled, while a masked reserved-
+binding assertion identified an actual omitted grammar rule. That existing
+rule is restored; no syntax, runtime, authority or byte ceiling changes.
+
+The final guide is **98,237 / 98,304 bytes**. Package build/self-test and
+measurement self-test pass; the four canonical byte values remain exactly
+142,989 / 152,942 / 156,395 / 89,843. The historical growth verdict remains
+failed with no baseline mutation. All recorded qualification processes exited.
+
+Source review is complete: both independent reviewers issued READY for
+`cee80bc1d` and for the manual guide reconciliation at `4229f31439`. The later
+59-byte reserved-binding restoration states the existing compiler rule and
+is covered by the repaired guide assertions. No material product finding
+remains in the implemented scope. The digest gap remains explicit.

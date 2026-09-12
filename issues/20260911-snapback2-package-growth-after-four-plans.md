@@ -145,3 +145,19 @@ with doctests and artifact checks passing. Its 62.95 s wall time exceeds the
 60 s total-suite budget by 2.95 s; the faster affected checks above do not
 replace that total. After the final byte reduction, the full package suite
 and affected compiler, evaluator and client tests passed again.
+
+## LLP 1023 reduction — 2026-09-12
+
+The combined program measures **142,989 / 152,942 / 156,395 / 89,843**
+gzip bytes (client / React / Expo / complete runtime), pinned Node 24.18.0,
+esbuild 0.25.9 and gzip 9. Public entries shrink 64 / 24 / 64 bytes from the
+comparable hardening main above; runtime shrinks 138. The dedicated isolated
+simplification itself saved 143 runtime bytes; the integrated comparison has
+different inputs and is not substituted for that measurement.
+
+The historical 1% guards still fail and the accepted baseline is unchanged.
+The runtime fits 90,000, misses 80,000, and has 157 bytes headroom. Subsequent
+Quarry guide/diagnostic integration and the reserved-binding guide repair
+leave all four canonical byte results unchanged. No ceiling or baseline is
+reset. The parent LLP 1023 records source, review and platform qualification
+separately; this measurement alone does not establish publication readiness.
