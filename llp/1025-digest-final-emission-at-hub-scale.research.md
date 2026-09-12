@@ -248,8 +248,8 @@ lanes, integrated and verified in this commission.
 
 | child | disposition | reason |
 | --- | --- | --- |
-| 1025.000 | Implement | Two recipient-period reads replace the membership fold; pair all custody transitions and retain distinct-chat counts. |
-| 1025.001 | Implement | Pin one turn clock; fire up to 64 timers, then execute a chunk only when none remain due at that clock. |
+| 1025.000 | Implemented | Two recipient-period reads replace the membership fold; pair all custody transitions and retain distinct-chat counts. |
+| 1025.001 | Implemented | Pin one turn clock; fire up to 64 timers, then execute a chunk only when none remain due at that clock. |
 | 1025.003 | Withdraw | The exemption subtracts memory still used by authoritative traces and internal validation. |
 | 1025.002 | Shelve | Cascade cannot express the last-unread transition; no demonstrated customer warrants the grammar, pricing, successor and twin changes now. |
 | 1025.004 | Shelve | Timer ordering removes the digest's need; rollback accounting and dependency progress need an exercised customer. |
@@ -263,6 +263,12 @@ periods, restart and effect retry. Certify the cleanup paths as well as final
 emission. Keep pruning in the same cutoff-bound job and update guide examples
 together. Use existing checks and named warm lanes; no new registry, gate or
 service. Keep all ceilings and the 500-follow envelope unchanged.
+
+The selected source changes are implemented. All 70 copied production programs
+certify; seven owner journeys and the disk-backed restart/outbox retry witness
+pass. The simultaneous 1,000-chat / 500-follow owner run remains unqualified:
+its test seed exceeded the unchanged transaction budget before execution. The
+bounded follow-up and exact failed setup are linked from LLP 1025.000 §7.
 
 The precise rule references are [LLP 1016 D1](./1016-administrative-plane.rfc.md#d1--the-system-principal-is-the-stores-owner)
 (system execution), [D2](./1016-administrative-plane.rfc.md#d2--a-job-is-a-sequence-of-sweeps)

@@ -2054,3 +2054,58 @@ costs SDK code and a few explicit facts (`head`, original `pages`, and
 `itemsFrom`) for inspection. This session did not run a Convex/Supabase
 comparison, nor use Exact or Contract. The complete fixed local runtime remains
 88,053 gzip bytes, below its 90,000-byte ceiling but above the 80,000-byte target.
+
+
+### 2026-09-12: recipient-period custody and timer ordering
+
+The 1,000-membership digest failed because final emission read one maintained
+membership-period address per chat. The point reads were bounded individually,
+but their custody accumulated linearly across the account. Moving message and
+distinct-chat totals to recipient/period keys makes the final fold small again:
+the copied Clique digest certifies at 1,890,203 closure bytes and 2,774,764 heap
+bytes, with the same 500-follow and 1,000-membership product envelope. All 70
+production programs certify without changing a ceiling or exempting jobs from
+receipt accounting.
+
+The first tempting maintained membership-period lookup was awkward inside
+client writers: it pulled private source custody into an otherwise scalar
+write. An explicit positive `periodChats.total`, changed alongside each source
+row and deleted at zero, keeps that work local. Recipient counters can remain
+owner-only. The trade is real authoring responsibility: send/read/unsend/expiry,
+leave/admin removal, and prune must all pair their source/chat transitions.
+Current members can inspect chat totals just as they can inspect unreadCounts;
+the period split is an explicit disclosure. Private source rows need a checked,
+immutable author shadow, not a wide message read at every authorization site.
+
+The owner now pins a single clock for its timer/job turn and withholds the job
+chunk while any timer remains due after its 64-firing allowance. That makes
+successful synchronous expiry cleanup precede digest emission. It does not
+magically erase expired rows after a rejected target or an asynchronous job.
+Similarly, parked jobs do not own a retention lease: a newer job can pass them.
+Those details ruled out the proposed receipt exemption and made cascade,
+defer, and missed-period catch-up poor additions for this task.
+
+Real owner journeys pass for distinctness, source/aggregate privacy, forged
+provenance, eligible/replay post deletion, membership incarnation cleanup,
+read/unsend/expiry, and activity in the 101st membership. A disk-backed runtime
+restart preserves a partly completed digest's cutoff/cursor and retries the same
+logical outbox effect. This verifies owner state and retry identity; it is not
+a new physical-process-kill or provider-delivery measurement. Native custody
+also replaces the copied app's obsolete tombstone declaration, with a passing
+clients-closed expiry and cold offline absence journey.
+
+The guide's static seed is one transaction. A 15,804-row hub seed exceeds that
+transaction's rule-probe budget; population therefore belongs in bounded setup
+writes. That was test-construction friction, not evidence that the digest had
+failed at scale. The small transition cases use the normal public mutations.
+Compared with hand-updated React client counters, the server authority and
+maintains give a much clearer place to enforce the invariant; the application
+still owns eligibility and cleanup. No new Convex/Supabase timing comparison
+was run, and this work did not use Exact or Contract.
+
+The combined functional suite passes 1,450 package and 1,204 native tests.
+The canonical latency checks pass; packaged bytes are unchanged at
+142,989 / 152,942 / 156,395 / 89,843 gzip bytes. Historical byte-baseline guards
+and the root cap/inventory failures remain separately recorded. This is source
+qualification, not a package publication. Detailed results and limits are in
+LLP 1025.000 and `benchmarks/runs/2026-09-12-snapback2-1025/`.

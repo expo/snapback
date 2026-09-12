@@ -259,7 +259,7 @@ Run each retained case against a copied app and fresh isolated local owner; for
 example:
 
 ```sh
-snapback2 test --journey "digest keeps the 100-membership account envelope"
+snapback2 test --journey "digest includes the 101st membership beyond the former account limit"
 ```
 
 The journeys need no provider configuration and must not run against the
