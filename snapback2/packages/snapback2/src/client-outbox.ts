@@ -1,5 +1,5 @@
 // @ref LLP 1012#7-writes-offline — writes that cannot reach the owner become
-// durable intents; replay is FIFO, one envelope per request, and a settlement
+// durable intents; replay is FIFO with bounded generated acknowledgement groups, and a settlement
 // lands in the same swap as the rows the commit produced.
 import { followerRefusal, throwIfAborted } from "./client-wire.js";
 import {
@@ -16,6 +16,7 @@ import { OfflineAuthorityError, type AcceptedDelivery, type OfflineRuntime } fro
 import { FullRevalidationRequired } from "./store/fact-integrity.js";
 import { AcknowledgementTailRequired } from './delivery-acknowledgements.js';
 import { OutboxRefusal, replayEnvelope, type OutboxEntry } from "./store/outbox.js";
+export { blockedStatus } from './store/outbox.js';
 import { referenceName } from "./api.js";
 import { inboxKeyOf } from "./store/inbox.js";
 import { observeOutbox } from "./client-outbox-observed.js";
@@ -257,76 +258,91 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
     ({ stopped: reason !== undefined, ...(reason ? { reason } : {}), remaining: runtime.principal === undefined ? 0 : (await runtime.outbox.status()).remaining });
   if (runtime.principal === undefined) return finish();
   for (;;) {
+    if (runtime.following) return finish("pending");
     await runtime.outbox.admitAcknowledgements();
-    const queued = (await runtime.outbox.queued())[0];
-    if (!queued) return finish((await runtime.outbox.pendingAcknowledgements()).remaining ? "pending" : undefined);
+    const candidates = await runtime.outbox.attemptBatch(options.signal);
     throwIfAborted(options.signal);
-    let entry = await runtime.store.outbox.get(queued.intent);
-    throwIfAborted(options.signal);
-    if (!entry || entry.state !== "queued") continue;
-    // @ref LLP 1012#7-writes-offline — the fence never discards a queued
-    // write: an intent neither its grant nor a later resume can vouch for
-    // stops the drain, and only the owner's refusal can expire it.
-    if (!(await runtime.outbox.canReplay(entry))) return finish("fence");
-    throwIfAborted(options.signal);
-    entry = await runtime.outbox.attempt(entry.intent);
-    if (!entry) continue; // dismissal won the lock: never send discarded bytes.
-    throwIfAborted(options.signal);
-    let raw: unknown;
-    try {
-      raw = await options.json("/api/mutation", { method: "POST", body: JSON.stringify(replayEnvelope(entry)) });
-    } catch (error) {
-      if (isRefusalError(error) && error.retryable) return finish("transport");
-      if (isRefusalError(error) && error.envelope.family === "offline") {
-        await settle(
-          options,
-          entry,
-          error.code === "E_OFFLINE_INTENT_EXPIRED" ? "expired" : "rejected",
-          { state: "rejected", ...wireRefusal(error.envelope, "offline refusal"), intent: entry.intent },
-        );
-        continue;
-      }
-      // @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — the owner judged the
-      // replay by current validation and refused it unspent (LLP 1012 §7): the intent
-      // keeps its bytes at the head of the queue, and the refusal recorded on it is what
-      // makes `dismiss` admit it so the FIFO can continue (fix round r1 ruling).
-      if (isRefusalError(error) && (error.envelope.family === "input" || error.envelope.family === "schema")) {
-        await runtime.outbox.attempt(entry.intent, wireRefusal(error.envelope, "replay refusal"));
-      }
-      throw error;
+    if (runtime.following) return finish("pending");
+    if (!candidates.length) return finish((await runtime.outbox.queued()).length ? "fence"
+      : (await runtime.outbox.pendingAcknowledgements()).remaining ? "pending" : undefined);
+    const entries: OutboxEntry[] = [], encoded: string[] = [];
+    let bytes = 12;
+    for (const entry of candidates) {
+      const value = JSON.stringify(replayEnvelope(entry)), size = new TextEncoder().encode(value).byteLength;
+      if (entries.length && bytes + size + 1 > 1_048_576) break;
+      entries.push(entry); encoded.push(value); bytes += size + 1;
     }
-    throwIfAborted(options.signal);
-    const result = wireReplayResponse(raw);
-    if (result.state === "committed") {
-      const revision = runtime.coverageRevision;
-      // @ref LLP 1018.008.007.001#5-avoid-redundant-query-work-without-suppressing-progress —
-      // the carrier rechecks eligibility in the terminal transaction; a stale
-      // proof falls back to the ordinary tail without resending the mutation.
-      if (await runtime.store.outbox.acknowledgementWithoutTail?.(runtime.outbox.settle(entry, 'committed', result))) {
-        try {
-          if (!(await settle(options, entry, 'committed', result, undefined, revision, true))) return finish('authority');
-          continue;
-        } catch (error) { if (!(error instanceof AcknowledgementTailRequired)) throw error; }
+    const revision = runtime.coverageRevision;
+    let results: Array<MutationResult<unknown> & { intent?: string }> = [], failure: unknown;
+    try {
+      const raw = await options.json("/api/mutation", { method: "POST",
+        body: entries.length === 1 ? encoded[0] : `{"batch":[${encoded.join(",")}]}` });
+      if (entries.length === 1) results = [wireReplayResponse(raw)];
+      else {
+        const response = wireObject(raw, "replay batch response");
+        if (!Array.isArray(response.results) || response.results.length > entries.length || typeof response.more !== "boolean"
+          || (response.error === undefined ? (!response.results.length || response.more !== (response.results.length < entries.length))
+            : response.more || response.results.length === entries.length)) throw wireShape("invalid replay batch prefix");
+        results = response.results.map(wireReplayResponse);
+        if (response.error !== undefined) {
+          const refusal = wireRefusal(response.error, "replay batch refusal");
+          failure = new RefusalError(refusal, refusal.retryable === true);
+        }
       }
-      // @ref LLP 1012#7-writes-offline — a committed settlement lands with the
-      // rows the commit produced or not at all: when the tail cannot be fetched
-      // the intent stays queued and the drain stops; the retry is the same
-      // envelope, which the owner's ledger answers unexecuted, and the tail
-      // then joins the settlement swap.
-      let tail: Awaited<ReturnType<typeof logTail>>;
+      if (results.some((result, index) => result.state === "queued"
+        || (entries.length > 1 || result.intent !== undefined) && result.intent !== entries[index].intent))
+        throw wireShape("replay terminal does not match its FIFO intent");
+    } catch (error) { failure = error; results = []; }
+    throwIfAborted(options.signal);
+    if (revision !== runtime.coverageRevision) return finish("authority");
+    if (results.length) {
+      const settled = results.map((result, index) => runtime.outbox.settle(entries[index], result.state as "committed" | "rejected", result));
       try {
-        tail = await logTail(options, revision);
+        if (!(await settleResults(options, settled, revision))) return finish("authority");
       } catch (error) {
         if (isRefusalError(error) && error.retryable) return finish("transport");
         throw error;
       }
-      throwIfAborted(options.signal);
-      if (revision !== runtime.coverageRevision) return finish("authority");
-      if (!(await settle(options, entry, "committed", result, tail, revision))) return finish("authority");
-    } else {
-      await settle(options, entry, "rejected", result);
     }
+    if (failure === undefined) continue;
+    const entry = entries[results.length];
+    if (isRefusalError(failure) && failure.retryable) return finish("transport");
+    if (isRefusalError(failure) && failure.envelope.family === "offline") {
+      if (!(await settleEntries(options, [runtime.outbox.settle(entry,
+        failure.code === "E_OFFLINE_INTENT_EXPIRED" ? "expired" : "rejected",
+        { state: "rejected", ...wireRefusal(failure.envelope, "offline refusal"), intent: entry.intent })], undefined, revision))) return finish("authority");
+      continue;
+    }
+    // A known unspent refusal remains at its exact FIFO position; later entries cannot overtake it.
+    if (isRefusalError(failure) && (failure.envelope.family === "input" || failure.envelope.family === "schema"))
+      await runtime.outbox.attempt(entry.intent, wireRefusal(failure.envelope, "replay refusal"));
+    throw failure;
   }
+}
+
+// @ref LLP 1018.008.007.002#5-batch-acknowledgement-admission-and-replay —
+// replay terminals retain their actual effects. One later same-authority tail may
+// accompany the whole prefix; a terminal itself never proves those effects observed.
+async function settleResults(options: DrainOptions, entries: OutboxEntry[], revision: number): Promise<boolean> {
+  const committed = entries.filter(entry => entry.state === "committed");
+  if (committed.length) {
+    const identity = (entry: OutboxEntry) => JSON.stringify((entry.response as { program?: unknown }).program);
+    if (committed.some(entry => identity(entry) !== identity(committed[0]))) {
+      for (const entry of entries) if (!(await settleResults(options, [entry], revision))) return false;
+      return true;
+    }
+    let noTail = committed.length === entries.length;
+    for (const entry of committed) if (!(await options.runtime.store.outbox.acknowledgementWithoutTail?.(entry))) { noTail = false; break; }
+    if (noTail) {
+      try { return await settleEntries(options, entries, undefined, revision, true); }
+      catch (error) { if (!(error instanceof AcknowledgementTailRequired)) throw error; }
+    }
+    const tail = await logTail(options, revision);
+    if (tail && committed.some(entry => tail.accepted.result.seq < (entry.response as { seq: number }).seq))
+      throw new OfflineAuthorityError("delivery log predates the replay terminal");
+    return settleEntries(options, entries, tail, revision);
+  }
+  return settleEntries(options, entries, undefined, revision);
 }
 
 function settlement(result: DrainResult): OutboxSettlement {
@@ -346,24 +362,21 @@ async function followerSettlement(runtime: OfflineRuntime, inbox: FollowerInbox 
   return { stopped: offline ? "offline" : "pending", remaining };
 }
 
-async function settle(
+async function settleEntries(
   options: DrainOptions,
-  entry: OutboxEntry,
-  state: "committed" | "rejected" | "expired",
-  response?: unknown,
+  entries: OutboxEntry[],
   tail?: { op: string; args: unknown; accepted: AcceptedDelivery<unknown>; deliveryOrder: number },
   revision = options.runtime.coverageRevision,
   acknowledgementOnly = false,
 ): Promise<boolean> {
-  const settled = options.runtime.outbox.settle(entry, state, response);
   try {
     throwIfAborted(options.signal);
     const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined,
-      { put: [settled], ...(acknowledgementOnly ? { acknowledgementOnly: true as const } : {}) }, revision,
+      { put: entries, ...(acknowledgementOnly ? { acknowledgementOnly: true as const } : {}) }, revision,
       () => !options.signal?.aborted, undefined, tail?.deliveryOrder);
     throwIfAborted(options.signal);
     const current = !superseded && revision === options.runtime.coverageRevision;
-    if (current) recordTerminal(options.runtime, settled);
+    if (current) for (const entry of entries) recordTerminal(options.runtime, entry);
     return current;
   } catch (error) {
     if (error instanceof AcknowledgementTailRequired) throw error;
@@ -446,12 +459,6 @@ export interface FollowerInbox {
   readonly writer: OutboxStatus | undefined;
 }
 
-/** Derive the blocked head from durable entries on either tab. */
-export function blockedStatus(entries: OutboxEntry[]): Pick<OutboxStatus, "blocked"> {
-  const head = entries.find(entry => entry.state === "queued");
-  return head?.refusal ? { blocked: { intent: head.intent, code: head.refusal.code } } : {};
-}
-
 export function createOutboxApi(
   runtime: OfflineRuntime | undefined,
   drain: () => Promise<DrainResult>,
@@ -477,7 +484,7 @@ export function createOutboxApi(
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
     try {
       const value = await runtime.outbox.status(op === undefined ? undefined : referenceName(op));
-      return { ...value, ...blockedStatus(await runtime.outbox.queued()), ...(runtime.draining ? { draining: true as const } : {}), ...(recovering() ? { recovering: true as const } : {}) };
+      return { ...value, ...(runtime.draining ? { draining: true as const } : {}), ...(recovering() ? { recovering: true as const } : {}) };
     }
     catch (error) {
       if (error instanceof Error && /sealed/.test(error.message)) return { ready: false, reason: "sealed", action: "sign-in", remaining: 0, fence: "past" };

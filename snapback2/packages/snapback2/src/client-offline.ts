@@ -229,7 +229,7 @@ export function createOfflineDrain<Args, Result>(options: {
   cursor(): Promise<string> | string;
   offline(): boolean;
   mounted: Map<string, MountedQuery>;
-  query(pageArgs: Args): Promise<QueryResult<Result>>;
+  query(pageArgs: Args): Promise<QueryResult<Result> | QueryResult<Result>[]>;
   subscribe(tailArgs: Args, callback: (delivery: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
   track(subscription: Subscription<SubscriptionDelivery<Result>>): Subscription<SubscriptionDelivery<Result>>;
   observe?(): Promise<void>;

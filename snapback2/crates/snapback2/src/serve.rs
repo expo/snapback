@@ -501,6 +501,12 @@ fn handle(mut request: Request, context: Context, streams: live::Streams, worker
         ("POST", "/api/auth/asset-session") => {
             call_json(request, &context, Action::AssetSession { identity }, 200)
         }
+        ("POST", "/api/query") if body.get("batch").is_some() => {
+            call_json(request, &context, Action::QueryBatch { body, identity }, 200)
+        }
+        ("POST", "/api/mutation") if body.get("batch").is_some() => {
+            call_json(request, &context, Action::ReplayBatch { body, identity }, 200)
+        }
         ("POST", "/api/query") => call_json(
             request,
             &context,

@@ -473,3 +473,371 @@ fn conditional_updates_rollback_before_disclosing_current_and_absent_insert_neve
     assert_eq!(engine.rows("items").unwrap(), vec![row]);
     assert!(result.receipt.rows.is_empty(), "duplicate row entered the receipt");
 }
+
+mod index_replacement {
+    use super::*;
+    use crate::search_key::SearchContract;
+
+    fn fixture() -> Engine {
+        let plain = |columns: &[&str], unique| Index {
+            components: columns
+                .iter()
+                .map(|name| IndexComponent::Column((*name).into()))
+                .collect(),
+            unique,
+        };
+        let mut table = public_table(
+            BTreeMap::from([
+                ("id".into(), ColumnType::Id),
+                ("group".into(), ColumnType::Id),
+                ("label".into(), ColumnType::Text { max: 40 }),
+                ("body".into(), ColumnType::Text { max: 40 }),
+                ("score".into(), ColumnType::Int),
+                (
+                    "tag".into(),
+                    ColumnType::Optional(Box::new(ColumnType::Text { max: 40 })),
+                ),
+            ]),
+            BTreeMap::from([
+                ("byId".into(), plain(&["id"], true)),
+                ("byLabel".into(), plain(&["label"], true)),
+                ("byGroup".into(), plain(&["group", "label", "id"], false)),
+                ("byTag".into(), plain(&["tag", "id"], false)),
+                (
+                    "bySearch".into(),
+                    Index {
+                        components: vec![
+                            IndexComponent::WordPrefixes {
+                                fields: vec!["body".into()],
+                                contract: SearchContract::Unicode17,
+                            },
+                            IndexComponent::Column("id".into()),
+                        ],
+                        unique: false,
+                    },
+                ),
+            ]),
+        );
+        table.constraints.push(Constraint::Unique {
+            index: "byLabel".into(),
+        });
+        let schema = Schema {
+            tables: BTreeMap::from([("indexed".into(), table)]),
+            ..Schema::default()
+        };
+        let mut engine = Engine::memory(schema).unwrap();
+        for (id, label, body) in [("a", "é", "cafe alpha"), ("b", "other", "beta")] {
+            engine
+                .seed(
+                    "indexed",
+                    object([
+                        ("id", Value::Id(id.into())),
+                        ("group", Value::Id("g1".into())),
+                        ("label", Value::String(label.into())),
+                        ("body", Value::String(body.into())),
+                        ("score", Value::Int(0)),
+                        ("tag", Value::Null),
+                    ]),
+                )
+                .unwrap();
+        }
+        // An independent physical-write witness: final index contents alone would
+        // also pass if every unchanged entry were unnecessarily deleted and rebuilt.
+        engine
+            .store
+            .conn
+            .execute_batch(
+                "CREATE TEMP TABLE physical_index_changes(index_name TEXT, kind TEXT);
+             CREATE TEMP TRIGGER index_insert AFTER INSERT ON index_entries
+             WHEN new.table_name = 'indexed' BEGIN
+               INSERT INTO physical_index_changes VALUES(new.index_name, 'insert'); END;
+             CREATE TEMP TRIGGER index_delete AFTER DELETE ON index_entries
+             WHEN old.table_name = 'indexed' BEGIN
+               INSERT INTO physical_index_changes VALUES(old.index_name, 'delete'); END;",
+            )
+            .unwrap();
+        engine
+    }
+
+    fn update(patch: Value) -> Stmt {
+        Stmt::Update {
+            table: "indexed".into(),
+            key: Expr::Literal(Value::Id("a".into())),
+            patch: Expr::Literal(patch),
+        }
+    }
+
+    fn execute(engine: &mut Engine, body: Vec<Stmt>) -> Execution {
+        try_execute(engine, body).unwrap()
+    }
+
+    fn try_execute(engine: &mut Engine, body: Vec<Stmt>) -> Result<Execution, RuntimeError> {
+        let program = Program {
+            name: "indexed.update".into(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body,
+        };
+        let certificate = Checker::new(&engine.schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        engine.execute(
+            &program,
+            &certificate,
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+    }
+
+    fn physical_changes(engine: &Engine) -> Vec<(String, String)> {
+        engine
+            .store
+            .conn
+            .prepare(
+                "SELECT index_name, kind FROM physical_index_changes ORDER BY index_name, kind",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    }
+
+    fn assert_changed(engine: &Engine, names: &[&str]) {
+        let mut expected: Vec<_> = names
+            .iter()
+            .flat_map(|name| {
+                [
+                    (name.to_string(), "delete".into()),
+                    (name.to_string(), "insert".into()),
+                ]
+            })
+            .collect();
+        expected.sort();
+        assert_eq!(physical_changes(engine), expected);
+        engine
+            .store
+            .conn
+            .execute("DELETE FROM physical_index_changes", [])
+            .unwrap();
+    }
+
+    fn plain_entries(engine: &Engine) -> Vec<(String, String, Vec<Option<String>>)> {
+        engine
+            .store
+            .conn
+            .prepare(
+                "SELECT index_name, row_id, c0,c1,c2,c3,c4,c5,c6,c7 FROM index_entries
+             WHERE table_name = 'indexed' ORDER BY index_name, row_id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    (2..10)
+                        .map(|column| row.get(column))
+                        .collect::<Result<_, _>>()?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    }
+
+    fn search(engine: &mut Engine, term: &str) -> Value {
+        let program = Program {
+            name: "indexed.search".into(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Scan(Scan {
+                site: "words".into(),
+                table: "indexed".into(),
+                index: "bySearch".into(),
+                prefix: vec![IndexKeyExpr::WordPrefix {
+                    source: Expr::Literal(Value::String(term.into())),
+                    source_max: term.chars().count(),
+                    contract: SearchContract::Unicode17,
+                }],
+                order: Order::Asc,
+                take: Bound::Literal(10),
+                after: None,
+                before: None,
+                range: None,
+                opaque_cursor: false,
+                merge_site: None,
+                provenance: KeyProvenance::Const,
+            }))],
+        };
+        let certificate = Checker::new(&engine.schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        engine
+            .execute(
+                &program,
+                &certificate,
+                Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+            )
+            .unwrap()
+            .result
+    }
+
+    fn assert_matches_rebuild(engine: &mut Engine) {
+        let mut rebuilt = Engine::memory(engine.schema.clone()).unwrap();
+        for row in engine.rows("indexed").unwrap() {
+            rebuilt.seed("indexed", row).unwrap();
+        }
+        assert_eq!(plain_entries(engine), plain_entries(&rebuilt));
+        for term in ["cafe", "alpha", "beta", "gamma"] {
+            assert_eq!(search(engine, term), search(&mut rebuilt, term));
+        }
+    }
+
+    #[test]
+    fn unchanged_keys_keep_physical_entries_and_logical_touches() {
+        let mut engine = fixture();
+        let before = plain_entries(&engine);
+        let execution = execute(
+            &mut engine,
+            vec![update(object([
+                ("score", Value::Int(1)),
+                ("tag", Value::Null),
+            ]))],
+        );
+        assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+        assert_eq!(execution.trace.writes.get("indexed"), Some(&1));
+        assert_eq!(execution.trace.derived_steps, 0);
+        assert_eq!(plain_entries(&engine), before);
+        assert_changed(&engine, &[]);
+        for name in ["byId", "byLabel", "byGroup", "byTag"] {
+            assert!(
+                execution
+                    .trace
+                    .touched
+                    .iter()
+                    .any(|touch| touch.table == "indexed"
+                        && touch.index == name
+                        && touch.row_id == "a")
+            );
+        }
+        assert!(
+            execution
+                .trace
+                .scope_touches
+                .iter()
+                .any(|touch| touch.table == "indexed" && touch.index == "bySearch")
+        );
+        assert_eq!(
+            engine.rows("indexed").unwrap()[0].field("score").unwrap(),
+            &Value::Int(1)
+        );
+        assert_matches_rebuild(&mut engine);
+    }
+
+    #[test]
+    fn changed_text_compound_and_optional_keys_match_a_rebuild() {
+        let mut engine = fixture();
+        // Ordinary text keys compare exact typed values, independently of the
+        // Unicode normalization contract belonging to the derived search index.
+        for (patch, changed) in [
+            (
+                object([("label", Value::String("e\u{301}".into()))]),
+                vec!["byLabel", "byGroup"],
+            ),
+            (object([("group", Value::Id("g2".into()))]), vec!["byGroup"]),
+            (
+                object([("tag", Value::String("tag".into()))]),
+                vec!["byTag"],
+            ),
+            (object([("tag", Value::Null)]), vec!["byTag"]),
+        ] {
+            let execution = execute(&mut engine, vec![update(patch)]);
+            assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+            assert_eq!(execution.trace.derived_steps, 0);
+            assert_changed(&engine, &changed);
+            assert_matches_rebuild(&mut engine);
+        }
+        let index = &engine.schema.tables["indexed"].indexes["byLabel"];
+        assert!(
+            lookup_indexed(
+                &engine.store.conn,
+                &engine.schema,
+                "indexed",
+                "byLabel",
+                index,
+                &[Value::String("é".into())]
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert_eq!(
+            lookup_indexed(
+                &engine.store.conn,
+                &engine.schema,
+                "indexed",
+                "byLabel",
+                index,
+                &[Value::String("e\u{301}".into())]
+            )
+            .unwrap()
+            .unwrap()
+            .field("id")
+            .unwrap(),
+            &Value::Id("a".into())
+        );
+        // A derived source change must still take the existing re-derivation path.
+        let execution = execute(
+            &mut engine,
+            vec![update(object([(
+                "body",
+                Value::String("beta gamma".into()),
+            )]))],
+        );
+        assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+        assert!(execution.trace.derived_steps > 0);
+        assert_matches_rebuild(&mut engine);
+        assert_eq!(search(&mut engine, "cafe"), Value::Array(vec![]));
+        assert_eq!(search(&mut engine, "beta").as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn constraints_and_later_refusals_rollback_rows_and_index_changes() {
+        let mut engine = fixture();
+        let before_rows = engine.rows("indexed").unwrap();
+        let before_entries = plain_entries(&engine);
+        let unique = try_execute(
+            &mut engine,
+            vec![update(object([("label", Value::String("other".into()))]))],
+        );
+        assert!(
+            matches!(unique, Err(RuntimeError::Constraint(message)) if message.contains("indexed.byLabel"))
+        );
+        assert_eq!(engine.rows("indexed").unwrap(), before_rows);
+        assert_eq!(plain_entries(&engine), before_entries);
+        assert_changed(&engine, &[]);
+        for patch in [
+            object([("label", Value::String("temporary".into()))]),
+            object([("body", Value::String("gamma".into()))]),
+        ] {
+            let refusal = try_execute(
+                &mut engine,
+                vec![
+                    update(patch),
+                    Stmt::Require {
+                        condition: Expr::Literal(Value::Bool(false)),
+                        code: "rollback".into(),
+                        site: None,
+                    },
+                ],
+            );
+            assert!(
+                matches!(refusal, Err(RuntimeError::Require { code, .. }) if code == "rollback")
+            );
+            assert_eq!(engine.rows("indexed").unwrap(), before_rows);
+            assert_eq!(plain_entries(&engine), before_entries);
+            assert_changed(&engine, &[]);
+            assert_matches_rebuild(&mut engine);
+        }
+    }
+}

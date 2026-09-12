@@ -1,0 +1,11 @@
+{
+  "pass": true,
+  "actor": "u0900",
+  "insightsMs": 947.331374,
+  "trendingMs": 1456.535856,
+  "backendOrigins": [
+    "http://127.0.0.1:53202"
+  ],
+  "nativeSimulator": false,
+  "at": 1789172226069
+}

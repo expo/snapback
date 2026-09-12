@@ -1,12 +1,11 @@
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — one immutable typed range meaning, with source spelling kept at the boundary.
-import { canonicalJson, clone, columnDescriptor, valueFromWire, type WireRefusal } from './value-runtime';
+import { canonicalJson, clone, columnDescriptor, valueFromWire, rangeSchemaIdentity, type WireRefusal } from './value-runtime';
 import { components, indexTuple, preparePrefix, prepareScanBounds } from './index-store';
 import type { IndexAtom, IndexComponent, LogicalIndexAtom } from './search-key';
 import type { ReceiptRange, Value } from './types';
 import { EvalError } from './errors';
 import { SearchExecution } from './search-runtime';
 import { immutable } from './row-image';
-import { sha256 } from './hash';
 
 type ScanSite = { table: string; index: string; bounds: (number | undefined)[]; shape: boolean[]; identity: string };
 const sites = new WeakMap<object, Map<string, ScanSite>>();
@@ -54,7 +53,7 @@ export interface RangeMeaning {
   after: Value[] | null; before: Value[] | null; gt: Value[] | null; gte: Value[] | null; lt: Value[] | null; lte: Value[] | null;
 }
 /** Identity only; shape checks remain at their existing field/typed admission phases. */
-export const rangeSchemaIdentity = (schema: any): string => sha256(canonicalJson(schema));
+export { rangeSchemaIdentity } from './value-runtime';
 const issuing = (range: Pick<ReceiptRange,'site'|'table'|'index'|'prefix'>, program?: any): string | undefined =>
   range.prefix.some(a => 'WordPrefix' in a) ? scanBounds(program).get(range.site)?.identity : undefined;
 

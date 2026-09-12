@@ -1,6 +1,8 @@
 // @ts-ignore
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { utf8 } from './hash';
 const manifest = JSON.parse(readFileSync(process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, "manifest.json") : new URL("../../../corpus/manifest.json", import.meta.url), "utf8"));
 // Build prerequisite also runs for the documented direct `bun src/test.ts` entry point.
 // @ts-ignore — build-only JS implementation has no runtime evaluator dependency.
@@ -39,6 +41,17 @@ assert(
   sha256("abc") === "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   "pure TypeScript SHA-256 does not match the standard vector",
 );
+// SHA-256 padding boundaries, Unicode widths, and the existing encoder's
+// code-unit behavior are independent controls for its callback-based feed.
+for (const text of ['', '\0', 'é漢字😀\u{10ffff}', ...[55, 56, 63, 64, 65, 127, 128, 129, 1_000_000].map(n => 'a'.repeat(n))]) {
+  assert(sha256(text) === createHash('sha256').update(text).digest('hex'), 'streamed SHA-256 bytes differ from the native oracle');
+  const bytes: number[] = []; utf8(text, byte => bytes.push(byte));
+  assert(Buffer.from(bytes).equals(Buffer.from(text)), 'cursor UTF-8 differs from the native oracle');
+}
+for (const [text, expected] of [['\ud800', [0xed, 0xa0, 0x80]], ['\udc00', [0xed, 0xb0, 0x80]]] as const) {
+  const bytes: number[] = []; utf8(text, byte => bytes.push(byte));
+  assert(JSON.stringify(bytes) === JSON.stringify(expected), 'non-scalar predecessor bytes changed');
+}
 
 for (const value of [
   { Bytes: "00ff", extra: { Int: 1 } },

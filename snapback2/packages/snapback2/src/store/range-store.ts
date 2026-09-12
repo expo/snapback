@@ -1,6 +1,6 @@
 import { cursorArgument } from "../local-cursor.js";
 import { applyDeliveryAcknowledgements, applyOutboxSwap, DeliveryAcknowledgementIndex,
-  acknowledgementWithoutTail, AcknowledgementTailRequired } from "../delivery-acknowledgements.js";
+  acknowledgementWithoutTail, acknowledgementForReplay, AcknowledgementTailRequired } from "../delivery-acknowledgements.js";
 import { admittedMutationTargets } from '../mutation-targets.js';
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
 import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
@@ -474,13 +474,23 @@ export class PersistentRangeStore implements RangeStore {
   private readonly touchedBytes = new Set<string>();
 
   readonly outbox: OutboxStore = {
-    pendingDeliveryAcks: async () => {
+    pendingDeliveryAcks: async limit => {
       await this.tail;
-      return this.partition === undefined || this.state.sealed ? { remaining: 0 } : this.acknowledgements().read(this.state.deliveryAcks);
+      return this.partition === undefined || this.state.sealed ? { remaining: 0 } : this.acknowledgements().read(this.state.deliveryAcks, limit);
     },
     compactedThrough: () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
     queued: () => this.readOutbox(state => outboxOrder(state.outbox, true)),
+    queuedInfo: () => this.readOutbox(state => outboxOrder(state.outbox, true)
+      .map(({ intent, state, grant, createdAt, reason, refusal }) => ({ intent, state, grant, createdAt, reason, refusal }))),
+    replayBatch: () => this.readOutbox(state => {
+      const queued = outboxOrder(state.outbox, true), batch: OutboxEntry[] = [];
+      for (const entry of queued) {
+        if (batch.length === 16 || !acknowledgementForReplay(state, entry)) break;
+        batch.push(entry);
+      }
+      return batch.length ? batch : queued.slice(0, 1);
+    }),
     targets: (op, args, ids) => this.readOutbox(state => admittedMutationTargets(storedProgram(state), op, args, ids)),
     acknowledgementWithoutTail: entry => this.readOutbox(state => acknowledgementWithoutTail(state, entry)),
     get: (intent) => this.readOutbox(state => state.outbox[intent]),
@@ -495,7 +505,8 @@ export class PersistentRangeStore implements RangeStore {
 
   /** Every outbox view shares the same admission and detached-value boundary. */
   private readOutbox<T>(select: (state: PersistedRangeState) => T): Promise<T> {
-    return this.read(() => { this.ensureUnsealed(); return clone(select(this.state)); });
+    // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — committed state has no journal proxies; detach once without recursively unwrapping its ledger.
+    return this.read(() => { this.ensureUnsealed(); const value = select(this.state); return value === undefined ? value : jsonState(value); });
   }
   private acknowledgements(): DeliveryAcknowledgementIndex {
     return this.acknowledgementIndex ??= new DeliveryAcknowledgementIndex(this.state.deliveryAcks);
@@ -699,12 +710,13 @@ export class PersistentRangeStore implements RangeStore {
       const { bytes, inbox, ...rest } = swap;
       for (const delivery of swap.deliveries ?? []) validateClock(delivery);
       const delta: ByteDelta = { put: [], remove: [] };
-      // Normalize before deriving answer keys/fingerprints, then normalize the state we publish.
+      // Own and normalize metadata once before deriving answer keys/fingerprints or publishing it.
       const normalized = { ...jsonState(rest), ...(bytes === undefined ? {} : { bytes }) };
-      const ackEntry = normalized.outbox?.acknowledgementOnly ? normalized.outbox.put?.[0] : undefined;
-      const ackQueued = ackEntry && this.state.outbox[ackEntry.intent];
-      if (normalized.outbox?.acknowledgementOnly && (normalized.outbox.put?.length !== 1
-        || normalized.outbox.remove?.length || !acknowledgementWithoutTail(this.state, normalized.outbox.put[0])))
+      const ackEntries = normalized.outbox?.acknowledgementOnly ? normalized.outbox.put : undefined;
+      const ackQueued = ackEntries?.map(entry => this.state.outbox[entry.intent]);
+      if (normalized.outbox?.acknowledgementOnly && (!ackEntries?.length
+        || new Set(ackEntries.map(entry => entry.intent)).size !== ackEntries.length
+        || normalized.outbox.remove?.length || !ackEntries.every(entry => acknowledgementWithoutTail(this.state, entry))))
         throw new AcknowledgementTailRequired();
       for (let i = 0; i < (swap.deliveries?.length ?? 0); i++) {
         const images = swap.deliveries![i][preparedDeliveryRows];
@@ -724,8 +736,9 @@ export class PersistentRangeStore implements RangeStore {
       const acknowledgements = this.acknowledgements();
       try {
         const removed = this.applySwap(journal.draft, normalized, delta);
-        if (ackEntry && !acknowledgementWithoutTail(journal.draft, ackEntry, ackQueued)) throw new AcknowledgementTailRequired();
-        const compactedAliases = compactSuccesses(journal.draft);
+        if (ackEntries?.some((entry, index) => !acknowledgementWithoutTail(journal.draft, entry, ackQueued![index]))) throw new AcknowledgementTailRequired();
+        const compactedAliases = compactSuccesses(journal.draft, this.referenceIndex && !journal.changed.get('*')?.has('answers')
+          ? key => new Set([...(this.referenceIndex!.proofOwners.get(key) ?? []), ...(journal.changed.get('answers') ?? [])]) : undefined);
         const removedAcks = applyDeliveryAcknowledgements(journal.draft, normalized, this.partition!, acknowledgements, journal.changed);
         const combinedInbox = compactedAliases.length ? { ...inbox, remove: [...(inbox?.remove ?? []), ...compactedAliases] } : inbox;
         this.updates.prepare(journal.changed);
@@ -879,9 +892,10 @@ export class PersistentRangeStore implements RangeStore {
     if (schema) { const columns = onceColumns(schema); if (canonical(columns) !== canonical(state.onceColumns)) state.onceColumns = columns; }
     const clockOnly = new Set<string>(), deliveredIds = new Set<string>();
     const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly, deliveredIds, program, answerKey, removed) : new Map<string, OverlayAuthorityEvidence>();
-    if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
+    // These incoming metadata values belong to commit's private normalized swap.
+    if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = swap.facts;
     if (swap.superseded === null) delete state.superseded;
-    else if (swap.superseded) state.superseded = clone(swap.superseded);
+    else if (swap.superseded) state.superseded = swap.superseded;
     for (const key of swap.dropWatermarks ?? []) delete state.watermarks[key];
     const previousTail = tailWatermark(Object.values(state.watermarks));
     const clockMark = swap.watermark && (swap.deliveries ?? []).some(d => clockOnly.has(answerKey(d.op, d.args))
@@ -891,14 +905,14 @@ export class PersistentRangeStore implements RangeStore {
       const key = answerKey(swap.watermark.op, swap.watermark.args, swap.watermark.cursorArg);
       // The order is the store's: first recorded, kept across re-marks (LLP 1012 §7's tail chooser).
       const order = state.watermarks[key]?.order ?? ++state.clock;
-      state.watermarks[key] = { ...clone(swap.watermark), order };
+      state.watermarks[key] = { ...swap.watermark, order };
     }
     const tail = tailWatermark(Object.values(state.watermarks));
-    const committedNow = applyOutboxSwap(state, swap, clone);
+    const committedNow = applyOutboxSwap(state, swap);
     markDeliveredArrivals(state, deliveredIds);
     for (const intent of swap.overlay?.remove ?? []) dropOverlay(state, intent);
     for (const [intent, rows] of Object.entries(swap.overlay?.put ?? {})) {
-      state.overlay[intent] = clone(rows);
+      state.overlay[intent] = rows;
       for (const field of ['overlayMisses', 'overlayWatermarks', 'overlayNegatives'] as const) delete state[field][intent];
       admitOverlayAuthority(state, intent, rows, key => {
         const index = this.referenceIndex ??= new CarrierIndex(state, this.referenceSchema);
@@ -1136,19 +1150,22 @@ export class PersistentRangeStore implements RangeStore {
           continue;
         }
         const priorRow = state.rows[storageKey] && raw(state.rows[storageKey]);
-        const rowChanged = !priorRow || canonical(priorRow.row) !== canonical(row.row);
+        const rowChanged = !priorRow || !(RowImage.is(row.row) && priorRow.row === row.row)
+          && canonical(priorRow.row) !== canonical(row.row);
         if (state.rowSeq[storageKey] === delivery.seq && rowChanged) {
           throw new TypeError(`conflicting row ${row.table}/${row.id} at seq ${delivery.seq}`);
         }
         if ((state.rowSeq[storageKey] ?? -1) > delivery.seq) continue;
         if (rowChanged) maintained.transition(priorRow, row, delivery.seq);
         if (state.extentNegative[storageKey]) state.extentNegative[storageKey].active = false;
-        state.rows[storageKey] = RowImage.is(row.row) ? { ...row } : clone(row);
+        // Incoming records belong to the private normalized swap; prepared
+        // images are immutable. Future nested writes use the journal's COW.
+        state.rows[storageKey] = row;
         state.rowSeq[storageKey] = delivery.seq;
         recordOverlayAuthorityEvidence(authoritativeEvidence, storageKey, { seq: delivery.seq, source: "row" });
         deliveredIds.add(row.id);
       }
-      let data = clone(delivery.data);
+      let data = delivery.data;
       let answerState = delivery.state;
       let retained = false;
       const hidden = timedChange ? [] : delivery.state === "denied" && old
@@ -1184,7 +1201,7 @@ export class PersistentRangeStore implements RangeStore {
       const stored: StoredAnswer = defined({
         op: delivery.op,
         cursorArg: delivery.cursorArg,
-        args: clone(delivery.args),
+        args: delivery.args,
         state: answerState,
         data,
         next: delivery.next,

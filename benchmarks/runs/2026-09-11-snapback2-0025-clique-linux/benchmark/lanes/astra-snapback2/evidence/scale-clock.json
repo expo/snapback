@@ -1,0 +1,33 @@
+{
+  "pass": true,
+  "start": 1789168581,
+  "end": 1789171175,
+  "actions": 167157,
+  "sourceSha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+  "excludedProbeMs": 64666,
+  "grossWallSeconds": 2594,
+  "checkpoint10And50ExcludedSeconds": 64.666,
+  "finalVerificationSeconds": 99.257,
+  "effectiveReplaySeconds": 2430.0769999999998,
+  "note": "Original receipt excludes 10/50 probe stops. This report also separates measured final verification, which the original runner left inside its gross interval. Original start retained across the failed cap-100 instance, failed setup attempt, and fresh successful retry.",
+  "counts": {
+    "users": 1008,
+    "profiles": 1008,
+    "followEdges": 5921,
+    "posts": 50228,
+    "topLevelPosts": 48224,
+    "replies": 2004,
+    "activeLikes": 5008,
+    "activeReposts": 1004,
+    "conversations": 1002,
+    "dms": 901,
+    "groups": 101,
+    "memberships": 2054,
+    "messages": 100015,
+    "textMessages": 99105,
+    "mediaMessages": 910,
+    "quotedReplies": 2736,
+    "activeReactions": 2000,
+    "disappearingSettingsEnabled": 0
+  }
+}

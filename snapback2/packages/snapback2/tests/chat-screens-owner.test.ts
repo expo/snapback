@@ -224,7 +224,9 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const body = requestBody(init);
     if (new URL(String(input)).pathname !== "/api/mutation" || !body) return globalThis.fetch(input, init);
-    if (!body.op?.startsWith("_delivery.")) mutationBodies.push(body);
+    for (const entry of body.batch ?? [body]) {
+      if (!entry.op?.startsWith("_delivery.")) mutationBodies.push(entry);
+    }
     if (body.args?.body === "reject me") return json(rejected(body.replay?.intent));
     if (body.args?.body === "owner expired") {
       return json({

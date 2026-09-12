@@ -27,7 +27,7 @@ await `online()`. Queued writes survive; held reads/`offline()` bypass startup a
 `observe`/`useQuery` with `{ drain: true }` page then tail. The returned page
 must be a certified ascending append log (`after c first N`, N <=50), with one
 Cursor argument through aliases/shapes/branches. Auxiliary reads add no coverage.
-Snapshots carry one page; edits/removals append events. Other shapes
+Each delivery carries one durable page; edits/removals append events. Other shapes
 refuse E_OFFLINE_RESUME (`unsupported-log`). `next` pages older newest-first
 results. `caughtUp`: exhausted; `live`: tail active.
 Offline drains need held eligibility; repeated cursors refuse. Offline keeps its watermark. Covered reads are exact; others partial.

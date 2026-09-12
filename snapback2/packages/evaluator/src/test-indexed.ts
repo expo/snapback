@@ -1070,12 +1070,12 @@ assert.equal((factIndex as any).records.size,2000,'shared proof owners preserve 
 for (let i = 0; i < facts.length; i++) {
   factIndex.change(facts[i],-1); extentIndex.change(extents[i].id,extents[i].condition,extents[i].seq,-1);
 }
-for (const name of ['records','indexes','missing']) assert.equal((factIndex as any)[name].size,0,`fact ${name} leaves after its last owner`);
-for (const name of ['entries','buckets','tables']) assert.equal((extentIndex as any)[name].size,0,`extent ${name} leaves after its last owner`);
+for (const [name, values] of Object.entries({ records: (factIndex as any).records, indexes: (factIndex as any).shared.indexes, missing: (factIndex as any).missing })) assert.equal((values as Map<unknown,unknown>).size,0,`fact ${name} leaves after its last owner`);
+for (const name of ['entries','buckets','scopes']) assert.equal((extentIndex as any)[name].size,0,`extent ${name} leaves after its last owner`);
 const opaque = { ...facts[0],keys: undefined };
 factIndex.change(opaque,2); assert.equal(factIndex.opaque('messages',opaque.seq)?.id,opaque.id);
 factIndex.change(facts[0],1); assert.equal(factIndex.opaque('messages',opaque.seq),undefined,'authenticated full keys upgrade shared opaque custody');
-factIndex.change(facts[0],-3); assert.equal((factIndex as any).indexes.size,0);
+factIndex.change(facts[0],-3); assert.equal((factIndex as any).shared.indexes.size,0);
 const emptyCondition = { ...extents[1].condition,prefix: preparePrefix(schema,'messages','search',[
   { Scalar: { String: 'r1' } },{ WordPrefix: { source: '',contract: SEARCH_CONTRACT } }],[undefined,2000]) };
 factIndex.change(facts[1],1);
@@ -1088,7 +1088,11 @@ const history = new FactIndex(schema,true), live = new FactIndex(schema,false,hi
 const current = facts.filter((_,i) => i % 3 === 0);
 for (const fact of facts) history.change(fact,2);
 for (const fact of current) live.change({ ...fact,seq: 99 },1);
-for (const index of (history as any).indexes.values()) {
+assert.equal((history as any).shared.members.size,2,'one directory owns both live and positive namespaces');
+for (const slot of (history as any).shared.indexes.values()) {
+  assert.equal(slot.ready,false); assert.equal(slot.owners,facts.length + current.length);
+  [...history.matching(extents.find(e => e.condition.index === slot.index.name)!.condition,0)];
+  const index = slot.index;
   assert.equal(index.scopes.size,0,'fact namespaces do not build an unused readable directory');
   const records = [...index.reverse.values()] as any[];
   assert.equal(new Set(records.map(r => r.keys)).size,facts.length,'one prepared tuple/word-handle array per immutable image');
@@ -1102,12 +1106,13 @@ for (let i = 0; i < 100; i++) {
 }
 for (const fact of facts) history.change(fact,-2);
 assert.equal((history as any).records.size,0);
-assert.ok((history as any).indexes.size,'live ownership keeps shared dictionaries and postings after proof GC');
+assert.ok((history as any).shared.indexes.size,'live ownership keeps shared dictionaries and postings after proof GC');
+for (const slot of (history as any).shared.indexes.values()) assert.equal(slot.owners,current.length);
 for (const fact of current) live.change(fact,-1);
-assert.equal((history as any).indexes.size,0,'the last live owner reclaims shared physical indexes');
+assert.equal((history as any).shared.indexes.size,0,'the last live owner reclaims shared physical indexes');
 for (const fact of facts.slice(0,20)) { history.change(fact,1); live.change(fact,1); }
 for (const fact of facts.slice(0,20)) { live.change(fact,-1); history.change(fact,-1); }
-assert.equal((history as any).indexes.size,0,'reverse deletion order and reused key identities also release every owner');
+assert.equal((history as any).shared.indexes.size,0,'reverse deletion order and reused key identities also release every owner');
 console.log('shared live/proof postings preserve 200 independent exact-namespace oracles and last-owner GC');
 
 
@@ -1365,7 +1370,7 @@ console.log('standalone typed endpoint, suffix, proof isolation, replacement and
   assert.equal([...temporal.scan(scan,1)].length,0,'shared key ownership does not erase the immutable sequence partition');
   assert.deepEqual([...temporal.scan(scan,3)],[{ seq: 3 }]); temporal.remove('one'); temporal.remove('two'); assert.equal(temporal.size,0);
   proof.change(fact,-1); assert.equal(proof.get('image-proof')?.refs,1);
-  proof.change(fact,-1); assert.equal((proof as any).indexes.size,0); assert.equal((proof as any).records.size,0);
+  proof.change(fact,-1); assert.equal((proof as any).shared.indexes.size,0); assert.equal((proof as any).records.size,0);
   assert.equal(imageCanonical(image),imageCanonical(original),'caller-held image remains immutable after all store owners leave');
 }
 console.log('shared immutable image omission/null, schema reprepare, media, Map, canonical bytes and body-free proof reclamation passed');

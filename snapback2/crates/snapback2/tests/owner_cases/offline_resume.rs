@@ -802,3 +802,47 @@ fn resume_capacity_demand_uses_the_current_mutation_certificate_above_the_waterm
     stop_owner(port, &secret, &mut owner, "capacity demand complete");
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn acquisition_batches_use_existing_http_routes_and_ordinary_replay_terminals() {
+    let (root, mut owner, port, secret) = boot(|root| {
+        append_source(root, "snapback/bulk.q", "\nmutation echo():\n  return null\n");
+    });
+    let alice = [("X-Snapback-As", "alice")];
+    let args = thread_args("conversation-1");
+    let ordinary = request(port, "POST", "/api/query?receipt=1", &alice,
+        json!({"op": "messages.log", "args": args}));
+    let batch = request(port, "POST", "/api/query?receipt=1", &alice,
+        json!({"op": "messages.log", "args": args, "batch": 16}));
+    assert_eq!(batch.status, 200, "{}", batch.body);
+    assert_eq!(batch.body["more"], false);
+    assert_eq!(batch.body["pages"], json!([{"args": args, "envelope": ordinary.body}]));
+    let too_many = request(port, "POST", "/api/query?receipt=1", &alice,
+        json!({"op": "messages.log", "args": args, "batch": 17}));
+    assert_eq!(too_many.status, 400, "{}", too_many.body);
+    let (generation, schema) = generation_pair(port);
+    let resumed = request(port, "POST", "/api/resume", &alice,
+        resume_body(&generation, &schema, Value::Null, json!([])));
+    let grant = resumed.body["grant"]["id"].as_str().unwrap();
+    let intent = |offset| json!({"op": "bulk.echo", "args": {}, "replay": {
+        "grant": grant, "offset": offset, "count": 1, "intent": format!("{grant}:{offset}"),
+        "trace": {"points": [], "verdicts": []},
+    }});
+    let first = request(port, "POST", "/api/mutation", &alice, intent(0));
+    assert_eq!(first.body["state"], "committed");
+    let seq = status(port, &secret)["seq"].clone();
+    // A stored terminal precedes generated-operation admission; the next new
+    // product intent is refused without executing or bypassing its position.
+    let replayed = request(port, "POST", "/api/mutation", &alice,
+        json!({"batch": [intent(0), intent(1)]}));
+    assert_eq!(replayed.status, 200, "{}", replayed.body);
+    assert_eq!(replayed.body["results"], json!([first.body]));
+    assert_eq!(replayed.body["error"]["code"], "E_INPUT");
+    assert_eq!(replayed.body["more"], false);
+    assert_eq!(status(port, &secret)["seq"], seq);
+    let anonymous = request(port, "POST", "/api/mutation", &[], json!({"batch": [intent(0)]}));
+    assert_eq!(anonymous.status, 401, "{}", anonymous.body);
+    assert_eq!(anonymous.body["code"], "E_AUTH_REQUIRED");
+    stop_owner(port, &secret, &mut owner, "bounded acquisition HTTP complete");
+    fs::remove_dir_all(root).unwrap();
+}

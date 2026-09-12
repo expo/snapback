@@ -1,5 +1,5 @@
 import { sharedConsumers, subscribe } from "snapback2/internal";
-import { twinLastDecline, witnessSearchProbe } from "snapback2/expo/witness";
+import { witnessSearchProbe } from "snapback2/expo/witness";
 import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { api, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
@@ -150,7 +150,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
             bubbles: typeof args.conversationId === "string" ? bubbles(rows as LogRow[], entries as Entry[], args.conversationId) : [],
             search, searchVariants, searchProbe: args.searchDiagnostics === true
               ? witnessSearchProbe(client, [...diagnosticTerms, String(args.search)]) : undefined,
-            answer, conversationView, composed, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(),
+            answer, conversationView, composed, stores: await databaseState(), files: listFiles(),
             media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri,
               loadedUri: currentMedia.loadedUri } : null };
         }

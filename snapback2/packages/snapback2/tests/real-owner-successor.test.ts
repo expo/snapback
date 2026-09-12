@@ -9,6 +9,9 @@ import { test } from "node:test";
 import { api, createClient } from "../dist/client.mjs";
 import { answerOffline } from "../dist/client-observed-test.mjs";
 import { RealOwnerHarness } from "./owner-harness.ts";
+import React from "react";
+import TestRenderer, { act } from "react-test-renderer";
+import { SnapbackProvider, useQuery } from "../dist/react.mjs";
 
 // @ref LLP 1018#6-move-four-evolution-of-the-whole-application —
 // evolve populated data while real client intents remain in durable custody.
@@ -354,6 +357,101 @@ function gateLiveResponse(response: Response, select: (delivery: any) => Promise
   });
   return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
 }
+
+// @ref LLP 1012#6-reads-offline — an unheld aggregate cannot supply a screen's zero.
+test("Insights hooks with never-held maintained values wait for authority, warm and cold", { timeout: 60000 }, async t => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  const previousAct = (globalThis as any).IS_REACT_ACT_ENVIRONMENT;
+  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  let owner: RealOwnerHarness | undefined, client: any, renderer: ReturnType<typeof TestRenderer.create> | undefined;
+  try {
+    await writeFile(join(source, "schema.q"), schema().replace("table stamps:\n", "table stamps:\n  bucket: int ?\n") + `
+maintain received: count messages by recipient
+  read <- allow
+
+maintain sums: sum stamps of value by bucket
+  read <- allow
+`);
+    await writeFile(join(source, "ops.q"), operations() + `
+query insights(who: principal):
+  return { sent: counts[who], received: received[who], sum: sums[7], zeroSum: sums[8], hidden: hiddenCounts[who], doubled: counts[who] * 2 }
+`);
+    await writeFile(join(source, "seed.ts"), `import { seed } from 'snapback2';
+export default seed({ personas: ['alice', 'bob'], rows: {
+  messages: [{ id: 'original', sender: 'dev:alice', recipient: 'dev:bob', kind: 'text', body: 'first insight' }],
+  stamps: [{ id: 'stamp', value: 7, bucket: 7 }]
+} });\n`);
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    for (const cold of [false, true]) {
+      const carrier = fileRangeStore(join(directory, cold ? "cold" : "warm"));
+      client = createClient({ url: owner.url, persona: "bob", offline: { store: carrier } });
+      await client.ready;
+      // Hold the program and ordinary rows, but no aggregate rows or absences.
+      assert.equal((await client.query(api.ops.all, { c: null })).state, "complete");
+      await client.offline();
+      if (cold) {
+        await client.close();
+        client = createClient({ url: owner.url, persona: "bob", startOffline: true, offline: { store: carrier } });
+        await client.ready;
+      }
+      const seen: Record<string, any[]> = { count: [], insights: [], zero: [], hidden: [] };
+      function Insight({ name, op, who }: { name: string; op: any; who: string }) {
+        const snapshot = useQuery(op, { who });
+        seen[name].push(snapshot);
+        return React.createElement("output", { id: name }, snapshot.data === undefined ? snapshot.status : JSON.stringify(snapshot.data));
+      }
+      await act(async () => {
+        renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+          React.createElement(Insight, { name: "count", op: api.ops.count, who: "dev:alice" }),
+          React.createElement(Insight, { name: "insights", op: api.ops.insights, who: "dev:alice" }),
+          React.createElement(Insight, { name: "zero", op: api.ops.count, who: "dev:bob" }),
+          React.createElement(Insight, { name: "hidden", op: api.ops.hidden, who: "dev:alice" })));
+      });
+      await act(async () => {
+        await until(async () => Object.fromEntries(Object.keys(seen).map(name => [name, client.observe(
+          name === "insights" ? api.ops.insights : name === "hidden" ? api.ops.hidden : api.ops.count,
+          { who: name === "zero" ? "dev:bob" : "dev:alice" }).getSnapshot()])),
+        values => Object.values(values).every((value: any) => value.receipt?.state === "partial"), "unheld insights");
+      });
+      for (const [name, snapshots] of Object.entries(seen)) {
+        const snapshot = snapshots.at(-1);
+        assert.equal(snapshot.receipt?.state, "partial", `${cold}/${name}`);
+        assert.equal(snapshot.status, "unavailable", `${cold}/${name}: ${JSON.stringify(snapshot)}`);
+        assert.equal(snapshot.data, undefined, `${cold}/${name}: never-held is not zero`);
+        assert.equal(snapshot.reason?.code, "partial");
+      }
+      await act(async () => { await client.online(); });
+      await act(async () => {
+        await until(async () => client.observe(api.ops.insights, { who: "dev:alice" }).getSnapshot(),
+          value => value.freshness.live && value.data?.sum === 7, "live insights");
+      });
+      const expected = { sent: 1, received: 0, sum: 7, zeroSum: 0, hidden: 0, doubled: 2 };
+      assert.deepEqual(seen.insights.at(-1).data, expected);
+      assert.equal(seen.count.at(-1).data, 1);
+      assert.equal(seen.zero.at(-1).data, 0, "proved absence remains a typed zero");
+      assert.equal(seen.hidden.at(-1).data, 0, "proved unreadability remains a typed zero");
+      assert.equal(seen.count.some(snapshot => snapshot.data === 0), false, "no intermediate zero paint");
+      assert.equal(seen.insights.some(snapshot => snapshot.data?.sent === 0 || snapshot.data?.sum === 0), false);
+      t.diagnostic(`${cold ? "cold" : "warm"} Insights: ${seen.insights.map(s => `${s.status}/${s.receipt?.state}/${JSON.stringify(s.data)}`).join(" → ")}`);
+      await act(async () => renderer!.unmount()); renderer = undefined;
+      await client.close(); client = undefined;
+      client = createClient({ url: owner.url, persona: "bob", startOffline: true, offline: { store: carrier } });
+      await client.ready;
+      const retained: any = await client.query(api.ops.insights, { who: "dev:alice" });
+      assert.equal(retained.state, "complete", "cold literal totals retain their checked owner answer");
+      assert.deepEqual(retained.data, expected);
+      assert.equal(retained.live, false);
+      await client.close(); client = undefined;
+    }
+  } finally {
+    if (renderer) await act(async () => renderer!.unmount());
+    await client?.close(); await owner?.close();
+    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = previousAct;
+    if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 // @ref LLP 1012#6-reads-offline — an exact maintained
 // zero the device actually held remains usable but stale; reconnect must never

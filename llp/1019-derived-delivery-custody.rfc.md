@@ -405,7 +405,20 @@ Serving a response or accepting a cursor acknowledges nothing. With
   intents; removing receipt policy reconciles all affected marks. Durable marks
   retain exactly the retention and redelivery rules above. An admission turn
   processes at most its initial remaining batch count, so incoming pages cannot
-  indefinitely extend the turn ahead of a foreground write.
+  indefinitely extend the turn ahead of a foreground write. The optional
+  `pendingDeliveryAcks(limit)` / `batches` projection admits at most sixteen
+  ordinary event lists together, bounded by the changed-key journal budget;
+  generic carriers returning only `next` retain single-entry admission. IDs,
+  grant accounting and every event binding persist in that one transaction.
+  A contiguous generated-acknowledgement FIFO prefix may share the existing
+  mutation HTTP route, while each owner execution retains its own transaction,
+  terminal, current-membership checks and actual effects. A later application
+  tail can accompany the returned terminal prefix in one carrier swap, reaching
+  every committed sequence under the same identity. A refused or ordinary
+  product head is never bypassed; partial/lost replies keep exact retry bytes.
+  The [bulk plan](./1018.008.007.002-bounded-bulk-acquisition.plan.md) defines
+  transport limits and the distinction between terminal settlement and observed
+  receipt effects; unresolved effects stay in custody.
 - A generated acknowledgement can settle without an application tail only
   with an explicit empty actual owner-effects array, matching admitted/current/
   committed program identity, and no prediction or overlay. The carrier checks

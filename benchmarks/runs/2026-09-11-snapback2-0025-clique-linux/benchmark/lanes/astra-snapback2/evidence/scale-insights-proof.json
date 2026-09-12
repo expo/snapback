@@ -1,0 +1,288 @@
+{
+  "pass": true,
+  "at": 1789171953625,
+  "results": {
+    "u0001": {
+      "insightsMs": [
+        4.837180999999987,
+        3.738213000000002,
+        3.536771000000016,
+        3.3466370000000154,
+        3.120367999999985
+      ],
+      "trendingMs": 47.519261,
+      "totals": {
+        "posts": 37,
+        "likes": 5,
+        "reposts": 0,
+        "replies": 4,
+        "followers": 5,
+        "following": 5,
+        "days": {
+          "d0": {
+            "day": 20702,
+            "posts": 0,
+            "likes": 0
+          },
+          "d1": {
+            "day": 20703,
+            "posts": 0,
+            "likes": 0
+          },
+          "d2": {
+            "day": 20704,
+            "posts": 0,
+            "likes": 0
+          },
+          "d3": {
+            "day": 20705,
+            "posts": 0,
+            "likes": 0
+          },
+          "d4": {
+            "day": 20706,
+            "posts": 0,
+            "likes": 0
+          },
+          "d5": {
+            "day": 20707,
+            "posts": 37,
+            "likes": 5
+          },
+          "d6": {
+            "day": 20708,
+            "posts": 0,
+            "likes": 0
+          }
+        }
+      },
+      "search": {
+        "conversations": 1000,
+        "lastConversation": "d0101",
+        "term": "DM",
+        "found": true
+      }
+    },
+    "u0005": {
+      "insightsMs": [
+        3.962380000000053,
+        3.2426399999999376,
+        3.044503000000077,
+        3.538854000000015,
+        3.4700209999999743
+      ],
+      "trendingMs": 48.46640100000002,
+      "totals": {
+        "posts": 40,
+        "likes": 6,
+        "reposts": 1,
+        "replies": 2,
+        "followers": 4,
+        "following": 5,
+        "days": {
+          "d0": {
+            "day": 20702,
+            "posts": 0,
+            "likes": 0
+          },
+          "d1": {
+            "day": 20703,
+            "posts": 0,
+            "likes": 0
+          },
+          "d2": {
+            "day": 20704,
+            "posts": 0,
+            "likes": 0
+          },
+          "d3": {
+            "day": 20705,
+            "posts": 0,
+            "likes": 0
+          },
+          "d4": {
+            "day": 20706,
+            "posts": 0,
+            "likes": 0
+          },
+          "d5": {
+            "day": 20707,
+            "posts": 40,
+            "likes": 6
+          },
+          "d6": {
+            "day": 20708,
+            "posts": 0,
+            "likes": 0
+          }
+        }
+      }
+    },
+    "u0500": {
+      "insightsMs": [
+        3.3447940000000926,
+        2.744073999999955,
+        3.47242499999993,
+        3.39154399999984,
+        3.217443000000003
+      ],
+      "trendingMs": 47.15049799999997,
+      "totals": {
+        "posts": 62,
+        "likes": 3,
+        "reposts": 1,
+        "replies": 5,
+        "followers": 6,
+        "following": 500,
+        "days": {
+          "d0": {
+            "day": 20702,
+            "posts": 0,
+            "likes": 0
+          },
+          "d1": {
+            "day": 20703,
+            "posts": 0,
+            "likes": 0
+          },
+          "d2": {
+            "day": 20704,
+            "posts": 0,
+            "likes": 0
+          },
+          "d3": {
+            "day": 20705,
+            "posts": 0,
+            "likes": 0
+          },
+          "d4": {
+            "day": 20706,
+            "posts": 0,
+            "likes": 0
+          },
+          "d5": {
+            "day": 20707,
+            "posts": 62,
+            "likes": 3
+          },
+          "d6": {
+            "day": 20708,
+            "posts": 0,
+            "likes": 0
+          }
+        }
+      }
+    },
+    "u0900": {
+      "insightsMs": [
+        2.826496000000134,
+        2.2324859999998807,
+        2.0334179999999833,
+        2.3463670000001002,
+        2.3457959999998366
+      ],
+      "trendingMs": 45.13503700000001,
+      "totals": {
+        "posts": 200,
+        "likes": 0,
+        "reposts": 0,
+        "replies": 0,
+        "followers": 900,
+        "following": 2,
+        "days": {
+          "d0": {
+            "day": 20702,
+            "posts": 0,
+            "likes": 0
+          },
+          "d1": {
+            "day": 20703,
+            "posts": 0,
+            "likes": 0
+          },
+          "d2": {
+            "day": 20704,
+            "posts": 0,
+            "likes": 0
+          },
+          "d3": {
+            "day": 20705,
+            "posts": 0,
+            "likes": 0
+          },
+          "d4": {
+            "day": 20706,
+            "posts": 0,
+            "likes": 0
+          },
+          "d5": {
+            "day": 20707,
+            "posts": 200,
+            "likes": 0
+          },
+          "d6": {
+            "day": 20708,
+            "posts": 0,
+            "likes": 0
+          }
+        }
+      }
+    },
+    "u0901": {
+      "insightsMs": [
+        2.7894410000001244,
+        2.4224609999998847,
+        2.2899019999999837,
+        2.215200999999979,
+        2.2284799999999905
+      ],
+      "trendingMs": 44.45550899999989,
+      "totals": {
+        "posts": 50,
+        "likes": 7,
+        "reposts": 0,
+        "replies": 2,
+        "followers": 5,
+        "following": 5,
+        "days": {
+          "d0": {
+            "day": 20702,
+            "posts": 0,
+            "likes": 0
+          },
+          "d1": {
+            "day": 20703,
+            "posts": 0,
+            "likes": 0
+          },
+          "d2": {
+            "day": 20704,
+            "posts": 0,
+            "likes": 0
+          },
+          "d3": {
+            "day": 20705,
+            "posts": 0,
+            "likes": 0
+          },
+          "d4": {
+            "day": 20706,
+            "posts": 0,
+            "likes": 0
+          },
+          "d5": {
+            "day": 20707,
+            "posts": 50,
+            "likes": 7
+          },
+          "d6": {
+            "day": 20708,
+            "posts": 0,
+            "likes": 0
+          }
+        }
+      }
+    }
+  },
+  "note": "Full corpus authenticated API timings and independently reconstructed exact totals/buckets/ranking. No M8 10/50-percent browser degradation claim."
+}

@@ -1,0 +1,9 @@
+{
+  "createdAt": "2026-09-11T21:47:25.631593+00:00",
+  "version": "0.0.25",
+  "ports": "53200-53219",
+  "frozenInstrumentSource": "/home/ccheever/clique-ri-20260911/instrument",
+  "instrumentCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+  "priorLaneDataCopied": false,
+  "disclosure": "Independent 0.0.24 benchmark is concurrently using ports 53100-53119. N=1 diagnostic run; no comparative performance claim."
+}

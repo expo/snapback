@@ -26,7 +26,8 @@ export function encodeCursor(position: CursorPosition): string {
     position.values.map(normalizeValue),
   ]);
   if (text.length > MAX_BYTES) fail("cursor token exceeds 4096 bytes");
-  const bytes = [...utf8(text)];
+  const bytes: number[] = [];
+  utf8(text, byte => bytes.push(byte));
   if (bytes.length > MAX_BYTES) fail("cursor token exceeds 4096 bytes");
   let result = "";
   for (let offset = 0; offset < bytes.length; offset += 3) {

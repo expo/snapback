@@ -28,9 +28,17 @@ export class ExtentIndex {
   private dictionary = new PrefixDictionary();
   private buckets = new Map<string, Ordered<[Bound,string], Entry, Summary>>();
   private entries = new Map<string, { value: Entry; bucket: string; nodes: Uint32Array }>();
-  private tables = new Map<string, number>();
+  private scopes = new Map<string, Map<string, Map<number, number>>>();
   get(id: string): IndexedExtent | undefined { return this.entries.get(id)?.value; }
-  has(table: string): boolean { return this.tables.has(table); }
+  has(table: string): boolean { return this.scopes.has(table); }
+  // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — only retained scopes need lookup keys; the exact extent predicate still decides membership.
+  private scope(condition: ExtentCondition, delta: number): void {
+    const indexes = this.scopes.get(condition.table) ?? new Map(), widths = indexes.get(condition.index) ?? new Map();
+    const count = (widths.get(condition.prefix.length) ?? 0) + delta;
+    if (count) widths.set(condition.prefix.length, count); else widths.delete(condition.prefix.length);
+    if (widths.size) indexes.set(condition.index, widths); else indexes.delete(condition.index);
+    if (indexes.size) this.scopes.set(condition.table, indexes); else this.scopes.delete(condition.table);
+  }
   change(id: string, condition: ExtentCondition, seq: number, delta: number): void {
     const old = this.entries.get(id);
     if (old) {
@@ -40,8 +48,7 @@ export class ExtentIndex {
       if (!tree.size) this.buckets.delete(old.bucket);
       for (let i = old.nodes.length - 1; i >= 0; i--) this.dictionary.release(old.nodes[i]);
       this.entries.delete(id);
-      const count = this.tables.get(old.value.condition.table)! - 1;
-      if (count) this.tables.set(old.value.condition.table,count); else this.tables.delete(old.value.condition.table);
+      this.scope(old.value.condition, -1);
       return;
     }
     if (delta < 0) throw new TypeError('missing indexed extent reference');
@@ -65,15 +72,17 @@ export class ExtentIndex {
     }
     const value = { ...bounds(condition), id, condition, seq, refs: delta };
     tree.set([value.low,id],value); this.entries.set(id,{ value,bucket,nodes: Uint32Array.from(nodes) });
-    this.tables.set(condition.table,(this.tables.get(condition.table) ?? 0) + 1);
+    this.scope(condition, 1);
   }
   *matching(table: string, image: KeyImage, seq: number): Generator<IndexedExtent> {
+    const indexes = this.scopes.get(table); if (!indexes) return;
     const seen = new Set<string>();
     for (const [index,key] of Object.entries(image)) {
+      const widths = indexes.get(index); if (!widths) continue;
       const scalars: Array<Value | null> = []; let tokens = [0];
       for (let width = 0; width <= key.length; width++) {
         const first = key[width], value = first && 'Scalar' in first ? first.Scalar : null;
-        for (const token of tokens) {
+        if (widths.has(width)) for (const token of tokens) {
           const tree = this.buckets.get(bucketKey(table,index,scalars,token)); if (!tree) continue;
           const overlap = (s: Summary) => s.seq >= seq && (value === null || (lowCompare(s.low,value) <= 0 && highCompare(s.high,value) >= 0));
           for (const entry of tree.overlapping(overlap, e => overlap(e))) {

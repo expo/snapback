@@ -68,11 +68,18 @@ pub(crate) fn reindex_replaced_row(
         return reindex_row(connection, schema, table_name, new);
     }
     let id = new.field("id")?.as_str()?;
-    connection.execute(
-        "DELETE FROM index_entries WHERE table_name = ?1 AND row_id = ?2",
-        params![table_name, id],
-    )?;
-    insert_plain_index_entries(connection, table_name, table, id, new)?;
+    // @ref LLP 1001#2-what-a-commit-records — unchanged physical keys still
+    // produce ordinary row touches; only redundant index writes disappear.
+    for (name, index) in &table.indexes {
+        if index.derived_offset().is_some() || index_values(old, index) == index_values(new, index) {
+            continue;
+        }
+        connection.execute(
+            "DELETE FROM index_entries WHERE table_name = ?1 AND index_name = ?2 AND row_id = ?3",
+            params![table_name, name, id],
+        )?;
+        insert_plain_index_entry(connection, table_name, name, index, id, new)?;
+    }
     Ok(super::search_index::Derivation::default())
 }
 
@@ -105,27 +112,39 @@ fn insert_plain_index_entries(
         if index.derived_offset().is_some() {
             continue;
         }
-        if index.components.len() > 8 {
-            return Err(RuntimeError::Schema(format!(
-                "index {table_name}.{index_name} has more than 8 columns in S1"
-            )));
-        }
-        let encoded = index_values(row, index)
-            .iter()
-            .map(encode_index_value)
-            .collect::<Result<Vec<_>, _>>()?;
-        let mut values: Vec<Option<String>> = encoded.into_iter().map(Some).collect();
-        values.resize(8, None);
-        connection.execute(
-            "INSERT INTO index_entries(
-                table_name, index_name, row_id, c0, c1, c2, c3, c4, c5, c6, c7
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![
-                table_name, index_name, id, values[0], values[1], values[2], values[3], values[4],
-                values[5], values[6], values[7]
-            ],
-        )?;
+        insert_plain_index_entry(connection, table_name, index_name, index, id, row)?;
     }
+    Ok(())
+}
+
+fn insert_plain_index_entry(
+    connection: &Connection,
+    table_name: &str,
+    index_name: &str,
+    index: &Index,
+    id: &str,
+    row: &Value,
+) -> Result<(), RuntimeError> {
+    if index.components.len() > 8 {
+        return Err(RuntimeError::Schema(format!(
+            "index {table_name}.{index_name} has more than 8 columns in S1"
+        )));
+    }
+    let encoded = index_values(row, index)
+        .iter()
+        .map(encode_index_value)
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut values: Vec<Option<String>> = encoded.into_iter().map(Some).collect();
+    values.resize(8, None);
+    connection.execute(
+        "INSERT INTO index_entries(
+            table_name, index_name, row_id, c0, c1, c2, c3, c4, c5, c6, c7
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            table_name, index_name, id, values[0], values[1], values[2], values[3], values[4],
+            values[5], values[6], values[7]
+        ],
+    )?;
     Ok(())
 }
 

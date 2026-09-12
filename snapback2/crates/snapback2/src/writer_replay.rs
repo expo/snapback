@@ -109,6 +109,7 @@ impl State {
         args: Json,
         authority: &ResolvedAuthority,
         replay_json: Json,
+        acknowledgement_only: bool,
     ) -> Result<Json, Refusal> {
         let wire: ReplayEnvelope = serde_json::from_value(replay_json).map_err(|error| {
             Refusal::input(
@@ -137,6 +138,20 @@ impl State {
                 "E_OFFLINE_INTENT_REUSE",
                 "the replay intent was already settled for different request bytes",
             ));
+        }
+        // @ref LLP 1018.008.007.002#5-batch-acknowledgement-admission-and-replay —
+        // a terminal retry precedes current generated-IR eligibility, including
+        // after a successor removed its receipt operation.
+        if acknowledgement_only {
+            self.operation_kind(op, Some(ProgramKind::Mutation))?;
+            let generation = self.runtime().generation();
+            let program = &generation.programs()[op].0;
+            if snapback2_core::delivery::acknowledgement(generation.schema(), program).is_none() {
+                return Err(Refusal::input(
+                    "replay batches contain only generated acknowledgement operations",
+                    "send ordinary product mutations individually in FIFO order",
+                ));
+            }
         }
         let stored_grant = self
             .runtime()

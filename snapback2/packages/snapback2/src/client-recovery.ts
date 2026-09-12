@@ -84,7 +84,21 @@ export async function prepareRecovery(host: RecoveryClient, op: string, authorit
     host.ensureAuthority(authority);
     if (status.ready || status.reason === "program-missing" || !available(host) || current?.() === false) return;
     const joined = !!host.resumeFlight && host.resumeDemand !== op;
-    await host.performResume(authority, op);
+    // @ref LLP 1018.008.007.002#foreground-admission-amendment--2026-09-11 — restored capacity can
+    // admit behind older intents while the same recovery still owns replay.
+    // online() retains that flight's complete verdict and deadline.
+    const generation = runtime.outbox.generation;
+    let active = true, stop = () => {};
+    const ready = new Promise<void>(resolve => {
+      const check = () => { void runtime.outbox.status(op).then(next => {
+        if (active && next.ready && generation === runtime.outbox.generation && !runtime.resetNeeded
+          && !runtime.following && available(host) && current?.() !== false) resolve();
+      }, () => undefined); };
+      stop = runtime.outbox.subscribe(check);
+      check(); // The grant may have changed during the initial status read.
+    });
+    try { await Promise.race([host.performResume(authority, op), ready]); }
+    finally { active = false; stop(); }
     host.ensureAuthority(authority);
     if (!joined) return; // A cheaper flight does not consume this demand's attempt.
   }

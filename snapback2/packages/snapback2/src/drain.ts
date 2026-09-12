@@ -11,7 +11,7 @@ interface Waiter<Event> {
 
 export interface DrainOptions<Args, Result> {
   args: Args;
-  query(args: Args): Promise<QueryResult<Result>>;
+  query(args: Args): Promise<QueryResult<Result> | QueryResult<Result>[]>;
   subscribe(args: Args, callback: (event: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
   /** `offline`: every page came from the store; the watermark is the persisted one and nothing is recorded. */
   mark(watermark: Cursor | null, current: () => boolean, offline: boolean): Promise<void>;
@@ -133,41 +133,45 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
       this.cursorName = (await this.options.cursor?.()) ?? "c";
       if (!this.current(generation)) return;
       const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: cursor } as Args;
-      const page = await this.options.query(args);
+      const response = await this.options.query(args);
       if (!this.current(generation)) return;
-      if (page.state === "hydrating") {
-        this.deliver(page);
-        return;
-      }
-      if (page.state !== "complete" && page.state !== "capped") {
-        this.deliver(page as SubscriptionDelivery<Result>);
-        return;
-      }
-      const facts = page as { connection?: string; watermark?: Cursor | null };
-      if (facts.connection === "offline") {
-        offline = true;
-        if (held === undefined && typeof facts.watermark === "string") held = facts.watermark;
-      }
-      if (page.next !== null) {
-        if (seen.has(page.next)) {
-          throw this.repeatedCursor();
+      const pages = Array.isArray(response) ? response : [response];
+      for (const page of pages) {
+        if (!this.current(generation)) return;
+        if (page.state === "hydrating") {
+          this.deliver(page);
+          return;
         }
-        seen.add(page.next);
-        this.watermark = page.next;
-        this.deliver(carryItemInputs(page, { ...page, live: false, caughtUp: false, watermark: this.watermark }));
-        cursor = page.next;
-        continue;
+        if (page.state !== "complete" && page.state !== "capped") {
+          this.deliver(page as SubscriptionDelivery<Result>);
+          return;
+        }
+        const facts = page as { connection?: string; watermark?: Cursor | null };
+        if (facts.connection === "offline") {
+          offline = true;
+          if (held === undefined && typeof facts.watermark === "string") held = facts.watermark;
+        }
+        if (page.next !== null) {
+          if (seen.has(page.next)) {
+            throw this.repeatedCursor();
+          }
+          seen.add(page.next);
+          this.watermark = page.next;
+          this.deliver(carryItemInputs(page, { ...page, live: false, caughtUp: false, watermark: this.watermark }));
+          cursor = page.next;
+          continue;
+        }
+        if (offline && held !== undefined) this.watermark = held;
+        await this.options.mark(this.watermark, () => this.current(generation), offline);
+        if (!this.current(generation)) return;
+        this.deliver(carryItemInputs(page, { ...page, live: false, caughtUp: true, watermark: this.watermark }));
+        // The tail is watched from the page chain's own last cursor. Online that is the
+        // watermark; offline the adopted store watermark is the resume position, and a
+        // tail opened there would answer only the rows past it and replace the caught-up
+        // page on screen (the browser witness saw a cold inbox shrink to one chat).
+        this.watchTail(generation, cursor);
+        return;
       }
-      if (offline && held !== undefined) this.watermark = held;
-      await this.options.mark(this.watermark, () => this.current(generation), offline);
-      if (!this.current(generation)) return;
-      this.deliver(carryItemInputs(page, { ...page, live: false, caughtUp: true, watermark: this.watermark }));
-      // The tail is watched from the page chain's own last cursor. Online that is the
-      // watermark; offline the adopted store watermark is the resume position, and a
-      // tail opened there would answer only the rows past it and replace the caught-up
-      // page on screen (the browser witness saw a cold inbox shrink to one chat).
-      this.watchTail(generation, cursor);
-      return;
     }
   }
 

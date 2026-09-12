@@ -9,7 +9,7 @@ import { scalarLength } from "./unicode";
 import type { TraceRange, Value } from "./types";
 import { immutable, RowImage } from "./row-image";
 
-const preparedSchemas = new WeakMap<object,{ hash: string; rules: Map<unknown,string> }>();
+const preparedSchemas = new WeakMap<object,{ hash: string; rules: Map<unknown,string>; rangeHash?: string }>();
 
 // @ref LLP 1012#6-reads-offline — only this isolated, deeply immutable schema
 // custody may reuse canonical schema/rule bytes across fresh Runner executions.
@@ -26,6 +26,12 @@ export function prepareSchema(schema: any, expected: string): any {
 // validated immutable custody, never a mutable caller's claimed identity.
 export function schemaDigest(schema: any): string {
   return preparedSchemas.get(schema)?.hash ?? sha256(canonicalSchemaJson(schema));
+}
+
+// @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — retain the exact range identity only in existing validated immutable schema custody.
+export function rangeSchemaIdentity(schema: any): string {
+  const owned = preparedSchemas.get(schema);
+  return owned ? owned.rangeHash ??= sha256(canonicalJson(schema)) : sha256(canonicalJson(schema));
 }
 
 const I53_MAX = 9_007_199_254_740_991;

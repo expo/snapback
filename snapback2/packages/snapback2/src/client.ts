@@ -7,10 +7,9 @@ import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { createOutboxApi, drainOutbox, type DrainResult } from "./client-outbox.js";
+import { commitQuery } from './client-query.js';
 import {
-  acceptOffline,
   answerOffline,
-  commitOffline,
   createOfflineDrain, refuseDrains,
   createOfflineRuntime,
   decodeOfflineSubscription,
@@ -41,7 +40,6 @@ import {
   terminalSessionEnvelope,
   wireAuthMe,
   wireManifest,
-  wireQuery,
   wireShape,
   wireSubscription,
 } from "./client-wire.js";
@@ -265,7 +263,9 @@ class Client implements SnapbackClient {
     try { return await this.queryInternal(ref, args); }
     catch (error) { return { state: "refused", ...toRefusal(error) }; }
   }
-  private async queryInternal<Args, Result>(ref: Op<Args, Result>, args: Args, drain = false): Promise<QueryResult<Result>> {
+  private queryInternal<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>>;
+  private queryInternal<Args, Result>(ref: Op<Args, Result>, args: Args, drain: true): Promise<QueryResult<Result> | QueryResult<Result>[]>;
+  private async queryInternal<Args, Result>(ref: Op<Args, Result>, args: Args, drain = false): Promise<QueryResult<Result> | QueryResult<Result>[]> {
     await this.localReady;
     // Cold held reads may bypass restoration, never an explicit account transition.
     const localAuthority = await this.transitionAuthority();
@@ -300,18 +300,18 @@ class Client implements SnapbackClient {
         const held = await this.offlineRuntime?.answer(op, transportArgs);
         const revision = this.offlineRuntime?.coverageRevision;
         const deliveryOrder = this.offlineRuntime?.beginDelivery();
+        const batch = drain && !!this.offlineRuntime && !this.offlineRuntime.following;
         const raw = await this.json(`/api/query?receipt=${this.offlineRuntime ? 1 : 0}${drain ? "&drain=1" : ""}`, {
           method: "POST",
-          body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args: transportArgs, validator: held.validator } : { op, args: transportArgs }),
+          body: JSON.stringify({ op, args: transportArgs, ...(batch ? { batch: 16 } : held?.validator ? { validator: held.validator } : {}) }),
         }, authority);
-        const accepted = await acceptOffline<Result>(this.offlineRuntime, op, transportArgs, raw, wireShape,
-          () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: transportArgs }) }, authority));
-        const superseded = await commitOffline(this.offlineRuntime, op, transportArgs, accepted,
-          (error) => this.offlineRefusal(error, "client.query.commit"), revision, undefined, deliveryOrder);
-        const decoded = wireQuery<Result>(accepted.result);
-        const result = this.offlineRuntime ? await this.offlineRuntime.withQueryItems(op, transportArgs, accepted, decoded) : decoded;
+        const { pages, superseded } = await commitQuery<Result>({ runtime: this.offlineRuntime,
+          op, args: transportArgs, raw, batch, revision, deliveryOrder, current: () => this.authorityCurrent(authority),
+          failure: error => this.offlineRefusal(error, 'client.query.commit'),
+          revalidate: () => this.json('/api/query?receipt=1', { method: 'POST', body: JSON.stringify({ op, args: transportArgs }) }, authority) });
         this.validated(authority);
         if (superseded || revision !== this.offlineRuntime?.coverageRevision) this.scheduleSupersessionReset(authority, { op, args });
+        if (!pages.length) return answerOffline(this.offlineRuntime, op, args, error => this.offlineRefusal(error), drain);
         if (this.offlineRuntime && this.createOptions.offlineReadObserver) {
           const held = await answerOffline<Result>(
             this.offlineRuntime,
@@ -322,7 +322,7 @@ class Client implements SnapbackClient {
           this.createOptions.offlineReadObserver(ref, args, held);
         }
         // Every typed receipt, including an empty capped page, terminates this request.
-        return result;
+        return drain ? pages : pages[0];
       } catch (error) {
         if (isRefusalError(error) && error.retryable && this.offlineRuntime && attempt >= 3) {
           this.patchSnapshot({ connection: "offline" });

@@ -7,7 +7,8 @@ import { createHash } from "node:crypto";
 import { fileRangeStore } from "../dist/test.mjs";
 import { decodeDeliveryEnvelope, encodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
-import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, collectRefs, compactSuccesses, factAssertion } from "../dist/sqlite-test.mjs";
+import { OutboxLedger } from '../dist/client-observed-test.mjs';
+import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, collectRefs, compactSuccesses, factAssertion, FactTransaction, FactIndex, HeldIndex, RowImage, ExtentIndex, extentContains } from "../dist/sqlite-test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 
@@ -66,7 +67,7 @@ test("success compaction consults exact answer proofs only for an observable hel
     { label: "different image", answer: { rowProofs: { [key]: "other" } }, scans: 1, compacted: false },
     { label: "already observed", through: 10, scans: 0, compacted: true },
   ];
-  for (const variant of variants) {
+  for (const variant of variants) for (const indexed of [false, true]) {
     let scans = 0;
     const state: any = { facts: { generation, schemaHash },
       programs: { [generation]: { generation, schemaHash, programs: { edit: { planHash } } } },
@@ -76,10 +77,10 @@ test("success compaction consults exact answer proofs only for an observable hel
       negative: variant.negative === undefined ? {} : { [key]: variant.negative },
       answers: new Proxy({ view: { ...proof, ...variant.answer } }, { ownKeys(target) { scans++; return Reflect.ownKeys(target); } }),
       overlay: { success: {} }, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {} };
-    assert.deepEqual(compactSuccesses(state), variant.compacted ? [7] : [], variant.label);
+    assert.deepEqual(compactSuccesses(state, indexed ? () => ["deleted-owner", "view"] : undefined), variant.compacted ? [7] : [], variant.label);
     assert.equal(state.outbox.success === undefined, variant.compacted, variant.label);
     assert.equal(state.compactedThrough ?? 0, variant.compacted ? 10 : 0, variant.label);
-    assert.equal(scans, variant.scans, variant.label);
+    assert.equal(scans, indexed ? 0 : variant.scans, variant.label);
   }
 });
 
@@ -905,4 +906,188 @@ test('checked fixed extent holes reject clock contradictions atomically and reta
       await runtime.store.close();
     });
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+// @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — lazy integrity trees retain the eager oracle, validation and both sequence namespaces.
+const integritySchema = { tables: { messages: { columns: { id: 'Id', group: 'Id', at: 'Int', body: { Text: { max: 20 } } }, indexes: {
+  byGroup: { components: [{ Column: 'group' }, { Column: 'at' }, { Column: 'id' }] },
+  byWords: { components: [{ Column: 'group' }, { WordPrefixes: { fields: ['body'], contract: 'u17-nfc-scf-nfc-wsp-p' } }, { Column: 'id' }] },
+} } } };
+const integrityFact = (n: number, seq = 7) => {
+  const id = `r${n}`, group = { Id: n % 3 ? 'g' : 'h' };
+  return { id: `fact-${n}-${seq}`, key: `messages\0${id}`, table: 'messages', rowId: id, seq, digest: `digest-${n}`, keys: {
+    byGroup: [{ Scalar: group }, { Scalar: { Int: n } }, { Scalar: { Id: id } }],
+    byWords: [{ Scalar: group }, { Words: n % 2 ? ['ab', 'cd'] : ['ax'] }, { Scalar: { Id: id } }],
+  } };
+};
+const integrityCondition = (index = 'byGroup', order = 'Asc') => ({ table: 'messages', index, order,
+  prefix: [{ Scalar: { Id: 'g' } }, ...(index === 'byWords' ? [{ WordPrefix: { token: 'a' } }] : [])] });
+
+test('integrity indexes build only on first seek and match eager indexes across shared namespaces and changes', () => {
+  const positive = new FactIndex(integritySchema, true), live = new FactIndex(integritySchema, false, positive);
+  const eager = new Map(Object.entries(integritySchema.tables.messages.indexes).map(([name, value]) =>
+    [name, new HeldIndex(integritySchema, 'messages', name, value.components, row => row.namespace)]));
+  const owned = new Map();
+  const change = (owner: 'p' | 'l', fact: any, delta: number) => {
+    const index = owner === 'p' ? positive : live, id = owner + fact.id, old = owned.get(id);
+    index.change(fact, delta);
+    const refs = (old?.refs ?? 0) + delta;
+    if (!refs) { owned.delete(id); for (const tree of eager.values()) tree.remove(id); return; }
+    if (old && (old.keys || !fact.keys)) { old.refs = refs; return; }
+    const record = { ...fact, refs, namespace: owner === 'p' ? fact.seq : -1 };
+    owned.set(id, record);
+    if (record.keys) for (const [name, parts] of Object.entries(record.keys)) eager.get(name).putPrepared(id, record, parts);
+  };
+  const check = (name = 'byGroup') => {
+    for (const order of ['Asc', 'Desc']) for (const seq of [-1, 7, 8, 9]) {
+      const condition = integrityCondition(name, order), owner = seq === -1 ? live : positive;
+      const actual = [...owner.matching(condition, seq === -1 ? undefined : seq)].map(r => r.id);
+      const expected = [...eager.get(name).scan({ ...condition, after: null, before: null, range: {} }, seq)].map(r => r.id);
+      assert.deepEqual(actual, expected, `${name}/${order}/${seq}`);
+    }
+  };
+  for (let n = 0; n < 48; n++) { change('p', integrityFact(n, n % 2 ? 7 : 8), 1); change('l', integrityFact(n), 1); }
+  const slots = positive.shared.indexes;
+  assert.equal(slots.size, 2);
+  assert([...slots.values()].every(slot => !slot.ready && slot.index.size === 0), 'no postings precede the first integrity seek');
+  check();
+  assert.equal(slots.get('messages\0byWords').ready, false, 'an unqueried derived index remains empty');
+  for (let n = 0; n < 24; n++) { change('p', integrityFact(n, n % 2 ? 7 : 8), -1); change('l', integrityFact(n), -1); }
+  for (let n = 48; n < 56; n++) { change('p', integrityFact(n, 9), 1); change('l', integrityFact(n), 1); }
+  const unknown = { ...integrityFact(60, 9), keys: undefined };
+  change('p', unknown, 1); assert.equal(positive.opaque('messages', 9)?.id, unknown.id);
+  change('p', integrityFact(60, 9), 1); assert.equal(positive.opaque('messages', 9), undefined);
+  change('p', integrityFact(60, 9), -1);
+  check(); check('byWords');
+  assert.throws(() => [...positive.matching(integrityCondition())], /exact sequence/);
+  for (const [id, fact] of [...owned]) change(id[0], fact, -fact.refs);
+  assert.equal(slots.size, 0, 'last references release descriptors and physical trees');
+  assert.deepEqual([...live.matching(integrityCondition())], []);
+  change('l', integrityFact(99), 1); change('p', integrityFact(100, 8), 1);
+  check(); check('byWords');
+});
+
+test('lazy integrity indexes reject malformed descriptors and keys before any seek', () => {
+  for (const mutate of [
+    (schema: any) => { schema.tables.messages.indexes.byGroup.components.push({ Column: 'group' }); },
+    (schema: any) => { schema.tables.messages.indexes.byWords.components[1].WordPrefixes.contract = 'other'; },
+    (schema: any) => { schema.tables.messages.indexes.byWords.unique = true; },
+  ]) {
+    const schema = structuredClone(integritySchema); mutate(schema);
+    assert.throws(() => new FactIndex(schema, true).change(integrityFact(1), 1), /invalid index|invalid search/);
+  }
+  for (const mutate of [
+    (fact: any) => { fact.keys.byGroup.pop(); },
+    (fact: any) => { fact.keys.byWords[1].Words = ['']; },
+    (fact: any) => { fact.keys.byWords[1].Words = ['a'.repeat(81)]; },
+    (fact: any) => { fact.keys.byWords[1].Words = ['\ud800']; },
+  ]) {
+    const fact = integrityFact(1); mutate(fact);
+    assert.throws(() => new FactIndex(integritySchema, true).change(fact, 1), /width mismatch|source bounds|surrogate/);
+  }
+  const opaque = new FactIndex(undefined, true), fact = integrityFact(1);
+  opaque.change(fact, 1);
+  assert.equal(opaque.opaque('messages', 7)?.keys, undefined, 'schema-free custody confers no typed extent authority');
+  assert.deepEqual([...opaque.matching(integrityCondition(), 7)], []);
+});
+
+test('immutable fact preparation shares exact images across wrappers and still rejects identity collisions', () => {
+  const schema = { tables: { messages: { columns: { id: 'Id', body: { Text: { max: 20 } } }, indexes: {} } } };
+  const image = RowImage.fromWire(schema, 'messages', { id: 'one', body: 'hello' }, (_path, message) => { throw new Error(message); });
+  const transaction = new FactTransaction({}, () => {}, { newFacts: () => new FactIndex(schema, true), keyImage: () => RowImage.keys(image) },
+    () => { throw new Error('unexpected missing proof'); }, () => undefined, () => {});
+  const first = transaction.prepare({ table: 'messages', id: 'one', row: image });
+  assert.equal(transaction.prepare({ table: 'messages', id: 'one', row: image }), first);
+  const equal = RowImage.fromWire(schema, 'messages', { body: 'hello', id: 'one' }, (_path, message) => { throw new Error(message); });
+  assert.equal(transaction.prepare({ table: 'messages', id: 'one', row: equal }), first, 'different nominal images retain exact equality');
+  assert.throws(() => transaction.prepare({ table: 'messages', id: 'another', row: image }), /immutable image identity/);
+  assert.notEqual(transaction.prepare({ table: 'messages', id: 'one', row: { id: 'one', body: 'changed' } }), first);
+});
+
+test('extent scope pruning matches exhaustive membership through shared scopes, bounds and final removal', () => {
+  const index = new ExtentIndex(), held = new Map();
+  const scalar = value => ({ Scalar: value }), id = value => ({ Id: value }), int = value => ({ Int: value });
+  const condition = (name, prefix, extra = {}) => ({ op: 'read', site: 'page', table: 'messages', index: name,
+    prefix, order: 'Asc', after: null, before: null, gt: null, gte: null, lt: null, lte: null, ruleHash: 'rule', present: [], ...extra });
+  const definitions = [
+    condition('byGroup', []),
+    condition('byGroup', [scalar(id('g'))], { gt: [int(3)], lte: [int(13)] }),
+    condition('byGroup', [scalar(id('g'))], { order: 'Desc', after: [int(15), id('r15')], before: [int(2), id('r2')] }),
+    condition('byGroup', [scalar(id('g')), scalar(int(8))]),
+    condition('byGroup', [scalar(id('g')), scalar(int(8)), scalar(id('r8'))]),
+    condition('byWords', [scalar(id('g')), { WordPrefix: { token: 'a' } }]),
+    condition('byWords', [scalar(id('g')), { WordPrefix: { token: 'ab' } }], { first: [id('r1')], last: [id('r9')] }),
+    condition('byWords', [scalar(id('h')), { WordPrefix: { token: '💠' } }]),
+    condition('byGroup', [scalar(id('h'))], { table: 'other' }),
+  ];
+  const change = (key, value, seq, delta) => {
+    index.change(key, value, seq, delta);
+    const previous = held.get(key), refs = (previous?.refs ?? 0) + delta;
+    if (refs) held.set(key, { condition: value, seq, refs }); else held.delete(key);
+  };
+  const check = () => {
+    for (const table of ['messages', 'other', 'absent']) for (let n = 0; n < 18; n++) for (const seq of [0, 4, 5, 6, 7]) {
+      const image = integrityFact(n).keys;
+      if (n === 15) image.byWords[1] = { Words: ['💠abc', 'ab'] };
+      image.unheld = [{ Scalar: id('irrelevant') }];
+      const expected = [...held].filter(([, value]) => value.condition.table === table && value.seq >= seq
+        && extentContains(image, value.condition)).map(([key]) => key).sort();
+      assert.deepEqual([...index.matching(table, image, seq)].map(value => value.id).sort(), expected, `${table}/${n}/${seq}`);
+    }
+  };
+  definitions.forEach((value, n) => change(`extent${n}`, value, 4 + n % 3, 1));
+  change('extent1', definitions[1], 5, 1);
+  check();
+  change('extent1', definitions[1], 5, -1);
+  assert.equal(index.get('extent1').refs, 1, 'one reference cannot release a still-owned scope');
+  change('extent2', definitions[2], 6, -1);
+  check();
+  for (const [key, value] of [...held]) change(key, value.condition, value.seq, -value.refs);
+  assert.equal(index.has('messages'), false);
+  assert.equal(index.has('other'), false);
+  assert.equal(index.scopes.size, 0, 'final references release every table, index and width directory');
+  check();
+  change('again', definitions[6], 8, 1); check();
+});
+
+test('committed outbox reads detach nested values, preserve missing entries and refuse sealed custody', async () => {
+  let fail = false;
+  const store = new PersistentRangeStore({ carrier: 'json', open: async () => undefined,
+    close: async () => undefined,
+    replace: async () => { if (fail) throw new Error('failed persistence'); } });
+  await store.open('alice');
+  assert.equal(await store.outbox.get('missing'), undefined);
+  assert.equal(await store.outbox.grant(), undefined);
+  const pending = { ...entry('one'), args: { nested: [{ value: 'original' }], omitted: undefined } };
+  await store.commit({ outbox: { put: [pending] }, bounds: { send: 0 } });
+  pending.args.nested[0].value = 'caller changed';
+  const first = await store.outbox.get('one');
+  assert.deepEqual(first.args, { nested: [{ value: 'original' }] });
+  first.args.nested[0].value = 'reader changed';
+  const all = await store.outbox.all(); all[0].args.nested.push({ value: 'extra' });
+  assert.deepEqual((await store.outbox.queued())[0].args, { nested: [{ value: 'original' }] });
+  assert.equal((await store.outbox.queuedInfo()).length, 1);
+  assert(!Object.hasOwn((await store.outbox.queuedInfo())[0], 'args'), 'readiness never copies argument bodies');
+  const ledger = new OutboxLedger(store, { now: () => 1, fenceMs: 100 });
+  const expectedStatus = await ledger.status(), info = store.outbox.queuedInfo;
+  store.outbox.queuedInfo = undefined;
+  assert.deepEqual(await ledger.status(), expectedStatus, 'custom carriers retain the ordinary queued fallback');
+  store.outbox.queuedInfo = info;
+  const bounds = await store.outbox.bounds(); bounds.send = 99;
+  assert.deepEqual(await store.outbox.bounds(), { send: 0 });
+  fail = true;
+  await assert.rejects(store.outbox.put({ ...first, args: { changed: true } }), /failed persistence/);
+  assert.deepEqual((await store.outbox.get('one')).args, { nested: [{ value: 'original' }] });
+  assert.equal((await store.outbox.queuedInfo()).length, 1, 'failed persistence leaves the exact queued count');
+  fail = false;
+  await store.outbox.put({ ...first, refusal: { code: 'E_INPUT' } });
+  assert.equal((await store.outbox.queuedInfo()).length, 1, 'an unspent refusal remains queued');
+  await store.outbox.put({ ...first, state: 'committed' });
+  assert.equal((await store.outbox.queuedInfo()).length, 0, 'terminal custody is not pending replay');
+  await store.outbox.put({ ...entry('rejected'), state: 'rejected' });
+  assert.equal((await store.outbox.queuedInfo()).length, 0);
+  await store.seal();
+  await assert.rejects(store.outbox.all(), /sealed/);
+  await assert.rejects(store.outbox.queuedInfo(), /sealed/);
+  await store.close();
 });

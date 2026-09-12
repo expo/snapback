@@ -68,10 +68,8 @@ export class ProjectionCache {
     const metaDelta = !this.legacyMetadata && this.keys.meta.has('state') && changed
       && metadataChanges(state, changed, this.keys.meta);
     if (!metaDelta) compare("meta", metadata(state));
-    else {
-      delta.meta.remove.push(...metaDelta.remove);
-      for (const { key, value } of metaDelta.put) put('meta', key, value);
-    }
+    // metadataChanges already owns detached, JSON-normalized values.
+    else delta.meta = metaDelta;
     return { delta, committed: () => {
       this.legacyMetadata = false;
       for (const name of Object.keys(delta) as Array<keyof StateProjection>) {

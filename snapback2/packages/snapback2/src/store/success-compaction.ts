@@ -7,7 +7,7 @@ import type { PersistedRangeState } from "./range-store.js";
 export type SuccessEffects = { table: string; id: string; removed?: true }[];
 
 /** Runs in the existing carrier transaction, with or without query readers. */
-export function compactSuccesses(state: PersistedRangeState): number[] {
+export function compactSuccesses(state: PersistedRangeState, owners?: (key: string) => Iterable<string>): number[] {
   const aliases: number[] = [];
   for (const [intent, entry] of Object.entries(state.outbox)) {
     if (entry.state !== "committed" || state.superseded) continue;
@@ -25,8 +25,9 @@ export function compactSuccesses(state: PersistedRangeState): number[] {
       let positive = observed?.through ?? -1;
       // An answer can extend an existing image's proof, never supply a missing
       // or negatively superseded image. Keep explicit negative evidence below.
-      if (observed && positive < seq!) for (const answer of Object.values(state.answers)) {
-        positive = Math.max(positive, rowObservation(state, key, answer)?.through ?? -1);
+      // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — ownership narrows candidates, while the current row's exact proof still decides observation.
+      if (observed && positive < seq!) for (const owner of owners?.(key) ?? Object.keys(state.answers)) {
+        positive = Math.max(positive, rowObservation(state, key, state.answers[owner])?.through ?? -1);
         if (positive >= seq!) break;
       }
       const negative = state.negative[key] ?? -1;

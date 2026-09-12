@@ -26,6 +26,8 @@ use std::time::{Duration, Instant};
 mod writer_assets;
 #[path = "writer_auth.rs"]
 mod writer_auth;
+#[path = "writer_batch.rs"]
+mod writer_batch;
 #[path = "writer_bindings.rs"]
 mod writer_bindings;
 pub(crate) use writer_bindings::close_effects_epoch;
@@ -192,6 +194,14 @@ pub enum Action {
         expected_generation: Option<Json>,
         offline: OfflineOptions,
         replay: Option<Json>,
+    },
+    QueryBatch {
+        body: Json,
+        identity: Identity,
+    },
+    ReplayBatch {
+        body: Json,
+        identity: Identity,
     },
     Resume {
         body: Json,
@@ -664,6 +674,8 @@ impl State {
                 }
                 Ok(response)
             }
+            Action::QueryBatch { body, identity } => self.query_batch(body, identity),
+            Action::ReplayBatch { body, identity } => self.replay_batch(body, identity),
             Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {
                 op,
@@ -1180,7 +1192,7 @@ impl State {
         // even when a successor removed or changed the original program.
         if let Some(replay) = replay {
             let authority = self.resolve_authority(identity)?;
-            return self.execute_replayed_mutation(op, args, &authority, replay);
+            return self.execute_replayed_mutation(op, args, &authority, replay, false);
         }
         self.refuse_schedule_target(op)?;
         let kind = self.operation_kind(op, expected)?;

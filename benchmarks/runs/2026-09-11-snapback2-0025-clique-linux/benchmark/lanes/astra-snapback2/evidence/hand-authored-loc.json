@@ -1,0 +1,647 @@
+{
+  "method": "Physical lines in authored/substantially rewritten source, tests, debug/migration/report tooling and config scripts; vendored kit only added/replaced lines versus instrument. Excludes installed/generated trees, isolated copies, archived scaffold, known unchanged scaffold helpers and generated Quarry constants. Dense one-line client code makes this a poor effort proxy; bytes also retained. Some retained scaffold lines inside rewritten files are included.",
+  "files": [
+    {
+      "path": "app.config.js",
+      "lines": 6,
+      "bytes": 499,
+      "category": "configuration"
+    },
+    {
+      "path": "app/_layout.tsx",
+      "lines": 10,
+      "bytes": 518,
+      "category": "client"
+    },
+    {
+      "path": "app/chat/[id].tsx",
+      "lines": 1,
+      "bytes": 233,
+      "category": "client"
+    },
+    {
+      "path": "app/chats.tsx",
+      "lines": 1,
+      "bytes": 51,
+      "category": "client"
+    },
+    {
+      "path": "app/chatsettings/[id].tsx",
+      "lines": 1,
+      "bytes": 233,
+      "category": "client"
+    },
+    {
+      "path": "app/conversation/[handle].tsx",
+      "lines": 1,
+      "bytes": 221,
+      "category": "client"
+    },
+    {
+      "path": "app/conversation/group/[group]/index.tsx",
+      "lines": 1,
+      "bytes": 227,
+      "category": "client"
+    },
+    {
+      "path": "app/conversation/group/[group]/settings.tsx",
+      "lines": 1,
+      "bytes": 236,
+      "category": "client"
+    },
+    {
+      "path": "app/index.tsx",
+      "lines": 1,
+      "bytes": 47,
+      "category": "client"
+    },
+    {
+      "path": "app/insights.tsx",
+      "lines": 1,
+      "bytes": 53,
+      "category": "client"
+    },
+    {
+      "path": "app/new-chat.tsx",
+      "lines": 1,
+      "bytes": 53,
+      "category": "client"
+    },
+    {
+      "path": "app/post/[postId].tsx",
+      "lines": 1,
+      "bytes": 218,
+      "category": "client"
+    },
+    {
+      "path": "app/profile/[handle].tsx",
+      "lines": 1,
+      "bytes": 221,
+      "category": "client"
+    },
+    {
+      "path": "app/profile/edit.tsx",
+      "lines": 1,
+      "bytes": 130,
+      "category": "client"
+    },
+    {
+      "path": "app/search.tsx",
+      "lines": 1,
+      "bytes": 49,
+      "category": "client"
+    },
+    {
+      "path": "app/settings.tsx",
+      "lines": 1,
+      "bytes": 282,
+      "category": "client"
+    },
+    {
+      "path": "metro.config.js",
+      "lines": 1,
+      "bytes": 288,
+      "category": "configuration"
+    },
+    {
+      "path": "scripts/acceptance.mjs",
+      "lines": 27,
+      "bytes": 5430,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/backfill-once-labels.mjs",
+      "lines": 6,
+      "bytes": 2115,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/build-insights-expected.mjs",
+      "lines": 13,
+      "bytes": 2041,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/choreo.mjs",
+      "lines": 5,
+      "bytes": 868,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/cleanup-servers.mjs",
+      "lines": 12,
+      "bytes": 2812,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/configure-digest.mjs",
+      "lines": 1,
+      "bytes": 413,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/configure.mjs",
+      "lines": 3,
+      "bytes": 560,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/custom-client-demo.mjs",
+      "lines": 21,
+      "bytes": 2893,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-conversation.mjs",
+      "lines": 1,
+      "bytes": 707,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-cutoff.mjs",
+      "lines": 1,
+      "bytes": 2133,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-edit-loop.mjs",
+      "lines": 1,
+      "bytes": 2045,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-edit-pair.mjs",
+      "lines": 1,
+      "bytes": 1837,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-edit.mjs",
+      "lines": 1,
+      "bytes": 1246,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-media.mjs",
+      "lines": 1,
+      "bytes": 642,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-remove.mjs",
+      "lines": 1,
+      "bytes": 874,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug-settings.mjs",
+      "lines": 1,
+      "bytes": 790,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/debug.mjs",
+      "lines": 1,
+      "bytes": 1133,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/digest-custody-proof.mjs",
+      "lines": 11,
+      "bytes": 2847,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/digest-proof.mjs",
+      "lines": 21,
+      "bytes": 3588,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/ephemeral-suite.mjs",
+      "lines": 11,
+      "bytes": 3878,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/expiry-counter-proof.mjs",
+      "lines": 5,
+      "bytes": 2305,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/expiry-proof.mjs",
+      "lines": 2,
+      "bytes": 1467,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/finalize-report.mjs",
+      "lines": 22,
+      "bytes": 21600,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/finish-scale-upgrade.mjs",
+      "lines": 5,
+      "bytes": 1769,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/group-reset.mjs",
+      "lines": 1,
+      "bytes": 482,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/insights-suite.mjs",
+      "lines": 19,
+      "bytes": 5523,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/inspect-members.mjs",
+      "lines": 1,
+      "bytes": 377,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/m5-schema.py",
+      "lines": 30,
+      "bytes": 2653,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/m5-ui.py",
+      "lines": 21,
+      "bytes": 5716,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/m5-viewer.py",
+      "lines": 3,
+      "bytes": 2085,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/m8-refine.py",
+      "lines": 52,
+      "bytes": 4703,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/m8-schema.py",
+      "lines": 32,
+      "bytes": 1423,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/media-suite.mjs",
+      "lines": 9,
+      "bytes": 3367,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/messaging-suite.mjs",
+      "lines": 12,
+      "bytes": 4360,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/observe-browser.mjs",
+      "lines": 4,
+      "bytes": 1238,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/offline-suite.mjs",
+      "lines": 7,
+      "bytes": 4913,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/pids.mjs",
+      "lines": 2,
+      "bytes": 526,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/prepare-choreo.ts",
+      "lines": 1,
+      "bytes": 879,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/quote-history-proof.mjs",
+      "lines": 2,
+      "bytes": 2007,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/replay.ts",
+      "lines": 50,
+      "bytes": 7373,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/scale-browser-proof.mjs",
+      "lines": 5,
+      "bytes": 2484,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/scale-insights-proof.mjs",
+      "lines": 7,
+      "bytes": 2452,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/scale-label-finish.mjs",
+      "lines": 3,
+      "bytes": 1165,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/seed.ts",
+      "lines": 31,
+      "bytes": 3811,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/setup.mjs",
+      "lines": 5,
+      "bytes": 1484,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/social-suite.mjs",
+      "lines": 27,
+      "bytes": 5915,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/upgrade-scale.mjs",
+      "lines": 11,
+      "bytes": 1623,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/verify-replay.mjs",
+      "lines": 43,
+      "bytes": 7973,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/web-durable-proof.mjs",
+      "lines": 21,
+      "bytes": 3416,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "scripts/window-proof.mjs",
+      "lines": 1,
+      "bytes": 1940,
+      "category": "tooling/tests"
+    },
+    {
+      "path": "shared/thread.ts",
+      "lines": 33,
+      "bytes": 1273,
+      "category": "client"
+    },
+    {
+      "path": "snapback/access.q",
+      "lines": 3,
+      "bytes": 241,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/delivery.ts",
+      "lines": 10,
+      "bytes": 534,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/digest.q",
+      "lines": 125,
+      "bytes": 7249,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/feeds.q",
+      "lines": 16,
+      "bytes": 914,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/follows.q",
+      "lines": 22,
+      "bytes": 885,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/groups.q",
+      "lines": 103,
+      "bytes": 5204,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/insights.q",
+      "lines": 21,
+      "bytes": 1544,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/messages.q",
+      "lines": 220,
+      "bytes": 10445,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/posts.q",
+      "lines": 55,
+      "bytes": 2351,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/profiles.q",
+      "lines": 42,
+      "bytes": 2196,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/push.q",
+      "lines": 12,
+      "bytes": 770,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/runtime.q",
+      "lines": 4,
+      "bytes": 181,
+      "category": "backend"
+    },
+    {
+      "path": "snapback/schema.q",
+      "lines": 406,
+      "bytes": 10890,
+      "category": "backend"
+    },
+    {
+      "path": "src/Auth.tsx",
+      "lines": 15,
+      "bytes": 1639,
+      "category": "client"
+    },
+    {
+      "path": "src/backend.ts",
+      "lines": 3,
+      "bytes": 240,
+      "category": "client"
+    },
+    {
+      "path": "src/Connectivity.tsx",
+      "lines": 1,
+      "bytes": 44,
+      "category": "client"
+    },
+    {
+      "path": "src/Connectivity.web.tsx",
+      "lines": 2,
+      "bytes": 451,
+      "category": "client"
+    },
+    {
+      "path": "src/GlobalSearch.tsx",
+      "lines": 22,
+      "bytes": 3026,
+      "category": "client"
+    },
+    {
+      "path": "src/Insights.tsx",
+      "lines": 3,
+      "bytes": 1553,
+      "category": "client"
+    },
+    {
+      "path": "src/Media.tsx",
+      "lines": 3,
+      "bytes": 347,
+      "category": "client"
+    },
+    {
+      "path": "src/Media.web.tsx",
+      "lines": 3,
+      "bytes": 879,
+      "category": "client"
+    },
+    {
+      "path": "src/Messaging.tsx",
+      "lines": 27,
+      "bytes": 18693,
+      "category": "client"
+    },
+    {
+      "path": "src/online.ts",
+      "lines": 2,
+      "bytes": 277,
+      "category": "client"
+    },
+    {
+      "path": "src/platform.ts",
+      "lines": 3,
+      "bytes": 203,
+      "category": "client"
+    },
+    {
+      "path": "src/platform.web.ts",
+      "lines": 5,
+      "bytes": 336,
+      "category": "client"
+    },
+    {
+      "path": "src/Profile.tsx",
+      "lines": 16,
+      "bytes": 2985,
+      "category": "client"
+    },
+    {
+      "path": "src/Search.tsx",
+      "lines": 9,
+      "bytes": 2405,
+      "category": "client"
+    },
+    {
+      "path": "src/Social.tsx",
+      "lines": 12,
+      "bytes": 5522,
+      "category": "client"
+    },
+    {
+      "path": "src/Trending.tsx",
+      "lines": 4,
+      "bytes": 1110,
+      "category": "client"
+    },
+    {
+      "path": "ui/src/Avatar.tsx",
+      "lines": 2,
+      "bytes": 2145,
+      "category": "vendored UI changed lines"
+    },
+    {
+      "path": "ui/src/ChatListRow.tsx",
+      "lines": 1,
+      "bytes": 4061,
+      "category": "vendored UI changed lines"
+    },
+    {
+      "path": "ui/src/ChatSettingsForm.tsx",
+      "lines": 7,
+      "bytes": 15504,
+      "category": "vendored UI changed lines"
+    },
+    {
+      "path": "ui/src/Composer.tsx",
+      "lines": 1,
+      "bytes": 6884,
+      "category": "vendored UI changed lines"
+    },
+    {
+      "path": "ui/src/FeedCard.tsx",
+      "lines": 4,
+      "bytes": 9359,
+      "category": "vendored UI changed lines"
+    },
+    {
+      "path": "ui/src/MessageBubble.tsx",
+      "lines": 1,
+      "bytes": 10866,
+      "category": "vendored UI changed lines"
+    },
+    {
+      "path": "ui/src/PollDisplay.tsx",
+      "lines": 3,
+      "bytes": 4498,
+      "category": "vendored UI changed lines"
+    },
+    {
+      "path": "ui/src/ReceiptTicks.tsx",
+      "lines": 1,
+      "bytes": 1723,
+      "category": "vendored UI changed lines"
+    }
+  ],
+  "totalLines": 1827,
+  "fileCount": 105,
+  "excludedKnownScaffoldOrGenerated": [
+    "src/MediaView.tsx",
+    "src/composed-facts.ts",
+    "src/witness-state.ts",
+    "shared/status.ts",
+    "snapback/seed.ts",
+    "snapback/notifications.q",
+    "snapback/config.q",
+    "snapback/digestConfig.q"
+  ]
+}
