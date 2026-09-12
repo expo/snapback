@@ -111,9 +111,9 @@ export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } 
   const steps = [];
   const failures = [];
   let retainForRecovery = false;
-  const execute = (label, command, args, cwd, accept = r => r.status === 0) => {
+  const execute = (label, command, args, cwd, accept = r => r.status === 0, environment = env) => {
     const before = performance.now();
-    const result = spawnSync(command, args, { cwd, env, encoding: 'utf8', detached: process.platform !== 'win32', timeout: 30_000, killSignal: 'SIGKILL', maxBuffer: 32 * 1024 * 1024 });
+    const result = spawnSync(command, args, { cwd, env: environment, encoding: 'utf8', detached: process.platform !== 'win32', timeout: 30_000, killSignal: 'SIGKILL', maxBuffer: 32 * 1024 * 1024 });
     // The shim waits on the Rust CLI, which can own a foreground test server.
     // On timeout, terminate the process group recorded by this launch, not just
     // the shim; detached dev owners have their own group and stop below.
@@ -141,38 +141,53 @@ export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } 
       steps.push({ name: 'platform README guidance', seconds: 0, ok: readmeOk });
       if (!readmeOk) failures.push(`${platformName} README does not route check/dev through the public wrapper`);
       const invoke = (name, args, cwd, accept) => execute(name, process.execPath, [cli, ...args], cwd, accept);
-      const rawGuidance = (result, command) => {
-        const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
-        return result.status === 1 && output.includes('E_OWNER_NO_COMPILER')
-          && output.includes(`run npx snapback2 ${command}`);
+      const rawGuidance = (result, message, rewrite) => {
+        let refusal;
+        for (const line of `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim().split('\n')) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.code === 'E_OWNER_NO_COMPILER') refusal = parsed;
+          } catch {}
+        }
+        return result.status === 1 && refusal?.message.includes(message)
+          && refusal.rewrite === rewrite;
       };
       invoke('doctor', ['doctor', '--json'], directory);
       invoke('guide auth', ['guide', 'auth'], directory);
       execute('public client and React exports', process.execPath, ['--input-type=module', '-e',
         'import { createClient } from "snapback2/client"; import { SnapbackProvider, useQuery } from "snapback2/react"; if (![createClient, SnapbackProvider, useQuery].every(x => typeof x === "function")) throw Error("missing exports");'], directory);
       for (const template of ['todos', 'chat']) {
-        const project = resolve(directory, template);
+        const project = resolve(directory, template === 'todos' ? "todos quoted 'project" : template);
+        const publicProjectArgs = template === 'todos' ? ['--project', project] : [];
+        const publicCwd = template === 'todos' ? directory : project;
         mkdirSync(project);
         invoke(`${template} init`, ['init', '.', '--template', template, '--client', 'react', '--json'], project);
         if (template === 'todos') {
           const compiler = resolve(directory, 'node_modules/snapback2/dist/compiler.mjs');
-          execute('raw binary check missing-compiler guidance', rawCli, ['check'], project,
-            result => rawGuidance(result, 'check'));
-          execute('raw binary check missing-node guidance', rawCli, ['check'], project,
-            result => rawGuidance(result, 'check'),
+          const quotedProject = `'${project.replaceAll("'", "'\\''")}'`;
+          const checkArgs = ['check', '--project', project, '--json'];
+          const checkWrapper = `npx snapback2 check --project ${quotedProject} --json`;
+          const devArgs = ['dev', '--project', project, '--foreground', '--json'];
+          const devWrapper = `npx snapback2 dev --project ${quotedProject} --foreground --json`;
+          const compilerFallback = 'set SNAPBACK2_COMPILER=/absolute/path/to/node_modules/snapback2/dist/compiler.mjs';
+          const nodeFallback = 'set SNAPBACK2_NODE=/absolute/path/to/trusted/node';
+          execute('raw binary check missing-compiler guidance', rawCli, checkArgs, directory,
+            result => rawGuidance(result, 'compiler worker not found', `run ${checkWrapper}; or ${compilerFallback}`));
+          execute('raw binary check missing-node guidance', rawCli, checkArgs, directory,
+            result => rawGuidance(result, 'no absolute Node executable', `run ${checkWrapper}; or ${nodeFallback}`),
             { ...env, SNAPBACK2_COMPILER: compiler });
-          execute('raw binary dev missing-compiler guidance', rawCli, ['dev', '--foreground'], project,
-            result => rawGuidance(result, 'dev --foreground'));
-          execute('raw binary dev missing-node guidance', rawCli, ['dev', '--foreground'], project,
-            result => rawGuidance(result, 'dev --foreground'),
+          execute('raw binary dev missing-compiler guidance', rawCli, devArgs, directory,
+            result => rawGuidance(result, 'compiler worker not found', `run ${devWrapper}; or ${compilerFallback}`));
+          execute('raw binary dev missing-node guidance', rawCli, devArgs, directory,
+            result => rawGuidance(result, 'no absolute Node executable', `run ${devWrapper}; or ${nodeFallback}`),
             { ...env, SNAPBACK2_COMPILER: compiler });
         }
-        invoke(`${template} check`, ['check', '--json'], project);
+        invoke(`${template} check`, ['check', ...publicProjectArgs, '--json'], publicCwd);
         execute(`${template} React bundle`, process.execPath, [resolve(directory, 'node_modules/vite/bin/vite.js'), 'build'], project);
         let attemptedDev = false;
         try {
           attemptedDev = true;
-          const dev = invoke(`${template} dev`, ['dev'], project, r => r.status === 0 && r.stdout.includes('SNAPBACK_URL='));
+          const dev = invoke(`${template} dev`, ['dev', ...publicProjectArgs], publicCwd, r => r.status === 0 && r.stdout.includes('SNAPBACK_URL='));
           const url = /SNAPBACK_URL=(\S+)/.exec(dev.stdout ?? '')?.[1];
           if (template === 'todos' && dev.status === 0 && url) {
             execute('React live query round trip', process.execPath, ['--input-type=module', '-e', reactRoundTrip, url], directory);
@@ -184,7 +199,7 @@ export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } 
           });
         } finally {
           if (attemptedDev) {
-            const stopped = invoke(`${template} stop`, ['dev', '--stop', '--json'], project);
+            const stopped = invoke(`${template} stop`, ['dev', ...publicProjectArgs, '--stop', '--json'], publicCwd);
             // A detached owner has a separate process group. Preserve its own
             // recovery metadata if stop fails; never delete a live owner's store.
             if (stopped.status !== 0 && existsSync(resolve(project, '.snapback/owner.json'))) retainForRecovery = true;
