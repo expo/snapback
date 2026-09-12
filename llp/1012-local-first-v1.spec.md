@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-11 (bounded transport/carrier acquisition; earlier chronology in LLP 1022)
+**Revised:** 2026-09-11 (unheld aggregate presentation and checked totals custody; bounded transport/carrier acquisition; earlier chronology in LLP 1022)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), LLP 1022 (implementation, measurement, and review history), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -447,6 +447,23 @@ thirty days ago is refused `E_OFFLINE_INTENT_EXPIRED` (§7). The 24 h / 7 d /
 section.
 
 ## 6. Reads offline
+
+**Maintained totals (2026-09-11).** Quarry's typed zero for an absent or
+unreadable maintained target requires authority. If a local execution has an
+uncovered maintained point, its entire result (including arithmetic and
+composites of totals) has no publishable data: the hook is `unavailable` with
+reason `partial` until a receipt permits the answer. Previously held complete
+zeros remain readable with their original freshness. The real-owner Insights
+hook regression covers warm and cold clients, count/sum/computed totals, and
+legitimate absent/hidden zeros.
+Literal containers of totals can keep their complete checked owner answer
+when a partial twin cannot reconstruct a hidden count or sparse sum. This
+requires the same qualified owner selection (sequence and durable order),
+receipt custody, no returned pooled rows, no missing fact proofs, no retention
+rewrite, no execution clock, and no newer prediction (including removal-only
+overlays). Eviction and missing-rule-authority partials cannot use it. Mixed
+row/projection composites and timed queries still need their own exact rerun;
+the fallback adds no authority to the unheld target.
 
 **The twin is the client.** `useQuery(op, args)` with the backend
 unreachable runs the certified program through the twin

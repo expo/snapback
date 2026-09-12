@@ -1225,27 +1225,30 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
   // evaluator to reconstruct. Keep that exact owner result when the rerun is
   // merely partial and no newer prediction is visible; store invalidation
   // makes the held owner partial before an actual row/revocation change.
-  const cachedScalar = held?.state === "complete" && held.data !== undefined
-    && (held.data === null || typeof held.data !== "object");
-  const cachedAnswerOnly = cachedScalar && local?.state === "partial" && !(local.predicted?.length);
   // @ref LLP 1012#6-reads-offline — an exact held capped owner page keeps its
   // whole receipt-time page boundary while the twin carries that owner's
   // qualified membership observation. Never graft that boundary onto the
   // partial rerun: queued work, revocation and maintained-coherence still
   // select local or invalidated custody instead.
   const localInputs = itemInputs(local);
-  const ownerOrder = itemInputs(held)?.selection?.order;
-  const exactOwnerAnswer = preserveOwner && held?.receipt !== undefined
-    && held.state === "capped" && typeof held.next === "string" && local !== undefined
-    && localInputs?.selection?.through === held.seq
-    && ownerOrder !== undefined && localInputs.selection.order === ownerOrder
+  const heldInputs = itemInputs(held), ownerOrder = heldInputs?.selection?.order;
+  // `predicted` includes removal-only overlays; retirement clears it atomically.
+  const sameOwner = preserveOwner && held?.receipt !== undefined && local !== undefined
+    && localInputs?.selection?.through === held.seq && ownerOrder !== undefined && localInputs.selection.order === ownerOrder
+    && !localInputs.entries.some(entry => entry.predicted);
+  // A literal container of totals has the same exact-owner fallback as a scalar.
+  // Pooled rows could have expanded into newer images with old computed fields;
+  // timed queries could address a different bucket. Neither inherits this exception.
+  const cachedAnswerOnly = held?.state === "complete" && held.data !== undefined
+    && local?.state === "partial" && !local.predicted?.length
+    && (held.data === null || typeof held.data !== "object" || (sameOwner
+      && !held.retained && !held.needsFactProofs && held.readTime === undefined && heldInputs?.values?.size === 0
+      && local.sites?.length && local.sites.every(site => site.site !== "missing-authority" && site.reason !== "evicted")));
+  const exactOwnerAnswer = sameOwner && held.state === "capped" && typeof held.next === "string"
     && local.state !== "held" && local.state !== "denied"
     && (local.state !== "partial" || (local.sites?.length
       ? local.sites.every((site) => site.reason === "computed-key")
-      : local.reason === "computed-key"))
-    // `predicted` lives exactly as long as its overlay, including an empty or
-    // removal-only overlay after commit; retirement clears both atomically.
-    && !localInputs?.entries.some((entry) => entry.predicted);
+      : local.reason === "computed-key"));
   const useLocal = local !== undefined && !waitingForCoherentOwner && !cachedAnswerOnly && !exactOwnerAnswer
     && (!held?.retained || reconstructed);
   if (!useLocal) {

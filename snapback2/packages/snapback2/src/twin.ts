@@ -60,10 +60,6 @@ export interface Prediction {
 
 type Hydrated = TwinStore;
 
-/** Debug seam for the witness: why the twin last declined to evaluate (never part of a result). */
-export function twinLastDecline(): string | undefined { return (globalThis as { __snapbackTwinLast?: string }).__snapbackTwinLast; }
-function decline(reason: string): undefined { (globalThis as { __snapbackTwinLast?: string }).__snapbackTwinLast = reason; return undefined; }
-
 export class Twin {
   private readonly indexed: TwinStore;
   constructor(private readonly sources: TwinSources) { this.indexed = new TwinStore(sources); }
@@ -75,12 +71,12 @@ export class Twin {
    * state), or when the operation is not a query the program knows.
    */
   async evaluate(op: string, args: unknown): Promise<LocalAnswer | undefined> {
-    if (this.sources.program()?.programs[op]?.kind !== "query") return decline("unknown-op");
-    if (readsConnected(this.sources.program()?.programs[op])) return decline("connected");
+    if (this.sources.program()?.programs[op]?.kind !== "query") return undefined;
+    if (readsConnected(this.sources.program()?.programs[op])) return undefined;
     const hydrated = await this.hydrate();
-    if (!hydrated) return decline("hydrate");
+    if (!hydrated) return undefined;
     const operation = hydrated.program.programs[op];
-    if (!operation || operation.kind !== "query") return decline("unknown-op");
+    if (!operation || operation.kind !== "query") return undefined;
     const ir = operation.ir as { args?: unknown };
     const cursor = cursorArgument(operation), fence: LocalFence = {
       partition: this.sources.principal()!, operation: op, program: operation.planHash, schema: hydrated.program.schemaHash,
@@ -99,7 +95,6 @@ export class Twin {
       }
     }
     const context = this.context(hydrated, ir, args, [], true, fence.readTime);
-    if (!context) return decline("context");
     if (fence.timed) fence.readTime = context.read_time!;
     const since = hydrated.deliveredAt;
     const capture = hydrated.captureItems(op, args);
@@ -130,7 +125,14 @@ export class Twin {
       const next = cursor && page && suffix && queryState(operation.certificate, local.execution.trace, context.viewer) === 'capped'
         ? encodeLocalCursor(fence, binding, { table: page.table, index: page.index, order: page.order, suffix: page.suffix, values: suffix }) : null;
       const result = local.execution.result;
-      const data = result === "Null" && local.state !== "fresh" ? undefined : nullOnceMedia(wireJson(result), hydrated.onceAssets);
+      // @ref LLP 1012#6-reads-offline — Quarry's typed zero needs proved absence
+      // or unreadability. An uncovered maintained point can taint any enclosing
+      // expression/composite; none of that result is a readable local answer.
+      const maintains = hydrated.program.schema.maintains as { target: string }[] | undefined;
+      const unheldAggregate = local.execution.trace.absences.some(absence => local.partialSites.includes(absence.site)
+        && maintains?.some(maintain => maintain.target === absence.table));
+      const data = unheldAggregate || local.partialSites.includes("missing-authority") || result === "Null" && local.state !== "fresh"
+        ? undefined : nullOnceMedia(wireJson(result), hydrated.onceAssets);
       capture.evaluated(result, data);
       const ranges = new Set(local.execution.trace.ranges.map(r => r.site));
       const search = local.execution.held || local.execution.trace.ranges.some(r => r.prefix.some(p => 'WordPrefix' in p));
@@ -141,7 +143,7 @@ export class Twin {
       if (local.state === "fresh") {
         return publish({ state: queryState(operation.certificate, local.execution.trace, context.viewer), data, next: search || fence.timed ? next : local.execution.next, ...base });
       }
-      return partial(local.partialSites, local.execution.trace, local.partialSites.includes("missing-authority") ? undefined : data);
+      return partial(local.partialSites, local.execution.trace, data);
     } catch (error) {
       if (!(error instanceof EvalError)) throw error;
       if (error.trace && error.partialSites?.length) return partial(error.partialSites, error.trace);
@@ -168,10 +170,9 @@ export class Twin {
     const operation = hydrated.program.programs[op];
     if (!operation || operation.kind !== "mutation") return none;
     const ir = operation.ir as { args?: unknown };
-    let context: Context | undefined;
+    let context: Context;
     try { context = this.context(hydrated, ir, args, ids); }
     catch (error) { if (!(error instanceof EvalError)) throw error; return none; }
-    if (!context) return none;
     let local: ReturnType<ClientStore["applyMutation"]>;
     try {
       local = hydrated.store.applyMutation(ir, context, true, operation.certificate, true);
@@ -226,14 +227,14 @@ export class Twin {
     };
   }
 
-  private context(hydrated: Hydrated, ir: { args?: unknown; read_time_granularity_ms?: number }, args: unknown, ids: string[], query = false, pinnedClock?: number): Context | undefined {
+  private context(hydrated: Hydrated, ir: { args?: unknown; read_time_granularity_ms?: number }, args: unknown, ids: string[], query = false, pinnedClock?: number): Context {
     const principal = this.sources.principal();
     if (principal === undefined) throw new TypeError("no partition is open");
     let localArgs: Context["args"];
     try { localArgs = tagArguments(ir.args, args, hydrated.program.schema); }
     catch (error) { if (error instanceof TypeError) throw new EvalError("E_INPUT", error.message); throw error; }
     const now = pinnedClock ?? this.sources.now();
-    return localArgs && {
+    return {
       viewer: principal,
       principal_kind: "user",
       // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — the auth-epoch fence:

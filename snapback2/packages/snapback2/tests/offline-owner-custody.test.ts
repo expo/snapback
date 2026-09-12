@@ -105,6 +105,30 @@ test("an exact receipt-backed owner page keeps its whole continuation across an 
   assert.equal(invalidated.next, undefined);
 });
 
+test("checked literal totals survive an uncovered rerun only with unchanged owner custody", () => {
+  const inputs = { ...emptyItemInputs, values: new Map(), selection: { through: 7, order: 3 } };
+  const held = withItemInputs({ op: "insights", args: {}, state: "complete" as const,
+    data: { count: 2, hidden: 0, sum: 0 }, next: null, seq: 7, deliveredAt: 100,
+    receipt: { ranges: [], absences: [], verdicts: [] } }, inputs);
+  const local = withItemInputs({ state: "partial" as const, reason: "never-held", seq: 7,
+    sites: [{ site: "sum", reason: "never-held" as const }] }, inputs);
+  assert.deepEqual(offlineView(held, local).data, held.data);
+  for (const previous of [
+    { ...held, needsFactProofs: true }, { ...held, readTime: 123 },
+    { ...held, state: "partial" as const, reason: "maintained-coherence" },
+  ]) assert.notEqual(offlineView(withItemInputs(previous, inputs), local).state, "complete");
+  for (const changed of [
+    { ...inputs, selection: { through: 8, order: 3 } },
+    { ...inputs, selection: { through: 7, order: 4 } },
+    { ...inputs, entries: [{ predicted: true } as any] },
+  ]) assert.equal(offlineView(held, withItemInputs({ ...local }, changed)).state, "partial");
+  assert.equal(offlineView(withItemInputs({ ...held }, { ...inputs, values: new Map([[held.data, "rows\0row"]]) }), local).state,
+    "partial", "pooled rows cannot be paired with older computed totals");
+  for (const site of [{ site: "sum", reason: "evicted" as const }, { site: "missing-authority", reason: "never-held" as const }])
+    assert.equal(offlineView(held, withItemInputs({ ...local, sites: [site] }, inputs)).state, "partial");
+  assert.equal(offlineView(held, local, false).state, "partial", "drains keep their own lifecycle");
+});
+
 test("a pending session grant never crosses principals after a failed partition open", async () => {
   const root = await tempRoot();
   const backing = fileRangeStore(root);
