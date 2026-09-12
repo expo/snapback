@@ -1093,7 +1093,7 @@ test("predecessor expiry cannot erase a durably saved replacement after close", 
   restored.close();
 });
 
-async function exerciseFailedReplacementSave(closeDuringSave: boolean): Promise<void> {
+async function exerciseFailedReplacementSave(closeDuringSave: boolean, refresh = false): Promise<void> {
   const oldResponse = delayedJson(401);
   const replacementSave = deferred<void>();
   const replacementSaveStarted = deferred<void>();
@@ -1116,17 +1116,17 @@ async function exerciseFailedReplacementSave(closeDuringSave: boolean): Promise<
     fetch: async (input) => {
       const requestPath = pathOf(input);
       if (requestPath === "/api/query") return oldResponse.response;
-      if (requestPath === "/api/auth/login") {
-        return json({ token: "new-token", viewer: "principal-new", kind: "user" });
+      if (requestPath === (refresh ? "/api/auth/refresh" : "/api/auth/login")) {
+        return json({ token: "new-token", viewer: refresh ? "principal-old" : "principal-new", kind: "user", authEpoch: 7 });
       }
-      if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
+      if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user", authEpoch: 7 });
       throw new Error(`unexpected path ${requestPath}`);
     },
   });
   await value.ready;
   const oldQuery = value.query(api.messages.thread, {});
   await oldResponse.started;
-  const login = value.auth.login({ email: "new@example.com", password: "password" });
+  const login = refresh ? value.auth.refresh() : value.auth.login({ email: "new@example.com", password: "password" });
   await replacementSaveStarted.promise;
 
   oldResponse.resolve(refusal("E_AUTH_SESSION", "expired"));
@@ -1445,4 +1445,8 @@ test("explicit refresh persists new custody and ignores an old in-flight session
   assert.equal(client.snapshot.auth.authEpoch, 7);
   assert.equal(client.snapshot.auth.state, "authenticated");
   await client.close();
+});
+
+test("refresh persistence failure clears a concurrently refused old token", async () => {
+  await exerciseFailedReplacementSave(false, true);
 });
