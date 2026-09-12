@@ -6,9 +6,11 @@ cd "$(dirname "$0")/.."
 failures=()
 run() { local name="$1"; shift; echo "== $name"; if "$@"; then echo "-- ok: $name"; else echo "-- FAIL: $name"; failures+=("$name"); fi; }
 start=$(date +%s)
+run "cargo build" cargo build --workspace --quiet
 run "cargo test" cargo test --workspace --quiet
 run "package typecheck" bun run --cwd packages/snapback4 typecheck
 run "package build" bun run --cwd packages/snapback4 build
+run "chat app check" bash -c 'cd apps/chat && ../../target/debug/snapback4 check'
 run "chat app typecheck" bun run --cwd apps/chat typecheck
 run "fixture wrapper tests" node --test fixtures/
 end=$(date +%s)

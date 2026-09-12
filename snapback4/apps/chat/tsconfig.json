@@ -12,5 +12,10 @@
     "jsx": "react-jsx",
     "types": []
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "mock/**/*.ts", "vite.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "snapback/generated/*.ts",
+    "vite.config.ts"
+  ]
 }

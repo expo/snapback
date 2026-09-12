@@ -7,6 +7,7 @@
 -- is unchanged in meaning.
 
 use identity
+use personas alice, bob, charlie
 
 table profiles:
   principal: principal
@@ -38,6 +39,7 @@ table memberships:
   role: enum('member', 'admin')
   joinedAt: time
   unique byConversationPrincipal: conversationId, principal
+  by byConversationPrincipalRole: conversationId, principal, role
   by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   immutable conversationId, principal, joinedAt
@@ -73,6 +75,15 @@ query thread(conversationId: conversations, c: cursor ?):
 query inbox():
   return memberships[viewer] first 50 by byPrincipalConversation
     { conversationId, conversation: conversations[.conversationId], count: messageCounts[.conversationId] }
+
+mutation invite(conversationId: conversations, principal: principal):
+  require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN
+  return insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent
+
+mutation leave(conversationId: conversations):
+  membership = memberships[conversationId, viewer] ! else NOT_MEMBER
+  delete memberships[membership]
+  return null
 
 mutation send(conversationId: conversations, body: text <=4000):
   require exists memberships[conversationId, viewer] else NOT_MEMBER

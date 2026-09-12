@@ -1,0 +1,207 @@
+//! Refusals: every failure the engine reports is one envelope
+//! `{code, family, site, message, rewrite, guide}` (LLP 2000.000 §5.1), and
+//! the same envelope is what a device shows and what `why` explains.
+
+use crate::schema::Effect;
+use crate::value::ValueError;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// The refusal envelope. `code` and `family` are stable identifiers; `rewrite`
+/// is text the author can paste; `guide` is the keyword card to read.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Refusal {
+    pub code: String,
+    pub family: String,
+    pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub site: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rewrite: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guide: Option<String>,
+    /// The author's own code, for `require … else CODE` refusals.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub retryable: bool,
+}
+
+impl Refusal {
+    pub fn new(code: impl Into<String>, family: impl Into<String>, message: impl Into<String>) -> Self {
+        Self { code: code.into(), family: family.into(), message: message.into(), site: None, rewrite: None, guide: None, rule: None, retryable: false }
+    }
+    pub fn site(mut self, site: impl Into<String>) -> Self {
+        self.site = Some(site.into());
+        self
+    }
+    pub fn rewrite(mut self, rewrite: impl Into<String>) -> Self {
+        self.rewrite = Some(rewrite.into());
+        self
+    }
+    pub fn guide(mut self, guide: impl Into<String>) -> Self {
+        self.guide = Some(guide.into());
+        self
+    }
+}
+
+impl std::fmt::Display for Refusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.code, self.message)?;
+        if let Some(site) = &self.site {
+            write!(f, " (at {site})")?;
+        }
+        if let Some(rewrite) = &self.rewrite {
+            write!(f, "\n  rewrite: {rewrite}")?;
+        }
+        Ok(())
+    }
+}
+
+/// Which meter cut a program (LLP 2000.000 §6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum MeterKind {
+    Examined,
+    IndexEntries,
+    RuleProbes,
+    Steps,
+    HeapBytes,
+    OutputBytes,
+    RowsWritten,
+}
+
+impl MeterKind {
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Examined => "examined rows",
+            Self::IndexEntries => "index entries",
+            Self::RuleProbes => "rule probes",
+            Self::Steps => "steps",
+            Self::HeapBytes => "heap bytes",
+            Self::OutputBytes => "output bytes",
+            Self::RowsWritten => "rows written",
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum RuntimeError {
+    #[error("E_INPUT: {0}")]
+    Input(String),
+    #[error("E_SCHEMA: {0}")]
+    Schema(String),
+    #[error(transparent)]
+    Value(#[from] ValueError),
+    #[error("E_RULE: {effect} on {table} is not permitted for this viewer")]
+    Rule { table: String, effect: Effect },
+    #[error("{code}: the program refused")]
+    Require { code: String, site: Option<String> },
+    #[error("E_CONFLICT: the row no longer matches the update condition")]
+    Conflict { current: crate::ir::Read },
+    #[error("E_CONSTRAINT: {0}")]
+    Constraint(String),
+    #[error("E_FANOUT: a bounded loop received more items than its bound")]
+    Fanout,
+    #[error("E_BOUND: {kind:?} reached {actual} against the ceiling {ceiling} at {site}")]
+    Bound { kind: MeterKind, actual: u64, ceiling: u64, site: String },
+    #[error("E_OP: unknown operation {0}")]
+    UnknownOp(String),
+    #[error("E_AUTH: {0}")]
+    Auth(String),
+    #[error("E_GENERATION: {0}")]
+    Generation(String),
+    #[error("E_STORE: {0}")]
+    Sql(#[from] rusqlite::Error),
+    #[error("E_STORE: {0}")]
+    Store(String),
+}
+
+impl RuntimeError {
+    pub fn code(&self) -> String {
+        match self {
+            Self::Input(_) => "E_INPUT".into(),
+            Self::Schema(_) => "E_SCHEMA".into(),
+            Self::Value(ValueError::Overflow(_)) => "E_OVERFLOW".into(),
+            Self::Value(ValueError::DivideByZero) => "E_DIV_ZERO".into(),
+            Self::Value(ValueError::Type { .. }) => "E_TYPE".into(),
+            Self::Value(ValueError::MissingField(_)) => "E_FIELD".into(),
+            Self::Value(ValueError::Identity) => "E_INPUT".into(),
+            Self::Rule { .. } => "E_RULE".into(),
+            Self::Require { code, .. } => code.clone(),
+            Self::Conflict { .. } => "E_CONFLICT".into(),
+            Self::Constraint(_) => "E_CONSTRAINT".into(),
+            Self::Fanout => "E_FANOUT".into(),
+            Self::Bound { .. } => "E_BOUND".into(),
+            Self::UnknownOp(_) => "E_OP".into(),
+            Self::Auth(_) => "E_AUTH".into(),
+            Self::Generation(_) => "E_GENERATION".into(),
+            Self::Sql(_) | Self::Store(_) => "E_STORE".into(),
+        }
+    }
+
+    pub fn family(&self) -> &'static str {
+        match self {
+            Self::Input(_) | Self::Value(_) => "input",
+            Self::Schema(_) => "schema",
+            Self::Rule { .. } | Self::Auth(_) => "auth",
+            Self::Require { .. } => "rule",
+            Self::Conflict { .. } | Self::Constraint(_) => "constraint",
+            Self::Fanout | Self::Bound { .. } => "bound",
+            Self::UnknownOp(_) => "op",
+            Self::Generation(_) => "generation",
+            Self::Sql(_) | Self::Store(_) => "store",
+        }
+    }
+
+    /// Whether a program's refusal is the caller's to repair (as opposed to
+    /// a store failure the caller should retry later).
+    pub fn is_refusal(&self) -> bool {
+        !matches!(self, Self::Sql(_) | Self::Store(_))
+    }
+
+    pub fn refusal(&self) -> Refusal {
+        let mut refusal = Refusal::new(self.code(), self.family(), self.to_string());
+        match self {
+            Self::Require { code, site } => {
+                refusal.rule = Some(code.clone());
+                refusal.site = site.clone();
+                refusal.message = format!("the program refused with {code}");
+                refusal.guide = Some("expressions".into());
+            }
+            Self::Bound { kind, actual, ceiling, site } => {
+                refusal.site = Some(site.clone());
+                refusal.message = format!("{} reached {actual} against the ceiling {ceiling}", kind.word());
+                refusal.rewrite = Some(match kind {
+                    MeterKind::Examined | MeterKind::IndexEntries | MeterKind::RuleProbes => "read a smaller page, or add an index whose prefix pins the rows this site needs".into(),
+                    MeterKind::Steps | MeterKind::HeapBytes => "move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows".into(),
+                    MeterKind::OutputBytes => "return fewer fields with a shape `{ a, b }`, or a smaller page".into(),
+                    MeterKind::RowsWritten => "write fewer rows per mutation, or move the sweep into a job with `chunk`".into(),
+                });
+                refusal.guide = Some("bounds".into());
+            }
+            Self::Rule { table, effect } => {
+                refusal.message = format!("{table}'s {effect} rule does not admit this viewer");
+                refusal.guide = Some("rules".into());
+            }
+            Self::Constraint(message) => {
+                refusal.message = message.clone();
+                refusal.guide = Some("indexes".into());
+            }
+            Self::Conflict { current } => {
+                refusal.site = Some(current.site.clone());
+                refusal.retryable = true;
+                refusal.guide = Some("writes".into());
+            }
+            Self::Sql(_) | Self::Store(_) => refusal.retryable = true,
+            _ => {}
+        }
+        refusal
+    }
+}
+
+impl From<RuntimeError> for Refusal {
+    fn from(error: RuntimeError) -> Self {
+        error.refusal()
+    }
+}

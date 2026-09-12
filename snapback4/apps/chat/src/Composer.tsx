@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useLink, useMutation } from "snapback4/react";
-import { api } from "../mock/api.ts";
+import { api } from "../snapback/generated/api.ts";
 
 export function Composer({ conversationId }: { conversationId: string }) {
-  const send = useMutation(api.messages.send);
+  const send = useMutation(api.send);
   const link = useLink();
   const [body, setBody] = useState("");
   const submit = async (event: FormEvent) => {

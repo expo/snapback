@@ -11,14 +11,21 @@ before minting a new number).
 ```
 cargo build                          # the binary; no JS engine, no bootstrap, nothing outside crates.io
 scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
-./target/debug/snapback4 --version   # 0.0.1
-./target/debug/snapback4 doctor      # says honestly what does not exist yet
-bun run --cwd packages/snapback4 typecheck   # the contract, the mock client and the hooks typecheck
-(cd apps/chat && bun run dev)               # the chat app on the MOCK client (Vite 8 / rolldown); `bun run build` measures its bytes
-node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; exits 1 on a missed budget
-node scripts/publish.mjs --dry-run   # build, pack, installed-consumer proof; drop --dry-run to publish snapback4@<version>
-node fixtures/clique.mjs stats       # the hub fixture facts, asserted against the Clique manifest; `build` writes JSONL seed tables to fixtures/out/
+./target/debug/snapback4 --help      # init · check [--cost] · dev · run · test · why · guide · data · doctor
+cd apps/chat && ../../target/debug/snapback4 check     # compiles snapback/*.q, writes snapback/generated/api.ts
+cd apps/chat && ../../target/debug/snapback4 dev       # serves 127.0.0.1:4400; re-adopts the schema on save
+cd apps/chat && bun run dev                            # the app on the real client (?as=bob picks a persona)
+bun run --cwd packages/snapback4 typecheck   # the contract, the client and the hooks typecheck
+cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
+cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
 ```
+
+Crates: `snapback4-core` (value model, schema with `sync`, IR, key encoding,
+SQLite store, rules with hoisting, the meter, the interpreter, the partition
+log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
+(Quarry lexer, parser, binder, diagnostics, the TypeScript emitter),
+`snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
+world hosting the engine and a replica device).
 
 What exists, by week (LLP 3000 §5):
 
@@ -37,4 +44,13 @@ Gotchas you cannot derive from the code:
 - The journal is append-only and dated; never rewrite an entry. LLP 3000 §7 carries decisions that must outlive it.
 - Nothing here depends on `snapback2/` at runtime. Copy source deliberately, split under 1,500 lines on the way in, and say so in the journal.
 - Named lane: `~/projects/snapback-sb4` on `sb4/*` branches. Never `git stash`; commit checkpoints.
+- The conformance corpus (`corpus/`) is Snapback 2's serialized IR and value
+  model; the core keeps those serializations so it binds. A case the slice
+  cannot run is skipped with a named reason, never counted as a pass.
+- `snapback/generated/api.ts` is built by `check` and `dev`, never committed;
+  the app's typecheck needs a `check` first (the suite does one).
+- Rule probes and `exists` need an index over exactly the probed columns
+  (`by byConversationPrincipalRole: conversationId, principal, role` for
+  `exists memberships[.conversationId, viewer, 'admin']`); the diagnostic
+  names the indexes that exist.
 - `publish.mjs` ships the client package only until the binary does something; the platform binary packages arrive with week 2's owner. Bump `version` in `packages/snapback4/package.json` and `Cargo.toml` together.

@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -282,25 +282,44 @@ time-ordered 128-bit form.
   (LLP 2000.000 §9); until then the client is exercised by the simulator's
   witnesses only where its logic is shared with the server.
 - **2026-09-12 — the clock started** at the fence commit `961a3eb1c5`.
+- **2026-09-12 — Quarry is bound in Rust (lead).** Snapback 2 lowers Quarry
+  in a TypeScript worker the binary spawns; Snapback 4 ports the lexer and
+  parser and binds to the IR in `crates/snapback4-lang`, so `check` needs no
+  other runtime, the simulator compiles programs, and one front end serves
+  every host. The IR and value model stay Snapback 2's serialized forms so
+  the corpus binds both.
+- **2026-09-12 — one key encoding (lead).** Index keys are one
+  order-preserving byte encoding of the value model's order, in SQLite now
+  and in IndexedDB in week 3, so a device scans the same bytes in the same
+  order as the server.
+- **2026-09-12 — `sync` forms (lead).** `sync public`, `sync to .column`,
+  `sync to target[.prefix]`, each with an optional `last N by index`
+  horizon; the read rule must carry the matching disjunct; a `maintain`
+  grouped by the audience inherits it. LLP 2000.000 §14's questions 1 and 2
+  are thereby answered: explicit, count horizon optional per table.
+- **2026-09-12 — operation names (lead).** Operations in `schema.q` are bare
+  (`api.thread`); operations in `snapback/<module>.q` are `<module>.<name>`
+  (`api.feed.home`). Generated types are built into
+  `snapback/generated/api.ts` by `check` and `dev`, never committed.
 
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
-carries the chronology. Week one, 2026-09-12:
+carries the chronology. Week two, day one, 2026-09-12:
 
 | Piece | What runs | Landed |
 | --- | --- | --- |
-| `crates/snapback4` | `--version`, `doctor` (says what does not exist yet) | `961a3eb1c5` |
-| `crates/snapback4-sim` | seeded scheduler, virtual clock, faulty network, faulty disks, kill/restart, trace digest; the replicated-counter witness; nine tests | `1700c1c755` |
-| `packages/snapback4` | the card (`contract.ts`), the labelled mock client, the React hooks; published as `snapback4@0.0.1` with an installed-consumer proof | `39af0c81a6`, then the publish commit |
-| `apps/chat` | the reference app on the mock (Thread 26 lines, Composer 22, Inbox 14); `snapback/schema.q`, the desired dialect with `sync` lines, uncompiled | `39af0c81a6` |
-| `floors/` | the five floor scripts; numbers in the journal | `1700c1c755` |
-| `corpus/` | Snapback 2's 295 conformance cases and `ir-contract.json`; not yet read by anything | `1700c1c755` |
-| `scripts/` | `test.sh` (2.2 s), `measure.mjs` (loop numbers, budgets), `publish.mjs` | the publish commit |
-| `fixtures/` | the frozen Clique action log replayed into JSONL seed tables; `stats` asserts the hub facts against the manifest (1,000 memberships for `u0001`, 500 follows for `u0500`, 99,090 text and 910 media sends); nine tests; written by a Codex lane, verified out of sandbox | the fixtures commit |
+| `crates/snapback4-core` | the value model and IR (Snapback 2's serialized forms); the schema with `sync` and the leave policy; one order-preserving key encoding; the two-table SQLite store; rule evaluation with `decided_true`/uniform hoisting; the runtime meter with capped reads and aborted writes; the interpreter (points, scans with opaque cursors, merges, walks, writes with unique/cap/immutable/after-insert constraints, maintained aggregates); the partition log (audience inversion, bootstrap on join, scope tombstones, snapshot, merged stream); at-most-once mutations by client-minted id; the day-two classifier; the plain-JSON wire forms. Corpus: 172 pass, 0 fail, 121 skipped by named reason | this landing |
+| `crates/snapback4-lang` | the Quarry lexer and parser (ported), the catalog with generated maintain targets, schema binding (rules, probes, constraints, sync with the principal resolved, inherited audiences), program lowering to the IR with typed scope, diagnostics with rewrites and did-you-mean names, the TypeScript emitter | this landing |
+| `crates/snapback4` | `init`, `check [--cost]`, `dev` (serve + watch + adopt with the day-two class), `run`, `test [--fixture]` (meters beside ceilings), `why`, `guide`, `data`, `doctor`; the HTTP wire (`/q`, `/m`, `/sync`, `/changes`, `/seed`) | this landing |
+| `crates/snapback4-sim` | seeded scheduler, virtual clock, faulty network and disks, kill/restart, trace digest; the real engine as a host; a replica device with a durable outbox and predictions; the chat world under faults with §6's invariants 1, 2, 3, 5, 6 per event and 4, 7 at quiescence | `1700c1c755`, this landing |
+| `packages/snapback4` | the card (`contract.ts`), the online-tier client (`client.ts`), the React hooks, the labelled mock; `snapback4@0.0.1` on npm (week one's client only; republish pending) | `39af0c81a6`, this landing |
+| `apps/chat` | the reference app on the real client and the generated `api.ts`; `snapback/schema.q` with `sync` lines, `invite`, `leave`, `send`, `edit`, `unsend`, `thread`, `inbox` | this landing |
+| `fixtures/`, `floors/`, `corpus/`, `scripts/`, `metrics/` | as week one | `1700c1c755`, `224fb1d24e`, `6bc29eab02` |
 
-Not started: everything in §5's weeks 2–4. No engine, no store, no wire, no
-partition log, no interpreter, no Expo client, no deployment.
+Not started: authentication beyond personas, effects execution, jobs at
+runtime, word search, assets, the web replica (week 3), Expo (week 4),
+deploy.
 
 ## How to orient
 
