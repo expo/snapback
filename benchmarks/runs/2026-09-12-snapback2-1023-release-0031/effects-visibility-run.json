@@ -1,0 +1,82 @@
+{
+  "source": "eb681b85a1b01d69fefab28973a165cb6a06424f",
+  "command": [
+    "/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node",
+    "--test",
+    "--test-concurrency=1",
+    "--test-timeout=10000",
+    "tests/effects-visibility.test.ts"
+  ],
+  "cwd": "/home/ccheever/lanes/blockgraph/snapback2/packages/snapback2",
+  "started": 1789206505.9307818,
+  "sourceSha256": "3570edf601926d4f032e58c14885d07628260f1472c4d41b74c4000cf3f1fba6",
+  "node": "v24.18.0",
+  "supervisorPid": 910181,
+  "observedGroupMembers": {
+    "910209": {
+      "startTicks": "156542422",
+      "firstObserved": 1789206505.988303
+    },
+    "910215": {
+      "startTicks": "156542425",
+      "firstObserved": 1789206506.117153
+    },
+    "910226": {
+      "startTicks": "156542432",
+      "firstObserved": 1789206506.1171842
+    },
+    "910241": {
+      "startTicks": "156542568",
+      "firstObserved": 1789206507.5325742
+    },
+    "910292": {
+      "startTicks": "156542683",
+      "firstObserved": 1789206508.690633
+    },
+    "910447": {
+      "startTicks": "156542785",
+      "firstObserved": 1789206509.721631
+    },
+    "910547": {
+      "startTicks": "156542943",
+      "firstObserved": 1789206511.2794907
+    },
+    "912819": {
+      "startTicks": "156544574",
+      "firstObserved": 1789206527.5334423
+    },
+    "912878": {
+      "startTicks": "156544644",
+      "firstObserved": 1789206528.3084254
+    },
+    "913002": {
+      "startTicks": "156544856",
+      "firstObserved": 1789206530.3705719
+    },
+    "913064": {
+      "startTicks": "156545015",
+      "firstObserved": 1789206531.918196
+    },
+    "913337": {
+      "startTicks": "156545259",
+      "firstObserved": 1789206534.373546
+    },
+    "913359": {
+      "startTicks": "156545328",
+      "firstObserved": 1789206535.0195062
+    },
+    "914277": {
+      "startTicks": "156546085",
+      "firstObserved": 1789206542.6044679
+    }
+  },
+  "signals": [],
+  "pid": 910209,
+  "startTicks": "156542422",
+  "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4",
+  "exit": 0,
+  "ended": 1789206542.836447,
+  "childReaped": true,
+  "remainingObservedProcesses": [],
+  "gitStatusAfter": ""
+}

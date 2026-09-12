@@ -1,0 +1,17 @@
+✔ receiptVerdict uses coverage verdicts with notWitnessed evidence (1357.508084ms)
+✔ a scaffolded chat exposes queued effects, transition logs, and trace history without an engine (1150.179846ms)
+✔ a dev owner refuses provider bindings, and E_EFFECT_UNBOUND is a registered effect-family card (1023.050449ms)
+✔ the engine-less receipt blocks exactly on engine absence: the effects check names the build and the provider journey is blocked, not failed (17889.213671ms)
+✔ a journey that throws on an engine:none settle is recorded blocked: effects:no-engine, not fail (2818.46652ms)
+✔ provider capture bounds UTF-8 bytes at scalar boundaries and reports dropped requests (4026.843375ms)
+✔ derived-only states its scope and skips the effects witness check (8179.268528ms)
+✔ manual dev cannot opt into test-owner bindings (7.210785ms)
+✔ a completed journey with no provider exits without an epoch acknowledgment (225.770634ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36784.490885

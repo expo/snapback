@@ -1,6 +1,6 @@
 # LLP 1023 follow-up — 0.0.31 qualification
 
-Status: source repair and complete test qualification pass; final dual-platform package qualification and publication are pending. The frozen Clique apps still use 0.0.29.
+Status: source repair, complete pre-integration qualification, affected integration checks and both final code reviews pass; final dual-platform package qualification and publication are pending. The frozen Clique apps still use 0.0.29.
 
 The owner can return a complete `{row, count: 0}` answer and deliver an exhausted empty public grouping range. The durable twin previously overlooked that range when classifying a missing unique Get, publishing partial/unavailable at the same sequence. The repair consumes that existing proof only for literal-Allow, unique-key read coverage. It does not create negative rule authority, relax pooled-row fallback, or identify a grouping row by its canonical generated ID. Existing bounded/truncated/wrong-rule/removed-proof cases remain partial.
 
@@ -16,4 +16,12 @@ Reviewed product source: `2d847b7e9ef794ba5860742376f482f470123d39`, delta again
 - [Darwin initial production stage](darwin-initial-process.json): 29 installed-consumer checks pass with Hermes and the full media helper. This initial artifact is not yet the final shared Darwin/Linux shim.
 - [Pinned loop measurement](measure-local.json): all measured timing steps pass. Five-root runtime is 89,898 gzip bytes, +55 for the coverage repair and 102 below the unchanged 90,000 ceiling. Client/React/Expo packaged closure sizes are 143,034/152,987/156,440. The inherited historical 1% byte comparisons still fail; no baseline is reset. The 80,000 target remains unmet.
 
-The product delta in this record predates the subsequent acquisition changes on main. Integration checks and final package receipts will be added before claiming their combined publication. No grade, score, native-device success or causal experience improvement is claimed here.
+### Combined acquisition source
+
+The complete qualification above predates concurrent acquisition changes on main. The merge actually incorporated `a93edb979a5cbe6357f1fc1f95b66f85bd308844`; the earlier [compatibility assessment](acquisition-integration-review.json) examined `638b74fb9f`. The remote-tracking ref moved between capture and merge. The [actual-parent reconciliation](metric-actual-parent-reconciliation.json) restores one additional main metric row in each append-only file; the earlier [union](metric-history-union.json) remains a record of its narrower inputs.
+
+The actual merged runtime initially measured 90,042 bytes, exceeding the ceiling. Three bounded simplification rounds in `d251e00dae743cc214fd70dcebb2fedb7341222e` reach **89,993 bytes**, leaving only **seven bytes**. The [retained result](combined-funding/RESULT.json) binds the source, rejected intermediate measurements and final checks: the evaluator differential corpus and primitive/coverage controls, 206 package tests, 23 native tests, package self-test and reference checks all pass. The change shares existing complete-range and primitive value helpers while retaining negative-authority, byte validation and type distinctions. The 80,000 target and the 150-byte headroom aim remain unmet.
+
+Both fresh final source reviews against the actual main parent return READY; the exact texts and tool/model attestation limits are retained in the existing LLP code-review documents. Reviewers inspected source and supplied qualification records; neither independently ran the tests. The prior complete suite, incoming-main qualification and affected combined checks support integration; no new complete-suite or 60-second-loop result is claimed for `d251e00`.
+
+[Darwin staging of the funded source](darwin-funded-initial-process.json) passes all 29 installed-consumer checks with production Hermes and full media in 157.74 seconds. Final shared Linux/Darwin shim qualification and package publication remain pending. No grade, score, native-device success or causal experience improvement is claimed here.

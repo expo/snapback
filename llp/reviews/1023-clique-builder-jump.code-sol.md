@@ -155,3 +155,54 @@ production-package qualification remain separate requirements. Keep the
 IR coverage and helper/test cleanup are not claimed in this literal-Allow
 repair. No pooled fallback or negative authority guard is weakened to address
 those observations. No additional product changes are selected for this round.
+
+
+## Public point coverage, diagnostic and byte integration — Round 2 — 2026-09-12
+
+Candidate: `d251e00dae743cc214fd70dcebb2fedb7341222e`; comparison base:
+`a93edb979a5cbe6357f1fc1f95b66f85bd308844`. Fresh independent Sol review via
+Codex CLI, requested `gpt-5.6-sol` at xhigh.
+Same hash-checked inline source packet; no peer reviews or benchmark narratives
+were supplied. Prompt SHA-256:
+`1f6e435a64fb3fe19f2bf1bdc77b5c955e28ead9dc684868aa303846e4201bf1`. Source/test diff SHA-256:
+`cd4fac9bd604c31dc643a29b7b4dba9c2503d6f726933bf134d74df174a71dad`.
+
+Process PID `13480` exited 0 and was reaped. The retained complete
+stream audit found zero tool-use events. The returned stream does not independently attest the requested model or effort.
+Final text SHA-256 (one terminal newline added):
+`120a49735365baf93f2d119c8cc8c1f1d7fd2bd20f9bbe4351ef8bf784d9797e`.
+
+The [retained review](../../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/final-code-reviews/sol/verdict.md),
+[event/model audit](../../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/final-code-reviews/sol/event-audit.json),
+[process record](../../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/final-code-reviews/sol/process.json), and
+[prompt manifest](../../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/final-code-reviews/packet.json) bind this actual response.
+Only assistant text and sanitized provenance are copied into release evidence;
+raw streams, thinking/signatures and auth metadata are excluded.
+
+### Actual returned review
+
+VERDICT: READY
+
+No material findings.
+
+Source reasoning:
+
+- Unsupported comparisons now preserve read, publish, and subscribe authorization advice, while insert/update/delete retain the prior mutation-`require` guidance.
+- Missing unique Gets only consume complete-range evidence after ordinary-key validation and a null lookup. Eligibility remains limited to literal `Allow`, unique indexes, and `hasCompleteRange`; exact absences and mutation authority are unchanged.
+- Existing coverage logic rejects removed, truncated, bounded, evicted, wrong-key/index/rule evidence. A surviving noncanonical row wins because lookup precedes absence coverage.
+- Primitive consolidation preserves type ordering, Unicode code-point comparison, `sameValueZero` operand/error order, and canonical Bytes validation on both comparison sides and wire decoding.
+
+Nonblocking observations:
+
+- The final reported bundle is only 7 bytes below the 90,000-byte ceiling and remains above the 80,000-byte working target.
+- All qualification and byte figures are author-reported, not independently rerun here. The final full production packages remain pending as stated.
+
+### Integrator provenance and limits
+
+The actual R2 verdict is READY with no material findings reported. The quoted
+source reasoning is the reviewer's assessment; all qualification figures remain
+author-reported to that reviewer, with no reviewer test executions inferred.
+The nonblocking byte caveat is explicit: 89,993 gzip bytes leaves only 7 bytes
+below the unchanged 90,000 ceiling, and the 80,000 target remains unmet.
+Production-package qualification and release decisions remain separate; this
+record makes no new publication or Clique outcome claim.

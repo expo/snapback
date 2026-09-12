@@ -1,0 +1,30 @@
+   Compiling snapback2-core v0.0.31 (/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/crates/snapback2-core)
+warning: unused import: `SequentialWriter`
+ --> vendor/tiny_http/src/util/mod.rs:7:28
+  |
+7 | pub use self::sequential::{SequentialWriter, SequentialWriterBuilder};
+  |                            ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:164:7
+    |
+164 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `secure` is never used
+  --> vendor/tiny_http/src/client.rs:76:12
+   |
+51 | impl ClientConnection {
+   | --------------------- method in this implementation
+...
+76 |     pub fn secure(&self) -> bool {
+   |            ^^^^^^
+
+warning: `tiny_http` (lib) generated 3 warnings (run `cargo fix --lib -p tiny_http` to apply 1 suggestion)
+   Compiling snapback2-effects v0.0.31 (/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/crates/snapback2-effects)
+   Compiling snapback2 v0.0.31 (/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/crates/snapback2)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.91s

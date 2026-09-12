@@ -480,3 +480,22 @@ remains pending; [the scoped record](../benchmarks/runs/2026-09-12-snapback2-102
 retains actual reviews, failed and passing runs, and package-stage evidence.
 The frozen app still does not demonstrate the one-client outcome; the initial
 release's narrower passing evidence remains valid.
+
+### Combined repair and acquisition qualification — 0.0.31 candidate
+
+The actual merge parent is `a93edb979a5cbe6357f1fc1f95b66f85bd308844`.
+The repair survives unchanged, while three bounded helper-consolidation rounds
+reduce the combined runtime from 90,042 to **89,993** gzip bytes. Candidate
+`d251e00dae` passes the evaluator corpus and primitive/coverage controls,
+206 affected package tests and 23 native tests. Fresh Sol and Grok reviews
+against that actual main parent both return READY, with their actual source
+texts and tool-use/model-attestation limits retained. Darwin production
+staging passes 29 installed-consumer checks in 157.74 seconds. The prior
+complete suite and incoming-main qualification remain separate evidence;
+this is not a new complete-suite or 60-second-loop measurement.
+
+Seven bytes of headroom does not achieve the 80,000 target or the desired
+150-byte reserve. Linux and final shared-shim qualification, publication,
+and independent frozen-wave outcomes remain pending. The
+[0.0.31 evidence](../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/README.md)
+retains every intermediate byte refusal and the actual-parent metric repair.

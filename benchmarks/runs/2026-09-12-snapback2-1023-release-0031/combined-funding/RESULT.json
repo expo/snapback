@@ -1,0 +1,159 @@
+{
+  "base": "03716686f6c6484c3fe72b0d3b4e99a86c01170c",
+  "scope": {
+    "snapback2/packages/evaluator/src/store.ts": {
+      "sha256": "1747f1756b074bdb732ed85ef20de5883b893290e73e2689eac043e9a3989865",
+      "lines": 247
+    },
+    "snapback2/packages/evaluator/src/value-runtime.ts": {
+      "sha256": "fd33bce0a1b5dd292f06cb510737472fe1177d63de340599b4dcaf01e0a03515",
+      "lines": 632
+    },
+    "snapback2/packages/evaluator/src/test-search-foundation.ts": {
+      "sha256": "a51e60277b5fd9b10d07586e6267f93c1f19654a94a5d570b2926d4bb757c186",
+      "lines": 218
+    },
+    "llp/1012-local-first-v1.spec.md": {
+      "sha256": "411ba3e9a0dd66f727589cf2b2fc9c145b2e969509201eed9f084c4f28ac8beb",
+      "lines": 1534
+    },
+    "snapback2/metrics/twin.jsonl": {
+      "sha256": "c4551bce3be57b5bfe72820b801de0e8e61ba132d15507fdb3628f930e3b1e11",
+      "lines": 162
+    }
+  },
+  "measurement": {
+    "baseline": 90042,
+    "rounds": [
+      90026,
+      90008,
+      89993
+    ],
+    "result": 89993,
+    "minified": 272408,
+    "delta": -49,
+    "ceiling": 90000,
+    "headroom": 7,
+    "target": 80000,
+    "targetMet": false,
+    "desiredHeadroom150Met": false,
+    "roundsStopped": 3,
+    "toolchain": {
+      "node": "24.18.0",
+      "esbuild": "0.25.9",
+      "gzipLevel": 9
+    }
+  },
+  "checks": {
+    "final-build": "pass",
+    "evaluator": "266/266 differential plus ownership/indexed/maintained/Unicode controls pass",
+    "targeted-package": "206/206 pass",
+    "targeted-native": "23/23 pass",
+    "refs": "pass",
+    "diff-check": "pass"
+  },
+  "processes": {
+    "final-build": {
+      "pid": 58310,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207820.984441
+    },
+    "baseline-bytes": {
+      "pid": 3175,
+      "exit": 1,
+      "childReaped": true,
+      "ended": 1789207420.328685
+    },
+    "round2-bytes": {
+      "pid": 36902,
+      "exit": 1,
+      "childReaped": true,
+      "ended": 1789207653.1019578
+    },
+    "evaluator": {
+      "pid": 58311,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207823.553656
+    },
+    "refs": {
+      "pid": 77446,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207955.395416
+    },
+    "baseline-build": {
+      "pid": 2707,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207420.085139
+    },
+    "native-build": {
+      "pid": 58312,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207827.3190541
+    },
+    "round1-bytes": {
+      "pid": 17827,
+      "exit": 1,
+      "childReaped": true,
+      "ended": 1789207527.275753
+    },
+    "targeted-package": {
+      "pid": 65617,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207905.786965
+    },
+    "round3-bytes": {
+      "pid": 48088,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207740.881552
+    },
+    "targeted-native": {
+      "pid": 65618,
+      "exit": 0,
+      "childReaped": true,
+      "ended": 1789207913.614468
+    }
+  },
+  "limits": [
+    "No broad full suite rerun; prior full qualification and incoming main qualification are parent retained.",
+    "Native wrapper elapsed includes ordered collection after parallel package test; log records native compile 19.18s and execution 1.102s.",
+    "No benchmark actor, grader, browser or publication work executed.",
+    "Metric rows retain pre-commit base SHA; patches and source hashes identify each working revision.",
+    "Direct command children reaped; owner harness owns its recorded children. Final targeted process groups were observed empty."
+  ],
+  "artifacts": {
+    "baseline-build.json": "9303deceac3726e4e397960a1c381bdd3c8ea4f371e23efaf77544de93472b57",
+    "baseline-build.log": "9253287c2038c408088ce6380ce00a7eb53e0608a9bc6c127015892228c20f7b",
+    "baseline-bytes.json": "e722d2cd2772fbd982356846a60b4c0f5401ad2eabfec4a51389d2330ea24e28",
+    "baseline-bytes.log": "7d14e876af430ba574a9e6641a4be0870f173b1a3a13baf372e9c458e9cbe131",
+    "evaluator.json": "664505c03756732d67603a94ddee524af93481fadc22bf8405b2be4a51982a89",
+    "evaluator.log": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f",
+    "final-build.json": "e2501f17a098a35ca59ea91482d434aa8eb25ea327d6f54997fed4e08448f873",
+    "final-build.log": "9253287c2038c408088ce6380ce00a7eb53e0608a9bc6c127015892228c20f7b",
+    "final.patch": "dd5c24c5ed58550c8f41404d13bd92945c2e3ce00c69940c8d1941d0b29cf0b5",
+    "native-build.json": "90e57404414ea9397b857109a493624136f404a1ad6af62558a26eb0f4b5c6c8",
+    "native-build.log": "36def7d68034fcc37204868a033153d5341ced98cf279e4f0bc7a9c31f212865",
+    "refs.json": "792c1216aa1de00b98d1bfdffcfd322732b29f9c81cfb757bec6c7f0c451a7ed",
+    "refs.log": "4e29203ece2b63d1210b744eab4b1dac8baced30f5fd4d0cfbfb8ae3cdd2973f",
+    "round1-bytes.json": "fc6f4af9668e9c194fd6b2a8ed15e36e6cd30559534af20d2cf2408b0c5682a6",
+    "round1-bytes.log": "6bf84940cbde1e369c89909bc4ffa7aa08d287baa20e818153c0360392e0602b",
+    "round1.patch": "a548e450aa5484b2d1b40cf73b1e043dc59bdb09d84fe90a9e189aeff7a475eb",
+    "round2-bytes.json": "b270cffb4b021cc5c26d6ba10959261e50db74a7d6feeb56cb81a1af2c7f611a",
+    "round2-bytes.log": "5607192afdf2fa186639ae78a20831b171be9cc9f5e6c3a65b9bffa58d30c235",
+    "round2.patch": "2facb32d9d421e275f2dd4674452151bfc56812a411f4c803286d428abeccf4b",
+    "round3-bytes.json": "f3021a86d667f7f6abae48bb6cde5cc271bc7dafd26643c0386728e5d631f5eb",
+    "round3-bytes.log": "03b5c86c31b0a14bf1c024125b254664e7f2eeeb7d17216e65e712ae622111d4",
+    "round3.patch": "6568f44eeef4cf98d606cbe7b34742c50d3a81b8ebcca9ee072849275208badf",
+    "targeted-native.json": "84f409573e5c408e691fbe1593eb100ed5499468beda21ca7426aa6cc5952114",
+    "targeted-native.log": "75e0401532dbb1d95a71e13ae0037ba91ab167f15e1d1f0aa9827173b4794590",
+    "targeted-package.json": "a3f5579bd4ff8a19f9597e435ededd300d889c7888f5692428941b755a500417",
+    "targeted-package.log": "5877a219d7df7e7425bc60af0323f24727ab0c5fc90ce4a8a5140d77fcdc4088"
+  },
+  "commit": "d251e00dae743cc214fd70dcebb2fedb7341222e"
+}

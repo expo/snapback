@@ -1,0 +1,81 @@
+{
+  "requestedModel": "grok-4.6",
+  "requestedEffort": "xhigh",
+  "returnedModelAttested": true,
+  "returnedModelMetadata": [
+    {
+      "source": "system.init.model",
+      "value": "grok-4.6"
+    },
+    {
+      "source": "assistant.message.model",
+      "value": "grok-4.6"
+    }
+  ],
+  "returnedEffortAttested": false,
+  "modelUsage": {
+    "grok-4.6-build": {
+      "inputTokens": 125523,
+      "outputTokens": 13108,
+      "cacheReadInputTokens": 128,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.11211772
+    }
+  },
+  "usage": [
+    {
+      "assistant": {
+        "input_tokens": 125523,
+        "output_tokens": 13108,
+        "cache_read_input_tokens": 128,
+        "cache_creation_input_tokens": 0
+      },
+      "result": {
+        "input_tokens": 125523,
+        "output_tokens": 13108,
+        "cache_read_input_tokens": 128,
+        "cache_creation_input_tokens": 0,
+        "server_tool_use": {
+          "web_search_requests": 0
+        }
+      }
+    }
+  ],
+  "numTurns": 1,
+  "sessionIds": [
+    "6fde18a6-0b8d-42b8-91f4-18c2b6d35e9b"
+  ],
+  "eventCount": 3,
+  "eventTypes": {
+    "system": 1,
+    "assistant": 1,
+    "result": 1
+  },
+  "nestedEventTypes": {
+    "system": 1,
+    "assistant": 1,
+    "message": 1,
+    "thinking": 1,
+    "text": 1,
+    "result": 1
+  },
+  "toolEvents": 0,
+  "toolEventDetails": [],
+  "reportedWebSearchRequests": 0,
+  "advertisedToolCount": 25,
+  "rawSha256": "6e09225f7d8f602126b20bc0ce048774a1aee550afabc29c9c73c37d096bb271",
+  "assistantTextSha256": "2ac4984f0f85e683fc027712fece8acc23567c902f7be5667a287bb60aa76866",
+  "verdictSha256": "959b7691ab914a83d806220baafa07ffeaa100259e9d0556e0bd8cdc10166a44",
+  "verdictFormatting": "Exact returned assistant text plus one terminal newline. Thinking/signature content omitted; raw stream is hashed only.",
+  "verdict": "READY",
+  "materialFindings": 0,
+  "processSha256": "f22ffb028a85fdbc4126501dcb7e4982b2b4335283f65ac8fd2931e07531ba4b",
+  "processExit": 0,
+  "childReaped": true,
+  "limitations": [
+    "The command requests --tools '' and disables web/subagents, but init advertises 25 tools. Zero actual tool events are observed; removal of every tool capability is not established.",
+    "Returned model strings and usage keys are provider-reported metadata, not independent backend attestation. Returned effort is not attested.",
+    "Static packet-only review. No reviewer test/build/benchmark execution is established or attributed."
+  ]
+}

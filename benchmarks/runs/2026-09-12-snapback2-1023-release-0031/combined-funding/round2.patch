@@ -1,0 +1,39 @@
+diff --git a/snapback2/packages/evaluator/src/store.ts b/snapback2/packages/evaluator/src/store.ts
+index 5de667f1b8..f5d8de0fee 100644
+--- a/snapback2/packages/evaluator/src/store.ts
++++ b/snapback2/packages/evaluator/src/store.ts
+@@ -143,7 +143,7 @@ export class ClientStore {
+     for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) {
+       const table = this.schema.tables[a.table];
+       if (table.rules.read !== 'Allow' || !table.indexes[a.index].unique
+-        || !this.facts.drained(a.table, a.index, preparePrefix(this.schema, a.table, a.index, scalarAtoms(a.key), []))) partial.add(a.site);
++        || !this.hasCompleteRange(a.table, a.index, a.key)) partial.add(a.site);
+     }
+     return [...partial].sort();
+   }
+diff --git a/snapback2/packages/evaluator/src/value-runtime.ts b/snapback2/packages/evaluator/src/value-runtime.ts
+index 546d4850d7..fa8115b17a 100644
+--- a/snapback2/packages/evaluator/src/value-runtime.ts
++++ b/snapback2/packages/evaluator/src/value-runtime.ts
+@@ -228,16 +228,13 @@ export function sameValueZero(left: Value, right: Value): boolean {
+   // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Keep the client twin on the compiler's primitive collection identity contract.
+   const leftKind = kindOf(left);
+   const rightKind = kindOf(right);
+-  if (["Bytes", "Row", "Array", "Map"].includes(leftKind)) {
+-    fail("E_TYPE", `SameValueZero expects primitive operands, got ${leftKind}`);
+-  }
+-  if (["Bytes", "Row", "Array", "Map"].includes(rightKind)) {
+-    fail("E_TYPE", `SameValueZero expects primitive operands, got ${rightKind}`);
++  for (const kind of [leftKind, rightKind]) {
++    if (["Bytes", "Row", "Array", "Map"].includes(kind)) {
++      fail("E_TYPE", `SameValueZero expects primitive operands, got ${kind}`);
++    }
+   }
+   if ((leftKind === "String" || leftKind === "Id") && (rightKind === "String" || rightKind === "Id")) {
+-    const leftText = isVariant(left, "String") ? left.String : (left as { Id: string }).Id;
+-    const rightText = isVariant(right, "String") ? right.String : (right as { Id: string }).Id;
+-    return leftText === rightText;
++    return asString(left) === asString(right);
+   }
+   return canonicalValue(left) === canonicalValue(right);
+ }

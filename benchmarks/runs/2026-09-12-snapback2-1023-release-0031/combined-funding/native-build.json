@@ -1,0 +1,23 @@
+{
+  "source": "03716686f6c6484c3fe72b0d3b4e99a86c01170c",
+  "command": [
+    "cargo",
+    "build",
+    "-p",
+    "snapback2",
+    "-p",
+    "snapback2-media",
+    "-j4"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2",
+  "started": 1789207818.355767,
+  "sourceHashes": {
+    "snapback2/packages/evaluator/src/store.ts": "1747f1756b074bdb732ed85ef20de5883b893290e73e2689eac043e9a3989865",
+    "snapback2/packages/evaluator/src/value-runtime.ts": "fd33bce0a1b5dd292f06cb510737472fe1177d63de340599b4dcaf01e0a03515",
+    "snapback2/packages/evaluator/src/test-search-foundation.ts": "a51e60277b5fd9b10d07586e6267f93c1f19654a94a5d570b2926d4bb757c186"
+  },
+  "pid": 58312,
+  "exit": 0,
+  "ended": 1789207827.3190541,
+  "childReaped": true
+}

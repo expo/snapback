@@ -1,0 +1,131 @@
+diff --git a/llp/1012-local-first-v1.spec.md b/llp/1012-local-first-v1.spec.md
+index 1a4c7efe16..194ce63810 100644
+--- a/llp/1012-local-first-v1.spec.md
++++ b/llp/1012-local-first-v1.spec.md
+@@ -469,8 +469,10 @@ the fallback adds no authority to the unheld target.
+ A public (`read <- allow`) unique-key point can also be covered by a held,
+ exhausted range whose typed scope contains that complete key. This is read
+ coverage: it adds neither an alternate-index negative rule fact nor primary
+-mutation authority, and does not infer a maintained row address. A public
+-Count query's independently proved empty group range therefore lets an exact
++mutation authority, and does not infer a maintained row address. The point
++lookup validates its complete ordinary key before coverage reuses
++`hasCompleteRange`; no second key preparation or broader authority is needed.
++A public Count query's independently proved empty group range therefore lets an exact
+ local rerun keep a row-plus-zero composite. A truncated or bounded fragment
+ alone cannot discharge that point; evicted, wrong-scope or wrong-rule evidence
+ cannot establish the required complete coverage. Restricted
+diff --git a/snapback2/metrics/twin.jsonl b/snapback2/metrics/twin.jsonl
+index 7eb3856b1a..dc6618bac7 100644
+--- a/snapback2/metrics/twin.jsonl
++++ b/snapback2/metrics/twin.jsonl
+@@ -156,3 +156,7 @@
+ {"at":"2026-09-12T09:36:12.684Z","sha":"596ce337e5e3da125a5f745ad9cedb068c941faf","entry":"complete-local-runtime","minified":272439,"gzip":89996,"runtime_gzip_bytes":89996,"ceiling":90000,"target":80000,"toolchain":{"node":"v24.18.0","esbuild":"0.25.9","gzipLevel":9},"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/row-values.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/delivery-prediction.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/held-program.ts","../evaluator/src/range-preparation.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/offline-schema.ts","src/offline-protocol.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/canonical.ts","src/query-frame.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/query-inputs.ts","src/query-items.ts","src/twin-store.ts","src/store/inbox.ts","src/api.ts","src/mutation-targets.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/types.ts","src/store/overlay-retirement.ts","src/delivery-acknowledgements.ts","src/store/fact-index.ts","src/store/success-compaction.ts","src/store/carrier-index.ts","src/store/maintained-coherence.ts","src/store/range-store.ts","src/tombstones.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
+ {"at":"2026-09-12T09:06:53.178Z","sha":"253cb389f57df2d533efb066b57b4acdf80f55e2","entry":"complete-local-runtime","minified":272037,"gzip":89898,"runtime_gzip_bytes":89898,"ceiling":90000,"target":80000,"toolchain":{"node":"v24.18.0","esbuild":"0.25.9","gzipLevel":9},"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/row-values.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/delivery-prediction.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/held-program.ts","../evaluator/src/range-preparation.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/offline-schema.ts","src/offline-protocol.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/canonical.ts","src/query-frame.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/query-inputs.ts","src/query-items.ts","src/twin-store.ts","src/store/inbox.ts","src/api.ts","src/mutation-targets.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/types.ts","src/store/overlay-retirement.ts","src/delivery-acknowledgements.ts","src/store/fact-index.ts","src/store/carrier-index.ts","src/store/success-compaction.ts","src/store/maintained-coherence.ts","src/store/range-store.ts","src/tombstones.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
+ {"at":"2026-09-12T09:55:13.953Z","sha":"eb681b85a1b01d69fefab28973a165cb6a06424f","entry":"complete-local-runtime","minified":272037,"gzip":89898,"runtime_gzip_bytes":89898,"ceiling":90000,"target":80000,"toolchain":{"node":"v24.18.0","esbuild":"0.25.9","gzipLevel":9},"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/row-values.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/delivery-prediction.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/held-program.ts","../evaluator/src/range-preparation.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/offline-schema.ts","src/offline-protocol.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/canonical.ts","src/query-frame.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/query-inputs.ts","src/query-items.ts","src/twin-store.ts","src/store/inbox.ts","src/api.ts","src/mutation-targets.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/types.ts","src/store/overlay-retirement.ts","src/delivery-acknowledgements.ts","src/store/fact-index.ts","src/store/carrier-index.ts","src/store/success-compaction.ts","src/store/maintained-coherence.ts","src/store/range-store.ts","src/tombstones.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
++{"at":"2026-09-12T10:03:40.294Z","sha":"03716686f6c6484c3fe72b0d3b4e99a86c01170c","entry":"complete-local-runtime","minified":272627,"gzip":90042,"runtime_gzip_bytes":90042,"ceiling":90000,"target":80000,"toolchain":{"node":"v24.18.0","esbuild":"0.25.9","gzipLevel":9},"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/row-values.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/delivery-prediction.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/held-program.ts","../evaluator/src/range-preparation.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/offline-schema.ts","src/offline-protocol.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/canonical.ts","src/query-frame.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/query-inputs.ts","src/query-items.ts","src/twin-store.ts","src/store/inbox.ts","src/api.ts","src/mutation-targets.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/types.ts","src/store/overlay-retirement.ts","src/delivery-acknowledgements.ts","src/store/fact-index.ts","src/store/success-compaction.ts","src/store/carrier-index.ts","src/store/maintained-coherence.ts","src/store/range-store.ts","src/tombstones.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
++{"at":"2026-09-12T10:05:27.259Z","sha":"03716686f6c6484c3fe72b0d3b4e99a86c01170c","entry":"complete-local-runtime","minified":272591,"gzip":90026,"runtime_gzip_bytes":90026,"ceiling":90000,"target":80000,"toolchain":{"node":"v24.18.0","esbuild":"0.25.9","gzipLevel":9},"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/row-values.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/delivery-prediction.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/held-program.ts","../evaluator/src/range-preparation.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/offline-schema.ts","src/offline-protocol.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/canonical.ts","src/query-frame.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/query-inputs.ts","src/query-items.ts","src/twin-store.ts","src/store/inbox.ts","src/api.ts","src/mutation-targets.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/types.ts","src/store/overlay-retirement.ts","src/delivery-acknowledgements.ts","src/store/fact-index.ts","src/store/success-compaction.ts","src/store/carrier-index.ts","src/store/maintained-coherence.ts","src/store/range-store.ts","src/tombstones.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
++{"at":"2026-09-12T10:07:33.085Z","sha":"03716686f6c6484c3fe72b0d3b4e99a86c01170c","entry":"complete-local-runtime","minified":272431,"gzip":90008,"runtime_gzip_bytes":90008,"ceiling":90000,"target":80000,"toolchain":{"node":"v24.18.0","esbuild":"0.25.9","gzipLevel":9},"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/row-values.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/delivery-prediction.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/held-program.ts","../evaluator/src/range-preparation.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/offline-schema.ts","src/offline-protocol.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/canonical.ts","src/query-frame.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/query-inputs.ts","src/query-items.ts","src/twin-store.ts","src/store/inbox.ts","src/api.ts","src/mutation-targets.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/types.ts","src/store/overlay-retirement.ts","src/delivery-acknowledgements.ts","src/store/fact-index.ts","src/store/success-compaction.ts","src/store/carrier-index.ts","src/store/maintained-coherence.ts","src/store/range-store.ts","src/tombstones.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
++{"at":"2026-09-12T10:09:00.866Z","sha":"03716686f6c6484c3fe72b0d3b4e99a86c01170c","entry":"complete-local-runtime","minified":272408,"gzip":89993,"runtime_gzip_bytes":89993,"ceiling":90000,"target":80000,"toolchain":{"node":"v24.18.0","esbuild":"0.25.9","gzipLevel":9},"inputs":["../evaluator/src/hash.ts","../evaluator/src/errors.ts","../evaluator/src/certificate-identity.ts","../evaluator/src/ordered.ts","../evaluator/src/slot-tree.ts","../evaluator/src/posting-tree.ts","../evaluator/src/prefix-dictionary.ts","../../crates/snapback2-core/ir-contract.json","../evaluator/src/cursor.ts","../evaluator/dist/unicode-tables.ts","../evaluator/src/unicode-tables.ts","../evaluator/src/unicode.ts","../evaluator/src/value-runtime.ts","../evaluator/src/search-key.ts","../evaluator/src/index-store.ts","../evaluator/src/row-image.ts","src/store/row-values.ts","src/store/asset-policy.ts","../evaluator/src/search-runtime.ts","src/local-cursor.ts","../evaluator/src/merge.ts","../evaluator/src/delivery-prediction.ts","../evaluator/src/text.ts","../evaluator/src/runner.ts","src/held-program.ts","../evaluator/src/range-preparation.ts","../evaluator/src/held-directory.ts","../evaluator/src/coverage-spans.ts","../evaluator/src/coverage.ts","../evaluator/src/store.ts","src/offline-schema.ts","src/offline-protocol.ts","src/store/swap-journal.ts","src/store/byte-cache.ts","src/store/canonical.ts","src/query-frame.ts","src/store/extent-facts.ts","src/store/extent-index.ts","src/store/fact-integrity.ts","src/store/query-inputs.ts","src/query-items.ts","src/twin-store.ts","src/store/inbox.ts","src/api.ts","src/mutation-targets.ts","src/store/outbox.ts","src/twin-hydrate.ts","src/twin.ts","src/types.ts","src/store/overlay-retirement.ts","src/delivery-acknowledgements.ts","src/store/fact-index.ts","src/store/success-compaction.ts","src/store/carrier-index.ts","src/store/maintained-coherence.ts","src/store/range-store.ts","src/tombstones.ts","src/client-wire.ts","src/offline.ts","src/store/metadata.ts","src/store/projection.ts","<stdin>"]}
+diff --git a/snapback2/packages/evaluator/src/store.ts b/snapback2/packages/evaluator/src/store.ts
+index 5de667f1b8..f5d8de0fee 100644
+--- a/snapback2/packages/evaluator/src/store.ts
++++ b/snapback2/packages/evaluator/src/store.ts
+@@ -143,7 +143,7 @@ export class ClientStore {
+     for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) {
+       const table = this.schema.tables[a.table];
+       if (table.rules.read !== 'Allow' || !table.indexes[a.index].unique
+-        || !this.facts.drained(a.table, a.index, preparePrefix(this.schema, a.table, a.index, scalarAtoms(a.key), []))) partial.add(a.site);
++        || !this.hasCompleteRange(a.table, a.index, a.key)) partial.add(a.site);
+     }
+     return [...partial].sort();
+   }
+diff --git a/snapback2/packages/evaluator/src/test-search-foundation.ts b/snapback2/packages/evaluator/src/test-search-foundation.ts
+index 63f8d8b5f2..7d24e1d94e 100644
+--- a/snapback2/packages/evaluator/src/test-search-foundation.ts
++++ b/snapback2/packages/evaluator/src/test-search-foundation.ts
+@@ -7,6 +7,33 @@ import { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, normalizeSearch, s
+ import { decomposition, composition, combining, folding, boundaries, rangeValue } from './unicode-tables';
+ import { compareScalarAtoms, decodeIndexAtom, indexKeysEqual, indexKeyStartsWith, prepareIndexAtom,
+   wordPrefixWireMax, type IndexComponent, type LogicalIndexAtom } from './search-key';
++import { sameValueZero, totalCompare, valueFromWire } from './value-runtime';
++
++// Collection equality shares text/ID values; index ordering keeps their types.
++for (const [left, right, equal] of [
++  [{ String: 'alice' }, { Id: 'alice' }, true],
++  [{ Id: 'alice' }, { String: 'bob' }, false],
++  [{ Int: 0 }, { Int: -0 }, true],
++  [{ Int: 0 }, { Bool: false }, false],
++  ['Null', { Bool: false }, false],
++] as const) {
++  assert.equal(sameValueZero(left, right), equal);
++  assert.equal(sameValueZero(right, left), equal);
++}
++assert(totalCompare({ String: 'alice' }, { Id: 'alice' }) < 0);
++for (const value of [{ Bytes: '00' }, { Row: {} }, { Array: [] }, { Map: {} }]) {
++  assert.throws(() => sameValueZero(value, { Int: 0 }), { code: 'E_TYPE' });
++  assert.throws(() => sameValueZero({ Int: 0 }, value), { code: 'E_TYPE' });
++}
++assert(totalCompare({ Bytes: '0f' }, { Bytes: '10' }) < 0);
++for (const bytes of ['FF', '0', 42, null]) {
++  const value = { Bytes: bytes } as any;
++  assert.throws(() => totalCompare(value, { Bytes: '00' }), { code: 'E_INPUT' });
++  assert.throws(() => totalCompare({ Bytes: '00' }, value), { code: 'E_INPUT' });
++  assert.throws(() => valueFromWire({ Bytes: { max: 10 } }, value, 'payload', (path, message) => {
++    throw new Error(`${path}: ${message}`);
++  }), /payload: expected canonical Bytes/);
++}
+ 
+ const root = new URL('../../../unicode/17.0.0/', import.meta.url);
+ const lines = (name: string) => readFileSync(new URL(name, root), 'utf8').split('\n');
+diff --git a/snapback2/packages/evaluator/src/value-runtime.ts b/snapback2/packages/evaluator/src/value-runtime.ts
+index 546d4850d7..bf3f6acea4 100644
+--- a/snapback2/packages/evaluator/src/value-runtime.ts
++++ b/snapback2/packages/evaluator/src/value-runtime.ts
+@@ -138,12 +138,9 @@ export function totalCompare(left: Value, right: Value): number {
+   const leftData = (left as any)[leftKind];
+   const rightData = (right as any)[rightKind];
+   if (leftKind === "Bool" || leftKind === "Int") return comparePrimitive(leftData, rightData);
+-  if (leftKind === "String" || leftKind === "Id") return compareCodepoints(leftData, rightData);
+-  if (leftKind === "Bytes") {
+-    if (!canonicalBytes(leftData) || !canonicalBytes(rightData))
+-      fail("E_INPUT", "Bytes is not canonical lowercase base16");
+-    return compareCodepoints(leftData, rightData);
+-  }
++  if (leftKind === "Bytes" && (!canonicalBytes(leftData) || !canonicalBytes(rightData)))
++    fail("E_INPUT", "Bytes is not canonical lowercase base16");
++  if (leftKind === "String" || leftKind === "Id" || leftKind === "Bytes") return compareCodepoints(leftData, rightData);
+   if (leftKind === "Array") return compareArrays(leftData, rightData);
+   const leftEntries = Object.keys(leftData).sort(compareCodepoints);
+   const rightEntries = Object.keys(rightData).sort(compareCodepoints);
+@@ -228,16 +225,13 @@ export function sameValueZero(left: Value, right: Value): boolean {
+   // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Keep the client twin on the compiler's primitive collection identity contract.
+   const leftKind = kindOf(left);
+   const rightKind = kindOf(right);
+-  if (["Bytes", "Row", "Array", "Map"].includes(leftKind)) {
+-    fail("E_TYPE", `SameValueZero expects primitive operands, got ${leftKind}`);
+-  }
+-  if (["Bytes", "Row", "Array", "Map"].includes(rightKind)) {
+-    fail("E_TYPE", `SameValueZero expects primitive operands, got ${rightKind}`);
++  for (const kind of [leftKind, rightKind]) {
++    if (["Bytes", "Row", "Array", "Map"].includes(kind)) {
++      fail("E_TYPE", `SameValueZero expects primitive operands, got ${kind}`);
++    }
+   }
+   if ((leftKind === "String" || leftKind === "Id") && (rightKind === "String" || rightKind === "Id")) {
+-    const leftText = isVariant(left, "String") ? left.String : (left as { Id: string }).Id;
+-    const rightText = isVariant(right, "String") ? right.String : (right as { Id: string }).Id;
+-    return leftText === rightText;
++    return asString(left) === asString(right);
+   }
+   return canonicalValue(left) === canonicalValue(right);
+ }
+@@ -603,7 +597,7 @@ export function valueFromWire(descriptor: any, value: any, path: string, fail: W
+   if (descriptor === "Bool") { if (typeof value !== "boolean") fail(path, "expected boolean"); return { Bool: value as boolean }; }
+   if (wireObject(descriptor) && "Bytes" in descriptor) {
+     const bytes = wireObject(value) && "Bytes" in value ? value.Bytes : undefined;
+-    if (!wireObject(value) || Object.keys(value).length !== 1 || typeof bytes !== "string" || !canonicalBytes(bytes))
++    if (!wireObject(value) || Object.keys(value).length !== 1 || !canonicalBytes(bytes))
+       fail(path, "expected canonical Bytes");
+     return { Bytes: bytes };
+   }

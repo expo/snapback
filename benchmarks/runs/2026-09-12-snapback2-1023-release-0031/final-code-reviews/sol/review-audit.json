@@ -1,0 +1,14 @@
+{
+  "requestedModel": "gpt-5.6-sol",
+  "requestedEffort": "xhigh",
+  "returnedModelAttested": false,
+  "toolEvents": 0,
+  "eventTypes": [
+    "item.completed",
+    "thread.started",
+    "turn.completed",
+    "turn.started"
+  ],
+  "rawSha256": "18b7a353799ff5b9dd1a2600d033c77272fb7860b389f27c9170a9dda32e6d2a",
+  "verdictSha256": "120a49735365baf93f2d119c8cc8c1f1d7fd2bd20f9bbe4351ef8bf784d9797e"
+}

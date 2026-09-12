@@ -1,0 +1,52 @@
+{
+  "requestedModel": "gpt-5.6-sol",
+  "requestedEffort": "xhigh",
+  "returnedModelAttested": false,
+  "returnedModelMetadata": [],
+  "returnedEffortAttested": false,
+  "modelUsage": {},
+  "usage": [
+    {
+      "input_tokens": 109723,
+      "cached_input_tokens": 5888,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5396,
+      "reasoning_output_tokens": 5178
+    }
+  ],
+  "numTurns": 1,
+  "sessionIds": [
+    "01a0951e-8ae8-7c90-b001-a28bbab3c37f"
+  ],
+  "eventCount": 4,
+  "eventTypes": {
+    "thread.started": 1,
+    "turn.started": 1,
+    "item.completed": 1,
+    "turn.completed": 1
+  },
+  "nestedEventTypes": {
+    "thread.started": 1,
+    "turn.started": 1,
+    "item.completed": 1,
+    "agent_message": 1,
+    "turn.completed": 1
+  },
+  "toolEvents": 0,
+  "toolEventDetails": [],
+  "reportedWebSearchRequests": null,
+  "advertisedToolCount": null,
+  "rawSha256": "18b7a353799ff5b9dd1a2600d033c77272fb7860b389f27c9170a9dda32e6d2a",
+  "assistantTextSha256": "44fba368a9a99c4313983312233c38278f0e44528f1d0ae79a4991309ce6016f",
+  "verdictSha256": "120a49735365baf93f2d119c8cc8c1f1d7fd2bd20f9bbe4351ef8bf784d9797e",
+  "verdictFormatting": "Exact returned assistant text plus one terminal newline. Thinking/signature content omitted; raw stream is hashed only.",
+  "verdict": "READY",
+  "materialFindings": 0,
+  "processSha256": "cffdc890081e38fc2bc649da5707c5423f5494469635352be837304aa1b0c799",
+  "processExit": 0,
+  "childReaped": true,
+  "limitations": [
+    "The CLI request specifies gpt-5.6-sol xhigh; the returned event stream does not independently attest the model or effort.",
+    "Static packet-only review. No reviewer test/build/benchmark execution is established or attributed."
+  ]
+}

@@ -1,0 +1,461 @@
+diff --git a/snapback2/packages/compiler/src/quarry-diagnostic-checks.ts b/snapback2/packages/compiler/src/quarry-diagnostic-checks.ts
+index af3aca500c..b401900463 100644
+--- a/snapback2/packages/compiler/src/quarry-diagnostic-checks.ts
++++ b/snapback2/packages/compiler/src/quarry-diagnostic-checks.ts
+@@ -2,7 +2,7 @@ import { deepStrictEqual } from "node:assert";
+ import { readdir } from "node:fs/promises";
+ import { lowerProject } from "./project";
+ import type { FrontendDiagnostic } from "./ir";
+-import { assert, occurrences, withProject, type Test } from "./quarry-check-helpers";
++import { assert, compileInline, occurrences, withProject, type Test } from "./quarry-check-helpers";
+ 
+ // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — independent
+ // refusals survive frontend recovery; failed bindings do not acquire a type.
+@@ -360,6 +360,70 @@ table todos:
+ ];
+ 
+ export function registerQuarryDiagnosticChecks(test: Test): void {
++  test("rule comparison advice preserves read authority and distinguishes write preconditions", () => {
++    for (const op of ["<", "<=", ">", ">="]) {
++      for (const effect of ["read", "insert", "update", "delete"]) {
++        const source = `table rows:
++  owner: principal
++  expiresAt: time ?
++  ${effect} <- .owner = viewer and (.expiresAt = null or .expiresAt ${op} now)
++`;
++        const result = compileInline([{ fileName: "snapback/schema.q", source }]);
++        assert(!result.ok, `${effect} ${op} unexpectedly compiled`);
++        assert(result.diagnostics.length === 1, JSON.stringify(result));
++        const diagnostic = result.diagnostics[0]!;
++        assert(diagnostic.code === "E_QUARRY_UNKNOWN" && diagnostic.family === "quarry", JSON.stringify(diagnostic));
++        assert(diagnostic.site.startsWith("snapback/schema.q:4:"), diagnostic.site);
++        assert(diagnostic.message.includes(`rule vocabulary has eq/ne but not ${op}`), diagnostic.message);
++        if (effect === "read") {
++          assert(diagnostic.rewrite.includes("preserve this rule's authorization")
++            && diagnostic.rewrite.includes("not an automatic equivalent rewrite"), diagnostic.rewrite);
++          assert(diagnostic.rewrite.includes("guide rules"), diagnostic.rewrite);
++          assert(!diagnostic.rewrite.includes("move the bounded comparison"), diagnostic.rewrite);
++        } else {
++          assert(diagnostic.rewrite.includes("move the bounded comparison into a mutation require"), diagnostic.rewrite);
++        }
++      }
++    }
++    const supported = compileInline([{ fileName: "snapback/schema.q", source: `table rows:
++  owner: principal
++  value: int
++  read <- .owner = viewer
++  insert <- .owner = viewer
++` }, { fileName: "snapback/rows.q", source: `mutation add(value: int):
++  require value > 0 else POSITIVE_REQUIRED
++  return insert rows { owner: viewer, value }
++` }]);
++    assert(supported.ok, JSON.stringify(supported));
++    assert(supported.project.programs[0]!.body.some(statement => typeof statement === "object" && "Require" in statement),
++      "the supported write comparison lost its mutation precondition");
++  });
++  test("channel comparison advice preserves publish and subscribe authority", () => {
++    for (const op of ["<", "<=", ">", ">="]) {
++      for (const effect of ["publish", "subscribe"]) {
++        const source = `table rows:
++  value: bool
++  public
++
++channel activity(owner: principal, deadline: time):
++  value: { active: bool }
++  publish <- ${effect === "publish" ? `owner = viewer and deadline ${op} now` : "owner = viewer"}
++  subscribe <- ${effect === "subscribe" ? `owner = viewer and deadline ${op} now` : "owner = viewer"}
++  ttl 5s
++`;
++        const result = compileInline([{ fileName: "snapback/schema.q", source }]);
++        assert(!result.ok && result.diagnostics.length === 1, JSON.stringify(result));
++        const diagnostic = result.diagnostics[0]!;
++        assert(diagnostic.code === "E_QUARRY_UNKNOWN" && diagnostic.family === "quarry", JSON.stringify(diagnostic));
++        assert(diagnostic.site.startsWith(`snapback/schema.q:${effect === "publish" ? 7 : 8}:`), diagnostic.site);
++        assert(diagnostic.message.includes(`rule vocabulary has eq/ne but not ${op}`), diagnostic.message);
++        assert(diagnostic.rewrite.includes("preserve this rule's authorization")
++          && diagnostic.rewrite.includes("guide rules")
++          && diagnostic.rewrite.includes("not an automatic equivalent rewrite"), diagnostic.rewrite);
++        assert(!diagnostic.rewrite.includes("move the bounded comparison"), diagnostic.rewrite);
++      }
++    }
++  });
+   registerDiagnosticFixChecks(test);
+   for (const c of quarryDiagnosticCases) test(`Quarry diagnostic recovery: ${c.name}`, async () => {
+     await withProject({ "snapback/schema.q": c.schema ?? diagnosticSchema, "snapback/todos.q": c.source }, async root => {
+diff --git a/snapback2/packages/compiler/src/quarry/bound-schema.ts b/snapback2/packages/compiler/src/quarry/bound-schema.ts
+index a3b05e3d65..c8ba01b90b 100644
+--- a/snapback2/packages/compiler/src/quarry/bound-schema.ts
++++ b/snapback2/packages/compiler/src/quarry/bound-schema.ts
+@@ -320,7 +320,12 @@ function bindRuleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext):
+     refuse(expr.site, "rules cannot follow point reads or nested field chains; use a direct .field or exists/created probe");
+   }
+   if (expr.kind === "binary" && ["<", "<=", ">", ">="].includes(expr.op)) {
+-    refuse(expr.site, `the platform rule vocabulary has eq/ne but not ${expr.op}; move the bounded comparison into a mutation require`);
++    // @ref LLP 1023.001#read-rule-comparison-diagnostic-follow-up — mutation preconditions do not govern read or channel authority.
++    const writeRule = context.effect === "insert" || context.effect === "update" || context.effect === "delete";
++    const repair = writeRule
++      ? "move the bounded comparison into a mutation require"
++      : "preserve this rule's authorization with supported predicates (guide rules); mutation require is not an automatic equivalent rewrite";
++    refuse(expr.site, `the platform rule vocabulary has eq/ne but not ${expr.op}; ${repair}`);
+   }
+   refuse(expr.site, `rule expression cannot be represented by the Snapback 2 platform${context.effect ? ` for ${context.effect}` : ""}`);
+ }
+diff --git a/snapback2/packages/evaluator/src/store.ts b/snapback2/packages/evaluator/src/store.ts
+index 11595d09c2..f5d8de0fee 100644
+--- a/snapback2/packages/evaluator/src/store.ts
++++ b/snapback2/packages/evaluator/src/store.ts
+@@ -139,7 +139,12 @@ export class ClientStore {
+   uncoveredSites(trace: Trace, misses: string[] = [], program?: any, search?: SearchExecution): string[] {
+     const partial = new Set(misses);
+     for (const r of trace.ranges) if (!this.facts.covers(r, prepareRange(this.schema, r, program, search))) partial.add(r.site);
+-    for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) partial.add(a.site);
++    // @ref LLP 1012#6-reads-offline — public group exhaustion proves this read's null, not primary/rule authority.
++    for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) {
++      const table = this.schema.tables[a.table];
++      if (table.rules.read !== 'Allow' || !table.indexes[a.index].unique
++        || !this.hasCompleteRange(a.table, a.index, a.key)) partial.add(a.site);
++    }
+     return [...partial].sort();
+   }
+   rangeStop(range: TraceRange, logical: LogicalIndexAtom[]): TraceRange['stop'] { return this.facts.stop(range, logical); }
+diff --git a/snapback2/packages/evaluator/src/test-maintained-address.ts b/snapback2/packages/evaluator/src/test-maintained-address.ts
+index a568dd3284..519d3106f7 100644
+--- a/snapback2/packages/evaluator/src/test-maintained-address.ts
++++ b/snapback2/packages/evaluator/src/test-maintained-address.ts
+@@ -256,4 +256,54 @@ assert.throws(() => validateIdentity('a'.repeat(136)),{ code: 'E_INPUT' });
+   assert.equal(store.byId('balances',id200),null,'last sum deletion removes target');
+   assert.equal(store.byId('counts',id200),null,'last count deletion removes target');
+ }
++// @ref LLP 1012#6-reads-offline — readable group exhaustion proves a point result, not primary write authority.
++{
++  const index = (name: string) => ({ components: [{ Column: name }], unique: true });
++  const table = { columns: { id: 'Id', target: 'Principal', value: 'Int' },
++    indexes: { byId: index('id'), byTarget: index('target') },
++    rules: { read: 'Allow', insert: 'Deny', update: 'Deny', delete: 'Deny' }, constraints: [], retain: 'until-revoked' };
++  const schema: any = { tables: { counts: table }, maintains: [], channels: {}, schedules: [], effects: [], auth: { password: false, guests: false } };
++  const schema_hash = sha256(canonicalSchemaJson(schema)), key = { Id: 'alice' };
++  const program: any = { name: 'counts.point', kind: 'Query', args: {}, read_time_granularity_ms: null,
++    body: [{ Return: { Get: { site: 'count', table: 'counts', index: 'byTarget', key: [{ Literal: key }] } } }] };
++  const context: any = { viewer: 'alice', principal_kind: 'user', auth_epoch: 1, args: {}, now: 1, new_ids: [], read_time: null };
++  const range: any = { site: 'count', table: 'counts', index: 'byTarget', prefix: [{ Scalar: key }],
++    order: 'Asc', take: 1, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
++    rule_hash: scopedRuleHash(schema,table.rules.read), row_ids: [], stop: 'Exhausted', absence: true, halo: null, n2_suffix: null };
++  const receipt = (ranges: any[], absences: any[] = []): any => ({ schema_hash, rows: [], ranges, absences, verdicts: [] });
++  const replay = (ranges: any[], absences: any[] = []) => new ClientStore(schema,receipt(ranges,absences)).reexecute(program,context);
++  const primary = ['counts','byId',[{ Id: canonicalValues([key]) }]];
++  assert.equal(replay([range],[primary]).state,'fresh','the owner proof pair covers the missing public group');
++  assert.equal(replay([range]).state,'fresh','readable group exhaustion does not need canonical-ID equivalence');
++  assert.equal(replay([],[primary]).state,'partial','primary absence alone does not prove a group empty');
++  for (const [name, change] of [
++    ['truncated', { stop: 'Limit' }], ['another key', { prefix: [{ Scalar: { Id: 'bob' } }] }],
++    ['another index', { index: 'byId' }], ['another rule', { rule_hash: 'f'.repeat(64) }],
++    ['evicted', { evicted_ids: ['lost'] }],
++    ...['after','before','gt','gte','lt','lte'].map(bound => [bound,{ prefix: [], [bound]: bound === 'after' || bound === 'before' ? { Array: [key] } : key }]),
++  ] as [string,any][]) assert.equal(replay([{ ...range,...change }]).state,'partial',name);
++  const store = new ClientStore(schema,receipt([range]));
++  assert.equal(store.hasAbsence('counts','byTarget',[key]),false,'read coverage adds no rule/mutation negative fact');
++  assert.equal(store.authorityAbsence('counts',canonicalValues([key])),false,'group exhaustion adds no primary write authority');
++  store.setReceipt('seed');
++  assert.equal(store.reexecute(program,context).state,'partial','removing the receipt removes its read coverage');
++  const restricted = structuredClone(schema); restricted.tables.counts.rules.read = { Eq: [{ Field: 'target' },'Viewer'] };
++  const restrictedReceipt = { ...receipt([{ ...range,rule_hash: scopedRuleHash(restricted,restricted.tables.counts.rules.read) }]),
++    schema_hash: sha256(canonicalSchemaJson(restricted)) };
++  assert.equal(new ClientStore(restricted,restrictedReceipt).reexecute(program,context).state,'partial','restricted empty range does not acquire absence authority');
++  const guarded = structuredClone(schema);
++  guarded.tables.counts.rules.insert = { Not: { Exists: { table: 'counts', index: 'byTarget', key: [{ Field: 'target' }] } } };
++  const guardedReceipt = { ...receipt([range],[['counts','byId',[{ Id: 'new-row' }]]]), schema_hash: sha256(canonicalSchemaJson(guarded)) };
++  const guardedStore = new ClientStore(guarded,guardedReceipt);
++  const inserted = { Row: { id: { Id: 'new-row' }, target: key, value: { Int: 1 } } };
++  const insert: any = { name: 'guarded.insert', kind: 'Mutation', args: {}, read_time_granularity_ms: null,
++    body: [{ Insert: { table: 'counts', row: { Literal: inserted } } }, { Return: { Literal: 'Null' } }] };
++  const blocked = guardedStore.applyMutation(insert,context);
++  assert.equal(blocked.state,'partial','readable group exhaustion cannot authorize a negative write rule');
++  assert(blocked.partialSites.length > 0,JSON.stringify(blocked));
++  assert.equal(guardedStore.byId('counts','new-row'),null,'unknown write authority leaves no inserted row');
++  const surviving = { table: 'counts', id: 'legacy', row: { Row: { id: { Id: 'legacy' }, target: key, value: { Int: 3 } } } };
++  const legacy = new ClientStore(schema,{ ...receipt([range],[primary]),rows: [surviving] }).reexecute(program,context);
++  assert.equal((wireJson(legacy.execution.result) as any).value,3,'noncanonical surviving group row wins over canonical primary absence');
++}
+ console.log('maintained address: exact native held/delivery outputs, targeted Optional/List, absent authority, atomic images and current-schema cursors pass');
+diff --git a/snapback2/packages/evaluator/src/test-search-foundation.ts b/snapback2/packages/evaluator/src/test-search-foundation.ts
+index 63f8d8b5f2..7d24e1d94e 100644
+--- a/snapback2/packages/evaluator/src/test-search-foundation.ts
++++ b/snapback2/packages/evaluator/src/test-search-foundation.ts
+@@ -7,6 +7,33 @@ import { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, normalizeSearch, s
+ import { decomposition, composition, combining, folding, boundaries, rangeValue } from './unicode-tables';
+ import { compareScalarAtoms, decodeIndexAtom, indexKeysEqual, indexKeyStartsWith, prepareIndexAtom,
+   wordPrefixWireMax, type IndexComponent, type LogicalIndexAtom } from './search-key';
++import { sameValueZero, totalCompare, valueFromWire } from './value-runtime';
++
++// Collection equality shares text/ID values; index ordering keeps their types.
++for (const [left, right, equal] of [
++  [{ String: 'alice' }, { Id: 'alice' }, true],
++  [{ Id: 'alice' }, { String: 'bob' }, false],
++  [{ Int: 0 }, { Int: -0 }, true],
++  [{ Int: 0 }, { Bool: false }, false],
++  ['Null', { Bool: false }, false],
++] as const) {
++  assert.equal(sameValueZero(left, right), equal);
++  assert.equal(sameValueZero(right, left), equal);
++}
++assert(totalCompare({ String: 'alice' }, { Id: 'alice' }) < 0);
++for (const value of [{ Bytes: '00' }, { Row: {} }, { Array: [] }, { Map: {} }]) {
++  assert.throws(() => sameValueZero(value, { Int: 0 }), { code: 'E_TYPE' });
++  assert.throws(() => sameValueZero({ Int: 0 }, value), { code: 'E_TYPE' });
++}
++assert(totalCompare({ Bytes: '0f' }, { Bytes: '10' }) < 0);
++for (const bytes of ['FF', '0', 42, null]) {
++  const value = { Bytes: bytes } as any;
++  assert.throws(() => totalCompare(value, { Bytes: '00' }), { code: 'E_INPUT' });
++  assert.throws(() => totalCompare({ Bytes: '00' }, value), { code: 'E_INPUT' });
++  assert.throws(() => valueFromWire({ Bytes: { max: 10 } }, value, 'payload', (path, message) => {
++    throw new Error(`${path}: ${message}`);
++  }), /payload: expected canonical Bytes/);
++}
+ 
+ const root = new URL('../../../unicode/17.0.0/', import.meta.url);
+ const lines = (name: string) => readFileSync(new URL(name, root), 'utf8').split('\n');
+diff --git a/snapback2/packages/evaluator/src/value-runtime.ts b/snapback2/packages/evaluator/src/value-runtime.ts
+index 546d4850d7..bf3f6acea4 100644
+--- a/snapback2/packages/evaluator/src/value-runtime.ts
++++ b/snapback2/packages/evaluator/src/value-runtime.ts
+@@ -138,12 +138,9 @@ export function totalCompare(left: Value, right: Value): number {
+   const leftData = (left as any)[leftKind];
+   const rightData = (right as any)[rightKind];
+   if (leftKind === "Bool" || leftKind === "Int") return comparePrimitive(leftData, rightData);
+-  if (leftKind === "String" || leftKind === "Id") return compareCodepoints(leftData, rightData);
+-  if (leftKind === "Bytes") {
+-    if (!canonicalBytes(leftData) || !canonicalBytes(rightData))
+-      fail("E_INPUT", "Bytes is not canonical lowercase base16");
+-    return compareCodepoints(leftData, rightData);
+-  }
++  if (leftKind === "Bytes" && (!canonicalBytes(leftData) || !canonicalBytes(rightData)))
++    fail("E_INPUT", "Bytes is not canonical lowercase base16");
++  if (leftKind === "String" || leftKind === "Id" || leftKind === "Bytes") return compareCodepoints(leftData, rightData);
+   if (leftKind === "Array") return compareArrays(leftData, rightData);
+   const leftEntries = Object.keys(leftData).sort(compareCodepoints);
+   const rightEntries = Object.keys(rightData).sort(compareCodepoints);
+@@ -228,16 +225,13 @@ export function sameValueZero(left: Value, right: Value): boolean {
+   // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Keep the client twin on the compiler's primitive collection identity contract.
+   const leftKind = kindOf(left);
+   const rightKind = kindOf(right);
+-  if (["Bytes", "Row", "Array", "Map"].includes(leftKind)) {
+-    fail("E_TYPE", `SameValueZero expects primitive operands, got ${leftKind}`);
+-  }
+-  if (["Bytes", "Row", "Array", "Map"].includes(rightKind)) {
+-    fail("E_TYPE", `SameValueZero expects primitive operands, got ${rightKind}`);
++  for (const kind of [leftKind, rightKind]) {
++    if (["Bytes", "Row", "Array", "Map"].includes(kind)) {
++      fail("E_TYPE", `SameValueZero expects primitive operands, got ${kind}`);
++    }
+   }
+   if ((leftKind === "String" || leftKind === "Id") && (rightKind === "String" || rightKind === "Id")) {
+-    const leftText = isVariant(left, "String") ? left.String : (left as { Id: string }).Id;
+-    const rightText = isVariant(right, "String") ? right.String : (right as { Id: string }).Id;
+-    return leftText === rightText;
++    return asString(left) === asString(right);
+   }
+   return canonicalValue(left) === canonicalValue(right);
+ }
+@@ -603,7 +597,7 @@ export function valueFromWire(descriptor: any, value: any, path: string, fail: W
+   if (descriptor === "Bool") { if (typeof value !== "boolean") fail(path, "expected boolean"); return { Bool: value as boolean }; }
+   if (wireObject(descriptor) && "Bytes" in descriptor) {
+     const bytes = wireObject(value) && "Bytes" in value ? value.Bytes : undefined;
+-    if (!wireObject(value) || Object.keys(value).length !== 1 || typeof bytes !== "string" || !canonicalBytes(bytes))
++    if (!wireObject(value) || Object.keys(value).length !== 1 || !canonicalBytes(bytes))
+       fail(path, "expected canonical Bytes");
+     return { Bytes: bytes };
+   }
+diff --git a/snapback2/packages/snapback2/tests/real-owner-prediction.test.ts b/snapback2/packages/snapback2/tests/real-owner-prediction.test.ts
+index c5181f14e6..fd54082b1f 100644
+--- a/snapback2/packages/snapback2/tests/real-owner-prediction.test.ts
++++ b/snapback2/packages/snapback2/tests/real-owner-prediction.test.ts
+@@ -241,3 +241,118 @@ mutation allocateRef(realms: [realmCounts] <=3):
+     else process.env.SNAPBACK_URL = previousUrl;
+   }
+ });
++
++// @ref LLP 1012#6-reads-offline — consume public exhaustion without mixing an old computed answer with newer row images.
++test("a durable observed row and zero count survives receipt replay, owner changes and cold reopen", async () => {
++  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
++  const { tmpdir } = await import("node:os");
++  const { join } = await import("node:path");
++  const { fileRangeStore } = await import("../dist/test.mjs");
++  const { answerOffline } = await import("../dist/client-observed-test.mjs");
++  const { itemInputs } = await import("../dist/image-runtime.mjs");
++  const directory = await mkdtemp(join(tmpdir(), "snapback-count-composite-"));
++  const fixture = join(directory, "source"), clients: any[] = [], stops: (() => void)[] = [];
++  let local: RealOwnerHarness | undefined;
++  const until = async (check: () => boolean, label: string) => {
++    const end = Date.now() + 5_000;
++    while (!check()) { assert(Date.now() < end, label); await new Promise(resolve => setTimeout(resolve, 10)); }
++  };
++  try {
++    await mkdir(fixture);
++    await writeFile(join(fixture, "schema.q"), `use identity
++table rows:
++  owner: principal
++  label: text <=40
++  public
++  insert <- .owner = viewer
++  update <- .owner = viewer
++  delete <- .owner = viewer
++
++table votes:
++  target: rows
++  owner: principal
++  by byTarget: target
++  public
++  insert <- .owner = viewer
++  update <- deny
++  delete <- .owner = viewer
++
++maintain counts: count votes by target
++  read <- allow
++`);
++    await writeFile(join(fixture, "ops.q"), `query composite(target: rows):
++  return { row: rows[target], count: counts[target] }
++
++query row(target: rows):
++  return rows[target]
++
++mutation create(label: text <=40, positive: bool):
++  row = insert rows { owner: viewer, label }
++  if positive:
++    insert votes { owner: viewer, target: row.id }
++  return row.id
++
++mutation rename(target: rows, label: text <=40):
++  update rows[target] { label }
++  return null
++
++mutation remove(target: rows):
++  delete rows[target]
++  return null
++`);
++    local = await RealOwnerHarness.create({ forceOwned: true, fixture });
++    let token: string | null = null;
++    const tokenStore = { load: () => token, save: (value: string | null) => { token = value; } };
++    const plain = createClient({ url: local.url, tokenStore }); clients.push(plain);
++    await plain.auth.guest();
++    for (const count of [0, 1]) {
++      const made: any = await plain.mutation(api.ops.create, { label: `row ${count}`, positive: count === 1 });
++      assert.equal(made.state, "committed");
++      const target = made.data, refreshed: any[] = [];
++      let client: any = createClient({ url: local.url, tokenStore, offline: { store: fileRangeStore(join(directory, `client-${count}`)) },
++        offlineReadObserver: (_op: unknown, args: any, result: any) => {
++          if (args.target === target) refreshed.push(result);
++        } } as any);
++      clients.push(client); await client.ready; await client.auth.me();
++      const expected: any = await plain.query(api.ops.composite, { target });
++      assert.equal(expected.state, "complete"); assert.equal(expected.data.count, count);
++      const observed = client.observe(api.ops.composite, { target });
++      stops.push(observed.subscribe(() => {}));
++      await until(() => refreshed.length > 0, "the accepted owner receipt reaches local replay");
++      assert.equal(refreshed[0].state, "complete", "the row/count composite must be reconstructible after its receipt commits");
++      // Equal exact replay preserves live server provenance (client-observed.ts);
++      // the receipt-commit observer above proves the local result, not just the first frame.
++      await until(() => observed.getSnapshot().receipt?.state === "complete", "the observed publication remains complete after local replay");
++      assert.equal(observed.getSnapshot().receipt.state, "complete");
++      assert.deepEqual(observed.getSnapshot().data, expected.data);
++      const firstSequence = observed.getSnapshot().receipt.seq;
++      // An unrelated answer changes durable order while the owner sequence stays fixed.
++      await client.query(api.ops.row, { target: "unrelated-missing" });
++      await new Promise(resolve => setTimeout(resolve, 30));
++      assert.equal(observed.getSnapshot().receipt.seq, firstSequence);
++      assert.deepEqual(observed.getSnapshot().data, expected.data);
++      const label = `changed ${count}`;
++      assert.equal((await client.mutation(api.ops.rename, { target, label })).state, "committed");
++      await until(() => refreshed.some(result => result.seq > firstSequence && result.data?.row?.label === label), "new owner row is replayed with its count");
++      await until(() => observed.getSnapshot().data?.row?.label === label, "the observed client publishes the changed owner row");
++      assert.equal(observed.getSnapshot().data.count, count);
++      await client.offline(); client = await client.restart(); clients.push(client);
++      const cold: any = await client.query(api.ops.composite, { target });
++      assert.equal(cold.state, "complete"); assert.equal(cold.live, false);
++      assert.equal(cold.data.row.label, label); assert.equal(cold.data.count, count);
++      const coldObserved = client.observe(api.ops.composite, { target });
++      stops.push(coldObserved.subscribe(() => {}));
++      await until(() => coldObserved.getSnapshot().data?.row?.label === label, "cold observation replays the complete composite");
++      assert.equal((await client.mutation(api.ops.remove, { target })).state, "queued");
++      const overlay: any = await answerOffline(client.offlineRuntime, "ops.composite", { target }, (value: any) => value);
++      assert(itemInputs(overlay)?.entries?.some((entry: any) => entry.predicted), "the removal control has an actual queued overlay");
++      assert.equal(overlay.data?.row ?? null, null, "the held owner answer cannot revive the removed row");
++      await client.close();
++    }
++  } finally {
++    for (const stop of stops) stop();
++    for (const client of clients) await client.close();
++    await local?.close();
++    await rm(directory, { recursive: true, force: true });
++  }
++});
+diff --git a/snapback2/packages/snapback2/tests/real-owner-successor.test.ts b/snapback2/packages/snapback2/tests/real-owner-successor.test.ts
+index 0b2d68b435..9f4a4565d4 100644
+--- a/snapback2/packages/snapback2/tests/real-owner-successor.test.ts
++++ b/snapback2/packages/snapback2/tests/real-owner-successor.test.ts
+@@ -639,7 +639,7 @@ test("two clients and cold carrier reopen preserve rows; an enum replay with a l
+   }
+ });
+ 
+-test("positional reads compile after a regroup, report it in log/status, and absent/hidden receipts do not invent completeness", { timeout: 60000 }, async t => {
++test("positional reads compile after a regroup, report it in log/status, and distinguish public coverage from hidden or unheld groups", { timeout: 60000 }, async t => {
+   const { directory, source } = await fixture();
+   const previousUrl = process.env.SNAPBACK_URL;
+   let owner: RealOwnerHarness | undefined;
+@@ -650,6 +650,7 @@ test("positional reads compile after a regroup, report it in log/status, and abs
+   const resumeReset = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+   const resumeQuery = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+   let predecessor: string | undefined;
++  const queryReceipts = new Map<string, any>();
+   const gatedJson = async (response: Response, gate: typeof onlineQuery) => {
+     const value = await response.clone().json();
+     if (gate.armed) { gate.armed = false; gate.entered.resolve(value); await gate.release.promise; }
+@@ -664,7 +665,11 @@ test("positional reads compile after a regroup, report it in log/status, and abs
+           onlineLive.armed = false; onlineLive.entered.resolve(delivery); await onlineLive.release.promise;
+         }
+       });
+-      if (path === "/api/query" && onlineQuery.armed) return gatedJson(response, onlineQuery);
++      if (path === "/api/query") {
++        const envelope = await response.clone().json();
++        if (envelope.receipt) queryReceipts.set(JSON.parse(String(init?.body)).op, envelope);
++        if (onlineQuery.armed) return gatedJson(response, onlineQuery);
++      }
+       if (path === "/api/resume" && onlineReset.armed) return gatedJson(response, onlineReset);
+       return response;
+     };
+@@ -743,15 +748,31 @@ test("positional reads compile after a regroup, report it in log/status, and abs
+     assert.equal((await resuming.query(api.ops.count, { who: "dev:bob" })).data, 1);
+     await resumeSub.until((event: any) => event.live === true && event.state === "complete" && event.data === 0, 8_000);
+ 
+-    for (const [name, who] of [["count", "dev:alice"], ["hidden", "dev:alice"]]) {
++    const unheld = await online.offlineRuntime.evaluate("ops.count", { who: "dev:never-held" });
++    assert.equal(unheld?.state, "partial", "a different unqueried successor group has no coverage");
++    assert.equal(unheld?.reason, "never-held");
++    for (const [name, who] of [["hidden", "dev:alice"], ["count", "dev:alice"]]) {
+       const server: any = await online.query(api.ops[name], { who });
+       assert.equal(server.data, 0, `${name}: server typed zero: ${JSON.stringify(server)}`);
+       await online.online();
+       const replay = await online.offlineRuntime.evaluate(`ops.${name}`, { who });
+-      t.diagnostic(`${name}: ${JSON.stringify({ server: server.state, replay })}`);
++      const envelope = queryReceipts.get(`ops.${name}`);
++      t.diagnostic(`${name}: ${JSON.stringify({ generation: envelope.generation, receipt: envelope.receipt, server: server.state, replay })}`);
+       assert.equal(server.state, "complete", `${name}: the server's typed zero is complete`);
+-      assert.equal(replay?.state, "partial", `${name}: receipt-only evaluation cannot mint zero authority`);
+-      assert.equal(replay?.reason, "never-held", `${name}: the group was never held, so no false completeness: ${JSON.stringify(replay)}`);
++      assert.equal(envelope.generation, online.offlineRuntime.programGeneration, "coverage belongs to the adopted successor");
++      if (name === "count") {
++        const range = envelope.receipt.ranges.find((range: any) => range.table === "counts");
++        assert.ok(range, "the public Count read carries its independent group coverage");
++        assert.deepEqual({ index: range.index, prefix: range.prefix, rows: range.rowIds, stop: range.stop, absence: range.absence },
++          { index: "byRecipient", prefix: [{ Scalar: who }], rows: [], stop: "Exhausted", absence: true });
++        for (const bound of ["after", "before", "gt", "gte", "lt", "lte"]) assert.equal(range[bound], null);
++        assert.equal(replay?.state, "complete", "the exhausted public successor group covers its zero");
++        assert.equal(replay?.data, 0);
++      } else {
++        assert.deepEqual(envelope.receipt, { ranges: [], absences: [], verdicts: [] }, "hidden zero exposes no absence authority");
++        assert.equal(replay?.state, "partial", "hidden receipt-only evaluation cannot mint zero authority");
++        assert.equal(replay?.reason, "never-held");
++      }
+     }
+     assert.equal(onlineEvents.some(event => event.state === "refused" && /E_SCHEMA|E_OFFLINE_STATE/.test(event.code ?? "")), false);
+     assert.equal(resumeEvents.some(event => event.state === "refused" && /E_SCHEMA|E_OFFLINE_STATE/.test(event.code ?? "")), false);

@@ -1,0 +1,7 @@
+   Compiling snapback2-core v0.0.31 (/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/crates/snapback2-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.18s
+────────────
+ Nextest run ID 4d382ed9-4ae2-44a5-a4a5-7ca2a117f667 with nextest profile: local-proof
+    Starting 23 tests across 33 binaries (630 tests skipped)
+────────────
+     Summary [   1.102s] 23 tests run: 23 passed, 630 skipped

@@ -1,0 +1,71 @@
+{
+  "base": "a93edb979a5cbe6357f1fc1f95b66f85bd308844",
+  "candidate": "d251e00dae743cc214fd70dcebb2fedb7341222e",
+  "sourceDiffSha256": "cd4fac9bd604c31dc643a29b7b4dba9c2503d6f726933bf134d74df174a71dad",
+  "promptSha256": "1f6e435a64fb3fe19f2bf1bdc77b5c955e28ead9dc684868aa303846e4201bf1",
+  "files": [
+    {
+      "path": "snapback2/packages/evaluator/src/store.ts",
+      "sha256": "1747f1756b074bdb732ed85ef20de5883b893290e73e2689eac043e9a3989865",
+      "bytes": 15834
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/coverage.ts",
+      "sha256": "c0936f440370dcbf92b28677217fe5d36ac411ca86864de006e62b663a878781",
+      "bytes": 12514
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/range-preparation.ts",
+      "sha256": "228b9b5d2379754ab8e72fba2bf3f23863ce6fd14cb96faaaf0bd4aee9697d81",
+      "bytes": 11910
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/search-key.ts",
+      "sha256": "019d7e325b3fd7289db07fb3a25c0d6d0e0a4aaadcabadbf7673750f147a9c03",
+      "bytes": 5997
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+      "sha256": "fd33bce0a1b5dd292f06cb510737472fe1177d63de340599b4dcaf01e0a03515",
+      "bytes": 30195
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/unicode.ts",
+      "sha256": "620f73dfa301609fe98cfbb4c415cec55b8601d0d66d75ddafa31cae4aaccd48",
+      "bytes": 11430
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test-maintained-address.ts",
+      "sha256": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+      "bytes": 21545
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test-search-foundation.ts",
+      "sha256": "a51e60277b5fd9b10d07586e6267f93c1f19654a94a5d570b2926d4bb757c186",
+      "bytes": 13104
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/bound-schema.ts",
+      "sha256": "c04c5daceec6b02b4111b376d0eba1519b1905e7e04abc9e1330942d5b5ea220",
+      "bytes": 24574
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry-diagnostic-checks.ts",
+      "sha256": "08e59ac117f83115d6ceda0a1ac1b21247ff976b9c07cfafe70a71c8f1c974f3",
+      "bytes": 41025
+    },
+    {
+      "path": "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts",
+      "sha256": "1c5b60d883dcd03b85065547ab6968882cf5040a8932ad4dd5b2aa95947063f3",
+      "bytes": 18713
+    },
+    {
+      "path": "snapback2/packages/snapback2/tests/real-owner-successor.test.ts",
+      "sha256": "21309b654db546f3f21726f5ae1623b26dfe0f5d3a60c2e4119b78911a045630",
+      "bytes": 95818
+    }
+  ],
+  "peerReviewsSupplied": false,
+  "benchmarkNarrativesSupplied": false,
+  "qualification": "author reported; no publication claim"
+}

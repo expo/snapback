@@ -1,0 +1,18 @@
+{
+  "loop": {
+    "oursRows": 299,
+    "mainRows": 301,
+    "unionRows": 302,
+    "sha256": "bb00c5ac77392632d365b749cfc5e05c4a924dee66e64f9fbe274612800ee7d7",
+    "mainPrefixPreserved": true,
+    "allRawRowsPreserved": true
+  },
+  "twin": {
+    "oursRows": 152,
+    "mainRows": 156,
+    "unionRows": 158,
+    "sha256": "1758172360692fa09515d28b1c95bef0e6c95cd2555cfac6836e45595b65f7b1",
+    "mainPrefixPreserved": true,
+    "allRawRowsPreserved": true
+  }
+}

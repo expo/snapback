@@ -1,0 +1,11 @@
+{
+  "command": [
+    "./ref-check",
+    "--verbose"
+  ],
+  "started": 1789207951.4497228,
+  "pid": 77446,
+  "exit": 0,
+  "ended": 1789207955.395416,
+  "childReaped": true
+}

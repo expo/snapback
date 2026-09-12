@@ -1,0 +1,14 @@
+{
+  "source": "03716686f6c6484c3fe72b0d3b4e99a86c01170c",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "build.mjs",
+    "--measure-twin"
+  ],
+  "started": 1789207527.069299,
+  "storeSha256": "1747f1756b074bdb732ed85ef20de5883b893290e73e2689eac043e9a3989865",
+  "pid": 17827,
+  "exit": 1,
+  "ended": 1789207527.275753,
+  "childReaped": true
+}
