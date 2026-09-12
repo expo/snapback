@@ -165,7 +165,7 @@ function markDelivered(actor) {
 }
 
 const appHtml = String.raw`<!doctype html>
-<html><head><meta charset="utf-8"><title>0.3.6-m8 control lane</title></head>
+<html><head><meta charset="utf-8"><title>0.3.7-m8 control lane</title></head>
 <body><main id="app"></main><script>
 const root = document.querySelector('#app');
 let timer = null;
@@ -527,7 +527,7 @@ function createFixtureServer() {
 async function writeSetupIdentity(path, browser) {
   await writeFile(path, `${JSON.stringify({
     schemaVersion: "social-messenger.setup-identity.v1",
-    instrumentPin: "social-messenger@0.3.6-m8",
+    instrumentPin: "social-messenger@0.3.7-m8",
     backend: { kind: "external", version: "control-fixture.v1" },
     runtime: {
       qualifiedBinary: { claimed: false, reason: "in-process HTTP control fixture" },
@@ -536,7 +536,7 @@ async function writeSetupIdentity(path, browser) {
     packageClosure: {
       mode: "workspace",
       prepack: "not-applicable",
-      artifacts: [{ name: "social-messenger-control-fixture", version: "0.3.6-m8", sha256: null }],
+      artifacts: [{ name: "social-messenger-control-fixture", version: "0.3.7-m8", sha256: null }],
     },
     toolchain: {
       node: { path: process.execPath, version: process.version },
@@ -645,7 +645,7 @@ async function main() {
   const receipt = {
     schemaVersion: CONTROL_SCHEMA,
     browser: options.browser,
-    instrumentPin: "social-messenger@0.3.6-m8",
+    instrumentPin: "social-messenger@0.3.7-m8",
     startedAt,
     journeys: {},
     forcedOutcomes: [],

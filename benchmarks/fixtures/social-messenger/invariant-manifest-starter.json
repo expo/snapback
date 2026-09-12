@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "0.2.1-m8",
+  "schemaVersion": "0.2.2-m8",
   "generatedBy": {
     "generator": "generate.mjs",
-    "generatorVersion": "0.2.1-m8",
-    "generatorSourceSha256": "544e0bff5d92ec9ea3eaeb253165f9cbbf59e7ac009c17ee111ee198f2dfc3d4",
+    "generatorVersion": "0.2.2-m8",
+    "generatorSourceSha256": "6792549ff341fe15de94d004000e2f6d8dafc4429656d99675fd5d7380974c63",
     "prng": "mulberry32",
     "seed": 20260808,
     "timestampEpoch": "2026-01-01T00:00:00Z",
@@ -30,10 +30,10 @@
     "starter-m3.log": {
       "name": "starter-m3.log",
       "committed": true,
-      "sha256": "b3d3d922cd6e7a8cec252ff24d2d9beb3fcf490f882fd375703f4ae93eb32690",
-      "byteCount": 1497,
-      "lineCount": 19,
-      "actionCount": 19
+      "sha256": "8ccf67728c225b44739c681a1a26020b13b31387c32264b4a208505863832f7b",
+      "byteCount": 1429,
+      "lineCount": 18,
+      "actionCount": 18
     }
   },
   "expectedState": {
@@ -49,7 +49,7 @@
       "conversations": 2,
       "dms": 1,
       "groups": 1,
-      "memberships": 6,
+      "memberships": 5,
       "messages": 15,
       "textMessages": 15,
       "mediaMessages": 0,
@@ -73,7 +73,7 @@
       "bob": 2,
       "carol": 1,
       "dave": 0,
-      "erin": 1,
+      "erin": 0,
       "frank": 0,
       "grace": 0,
       "henry": 0
@@ -83,7 +83,7 @@
       "g-starter": 9
     },
     "perGroupMemberCounts": {
-      "g-starter": 4
+      "g-starter": 3
     },
     "namedO5Fixtures": null
   },
@@ -205,8 +205,7 @@
         "members": [
           "alice",
           "bob",
-          "carol",
-          "erin"
+          "carol"
         ],
         "messageCount": 9
       }
