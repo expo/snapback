@@ -179,6 +179,41 @@ impl Store {
         let Some(t) = self.catalog.get(table) else { return Ok(0) };
         Ok(self.conn.query_row("SELECT COUNT(*) FROM r WHERE t = ?1", [t], |row| row.get::<_, i64>(0))? as u64)
     }
+
+    /// What the store weighs, by part: the rows, their index entries, the
+    /// partition log (one row per recipient per event), the op records,
+    /// and the file. `doctor` prints it; the log's ratio to the rows is the
+    /// amplification the per-recipient log costs.
+    pub fn sizes(&self) -> Result<Sizes, RuntimeError> {
+        let sum = |sql: &str| -> Result<u64, RuntimeError> { Ok(self.conn.query_row(sql, [], |row| row.get::<_, Option<i64>>(0))?.unwrap_or(0).max(0) as u64) };
+        Ok(Sizes {
+            rows: sum("SELECT SUM(LENGTH(data) + LENGTH(id)) FROM r")?,
+            row_count: sum("SELECT COUNT(*) FROM r")?,
+            indexes: sum("SELECT SUM(LENGTH(k) + LENGTH(id)) FROM i")?,
+            log: sum("SELECT SUM(COALESCE(LENGTH(data), 0) + LENGTH(id) + LENGTH(partition) + LENGTH(t)) FROM _log")?,
+            log_events: sum("SELECT COUNT(*) FROM _log")?,
+            ops: sum("SELECT SUM(LENGTH(outcome) + LENGTH(id) + LENGTH(principal)) FROM _ops")?,
+            file: sum("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()")?,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+pub struct Sizes {
+    pub rows: u64,
+    pub row_count: u64,
+    pub indexes: u64,
+    pub log: u64,
+    pub log_events: u64,
+    pub ops: u64,
+    pub file: u64,
+}
+
+impl Sizes {
+    /// The log's bytes per byte of rows.
+    pub fn amplification(&self) -> f64 {
+        if self.rows == 0 { 0.0 } else { self.log as f64 / self.rows as f64 }
+    }
 }
 
 /// The stored key of one index entry: the components, then the id.

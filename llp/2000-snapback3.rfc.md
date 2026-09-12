@@ -7,7 +7,7 @@
 live data, offline behavior, performance, developer tools, deployment and operations
 **Author:** Codex / GPT-6 Astra, at Charlie Cheever's request
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (commissioned experiment; first runnable slice and qualification)
+**Revised:** 2026-09-12 (first runnable slice; completed S2 wave response and inherited repairs)
 **Related:** LLP 2000.000 (second opinion: keep the core, flip two substrates), LLP 3000 (Snapback 4, the sibling candidate that builds it), LLP 0000, LLP 0329, LLP 1000, LLP 1014, LLP 1018,
 LLP 1018.008, LLP 1018.008.008, LLP 1018.008.009, LLP 1020, LLP 1023
 
@@ -68,6 +68,7 @@ that all of these mechanisms need replacement.
 | [The residual assessment](./1018.008.009-residual-ergonomic-gaps.research.md) describes additional presentation declarations and roughly 28.5-second acquisition observations against a 2–3-second objective | Screen composition and acquisition performance must influence early architecture | Results have different source, host, and workload scopes; passing content checks and meeting latency objectives are separate claims |
 | [Diary 0119](../diaries/0119-snapback2-chat-starter-media-and-editing.diary.md) records draft/media lifecycle defects and a short screen achieved partly by moving code | Measure total responsibilities and user behavior across the SDK and application | Historical defects include repairs; component line count alone measures neither complexity nor quality |
 | [The control-plane retrospective](./1014-control-plane-lessons-from-snapback-1-and-the-field.research.md) describes extensive design preceding a complete deployment path | Put a real deployment and operating experience into an early slice | The retrospective predates later Snapback 2 implementation; it supplies a sequencing lesson |
+| [The completed Clique diagnostic wave](../benchmarks/runs/2026-09-12-snapback2-clique-0029/README.md) records persistent client coordination, costly cold acquisition, storage amplification, and incomplete whole-app outcomes | Test these costs directly in S3; port applicable correctness repairs and challenge inherited substrates with measurements | The builders used 0.0.29; later 0.0.30/0.0.31 source repairs are not a new builder result. See §14 |
 
 These records support a hypothesis: important remaining costs arise where
 one layer must reconstruct another layer's facts or coordinate its lifecycle.
@@ -535,3 +536,79 @@ The first implementation, its observed friction, and the scoped hub measurement
 are recorded in [Diary 0120](../diaries/0120-snapback3-commonroom.diary.md).
 The working slice and [builder guide](../snapback3/guide.md) provide the starting
 point for further implementation and the sibling comparison.
+
+## 14. Response to the completed Snapback 2 diagnostic wave
+
+Charlie supplied the completed [LLP 1023 wave report](../benchmarks/runs/2026-09-12-snapback2-clique-0029/README.md)
+after the first S3 implementation had landed. Its conclusion matters more than
+its green subtests: substantial capability did not establish the desired jump in
+whole-application quality or builder experience. Both later poll exercises passed;
+the apps were not subsequently regraded as complete, corrected products.
+
+The first S3 slice changes client ownership, while retaining important sources of
+S2's costs. These are the current boundaries and the next useful comparisons:
+
+| Concern | What S3 currently establishes | What still needs evidence |
+| --- | --- | --- |
+| Client coordination | Commonroom creates one client. The SDK restores saved state, owns independent query resources and write recovery, and distinguishes unavailable counts from zero. Its browser journeys exercise that app | A fresh builder adding a composed screen and an offline poll without additional authenticated readers or custom coverage/retry machinery. Count auth presentation, drafts, route handling, and helpers as application work |
+| Cold acquisition | Batch persistence updates normalized rows/resources incrementally. The hub measurement reads the complete declared worker fixture | Complete browser acquisition through HTTP, JSON processing, evidence/index construction, IndexedDB completion, closed-page reopen and the first offline query; peak/retained heap, long tasks, and foreground sends during acquisition |
+| Server storage | The generic SQLite index representation is inherited, including its table, primary-key autoindex, lookup index, and row-cleanup index | Attribute pages, repeated key bytes, search data, and delivery/operation records on a comparable fixture; measure a representation change against the same lookup, write, deletion and authorization requirements |
+| Ordinary authoring | Quarry and static certification remain. The private large-seed path has explicit larger budgets | Cross-room search, exact changing digests, and a populated backfill while old clients have queued work. A successful administrative import does not establish an ergonomic migration API; jobs/effects are not currently served |
+| Byte headroom | S3 has its own build and does not import S2's frozen runtime ceiling | Measure the browser SDK closure, complete app, and installed distribution separately; choose explicit budgets with maintenance room. A native-inclusive tarball size cannot stand in for browser cost, and removing a ceiling cannot establish efficiency |
+| Product and test quality | Five real-browser journeys cover the stated Commonroom workflows, including actual network disconnection and reopening | Complete visible workflows with independent expected values, reachable navigation, required pagination/deletion semantics, transient media recovery, and preserved migration fields/receipts. Unsupported workflows stay explicit omissions |
+
+S3's recorded 3,899 ms for 100,015 message rows is a worker/JSONL measurement,
+with 62,814,275 response bytes. It excludes browser work and uses a different
+fixture and host from the S2 app's 62,217 ms / approximately 748 MB observation.
+These numbers establish no comparative acquisition improvement. Likewise, S2's
+5.2 GB file and 70.020% generic-index attribution are evidence to investigate
+the inherited representation, not a measurement of S3's database.
+
+### Applicable correctness repairs
+
+The initial S3 fork predates the fixes qualified for S2 0.0.31. Inspection found
+both relevant old code paths in the copied evaluator and compiler. Focused
+regressions reproduced the failures in S3 before the repairs were applied:
+
+- An exhausted, correctly scoped public unique-key range did not discharge a
+  missing point read. The port from S2 `2d847b7e9ef794ba5860742376f482f470123d39`
+  accepts that existing read evidence while preserving the distinction from
+  negative rule/write authority. Wrong scope/rule, bounded/truncated or evicted
+  evidence, removed receipts, and restricted reads remain incomplete. The
+  synthetic evaluator controls also cover negative write refusal and a surviving
+  noncanonical row. These controls are not a new real-owner or browser poll run.
+- Unsupported comparisons in read and channel rules recommended a write-only
+  mutation precondition. The same source repair now distinguishes read/channel
+  authority from insert/update/delete preconditions. S3's message does not direct
+  the builder to S2's absent `guide rules` command. Tests exercise all four
+  comparison operators through the built compiler API and preserve refusal
+  code, family, location, and a valid mutation comparison. Channel runtime
+  admission remains unsupported.
+
+The S3 resource layer preserves its directly acquired complete answer without
+requiring that answer to be reconstructed from other evidence. This is a
+different boundary from S2's failed mixed-answer path, but inferred local reads
+still use the inherited evaluator. Replacing the SDK was not sufficient reason
+to assume the evaluator repair was irrelevant.
+
+### Next discriminating experiment
+
+Prioritize a browser acquisition profile and a server storage breakdown before
+claiming that the new client architecture fixes scale. Define the required
+durable dataset and fixture identity first. Separate the application's
+subscription demand from SDK processing; keep first useful screen, full
+acquisition, and offline reopen as separate results. Only compare variants at
+equal requirements and with declared hardware/network conditions.
+
+Then test a day-two feature and schema change through an outside builder using
+the public package and guide. Require actual user-visible values and record the
+workarounds needed. Preserve safety controls for authorization, revocation,
+expiry and purge where those capabilities are supported. The favorable S2
+security results do not transfer automatically to S3's new transport and cache.
+
+Assertions must require their preconditions and find items across the declared
+pages. Retained results bind the source and scenario they ran; assessor output
+belongs outside builder-owned status inputs so grading cannot change regression
+selection. A focused green receipt does not replace a whole-app assessment.
+These additions refine the existing experiment; they neither declare S3 the
+winner nor require a new release-gate system.

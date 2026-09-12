@@ -1,8 +1,11 @@
 {
   "name": "snapback4",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
-  "description": "Snapback 4 client: the contract (the card), the online-tier client, React hooks, and a labelled mock. Week two of LLP 3000.",
+  "description": "Snapback 4: the card (contract), the online and local-first clients (IndexedDB, SQLite), React hooks, sign-in, a labelled mock, and the `snapback4` CLI. LLP 3000.",
+  "bin": {
+    "snapback4": "bin/snapback4.js"
+  },
   "exports": {
     "./auth": {
       "types": "./dist/auth.d.ts",
@@ -27,7 +30,19 @@
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
+    },
+    "./replica": {
+      "types": "./dist/replica/index.d.ts",
+      "import": "./dist/replica/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "optionalDependencies": {
+    "snapback4-darwin-arm64": "0.0.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -49,10 +64,6 @@
     "url": "https://github.com/expo/snapback.git",
     "directory": "snapback4/packages/snapback4"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "peerDependenciesMeta": {
     "react": {
       "optional": true

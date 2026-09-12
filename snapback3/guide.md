@@ -13,6 +13,16 @@ accepted by this implementation. A read rule controls row visibility; mutation
 requirements and write rules enforce the operation's authority. A development
 persona exercises those same rules under a local fictional account.
 
+## Authorization rules and write preconditions
+
+Rules use supported predicates such as `allow`, `deny`, `exists`, `=` and `!=`
+over `viewer` and row fields, combined with `and`, `or`, and `not`.
+Numeric ordering comparisons (`<`, `<=`, `>`, `>=`) are refused in rules.
+An operation can use a mutation `require` for a write precondition. That does
+not replace read authorization: every read still needs a rule that expresses
+the intended visibility using supported predicates. Compiler repair advice
+preserves this distinction and does not promise an equivalent automatic rewrite.
+
 ## Generate the application API
 
 Run `snapback3 check <application-directory>`, or the repository CLI as shown in

@@ -4,61 +4,17 @@
 // `snapback4 dev`: the replica syncs into IndexedDB, reads run over it,
 // a queued write survives a reload, and the store's bytes are what the
 // server sent. Prints one JSON line.
-import { spawn } from "node:child_process";
-import { createServer } from "node:http";
-import { createRequire } from "node:module";
-import { mkdtempSync, cpSync, rmSync, readFileSync, globSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { launch, record } from "./lib.mjs";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(join(process.env.HOME, "projects/snapback/snapback2/packages/snapback2/package.json"));
-const { chromium } = require("playwright-core");
-const candidates = [
-  ...globSync(`${process.env.HOME}/Library/Caches/ms-playwright/chromium-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`).sort().reverse(),
-  ...globSync(`${process.env.HOME}/.cache/ms-playwright/chromium-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`).sort().reverse(),
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/Applications/Chromium.app/Contents/MacOS/Chromium",
-];
-const exe = candidates.find((path) => existsSync(path));
-if (!exe) throw new Error("no Chromium: install playwright's chromium or Google Chrome");
-
-// 1. Bundle a harness page that exposes the client to the page.
-const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
-const harness = mkdtempSync(join(tmpdir(), "sb4-witness-"));
-const entry = join(harness, "harness.ts");
-const { writeFileSync } = await import("node:fs");
-writeFileSync(entry, `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\n(window as any).createLocalClient = createLocalClient;\n`);
-await build({ root: harness, logLevel: "silent", build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", lib: { entry, formats: ["es"], fileName: () => "harness.js" } } });
-const bundle = readFileSync(join(harness, "dist/harness.js"), "utf8");
-
-// 2. A dev server on the chat backend, seeded.
-const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
-cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true });
-rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
-const port = 4460 + (process.pid % 20);
-const api = `http://127.0.0.1:${port}`;
-const server = spawn(join(root, "target/debug/snapback4"), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "ignore", "inherit"] });
-for (let i = 0; i < 100; i++) { try { await fetch(api); break; } catch { await new Promise((r) => setTimeout(r, 50)); } }
-await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify([
+const witness = await launch({ seed: [
   { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
   { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
   { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
   ...Array.from({ length: 300 }, (_, n) => ({ table: "messages", row: { id: `seed${String(n).padStart(4, "0")}`, conversationId: "c1", authorId: n % 2 ? "dev:alice" : "dev:bob", body: `seed ${n}`, at: 1_700_000_000_000 + n, editedAt: null, photo: null } })),
-]) });
-
-// 3. The page.
-const pageServer = createServer((_, res) => { res.setHeader("content-type", "text/html"); res.end(`<!doctype html><title>witness</title><script type="module">${bundle}</script>`); });
-await new Promise((r) => pageServer.listen(0, "127.0.0.1", r));
-const pageUrl = `http://127.0.0.1:${pageServer.address().port}/`;
-const browser = await chromium.launch({ executablePath: exe, headless: true });
-const context = await browser.newContext();
-const page = await context.newPage();
-const out = { chromium: exe.includes("Testing") ? exe.split("/").find((p) => p.startsWith("chromium-")) : "system chrome" };
+] });
+const { page, api } = witness;
+const out = { chromium: witness.chromium };
 try {
-  await page.goto(pageUrl);
-  await page.waitForFunction(() => typeof window.createLocalClient === "function");
   // First session: sync into IndexedDB, read locally, send while offline (a
   // blocked fetch), then leave the page with the write queued.
   const first = await page.evaluate(async (api) => {
@@ -81,8 +37,7 @@ try {
   Object.assign(out, { first });
   // Second session: a fresh page on the same origin opens the same
   // IndexedDB; the replica is already there and the queued write lands.
-  await page.reload();
-  await page.waitForFunction(() => typeof window.createLocalClient === "function");
+  await witness.reload();
   const second = await page.evaluate(async (api) => {
     const rows = await new Promise((resolve, reject) => {
       const open = indexedDB.open(`snapback4:${api}:dev:bob`, 1);
@@ -105,11 +60,7 @@ try {
   Object.assign(out, { second });
   out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && second.rowsInIdbBeforeOpen > 300 && second.landed && second.watermark > first.watermark;
 } finally {
-  await browser.close();
-  server.kill();
-  pageServer.close();
-  rmSync(harness, { recursive: true, force: true });
-  rmSync(app, { recursive: true, force: true });
+  await witness.close();
 }
 console.log(JSON.stringify({ witness: "chromium-indexeddb", ...out }));
 process.exit(out.ok ? 0 : 1);

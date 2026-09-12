@@ -1,2 +1,4 @@
 {"at":"2026-09-12T10:13:09.552Z","version":"0.0.1","tarballBytes":5833,"files":8,"publish_s":2.4,"dry":true}
 {"at":"2026-09-12T10:13:36.674Z","version":"0.0.1","tarballBytes":5833,"files":8,"publish_s":3.1,"dry":false}
+{"at":"2026-09-12T13:55:55.259Z","version":"0.0.2","tarballBytes":35944,"files":29,"binaryBytes":5584144,"platform":"darwin-arm64","publish_s":6,"dry":true}
+{"at":"2026-09-12T14:08:29.955Z","version":"0.0.2","tarballBytes":42070,"files":29,"binaryBytes":5584080,"platform":"darwin-arm64","publish_s":15.9,"dry":false}

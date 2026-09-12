@@ -18,18 +18,31 @@ const version = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8")).vers
 console.log(`== build snapback4@${version}`);
 rmSync(join(pkg, "dist"), { recursive: true, force: true });
 run("bun", ["run", "--cwd", pkg, "build"]);
+// The binary rides in a platform package the client package depends on
+// optionally; this machine builds darwin-arm64.
+const platformPkg = join(root, `packages/snapback4-${process.platform}-${process.arch}`);
+const platformVersion = JSON.parse(readFileSync(join(platformPkg, "package.json"), "utf8")).version;
+if (platformVersion !== version) throw new Error(`snapback4-${process.platform}-${process.arch} is ${platformVersion}; the client is ${version}`);
+console.log(`== build the binary → ${platformPkg}`);
+run("cargo", ["build", "--release", "--quiet", "-p", "snapback4"], { cwd: root });
+const { copyFileSync } = await import("node:fs");
+copyFileSync(join(root, "target/release/snapback4"), join(platformPkg, "snapback4"));
+const binaryBytes = statSync(join(platformPkg, "snapback4")).size;
 
 const work = mkdtempSync(join(tmpdir(), "snapback4-publish-"));
 console.log(`== pack → ${work}`);
 const [packed] = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", work], { cwd: pkg }));
 const tarball = join(work, packed.filename);
 const tarballBytes = statSync(tarball).size;
+const [packedPlatform] = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", work], { cwd: platformPkg }));
+const platformTarball = join(work, packedPlatform.filename);
 
 console.log("== installed-consumer proof");
 const consumer = join(work, "consumer");
 mkdirSync(consumer);
 writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "consumer", private: true, type: "module" }));
-run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", tarball, "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "typescript@5.9.3"], { cwd: consumer });
+run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", platformTarball, tarball, "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "typescript@5.9.3"], { cwd: consumer });
+console.log(run(join(consumer, "node_modules/.bin/snapback4"), ["--version"], { cwd: consumer }).trim());
 writeFileSync(join(consumer, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, jsx: "react-jsx", noEmit: true, skipLibCheck: true, types: ["react"] }, include: ["check.tsx"] }));
 writeFileSync(join(consumer, "check.tsx"), `
 import { isReady, type Read, type Write, type Query } from "snapback4/contract";
@@ -59,10 +72,12 @@ console.log(run("node", ["run.mjs"], { cwd: consumer }).trim());
 if (dry) {
   console.log("== dry run: not publishing");
 } else {
+  console.log(`== npm publish ${packedPlatform.filename}`);
+  run("npm", ["publish", platformTarball, "--access", "public"], { cwd: platformPkg });
   console.log(`== npm publish ${packed.filename}`);
   run("npm", ["publish", tarball, "--access", "public"], { cwd: pkg });
 }
-const record = { at: new Date().toISOString(), version, tarballBytes, files: packed.entryCount, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
+const record = { at: new Date().toISOString(), version, tarballBytes, files: packed.entryCount, binaryBytes, platform: `${process.platform}-${process.arch}`, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
 mkdirSync(join(root, "metrics"), { recursive: true });
 appendFileSync(join(root, "metrics/publish.jsonl"), JSON.stringify(record) + "\n");
 console.log(JSON.stringify(record));

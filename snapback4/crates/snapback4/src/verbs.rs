@@ -303,10 +303,19 @@ pub fn data(options: &Options) -> i32 {
     }
 }
 
+fn human(bytes: u64) -> String {
+    match bytes {
+        b if b >= 1 << 20 => format!("{:.1} MB", b as f64 / (1 << 20) as f64),
+        b if b >= 1 << 10 => format!("{:.1} KB", b as f64 / (1 << 10) as f64),
+        b => format!("{b} B"),
+    }
+}
+
 pub fn doctor(options: &Options) -> i32 {
     let started = Instant::now();
     let mut lines = Vec::new();
     let mut ok = true;
+    let mut storage: Option<snapback4_core::store::Sizes> = None;
     let version = env!("CARGO_PKG_VERSION");
     let Some(project) = std::env::current_dir().ok().and_then(|dir| Project::locate(&dir)) else {
         println!("snapback4 {version}: no project here (no snapback/schema.q); `snapback4 init` starts one");
@@ -317,7 +326,13 @@ pub fn doctor(options: &Options) -> i32 {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));
             match project.open_engine(&bound) {
-                Ok(engine) => lines.push(format!("store     {} at seq {}", project.store_path().display(), engine.seq().unwrap_or(0))),
+                Ok(engine) => {
+                    lines.push(format!("store     {} at seq {}", project.store_path().display(), engine.seq().unwrap_or(0)));
+                    if let Ok(sizes) = engine.store().sizes() {
+                        storage = Some(sizes);
+                        lines.push(format!("storage   rows {} ({} rows) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));
+                    }
+                }
                 Err(error) => {
                     ok = false;
                     lines.push(format!("store     FAIL {error}"));
@@ -339,7 +354,7 @@ pub fn doctor(options: &Options) -> i32 {
         lines.push(format!("personas  {}", personas.join(", ")));
     }
     if options.json {
-        println!("{}", json!({ "ok": ok, "lines": lines, "ms": started.elapsed().as_millis() }));
+        println!("{}", json!({ "ok": ok, "lines": lines, "storage": storage, "ms": started.elapsed().as_millis() }));
     } else {
         println!("snapback4 {version}");
         for line in lines {

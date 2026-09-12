@@ -1,19 +1,19 @@
 # Host process startup stalls package smoke before application code
 
-Status: Open
+Status: Open — intermittent host failure; package requalification now unblocked
 Date: 2026-09-12
 Scope: Current development host; local tarball requalification
 Author: Codex
 
-The local package smoke currently times out while starting executables. The
-failure is also reproducible with the repository's native worker. Samples of
+An initial local package requalification timed out while starting executables.
+The failure also reproduced with the repository's native worker. Samples of
 both the npm-launched `/usr/bin/env` and the repository worker show their main
 thread at `_dyld_start + 0`, with 96 KB process footprints and no application
 frames. The underlying host cause remains unidentified.
 
-This prevents a new package qualification result. The previous successful
-archive and report remain intact; the pack script qualifies a scratch candidate
-before replacing them.
+That attempt produced no new qualification result. The pack script preserved the
+previous successful archive and report by qualifying a scratch candidate before
+replacing them. A subsequent successful follow-up is recorded below.
 
 ## Environment and identities
 
@@ -87,3 +87,16 @@ node scripts/pack.mjs
 
 A fresh successful result is required before describing this rerun as qualified.
 No system-service changes are part of this ticket's investigation.
+
+## Successful follow-up — 2026-09-12
+
+After the S2-derived evaluator and diagnostic repairs, a new `node scripts/pack.mjs`
+run passed the fresh npm install, installed CLI, type imports, dev health, seeded
+query and settled mutation checks. The qualified artifact now at the named path
+has SHA-256 `aa973ab8bd0ca090b28a50585379f5b6c66f47ac02ae172618afeb0b68a49c68`,
+3,926,594 archive bytes and 11,638,629 unpacked bytes. Its native worker retains
+the same hash recorded above. No system-service repair was attempted.
+
+Package requalification is unblocked. Keep this issue open for recurrence of the
+intermittent startup failure; one passing run does not identify or repair its
+underlying cause. The earlier failed attempts remain part of the record.

@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
+import { memorySessionStore } from "../dist/auth.js";
 import { isReady } from "../dist/contract.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -94,6 +95,44 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
   } catch (error) {
     console.error(log);
     throw error;
+  } finally {
+    server.kill();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a device restores its session on its own", { timeout: 60_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
+  const port2 = port + 20;
+  const url2 = `http://127.0.0.1:${port2}`;
+  const server = spawn(binary, ["dev", "--port", String(port2), "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  let log = "";
+  server.stdout.on("data", (d) => (log += d));
+  server.stderr.on("data", (d) => (log += d));
+  try {
+    await until(async () => { try { await fetch(url2); return true; } catch { return false; } });
+    const sessions = memorySessionStore();
+    // A cold start with no session: the client mints a guest and keeps it.
+    const first = await createLocalClient({ url: url2, guest: true, store: "memory", sessionStore: sessions, waitSeconds: 1 });
+    const principal = first.viewer();
+    assert.match(principal, /^guest:/);
+    assert.equal(first.session().principal, principal);
+    const inbox = await first.query(api.inbox, {});
+    assert.ok(isReady(inbox) && inbox.data.length === 0 && inbox.complete && inbox.fresh, JSON.stringify(inbox));
+    await first.close();
+    // The next start restores the same principal without asking anyone.
+    const again = await createLocalClient({ url: url2, store: "memory", sessionStore: sessions, waitSeconds: 1 });
+    assert.equal(again.viewer(), principal);
+    await again.signOut();
+    // Signed out: no session to restore, and the old token is dead on the server.
+    await assert.rejects(createLocalClient({ url: url2, store: "memory", sessionStore: sessions, waitSeconds: 1 }), /no session/);
+    const dead = await fetch(`${url2}/q/inbox`, { method: "POST", headers: { authorization: `Bearer ${first.session()?.token ?? "x"}`, "content-type": "application/json" }, body: "{}" }).then((r) => r.json());
+    assert.equal(dead.denied?.code, "E_AUTH");
+    const fresh = await createLocalClient({ url: url2, guest: true, store: "memory", sessionStore: sessions, waitSeconds: 1 });
+    assert.notEqual(fresh.viewer(), principal);
+    await fresh.close();
   } finally {
     server.kill();
     rmSync(dir, { recursive: true, force: true });

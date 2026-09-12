@@ -139,7 +139,12 @@ export class ClientStore {
   uncoveredSites(trace: Trace, misses: string[] = [], program?: any, search?: SearchExecution): string[] {
     const partial = new Set(misses);
     for (const r of trace.ranges) if (!this.facts.covers(r, prepareRange(this.schema, r, program, search))) partial.add(r.site);
-    for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) partial.add(a.site);
+    // @ref LLP 1012#6-reads-offline — public group exhaustion proves this read's null, not primary/rule authority.
+    for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) {
+      const table = this.schema.tables[a.table];
+      if (table.rules.read !== 'Allow' || !table.indexes[a.index].unique
+        || !this.facts.drained(a.table, a.index, preparePrefix(this.schema, a.table, a.index, scalarAtoms(a.key), []))) partial.add(a.site);
+    }
     return [...partial].sort();
   }
   rangeStop(range: TraceRange, logical: LogicalIndexAtom[]): TraceRange['stop'] { return this.facts.stop(range, logical); }

@@ -1,0 +1,10 @@
+{
+  "name": "snapback4-darwin-arm64",
+  "version": "0.0.2",
+  "description": "The snapback4 binary for macOS on Apple silicon; installed by the snapback4 package.",
+  "license": "MIT",
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["snapback4"],
+  "repository": { "type": "git", "url": "https://github.com/ccheever/snapback", "directory": "snapback4/packages/snapback4-darwin-arm64" }
+}

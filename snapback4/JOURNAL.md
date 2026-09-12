@@ -475,3 +475,125 @@ the app), misleading compiler advice (every diagnostic here carries its
 rewrite; the hub run judges them), vacuous tests and stale receipts (the
 fixture wrapper fails on any mismatch and the loop bar records N≥3) — are
 the hub run's to catch, and the run record will say whether they did.
+
+## 2026-09-12 — the client owns its session; cold sync and storage at scale, measured
+
+- **Session restoration (`snapback4/local`, `snapback4/auth`).** A device
+  keeps its session itself: `createLocalClient({ url, session })` keeps the
+  session from `guest()`/`login()`/`signup()`; `createLocalClient({ url })`
+  restores it on the next start; `guest: true` mints one when none is kept;
+  `signOut()` ends it on the server and forgets it; a session the server
+  refuses (`E_AUTH`) is forgotten and `session()` reads null, so the app
+  shows sign-in and nothing else. The store is `localStorage` on the web,
+  memory elsewhere, or whatever the app passes (`expo-secure-store` fits
+  behind three methods). The `"token"` placeholder principal is gone: a
+  session names its principal, and predictions carry it. Nothing but
+  navigation is the app's. Test: a cold start mints a guest, the next start
+  is the same principal, sign-out kills the token on the server, a fresh
+  start with `guest: true` is someone new.
+- **Cold sync at scale (`witness/scale.mjs`, release binary).** Bob holds
+  40 groups × 500 messages × 10 members: a 5.2 MB snapshot of 20,480
+  events. A fresh Chromium page syncs it into IndexedDB in 4.4 s with the
+  JS heap at 26 MB after; a thread page reads in 6 ms, the inbox (40
+  conversations with counts) in 17 ms; a reload reopens in 3 ms. Snapback
+  2's run: 62 s and 748 MB. `metrics/witness.jsonl` has both lines
+  (debug: 3.7 s, the same heap).
+- **Storage at scale (`scripts/measure-storage.mjs`, `snapback4 doctor`'s
+  new `storage` line).** The same seed on the server: rows 5.2 MB (20,480),
+  index entries 2.2 MB, the partition log 56.6 MB for 204,800 events —
+  **10.8× the rows** — and the file 78 MB (14.9×). Seeding took 4.0 s on
+  the release binary (31.7 s debug): 204,800 log inserts for 20,440 rows.
+  This is the recipient-delivery amplification the Snapback 2 report
+  names, in Snapback 4's own shape: the log writes every event once per
+  recipient, image included. Next: a group-keyed log — a target audience's
+  events logged once under the group, a device's stream merged from the
+  groups it holds over the intervals it held them, joins expanded at stream
+  time — so a message costs one log row however many members. The
+  reviews' tests and the simulator's invariants are the safety net for
+  that change.
+- The Chromium witnesses share `witness/lib.mjs` (the bundled harness, the
+  seeded dev server, a CDP session for the heap); `SNAPBACK4_BIN` picks the
+  binary under test.
+
+## 2026-09-12 — the log is keyed by group
+
+- **What changed (`partition.rs`).** A row of a table that syncs to a
+  target is logged once, under its group's partition
+  (`g:<table>:<group>`); a principal's own partition (`p:<principal>`)
+  carries the rows that name it by column and a `join`/`scope` event per
+  content table for every group it enters or leaves; `public` is as it was.
+  Writing a row no longer scans the audience at all. A device's stream is
+  the merge of its own partition, the public one, and each group it held
+  over the interval it held it — intervals reconstructed from its
+  memberships now and the joins and scopes logged since its watermark,
+  `[join, leave)`, so a join and a leave in one commit deliver nothing
+  (finding 4 of the partition review holds by construction). A `join` is
+  expanded to the group's rows (within the horizon) when it is streamed
+  and only while the membership still stands; it never reaches a device.
+  Pages are still whole commits; `more` looks past the watermark in every
+  partition the device holds.
+- **Numbers, release binary, the scale seed (40 × 500 × 10):** the log
+  weighs 6.0 MB for 22,080 events — **1.15× the rows** (was 10.8×, 204,800
+  events); the file 16 MB (was 78); seeding 2.1 s (was 4.0). Cold sync
+  into IndexedDB 3.3 s, heap 26 MB, unchanged in shape. A message costs one
+  log row however many members read it.
+- Read cost moved to the stream: a poll reads `2 + groups × tables` short
+  ranges (bob: 162). Fine at this scale; a principal in thousands of
+  groups is the next ceiling to measure, and `partition IN (...)` the
+  likely answer.
+- Every invariant, day-two scenario and review test passes on the new
+  log; the lang crate's chat test now expects one put per group, not one
+  per member.
+
+## 2026-09-12 — the Expo arm, and the package with the binary on it
+
+- **`apps/chat-expo`**: the chat app on React Native, on the same client
+  and the same generated `api.ts` as the web app. The device holds its
+  partition in SQLite (`expo-sqlite` behind `snapback4/replica`'s
+  four-method driver), keeps its session in the secure store, mints a
+  guest when it has none; a screen is a query plus JSX, as on the web.
+  `createLocalClient` takes a store opener for hosts that bring their own
+  store.
+- **The simulator witness (`witness/expo.mjs`)**: Expo Go on the booted
+  iPhone 17 Pro simulator against a real `snapback4 dev`; the app runs the
+  scenario itself and posts its report. 303 rows sync into SQLite in
+  209 ms; a thread page reads 50 rows `complete` with a cursor; the inbox
+  count is 300; a send is `sent`; a second open of the same file finds the
+  301 rows and reopens in 22 ms. The line is in `metrics/witness.jsonl`.
+- **Expo tooling notes.** The workspace installs hoisted (`bunfig.toml`),
+  since Metro could not bundle from bun's isolated layout. `expo install
+  --fix` pins the SDK 57 versions (React Native 0.86). `expo export`'s
+  bytecode step still resolves an old `hermes-compiler` (0.14.1, "private
+  properties are not supported") under bun; development bundles and Expo
+  Go do not go through it. A follow-up for the production build.
+- **`npx snapback4`**: the client package carries the CLI. `bin/snapback4.js`
+  finds the binary in `snapback4-darwin-arm64` (an optional dependency, the
+  release build copied in at publish time), or `SNAPBACK4_BIN`, or this
+  repository's build. `scripts/publish.mjs` builds the binary, packs both
+  packages, proves them from an installed consumer (`snapback4 --version`
+  runs; the mock client works) and publishes the platform package first.
+  Versions move together: 0.0.2 (the Cargo workspace too).
+
+## 2026-09-12 — snapback4@0.0.2 on npm; the Clique run packet
+
+- **Published** `snapback4@0.0.2` and `snapback4-darwin-arm64@0.0.2`
+  (`scripts/publish.mjs`: the release binary in the platform package, both
+  packed, an installed consumer runs `snapback4 --version` and the mock
+  client, then the platform package publishes first). Cold from the
+  registry: `npm install snapback4@0.0.2`, `npx snapback4 init`, `check`,
+  `guide`, `dev`, one query — the published surface a fresh agent gets.
+  The README is now the start packet: the whole surface on one page (the
+  shape of an app, Quarry, sync, the client and the card, React, sign-in,
+  the mock, development, the wire, release, Expo, and what is not in this
+  release).
+- **The Clique run packet** (`~/clique-sb4-20260912/`): the repository's
+  instrument (brief, contract, protocol, schema, fixtures, UI kit,
+  choreography, grader, metering, observability) at the commit in
+  `INSTRUMENT_COMMIT`, read-only, with an `ENVIRONMENT.md` overlay that
+  strikes media (avatars, photo/video messages, view-once, backgrounds,
+  simulator artifacts) and scheduled server-side work (the digest; expiry
+  enforced at read time) — as commissioned: "skip media and jobs, astra
+  medium". One lane, `astra-snapback4`, codex `gpt-6-astra` at medium,
+  ports 49200–49219 (49100–49102 are held by a stale Snapback 2 lane, not
+  mine to kill). Phases: the continuous session M1 → M2 → M3 → M4 → M5 →
+  M6 → M8; a fresh other-family grade; M7; the record.

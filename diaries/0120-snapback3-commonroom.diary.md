@@ -183,3 +183,51 @@ the other proposed substrates independently. The next fair comparison needs the
 same application workflows, full durable acquisition, active foreground writes,
 day-two schema/policy changes, and an outside builder. This first implementation
 makes that comparison possible; it does not decide it.
+
+## 2026-09-12: completed Snapback 2 wave feedback
+
+Charlie supplied the final Clique diagnostic report after the first S3 landing.
+It sharpens the distinction between working subsystems and a successful product.
+The single-client Commonroom experience is useful evidence for this application;
+it does not establish that an outside builder can assemble a larger app with the
+same ease. S3 still inherits the generic index layout and bounded Quarry model.
+Its worker-only hub timing is not a browser acquisition result. LLP 2000 §14 now
+maps each structural concern to the current S3 boundary and the next comparison.
+
+Inspecting the actual S2 0.0.31 repair exposed two omissions in the earlier fork.
+The copied evaluator still classified a missing public unique-key read as partial
+despite held, exhausted range evidence. The compiler still advised mutation
+preconditions for read/channel comparisons. The new tests failed against both
+old paths before their S2-derived fixes were applied. Reusing a tested foundation
+also creates a concrete responsibility to examine later fixes; a new SDK does
+not make inherited evaluator bugs irrelevant.
+
+The affected checks pass: 37 client, evaluator and draft tests; seven compiler
+tests against the built API; 266 shared evaluator cases with 27 server-only skips;
+and compiler/SDK TypeScript checks. The added evaluator controls use synthetic
+schema/program identities and test incomplete, revoked and wrong-rule evidence,
+negative write refusal, and a surviving noncanonical row. They are not an installed
+package, native certificate, or real-browser mixed-count witness. No Rust changed.
+The global reference scan retains the same 19 ignored-review-log errors.
+
+Independent review caught a weak inherited refusal control: after changing a
+write rule, its range still carried the old schema's rule hash. The test could
+therefore remain partial for missing coverage instead of the intended missing
+write authority. It now recomputes that hash, first proves the same store can
+answer the public point read, and contrasts the refused write with a successful
+write supplied explicit negative authority. The five Commonroom browser journeys
+also pass against the rebuilt app; their scope remains the existing workflows.
+
+A fresh host-specific package qualification subsequently passed, including npm
+installation outside the repository, the installed CLI, all four type exports,
+server health, a seeded query and a durably settled mutation. The updated tarball
+is 3,926,594 bytes (11,638,629 unpacked), SHA-256
+`aa973ab8bd0ca090b28a50585379f5b6c66f47ac02ae172618afeb0b68a49c68`.
+Its native worker is byte-identical to the earlier one. The prior host startup
+stall did not recur in this attempt; its underlying cause is still unknown.
+Nothing was published to npm. The root inventory scan retains the same unrelated
+Snapback 1 failures recorded above.
+
+Whole-app browser acquisition, server storage attribution, useful byte headroom,
+and a fresh builder performing a feature/schema change remain the important
+unmeasured outcomes.
