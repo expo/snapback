@@ -63,7 +63,7 @@ machine with the loop-bar runs. N=1 each; calibration, not a magnitude.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Snapback 4 0.0.2**, this run | 873 | 1,416 | 2,922 | 3,601 | in progress | | | media and scheduled work struck |
+| **Snapback 4 0.0.2**, this run | 873 | 1,416 | 2,922 | 3,601 | 5,030 | in progress | | media and scheduled work struck; the expiry gap disclosed in the lane's `platform-gaps.md` |
 | Snapback 2 0.0.4, Astra, 2026-09-05 (`~/clique-full-20260905`) | 449 | 1,184 | 1,916 | 2,511 | 5,599 | 6,208 | 7,885 | M1, M2, M5, M6 later regressed and were recorded `aborted`; M3, M4, M8 green |
 | Snapback 2 0.0.29, Astra, 2026-09-12 (`benchmarks/runs/2026-09-12-snapback2-clique-0029`) | 469 (first green proof) | | | | | | | 13,667 s total including a 6,146 s scale replay; M1–M6 plus M8 web-green, then graded O1 73 / O2 55 |
 | Convex 1.45.0, Astra, 2026-09-05 | 792 | 1,577 | 1,881 | 2,148 | 3,185 | 4,475 | 5,643 | every milestone green; no capability failures |

@@ -7,8 +7,10 @@ repository or any prior implementation on this machine.
 
 Install and use ONLY `snapback4@{VERSION}` from the public npm registry (exact
 pin: `npm install snapback4@{VERSION}`; it installs its platform binary, so
-`npx snapback4` works), its README (the whole published surface is on that one
-page; read it first), the guide it serves (`npx snapback4 guide`,
+`npx snapback4` works), its README — the one installed at
+`node_modules/snapback4/README.md`, which describes the version you have;
+the registry page may describe a newer one — (the whole published surface
+is on that one page; read it first), the guide it serves (`npx snapback4 guide`,
 `npx snapback4 guide <keyword>`), `npx snapback4 why <CODE>`, and its
 generated types (`snapback/generated/api.ts`, written by `npx snapback4
 check`). The backend is authored in Quarry (`snapback/schema.q`). The client
