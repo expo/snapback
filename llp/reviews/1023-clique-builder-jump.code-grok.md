@@ -28,7 +28,7 @@ Their raw output remains in the run's `code-review/` scratch directory.
 
 **Review limits:** Did not run tests, builds, or the pinned gzip five-root measurement (reported 89,986 / 90,000, not reproduced). MergeSite.uniform is classified in certificate/merge.rs, which was not in the packet; following_twenty / wide_shaped_merge imply it is set for the 500-follow fixture. Digest remains an explicit unclaimed gap and was not treated as missing completion. Unconfirmed: integer truncation of max_calls/lanes in closure.rs if those are not divisible; enqueue returning structuredClone(prepared.entry) omitting store-assigned fields such as order; AssetImage session fallback not re-qualified on Chromium in this packet. live-query.md still shows a first-50 membership merge for word-prefix search; fanout.md is the complete 1,000-chat form.
 
-## Integrator disposition in progress
+## Integrator disposition after round 1
 
 The proposed wide-argument case is being executed against the separate receipt,
 output and heap contracts. The first concrete two-page run stays within each
@@ -36,3 +36,18 @@ individual bound; their sum exceeds the closure bound, which is not documented
 as a combined output-plus-receipt limit. Additional refusal controls and the
 reviewer's independent adjudication remain pending. No accounting change or
 reviewer acceptance is inferred from this preliminary result.
+
+## Round 2
+
+Candidate: `ade40815509be3bb5ab873de3d2c02bc5182f6b0`; base: `89b705dbb222ecb77977b586377ca39447cad854`.
+Packet SHA-256: `16d5360713ee9ff64ed35d6500a9ef3cc66765b3518f4aac0b51fa7909927a40`.
+Session: `01a093b9-2743-7743-a73a-2423cede3b2c`. Requested Grok 4.6 xhigh; reported model-usage key `grok-4.6-build`.
+The fresh reviewer received its own prior finding, the exact source and independent meter tests, and no peer review.
+
+**Verdict: READY**
+
+No material findings.
+
+**Review limits and adjudication, verbatim:** Did not run tests, builds, or the pinned gzip five-root measurement (reported 89,843 / 90,000, not reproduced). Prior complementary-max finding: under LLP 1001 §10 as written (result vs retained rows as separate serialized products; heap separate; no combined Execution envelope), certificate.rs max(retention, search_closure) cannot undercount either product when search_closure is a valid receipt floor — max is at least that floor. The added constructed 500-follow control still has search_closure winning (receipt ~718–800k of 1,349,429; output ~967k of 967,932), so it does not exercise a retention-wins path; that path would still be ≥ the receipt estimate rather than dropping heads. Unconfirmed, not filed: integer truncation of max_calls/source.take only at saturating u64 overflow, not at the 500-follow shape (analyzer multiplies by source.take then divides it back); enqueue structuredClone(prepared.entry) omitting a store-assigned order — submitMutation only consumes intent/ids, and this packet does not include prepareEntry’s order assignment; a constructed result descriptor with a consumed asset id that fails AssetRecord equality would skip owner redaction (legal queries return typed fields/aliases, which the result walk does redact). Digest final-emission eligibility remains an explicit unclaimed gap. live-query.md still shows a first-50 membership merge in the Unicode section; fanout.md is the complete 1,000-chat form. onceExhausted whole-row suppression at the offline twin is the existing viewed-row-absent rule, now shared with bytes/carrier; owner Row-provenance exhaustion matches Get/full-row projections. Reported Chromium 13 / owner 122 / web 209 / hub 1,000+125 / closure 212 were not independently reproduced.
+
+Integrator: the earlier accounting finding is withdrawn by its reviewer under the separate serialized-product contracts. Subsequent template/diagnostic repairs and main integration still require a scoped delta review; this verdict does not cover unwritten changes.

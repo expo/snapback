@@ -6,7 +6,7 @@
 **Author:** Codex / GPT-6 Astra, for Charlie Cheever
 **Date:** 2026-09-11
 **Revised:** 2026-09-11
-**Related:** LLP 1001, LLP 1012, LLP 1017, LLP 1019, LLP 1020; [search-cost ticket](../issues/closed/20260911-snapback2-global-search-pager-costs-one-request-per-membership.md); [closed hub-envelope ticket](../issues/closed/20260911-snapback2-hub-scale-certified-query-envelopes.md); [0.0.25 run](../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
+**Related:** LLP 1001, LLP 1012, LLP 1017, LLP 1019, LLP 1020; [search-cost ticket](../issues/closed/20260911-snapback2-global-search-pager-costs-one-request-per-membership.md); [reopened hub-envelope ticket](../issues/20260911-snapback2-hub-scale-certified-query-envelopes.md); [0.0.25 run](../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
 
 ## 1. Status and decision requested
 

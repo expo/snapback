@@ -49,8 +49,8 @@ offers **Sync now**: await `useOutbox().recover()` (headless:
 `client.outbox.recover()`). It returns `{ settlement: { stopped, remaining } }`
 or `{ refusal }`. Keep drafts/attachments on refusal; never guess a queue count. Admission/subscribed operations acquire capacity through one bounded resume;
 `can`/snapshot reads do no I/O. Never auto-resubmit refusals or poll `online()`.
-One automatic attempt per opportunity, with a 10-second deadline; an explicit
-offline cut forbids automatic networking until `online()`.
+One automatic attempt per opportunity; an explicit offline cut forbids
+networking until `online()`. Recovery deadlines are below.
 `outbox.observe(op?)` feeds hooks with `entries`, `work`, `can`, and status.
 Each `work` item has `{ entry, label, dismissible }`; `getWork(intent)` also
 resolves follower aliases. `useMutation(op).last` stays the immediate result;
@@ -71,18 +71,16 @@ A rejected wait carrying `intent` may still own queued work: expiry seals it.
 Sign in as the same account, then find that intent via `outbox.observe().getWork`;
 never submit a fresh duplicate. Work is unreadable while sealed.
 
-Keep the provider above routes; unmount screen observers, not the client.
-For settings, `const result = await run(args)`: on `rejected`, retain input and
-show the refusal; on `queued`, show pending before navigating; on `committed`,
-navigate. Admission means the atomic carrier transaction completed, not request
-success. Reopen preserves admitted work; unloading before admission may lose it.
-Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
-queued bytes. A real reconnect can start bounded recovery; retry stopped work
-with explicit recovery. Recovery shares resume/drain work; each wait has a 10-second deadline.
-Timeout returns E_TRANSPORT without losing custody. Closing,
-going offline, takeover, or changing account ends the wait before further
-partition reads. Followers refresh their inbox; recovery never takes a writer
-lock or clears another tab’s offline cut.
+Keep the provider above routes. After `const result = await run(args)`,
+retain input/show refusal on `rejected`; show pending before navigation on
+`queued`; navigate on `committed`. Admission is atomic carrier completion:
+reopen preserves it, but unloading beforehand may lose the write.
+Pauses retain queued bytes. Reconnect starts bounded recovery; explicitly
+recover stopped work. Recovery shares resume/drain work; each wait expires
+after 10 seconds with E_TRANSPORT and custody intact. Close, offline, takeover
+or account change ends the wait before another partition read. Followers
+refresh their inbox; recovery neither takes a writer lock nor clears another
+tab’s offline cut.
 
 ## Entry fields
 
@@ -90,14 +88,14 @@ lock or clears another tab’s offline cut.
 
 | Field | Meaning |
 | --- | --- |
-| `intent`, `op`, `args` | Stable intent identity and the submitted operation/arguments. Never edit queued bytes. |
+| `intent`, `op`, `args` | Immutable submitted identity, operation and arguments. |
 | `state` | `queued`, `committed`, `rejected`, or `expired`. Replay activity: `status.draining`. |
 | `issuedSeq` | Coverage at admission; neither server commit nor flush order. |
 | `order` | Device ledger FIFO position. Other devices have their own order. |
-| `response` | The terminal result. A committed `response.seq` is the owner's commit sequence; rejection includes its refusal. |
+| `response` | Terminal result: committed owner `seq`, or refusal. |
 | `ids`, `targets` | Reserved IDs and certified semantic targets. Use `mutationTarget(op, table)` rather than indexing `ids`. |
-| `createdAt`, `updatedAt` | Device timestamps, not server edit/expiry authority. |
-| `inbox` | Follower alias key; admission and later compaction preserve it atomically with the ledger. |
+| `createdAt`, `updatedAt` | Device timestamps, not authoritative edit/expiry times. |
+| `inbox` | Follower alias, preserved atomically through admission/compaction. |
 
 ## Resume
 
@@ -107,16 +105,14 @@ refusal allows one smaller retry. Backward watermarks keep `online()` refused
 across reopen; coverage, grants, IDs and queue stay. Drain may replay in
 existing trust; write success does not repair a refused resume.
 
-E_OFFLINE_RESUME: rewrite an unsupported log as a direct ascending `after c first N`
-page (N <= 50); `online()` may retry mounted-limit once, not an unsupported log.
+E_OFFLINE_RESUME: use the supported ascending log above.
 E_OFFLINE_RESET: reset answers/facts, keep outbox and delivered-history bodies anchored by held delivered events; removed events still evict. Fetch program, re-resume.
 A mounted drain restarts once at null. E_AUTH_SESSION seals; E_OFFLINE_AUTHORITY keeps coverage.
 
 ## Grants and bytes
 
 Signup/login/guest/resume grant 30-day principal IDs; replay needs a live session.
-Grants belong to their validated principal: failed opens/account switches cannot
-install them elsewhere; wipe discards them.
+Failed opens/account switches cannot transfer grants; wipe discards them.
 Identical bytes reuse terminals; changed bytes refuse
 E_OFFLINE_INTENT_REUSE; bad slices E_OFFLINE_ID_BLOCK; expiry
 E_OFFLINE_INTENT_EXPIRED; trace conflicts E_OFFLINE_CONFLICT. Read current

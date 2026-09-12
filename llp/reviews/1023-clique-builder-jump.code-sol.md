@@ -22,9 +22,36 @@ Verdict: MATERIAL
 I found no other material defect in the once-media occurrence matching, uniform-merge accounting, hub cursor forms, or Timed Insights recipe. The digest eligibility gap remains explicitly documented and unclaimed, so I did not treat it as a new defect.
 
 Per instruction, I did not run builds or tests; reported size and browser qualification were not independently reproduced.
-## Integrator disposition in progress
+## Integrator disposition after round 1
 
 The admitted-intent finding was reproduced with four deterministic file-carrier
 controls. `f65f1e463b` preserves the cleanup refusal and original admitted intent;
 209 affected custody/auth/recovery tests pass. Independent delta review is still
 pending. This disposition does not change the reviewer's original verdict.
+
+## Round 2
+
+Candidate: `ade40815509be3bb5ab873de3d2c02bc5182f6b0`; base: `89b705dbb222ecb77977b586377ca39447cad854`.
+Packet SHA-256: `c6a99339bd59428a03852bfa0ddf9037b8512934b8fdce1fb67eb94bcba46c42`.
+Provider/runtime: Codex CLI, requested `gpt-5.6-sol`, xhigh.
+Fresh packet-only review received its own prior finding and repair, no peer review.
+Session: `01a093b9-2726-7da0-9d0e-f0d141eac61a`; process exited 0.
+
+Verdict: MATERIAL
+
+- Material — the candidate removes the existing author authorization for post updates and deletes at [schema.q](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/packages/compiler/fixtures/quarry-fanout-guide/snapback/schema.q:11), while retaining `feeds.editPost` and `feeds.removePost` in [feeds.q](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/packages/compiler/fixtures/quarry-fanout-guide/snapback/feeds.q:18). Trigger: a post author invokes either shipped mutation. With no authorizing update/delete rule, the operation refuses; published posts can no longer be edited or removed, and removal cannot maintain the paired `postHeads` lifecycle. This is a regression of previously accepted main behavior introduced while expanding the hub fixture, not a necessary read-model change. Smallest correction: restore:
+  ```q
+  update <- .author = viewer
+  delete <- .author = viewer
+  ```
+  Retain a runtime control proving the author can edit/remove, another principal cannot, edits preserve the head, and removal deletes both post and head.
+
+The prior durable-identity finding is repaired in the inspected source: admission is captured after carrier completion in `client-outbox.ts`, and [client-mutations.ts](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/packages/snapback2/src/client-mutations.ts:89) now maps cleanup failures through the admitted-aware result with the original intent. I found no remaining material issue in that path, the uniform-merge accounting, the owner consumed-image sequence repair, or the small runtime refactors.
+
+Unconfirmed hypotheses: none.
+
+The digest final-emission eligibility gap remains explicitly unfulfilled and was not treated as a defect or completed capability.
+
+Limitations: packet-only static review. I did not run commands, tests, builds, browser checks, or independently reproduce reported validation and measurements. I did not inspect credentials or peer reviews and remained mutually blind.
+
+Integrator: the prior admission cleanup finding is resolved by this reviewer. The new fixture author-rule regression is assigned for correction with author/other-principal and paired-head lifecycle controls. Its repair and subsequent template/diagnostic changes still require a scoped delta review.

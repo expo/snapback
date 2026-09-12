@@ -1,10 +1,22 @@
-# Snapback 2 hub-scale Clique queries still miss the certified envelope
+# Snapback 2 hub-scale reads: final digest eligibility remains open
 
 **Status:** Open
 **Priority:** P1
 **Date:** 2026-09-11
 **Systems:** Snapback 2 Quarry certifier (LLP 1001, LLP 1010 A5 merge), Clique brief envelopes
 **Related:** [closed/20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md](./closed/20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md) (500-follow 20-row merge, resolved); `benchmarks/briefs/social-messenger.md`
+
+## Current scope — reopened 2026-09-12
+
+The read forms now compile and pass scoped owner controls. Exact final-time
+digest eligibility remains unmet, so this ticket is open. Concurrent main
+closed the original ticket for its compiling recipes; the later LLP 1023
+counterexample invalidates that closure for digest. Its resolution and
+validation record are retained below, with one canonical ticket path.
+The interim globally ordered search helper and its measured request cost
+remain shipped; [LLP 1024](../llp/1024-single-lane-delivered-search.rfc.md)
+owns its one-lane successor. This program's grouped-search form does not use
+that client merge.
 
 ## Symptom
 
@@ -141,3 +153,68 @@ on EPYC, owner-unit.log, owner-stop-pinned.log, old-wait-control.log and
 fixed-wait-control.log; on 450b, ordinary.log (failure), repro/ and repro2/
 (process timelines and owner logs), and fixed-ready.log (repaired consumer).
 No client runtime bytes or certified limits changed.
+
+## Earlier main closure — historical record
+
+The following was the prior resolution, not a claim that the subsequent
+final-emission counterexample is solved. Existing main preserves its original
+source history.
+
+### Resolution (2026-09-11)
+
+
+The brief and fixed certificate ceilings remain unchanged. `guide fanout` now
+records a legal preserving form for all five rows:
+
+- A narrow immutable `postHeads` table makes the viewer plus 1,000-follow lane
+  merge certify for 20 winners. Compiled maximums are 48,752 output bytes,
+  2,024,488 closure bytes, 1,605,760 heap bytes, and 50,180 steps. The fixture
+  includes atomic create/edit/delete custody for post and head rows.
+- Global chat search pages the whole current membership directory, fetches a
+  certified one-row head from every conversation, and merges/refills those
+  heads with the public `snapback2/global-search-pager` export. The helper
+  walks all 1,000 scopes, limits concurrency, preserves descending order,
+  suppresses duplicates, detects cursor cycles, serializes concurrent `next`
+  calls, and propagates the weakest unusable receipt. The installed
+  `dist/guide/recipes/global-message-search.ts` recipe binds the generated
+  client API, branded cursors, captured term, Unicode-scalar comparator, pages,
+  and issues.
+  Search remains on the original membership-authorized message rows;
+  held-search authority was not widened.
+  This is the **interim client N-way merge**, not a one-lane scale result.
+  The earlier LLP 1023.001 §C exclusion of client N-way composition does not
+  describe this shipped close. On the unchanged 100,015-message Clique fixture,
+  hub `u0001`'s `busy` term matches only in the final membership slice: the
+  first 20 rows cost 1,030 HTTP queries (10 scope pages, 1,000 heads, 20
+  refills), measured at 669/616 ms on localhost EPYC; an absent term costs
+  1,010 queries/576 ms. The cost is now visible in the fanout card and recipe.
+  [LLP 1024](../llp/1024-single-lane-delivered-search.rfc.md) records the
+  one-lane capability gap, measurement method, delivery-authority distinction
+  and write-side price; it remains Draft. This close establishes a complete
+  composition, not constant-request hub search.
+- Rich conversation composites use a smaller continued rich page while raw
+  history remains independently pageable at 50.
+- Digest work uses maintained period cells and a resumable 50-row job chunk.
+- Directory backfill uses resumable 25-row chunks through the entire table.
+
+The `E_BOUND` and `E_STEPS` family recipes and merge/work repairs now point to
+these population-preserving forms. No frozen benchmark brief or run packet was
+changed.
+
+### Historical validation
+
+- Pinned Node 24.18.0 package build and pack: pass; 32 guide cards,
+  97,979/98,304 bytes. The installed recipe is present in the packed file set
+  and typechecks through the public client/pager exports against the generated
+  fanout fixture API.
+- Compiler suite: 307 passed, 0 failed, including the compiling guide fixture,
+  installed consumer binding, and pager coverage/order/refill/deduplication/
+  cursor-cycle/partial-state tests.
+- `cargo test -p snapback2-core --lib -- --test-threads=4`: 187 passed,
+  0 failed.
+- Published self-reference import `snapback2/global-search-pager`: pass.
+- Installed recipe equal-time ordering: astral, BMP, and shared-prefix IDs
+  match the engine and twin's Unicode-scalar order.
+- `./ref-check --verbose`: 450 LLP docs, 8,109 refs, 0 errors, 0 unchecked.
+- `scripts/caps.mjs` still reports the two inherited Snapback 1 line-cap reds;
+  every file changed here is below 1,500 lines.

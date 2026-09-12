@@ -12,20 +12,17 @@ For `E_OWNER_NOT_RUNNING`, start the owner, then trace the existing job.
 Malformed pages also stop with trace recovery. Repeating `run --wait`
 enqueues another job.
 
-`chunk` walks current rows through the upper key captured at sweep start.
-Later inserts between cursor and bound are visited; inserts beyond it are
-excluded; deleted rows are skipped. Cursor, writes and emitted effects commit
-together. Several chunks are independent sweeps in declaration order, not one
-snapshot. Jobs execute as the owner under constraints, bypassing viewer rules.
-A digest must explicitly validate the target's authorization and content
-eligibility at final emission; see `guide fanout`.
+`chunk` walks current rows through its initial upper key: later inserts within
+the remaining interval are visited; later keys and deleted rows are skipped.
+Cursor, writes and effects commit together. Sweeps run in declaration order
+across independent snapshots. Jobs obey constraints but bypass viewer rules;
+validate authorization and content eligibility at final emission (`guide fanout`).
 `break` ends its sweep, `return` the job; `continue` skips a row.
 
-A refused chunk rolls back and parks; earlier chunks stand. Fix the cause and
-`run --resume job_id --as system`. `trace job_id` shows progress and refusal.
-`run --cancel job_id --as system` is terminal. A changed declaration parks:
-restore it to resume, or cancel and restart. `dev --status` counts running,
-queued and parked jobs.
+A refused chunk rolls back and parks; earlier commits stand. Fix it, then
+`run --resume job_id --as system`. `trace job_id` shows progress/refusal.
+`run --cancel job_id --as system` is terminal. Changed declarations park:
+restore to resume, or cancel/restart. `dev --status` counts each job state.
 
 Sweep index columns must be `id` or `immutable`, and the order total
 (unique or ending in `id`). Use `by byId` when unsure.
@@ -33,21 +30,19 @@ Sweep index columns must be `id` or `immutable`, and the order total
 `run --file repair.q --as system` accepts one query, mutation or job up to
 64 KiB; jobs also accept `--plan` and `--wait`.
 
-`run <job|--file> [args] --as system --dry-run` rehearses on a discarded
-store copy with its clock pinned, fresh IDs, no effects runner, timers, asset
-sweep or blob writes. It uses the same chunk driver, then deletes the copy.
-The receipt has `dryRun: true`, per-table writes, chunk count, proposed effect
-names/payload sizes, released assets and refusals. Exit 0 includes program
-refusals; exit 1 is `E_REHEARSAL`, failure to rehearse.
+`run <job|--file> [args] --as system --dry-run` uses the same chunk driver on
+a discarded store copy: pinned clock, fresh IDs, no effects runner, timers,
+asset sweep or blob writes. Its `dryRun: true` receipt lists table writes,
+chunks, proposed effects and payload sizes, released assets and refusals.
+Exit 0 includes program refusals; exit 1 is `E_REHEARSAL` (could not rehearse).
 `--dry-run` excludes `--wait` and `--plan`.
-The WAL-consistent backup copies all database pages: time/disk scale with store
-size. `--plan` reads index counts without copying the store.
+The WAL-consistent backup's time/disk scale with store size. `--plan` reads
+index counts without copying.
 
-Receipt states: `done` completed; `parked` refused a chunk after earlier
-commits; `rejected` refused a mutation's constraint or require; `refused`
-could not start an admitted program. Admission (name, kind, args, certificate)
-happens on the live store before copying; its ordinary errors remain
-`E_OP_UNKNOWN`, `E_JOB_ARGS`, etc.
+States: `done` completed; `parked` refused a chunk; `rejected` failed a
+mutation constraint/require; `refused` could not start the admitted program.
+Name/kind/args/certificate admission precedes copying; ordinary errors
+(`E_OP_UNKNOWN`, `E_JOB_ARGS`) leave the owner running.
 
 `/control/run` and `/control/job` default to system. `/control/execute`
 also serves personas: explicitly send `as: system`.

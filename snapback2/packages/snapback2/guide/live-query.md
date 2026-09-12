@@ -145,3 +145,4 @@ query search(term: text <=128, c: cursor ?):
 
 Unicode 17 NFC/simple case fold/NFC; accents matter. The term must normalize to exactly one word.
 Zero words match nothing; multiple refuse. The twin uses that index: held/partial/capped.
+This searches at most 50 memberships. For complete hub search, use `guide fanout`.

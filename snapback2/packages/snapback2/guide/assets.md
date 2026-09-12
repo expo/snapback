@@ -24,33 +24,29 @@ fidelity. Videos are validated and location metadata stripped without re-encodin
 
 ## Open once
 
-A once image is consumed when its bytes are fetched. Mount only after the
-person taps Open. Capture the selected record in component state with
+Fetching consumes a once image. Mount after Open, capturing its record:
 `onClick={() => setOpenedAsset(message.photo)}`, then render
 `{openedAsset && <AssetImage asset={openedAsset} alt="attachment" />}`.
-Keep the selected record until the person closes the view, even if a later
-live join becomes null.
+Keep it until the view closes, even if the live join becomes null.
 `AssetImage` owns a stable viewing token, fetches bytes and durably admits
 that instance's allowance before displaying them. Unmounting ends the view;
 another mount cannot borrow its token or reopen the image.
 
-A live delivery may then have `message: null` because the joined row is no
-longer readable. Render an opened/removed placeholder and preserve the already
-mounted viewing component for its allowed lifetime; never dereference a
-nullable join or treat it as a fresh unopened message.
+A later `message: null` means the joined row is unreadable. Show an
+opened/removed placeholder while preserving the mounted view; do not
+dereference the join or offer another Open.
 
 Imperative: keep one `const viewing = {}` per mounted lifetime. Fetch
 `const url = await client.assetUrl(asset);`
 then `if (url) await client.assetBlob(url, { viewing });` (native: `assetBytes`).
-The client checks the lease and durably admits the allowance before resolving.
-A new viewing object cannot borrow it. URL-list overloads preserve positions;
+The lease/allowance check precedes resolution; new viewing objects cannot borrow it.
+URL-list overloads preserve positions;
 consumed slots are `undefined`.
 `E_ASSET_TYPE`: missing viewing instance; `E_ASSET_VIEWED`: consumed;
 `E_OFFLINE_CARRIER`: allowance/row custody changed. A new token is no bypass.
 
-Online unconsumed descriptors survive unrelated local updates; warm/cold
-offline projections remain null. Consumption, revocation and account changes
-cannot revive them. Preserve the mounted instance when its live join turns null.
+Unconsumed descriptors survive unrelated online updates, but are null offline,
+warm or cold. Consumption, revocation and account changes never revive them.
 
 `once` is image-only. Ordinary `AssetVideo` supports video. Video/download URLs
 may carry `?s=` credentials: ten-minute expiry, 1,024-owner cap, current row checks,

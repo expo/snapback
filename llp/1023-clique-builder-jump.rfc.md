@@ -187,14 +187,16 @@ needs reassessment; score improvement with wrong data fails the program.
 
 ## Remaining decisions
 
-The remaining implementation question is exact final-time digest eligibility,
-including deletion, membership and expiry changes after accumulation. A material
-review concern about uniform closure accounting is under reproduction; the
-query owner's once-alias/conditional/live correction and final browser check
-are also pending. Do not call the integrated source review-ready yet. Final
-native/package qualification, publication and a fresh unchanged Clique wave
-remain separate work. None is resolved by an invented score target, a forced
-rejection test, or a larger ceiling.
+Exact final-time digest eligibility remains unmet, including deletion,
+membership and expiry changes after accumulation. The owner once-alias and
+sequence repair passes the strict Chromium matrix; the stock React/Expo
+consumers still need to preserve their opened view through the nullable join.
+Grok independently withdrew the closure concern; Sol found a missing author
+update/delete rule in the integrated hub fixture. Correct both consumer
+regressions and the affected diagnostic/assertion failures before delivery.
+Final package qualification, publication and a fresh unchanged Clique wave
+remain separate work; no score target, forced refusal or enlarged ceiling
+substitutes for them.
 
 [Review and dispositions](./reviews/1023-clique-builder-jump.gpt.md).
 
@@ -216,14 +218,20 @@ The panel was initially given an incorrect interpretation of the working-set
 cap. `rules/RULES.md` applies its 59-link budget here. Archive the current link
 for [implemented LLP 1021](./1021-effects-in-the-loop.rfc.md); its document and
 implementation evidence remain in place. This funds the existing 1023 draft
-links becoming tracked without removing active work.
+links becoming tracked without removing active work. After current main added
+LLP 1024, archive the completed web child 1023.002; its parent retains the
+publication and fresh-wave work. This keeps the declared working set at 59.
 
 
 ## Integration evidence in progress — 2026-09-12
 
 The three source lanes were integrated with main's concurrent hardening at
 `a41a132f82`; the later main merge `89b705dbb2` adds the global-search pager
-and recipe, compact heads for all 1,000 memberships, and phased schedules.
+and recipe, compact heads for all 1,000 follows, and phased schedules.
+Main `3994fc112e` adds CLI recovery, explicit schedule phase, mutation-target
+flow and the already-published 0.0.27 release. This candidate uses 0.0.28.
+Guide integration preserves the public global pager and its measured cost,
+while teaching the distinct grouped-search form for Clique.
 Integration preserves the full-media 500-follow fixture, ten-row grouped
 search and five-row rich history. These source forms do not establish digest
 final-emission eligibility.
@@ -242,7 +250,7 @@ savings. The largest baseline contributions were the range store (28,141),
 evaluator runner (27,987), offline runtime (23,641), Unicode data (17,186), and
 value runtime (13,006). `client.ts` does not participate in the fixed five roots;
 public-entry sizes remain separate. The latest integrated guide build is
-**98,273 / 98,304 bytes**; the integrator owns final combined runtime and
+**98,073 / 98,304 bytes** after prose compaction; the integrator owns final combined runtime and
 package measurements after remaining repairs.
 
 The timed Insights consumer passes in **3.29 seconds** against the integrated
@@ -270,9 +278,15 @@ keeps 500 accumulated contributions after a contributing post is deleted and
 the owner restarts. Phased scheduling alone does not prove final-time
 eligibility. This requirement remains unmet and unclaimed.
 
-The once-media follow-up and the material uniform-closure review concern
-remain open at this checkpoint. Darwin's 0.0.27 stage passed before the latest
-native changes; final qualification and publication are pending. The prepared
+Strict Chromium qualification passes all 13 controls on `ade4081550`,
+including principal-specific consumed aliases, next-sequence publication,
+mounted allowance, other-principal access and cold persisted denial. Grok's
+round-2 code review is READY; Sol requires restoring hub fixture author CRUD.
+The full integrated suite exposed two stock-template mounted-view failures,
+three outbox return-shape assertions and four cost/guide assertions; each has
+an assigned repair. Darwin staging passed for that source, but concurrent
+main subsequently published 0.0.27. Final 0.0.28 qualification and publication
+remain pending. The prepared
 fresh diagnostic packet on EPYC has not launched (estimated run: 7–12 hours),
 so there is no fresh independently graded M1–M8 claim. Passing source checks or
 an earlier native stage does not establish that result.

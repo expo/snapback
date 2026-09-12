@@ -1,10 +1,9 @@
 # Fan-out and complete reads
 
-`E_STRUCTURAL_FANOUT` needs a complete loop/argument/schema bound. A `cap`
-limits rows and prices writes; do not cap followers merely to certify.
-Use `merge` for feeds, caps for bounded groups and job chunks for uncapped
-passes. Synchronous fan-out over uncapped populations is unsupported.
-`check --cost` explains row widths and repeated reads.
+`E_STRUCTURAL_FANOUT` needs a loop/argument/schema bound. Caps reject excess
+rows and price writes; do not shrink the population to certify. Use `merge`
+for feeds, caps for bounded groups, jobs for uncapped passes.
+Uncapped synchronous fan-out is unsupported. `check --cost` explains prices.
 
 ## Following
 

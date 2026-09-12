@@ -4,7 +4,7 @@
 **Priority:** P1
 **Date:** 2026-09-11
 **Systems:** Snapback 2 `snapback2/global-search-pager`, `guide fanout` "Search every chat", `dist/guide/recipes/global-message-search.ts`; LLP 1023.001; LLP 1019 `deliver`; LLP 1012 "Indexed held search"
-**Related:** [closed/20260911-snapback2-hub-scale-certified-query-envelopes.md](./20260911-snapback2-hub-scale-certified-query-envelopes.md) (`49f504f8b5`); [LLP 1023.001](../../llp/1023.001-hub-scale-certified-reads.plan.md); [0.0.25 run](../../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
+**Related:** [reopened hub-envelope ticket](../20260911-snapback2-hub-scale-certified-query-envelopes.md) (`49f504f8b5`); [LLP 1023.001](../../llp/1023.001-hub-scale-certified-reads.plan.md); [0.0.25 run](../../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
 
 ## Symptom
 
