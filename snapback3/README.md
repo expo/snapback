@@ -45,7 +45,7 @@ Run focused verification:
 ```sh
 node build.mjs --check
 cargo test -p snapback3-core
-bun test tests/resource-client.test.ts examples/chat/tests
+bun test tests/resource-client.test.ts tests/public-empty-read.test.ts examples/chat/tests
 node scripts/test-owner.mjs
 bun test tests/browser.test.ts
 bun run test:compiler
@@ -94,5 +94,8 @@ Updates wait for older tabs to close and preserve saved drafts.
 
 The first build experience and scoped measurements are recorded in
 [Diary 0120](../diaries/0120-snapback3-commonroom.diary.md).
+The [response to the completed Snapback 2 wave](../llp/2000-snapback3.rfc.md#14-response-to-the-completed-snapback-2-diagnostic-wave)
+separates demonstrated client behavior from unmeasured acquisition, inherited
+storage costs, and remaining authoring work.
 
 MIT licensed; see [LICENSE](LICENSE).

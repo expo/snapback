@@ -320,7 +320,12 @@ function bindRuleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): 
     refuse(expr.site, "rules cannot follow point reads or nested field chains; use a direct .field or exists/created probe");
   }
   if (expr.kind === "binary" && ["<", "<=", ">", ">="].includes(expr.op)) {
-    refuse(expr.site, `the platform rule vocabulary has eq/ne but not ${expr.op}; move the bounded comparison into a mutation require`);
+    // @ref LLP 1023.001#read-rule-comparison-diagnostic-follow-up — mutation preconditions do not govern read or channel authority.
+    const writeRule = context.effect === "insert" || context.effect === "update" || context.effect === "delete";
+    const repair = writeRule
+      ? "move the bounded comparison into a mutation require"
+      : "preserve this rule's authorization with supported predicates; mutation require is not an automatic equivalent rewrite";
+    refuse(expr.site, `the platform rule vocabulary has eq/ne but not ${expr.op}; ${repair}`);
   }
   refuse(expr.site, `rule expression cannot be represented by the Snapback 2 platform${context.effect ? ` for ${context.effect}` : ""}`);
 }

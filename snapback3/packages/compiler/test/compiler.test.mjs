@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -136,4 +136,57 @@ test("TypeScript effect checking survives the Rolldown package boundary", async 
   const invalid = await compileProject(root);
   assert.equal(invalid.ok, false);
   assert.ok(invalid.diagnostics.some(item => item.code === "E_EFFECT_TYPE"));
+});
+
+// @ref LLP 1023.001#read-rule-comparison-diagnostic-follow-up — write preconditions cannot replace read or channel authorization.
+test("comparison advice preserves read authority and distinguishes write preconditions", async t => {
+  const root = await temporary(t);
+  await mkdir(resolve(root, "snapback"));
+  const schema = resolve(root, "snapback/schema.q");
+  for (const op of ["<", "<=", ">", ">="]) {
+    for (const effect of ["read", "insert", "update", "delete"]) {
+      await writeFile(schema, `table rows:\n  owner: principal\n  expiresAt: time ?\n  ${effect} <- .owner = viewer and (.expiresAt = null or .expiresAt ${op} now)\n`);
+      const result = await compileProject(root);
+      assert.equal(result.ok, false, `${effect} ${op} unexpectedly compiled`);
+      assert.equal(result.diagnostics.length, 1, JSON.stringify(result));
+      const diagnostic = result.diagnostics[0];
+      assert.equal(diagnostic.code, "E_QUARRY_UNKNOWN");
+      assert.equal(diagnostic.family, "quarry");
+      assert.match(diagnostic.site, /^snapback\/schema.q:4:/);
+      assert.ok(diagnostic.message.includes(`rule vocabulary has eq/ne but not ${op}`));
+      if (effect === "read") {
+        assert.match(diagnostic.rewrite, /preserve this rule's authorization/);
+        assert.match(diagnostic.rewrite, /not an automatic equivalent rewrite/);
+        assert.doesNotMatch(diagnostic.rewrite, /move the bounded comparison/);
+      } else {
+        assert.match(diagnostic.rewrite, /move the bounded comparison into a mutation require/);
+      }
+    }
+  }
+  await writeFile(schema, "table rows:\n  owner: principal\n  value: int\n  read <- .owner = viewer\n  insert <- .owner = viewer\n");
+  await writeFile(resolve(root, "snapback/rows.q"), "mutation add(value: int):\n  require value > 0 else POSITIVE_REQUIRED\n  return insert rows { owner: viewer, value }\n");
+  const supported = await compileProject(root);
+  assert.equal(supported.ok, true, JSON.stringify(supported));
+  assert.ok(supported.project.programs[0].body.some(statement => typeof statement === "object" && "Require" in statement));
+});
+
+test("comparison advice preserves channel authority before runtime admission", async t => {
+  const root = await temporary(t);
+  await mkdir(resolve(root, "snapback"));
+  for (const op of ["<", "<=", ">", ">="]) {
+    for (const effect of ["publish", "subscribe"]) {
+      await writeFile(resolve(root, "snapback/schema.q"), `table rows:\n  value: bool\n  public\n\nchannel activity(owner: principal, deadline: time):\n  value: { active: bool }\n  publish <- ${effect === "publish" ? `owner = viewer and deadline ${op} now` : "owner = viewer"}\n  subscribe <- ${effect === "subscribe" ? `owner = viewer and deadline ${op} now` : "owner = viewer"}\n  ttl 5s\n`);
+      const result = await compileProject(root);
+      assert.equal(result.ok, false);
+      assert.equal(result.diagnostics.length, 1, JSON.stringify(result));
+      const diagnostic = result.diagnostics[0];
+      assert.equal(diagnostic.code, "E_QUARRY_UNKNOWN");
+      assert.equal(diagnostic.family, "quarry");
+      assert.ok(diagnostic.site.startsWith(`snapback/schema.q:${effect === "publish" ? 7 : 8}:`));
+      assert.ok(diagnostic.message.includes(`rule vocabulary has eq/ne but not ${op}`));
+      assert.match(diagnostic.rewrite, /preserve this rule's authorization/);
+      assert.match(diagnostic.rewrite, /not an automatic equivalent rewrite/);
+      assert.doesNotMatch(diagnostic.rewrite, /move the bounded comparison/);
+    }
+  }
 });
