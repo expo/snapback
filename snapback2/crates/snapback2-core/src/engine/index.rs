@@ -176,24 +176,35 @@ pub(super) fn lookup_indexed(
         )));
     }
     crate::cap::validate_key_identities(schema, table_name, index_name, 0, key)?;
-    let mut parameters = vec![table_name.to_owned(), index_name.to_owned()];
-    let mut predicates = Vec::new();
-    for (offset, value) in key.iter().enumerate() {
-        parameters.push(encode_index_value(value)?);
-        predicates.push(format!("ie.c{offset} = ?{}", parameters.len()));
-    }
-    let sql = format!(
-        "SELECT r.data
+    // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — canonical identity reads use the row address in the same transaction; evidence is unchanged.
+    let data: Option<String> = if index_name == "byId"
+        && index.unique
+        && matches!(index.components.as_slice(), [IndexComponent::Column(column)] if column == "id")
+        && schema.table(table_name).is_some_and(|table| {
+            table.columns.get("id") == Some(&ColumnType::Id) && table.index(index_name) == Some(index)
+        })
+        && let [Value::Id(id)] = key
+    {
+        connection.prepare_cached("SELECT data FROM rows WHERE table_name = ?1 AND row_id = ?2")?
+            .query_row(params![table_name, id], |row| row.get(0)).optional()?
+    } else {
+        let mut parameters = vec![table_name.to_owned(), index_name.to_owned()];
+        let mut predicates = Vec::new();
+        for (offset, value) in key.iter().enumerate() {
+            parameters.push(encode_index_value(value)?);
+            predicates.push(format!("ie.c{offset} = ?{}", parameters.len()));
+        }
+        let sql = format!(
+            "SELECT r.data
          FROM index_entries ie
          JOIN rows r ON r.table_name = ie.table_name AND r.row_id = ie.row_id
          WHERE ie.table_name = ?1 AND ie.index_name = ?2 AND {}
          LIMIT 1",
-        predicates.join(" AND ")
-    );
-    let mut statement = connection.prepare_cached(&sql)?;
-    let data: Option<String> = statement
-        .query_row(params_from_iter(parameters.iter()), |row| row.get(0))
-        .optional()?;
+            predicates.join(" AND ")
+        );
+        connection.prepare_cached(&sql)?
+            .query_row(params_from_iter(parameters.iter()), |row| row.get(0)).optional()?
+    };
     data.map(|data| {
         serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
     })
@@ -939,5 +950,102 @@ fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
             canonical_json(value).len() <= *max_bytes as usize
         }
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod identity_lookup_tests {
+    use super::*;
+
+    fn index(columns: &[&str], unique: bool) -> Index {
+        Index { components: columns.iter().map(|name| IndexComponent::Column((*name).into())).collect(), unique }
+    }
+
+    fn schema(primary: Option<Index>) -> Schema {
+        let mut indexes = BTreeMap::from([("renamedIdentity".into(), index(&["id"], true))]);
+        if let Some(primary) = primary { indexes.insert("byId".into(), primary); }
+        Schema { tables: BTreeMap::from([("items".into(), public_table(
+            BTreeMap::from([("id".into(), ColumnType::Id), ("alias".into(), ColumnType::Id), ("value".into(), ColumnType::Int)]),
+            indexes,
+        ))]), ..Default::default() }
+    }
+
+    fn row(id: &str, alias: &str, value: i64) -> Value {
+        object([("id", Value::Id(id.into())), ("alias", Value::Id(alias.into())), ("value", Value::Int(value))])
+    }
+
+    fn lookup(conn: &Connection, schema: &Schema, name: &str, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        lookup_indexed(conn, schema, "items", name, &schema.tables["items"].indexes[name], key)
+    }
+
+    fn assert_identity(conn: &Connection, schema: &Schema, id: &str, expected: Option<Value>) {
+        let key = [Value::Id(id.into())];
+        let general = lookup(conn, schema, "renamedIdentity", &key).unwrap();
+        assert_eq!(general, expected);
+        assert_eq!(lookup(conn, schema, "byId", &key).unwrap(), general);
+    }
+
+    #[test]
+    fn canonical_identity_lookup_matches_index_path_across_transaction_changes() {
+        let schema = schema(Some(index(&["id"], true)));
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        for id in ["ordinary", "café", "cafe\u{301}", "astral-😀", "nul\0suffix"] {
+            let value = row(id, "alias", 1);
+            engine.seed("items", value.clone()).unwrap();
+            assert_identity(&engine.store.conn, &schema, id, Some(value));
+        }
+        assert_identity(&engine.store.conn, &schema, "absent", None);
+        assert_identity(&engine.store.conn, &schema, "nul", None);
+        {
+            let tx = engine.store.conn.transaction().unwrap();
+            let changed = row("ordinary", "alias", 2);
+            tx.execute("UPDATE rows SET data=?1 WHERE table_name='items' AND row_id='ordinary'", [canonical_json(&changed)]).unwrap();
+            assert_identity(&tx, &schema, "ordinary", Some(changed));
+            delete_index_row(&tx, "items", "ordinary").unwrap();
+            tx.execute("DELETE FROM rows WHERE table_name='items' AND row_id='ordinary'", []).unwrap();
+            assert_identity(&tx, &schema, "ordinary", None);
+            let inserted = row("temporary", "alias", 3);
+            tx.execute("INSERT INTO rows(table_name,row_id,data) VALUES ('items','temporary',?1)", [canonical_json(&inserted)]).unwrap();
+            reindex_row(&tx, &schema, "items", &inserted).unwrap();
+            assert_identity(&tx, &schema, "temporary", Some(inserted));
+            tx.rollback().unwrap();
+        }
+        assert_identity(&engine.store.conn, &schema, "ordinary", Some(row("ordinary", "alias", 1)));
+        assert_identity(&engine.store.conn, &schema, "temporary", None);
+    }
+
+    #[test]
+    fn noncanonical_by_id_keeps_its_declared_index_semantics() {
+        for unique in [false, true] {
+            let schema = schema(Some(index(&["alias"], unique)));
+            let mut engine = Engine::memory(schema.clone()).unwrap();
+            let stored = row("storage-address", "indexed-alias", 1);
+            engine.seed("items", stored.clone()).unwrap();
+            let key = [Value::Id("indexed-alias".into())];
+            assert_eq!(lookup(&engine.store.conn, &schema, "byId", &key).unwrap(), Some(stored.clone()));
+            assert_eq!(lookup(&engine.store.conn, &schema, "byId", &[Value::Id("storage-address".into())]).unwrap(), None);
+            // A caller-supplied identity shape cannot replace the declared index.
+            assert_eq!(lookup_indexed(&engine.store.conn, &schema, "items", "byId", &index(&["id"], true), &key).unwrap(), Some(stored));
+        }
+        let schema = schema(None);
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        engine.seed("items", row("present", "alias", 1)).unwrap();
+        assert_eq!(lookup_indexed(&engine.store.conn, &schema, "items", "byId", &index(&["id"], true), &[Value::Id("present".into())]).unwrap(), None);
+    }
+
+    #[test]
+    fn canonical_identity_lookup_preserves_key_types_and_validation() {
+        let schema = schema(Some(index(&["id"], true)));
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        engine.seed("items", row("present", "alias", 1)).unwrap();
+        for key in [vec![Value::String("present".into())], vec![Value::Null], vec![Value::Int(1)]] {
+            assert_eq!(lookup(&engine.store.conn, &schema, "byId", &key).unwrap(), None);
+            assert_eq!(lookup(&engine.store.conn, &schema, "renamedIdentity", &key).unwrap(), None);
+        }
+        for key in [vec![], vec![Value::Id("x".repeat(145))]] {
+            let direct = lookup(&engine.store.conn, &schema, "byId", &key).unwrap_err();
+            let general = lookup(&engine.store.conn, &schema, "renamedIdentity", &key).unwrap_err();
+            assert_eq!(direct.to_string().replace("byId", "INDEX"), general.to_string().replace("renamedIdentity", "INDEX"));
+        }
     }
 }
