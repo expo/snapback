@@ -72,26 +72,42 @@ bundler. Do not export it through the shell that starts a Clique builder.
 The wrappers run in the foreground. Before starting the actor they create a
 unique custody run ID and fingerprint any existing scale terminals; on Linux
 they then make themselves child subreapers. The actor inherits the run ID.
-Every M6/M8 scale-owner launch must declare its milestone, positive attempt
-number, and absolute result path on the owner process itself:
+Every M6/M8 scale-owner launch goes through the maintained executable boundary,
+which creates a one-shot association sidecar and places its milestone, positive
+attempt number, result path, and association identity on the owner process:
 
 ```sh
-CLIQUE_SCALE_MILESTONE=M8 \
-CLIQUE_SCALE_ATTEMPT=1 \
-CLIQUE_SCALE_RESULT="$PWD/evidence/scale-replay/result.json" \
-npx snapback2 dev --project "$PWD/replays/scale-m8-attempt-1" --port 53103
+result="$PWD/evidence/scale-replay/result.json"
+python ../../scripts/run_support.py scale-attempt \
+  --lane "$PWD" --project "$PWD/replays/scale-m8-attempt-1" \
+  --milestone M8 --attempt 1 --result "$result" -- \
+  npx snapback2 dev --project "$PWD/replays/scale-m8-attempt-1" --port 53103
 ```
 
 `render.py` appends this mandatory handshake to every future builder prompt.
 The run ID is supplied automatically; do not override it. A retry gets a fresh
 owner, incremented `CLIQUE_SCALE_ATTEMPT`, and distinct result path.
+Write the normal result to an unpublished temporary path and bind it before it
+becomes terminal:
+
+```sh
+python ../../scripts/run_support.py bind-result \
+  --lane "$PWD" --result "$result" --source "$result.unbound"
+```
+
+The binder preserves the result's current fields and adds only the exact
+sidecar identity. Launching an ordinary unassociated scale `snapback2 dev`
+through the old/default path is not tolerated: custody stops that proved owner
+immediately, records the diagnostic, and makes the launcher fail.
 
 A scale owner is owned only when its live ancestry leads to the actor (or the
 subreaper adopted it), its exact PID and project match `owner.json`, and a
 pidfd opened for that PID still binds the same `/proc` start identity. Terminal
-association additionally requires the process declarations above to carry the
-current run ID and to be unique. The wrapper watches only that owner's declared
-path. It accepts the complete current
+association additionally requires the process declaration, sidecar, and result
+envelope to carry the same current run/owner/milestone/attempt identity and to
+be unique. A valid result copied from another simultaneous attempt therefore
+fails association. The wrapper watches only that owner's declared path. It
+accepts the complete current
 `snapback.full-journey-scale-replay.v1` plus digest-bound receipt,
 `snapback.full-journey-scale-replay-failure.v1`, or the full raw replay report
 (`pass`, start/end, actions, fixture hash, excluded probe time). Canonical final

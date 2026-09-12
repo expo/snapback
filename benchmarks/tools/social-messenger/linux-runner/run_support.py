@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import fcntl
 import hashlib
 import json
@@ -16,6 +17,7 @@ import shutil
 import socket
 import stat as stat_module
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -38,6 +40,11 @@ SCALE_RUN_ID_ENV = "CLIQUE_SCALE_CUSTODY_RUN_ID"
 SCALE_MILESTONE_ENV = "CLIQUE_SCALE_MILESTONE"
 SCALE_ATTEMPT_ENV = "CLIQUE_SCALE_ATTEMPT"
 SCALE_RESULT_ENV = "CLIQUE_SCALE_RESULT"
+SCALE_ASSOCIATION_ID_ENV = "CLIQUE_SCALE_ASSOCIATION_ID"
+SCALE_ASSOCIATION_FILE_ENV = "CLIQUE_SCALE_ASSOCIATION_FILE"
+SCALE_ASSOCIATION_SHA_ENV = "CLIQUE_SCALE_ASSOCIATION_SHA256"
+SCALE_ASSOCIATION_VERSION = "clique.scale-owner-association.v1"
+SCALE_TERMINAL_ASSOCIATION_VERSION = "clique.scale-owner-terminal-association.v1"
 
 
 class ProcessInterrupted(Exception):
@@ -100,6 +107,109 @@ def _process_summary(identity: dict) -> dict:
 
 def _finite_number(value) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _contained_absolute(path: Path, parent: Path, field: str) -> Path:
+    if not path.is_absolute():
+        raise ValueError(f"{field} must be absolute")
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(parent.resolve())
+    except ValueError as error:
+        raise ValueError(f"{field} must stay inside {parent.resolve()}") from error
+    return resolved
+
+
+def _association_path(result: Path) -> Path:
+    return result.with_name(result.name + ".owner-association.json")
+
+
+def _write_bytes_exclusive(path: Path, value: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp")
+    try:
+        with temporary.open("xb") as handle:
+            handle.write(value)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def create_scale_attempt(*, lane: Path, project: Path, milestone: str, attempt: int,
+                         result: Path, base_env: dict[str, str]) -> tuple[dict[str, str], Path, dict]:
+    """Create the one-shot attempt receipt and environment inherited by its owner."""
+    lane = lane.resolve()
+    project = _contained_absolute(project, lane, "scale project")
+    result = _contained_absolute(result, lane, "scale result")
+    if milestone not in ("M6", "M8"):
+        raise ValueError("scale milestone must be M6 or M8")
+    if not isinstance(attempt, int) or isinstance(attempt, bool) or attempt <= 0:
+        raise ValueError("scale attempt must be a positive integer")
+    run_id = base_env.get(SCALE_RUN_ID_ENV, "")
+    if not re.fullmatch(r"[a-f0-9]{32}", run_id):
+        raise ValueError(f"missing launcher-supplied {SCALE_RUN_ID_ENV}")
+    association_id = secrets.token_hex(16)
+    sidecar = _association_path(result)
+    value = {
+        "version": SCALE_ASSOCIATION_VERSION,
+        "associationId": association_id,
+        "runId": run_id,
+        "milestone": milestone,
+        "attempt": attempt,
+        "project": str(project),
+        "result": str(result),
+        "createdAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    sidecar_bytes = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    _write_bytes_exclusive(sidecar, sidecar_bytes)
+    sidecar_sha = "sha256:" + hashlib.sha256(sidecar_bytes).hexdigest()
+    env = dict(base_env)
+    env.update({
+        SCALE_MILESTONE_ENV: milestone,
+        SCALE_ATTEMPT_ENV: str(attempt),
+        SCALE_RESULT_ENV: str(result),
+        SCALE_ASSOCIATION_ID_ENV: association_id,
+        SCALE_ASSOCIATION_FILE_ENV: str(sidecar),
+        SCALE_ASSOCIATION_SHA_ENV: sidecar_sha,
+    })
+    return env, sidecar, {"version": SCALE_TERMINAL_ASSOCIATION_VERSION,
+                          "associationId": association_id, "sidecarSha256": sidecar_sha}
+
+
+def bind_scale_result(*, lane: Path, result: Path, source: Path) -> Path:
+    """Atomically publish current result JSON with its exact attempt association."""
+    lane = lane.resolve()
+    result = _contained_absolute(result, lane, "scale result")
+    source = _contained_absolute(source, lane, "scale result source")
+    sidecar = _association_path(result)
+    sidecar_read = ScaleOwnerCustody._read_regular(sidecar)
+    if sidecar_read is None:
+        raise ValueError(f"scale attempt association is missing or mutable: {sidecar}")
+    try:
+        association = json.loads(sidecar_read[0])
+    except json.JSONDecodeError as error:
+        raise ValueError("scale attempt association is malformed") from error
+    if association.get("version") != SCALE_ASSOCIATION_VERSION \
+            or association.get("result") != str(result):
+        raise ValueError("scale attempt association does not name this result")
+    source_read = ScaleOwnerCustody._read_regular(source)
+    if source_read is None:
+        raise ValueError(f"scale result source is missing or mutable: {source}")
+    try:
+        value = json.loads(source_read[0])
+    except json.JSONDecodeError as error:
+        raise ValueError("scale result source is malformed JSON") from error
+    if not isinstance(value, dict) or "ownerAssociation" in value:
+        raise ValueError("scale result source must be an unassociated JSON object")
+    value["ownerAssociation"] = {
+        "version": SCALE_TERMINAL_ASSOCIATION_VERSION,
+        "associationId": association["associationId"],
+        "sidecarSha256": "sha256:" + sidecar_read[1][3],
+    }
+    _write_bytes_exclusive(result, (json.dumps(value, indent=2, sort_keys=True) + "\n").encode())
+    return result
 
 
 def _pidfd_pid(fd: int) -> int | None:
@@ -243,7 +353,10 @@ class ScaleOwnerCustody:
     def actor_env(self, base: dict[str, str]) -> dict[str, str]:
         env = dict(base)
         env[SCALE_RUN_ID_ENV] = self.run_id
-        for variable in (SCALE_MILESTONE_ENV, SCALE_ATTEMPT_ENV, SCALE_RESULT_ENV):
+        for variable in (
+            SCALE_MILESTONE_ENV, SCALE_ATTEMPT_ENV, SCALE_RESULT_ENV,
+            SCALE_ASSOCIATION_ID_ENV, SCALE_ASSOCIATION_FILE_ENV, SCALE_ASSOCIATION_SHA_ENV,
+        ):
             env.pop(variable, None)
         return env
 
@@ -311,8 +424,8 @@ class ScaleOwnerCustody:
         if env.get(SCALE_RUN_ID_ENV) != self.run_id:
             return None, f"missing current {SCALE_RUN_ID_ENV}"
         milestone = env.get(SCALE_MILESTONE_ENV, "")
-        if not re.fullmatch(r"M[1-8]", milestone):
-            return None, f"{SCALE_MILESTONE_ENV} must be M1 through M8"
+        if milestone not in ("M6", "M8"):
+            return None, f"{SCALE_MILESTONE_ENV} must be M6 or M8"
         attempt_text = env.get(SCALE_ATTEMPT_ENV, "")
         if not re.fullmatch(r"[1-9][0-9]*", attempt_text):
             return None, f"{SCALE_ATTEMPT_ENV} must be a positive integer"
@@ -327,8 +440,37 @@ class ScaleOwnerCustody:
             return None, f"{SCALE_RESULT_ENV} must stay inside the lane"
         if result_path.suffix != ".json":
             return None, f"{SCALE_RESULT_ENV} must name a JSON file"
-        return {"runId": self.run_id, "milestone": milestone,
-                "attempt": int(attempt_text), "result": str(result_path)}, None
+        association_id = env.get(SCALE_ASSOCIATION_ID_ENV, "")
+        if not re.fullmatch(r"[a-f0-9]{32}", association_id):
+            return None, f"missing executable-boundary {SCALE_ASSOCIATION_ID_ENV}"
+        sidecar_text = env.get(SCALE_ASSOCIATION_FILE_ENV, "")
+        try:
+            sidecar = _contained_absolute(Path(sidecar_text), self.lane, SCALE_ASSOCIATION_FILE_ENV)
+        except ValueError as error:
+            return None, str(error)
+        if sidecar != _association_path(result_path):
+            return None, f"{SCALE_ASSOCIATION_FILE_ENV} does not match the declared result"
+        sidecar_read = self._read_regular(sidecar)
+        sidecar_sha = env.get(SCALE_ASSOCIATION_SHA_ENV, "")
+        if sidecar_read is None or sidecar_sha != "sha256:" + sidecar_read[1][3]:
+            return None, "attempt association sidecar is missing, mutable, or has the wrong digest"
+        try:
+            sidecar_value = json.loads(sidecar_read[0])
+        except json.JSONDecodeError:
+            return None, "attempt association sidecar is malformed"
+        expected = {
+            "version": SCALE_ASSOCIATION_VERSION,
+            "associationId": association_id,
+            "runId": self.run_id,
+            "milestone": milestone,
+            "attempt": int(attempt_text),
+            "project": str(_owner_project(handle.identity)),
+            "result": str(result_path),
+        }
+        if not isinstance(sidecar_value, dict) or any(sidecar_value.get(key) != value
+                                                      for key, value in expected.items()):
+            return None, "attempt association sidecar disagrees with the exact owner declaration"
+        return {**expected, "sidecar": str(sidecar), "sidecarSha256": sidecar_sha}, None
 
     def _discover(self, table: dict[int, dict]) -> None:
         for identity in table.values():
@@ -389,6 +531,14 @@ class ScaleOwnerCustody:
                           "compilerWorkers": [_process_summary(child.identity) for child in owner["descendants"].values()
                                               if "--worker" in child.identity["command"]],
                           "ownership": "actor ancestry or Linux child-subreaper adoption plus matching owner.json"})
+            if declaration is None:
+                diagnostic = (f"scale owner {project} omitted/refused the executable scale-attempt boundary: "
+                              f"{association_error}")
+                self.errors.append(diagnostic)
+                try:
+                    self._stop_owner(owner, f"association-refused:{association_error}")
+                except Exception as error:
+                    self.errors.append(f"{project}: {type(error).__name__}: {error}")
 
     @staticmethod
     def _timestamp_millis(value, field: str) -> int:
@@ -531,6 +681,14 @@ class ScaleOwnerCustody:
             value = json.loads(payload)
             if not isinstance(value, dict):
                 raise ValueError("terminal must be a JSON object")
+            declaration = owner["declaration"]
+            expected_association = {
+                "version": SCALE_TERMINAL_ASSOCIATION_VERSION,
+                "associationId": declaration["associationId"],
+                "sidecarSha256": declaration["sidecarSha256"],
+            }
+            if value.get("ownerAssociation") != expected_association:
+                raise ValueError("terminal does not carry this exact owner/attempt association")
             if value.get("version") == "snapback.full-journey-scale-replay.v1":
                 outcome = self._validate_success(value, owner)
             elif value.get("version") == "snapback.full-journey-scale-replay-failure.v1":
@@ -650,14 +808,17 @@ class ScaleOwnerCustody:
     def finish(self, reason: str) -> None:
         self._stop.set()
         self._thread.join(timeout=2)
-        errors = list(self.errors)
+        stop_error = None
         try:
             self.stop_all(reason)
         except Exception as error:
-            errors.append(f"{type(error).__name__}: {error}")
+            stop_error = f"{type(error).__name__}: {error}"
         finally:
             for owner in self.owners.values():
                 self._close_owner_handles(owner)
+        errors = list(self.errors)
+        if stop_error is not None:
+            errors.append(stop_error)
         if errors:
             raise RuntimeError("; ".join(errors))
 
@@ -868,3 +1029,66 @@ def retain_codex_rollout_tree(
     if not manifest["rootFound"]:
         raise RuntimeError(f"native root rollout missing; incomplete manifest retained at {manifest_path}")
     return manifest_path
+
+
+def _scale_attempt_command(args) -> int:
+    command = list(args.command)
+    if command and command[0] == "--":
+        command.pop(0)
+    if not command or "dev" not in command or not any("snapback2" in Path(value).name for value in command):
+        raise SystemExit("scale-attempt command must launch snapback2 dev")
+    if "--foreground" in command:
+        raise SystemExit("scale-attempt expects normal detached snapback2 dev, not --foreground")
+    try:
+        project_index = command.index("--project")
+        command_project = Path(command[project_index + 1]).resolve()
+    except (ValueError, IndexError) as error:
+        raise SystemExit("scale-attempt command must carry a separate --project argument") from error
+    project = Path(args.project).resolve()
+    if command_project != project:
+        raise SystemExit("scale-attempt --project differs from the snapback2 dev command")
+    try:
+        env, sidecar, envelope = create_scale_attempt(
+            lane=Path(args.lane), project=project, milestone=args.milestone,
+            attempt=args.attempt, result=Path(args.result), base_env=os.environ,
+        )
+    except (ValueError, FileExistsError) as error:
+        raise SystemExit(f"scale-attempt refused: {error}") from error
+    print(json.dumps({"event": "scale-attempt-bound", "sidecar": str(sidecar),
+                      "ownerAssociation": envelope}, sort_keys=True), flush=True)
+    return subprocess.run(command, env=env, check=False).returncode
+
+
+def _bind_result_command(args) -> int:
+    try:
+        result = bind_scale_result(
+            lane=Path(args.lane), result=Path(args.result), source=Path(args.source),
+        )
+    except (ValueError, FileExistsError, KeyError) as error:
+        raise SystemExit(f"bind-result refused: {error}") from error
+    print(json.dumps({"event": "scale-result-bound", "result": str(result)}, sort_keys=True))
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Clique Linux runner support")
+    subcommands = parser.add_subparsers(dest="subcommand", required=True)
+    attempt = subcommands.add_parser("scale-attempt", help="bind and launch one detached scale owner")
+    attempt.add_argument("--lane", required=True)
+    attempt.add_argument("--project", required=True)
+    attempt.add_argument("--milestone", required=True, choices=("M6", "M8"))
+    attempt.add_argument("--attempt", required=True, type=int)
+    attempt.add_argument("--result", required=True)
+    attempt.add_argument("command", nargs=argparse.REMAINDER)
+    attempt.set_defaults(run=_scale_attempt_command)
+    bind = subcommands.add_parser("bind-result", help="publish result JSON with its attempt identity")
+    bind.add_argument("--lane", required=True)
+    bind.add_argument("--result", required=True)
+    bind.add_argument("--source", required=True)
+    bind.set_defaults(run=_bind_result_command)
+    args = parser.parse_args()
+    return args.run(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

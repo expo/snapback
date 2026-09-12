@@ -100,9 +100,9 @@ class PrepareCustodyTest(unittest.TestCase):
                 self.assertTrue(prompt.is_file())
                 rendered = prompt.read_text()
                 self.assertIn("Required scale-owner lifecycle handshake", rendered)
-                self.assertIn("CLIQUE_SCALE_MILESTONE=M8", rendered)
-                self.assertIn("CLIQUE_SCALE_ATTEMPT=1", rendered)
-                self.assertIn("CLIQUE_SCALE_RESULT=", rendered)
+                self.assertIn("run_support.py scale-attempt", rendered)
+                self.assertIn("--milestone M8 --attempt 1", rendered)
+                self.assertIn("run_support.py bind-result", rendered)
                 self.assertFalse((root / "preflight" / "pre-builder.json").exists())
                 before = (root / "SNAPBACK2_VERSION").read_bytes(), prompt.read_bytes(), receipt.read_bytes()
                 with self.assertRaises(SystemExit):
@@ -202,12 +202,10 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
         (project / ".snapback").mkdir(parents=True)
         result = lane / "evidence" / result_name / "result.json"
         result.parent.mkdir(parents=True, exist_ok=True)
-        env = custody.actor_env(os.environ)
-        env.update({
-            run_support.SCALE_MILESTONE_ENV: milestone,
-            run_support.SCALE_ATTEMPT_ENV: str(attempt),
-            run_support.SCALE_RESULT_ENV: str(result),
-        })
+        env, sidecar, envelope = run_support.create_scale_attempt(
+            lane=lane, project=project, milestone=milestone, attempt=attempt,
+            result=result, base_env=custody.actor_env(os.environ),
+        )
         process = subprocess.Popen([
             sys.executable, str(owner_script), str(snapback2), "dev",
             "--project", str(project), "--foreground",
@@ -221,7 +219,18 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             "process": process, "project": project, "result": result,
             "pid": owner["pid"], "startedAt": owner["startedAt"],
             "compilerPid": int(compiler_path.read_text()), "url": owner["url"],
+            "sidecar": sidecar, "envelope": envelope,
         }
+
+    @staticmethod
+    def associated_value(owner, value):
+        return {**value, "ownerAssociation": owner["envelope"]}
+
+    def write_bound_result(self, lane, owner, value):
+        source = owner["result"].with_name(owner["result"].name + ".unbound")
+        source.write_text(json.dumps(value) + "\n")
+        run_support.bind_scale_result(lane=lane, result=owner["result"], source=source)
+        source.unlink()
 
     @staticmethod
     def raw_result(owner, passed=True, start=None):
@@ -301,32 +310,50 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory)
             m6 = self.start_owner(owner_script, snapback2, custody, lane, "M6", 1, "scale-m6")
             m8 = self.start_owner(owner_script, snapback2, custody, lane, "M8", 1, "scale-m8")
-            m6["result"].write_text(json.dumps(self.raw_result(m6)) + "\n")
+            self.write_bound_result(lane, m6, self.raw_result(m6))
             self.assert_owner_gone(m6)
             self.assertTrue(self.alive(m8["pid"]), "M6 terminal stopped unrelated M8 owner")
-            m8["result"].write_text(json.dumps(self.canonical_result(lane, m8)) + "\n")
+            self.write_bound_result(lane, m8, self.canonical_result(lane, m8))
             self.assert_owner_gone(m8)
             receipts = self.finish(custody)
             associated = [entry for entry in receipts if entry["event"] == "terminal-associated"]
             self.assertEqual([(entry["declaration"]["milestone"], entry["ownerPid"]) for entry in associated],
                              [("M6", m6["pid"]), ("M8", m8["pid"])])
 
+    def test_valid_result_copied_from_simultaneous_owner_cannot_cross_association(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory, poll_seconds=0.2)
+            m6 = self.start_owner(owner_script, snapback2, custody, lane, "M6", 1, "scale-copy-m6")
+            m8 = self.start_owner(owner_script, snapback2, custody, lane, "M8", 1, "scale-copy-m8")
+            self.write_bound_result(lane, m8, self.raw_result(m8))
+            m6["result"].write_bytes(m8["result"].read_bytes())
+            self.assert_owner_gone(m8)
+            time.sleep(0.25)
+            self.assertTrue(self.alive(m6["pid"]), "another simultaneous attempt's valid result stopped M6")
+            m6["result"].unlink()
+            self.write_bound_result(lane, m6, self.raw_result(m6))
+            self.assert_owner_gone(m6)
+            receipts = self.finish(custody)
+            self.assertTrue(any(entry["event"] == "terminal-rejected" and "exact owner/attempt" in entry["reason"]
+                                for entry in receipts), receipts)
+
     def test_failed_attempt_then_retry_rejects_copied_touched_old_result(self):
         with tempfile.TemporaryDirectory() as directory:
             _root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory)
             first = self.start_owner(owner_script, snapback2, custody, lane, "M8", 1, "scale-attempt-1")
             old = self.raw_result(first, passed=False)
-            first["result"].write_text(json.dumps(old) + "\n")
+            self.write_bound_result(lane, first, old)
             self.assert_owner_gone(first)
             retry = self.start_owner(owner_script, snapback2, custody, lane, "M8", 2, "scale-attempt-2")
-            retry["result"].write_text(json.dumps(old) + "\n")
+            retry["result"].write_bytes(first["result"].read_bytes())
             os.utime(retry["result"], None)
             time.sleep(0.15)
             self.assertTrue(self.alive(retry["pid"]), "copied/touched attempt-one result stopped retry")
-            retry["result"].write_text(json.dumps(self.canonical_result(lane, retry, attempt=2)) + "\n")
+            retry["result"].unlink()
+            self.write_bound_result(lane, retry, self.canonical_result(lane, retry, attempt=2))
             self.assert_owner_gone(retry)
             receipts = self.finish(custody)
-            self.assertTrue(any(entry["event"] == "terminal-rejected" and "predates" in entry["reason"]
+            self.assertTrue(any(entry["event"] == "terminal-rejected" and "exact owner/attempt" in entry["reason"]
                                 for entry in receipts), receipts)
 
     def test_pre_actor_terminal_and_malformed_or_unsupported_terminal_fail_closed(self):
@@ -344,19 +371,22 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
             _, lane, generated_owner, snapback2, custody, _actor = self.fixture_existing(root)
             owner = self.start_owner(generated_owner, snapback2, custody, lane, "M6", 1, "scale-stale")
             unrelated = lane / "scale-replay.json"
-            unrelated.write_text(json.dumps(self.canonical_result(lane, owner)) + "\n")
+            unrelated.write_text(json.dumps(self.associated_value(owner, self.canonical_result(lane, owner))) + "\n")
             time.sleep(0.15)
             self.assertTrue(self.alive(owner["pid"]), "undeclared canonical terminal stopped owner")
             os.utime(stale, None)
             time.sleep(0.15)
             self.assertTrue(self.alive(owner["pid"]), "touched pre-actor result stopped owner")
-            stale.write_text('{"pass":true}\n')
+            stale.unlink()
+            self.write_bound_result(lane, owner, {"pass": True})
             time.sleep(0.15)
             self.assertTrue(self.alive(owner["pid"]), "malformed generic pass stopped owner")
-            stale.write_text(json.dumps({"version": "unknown.v1", "state": "succeeded"}) + "\n")
+            stale.unlink()
+            self.write_bound_result(lane, owner, {"version": "unknown.v1", "state": "succeeded"})
             time.sleep(0.15)
             self.assertTrue(self.alive(owner["pid"]), "unsupported state terminal stopped owner")
-            stale.write_text(json.dumps(self.raw_result(owner)) + "\n")
+            stale.unlink()
+            self.write_bound_result(lane, owner, self.raw_result(owner))
             self.assert_owner_gone(owner)
             receipts = self.finish(custody)
             self.assertGreaterEqual(len([entry for entry in receipts if entry["event"] == "terminal-rejected"]), 3)
@@ -365,7 +395,7 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             _root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory)
             owner = self.start_owner(owner_script, snapback2, custody, lane, "M6", 1, "scale-failure")
-            owner["result"].write_text(json.dumps(self.canonical_failure(owner)) + "\n")
+            self.write_bound_result(lane, owner, self.canonical_failure(owner))
             self.assert_owner_gone(owner)
             receipts = self.finish(custody)
             associated = [entry for entry in receipts if entry["event"] == "terminal-associated"]
@@ -406,7 +436,7 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             _root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory, poll_seconds=0.5)
             owner = self.start_owner(owner_script, snapback2, custody, lane, "M6", 1, "scale-delayed")
-            owner["result"].write_text(json.dumps(self.raw_result(owner)) + "\n")
+            self.write_bound_result(lane, owner, self.raw_result(owner))
             self.assert_owner_gone(owner)
             receipts = self.finish(custody)
             events = [entry["event"] for entry in receipts]
@@ -424,6 +454,69 @@ class ScaleOwnerCustodyTest(unittest.TestCase):
                     self.assertEqual(actor.wait(timeout=5), -15)
                 self.finish(custody, f"actor-{behavior}")
                 self.assert_owner_gone(owner)
+
+    def test_unchanged_unassociated_owner_is_stopped_and_fails_actionably(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory)
+            project = lane / "replays" / "scale-unassociated"
+            (project / ".snapback").mkdir(parents=True)
+            process = subprocess.Popen([
+                sys.executable, str(owner_script), str(snapback2), "dev",
+                "--project", str(project), "--foreground",
+            ], env=custody.actor_env(os.environ))
+            self.owners.append(process)
+            owner_path = project / ".snapback" / "owner.json"
+            compiler_path = project / ".snapback" / "compiler.pid"
+            self.wait_for(lambda: owner_path.exists() and compiler_path.exists(), "unassociated owner did not start")
+            owner = {"pid": json.loads(owner_path.read_text())["pid"],
+                     "compilerPid": int(compiler_path.read_text())}
+            self.assert_owner_gone(owner)
+            with self.assertRaisesRegex(RuntimeError, "omitted/refused the executable scale-attempt boundary"):
+                custody.finish("unassociated-default")
+
+    def test_executable_scale_attempt_and_bind_result_commands_drive_real_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, lane, owner_script, snapback2, custody, _actor = self.fixture(directory)
+            project = lane / "replays" / "scale-cli-boundary"
+            (project / ".snapback").mkdir(parents=True)
+            result = lane / "evidence" / "scale-cli-boundary" / "result.json"
+            result.parent.mkdir(parents=True)
+            dev_launcher = root / "fake-dev-launcher.py"
+            dev_launcher.write_text(textwrap.dedent("""
+                import os, subprocess, sys, time
+                from pathlib import Path
+                owner_script, executable, *command = sys.argv[1:]
+                subprocess.Popen([sys.executable, owner_script, executable, *command], env=os.environ,
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, start_new_session=True)
+                project = Path(command[command.index('--project') + 1])
+                while not (project / '.snapback' / 'owner.json').exists(): time.sleep(0.01)
+            """))
+            support = SOURCE / "run_support.py"
+            attempt = subprocess.run([
+                sys.executable, str(support), "scale-attempt",
+                "--lane", str(lane), "--project", str(project),
+                "--milestone", "M8", "--attempt", "1", "--result", str(result), "--",
+                sys.executable, str(dev_launcher), str(owner_script), str(snapback2),
+                "dev", "--project", str(project),
+            ], env=custody.actor_env(os.environ), text=True, capture_output=True)
+            self.assertEqual(attempt.returncode, 0, attempt.stderr)
+            self.assertIn('"event": "scale-attempt-bound"', attempt.stdout)
+            owner_path = project / ".snapback" / "owner.json"
+            compiler_path = project / ".snapback" / "compiler.pid"
+            owner_json = json.loads(owner_path.read_text())
+            owner = {"pid": owner_json["pid"], "startedAt": owner_json["startedAt"],
+                     "compilerPid": int(compiler_path.read_text())}
+            source = result.with_name("result.unbound.json")
+            source.write_text(json.dumps(self.raw_result(owner)) + "\n")
+            bound = subprocess.run([
+                sys.executable, str(support), "bind-result", "--lane", str(lane),
+                "--result", str(result), "--source", str(source),
+            ], text=True, capture_output=True)
+            self.assertEqual(bound.returncode, 0, bound.stderr)
+            self.assertIn('"event": "scale-result-bound"', bound.stdout)
+            self.assert_owner_gone(owner)
+            self.finish(custody)
 
     def test_first_cleanup_failure_still_attempts_second_owner(self):
         with tempfile.TemporaryDirectory() as directory:
