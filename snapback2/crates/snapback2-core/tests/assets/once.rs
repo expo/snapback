@@ -324,7 +324,15 @@ fn consumed_once_query_projection_preserves_receipt_custody_and_changes_validato
         .execute("media.view", context("alice", "one"))
         .unwrap();
     let current = projection(&after, &context("alice", "one"));
-    assert_eq!(after.seq, before.seq);
+    assert_eq!(after.seq, before.seq + 1);
+    let commits = runtime.store().commits_since(before.seq, 10).unwrap();
+    assert_eq!(commits.len(), 1);
+    assert_eq!(commits[0].program, "asset.consume");
+    assert_eq!(commits[0].principal, "alice");
+    assert_eq!(commits[0].writes.get("_asset_views"), Some(&1));
+    assert!(commits[0].touched.is_empty());
+    assert_eq!(runtime.record_asset_view(&asset_id(&photo), "alice", 12).unwrap_err().code(), "E_ASSET_VIEWED");
+    assert_eq!(runtime.store().commit_seq().unwrap(), after.seq);
     assert_eq!(
         value_to_wire_json(&after.result)["alias"],
         serde_json::Value::Null
@@ -339,7 +347,7 @@ fn consumed_once_query_projection_preserves_receipt_custody_and_changes_validato
     );
     assert_ne!(
         current.validator, envelope.validator,
-        "same-sequence conditional reads cannot keep a consumed descriptor"
+        "conditional reads cannot keep a consumed descriptor after its durable commit"
     );
     assert_eq!(
         serde_json::to_value(&current.rows).unwrap(),

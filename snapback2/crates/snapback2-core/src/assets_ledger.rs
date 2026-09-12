@@ -163,6 +163,30 @@ impl Store {
             "INSERT INTO _asset_views(asset_id, principal, at) VALUES (?1, ?2, ?3)",
             params![id, principal, at],
         )?;
+        // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction —
+        // consumption changes authoritative query values, so it owns a commit
+        // sequence in the same transaction even though application rows do not change.
+        let seq = transaction.query_row("SELECT COALESCE(MAX(seq),0)+1 FROM _commits", [], |row| {
+            row.get::<_, u64>(0)
+        })?;
+        crate::engine::append_commit(
+            &transaction,
+            &crate::CommitRecord {
+                seq,
+                at,
+                program: "asset.consume".into(),
+                principal: principal.into(),
+                kind: "asset".into(),
+                by: None,
+                job: None,
+                job_chunk: None,
+                schedule: None,
+                touched: Vec::new(),
+                scope_touches: Vec::new(),
+                writes: BTreeMap::from([("_asset_views".into(), 1)]),
+                emits: 0,
+            },
+        )?;
         transaction.commit()?;
         Ok(())
     }

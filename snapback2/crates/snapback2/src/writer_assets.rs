@@ -272,11 +272,16 @@ impl State {
             self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
         }
         result.map_err(|error| Refusal::from_runtime(&error))?;
-        // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — same-seq per-principal publication.
+        // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — publish this principal after its durable consumption commit.
+        let seq = self.runtime().store().commit_seq().map_err(|error| Refusal::from_runtime(&error))?;
+        self.after_commit(seq)?;
         let clients = self.live.iter()
             .filter(|(_, client)| client.context.viewer() == principal)
             .map(|(id, _)| *id).collect::<Vec<_>>();
-        let _ = self.rerun_live(&clients, false);
+        let deliveries = self.rerun_live(&clients, false);
+        let ledger = self.ledger.back_mut().expect("consumption commit was recorded");
+        ledger.invalidated.extend(clients);
+        ledger.deliveries.extend(deliveries);
         Ok(json!(null))
     }
 
@@ -689,7 +694,7 @@ mod tests {
     }
 
     // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction —
-    // view ledger writes have no row commit, but must replace old query validators.
+    // the view ledger commit replaces query validators without changing source rows.
     #[test]
     fn once_consumption_republishes_only_this_principals_live_and_conditional_query() {
         let root = once_root("query-publication");
@@ -776,7 +781,7 @@ mod tests {
         );
         state.asset_consume(&id, "dev:alice").unwrap();
         let live = alice.recv_timeout(Duration::ZERO).unwrap().data;
-        assert_eq!(live["seq"], before["seq"]);
+        assert_eq!(live["seq"].as_u64().unwrap(), before["seq"].as_u64().unwrap() + 1);
         assert_eq!(live["data"], json!({"row":null,"alias":null}));
         assert!(
             bob.recv_timeout(Duration::ZERO).is_err(),
@@ -814,34 +819,39 @@ mod tests {
 
     #[test]
     fn once_durable_write_failure_stops_owner() {
-        let root = once_root("io-failure");
-        let (state, id) = once_state(&root);
-        let project = state.compiled.project.clone();
-        let generation = state.compiled.generation.clone();
-        let blobs = state.blobs.clone();
-        drop(state); // The owner uses exclusive SQLite custody; install the fault while it is closed.
-        let connection = rusqlite::Connection::open(root.join("store.db")).unwrap();
-        connection.execute_batch("CREATE TRIGGER refuse_view BEFORE INSERT ON _asset_views BEGIN SELECT RAISE(FAIL, 'failed durable write'); END;").unwrap();
-        drop(connection);
-        let runtime = Runtime::open(
-            Store::open(&root.join("store.db")).unwrap(),
-            generation.clone(),
-        )
-        .unwrap();
-        let mut state = state_with_assets(root.clone(), runtime, project, generation, blobs);
-        let error = state
-            .handle(Action::AssetConsume {
-                id,
-                principal: "dev:alice".into(),
-            })
-            .unwrap_err();
-        assert_eq!(error.code, "E_CONSTRAINT");
-        assert!(
-            state.stop.load(Ordering::SeqCst),
-            "failed durable write left the owner retryable"
-        );
-        drop(state);
-        std::fs::remove_dir_all(root).unwrap();
+        for table in ["_asset_views", "_commits"] {
+            let root = once_root("io-failure");
+            let (state, id) = once_state(&root);
+            let before = state.runtime().store().commit_seq().unwrap();
+            let project = state.compiled.project.clone();
+            let generation = state.compiled.generation.clone();
+            let blobs = state.blobs.clone();
+            drop(state); // The owner uses exclusive SQLite custody; install the fault while it is closed.
+            let connection = rusqlite::Connection::open(root.join("store.db")).unwrap();
+            connection.execute_batch(&format!("CREATE TRIGGER refuse_view BEFORE INSERT ON {table} BEGIN SELECT RAISE(FAIL, 'failed durable write'); END;")).unwrap();
+            drop(connection);
+            let runtime = Runtime::open(
+                Store::open(&root.join("store.db")).unwrap(),
+                generation.clone(),
+            )
+            .unwrap();
+            let mut state = state_with_assets(root.clone(), runtime, project, generation, blobs);
+            let error = state
+                .handle(Action::AssetConsume {
+                    id: id.clone(),
+                    principal: "dev:alice".into(),
+                })
+                .unwrap_err();
+            assert_eq!(error.code, "E_CONSTRAINT");
+            assert!(
+                state.stop.load(Ordering::SeqCst),
+                "failed durable write left the owner retryable"
+            );
+            assert!(!state.runtime().store().asset_viewed(&id, "dev:alice").unwrap());
+            assert_eq!(state.runtime().store().commit_seq().unwrap(), before);
+            drop(state);
+            std::fs::remove_dir_all(root).unwrap();
+        }
     }
 
     #[test]
