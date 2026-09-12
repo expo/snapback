@@ -459,6 +459,7 @@ test("hub guide reaches final membership slice, rich history, and exact schedule
     sender: "principal", recipient: "principal", target: "principal",
     conversationId: "conversations", messageId: "messages", membershipId: "memberships", quoteId: "messages ?",
     at: "time", sentAt: "time", expiresAt: "time ?", joinedAt: "time", messageCount: "int",
+    sequence: "int", readThrough: "int",
     period: table === "follows" || table === "messages" ? "time ?" : "time", digestEligible: "bool ?",
     displayName: "text <=50", handle: "text <=20", bio: "text <=200", location: "text <=50",
     title: "text <=120", kind: "enum('group', 'dm')", role: "enum('admin', 'member')",
@@ -477,23 +478,26 @@ const data = {
     digestTargets: [{ id: "0000-digest-target", target: "dev:u0001" }],
     conversations: Array.from({ length: 1000 }, (_, n) => ({
       id: "chat-"+key(n), title: "Chat "+key(n), kind: n < 100 ? "group" : "dm",
-      creatorId: "dev:u0001", messageCount: n === 999 ? 125 : 0,
+      creatorId: "dev:u0001", messageCount: n === 999 ? 125 : 1,
     })),
     memberships: [
       { id: "peer-seat", conversationId: "chat-0999", principal: "dev:author", role: "member", joinedAt: 0 },
       { id: "peer-seat-2", conversationId: "chat-0998", principal: "dev:author", role: "member", joinedAt: 0 },
+      { id: "peer-seat-3", conversationId: "chat-0997", principal: "dev:author", role: "member", joinedAt: 0 },
+      { id: "peer-seat-4", conversationId: "chat-0996", principal: "dev:author", role: "member", joinedAt: 0 },
     ],
     messages: Array.from({ length: 125 }, (_, n) => ({ id: "message-"+key(n),
       conversationId: "chat-0999", authorId: "dev:author", body: "needle "+key(n),
-      quoteId: n === 0 ? null : "message-0000", at: Math.floor(n / 3), period: n === 0 ? 1 : null, expiresAt: null,
+      quoteId: n === 0 ? null : "message-0000", at: Math.floor(n / 3), period: n === 0 ? 1 : null,
+      sequence: n + 1, expiresAt: null,
     })).concat(Array.from({ length: 999 }, (_, n) => ({ id: "digest-message-"+key(n),
       conversationId: "chat-"+key(n), authorId: "dev:author", body: "digest "+key(n),
-      quoteId: null, at: 1, period: 1, expiresAt: n >= 1 && n <= 900 ? 2 : null,
+      quoteId: null, at: 1, period: 1, sequence: 1, expiresAt: n >= 1 && n <= 900 ? 2 : null,
     }))),
     periodUnread: Array.from({ length: 1000 }, (_, n) => ({
       id: "period-unread-"+key(n), messageId: n === 999 ? "message-0000" : "digest-message-"+key(n),
       sender: "dev:author", recipient: "dev:u0001", conversationId: "chat-"+key(n),
-      membershipId: "chat-"+key(n), period: 1, sentAt: n === 999 ? 0 : 1,
+      membershipId: "chat-"+key(n), period: 1, sequence: 1, sentAt: n === 999 ? 0 : 1,
       expiresAt: n >= 1 && n <= 900 ? 2 : null,
     })),
     reactions: [...Array.from({ length: 125 }, (_, n) => ({ id: "reaction-"+key(n),
@@ -537,6 +541,23 @@ query digestState(target: principal, source: principal, period: time):
 
 query postPair(postId: posts):
   return { post: posts[postId], head: postHeads[postId] by byPost }
+
+query unreadOrder(conversationId: conversations, messageId: messages, actor: principal):
+  return {
+    message: messages[messageId],
+    contribution: periodUnread[messageId, actor] by byMessageRecipient,
+    mark: readMarks[conversationId, actor] by byConversationActor,
+  }
+
+mutation tieReadClock(conversationId: conversations, messageId: messages):
+  message = messages[messageId] ! else NOT_FOUND
+  mark = readMarks[conversationId, viewer] by byConversationActor ! else NOT_FOUND
+  update readMarks[mark] { readAt: message.at }
+  return null
+
+mutation rejoin(conversationId: conversations, membershipId: id, actor: principal):
+  row = insert memberships { id: membershipId, conversationId, principal: actor, role: 'member', joinedAt: now }
+  return { id: row.id }
 `);
     await writeFile(join(root, "snapback/seed.ts"),
       'import { seed } from "snapback2";\nexport default seed(' + JSON.stringify({ personas: people, rows: {} }) + ');\n');
@@ -745,13 +766,58 @@ query postPair(postId: posts):
     // send remains. A third real send is removed by its author before close.
     assert.equal((await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "read before mark" })).state, "committed");
     assert.equal((await client.mutation(api.messages.markRead, { conversationId: "chat-0998" })).state, "committed");
-    assert.equal((await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "unread after mark" })).state, "committed");
+    const unreadAfterMark = await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "unread after mark" });
+    assert.equal(unreadAfterMark.state, "committed");
+    const readThenSendBeforeTie = await control("/control/execute", { op: "fixtureSetup.unreadOrder",
+      args: { conversationId: "chat-0998", messageId: unreadAfterMark.data.id, actor: "dev:u0001" } });
+    assert.equal((await control("/control/execute", { op: "fixtureSetup.tieReadClock",
+      args: { conversationId: "chat-0998", messageId: unreadAfterMark.data.id } }, "u0001")).state, "committed");
+    const readThenSend = await control("/control/execute", { op: "fixtureSetup.unreadOrder",
+      args: { conversationId: "chat-0998", messageId: unreadAfterMark.data.id, actor: "dev:u0001" } });
+    assert.equal(readThenSend.data.mark.readAt, readThenSend.data.message.at, "read then send is forced onto one millisecond");
+    assert.deepEqual([readThenSend.data.message.sequence, readThenSend.data.contribution.sequence],
+      [readThenSendBeforeTie.data.message.sequence, readThenSendBeforeTie.data.contribution.sequence],
+      "forcing the timestamp tie does not alter commit ordering");
+    assert.equal(readThenSend.data.message.sequence, readThenSend.data.contribution.sequence);
+    assert.ok(readThenSend.data.mark.readThrough < readThenSend.data.contribution.sequence,
+      "the later same-millisecond send remains unread by transaction order");
     const currentUnread = await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "not expiring" });
     assert.equal(currentUnread.state, "committed");
     const refusedExpiry = await control("/control/execute", { op: "messages.expireDigestMessage",
       args: { messageId: currentUnread.data.id } });
     assert.equal(refusedExpiry.state, "rejected", "even the operator cannot fire the timer target without a due deadline");
     assert.equal(refusedExpiry.code, "MESSAGE_NOT_EXPIRING");
+
+    const readAtSameClock = await author.mutation(api.messages.send, { conversationId: "chat-0997", body: "read at same clock" });
+    assert.equal(readAtSameClock.state, "committed");
+    assert.equal((await client.mutation(api.messages.markRead, { conversationId: "chat-0997" })).state, "committed");
+    const sendThenReadBeforeTie = await control("/control/execute", { op: "fixtureSetup.unreadOrder",
+      args: { conversationId: "chat-0997", messageId: readAtSameClock.data.id, actor: "dev:u0001" } });
+    assert.equal((await control("/control/execute", { op: "fixtureSetup.tieReadClock",
+      args: { conversationId: "chat-0997", messageId: readAtSameClock.data.id } }, "u0001")).state, "committed");
+    const sendThenRead = await control("/control/execute", { op: "fixtureSetup.unreadOrder",
+      args: { conversationId: "chat-0997", messageId: readAtSameClock.data.id, actor: "dev:u0001" } });
+    assert.equal(sendThenRead.data.mark.readAt, sendThenRead.data.message.at, "send then read is forced onto one millisecond");
+    assert.deepEqual([sendThenRead.data.message.sequence, sendThenRead.data.contribution.sequence],
+      [sendThenReadBeforeTie.data.message.sequence, sendThenReadBeforeTie.data.contribution.sequence],
+      "forcing the timestamp tie does not alter commit ordering");
+    assert.equal(sendThenRead.data.message.sequence, sendThenRead.data.contribution.sequence);
+    assert.ok(sendThenRead.data.mark.readThrough >= sendThenRead.data.contribution.sequence,
+      "the earlier same-millisecond send is read by transaction order");
+    assert.equal((await author.mutation(api.messages.send, { conversationId: "chat-0997", body: "unread after tied read" })).state,
+      "committed");
+
+    assert.equal((await client.mutation(api.messages.markRead, { conversationId: "chat-0996" })).state, "committed");
+    assert.equal((await client.mutation(api.messages.leave, { conversationId: "chat-0996" })).state, "committed");
+    assert.equal((await control("/control/execute", { op: "fixtureSetup.rejoin",
+      args: { conversationId: "chat-0996", membershipId: "rejoined-seat-0996", actor: "dev:u0001" } })).state, "committed");
+    const afterRejoin = await author.mutation(api.messages.send, { conversationId: "chat-0996", body: "new incarnation unread" });
+    assert.equal(afterRejoin.state, "committed");
+    const incarnation = await control("/control/execute", { op: "fixtureSetup.unreadOrder",
+      args: { conversationId: "chat-0996", messageId: afterRejoin.data.id, actor: "dev:u0001" } });
+    assert.equal(incarnation.data.mark.membershipId, "chat-0996", "the old read boundary keeps its membership incarnation");
+    assert.equal(incarnation.data.contribution.membershipId, "rejoined-seat-0996",
+      "the new unread contribution binds the replacement membership");
     const removeMe = await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "remove before digest" });
     assert.equal(removeMe.state, "committed");
     assert.equal((await author.mutation(api.messages.remove, { messageId: removeMe.data.id })).state, "committed");

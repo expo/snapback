@@ -118,7 +118,11 @@ work; the digest requirement was still unmet at that checkpoint.
 The compiled fanout fixture now buckets application writes from the owner's
 clock, records append-only period and recipient revisions, and processes each
 recipient through fresh bounded jobs. Unread contributions retain source, exact
-membership incarnation, send time and expiry. The final transaction rechecks
+membership incarnation, send time, expiry and a monotonic conversation send
+sequence. Read marks bind the current membership incarnation and sequence, so
+equal millisecond timestamps cannot invert commit order. The sequence high-water
+mark never decrements on remove/expiry; imports initialize it to at least the
+largest persisted message sequence. The final transaction rechecks
 eligibility/period revisions and earliest expiry. At the required 500-follow
 population it recounts every current followed author's maintained period total
 in that transaction; larger populations retain the complete chunk accumulator
@@ -130,7 +134,9 @@ It covers 500 follows, 1,000 memberships and 1,000 unread contributions; 900
 expiries become due after accumulation and cross the owner's 64-timer turns. A
 real membership leave follows the first unread chunk, a real post author deletes
 a cached source, five same-target sends enter the next period, and the owner
-restarts before the fresh attempt. The result is exactly 1 new follower, 499
+restarts before the fresh attempt. Deterministic controls force equal persisted
+timestamps for read-then-send and send-then-read and replace one membership
+incarnation. The result is exactly 1 new follower, 499
 followed posts, 99 unread messages and 98 unread chats, with one logged effect,
 no zero-activity emission and no replay duplicate. The final chunk certifies at
 3,221,762 heap bytes, 3,446,773 closure bytes, 31,461 steps and 1,515 examined

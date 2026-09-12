@@ -37,7 +37,11 @@ mutation remove(messageId: messages):
 mutation send(conversationId: conversations, body: text <=2000, expiresAt: time ?, messageId: id ?):
   (_period, rem) = divmod(now, 60000)
   period = now - rem
-  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, period, expiresAt, at: now }
+  -- Removal and expiry never decrement or reset this commit-order boundary.
+  conversation = conversations[conversationId] ! else MEMBERSHIP_REQUIRED
+  sequence = conversation.messageCount + 1
+  update conversations[conversation] { messageCount: sequence }
+  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, period, sequence, expiresAt, at: now }
   for member in memberships[conversationId] first 50 by byConversationPrincipalRole:
     if member.principal != viewer:
       target = digestPeriodTargets[member.principal, period] by byTargetPeriod
@@ -50,6 +54,7 @@ mutation send(conversationId: conversations, body: text <=2000, expiresAt: time 
         conversationId,
         membershipId: member.id,
         period,
+        sequence,
         sentAt: row.at,
         expiresAt,
       }
@@ -63,12 +68,13 @@ mutation leave(conversationId: conversations):
   return null
 
 mutation markRead(conversationId: conversations):
-  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  seat = memberships[conversationId, viewer] ! else MEMBERSHIP_REQUIRED
+  conversation = conversations[conversationId] ! else MEMBERSHIP_REQUIRED
   mark = readMarks[conversationId, viewer] by byConversationActor
   if mark = null:
-    insert readMarks { conversationId, actor: viewer, readAt: now }
+    insert readMarks { conversationId, actor: viewer, membershipId: seat.id, readThrough: conversation.messageCount, readAt: now }
   else:
-    update readMarks[mark] { readAt: now }
+    update readMarks[mark] { membershipId: seat.id, readThrough: conversation.messageCount, readAt: now }
   insert digestRecipientChanges { target: viewer }
   return null
 
