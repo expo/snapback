@@ -370,7 +370,12 @@ class Parser {
       if (this.atKind("dedent")) break;
       try {
         const effect = this.word();
-        if (effect.value !== "read" && effect.value !== "readable") syntax(effect, `unknown maintain property ${effect.value}`);
+        if (effect.value !== "read" && effect.value !== "readable") {
+          const rewrite = effect.value === "public"
+            ? "read <- allow  -- maintain has no public property"
+            : "use read <- rule; add readable <- rule only for non-uniform source disclosure";
+          syntax(effect, `unknown maintain property ${effect.value}`, rewrite);
+        }
         const value = this.parseFocalRuleValue(effect.value, effect);
         this.newline();
         const declaration: RuleDecl = { effect: "read", bindings: [], value, site: effect };

@@ -1,5 +1,6 @@
 use identity
 
+-- The first table is private to its owner.
 table todos:
   title: text <=200
   done: bool

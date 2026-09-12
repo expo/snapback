@@ -6,7 +6,7 @@
 templates, guide, diagnostics
 **Author:** Charlie Cheever (ruling); Claude Fable 5 (orchestrator, record)
 **Date:** 2026-08-31
-**Revised:** 2026-09-09 (LLP 1011 final header and exact-literal pass); 2026-09-07 (final helper-purity/canonical-pair review costs and package declaration boundary); 2026-09-07 (typed direct compiler and expression functions; generated table-binding hygiene); 2026-09-03
+**Revised:** 2026-09-11 (first-pass guide and diagnostic repairs); 2026-09-09 (LLP 1011 final header and exact-literal pass); 2026-09-07 (final helper-purity/canonical-pair review costs and package declaration boundary); 2026-09-07 (typed direct compiler and expression functions; generated table-binding hygiene); 2026-09-03
 **Related:** LLP 1000 (decision 10), LLP 1002, LLP 1007 (§2, §5), LLP 0329.014.004,
 .009, .010, .011, `spikes/clique-diagnostic-runs/`,
 `snapback2/packages/compiler/src/quarry/`, `snapback2/packages/snapback2/guide/quarry.md`
@@ -226,6 +226,26 @@ the frozen baseline is therefore **7,499 production**, **4,851 oracle**, and
 assembly is package/build work outside this compiler source census and has its
 own copied-package consumers. LLP 1018.000 records the separate per-file
 census and the frozen component dispositions.
+
+## First-pass authoring record (2026-09-11)
+
+The packaged guide now puts the executable form first for the common guesses
+found in the Clique build: maintains use `read <- allow`; comments use `--`;
+text clamps use `slice`; text composition returns separate fields or queries;
+arrays contain scalar items; ambiguous reads name `by <index>`; and optional
+point deletes read, test for non-null, then delete only when read authority is
+available. Delete-only callers keep direct by-id delete and handle an expected
+`NOT_FOUND` outside Quarry. The corresponding compiler and runtime refusals
+name those same repairs. Dynamic search scopes use typed
+`searchScopes` and scoped-search arguments with the installed global-search
+pager; authored dynamic merge lanes and object-array batching remain outside
+the language.
+
+Quarry still does not import JSON. The packaged configuration recipe converts
+safe integer JSON entries into expression-only Quarry functions before
+`check` or `dev`; other modules import those functions through Quarry's normal
+module surface. This is generated source custody, not new runtime authority or
+a relaxation of any certification bound.
 
 ## Non-claims
 
