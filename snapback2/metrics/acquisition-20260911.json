@@ -17537,6 +17537,17 @@
           "indexed": 90.372208
         },
         "scope": "Local Node24.18 synthetic only, no full endpoint/browser claim; neither change implemented in repository"
+      },
+      "rowDigestFingerprintAudit": {
+        "status": "rejected without implementation",
+        "why": "Answer fingerprint is a persisted exact replay guard; replacing full-body hash input with rowdigests rejects equal preexisting/cold deliveries. Current held rows cannot reconstruct old fingerprint preimage. A dual verifier/version/migration would conflict with current no-compat-shim scope.",
+        "retainedConstraints": [
+          "Opaque pre-program and later nominal rows need identical fingerprints",
+          "Preserve original ordered wrappers including extra metadata and duplicate multiplicity",
+          "Preserve absent/null/empty rowpool distinctions",
+          "Staleframes must notgain eagerfactregistration or contradiction checks"
+        ],
+        "next": "Seek deletions preserving existing fingerprint bytes and admission boundaries"
       }
     }
   }
