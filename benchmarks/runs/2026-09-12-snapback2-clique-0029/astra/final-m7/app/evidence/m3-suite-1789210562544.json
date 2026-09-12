@@ -1,0 +1,57 @@
+{
+  "milestone": "m3",
+  "pass": true,
+  "at": 1789210562545,
+  "required": [
+    "m3-a03",
+    "m3-a04",
+    "m3-a05",
+    "m3-a10",
+    "m3-a11",
+    "m3-a14",
+    "m3-a15"
+  ],
+  "covered": [
+    "m3-a03",
+    "m3-a04",
+    "m3-a05",
+    "m3-a14",
+    "m3-a10",
+    "m3-a11",
+    "m3-a15"
+  ],
+  "missing": [],
+  "results": [
+    {
+      "name": "DM pair uniqueness",
+      "ids": [
+        "m3-a03"
+      ],
+      "pass": true
+    },
+    {
+      "name": "groups distinct and admin authority",
+      "ids": [
+        "m3-a04",
+        "m3-a05",
+        "m3-a14"
+      ],
+      "pass": true
+    },
+    {
+      "name": "quoted reply render and jump",
+      "ids": [
+        "m3-a10",
+        "m3-a11"
+      ],
+      "pass": true
+    },
+    {
+      "name": "installed starter segments idempotent",
+      "ids": [
+        "m3-a15"
+      ],
+      "pass": true
+    }
+  ]
+}

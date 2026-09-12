@@ -1,0 +1,99 @@
+diff --git a/snapback/messages.q b/snapback/messages.q
+--- a/snapback/messages.q
++++ b/snapback/messages.q
+@@ -12,6 +12,9 @@ query inbox(c: cursor ?):
+   page = deliveries[viewer] after c first 50 by byRecipientAt
+   return page { *, message: messages[.messageId] }
+ 
++query nextPendingDelivery():
++  return pendingDelivered[viewer] first 1 by byRecipient
++
+ query thread(conversationId: conversations, c: cursor ?):
+   page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
+   return page {
+@@ -33,6 +36,7 @@ query conversationView(conversationId: conversations, c: cursor ?):
+   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
+   page = conversationLog(conversationId, viewer, c)
+   latest = conversationPreview(conversationId, viewer)
++  nextUnread = pendingRead[viewer, conversationId] first 1 by byRecipientConversation
+   conv = conversations[conversationId] ! else NOT_FOUND
+   return {
+     messages: page { *, message: messages[.messageId] },
+@@ -40,4 +44,5 @@ query conversationView(conversationId: conversations, c: cursor ?):
+     preview: latest { *, message: messages[.messageId] },
+     conversation: conv,
+     unread: unreadCounts[conversationId, viewer],
++    nextUnread,
+   }
+@@ -174,7 +179,7 @@ mutation purgeMessage(messageId: messages):
+-mutation markDelivered(messageId: messages):
+-  msg = messages[messageId] ! else NOT_FOUND
+-  require isMember(msg.conversationId, viewer) else NOT_MEMBER
++mutation markDelivered(messageId: id):
+   pending = pendingDelivered[messageId, viewer]
+-  if pending != null:
+-    delete pendingDelivered[pending]
++  if pending = null:
++    return null
++  require exists memberships[pending.conversationId, viewer] else NOT_MEMBER
++  delete pendingDelivered[pending]
+   return null
+diff --git a/lib/delivery-watcher.tsx b/lib/delivery-watcher.tsx
+--- a/lib/delivery-watcher.tsx
++++ b/lib/delivery-watcher.tsx
+@@ -6,14 +6,12 @@ import { useAuth, useMutation, useQuery } from "snapback3/react";
+ export function DeliveryWatcher() {
+   const { session: auth } = useAuth();
+   const viewer = auth.state === "authenticated" ? auth.viewer : undefined;
+-  const inbox = useQuery(api.messages.inbox, { c: null });
++  const pending = useQuery(api.messages.nextPendingDelivery, {});
+   const markDelivered = useMutation(api.messages.markDelivered);
++  const messageId = pending.data?.[0]?.messageId;
+   useEffect(() => {
+-    if (!viewer) return;
+-    for (const row of inbox.data ?? []) {
+-      if (row.message?.authorId === viewer) continue;
+-      if (row.messageId) void markDelivered.run({ messageId: row.messageId });
+-    }
+-  }, [viewer, inbox.data]);
++    if (!viewer || !messageId || !markDelivered.can.send) return;
++    void markDelivered.run({ messageId });
++  }, [viewer, messageId, markDelivered.can.send]);
+   return null;
+ }
+diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+--- a/lib/thread-view.tsx
++++ b/lib/thread-view.tsx
+@@ -108,7 +108,6 @@ export function ThreadView({
+   const unsend = useMutation(api.messages.unsend);
+   const reactMut = useMutation(api.messages.setReaction);
+   const markRead = useMutation(api.messages.markRead);
+-  const markDelivered = useMutation(api.messages.markDelivered);
+   const thread = useQuery(api.messages.thread, { conversationId, c: null }, { items: textMessageItems });
+   const photoThread = useQuery(api.messages.thread, { conversationId, c: null }, { items: photoMessageItems });
+   const clipThread = useQuery(api.messages.thread, { conversationId, c: null }, { items: clipMessageItems });
+@@ -135,6 +134,8 @@ export function ThreadView({
+   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const conv = view.data?.conversation;
++  const unreadCount = view.data?.unread?.count ?? 0;
++  const unreadActivityId = view.data?.nextUnread?.[0]?.messageId;
+   function pulseTyping() {
+     void typing.set({ typing: true });
+     if (typingTimer.current) clearTimeout(typingTimer.current);
+@@ -146,13 +146,9 @@ export function ThreadView({
+   items.reverse();
+ 
+   useEffect(() => {
++    if (unreadCount <= 0 || !markRead.can.send) return;
+     void markRead.run({ conversationId });
+-    for (const row of thread.data ?? []) {
+-      if (row.message?.authorId && row.message.authorId !== viewer) {
+-        void markDelivered.run({ messageId: row.messageId });
+-      }
+-    }
+-  }, [conversationId, thread.data?.length, viewer]);
++  }, [conversationId, unreadCount, unreadActivityId, markRead.can.send]);
+ 
+   const projectedIntents = new Set(
+     [thread, photoThread, clipThread, oncePhotoThread].flatMap((snapshot) =>

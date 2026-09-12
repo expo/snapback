@@ -1,0 +1,98 @@
+{
+  "recordedEpoch": 1789212366.2570739,
+  "status": "Initial builder, independent initial grader, and fresh M7 all genuinely exited; immutable boundaries preserved; no next scorer launched by this supervisor",
+  "phases": {
+    "initialBuilder": {
+      "lane": "grok-snapback2",
+      "pid": 3870211,
+      "startedEpoch": 1789191903,
+      "endedEpoch": 1789206137,
+      "exit": 0,
+      "interrupted": null,
+      "nativeManifest": null,
+      "waitError": null,
+      "nativeCaptureError": null,
+      "nativeTreeStatus": "incomplete-unavailable",
+      "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller",
+      "elapsedSeconds": 14234
+    },
+    "initialGrade": {
+      "lane": "grok-snapback2",
+      "phase": "grade",
+      "pid": 4093483,
+      "startedEpoch": 1789206823,
+      "endedEpoch": 1789208560,
+      "exit": 0,
+      "interrupted": null,
+      "waitError": null,
+      "elapsedSeconds": 1737
+    },
+    "freshM7": {
+      "lane": "grok-snapback2",
+      "phase": "m7",
+      "pid": 4122600,
+      "startedEpoch": 1789208829,
+      "endedEpoch": 1789211925,
+      "exit": 0,
+      "interrupted": null,
+      "waitError": null,
+      "nativeManifest": null,
+      "nativeCaptureError": null,
+      "nativeTreeStatus": "incomplete-unavailable",
+      "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller",
+      "elapsedSeconds": 3096
+    }
+  },
+  "finalM7": {
+    "authoredSuite": "6/6 pass",
+    "browser": "2/2 pass; two prior0/2 failures retained",
+    "firstBrowserGreenAt": "2026-09-12T11:16:43.403Z",
+    "receipt": {
+      "path": "m7/reports/choreo-m7.jsonl",
+      "sha256": "679876928bff4a1ffd6ac7b7fc4dc85ed5e2e547c46e1f849366e49f4b3b9789"
+    },
+    "suite": {
+      "path": "m7/reports/suite-m7.json",
+      "sha256": "eaf521ce0697999cf8f5f2be0aacb75a7a2fe56fcdea1b411107a483c68cca09"
+    },
+    "actorNarrativeClock": {
+      "start": 1789208836,
+      "end": 1789211822,
+      "wallSeconds": 2986
+    },
+    "wrapperClockSeconds": 3096,
+    "clockLimit": "Actor narrative ends before actual process exit; preserve both clocks and use wrapper for observed elapsed time",
+    "migrationAssessment": {
+      "path": "migration-preservation-assessment.json",
+      "sha256": "3bb7c144d1b77604118bb079ef545fb3429f056a0cd23c5f27f9e8f9b42c7209"
+    }
+  },
+  "initialGrade": {
+    "O1": 52,
+    "O2": 42,
+    "O3": null,
+    "O4": null,
+    "O5": null,
+    "total": null,
+    "preChangeM7": "1/9 is the initial grader observation, not a post-M7 grade",
+    "uncalibrated": true
+  },
+  "custody": {
+    "frozenInstrument": "185/185 match",
+    "actualCopiedChoreography": "Matches frozenSHA cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+    "installedPublicPayloads": "snapback2@0.0.29 253/253 and snapback2-linux-x64@0.0.29 4/4 exact; no extra files",
+    "remainingActorProcesses": 0,
+    "assignedPorts": "53400\u201353419 clear",
+    "rawCliStreams": "Retained on450b, excluded from this compact local set",
+    "authAndRawReasoning": "Excluded from compact local set"
+  },
+  "claimsNotMade": [
+    "Full M1\u2013M8 completion",
+    "Full-field migration preservation",
+    "Independent post-M7 grader approval",
+    "Full-scale replay",
+    "Apple simulator proof",
+    "Authentically enforced cap or joined token-efficiency measurement",
+    "Cross-host performance comparison"
+  ]
+}

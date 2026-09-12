@@ -1,0 +1,44 @@
+{
+  "milestone": "m8",
+  "pass": true,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m8-a01",
+      "name": "insights six totals",
+      "ok": true,
+      "ms": 112
+    },
+    {
+      "id": "m8-a03",
+      "name": "7-day buckets include today",
+      "ok": true,
+      "ms": 4
+    },
+    {
+      "id": "m8-a04",
+      "name": "zero days render as zero",
+      "ok": true,
+      "ms": 4
+    },
+    {
+      "id": "m8-a05",
+      "name": "trending ranks by likes",
+      "ok": true,
+      "ms": 50
+    },
+    {
+      "id": "m8-a06",
+      "name": "old posts absent from trending",
+      "ok": true,
+      "ms": 9
+    },
+    {
+      "id": "m8-a07",
+      "name": "trending like-count ties newest-first",
+      "ok": true,
+      "ms": 57
+    }
+  ],
+  "at": "2026-09-12T11:05:03.571Z"
+}

@@ -1,0 +1,84 @@
+{
+  "recordedEpoch": 1789206958.5072632,
+  "scope": "Read-only independent source/retained-output attribution; not a benchmark score or grader input; no new browser/API requests or actor changes.",
+  "contract": {
+    "harness": "Frozen M3 creates Alice/Bob/Carol/Dave contexts (3105-3110), starts all four login functions before Promise.all (3138-3145). login submits once and awaits the first authenticated surface (890-903), with no auth-rate retry.",
+    "publishedAuth": "0.0.29 auth.md56-59 documents two concurrent password attempts,8/account,16/IP,32/owner per60seconds and E_AUTH_RATE_LIMIT429.",
+    "nativeSource": "serve_security.rs158 rejects when active>=2;179-187 reject per-owner/IP/account windows; serve.rs461-479 uses the same E_AUTH_RATE_LIMIT429 for admission refusal. Source is final0.0.29 qualification75ee; installed native payload was separately proven byte-identical to published package."
+  },
+  "observed": {
+    "finalM3Receipt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "completedOutputs": [
+      {
+        "originalLog": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/logs/grok-snapback2.ndjson",
+        "byteOffset": 117436522,
+        "recordSha256": "18224776a955797be99ddc8b2a0b205df462009378d4be4e1b192a7e7691e516",
+        "toolCallId": "call-37358a16-9fa1-438b-8ad3-1a164453b6e7-213",
+        "status": "completed",
+        "observation": "Completed output reports choreography fatal at authenticated surface wait, 20000ms timeout"
+      },
+      {
+        "originalLog": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/logs/grok-snapback2.ndjson",
+        "byteOffset": 118586810,
+        "recordSha256": "ad4d6809de35b9da28e45b22daa9914be6f98183152692caa6e0eae4ebfd23ff",
+        "toolCallId": "call-9ba08d84-0490-45b3-9e37-987ea7e49e79-221",
+        "status": "completed",
+        "observation": "Completed output reports choreography fatal at authenticated surface wait, 20000ms timeout"
+      },
+      {
+        "originalLog": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/logs/grok-snapback2.ndjson",
+        "byteOffset": 119061488,
+        "recordSha256": "5c842cbe1393ecd9854cfd1e7a04cdd63ea8f49a321857c08663d1ec31ce0b05",
+        "toolCallId": "call-35fa3e07-7be9-4c53-8003-7b42d3a3e03f-223",
+        "status": "completed",
+        "observation": "Completed output reports choreography fatal at authenticated surface wait, 20000ms timeout"
+      },
+      {
+        "originalLog": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/logs/grok-snapback2.ndjson",
+        "byteOffset": 119183016,
+        "recordSha256": "ca16a2536cc2c12d551c7010d74970fe46e8aa8ed78743c2b072b233a78d4272",
+        "toolCallId": "call-b747d7aa-6b94-4fb3-a8ba-fff3d53dbd06-234",
+        "status": "completed",
+        "observation": "Read of published auth guide, not observed server rate refusal"
+      }
+    ],
+    "suite": "Authored M3 suite7pass does not establish browser choreography.",
+    "diagnosticSearch": "Search of decoded tool rawOutput in the retained M3 region117000000..119230000 found E_AUTH_RATE_LIMIT only in the explicit published-guide read, not a captured live-server refusal. Fatal outputs show authenticated-surface timeout. This search is narrower than an exhaustive log/network diagnosis."
+  },
+  "judgment": "Four concurrent login tasks can exceed the published two-in-flight password boundary, so the actor identified a plausible harness/contract mismatch. Static task concurrency does not prove simultaneous native auth permits, and the retained fatal receipt does not establish an actual429 or its specific limiter. Treat M3 as startup fatal with no completed browser assertions; neither an SDK correctness defect nor concurrency as proven sole cause.",
+  "limits": [
+    "Other rate budgets share the same refusal code",
+    "No retained request interval trace or limiter-reason measurement in this read-only assessment",
+    "General fatal outcomeClass instrument records harness phase; it is not independent causal attribution",
+    "No cold actor/grader feedback"
+  ],
+  "sources": [
+    {
+      "sourceCommit": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "sourcePath": "snapback2/crates/snapback2/src/serve.rs",
+      "copy": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m3-auth-independent-20260912/serve.rs",
+      "sha256": "0c6fa7826bb2b4dcffb2acad0a8e6d266a47f9054ea0d3d2d42495894cd5b9dc"
+    },
+    {
+      "sourceCommit": "75ee110fa1ccff019c994c667fd36b2d332ce8b7",
+      "sourcePath": "snapback2/crates/snapback2/src/serve_security.rs",
+      "copy": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m3-auth-independent-20260912/serve_security.rs",
+      "sha256": "58e5cf3b6427cd505857fd7a6e4712b87d7f8288494be5cd1b007a2feeff7770"
+    },
+    {
+      "sourcePath": "/home/ccheever/clique-0029-20260912/instrument/choreography/choreography.mjs",
+      "copy": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m3-auth-independent-20260912/choreography.mjs",
+      "sha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+      "sha256After": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc"
+    },
+    {
+      "sourcePath": "/home/ccheever/clique-0029-20260912/lanes/grok-snapback2/node_modules/snapback2/dist/guide/auth.md",
+      "copy": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m3-auth-independent-20260912/published-0.0.29-auth.md",
+      "sha256": "26b8e05f527256c85d74cc8d7dd8530cf94f0def316adf7fb76dc2f03153f372",
+      "sha256After": "26b8e05f527256c85d74cc8d7dd8530cf94f0def316adf7fb76dc2f03153f372"
+    }
+  ]
+}

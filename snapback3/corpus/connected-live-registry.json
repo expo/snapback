@@ -1,0 +1,165 @@
+{
+  "corpusVersion": 1,
+  "name": "connected-live-registry",
+  "category": "connected",
+  "randomSeed": null,
+  "schema": {
+    "tables": {},
+    "maintains": []
+  },
+  "program": {
+    "name": "connected-live-registry",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Exists": {
+            "site": "connected",
+            "table": "_connected",
+            "index": "byPrincipal",
+            "key": [
+              {
+                "Input": "Viewer"
+              }
+            ],
+            "provenance": "Viewer"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "connected-live-registry",
+    "plan_hash": "13f0fd43422e40961bb27240170417add90fda34451371d2a89bf0f95efecca1",
+    "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
+    "rule_hashes": {
+      "_connected.read": "eb6c66c656962016af576570fd1c713a082a19d18fe5f262423bf41dc82f8e29"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "connected",
+        "table": "_connected",
+        "index": "byPrincipal",
+        "prefix_template": "Viewer",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 1,
+    "max_steps": 7,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 16,
+    "max_closure_bytes": 64,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "_connected.byPrincipal"
+    ],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "connected: 1 calls × 1 rule probes",
+        "site": "connected"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 16,
+        "source": "scalar expression",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 64,
+        "source": "fixed-width closure metadata",
+        "site": null
+      }
+    ]
+  },
+  "context": {
+    "viewer": "alice",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "missing-authority"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

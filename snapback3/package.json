@@ -1,0 +1,26 @@
+{
+  "name": "snapback3-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "packageManager": "bun@1.3.12",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "test:compiler": "node build.mjs --compiler-only && node --test packages/compiler/test/compiler.test.mjs",
+    "test:evaluator": "node build.mjs --evaluator-only && node packages/evaluator/dist/corpus-runner.js",
+    "pack:local": "node scripts/pack.mjs",
+    "smoke:package": "node scripts/smoke-package.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.2",
+    "@types/react": "19.3.0",
+    "playwright-core": "1.58.2",
+    "react": "19.3.0",
+    "rolldown": "1.2.8",
+    "typescript": "5.9.2"
+  }
+}

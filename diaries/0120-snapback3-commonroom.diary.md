@@ -1,0 +1,185 @@
+# Diary 0120: Snapback 3 Commonroom
+
+**Date:** 2026-09-12
+**Subject:** the first independently runnable Snapback 3 product slice
+**Agent:** Codex / GPT-6 Astra, with bounded implementation lanes and a fresh same-family reviewer
+**Design:** [LLP 2000](../llp/2000-snapback3.rfc.md)
+**Application:** [Commonroom](../snapback3/examples/chat/README.md)
+
+## The result and its scope
+
+Commonroom is a real React chat application backed by the new Node owner and
+Rust SQLite worker. It has group and private conversations, live messages,
+unread state, conditional edits, account switching, durable offline sends,
+recoverable refusals, and drafts saved per account and conversation. Its eight
+Quarry operations are inferred and certified through the actual compiler.
+
+The source lives in `snapback3/` in the main checkout, as Charlie requested.
+Snapback 1 retains its root layout; Snapback 2 and Fable's Snapback 4 are sibling
+directories. The compiler, core, evaluator, Unicode contract, and semantic corpus
+were copied from Snapback 2 at `a93edb979a5cbe6357f1fc1f95b66f85bd308844`.
+The SDK, React bindings, Node owner, operation ownership, CLI, and example are
+the new experiment. No mutable sibling implementation package is imported.
+
+This is a small product slice. It has no create-room or membership-management
+screen, media, feed/follows, effects/jobs, connected presence, native app, managed
+host, or backup/restore interface. Inherited syntax for unsupported runtime
+capabilities is refused at project admission. This application and fixture do
+not establish full Clique parity, the M1–M8 workload, or a win over a sibling.
+
+## What felt good
+
+- Reusing a certified execution model let the application test real authorization
+  immediately. The example did not need to invent an API server or duplicate the
+  membership rule in React.
+- An unread count and a message page can be separate resources with separate
+  availability. React renders those states directly; it does not manage receipts
+  or decide that missing evidence means a count of zero.
+- One saved operation owns admission, retry identity, terminal recovery, and
+  observation by relevant queries. The application requests a send once, then
+  clears only the submitted draft after durable admission.
+- The same headless SDK powers React and the installed-package witness. Generated
+  declarations check actual example calls. Rolldown and TypeScript keep the build
+  conventional and satisfy the author's toolchain preference.
+- Browser tests against a temporary real application found the same behavior the
+  interface presents. Headless Chrome avoided taking focus from the main machine.
+  The layout was also inspected directly at desktop and 390 × 844 mobile sizes.
+
+## Friction that changed the implementation
+
+The first live path invalidated queries after a commit. That introduced a visible
+gap while the client reacquired them. The owner now sends independent authorized
+resource replacements over POST SSE. A mutation receipt alone also removed a
+pending message before its query showed the committed row; the SDK's `observing`
+phase now owns that transition.
+
+Independent review found several real safety defects beyond the initially passing
+tests: facts became usable before their storage transaction completed; a stale
+stream could follow a known newer commit; manifest requests could finish out of
+order; empty results could fail to revoke old data after fact-pool renewal; and a
+retained operation handle could reveal the previous account's work. The repairs
+preserve positive admission order, apply negative authorization information even
+under storage failure, retain a sequence floor across reopen, and seal old handles.
+Those scenarios have regressions. Shared facts improve composition only if these
+boundaries remain explicit.
+
+Quarry still needs explicit branches for null narrowing. A cursor index needs a
+total order including identity; the unique-key upsert form infers the lookup
+without another `by` clause. These forms became part of the real example rather
+than hidden fixes to its generated output. There is no new authoring-language
+claim here.
+
+The build had two concrete integration traps. Bun's `file:` dependency could leave
+the example pointing at an old package snapshot after new chunk names were built;
+the example is now an ordinary workspace dependency. Rolldown's JSON lowering
+could turn nested `__proto__` keys in the Unicode contract into JavaScript
+prototype setters. A JSON loader that emits `JSON.parse` preserves those own keys;
+the inherited evaluator corpus exposed and verifies that difference. The pinned
+Rolldown build copies the example's authored CSS assets explicitly.
+
+The owner tests also exposed an inappropriate runner boundary: a Bun `node:test`
+compatibility timeout could leave the next file registered inside the prior test,
+and a 100 ms child-start allowance measured machine load. Owner tests now run on
+Node through a small Rolldown test build, with an explicit silent-child timeout
+and bounded wait for restart. Client and browser tests continue using Bun's native
+test API.
+
+The SDK removes coordination responsibilities, but the application still owns
+conversation selection, cursor navigation, draft retention, conflict presentation,
+and read-marker policy. The example is substantial UI code, not evidence of a
+tiny complete application. Line counts alone would obscure this cost.
+
+## The hub measurement
+
+The deterministic fixture has 100 groups, 900 direct conversations, 100,015
+messages, 6,800 memberships, 1,000 read cursors, and 4,901 personas. Groups contain
+50 members. The hub belongs to every conversation. Exact seed bytes:
+23,383,389; SHA-256
+`9155c01c2c14d4769f032419fb38264d9b1c3c913e37af1e825dbc4ff284c35d`.
+
+The large import first hit limits inherited from small development seeds. Its
+private administrative path now has explicit input and execution bounds while
+retaining validation and one atomic application-data transaction. Public operation
+budgets do not change. The ordinary seed path and delivery-custody budget remain
+as inherited.
+
+After admission, the first full import exceeded a 180-second timeout. A one-second
+process sample showed most execution in `forget_created_points`, which scanned
+all transaction-local points on each row write. The existing preimage supplies
+the exact keys to remove. Targeted removal and ordered lookup preserve creation
+authority without that quadratic scan. Regressions cover updates, repeated key
+changes, deletion, nonunique peers, and preexisting rows that must not acquire
+transaction-local creation authority.
+
+One subsequent release-worker run on the Apple M5 Max Mac, with other work on the
+machine, produced these measurements:
+
+| Work | Result |
+| --- | --- |
+| Fresh database import and worker startup | 12,187 ms |
+| All 1,000 inbox entries, 20 pages | 44.8 ms; 593,424 wire bytes |
+| Inbox page latency | p50 1.95 ms; p95 2.68 ms |
+| All 100,015 messages, 3,000 pages | 3,899 ms; 62,814,275 wire bytes |
+| Message page latency | p50 1.28 ms; p95 1.84 ms |
+
+The [complete measurement record](../snapback3/benchmarks/hub-worker-20260912.json)
+binds fixture and native binary hashes. The script reads actual authorized query
+envelopes over local JSONL and includes IPC, serialization, and JSON parsing. It
+does **not** include HTTP, browser storage, rendering, or first offline evaluation.
+Its one-run page distribution is not a cross-run latency qualification. The
+62.8 MB delivery volume is a cost to investigate in the full browser acquisition
+experiment, not an achieved end-to-end acquisition target.
+
+## Verification and the next comparison
+
+The new tests exercise lost replies, database reopen, terminal receipt persistence
+failure, same-identity recovery after program removal, account separation,
+conflicting edits, refused compilation, successor installation, and a killed
+owned worker. Browser tests exercise the actual built UI and IndexedDB. The
+package witness installs a tarball into a fresh directory and uses its bundled
+worker through the public CLI and SDK.
+
+Final affected checks passed: 660 Rust tests on EPYC (two inherited ignored
+tests), 32 client tests, 16 owner tests on Node, four draft tests, five compiler
+tests, and 266 evaluator corpus cases (27 explicitly server-only skips).
+TypeScript checks pass. Every authored source file stays under 1,500 lines.
+
+Five headless Chrome journeys also verify the complete offline reopening path.
+After a first online visit, the app's service worker caches only integrity-checked
+HTML, JS, and CSS. With the entire browser context offline, a closed page reopens
+from that shell, recovers its queued operation from IndexedDB, and sends it once
+after reconnect. An update test proves old and new shell caches coexist while the
+new worker waits; closing the last old tab activates it without losing the draft.
+No API or account response enters the shell cache.
+
+The qualified private `darwin-arm64` tarball is 3,926,125 bytes, with 11,637,134
+unpacked bytes including its worker. An external npm install passed certification,
+all four exported type surfaces, a seeded query, and a durably settled mutation
+without a worker-path override. This is local distribution evidence, not an npm
+registry publication or another-platform claim.
+
+A later package requalification timed out before application code started.
+Both npm's launcher and the byte-identical repository worker remained at
+`_dyld_start + 0`; the underlying host cause is still unknown. The earlier
+qualified archive and report remain intact. Failed smoke runs now report their
+phase and preserve the synthetic installation for inspection. The
+[local issue](../snapback3/issues/20260912-package-smoke-host-exec-stall.md)
+records the bounded probes and required rerun; this later attempt did not pass.
+
+The fresh reviewer assessed the new behavior and focused inherited-core changes;
+this was a same-family review, not a fabricated cross-family consensus. The
+inherited Rust and evaluator suites remain part of the verification boundary.
+The global reference scan reports 19 preexisting false references inside ignored
+review JSONL under `.llp/ship-runs/clique-tickets-20260911`; none is in this slice.
+The optional root inventory run also reports inherited Snapback 1 drift: an
+unregistered `scripts/caps.test.mjs` and missing local contract/client package
+dependencies in the guide registry. Those files are unchanged; Snapback 3's
+independent workspace does not import that inventory or bootstrap.
+
+The comparison with Snapback 2 is architectural so far: S3's public write path has
+no client grant allocator, and query resources own independent acquisition while
+sharing evidence. Static certification and Quarry remain. Fable's Snapback 4 tests
+the other proposed substrates independently. The next fair comparison needs the
+same application workflows, full durable acquisition, active foreground writes,
+day-two schema/policy changes, and an outside builder. This first implementation
+makes that comparison possible; it does not decide it.

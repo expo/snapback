@@ -1,0 +1,8 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m4
+
+PASS photo picked uploaded and rendered
+PASS video sent from picker
+PASS reaction replaces clears and ignores retried intent
+PASS edited label and own-only edits

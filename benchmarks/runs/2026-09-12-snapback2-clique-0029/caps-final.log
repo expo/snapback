@@ -1,0 +1,15 @@
+caps — budgets declared in rules/RULES.md
+
+  rules/RULES.md: 625 words
+  blocking checks: 5 (caps, ref-check, snapback2/scripts/test.sh, snapback2/scripts/measure.mjs --check, check-inventories)
+  product-latency row: filled
+  working set: 58 of 59
+  foundation: 12 of 12
+  source files: 4689 scanned, 792 skipped as generated, 66 skipped as vendored, 428 skipped as benchmark run records
+  oversize files: 205 of 204 allowed by baseline
+
+  cap:lines
+    crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.
+    Baseline allows 204 oversize files; there are 205.
+
+1 violation.

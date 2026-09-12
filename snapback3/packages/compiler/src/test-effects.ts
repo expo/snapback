@@ -1,0 +1,485 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import ts from "typescript";
+import { lowerProject } from "./project";
+import { typecheckSource } from "./typecheck";
+import { effectGlobals } from "./lower/effects";
+
+type Test = (name: string, run: () => Promise<void>) => void;
+type WithProject = (files: Record<string, string>, run: (root: string) => Promise<void>) => Promise<void>;
+const schema = "table records:\n  body: text <=200\n  read <- public\n  insert <- allow\n";
+
+export function registerEffectLanguageChecks(test: Test, withProject: WithProject, frontend: string) {
+  test("effect-only local export aliases retain every authored identity and the direct control", async () => {
+    const call = 'effect({ grants: ["https://api.example.com"], run: async (payload: {value: number}) => payload })';
+    for (const [declaration, names] of [
+      [`export const notify = ${call};`, ["notify"]],
+      [`const local = ${call}; export { local as notify };`, ["notify"]],
+      [`export { local as notify }; const local = ${call};`, ["notify"]],
+      [`const local = ${call}; export { local as notify, local as retry };`, ["notify", "retry"]],
+      [`export const local = ${call}; export { local as notify };`, ["local", "notify"]],
+    ] as const) {
+      await withProject({
+        "snapback/schema.q": "table records:\n  value: int\n  public\n",
+        "snapback/delivery.ts": `import { effect } from "snapback3"; ${declaration}`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(result.ok, JSON.stringify(result));
+        const qualified = names.map((name) => `delivery.${name}`);
+        assert.deepEqual(result.project.schema.effects, qualified);
+        assert.deepEqual(result.project.effects, qualified.map((name) => ({
+          name, grants: ["https://api.example.com"], source: "(async (payload) => payload)", then: null,
+        })));
+        assert.deepEqual(result.project.programs, []);
+      });
+    }
+  });
+
+  test("effect export aliases recognize renamed and namespace constructors", async () => {
+    for (const [imports, constructor] of [
+      ['import { effect as defineEffect } from "snapback3";', "defineEffect"],
+      ['import * as sb from "snapback3";', "sb.effect"],
+    ]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/delivery.ts": `${imports}
+          const local = ${constructor}({ grants: ["https://api.example.com"], run: async (_payload: null) => null });
+          export { local as notify };`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(result.ok, JSON.stringify(result));
+        assert.deepEqual(result.project.effects.map((effect) => effect.name), ["delivery.notify"]);
+        assert.deepEqual(result.project.schema.effects, ["delivery.notify"]);
+      });
+    }
+  });
+
+  test("effect export aliases keep distinct Quarry emits and named or namespace then targets", async () => {
+    for (const [imports, callback] of [
+      ['import { notify as completed } from "./ops";', "completed"],
+      ['import * as callbacks from "./ops";', "callbacks.notify"],
+    ]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/delivery.ts": `import { effect } from "snapback3"; ${imports}
+          const local = effect({ grants: ["https://api.example.com"], run: async (payload: {value: number}) => payload, then: ${callback} });
+          export { local as notify, local as retry };`,
+        "snapback/ops.q": `effect notify from delivery
+effect retry from delivery
+mutation notify(outboxId: id, effect: text <=100, result: json <=1000):
+  return true
+mutation fire():
+  emit notify { value: 1 }
+  emit retry { value: 2 }
+  return true
+`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(result.ok, JSON.stringify(result));
+        assert.deepEqual(result.project.schema.effects, ["delivery.notify", "delivery.retry"]);
+        assert.deepEqual(result.project.effects.map(({ name, then }) => ({ name, then })), [
+          { name: "delivery.notify", then: "ops.notify" }, { name: "delivery.retry", then: "ops.notify" },
+        ]);
+        const fire = result.project.programs.find((op) => op.name === "ops.fire");
+        assert(fire);
+        assert.deepEqual(fire.body.filter((stmt) => typeof stmt === "object" && "Emit" in stmt)
+          .map((stmt) => stmt.Emit.effect), ["delivery.notify", "delivery.retry"]);
+        assert(result.apiDts.includes("readonly notify: Op<"));
+      });
+    }
+  });
+
+  test("effect export aliases cannot bypass grants closure or then validation", async () => {
+    for (const [config, code] of [
+      ['grants: ["https://api.example.com/path"], run: async (_payload: null) => null', "E_EFFECT_GRANT"],
+      ['grants: ["https://api.example.com"], run: async (_payload: null) => helper()', "E_EFFECT_CLOSURE"],
+      ['grants: ["https://api.example.com"], run: async (_payload: null) => null, then: ping', "E_EFFECT_THEN_ARGS"],
+    ]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/ops.q": "query ping():\n  return null\n",
+        "snapback/delivery.ts": `import { effect } from "snapback3"; import { ping } from "./ops";
+          function helper() { return null; }
+          const local = effect({ ${config} }); export { local as notify };`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(!result.ok, `aliased effect bypassed ${code}`);
+        assert(result.diagnostics.some((d) => d.code === code && d.family === "effect"
+          && d.site.startsWith("snapback/delivery.ts:")), JSON.stringify(result));
+      });
+    }
+  });
+
+  test("empty grants compile without inventing authority or statically restricting fetch", async () => {
+    for (const body of [
+      "return { id: meta.id, body: payload.body };",
+      "return (await fetch(payload.body)).text();",
+      "const request = tools.fetch; return (await request(payload.body)).text();",
+      "async function request(url: string) { return (await tools.fetch(url)).text(); } return request(payload.body);",
+    ]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/delivery.ts": `import { effect } from "snapback3";
+          const local = effect({ grants: [], run: async (payload: { body: string }, tools) => { ${body} } });
+          export { local as notify };`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(result.ok, JSON.stringify(result));
+        assert.equal(result.project.effects.length, 1);
+        assert.deepEqual(result.project.effects[0]!.grants, []);
+        assert.equal(result.project.effects[0]!.name, "delivery.notify");
+      });
+    }
+  });
+
+  test("grants remain explicit literal origin lists with a no-network rewrite", async () => {
+    for (const config of [
+      "",
+      'grants: "https://example.com",',
+      "grants: [42],",
+      'grants: ["*"],',
+      'grants: ["http://example.com"],',
+      'grants: ["https://example.com/path"],',
+      'grants: ["https://user:password@example.com"],',
+    ]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/delivery.ts": `import { effect } from "snapback3";
+          export const notify = effect({ ${config} run: async () => null });`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        const refusal = !result.ok && result.diagnostics.find((item) => item.code === "E_EFFECT_GRANT");
+        assert(refusal, JSON.stringify(result));
+        assert.match(refusal.message, /use \[\] for no network access/);
+        assert.match(refusal.rewrite, /grants: \[\]/);
+      });
+    }
+  });
+
+  test("effect type-only export aliases do not create runtime catalog entries", async () => {
+    for (const exports of ['export type { local as hidden };', 'export { type local as hidden };']) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/delivery.ts": `import { effect } from "snapback3";
+          const local = effect({ grants: ["https://api.example.com"], run: async (_payload: null) => null }); ${exports}`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(!result.ok && result.diagnostics.some((d) => d.code === "E_OP_NONE"), JSON.stringify(result));
+      });
+    }
+  });
+
+  test("effect ES2020 witness compiles every admitted global and the full prelude response shape", async () => {
+    const result = await lowerProject(`${frontend}fixtures/effect-es2020`);
+    assert(result.ok, JSON.stringify(result));
+    assert.equal(result.project.effects.length, 1);
+    const source = result.project.effects[0]!.source;
+    const file = ts.createSourceFile("witness.js", source, ts.ScriptTarget.ES2020, true);
+    const keys = new Set<string>();
+    const visit = (node: ts.Node) => {
+      if (ts.isReturnStatement(node) && node.expression && ts.isObjectLiteralExpression(node.expression)) {
+        for (const property of node.expression.properties) {
+          if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.name)) keys.add(property.name.text);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+    for (const name of effectGlobals) assert(keys.has(name), `missing runtime witness for ${name}`);
+    const libs = await readFile(`${frontend}../snapback3/dist/effects-lib.d.ts`, "utf8");
+    assert.equal(ts.preProcessFile(libs).libReferenceDirectives.length, 0, "packaged libs must not load TypeScript files at runtime");
+    assert(!libs.includes("interface Document ") && !libs.includes("interface WorkerGlobalScope "));
+  });
+
+  test("effect refusals keep their family inside locals and reject non-runtime globals", async () => {
+    for (const expression of ["document", "window", "require('x')", "import('x')", "eval('1')", "Function('return 1')",
+      "crypto.randomUUID()", "Atomics", "SharedArrayBuffer", "globalThis", "new Response()", "setInterval(() => {}, 1)"]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/programs.q": "query ping():\n  return null\n",
+        "snapback/provider.ts": `import { effect } from 'snapback3';
+          export const notify = effect({ grants: ['https://example.com'], run: async () => {
+            const value = ${expression}; return value;
+          } });`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(!result.ok, `${expression} unexpectedly compiled`);
+        assert(result.diagnostics.every((item) => item.family === "effect"), JSON.stringify(result));
+        const refusal = result.diagnostics.find((item) => item.code === "E_EFFECT_CLOSURE" || item.code === "E_EFFECT_IMPORT");
+        assert(refusal, JSON.stringify(result));
+        if (refusal.code === "E_EFFECT_CLOSURE") {
+          for (const name of effectGlobals) assert(refusal.rewrite.includes(name), refusal.rewrite);
+        }
+      });
+    }
+  });
+
+  test("effects use ES2020 types while Quarry and its generated checker retain the subset", async () => {
+    // Quarry refuses JS method/constructor syntax before it can reach the TS checker.
+    for (const expression of ["body.substring(0, 80)", "body.charAt(0)", "body[0]", "new Map()", "new Headers()"]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/programs.q": `query preview(body: text <=200):\n  return ${expression}\n`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(!result.ok, `${expression} escaped Quarry`);
+        assert(result.diagnostics.every((item) => item.family === "quarry" && item.site.startsWith("snapback/programs.q:")), JSON.stringify(result));
+        assert(result.diagnostics.some((item) => expression === "body[0]"
+          ? item.code === "E_QUARRY_UNKNOWN" && item.message === "unknown table body"
+          : item.code === "E_QUARRY_SYNTAX" && item.message === 'expected newline, got "("'), JSON.stringify(result));
+      });
+    }
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/programs.q": "query ping():\n  return null\n",
+      "snapback/provider.ts": `import { effect } from 'snapback3';
+        export const notify = effect({ grants: ['https://example.com'], run: async (p: {body: string}) => {
+          const bad: number = p.body.substring(0, 80); return bad;
+        } });`,
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_EFFECT_TYPE" && item.message.includes("not assignable")), JSON.stringify(result));
+    });
+  });
+
+  test("effect public globals agree with Hermes and the guide/spec in exact order", async () => {
+    const rust = await readFile(`${frontend}../../crates/snapback3-effects/src/ibex.rs`, "utf8");
+    const list = rust.match(/const EFFECT_GLOBALS:.*?= &\[([\s\S]*?)\];/);
+    assert(list);
+    const internal = new Set(["$SHBuiltin", "DebuggerInternal", "HermesInternal", "__ibex2_fire_timer", "globalThis"]);
+    const names = [...list[1]!.matchAll(/"([^"\n]+)"/g)].map((match) => match[1]!).filter((name) => !internal.has(name));
+    assert.deepEqual(names, effectGlobals);
+    for (const path of [`${frontend}../snapback3/guide/effects.md`, `${frontend}../../../llp/1003-effects-on-ibex2.spec.md`]) {
+      const doc = await readFile(path, "utf8");
+      const list = doc.match(/exactly `(Array, [^`]+)`/);
+      assert(list, path);
+      assert.deepEqual(list[1]!.split(", "), effectGlobals, path);
+    }
+  });
+
+  test("one effect signature supplies all three metadata fields", async () => {
+    const declarations = await readFile(`${frontend}lib.d.ts`, "utf8");
+    const globals = await readFile(`${frontend}../snapback3/dist/effects-lib.d.ts`, "utf8");
+    const file = ts.createSourceFile("lib.d.ts", declarations + globals, ts.ScriptTarget.ES2020, true);
+    const signatures: ts.FunctionDeclaration[] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isFunctionDeclaration(node) && node.name?.text === "effect") signatures.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+    assert.equal(signatures.length, 1);
+    const diagnostics = typecheckSource(`import { effect } from "snapback3";
+      effect({grants: ["https://example.com"], run: async (_p: null, {meta}) => {
+        const id: string = meta.id; const name: string = meta.effect; const attempt: number = meta.attempt;
+        return {id, name, attempt};
+      }});`, "provider.ts", declarations + globals);
+    assert.deepEqual(diagnostics.map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n")), []);
+  });
+
+  test("authored helper modules get ES2020 with or without an effect export", async () => {
+    const files = {
+      "snapback/schema.q": schema,
+      "snapback/programs.q": "query ping():\n  return null\n",
+      "snapback/util.ts": 'export function clip(s: string) { return s.substring(0, 80); }',
+    };
+    await withProject(files, async (root) => { const result = await lowerProject(root); assert(result.ok, JSON.stringify(result)); });
+    await withProject({ "snapback/schema.q": schema, "snapback/util.ts": files["snapback/util.ts"] }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_OP_NONE"), JSON.stringify(result));
+    });
+    await withProject({
+      ...files,
+      "snapback/provider.ts": `import { effect } from "snapback3";
+        import { clip } from "./util";
+        type Payload = {body: ReturnType<typeof clip>};
+        export const notify = effect({ grants: ["https://example.com"], run: async (p: Payload) => p.body.substring(0, 80) });`,
+    }, async (root) => { const result = await lowerProject(root); assert(result.ok, JSON.stringify(result)); });
+    await withProject({
+      ...files,
+      "snapback/provider.ts": `import { effect } from "snapback3"; import { clip } from "./util";
+        export const notify = effect({ grants: ["https://example.com"], run: async (p: {body: string}) => clip(p.body) });`,
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.length === 1, JSON.stringify(result));
+      assert.equal(result.diagnostics[0]!.code, "E_EFFECT_CLOSURE", JSON.stringify(result));
+      assert.match(result.diagnostics[0]!.message, /non-JSON value clip/);
+    });
+    await withProject({ ...files, "snapback/util.ts": 'export function clip(s: string) { const bad: number = s.substring(0, 80); return bad; }' }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.length === 1, JSON.stringify(result));
+      assert.equal(result.diagnostics[0]!.code, "E_EFFECT_TYPE");
+      assert.match(result.diagnostics[0]!.site, /^snapback\/util.ts:/);
+      assert.match(result.diagnostics[0]!.message, /not assignable to type 'number'/);
+    });
+  });
+
+  test("static imports inside run refuse E_EFFECT_IMPORT", async () => {
+    for (const statement of ['import "snapback3";', 'import { effect } from "snapback3";', 'import helper = require("snapback3");']) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/programs.q": "query ping():\n  return null\n",
+        "snapback/provider.ts": `import { effect } from "snapback3";
+          export const notify = effect({ grants: ["https://example.com"], run: async () => { ${statement} return null; } });`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(!result.ok && result.diagnostics.length === 1, JSON.stringify(result));
+        assert(result.diagnostics[0]?.family === "effect"
+          && result.diagnostics[0].site.startsWith("snapback/provider.ts:")
+          && result.diagnostics[0].code === "E_EFFECT_IMPORT", JSON.stringify(result));
+      });
+    }
+  });
+
+  test("Quarry and effect diagnostics are each reported once by their own checker", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/programs.q": "query preview(body: text <=200):\n  return body - 1\n",
+      "snapback/provider.ts": `import { effect } from "snapback3";
+        export const notify = effect({ grants: ["https://example.com"], run: async (p: {body: string}) => {
+          const bad: number = p.body.substring(0, 80); return bad;
+        } });`,
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.length === 2, JSON.stringify(result));
+      assert.deepEqual(result.diagnostics.map((item) => [item.family, item.site.split(":")[0]]).sort(),
+        [["effect", "snapback/provider.ts"], ["quarry", "snapback/programs.q"]]);
+    });
+  });
+
+  test("the benchmark notification payload can project body.substring inside run", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/programs.q": "query ping():\n  return null\n",
+      "snapback/provider.ts": `import { effect } from "snapback3";
+        export const notify = effect({ grants: ["https://example.com"],
+          run: async (payload: {messageId: string; targetUserId: string; chatId: string; senderDisplayName: string; body: string; media: string}, {fetch, meta}) => {
+            const data = {messageId: payload.messageId, targetUserId: payload.targetUserId, chatId: payload.chatId,
+              senderDisplayName: payload.senderDisplayName, body: payload.body.substring(0, 80), media: payload.media};
+            const response = await fetch("https://example.com/push", {method: "POST",
+              headers: {"content-type": "application/json", "idempotency-key": meta.id}, body: JSON.stringify(data)});
+            if (!response.ok) throw new Error("Push seam " + response.status);
+            return {ok: true};
+          }
+        });`,
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(result.ok, JSON.stringify(result));
+      assert.match(result.project.effects[0]!.source, /body: payload.body.substring\(0, 80\)/);
+    });
+  });
+
+  test("TextDecoder exposes no unwitnessed constructor or streaming options", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/programs.q": "query ping():\n  return null\n",
+      "snapback/provider.ts": `import { effect } from "snapback3";
+        export const notify = effect({ grants: ["https://example.com"], run: async () =>
+          new TextDecoder("utf-8", {fatal: true}).decode(new Uint8Array(), {stream: true}) });`,
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.length === 2, JSON.stringify(result));
+      assert(result.diagnostics.every((item) => item.code === "E_EFFECT_TYPE" && /Expected 0(?:-1)? arguments, but got 2/.test(item.message)), JSON.stringify(result));
+    });
+  });
+
+  test("effect diagnostics retain grants, closure, imports, then, unknown, and query-emit refusals", async () => {
+    const cases: Array<[Record<string, string>, string]> = [
+      [{ "snapback/bad.ts": `import { effect } from "snapback3";
+        export const bad = effect({ grants: ["https://example.com/path"], run: async () => null });` }, "E_EFFECT_GRANT"],
+      [{ "snapback/bad.ts": `import { effect } from "snapback3";
+        const outside = () => null;
+        export const bad = effect({ grants: ["https://example.com"], run: async () => outside() });` }, "E_EFFECT_CLOSURE"],
+      [{ "snapback/bad.ts": `import { effect } from "snapback3";
+        export const bad = effect({ grants: ["https://example.com"], run: async () => import("outside") });` }, "E_EFFECT_IMPORT"],
+      [{
+        "snapback/ops.q": `query ping():
+  return null
+`,
+        "snapback/bad.ts": `import { effect } from "snapback3"; import { ping } from "./ops";
+          export const bad = effect({ grants: ["https://example.com"], run: async () => null, then: ping });`,
+      }, "E_EFFECT_THEN_ARGS"],
+      [{ "snapback/ops.q": "effect missing from bad\nquery ping():\n  return null\n" }, "E_EFFECT_UNKNOWN"],
+      [{
+        "snapback/ops.q": `effect notify from delivery
+query bad():
+  emit notify { value: 1 }
+  return null
+`,
+        "snapback/delivery.ts": `import { effect } from "snapback3";
+          export const notify = effect({ grants: ["https://example.com"], run: async () => null });`,
+      }, "E_EMIT_IN_QUERY"],
+    ];
+    for (const [files, code] of cases) await withProject({ "snapback/schema.q": schema, ...files }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok && result.diagnostics.some(item => item.code === code),
+        `${code} was omitted: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("effect source expands JSON constants and scopes nested function, method, and catch bindings", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback3";
+        const baseHeaders = { accept: "application/json" };
+        const requestDefaults = { method: "POST", headers: { ...baseHeaders, "content-type": "application/json" } };
+        export const notify = effect({ grants: ["https://example.com"], run: async (payload: { value: number }) => {
+          function identity(value: number) { return value; }
+          function keep(value: number) { return identity(value); }
+          const formatter = { format(value: number) { return keep(value); } };
+          try { return { ...requestDefaults, value: formatter.format(payload.value) }; }
+          catch (error) { return { ...requestDefaults, error: String(error) }; }
+        } });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok, JSON.stringify(result));
+      const source = result.project.effects[0]?.source ?? "";
+      assert(source.startsWith("(() => {") && source.includes('const requestDefaults = {"method":"POST"')
+        && source.includes('"headers":{"accept":"application/json","content-type":"application/json"}')
+        && source.includes("function identity") && source.includes("function keep")
+        && source.includes("format(value)") && source.includes("catch (error)"), source);
+    });
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback3";
+        const nonJson = () => 1;
+        const settings = { ...nonJson, method: "POST" };
+        export const broken = effect({ grants: ["https://example.com"], run: async () => settings });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      const refusal = !result.ok && result.diagnostics.find(item =>
+        item.code === "E_EFFECT_CLOSURE" && item.message.includes("spread nonJson"));
+      assert(refusal, `non-JSON constant spread lost its site: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("effect closure admits noncomputed destructuring property names", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback3";
+        export const renamed = effect({ grants: ["https://example.com"], run: async (_p: null, { value: local }: any) => local });
+        export const renamedDefault = effect({ grants: ["https://example.com"], run: async (_p: null, { value: local = 1 }: any) => local });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok && result.project.effects.length === 2, JSON.stringify(result));
+    });
+  });
+
+  test("effect closure refuses parameter, destructuring, and computed-name defaults at distinct sites", async () => {
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/delivery.ts": `import { effect } from "snapback3";
+        let someOuterName = { y: 0 };
+        export const parameterDefault = effect({ grants: ["https://example.com"], run: async (_payload: null = (someOuterName.y, null)) => null });
+        export const destructuringDefault = effect({ grants: ["https://example.com"], run: async ({ x = (someOuterName.y = 1) }: { x?: number }) => x });
+        export const computedName = effect({ grants: ["https://example.com"], run: async ({ [someOuterName.y]: x }: Record<number, unknown>) => x });`,
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "effects that close over parameter syntax unexpectedly compiled");
+      const refusals = result.diagnostics.filter(item =>
+        item.code === "E_EFFECT_CLOSURE" && item.message.includes("someOuterName"));
+      assert(refusals.length === 3 && new Set(refusals.map(item => item.site)).size === 3,
+        `parameter syntax lost distinct closure sites: ${JSON.stringify(result)}`);
+    });
+  });
+
+}

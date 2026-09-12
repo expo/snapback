@@ -1,0 +1,140 @@
+{
+  "cell": "astra",
+  "status": "Assembled and verified; not launched.",
+  "continuousBuilderPreserved": true,
+  "freshM7Preserved": true,
+  "independentGradeExcluded": true,
+  "otherCellsExcluded": true,
+  "priorRunsExcluded": true,
+  "supervisorAssessmentsExcluded": true,
+  "extraSourceFilesExcluded": true,
+  "promptPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/prompt.md",
+  "promptSha256": "601cbeb30ed907892c5a93cb14a358e38d6d14d5003b3bac56c58a6ec4af6d70",
+  "promptBytes": 183211,
+  "files": [
+    {
+      "source": "/home/ccheever/clique-0029-20260912/instrument/social-messenger.md",
+      "bytes": 56730,
+      "sha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+      "path": "frozen-brief.md",
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/frozen-brief.md",
+      "missing": false,
+      "kind": "frozen-brief"
+    },
+    {
+      "path": "diary.md",
+      "boundaryRelativePath": "app/diary.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-builder-snapshot/app/diary.md",
+      "bytes": 15638,
+      "sha256": "d556b1517df3775bdc4f7558ecfaee01d5886352bccd24ad7df0451768e9aa71",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/astra/diary.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "essay.md",
+      "boundaryRelativePath": "app/essay.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-builder-snapshot/app/essay.md",
+      "bytes": 10137,
+      "sha256": "3a3aba91b6f5fa1328364228663ab86094a6783583e219ba716446cd3f281db8",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/astra/essay.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "run-log.md",
+      "boundaryRelativePath": "app/run-log.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-builder-snapshot/app/run-log.md",
+      "bytes": 40505,
+      "sha256": "52966bbe83271a992409dce53ff25f0b57b70fba08e04f4f310470c7512da1d4",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/astra/run-log.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "final-report.md",
+      "boundaryRelativePath": "app/final-report.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-builder-snapshot/app/final-report.md",
+      "bytes": 19891,
+      "sha256": "d9da06b0c961f4a60bba9a8216a2408bb1fe74ef43d751605e15bb1ee0f1ad95",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/astra/final-report.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "run-record.json",
+      "boundaryRelativePath": "app/run-record.json",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-builder-snapshot/app/run-record.json",
+      "bytes": 9948,
+      "sha256": "19b947814ca1100a2f113b427e558f6febc8e20ff93751b4a3c6f080c1d8d4a3",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/astra/run-record.json",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "m7/diary.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/final-m7-snapshot/app/m7/diary.md",
+      "bytes": 3767,
+      "sha256": "80cd38702cb18b4b06934032b81e458fc50daedb906673973dc6f418321e3113",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/m7/diary.md",
+      "kind": "fresh-m7"
+    },
+    {
+      "path": "m7/essay-paragraphs.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/final-m7-snapshot/app/m7/essay-paragraphs.md",
+      "bytes": 1949,
+      "sha256": "222414eb2360b7906c1e85da7006c5791648a335a6034ed17fdadcb7e663d1e5",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/m7/essay-paragraphs.md",
+      "kind": "fresh-m7"
+    },
+    {
+      "path": "m7/run-log.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/final-m7-snapshot/app/m7/run-log.md",
+      "bytes": 9295,
+      "sha256": "80c35342328624e5030e42a662123b8185f65056d5e6e51e4fb53f5f2a2693e6",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/m7/run-log.md",
+      "kind": "fresh-m7"
+    },
+    {
+      "path": "m7/final-report.md",
+      "source": "/home/ccheever/snapback-1023-20260912/query/astra-0029/final-m7-snapshot/app/m7/final-report.md",
+      "bytes": 8499,
+      "sha256": "14fad06b9354775bda2a07b938ed9b7e928735e5606c53e57b2fd48628f03759",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/m7/final-report.md",
+      "kind": "fresh-m7"
+    }
+  ],
+  "sourcePhases": {
+    "continuous": {
+      "manifestPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/astra/manifest.json",
+      "manifestSha256": "9e605e58b71e2a59466b48e066c7915cc0079f690410ddd09188a937e0a09d50",
+      "remoteBoundaryManifestSha256": "6a1b0500a902233f7807145ac432105e8a56f7ae193f1773bd61a75ebe021e5b"
+    },
+    "freshM7": {
+      "manifestPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/astra-final/m7-boundary.json",
+      "manifestSha256": "d7431908a42f0103a869eca06da6f548195cbce3f078220ed700e230321d4124",
+      "remoteBoundaryManifestSha256": "5a0a81881e13e12ad70ccb8858e1286e44648697fa336d4f4c8c15ca00bd6ee8",
+      "exit": 0
+    }
+  },
+  "rubric": {
+    "path": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/rubric.template.md",
+    "sha256": "85bc1180b8d73d72b4bc5da143f0cb1331d747972156da0e485cea41db5358c5",
+    "renderedSha256": "3d77633843af2c8442cec47924e244234ca750f02d8b5c09c38ed6ea1a7f93fb",
+    "substitutions": {
+      "MODEL": "gpt-6-astra",
+      "WAVE": "astra"
+    },
+    "absoluteScoreAnchorsAnd13CategoryDescriptionsUnchanged": true
+  },
+  "scorer": {
+    "requestedModel": "gpt-6-astra",
+    "requestedEffort": "xhigh",
+    "launched": false
+  },
+  "missingFiles": []
+}

@@ -1,0 +1,16 @@
+diff --git a/lib/snapback-provider.web.tsx b/lib/snapback-provider.web.tsx
+--- a/lib/snapback-provider.web.tsx
++++ b/lib/snapback-provider.web.tsx
+@@ -12,12 +12,10 @@ function BrowserOfflineBridge() {
+     };
+     window.addEventListener("offline", sync);
+     window.addEventListener("online", sync);
+-    const timer = window.setInterval(sync, 400);
+     sync();
+     return () => {
+       window.removeEventListener("offline", sync);
+       window.removeEventListener("online", sync);
+-      window.clearInterval(timer);
+     };
+   }, [client]);
+   return null;

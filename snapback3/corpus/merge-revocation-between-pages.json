@@ -1,0 +1,613 @@
+{
+  "corpusVersion": 1,
+  "name": "merge-revocation-between-pages",
+  "category": "merge",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "follows": {
+        "columns": {
+          "at": "Int",
+          "followed": "Principal",
+          "follower": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byFollower": {
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "columns": {
+          "at": "Int",
+          "author": "Principal",
+          "id": "Id",
+          "visible": "Bool"
+        },
+        "indexes": {
+          "byAt": {
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byAuthorAt": {
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "visible"
+              },
+              {
+                "Literal": {
+                  "Bool": true
+                }
+              }
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "merge.hidden",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      }
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Merge": {
+            "site": "merge.hidden",
+            "lanes": [
+              {
+                "scan": {
+                  "site": "merge.hidden.0",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u1"
+                        }
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "merge.hidden",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
+              },
+              {
+                "scan": {
+                  "site": "merge.hidden.1",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u2"
+                        }
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "merge.hidden",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
+              },
+              {
+                "scan": {
+                  "site": "merge.hidden.2",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "empty"
+                        }
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "merge.hidden",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "merge.hidden",
+    "plan_hash": "5388803cee28d8e41f71fb0d190f7d85a119d5a18e7255defcdaa4e294f5b6a7",
+    "schema_hash": "0e86a7455fc0a937b9d8ee16648312eefd40718bbff286d6a401c3c5550c31a3",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "posts.read": "402e8ec3524632923c64d92e914dbfaf234ea38cdb9431a73b2125d8f92a6063"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "merge.hidden.0",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Const",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "merge.hidden.1",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Const",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "merge.hidden.2",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Const",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "merge_sites": [
+      {
+        "site": "merge.hidden",
+        "lane_sites": [
+          "merge.hidden.0",
+          "merge.hidden.1",
+          "merge.hidden.2"
+        ],
+        "take": 2,
+        "max_lanes": 3,
+        "uniform": false
+      }
+    ],
+    "result_pages": {
+      "0": {
+        "site": "merge.hidden",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": true
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 10240,
+    "max_steps": 51278,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 1640896,
+    "max_output_bytes": 772,
+    "max_closure_bytes": 5685,
+    "completeness": "Capped",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "posts.byAuthorAt"
+    ],
+    "disclosures": [],
+    "bound_product": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.0 on posts = 4 + merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.1 on posts = 4 + merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.2 on posts = 4",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 10228,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "examined entries",
+        "value": 4,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.0 on posts",
+        "site": "merge.hidden.0"
+      },
+      {
+        "meter": "examined entries",
+        "value": 4,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.1 on posts",
+        "site": "merge.hidden.1"
+      },
+      {
+        "meter": "examined entries",
+        "value": 4,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.2 on posts",
+        "site": "merge.hidden.2"
+      },
+      {
+        "meter": "index entries",
+        "value": 10228,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "index entries",
+        "value": 4,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.0 on posts",
+        "site": "merge.hidden.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 4,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.1 on posts",
+        "site": "merge.hidden.1"
+      },
+      {
+        "meter": "index entries",
+        "value": 4,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.2 on posts",
+        "site": "merge.hidden.2"
+      },
+      {
+        "meter": "rule probes",
+        "value": 10240,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 51140,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 70,
+        "source": "merge merge.hidden: heap work",
+        "site": "merge.hidden:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.0 on posts × 5",
+        "site": "merge.hidden.0"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.1 on posts × 5",
+        "site": "merge.hidden.1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.2 on posts × 5",
+        "site": "merge.hidden.2"
+      },
+      {
+        "meter": "steps",
+        "value": 7,
+        "source": "expressions",
+        "site": "merge.hidden:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "merge.hidden:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1636480,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2240,
+        "source": "merge merge.hidden: heap work × 32",
+        "site": "merge.hidden:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.0 on posts × 5 × 32",
+        "site": "merge.hidden.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.1 on posts × 5 × 32",
+        "site": "merge.hidden.1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "merge merge.hidden: 1 lanes × (2 + 2) at merge.hidden.2 on posts × 5 × 32",
+        "site": "merge.hidden.2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 224,
+        "source": "expressions × 32",
+        "site": "merge.hidden:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "merge.hidden:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 76,
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 308,
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 300,
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 54,
+        "source": "2 × posts.visible (27 bytes each; 11 field-name/framing + Bool value maximum 16)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "merge merge.hidden: emitted page: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 570,
+        "source": "15 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "merge.hidden"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2310,
+        "source": "15 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "merge.hidden"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2250,
+        "source": "15 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "merge.hidden"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 405,
+        "source": "15 × posts.visible (27 bytes each; 11 field-name/framing + Bool value maximum 16)",
+        "site": "merge.hidden"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 150,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": "merge.hidden"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": {
+        "String": "WzEsInBvc3RzIiwiYnlBdXRob3JBdCIsIkFzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IkludCJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6MX0seyJJZCI6ImIifV1d"
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "0e86a7455fc0a937b9d8ee16648312eefd40718bbff286d6a401c3c5550c31a3",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "merge.hidden.0",
+      "merge.hidden.1",
+      "merge.hidden.2"
+    ],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "merge.hidden.0": [
+        "exhausted"
+      ],
+      "merge.hidden.1": [
+        "exhausted"
+      ],
+      "merge.hidden.2": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

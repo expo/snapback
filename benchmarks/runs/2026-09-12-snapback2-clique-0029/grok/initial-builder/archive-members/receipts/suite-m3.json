@@ -1,0 +1,50 @@
+{
+  "milestone": "m3",
+  "pass": true,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m3-a03",
+      "name": "dm create is idempotent per pair",
+      "ok": true,
+      "ms": 169
+    },
+    {
+      "id": "m3-a04",
+      "name": "create group alice bob carol",
+      "ok": true,
+      "ms": 75
+    },
+    {
+      "id": "m3-a05",
+      "name": "second identical-membership group coexists",
+      "ok": true,
+      "ms": 46
+    },
+    {
+      "id": "m3-a10",
+      "name": "quoted reply stores quote id",
+      "ok": true,
+      "ms": 43
+    },
+    {
+      "id": "m3-a11",
+      "name": "quoted excerpt exists for jump",
+      "ok": true,
+      "ms": 3
+    },
+    {
+      "id": "m3-a14",
+      "name": "non-admin cannot remove members",
+      "ok": true,
+      "ms": 51
+    },
+    {
+      "id": "m3-a15",
+      "name": "seed idempotent",
+      "ok": true,
+      "ms": 675
+    }
+  ],
+  "at": "2026-09-12T07:25:08.623Z"
+}

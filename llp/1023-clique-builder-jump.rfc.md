@@ -5,7 +5,7 @@
 **Systems:** Snapback 2 query publication and freshness, certified read envelopes, durable browser mutations, packaged guide and React/Expo examples; Clique benchmark interpretation
 **Author:** Grok 4.6, for Charlie Cheever
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (Codex / GPT-6 Astra: source landed and 0.0.29 published with both platform qualifications; fresh instrument frozen before launch; reconcile subsequent 0.0.30 digest completion and retain unmet byte target)
+**Revised:** 2026-09-12 (Codex / GPT-6 Astra: reconcile the completed frozen Clique wave, published digest/read follow-ups, structural findings and unmet byte/one-client outcomes)
 **Related:** LLP 1000, LLP 1001, LLP 1010, LLP 1012, LLP 1018.003, LLP 1018.004, LLP 1018.007.000, LLP 1018.008.007.002, LLP 1019, LLP 1020; [residual assessment](./1018.008.009-residual-ergonomic-gaps.research.md); [query plan](./1023.000-one-query-story.plan.md), [scale plan](./1023.001-hub-scale-certified-reads.plan.md), [write plan](./1023.002-web-writes-that-survive-the-browser.plan.md)
 
 ## Summary
@@ -34,13 +34,24 @@ Snapback 2 lanes. The children now record their source outcomes and scoped
 qualification below. The reviewed source landed at `394ac17802`, and all
 three `0.0.29` packages are published with verified registry integrity and
 29 installed-consumer checks on each native platform. The parent remains
-**Accepted, not complete**: fresh Clique evidence is still outstanding and the
-80,000-byte target remains unmet. The fresh wave also reproduced a durable
-mixed-row/zero-count read defect. Its focused repair, independent reviews and
-complete script pass; final production-package qualification is in progress below.
+**Accepted, not complete**: the completed diagnostic wave does not establish
+the one-client builder outcome, and the 80,000-byte target remains unmet.
+The fresh wave also reproduced a durable
+mixed-row/zero-count read defect. Its independently reviewed and qualified
+repair is published in 0.0.31, with both platform consumers and registry
+integrities verified below.
 The separate 0.0.30 follow-up below completes
 the exact digest recipe. The residual research is context, not a fourth
 implementation work order.
+
+The [completed 0.0.29 wave](../benchmarks/runs/2026-09-12-snapback2-clique-0029/README.md)
+retains both initial independent grades and fresh M7 outcomes. Astra reaches
+the full logical scale fixture but its cold browser sync takes about 62 seconds
+and peaks near 748 MB heap. Both M7 sessions eventually pass their acceptance
+and browser checks, with explicit regression/preservation gaps. Astra retains
+additional authenticated readers, including polls. Later packages were never
+substituted into these actors; scoped source completion and broad builder
+success remain separate conclusions.
 
 ## Evidence and what it establishes
 
@@ -219,11 +230,12 @@ needs reassessment; score improvement with wrong data fails the program.
 The exact final-time digest recipe is now implemented and published in 0.0.30,
 with the scoped qualification recorded under Subsequent hub completion below.
 The failed 0.0.29 forms remain historical evidence for those candidates. The
-80,000-byte target and the fresh Clique wave remain outstanding. The running
-wave retains its frozen 0.0.29 package and cannot qualify the later recipe;
-source/package checks and final builder outcomes remain separate evidence.
-The mixed-row/zero-count regression below reopens the one-client read outcome;
-the initial source qualification did not cover that failing transition.
+completed wave retains its frozen 0.0.29 package and cannot qualify the later
+recipe or 0.0.31 read repair. The mixed-row/zero-count defect is repaired and
+published, but the one-client builder outcome remains unestablished. The
+80,000-byte target is unmet after the bounded simplification rounds. No runtime
+ceiling change was adopted; the current bakeoff ruling freezes new substrate
+and ceiling changes. Existing acquisition and papercut work retain their owners.
 
 [Review and dispositions](./reviews/1023-clique-builder-jump.gpt.md).
 
@@ -410,16 +422,17 @@ observations are retained in the
 Staging and exact registry integrity establish the published package identity;
 they do not stand in for a completed fresh Clique run.
 
-The fresh diagnostic wave uses the frozen 0.3.8-m8 instrument above, with
+The completed diagnostic wave used the frozen 0.3.8-m8 instrument above, with
 `gpt-6-astra` at medium on EPYC and `grok-4.6` at xhigh on the separate
 Ryzen 5 3600 host. Separate hosts prevent the two browser runs sharing ports
 or owner processes; their different hardware prevents a matched timing
-comparison. Each build is followed by fresh `claude-opus-5` grading and fresh
-M7. Builders receive the normal task, instrument and installed package only.
+comparison. Each build was followed by fresh `claude-opus-5` grading and fresh
+M7. Builders received the normal task, instrument and installed package.
 The earlier serial host plan is retained as preparation history. These are
 N=1 diagnostic cells: prompt-only caps, unjoined raw usage, no held-out probes
-or calibration, and no Apple-native witness remain explicit limits. No new score
-or strict M1–M8 qualification is claimed before those phases finish.
+or calibration, and no Apple-native witness remain explicit limits. The
+completed record below distinguishes initial grading, fresh M7 and narrative
+scoring; their combination does not establish strict M1–M8 qualification.
 
 ### Subsequent hub completion — 0.0.30
 
@@ -508,3 +521,50 @@ work and raw measurements remain. Linux staging of that content passes all 29
 production installed-consumer checks in 255.66 seconds. Final shared-shim
 Darwin qualification and publication remain pending. The existing acquisition
 plan records the budget trade; no runtime allocation is raised.
+
+### Read-repair publication — 0.0.31
+
+The source follow-up landed at `cc40e2b78e` and published all three 0.0.31
+packages at 11:01:35 UTC. Registry verification at 11:03:56 UTC matches the
+qualified native and shared-shim integrities. Both platforms pass 29 production
+installed-consumer checks. The immutable package cut is `d251e00dae` at
+89,993 runtime bytes; later schema-digest reuse on main is outside that cut
+and its combined 89,983-byte measurement remains separate evidence.
+
+All three child plans now record implemented source scope. The parent remains
+Accepted: the 80,000-byte objective is unmet, and the frozen 0.0.29 wave retains
+its second reader and other measured failures. The repaired package was not
+substituted into those builders, graders or fresh M7 sessions. The
+[release record](../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/README.md)
+retains actual reviews, rejected bytes, qualification, publication and scope.
+
+### Completed frozen wave — findings and limits
+
+The [wave record](../benchmarks/runs/2026-09-12-snapback2-clique-0029/README.md)
+retains original evidence and its attribution. Initial independent grading
+reports Astra O1 73 / O2 55 / O4 65 / O5 band 30, and Grok O1 52 / O2 42.
+O3 is null without committed holdouts; Grok O4/O5 are also null. No weighted
+objective total or controlled change from the historical 82 is established.
+The separate narrative-only scorers return Astra 81 and Grok 60, with zero
+observed tool attempts. Their inputs exclude independent grading and root
+attributions; model/citation limits and Grok's missing original run record
+remain in the score audits. These scores do not repair the objective gaps.
+Both later M7 sessions pass acceptance and browser checks. Astra drops M4/M6
+from its regression selection after grader-mutated status sidecars; Grok's
+snapshot comparison omits timestamps/receipts and retains no post-export.
+These are real evidence gaps, not implied successful preservation.
+
+The strongest structural findings are query/coverage/lifecycle coordination,
+cold acquisition cost, ordinary feature algorithms shaped by execution bounds,
+and representation cost: one canonical scale database is 5.2 GB, with 70.020%
+in generic index structures. This is server storage, not downloaded data or
+a measured safely removable fraction. The sender-photo retry omission,
+missing routes, wrong page sizes, incorrect authored digest/tombstone logic
+and weak tests are localized failures. The compiler's misleading read/channel
+remedy is fixed in 0.0.31. No generic backend impossibility is inferred from
+an incorrect application, and no broad authorization failure was observed.
+
+All three children close implemented source scope. The parent retains its
+unmet cost and one-client outcomes, while the existing acquisition owner
+retains that target. The diagnostic run is finished; those outcomes are no
+longer described as merely waiting for the run to complete.

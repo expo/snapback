@@ -1,0 +1,278 @@
+diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+index a1e0dac..da03c36 100644
+--- a/lib/thread-view.tsx
++++ b/lib/thread-view.tsx
+@@ -1,7 +1,7 @@
+ import React, { useEffect, useMemo, useRef, useState } from "react";
+ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+ import { useRouter } from "expo-router";
+-import { api } from "snapback3/client";
++import { api, defineItems, mutationTarget } from "snapback3/client";
+ import {
+   useAssetUrl,
+   useAuth,
+@@ -36,6 +36,53 @@ type ThreadRow = {
+   pendingRead: number;
+ };
+ 
++const messageCreateTargets = {
++  "messages.send": mutationTarget(api.messages.send, "messages"),
++  "messages.sendPhoto": mutationTarget(api.messages.sendPhoto, "messages"),
++  "messages.sendClip": mutationTarget(api.messages.sendClip, "messages"),
++  "messages.sendOncePhoto": mutationTarget(api.messages.sendOncePhoto, "messages"),
++};
++
++const textMessageItems = defineItems(api.messages.thread, {
++  table: "messages",
++  select: (delivery) => delivery.message,
++  create: {
++    target: messageCreateTargets["messages.send"],
++    belongs: (args, query) => query.c === null && args.conversationId === query.conversationId,
++    draft: (args) => ({ body: args.body }),
++  },
++});
++
++const photoMessageItems = defineItems(api.messages.thread, {
++  table: "messages",
++  select: (delivery) => delivery.message,
++  create: {
++    target: messageCreateTargets["messages.sendPhoto"],
++    belongs: (args, query) => query.c === null && args.conversationId === query.conversationId,
++    draft: (args) => ({ body: args.body ?? "" }),
++  },
++});
++
++const clipMessageItems = defineItems(api.messages.thread, {
++  table: "messages",
++  select: (delivery) => delivery.message,
++  create: {
++    target: messageCreateTargets["messages.sendClip"],
++    belongs: (args, query) => query.c === null && args.conversationId === query.conversationId,
++    draft: (args) => ({ body: args.body ?? "" }),
++  },
++});
++
++const oncePhotoMessageItems = defineItems(api.messages.thread, {
++  table: "messages",
++  select: (delivery) => delivery.message,
++  create: {
++    target: messageCreateTargets["messages.sendOncePhoto"],
++    belongs: (args, query) => query.c === null && args.conversationId === query.conversationId,
++    draft: (args) => ({ body: args.body ?? "" }),
++  },
++});
++
+ export function ThreadView({
+   conversationId,
+   title,
+@@ -51,10 +98,10 @@ export function ThreadView({
+   const { session: auth } = useAuth();
+   const snapback = useSnapbackClient();
+   const viewer = auth.state === "authenticated" ? auth.viewer : undefined;
+-  const send = useMutation(api.messages.send);
+-  const sendPhoto = useMutation(api.messages.sendPhoto);
+-  const sendClip = useMutation(api.messages.sendClip);
+-  const sendOnce = useMutation(api.messages.sendOncePhoto);
++  const send = useMutation(messageCreateTargets["messages.send"]);
++  const sendPhoto = useMutation(messageCreateTargets["messages.sendPhoto"]);
++  const sendClip = useMutation(messageCreateTargets["messages.sendClip"]);
++  const sendOnce = useMutation(messageCreateTargets["messages.sendOncePhoto"]);
+   const sendPoll = useMutation(api.messages.sendPoll);
+   const votePoll = useMutation(api.messages.setPollVote);
+   const editMut = useMutation(api.messages.edit);
+@@ -62,7 +109,10 @@ export function ThreadView({
+   const reactMut = useMutation(api.messages.setReaction);
+   const markRead = useMutation(api.messages.markRead);
+   const markDelivered = useMutation(api.messages.markDelivered);
+-  const thread = useQuery(api.messages.thread, { conversationId, c: null });
++  const thread = useQuery(api.messages.thread, { conversationId, c: null }, { items: textMessageItems });
++  const photoThread = useQuery(api.messages.thread, { conversationId, c: null }, { items: photoMessageItems });
++  const clipThread = useQuery(api.messages.thread, { conversationId, c: null }, { items: clipMessageItems });
++  const oncePhotoThread = useQuery(api.messages.thread, { conversationId, c: null }, { items: oncePhotoMessageItems });
+   const view = useQuery(api.messages.conversationView, { conversationId, c: null });
+   const polls = useQuery(api.messages.pollsInChat, { conversationId });
+   const votes = useQuery(api.messages.votesInChat, { conversationId });
+@@ -75,7 +125,6 @@ export function ThreadView({
+   const [openedOnce, setOpenedOnce] = useState<Record<string, boolean>>({});
+   const [editId, setEditId] = useState<string | undefined>();
+   const [pendingFile, setPendingFile] = useState<File | null>(null);
+-  const [pendingLocals, setPendingLocals] = useState<{ id: string; body: string }[]>([]);
+   const [viewerMedia, setViewerMedia] = useState<{ kind: "image" | "video"; uri: string } | null>(null);
+   const [error, setError] = useState<string | undefined>();
+   const [showPoll, setShowPoll] = useState(false);
+@@ -105,44 +154,20 @@ export function ThreadView({
+     }
+   }, [conversationId, thread.data?.length, viewer]);
+ 
+-  useEffect(() => {
+-    if (typeof document === "undefined") return;
+-    const onClick = (event: MouseEvent) => {
+-      const target = event.target as HTMLElement | null;
+-      if (!target?.closest?.("[data-testid='sm-convo-send']")) return;
+-      event.preventDefault();
+-      const input = document.querySelector("[data-testid='sm-convo-input']") as HTMLInputElement | null;
+-      const text = input?.value || (globalThis as { __cliqueDraft?: string }).__cliqueDraft || "";
+-      if (!text && !pendingFile) return;
+-      setPendingLocals((cur) => [...cur, { id: `local-${Date.now()}`, body: text }]);
+-      void submitMessage({
+-        text,
+-        conversationId,
+-        editId,
+-        items,
+-        pendingFile,
+-        viewOnce,
+-        quoteId,
+-        send,
+-        sendPhoto,
+-        sendClip,
+-        sendOnce,
+-        editMut,
+-        setEditId,
+-        setDraft,
+-        setQuoteId,
+-        setPendingFile,
+-        setPendingLocals,
+-        setError,
+-        typing,
+-      });
+-      if (input) input.value = "";
+-    };
+-    document.addEventListener("click", onClick, true);
+-    return () => document.removeEventListener("click", onClick, true);
+-  }, [conversationId, editId, items, pendingFile, viewOnce, quoteId]);
+-
+-  const queued = outbox.entries.filter((e) => e.state === "queued" || (e as { status?: string }).status === "queued");
++  const projectedIntents = new Set(
++    [thread, photoThread, clipThread, oncePhotoThread].flatMap((snapshot) =>
++      snapshot.items.flatMap((item) => item.pending.flatMap((action) => action.kind === "create" ? [action.intent] : [])),
++    ),
++  );
++  const projectedMessages = outbox.entries.flatMap((entry) => {
++    const target = messageCreateTargets[entry.op as keyof typeof messageCreateTargets];
++    const args = entry.args as { conversationId?: string; body?: string | null; messageId?: string | null };
++    if (!target || !["queued", "committed"].includes(entry.state) || args.conversationId !== conversationId
++      || !projectedIntents.has(entry.intent)) return [];
++    const id = args.messageId ?? target.id(entry);
++    if (!id || items.some((row) => row.messageId === id)) return [];
++    return [{ id, body: args.body ?? "", pending: entry.state === "queued" }];
++  });
+ 
+   return (
+     <Screen
+@@ -216,15 +241,17 @@ export function ThreadView({
+             }}
+           />
+         ))}
+-        {pendingLocals.map((p) => (
+-          <MessageBubble
+-            key={p.id}
+-            isMine
+-            text={p.body}
+-            receipt="sent"
+-            receiptPending
+-            timestamp="now"
+-          />
++        {projectedMessages.map((p) => (
++          <View nativeID={`msg-${p.id}`} key={p.id} testID="sm-convo-bubble" style={styles.bubbleWrap}>
++            <MessageBubble
++              testID="sm-convo-inner"
++              isMine
++              text={p.body}
++              receipt="sent"
++              receiptPending={p.pending}
++              timestamp="now"
++            />
++          </View>
+         ))}
+         <TypingIndicator
+           visible={typing.entries.some((e) => e.from !== viewer && e.value.typing)}
+@@ -343,7 +370,6 @@ export function ThreadView({
+               setDraft,
+               setQuoteId,
+               setPendingFile,
+-              setPendingLocals,
+               setError,
+               typing,
+             });
+@@ -375,7 +401,6 @@ export function ThreadView({
+               placeholder="Message"
+               autoComplete="off"
+               onInput={(e) => {
+-                (globalThis as { __cliqueDraft?: string }).__cliqueDraft = (e.target as HTMLInputElement).value;
+                 pulseTyping();
+               }}
+               style={{ flex: 1, minHeight: 44, fontSize: 16, padding: 8 }}
+@@ -417,7 +442,6 @@ export function ThreadView({
+               setDraft,
+               setQuoteId,
+               setPendingFile,
+-              setPendingLocals,
+               setError,
+               typing,
+             })
+@@ -506,12 +530,15 @@ async function submitMessage(opts: {
+   setDraft: (text: string) => void;
+   setQuoteId: (id: string | undefined) => void;
+   setPendingFile: (file: File | null) => void;
+-  setPendingLocals: React.Dispatch<React.SetStateAction<{ id: string; body: string }[]>>;
+   setError: (err: string | undefined) => void;
+   typing: { clear: () => Promise<unknown> };
+ }) {
+   opts.setError(undefined);
+-  const localId = `local-${Date.now()}`;
++  if ([...opts.text].length > 2_000) {
++    opts.setError("Message must be 2,000 characters or fewer");
++    return;
++  }
++  const messageId = `clique-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+   let result: { state: string; data?: { id?: string }; message?: string } | undefined;
+   if (opts.editId) {
+     const original = opts.items.find((r) => r.messageId === opts.editId)?.message?.body ?? "";
+@@ -519,11 +546,11 @@ async function submitMessage(opts: {
+     opts.setEditId(undefined);
+   } else if (opts.pendingFile) {
+     if (opts.pendingFile.type.startsWith("video/")) {
+-      result = await opts.sendClip.run({ conversationId: opts.conversationId, clip: opts.pendingFile, body: opts.text || null } as never);
++      result = await opts.sendClip.run({ conversationId: opts.conversationId, clip: opts.pendingFile, body: opts.text || null, messageId } as never);
+     } else if (opts.viewOnce) {
+-      result = await opts.sendOnce.run({ conversationId: opts.conversationId, photo: opts.pendingFile, body: opts.text || null } as never);
++      result = await opts.sendOnce.run({ conversationId: opts.conversationId, photo: opts.pendingFile, body: opts.text || null, messageId } as never);
+     } else {
+-      result = await opts.sendPhoto.run({ conversationId: opts.conversationId, photo: opts.pendingFile, body: opts.text || null } as never);
++      result = await opts.sendPhoto.run({ conversationId: opts.conversationId, photo: opts.pendingFile, body: opts.text || null, messageId } as never);
+     }
+     opts.setPendingFile(null);
+   } else {
+@@ -531,11 +558,9 @@ async function submitMessage(opts: {
+       conversationId: opts.conversationId,
+       body: opts.text,
+       quoteId: opts.quoteId ?? null,
++      messageId,
+     } as never);
+   }
+-  if (result?.state === "queued") {
+-    opts.setPendingLocals((cur) => [...cur, { id: result?.data?.id ?? localId, body: opts.text }]);
+-  }
+   if (result?.state === "rejected") {
+     opts.setError(result.message ?? "Could not send");
+   }
+@@ -601,9 +626,6 @@ function ThreadBubble({
+   const onceUrl = useAssetUrl(openedOnce ? media.data?.oncePhoto ?? undefined : undefined);
+   const reactionsQ = useQuery(api.messages.reactionsFor, { messageId: row.messageId });
+   const quote = msg?.quoteId ? items.find((x) => x.messageId === msg.quoteId) : undefined;
+-  if (!msg) return null;
+-  const mine = msg.authorId === viewer;
+-  const deleted = msg.status === "removed" || msg.status === "expired";
+   const grouped = useMemo(() => {
+     const map = new Map<string, { count: number; mine: boolean }>();
+     for (const r of reactionsQ.data ?? []) {
+@@ -614,6 +636,9 @@ function ThreadBubble({
+     }
+     return [...map.entries()].map(([emoji, info]) => ({ emoji, ...info }));
+   }, [reactionsQ.data, viewer]);
++  if (!msg) return null;
++  const mine = msg.authorId === viewer;
++  const deleted = msg.status === "removed" || msg.status === "expired";
+   const hasOnce = !!media.data?.oncePhoto;
+   const mediaKind = media.data?.clip ? "video" : media.data?.photo || hasOnce ? "image" : undefined;
+   const mediaUri = media.data?.clip ? clipUrl : media.data?.photo ? photoUrl : undefined;

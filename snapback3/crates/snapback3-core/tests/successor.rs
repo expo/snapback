@@ -1,0 +1,1435 @@
+use snapback3_core::*;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+fn table(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]) -> Table {
+    public_table(
+        columns
+            .iter()
+            .map(|(name, kind)| ((*name).to_owned(), kind.clone()))
+            .collect(),
+        indexes
+            .iter()
+            .map(|(name, columns)| {
+                (
+                    (*name).to_owned(),
+                    Index {
+                        components: (columns
+                            .iter()
+                            .map(|column| (*column).to_owned())
+                            .collect::<Vec<_>>())
+                        .into_iter()
+                        .map(snapback3_core::search_key::IndexComponent::Column)
+                        .collect(),
+                        unique: false,
+                    },
+                )
+            })
+            .collect(),
+    )
+}
+fn schema(tables: BTreeMap<String, Table>, maintains: Vec<Maintain>) -> Schema {
+    Schema {
+        schedules: Vec::new(),
+        tables,
+        maintains,
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    }
+}
+
+fn generation(schema: Schema, programs: Vec<Program>) -> Generation {
+    Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema,
+            programs,
+            effects: Vec::new(),
+            auth: Auth::default(),
+        },
+        Ceilings::default(),
+    )
+    .unwrap()
+}
+
+fn get_program(name: &str, table: &str, index: &str, key: &str) -> Program {
+    Program {
+        name: name.to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([(key.to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Get(Read {
+            site: name.to_owned(),
+            table: table.to_owned(),
+            index: index.to_owned(),
+            key: vec![var(key)],
+            provenance: KeyProvenance::Arg,
+        }))],
+    }
+}
+
+fn text_owner_runtime() -> (Runtime, Table) {
+    let items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("ownerId", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let tables = BTreeMap::from([("items".to_owned(), items.clone())]);
+    let base = generation(
+        schema(tables, Vec::new()),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("i1".to_owned())),
+                ("ownerId", Value::String("alice".to_owned())),
+            ]),
+        )])
+        .unwrap();
+    (runtime, items)
+}
+
+#[test]
+fn additive_successor_adds_table_column_index_and_program_in_place() {
+    let base_items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("name", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let base_schema = schema(
+        BTreeMap::from([("items".to_owned(), base_items.clone())]),
+        Vec::new(),
+    );
+    let base = generation(
+        base_schema,
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("i1".to_owned())),
+                ("name", Value::String("one".to_owned())),
+            ]),
+        )])
+        .unwrap();
+
+    let mut next_items = base_items;
+    next_items.columns.insert(
+        "note".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
+    );
+    next_items.indexes.insert(
+        "byName".to_owned(),
+        Index {
+            components: (vec!["name".to_owned()])
+                .into_iter()
+                .map(snapback3_core::search_key::IndexComponent::Column)
+                .collect(),
+            unique: false,
+        },
+    );
+    let logs = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let next_schema = schema(
+        BTreeMap::from([("items".to_owned(), next_items), ("logs".to_owned(), logs)]),
+        Vec::new(),
+    );
+    let next = generation(
+        next_schema,
+        vec![
+            get_program("items.get", "items", "byId", "id"),
+            get_program("items.byName", "items", "byName", "name"),
+            Program {
+                name: "items.addNote".to_owned(),
+                kind: ProgramKind::Mutation,
+                args: BTreeMap::new(),
+                read_time_granularity_ms: None,
+                body: vec![Stmt::Update {
+                    table: "items".to_owned(),
+                    key: Expr::Literal(Value::Id("i1".to_owned())),
+                    patch: Expr::Literal(object([(
+                        "note",
+                        Value::String("added later".to_owned()),
+                    )])),
+                }],
+            },
+        ],
+    );
+    let report = runtime.apply_successor(next).unwrap();
+    assert_eq!(report.added_tables, vec!["logs"]);
+    assert!(report.added_columns.contains(&"items.note".to_owned()));
+    assert!(report.added_indexes.contains(&"items.byName".to_owned()));
+
+    let updated = runtime
+        .execute(
+            "items.addNote",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert!(matches!(updated.state, ExecutionState::Committed { .. }));
+
+    let execution = runtime
+        .execute(
+            "items.byName",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("name".to_owned(), Value::String("one".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        execution.result.field("id").unwrap(),
+        &Value::Id("i1".to_owned())
+    );
+    assert_eq!(
+        execution.result.field("note").unwrap(),
+        &Value::String("added later".to_owned())
+    );
+}
+
+#[test]
+fn successor_optional_column_is_null_in_expressions_rules_and_indexes() {
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([("id", Value::Id("preexisting".to_owned()))]),
+        )])
+        .unwrap();
+
+    let mut next_items = items;
+    next_items.columns.insert(
+        "note".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
+    );
+    next_items.indexes.insert(
+        "byNote".to_owned(),
+        Index {
+            components: (vec!["note".to_owned()])
+                .into_iter()
+                .map(snapback3_core::search_key::IndexComponent::Column)
+                .collect(),
+            unique: false,
+        },
+    );
+    next_items.rules.read = RuleExpr::Eq(
+        RuleTerm::Field("note".to_owned()),
+        RuleTerm::Literal(Value::Null),
+    );
+    let read_note = Program {
+        name: "items.note".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(field(
+            Expr::Get(Read {
+                site: "items.note".to_owned(),
+                table: "items".to_owned(),
+                index: "byNote".to_owned(),
+                key: vec![Expr::Literal(Value::Null)],
+                provenance: KeyProvenance::Const,
+            }),
+            "note",
+        ))],
+    };
+    runtime
+        .apply_successor(generation(
+            schema(
+                BTreeMap::from([("items".to_owned(), next_items)]),
+                Vec::new(),
+            ),
+            vec![read_note],
+        ))
+        .unwrap();
+
+    let execution = runtime
+        .execute(
+            "items.note",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_eq!(execution.result, Value::Null);
+    assert!(execution.trace.points[0].visible);
+}
+
+#[test]
+fn new_maintained_aggregate_is_backfilled_from_existing_rows() {
+    let cards = table(
+        &[("id", ColumnType::Id), ("group", ColumnType::Id)],
+        &[("byId", &["id"])],
+    );
+    let counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    let tables = BTreeMap::from([("cards".to_owned(), cards), ("counts".to_owned(), counts)]);
+    let base = generation(schema(tables.clone(), Vec::new()), Vec::new());
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "cards".to_owned(),
+                object([
+                    ("id", Value::Id("c1".to_owned())),
+                    ("group", Value::Id("g1".to_owned())),
+                ]),
+            ),
+            (
+                "cards".to_owned(),
+                object([
+                    ("id", Value::Id("c2".to_owned())),
+                    ("group", Value::Id("g1".to_owned())),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let maintain = Maintain {
+        kind: MaintainKind::Count,
+        source: "cards".to_owned(),
+        by: vec!["group".to_owned()],
+        target: "counts".to_owned(),
+        readable: None,
+    };
+    let next = generation(
+        schema(tables, vec![maintain]),
+        vec![get_program("counts.get", "counts", "byGroup", "group")],
+    );
+    let report = runtime.apply_successor(next).unwrap();
+    assert_eq!(report.backfilled_maintains, 1);
+    let execution = runtime
+        .execute(
+            "counts.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(execution.result.field("value").unwrap(), &Value::Int(2));
+
+    let seq = runtime
+        .seed(&[(
+            "cards".to_owned(),
+            object([
+                ("id", Value::Id("c3".to_owned())),
+                ("group", Value::Id("g1".to_owned())),
+            ]),
+        )])
+        .unwrap();
+    let commit = runtime.store().commits_since(seq - 1, 1).unwrap().remove(0);
+    assert_eq!(commit.kind, "seed");
+    assert_eq!(commit.writes.get("counts"), Some(&1));
+    assert_eq!(
+        commit
+            .touched
+            .iter()
+            .filter(|key| key.table == "counts" && key.index == "byGroup")
+            .count(),
+        2,
+        "maintained updates trace the aggregate's before and after keys"
+    );
+}
+
+#[test]
+fn maintained_backfill_materializes_new_optional_group_as_null() {
+    let cards = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let counts = table(&[("id", ColumnType::Id), ("value", ColumnType::Int)], &[]);
+    let base = generation(
+        schema(
+            BTreeMap::from([
+                ("cards".to_owned(), cards.clone()),
+                ("counts".to_owned(), counts.clone()),
+            ]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "cards".to_owned(),
+                object([("id", Value::Id("c1".to_owned()))]),
+            ),
+            (
+                "cards".to_owned(),
+                object([("id", Value::Id("c2".to_owned()))]),
+            ),
+        ])
+        .unwrap();
+
+    let optional_bucket = ColumnType::Optional(Box::new(ColumnType::Text { max: 32 }));
+    let mut next_cards = cards;
+    next_cards
+        .columns
+        .insert("bucket".to_owned(), optional_bucket.clone());
+    let mut next_counts = counts;
+    next_counts
+        .columns
+        .insert("bucket".to_owned(), optional_bucket);
+    next_counts.indexes.insert(
+        "byBucket".to_owned(),
+        Index {
+            components: (vec!["bucket".to_owned()])
+                .into_iter()
+                .map(snapback3_core::search_key::IndexComponent::Column)
+                .collect(),
+            unique: true,
+        },
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([
+                ("cards".to_owned(), next_cards),
+                ("counts".to_owned(), next_counts),
+            ]),
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "cards".to_owned(),
+                by: vec!["bucket".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        vec![get_program("counts.get", "counts", "byBucket", "bucket")],
+    );
+
+    runtime.apply_successor(next).unwrap();
+    let aggregate = runtime
+        .execute(
+            "counts.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("bucket".to_owned(), Value::Null)]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(aggregate.result.field("bucket").unwrap(), &Value::Null);
+    assert_eq!(aggregate.result.field("value").unwrap(), &Value::Int(2));
+}
+
+#[test]
+fn live_maintained_count_materializes_omitted_optional_group_as_null() {
+    let optional_group = ColumnType::Optional(Box::new(ColumnType::Text { max: 32 }));
+    let items = table(
+        &[("id", ColumnType::Id), ("group", optional_group.clone())],
+        &[("byId", &["id"])],
+    );
+    let counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", optional_group),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    let insert = Program {
+        name: "items.insert".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Insert {
+            table: "items".to_owned(),
+            row: Expr::Literal(object([("id", Value::Id("i1".to_owned()))])),
+        }],
+    };
+    let generation = generation(
+        schema(
+            BTreeMap::from([("counts".to_owned(), counts), ("items".to_owned(), items)]),
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "items".to_owned(),
+                by: vec!["group".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        vec![
+            insert,
+            get_program("counts.get", "counts", "byGroup", "group"),
+        ],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+
+    let inserted = runtime
+        .execute(
+            "items.insert",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert!(matches!(inserted.state, ExecutionState::Committed { .. }));
+    let aggregate = runtime
+        .execute(
+            "counts.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("group".to_owned(), Value::Null)]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(aggregate.result.field("group").unwrap(), &Value::Null);
+    assert_eq!(aggregate.result.field("value").unwrap(), &Value::Int(1));
+}
+
+#[test]
+fn destructive_successor_reports_all_drops_and_applies_only_that_plan() {
+    let items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("name", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let base = generation(
+        schema(BTreeMap::from([("items".to_owned(), items)]), Vec::new()),
+        Vec::new(),
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("i1".to_owned())),
+                ("name", Value::String("one".to_owned())),
+            ]),
+        )])
+        .unwrap();
+    let next = generation(schema(BTreeMap::new(), Vec::new()), Vec::new());
+    let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
+    assert_eq!(
+        refusal.plan.drops,
+        vec![Drop::Table {
+            name: "items".to_owned(),
+            rows: 1,
+        }]
+    );
+    runtime.apply_migration(next, &refusal.plan, 0).unwrap();
+    assert!(runtime.generation().schema().tables.is_empty());
+}
+
+#[test]
+fn required_column_on_populated_table_is_refused() {
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([("id", Value::Id("i1".to_owned()))]),
+        )])
+        .unwrap();
+    let mut next_items = items;
+    next_items
+        .columns
+        .insert("name".to_owned(), ColumnType::Text { max: 64 });
+    let refusal = runtime
+        .apply_successor(generation(
+            schema(
+                BTreeMap::from([("items".to_owned(), next_items)]),
+                Vec::new(),
+            ),
+            Vec::new(),
+        ))
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_COLUMN_REQUIRED");
+    assert!(refusal.message.contains("items.name"));
+    assert!(
+        ["T?, apply", "--as system", "declare T and apply again"]
+            .iter()
+            .all(|step| refusal.rewrite.contains(step))
+    );
+}
+
+#[path = "successor_cases/legacy.rs"]
+mod legacy;
+
+#[test]
+fn reopening_changed_schema_cannot_forge_hash_past_stored_row_validation() {
+    let path = temp_store_path("generation-hash-forge");
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    Runtime::open(Store::open(&path).unwrap(), base.clone()).unwrap();
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let row = object([
+        ("id", Value::Id("legacy".to_owned())),
+        ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_owned())),
+    ]);
+    connection
+        .execute(
+            "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
+            rusqlite::params!["items", "legacy", canonical_json(&row)],
+        )
+        .unwrap();
+    drop(connection);
+
+    let mut next_items = items;
+    next_items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    assert_ne!(next.hash(), base.hash());
+    assert!(serde_json::to_value(&next).unwrap().get("hash").is_none());
+    let refusal = match Runtime::open(Store::open(&path).unwrap(), next) {
+        Ok(_) => panic!("changed schema must take the successor path"),
+        Err(refusal) => refusal,
+    };
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    assert!(refusal.message.contains("reserved system principal"));
+    assert_eq!(
+        Store::open(&path).unwrap().meta("generation").unwrap(),
+        Some(base.hash())
+    );
+    cleanup_store(&path);
+}
+
+#[test]
+fn required_text_to_id_migration_refuses_without_installing_missing_value() {
+    let (mut runtime, mut items) = text_owner_runtime();
+    let original_hash = runtime.generation().hash();
+    items.columns.insert("ownerId".to_owned(), ColumnType::Id);
+    let next = generation(
+        schema(BTreeMap::from([("items".to_owned(), items)]), Vec::new()),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    let error = runtime.apply_migration(next, &plan, 0).unwrap_err();
+
+    assert_eq!(error.code(), "E_SUCCESSOR_COLUMN_REQUIRED");
+    assert_eq!(runtime.generation().hash(), original_hash);
+    let row = runtime
+        .execute(
+            "items.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("i1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        row.result.field("ownerId").unwrap(),
+        &Value::String("alice".to_owned())
+    );
+}
+
+#[test]
+fn optional_text_to_id_migration_drops_the_old_value_and_installs_null() {
+    let (mut runtime, mut items) = text_owner_runtime();
+    items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(BTreeMap::from([("items".to_owned(), items)]), Vec::new()),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    runtime.apply_migration(next, &plan, 0).unwrap();
+    let row = runtime
+        .execute(
+            "items.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("i1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(row.result.field("ownerId").unwrap(), &Value::Null);
+}
+
+#[test]
+fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
+    let items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("name", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let original_hash = base.hash();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "items".to_owned(),
+                object([
+                    ("id", Value::Id("i1".to_owned())),
+                    ("name", Value::String("same".to_owned())),
+                ]),
+            ),
+            (
+                "items".to_owned(),
+                object([
+                    ("id", Value::Id("i2".to_owned())),
+                    ("name", Value::String("same".to_owned())),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let mut next_items = items;
+    next_items.indexes.insert(
+        "byName".to_owned(),
+        Index {
+            components: (vec!["name".to_owned()])
+                .into_iter()
+                .map(snapback3_core::search_key::IndexComponent::Column)
+                .collect(),
+            unique: true,
+        },
+    );
+    let refusal = runtime
+        .apply_successor(generation(
+            schema(
+                BTreeMap::from([("items".to_owned(), next_items)]),
+                Vec::new(),
+            ),
+            Vec::new(),
+        ))
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_UNIQUE");
+    assert_eq!(
+        refusal.conflicts,
+        vec![UniqueConflict {
+            table: "items".to_owned(),
+            index: "byName".to_owned(),
+            key: vec![Value::String("same".to_owned())],
+        }]
+    );
+    assert!(refusal.rewrite.contains("non-unique"));
+    assert_eq!(runtime.generation().hash(), original_hash);
+}
+
+#[test]
+fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
+    let items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("name", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let scratch = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([
+                ("items".to_owned(), items.clone()),
+                ("scratch".to_owned(), scratch),
+            ]),
+            Vec::new(),
+        ),
+        vec![get_program("scratch.get", "scratch", "byId", "id")],
+    );
+    let original_hash = base.hash();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "items".to_owned(),
+                object([
+                    ("id", Value::Id("i1".to_owned())),
+                    ("name", Value::String("same".to_owned())),
+                ]),
+            ),
+            (
+                "items".to_owned(),
+                object([
+                    ("id", Value::Id("i2".to_owned())),
+                    ("name", Value::String("same".to_owned())),
+                ]),
+            ),
+            (
+                "scratch".to_owned(),
+                object([("id", Value::Id("keep".to_owned()))]),
+            ),
+        ])
+        .unwrap();
+
+    let mut next_items = items;
+    next_items.indexes.insert(
+        "byName".to_owned(),
+        Index {
+            components: (vec!["name".to_owned()])
+                .into_iter()
+                .map(snapback3_core::search_key::IndexComponent::Column)
+                .collect(),
+            unique: true,
+        },
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
+
+    let error = runtime.apply_migration(next, &refusal.plan, 0).unwrap_err();
+    assert_eq!(error.code(), "E_SUCCESSOR_UNIQUE");
+    let RuntimeError::Successor(refusal) = error else {
+        panic!("migration must return the full successor refusal");
+    };
+    assert_eq!(
+        refusal.conflicts,
+        vec![UniqueConflict {
+            table: "items".to_owned(),
+            index: "byName".to_owned(),
+            key: vec![Value::String("same".to_owned())],
+        }]
+    );
+    assert_eq!(runtime.generation().hash(), original_hash);
+    let scratch = runtime
+        .execute(
+            "scratch.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        scratch.result.field("id").unwrap(),
+        &Value::Id("keep".to_owned())
+    );
+}
+
+#[test]
+fn migration_rechecks_required_columns_and_rolls_back_its_drops() {
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let scratch = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([
+                ("items".to_owned(), items.clone()),
+                ("scratch".to_owned(), scratch),
+            ]),
+            Vec::new(),
+        ),
+        vec![get_program("scratch.get", "scratch", "byId", "id")],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "items".to_owned(),
+                object([("id", Value::Id("i1".to_owned()))]),
+            ),
+            (
+                "scratch".to_owned(),
+                object([("id", Value::Id("keep".to_owned()))]),
+            ),
+        ])
+        .unwrap();
+
+    let mut next_items = items;
+    next_items
+        .columns
+        .insert("name".to_owned(), ColumnType::Text { max: 64 });
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
+
+    let error = runtime.apply_migration(next, &refusal.plan, 0).unwrap_err();
+    assert_eq!(error.code(), "E_SUCCESSOR_COLUMN_REQUIRED");
+    let scratch = runtime
+        .execute(
+            "scratch.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        scratch.result.field("id").unwrap(),
+        &Value::Id("keep".to_owned())
+    );
+}
+
+#[test]
+fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
+    let cards = table(
+        &[("id", ColumnType::Id), ("group", ColumnType::Id)],
+        &[("byId", &["id"])],
+    );
+    let mut counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"]), ("byValue", &["value"])],
+    );
+    counts.indexes.get_mut("byValue").unwrap().unique = true;
+    let tables = BTreeMap::from([("cards".to_owned(), cards), ("counts".to_owned(), counts)]);
+    let base = generation(
+        schema(tables.clone(), Vec::new()),
+        vec![get_program("counts.get", "counts", "byGroup", "group")],
+    );
+    let original_hash = base.hash();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "cards".to_owned(),
+                object([
+                    ("id", Value::Id("c1".to_owned())),
+                    ("group", Value::Id("g1".to_owned())),
+                ]),
+            ),
+            (
+                "cards".to_owned(),
+                object([
+                    ("id", Value::Id("c2".to_owned())),
+                    ("group", Value::Id("g2".to_owned())),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let next = generation(
+        schema(
+            tables,
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "cards".to_owned(),
+                by: vec!["group".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        Vec::new(),
+    );
+
+    let refusal = runtime.apply_successor(next).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_UNIQUE");
+    assert_eq!(
+        refusal.conflicts,
+        vec![UniqueConflict {
+            table: "counts".to_owned(),
+            index: "byValue".to_owned(),
+            key: vec![Value::Int(1)],
+        }]
+    );
+    assert_eq!(runtime.generation().hash(), original_hash);
+    let counts = runtime
+        .execute(
+            "counts.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(counts.result, Value::Null);
+}
+
+#[test]
+fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
+    let cards = table(
+        &[("id", ColumnType::Id), ("group", ColumnType::Id)],
+        &[("byId", &["id"])],
+    );
+    let mut counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    counts.rules.insert = RuleExpr::Deny;
+    counts.rules.update = RuleExpr::Deny;
+    counts.rules.delete = RuleExpr::Deny;
+    let aggregate_id = canonical_json(&vec![Value::Id("g1".to_owned())]);
+    let add_card = Program {
+        name: "cards.add".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Insert {
+            table: "cards".to_owned(),
+            row: Expr::Literal(object([
+                ("id", Value::Id("c1".to_owned())),
+                ("group", Value::Id("g1".to_owned())),
+            ])),
+        }],
+    };
+    let insert_count = Program {
+        name: "counts.insert".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Insert {
+            table: "counts".to_owned(),
+            row: Expr::Literal(object([
+                ("id", Value::Id("manual".to_owned())),
+                ("group", Value::Id("g2".to_owned())),
+                ("value", Value::Int(1)),
+            ])),
+        }],
+    };
+    let update_count = Program {
+        name: "counts.update".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Update {
+            table: "counts".to_owned(),
+            key: Expr::Literal(Value::Id(aggregate_id)),
+            patch: Expr::Literal(object([("value", Value::Int(99))])),
+        }],
+    };
+    let generation = generation(
+        schema(
+            BTreeMap::from([("cards".to_owned(), cards), ("counts".to_owned(), counts)]),
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "cards".to_owned(),
+                by: vec!["group".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        vec![
+            add_card,
+            insert_count,
+            update_count,
+            get_program("counts.get", "counts", "byGroup", "group"),
+        ],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+
+    let engine_write = runtime
+        .execute(
+            "cards.add",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert!(matches!(
+        engine_write.state,
+        ExecutionState::Committed { .. }
+    ));
+    for operation in ["counts.insert", "counts.update"] {
+        let user_write = runtime
+            .execute(
+                operation,
+                Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+            )
+            .unwrap();
+        assert!(matches!(
+            user_write.state,
+            ExecutionState::Rejected { ref code, .. } if code == "E_RULE"
+        ));
+    }
+    let aggregate = runtime
+        .execute(
+            "counts.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(aggregate.result.field("value").unwrap(), &Value::Int(1));
+}
+
+#[test]
+fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
+    let archive = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let amounts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("amount", ColumnType::Int),
+        ],
+        &[("byId", &["id"])],
+    );
+    let totals = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    let base = generation(
+        schema(
+            BTreeMap::from([
+                ("archive".to_owned(), archive),
+                ("amounts".to_owned(), amounts.clone()),
+                ("totals".to_owned(), totals.clone()),
+            ]),
+            Vec::new(),
+        ),
+        vec![get_program("archive.get", "archive", "byId", "id")],
+    );
+    let original_hash = base.hash();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "archive".to_owned(),
+                object([("id", Value::Id("kept".to_owned()))]),
+            ),
+            (
+                "amounts".to_owned(),
+                object([
+                    ("id", Value::Id("a1".to_owned())),
+                    ("group", Value::Id("g1".to_owned())),
+                    ("amount", Value::Int(I53_MAX)),
+                ]),
+            ),
+            (
+                "amounts".to_owned(),
+                object([
+                    ("id", Value::Id("a2".to_owned())),
+                    ("group", Value::Id("g1".to_owned())),
+                    ("amount", Value::Int(I53_MAX)),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let next = generation(
+        schema(
+            BTreeMap::from([
+                ("amounts".to_owned(), amounts),
+                ("totals".to_owned(), totals),
+            ]),
+            vec![Maintain {
+                kind: MaintainKind::Sum {
+                    of: "amount".to_owned(),
+                },
+                source: "amounts".to_owned(),
+                by: vec!["group".to_owned()],
+                target: "totals".to_owned(),
+                readable: None,
+            }],
+        ),
+        Vec::new(),
+    );
+    let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
+    let cold_path = temp_store_path("cold-migration-rollback");
+    runtime.store().snapshot_to(&cold_path).unwrap();
+    assert!(Runtime::open_with_migration(Store::open(&cold_path).unwrap(), next.clone(), &original_hash, &refusal.plan).is_err());
+    {
+        let unchanged = rusqlite::Connection::open(&cold_path).unwrap();
+        assert_eq!(unchanged.query_row("SELECT count(*) FROM rows WHERE table_name='archive'", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+        assert_eq!(unchanged.query_row("SELECT value FROM _meta WHERE key='generation'", [], |r| r.get::<_, String>(0)).unwrap(), original_hash);
+    }
+    cleanup_store(&cold_path);
+    let error = runtime.apply_migration(next, &refusal.plan, 0).unwrap_err();
+    assert!(matches!(error, RuntimeError::Constraint(message) if message.contains("overflow")));
+    assert_eq!(runtime.generation().hash(), original_hash);
+    assert_eq!(
+        runtime.store().meta("generation").unwrap().as_deref(),
+        Some(original_hash.as_str())
+    );
+    let kept = runtime
+        .execute(
+            "archive.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("kept".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        kept.result.field("id").unwrap(),
+        &Value::Id("kept".to_owned())
+    );
+}
+
+#[test]
+fn optional_and_list_column_types_validate_and_list_indexes_are_refused() {
+    let optional = ColumnType::Optional(Box::new(ColumnType::Text { max: 8 }));
+    let list = ColumnType::List {
+        of: Box::new(ColumnType::Int),
+        max: 2,
+    };
+    assert_eq!(
+        serde_json::to_value(&optional).unwrap(),
+        serde_json::json!({ "Optional": { "Text": { "max": 8 } } })
+    );
+    assert_eq!(
+        serde_json::to_value(&list).unwrap(),
+        serde_json::json!({ "List": { "of": "Int", "max": 2 } })
+    );
+
+    let rows = table(
+        &[
+            ("id", ColumnType::Id),
+            ("note", optional.clone()),
+            ("values", list.clone()),
+        ],
+        &[("byId", &["id"]), ("byNote", &["note"])],
+    );
+    let rows_schema = schema(BTreeMap::from([("rows".to_owned(), rows)]), Vec::new());
+    let mut engine = Engine::memory(rows_schema.clone()).unwrap();
+    engine
+        .seed(
+            "rows",
+            object([
+                ("id", Value::Id("r1".to_owned())),
+                ("values", Value::Array(vec![Value::Int(1), Value::Int(2)])),
+            ]),
+        )
+        .unwrap();
+    let get_null = Program {
+        name: "rows.byNullNote".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Get(Read {
+            site: "rows.byNullNote".to_owned(),
+            table: "rows".to_owned(),
+            index: "byNote".to_owned(),
+            key: vec![Expr::Literal(Value::Null)],
+            provenance: KeyProvenance::Const,
+        }))],
+    };
+    let certificate = Checker::new(&rows_schema, Ceilings::default())
+        .check(&get_null)
+        .unwrap();
+    let null_indexed = engine
+        .execute(
+            &get_null,
+            &certificate,
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_ne!(null_indexed.result, Value::Null);
+    engine
+        .seed(
+            "rows",
+            object([
+                ("id", Value::Id("r2".to_owned())),
+                ("note", Value::Null),
+                ("values", Value::Array(Vec::new())),
+            ]),
+        )
+        .unwrap();
+    assert!(
+        engine
+            .seed(
+                "rows",
+                object([
+                    ("id", Value::Id("too-many".to_owned())),
+                    (
+                        "values",
+                        Value::Array(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+                    ),
+                ]),
+            )
+            .is_err()
+    );
+    assert!(
+        engine
+            .seed(
+                "rows",
+                object([
+                    ("id", Value::Id("wrong-element".to_owned())),
+                    (
+                        "values",
+                        Value::Array(vec![Value::String("not an int".to_owned())]),
+                    ),
+                ]),
+            )
+            .is_err()
+    );
+
+    let indexed_list = public_table(
+        BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("values".to_owned(), ColumnType::Optional(Box::new(list))),
+        ]),
+        BTreeMap::from([(
+            "byValues".to_owned(),
+            Index {
+                components: (vec!["values".to_owned()])
+                    .into_iter()
+                    .map(snapback3_core::search_key::IndexComponent::Column)
+                    .collect(),
+                unique: false,
+            },
+        )]),
+    );
+    let invalid = schema(
+        BTreeMap::from([("rows".to_owned(), indexed_list)]),
+        Vec::new(),
+    );
+    let errors = Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema: invalid.clone(),
+            programs: Vec::new(),
+            effects: Vec::new(),
+            auth: Auth::default(),
+        },
+        Ceilings::default(),
+    )
+    .unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|(_, error)| error.code == "E_SCHEMA_INDEX_COLUMN")
+    );
+    assert!(matches!(
+        Engine::memory(invalid),
+        Err(RuntimeError::SchemaIndexColumn { .. })
+    ));
+}
+
+fn temp_store_path(label: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "snapback3-{label}-{}-{}.sqlite",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ))
+}
+
+fn cleanup_store(path: &Path) {
+    for path in [
+        path.to_path_buf(),
+        PathBuf::from(format!("{}-wal", path.display())),
+        PathBuf::from(format!("{}-shm", path.display())),
+    ] {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[path = "successor/cap_targets.rs"]
+mod cap_targets;
+
+#[test]
+fn cold_migration_binds_the_old_generation_and_plan_and_rolls_back_mismatches() {
+    let original = generation(
+        schema(
+            BTreeMap::from([(
+                "items".into(),
+                table(
+                    &[
+                        ("id", ColumnType::Id),
+                        ("name", ColumnType::Text { max: 64 }),
+                    ],
+                    &[("byId", &["id"])],
+                ),
+            )]),
+            vec![],
+        ),
+        vec![],
+    );
+    let next = generation(schema(BTreeMap::new(), vec![]), vec![]);
+    let path = temp_store_path("cold-migration");
+    let mut live = Runtime::open(Store::open(&path).unwrap(), original.clone()).unwrap();
+    live.seed(&[(
+        "items".into(),
+        object([
+            ("id", Value::Id("i1".into())),
+            ("name", Value::String("kept".into())),
+        ]),
+    )])
+    .unwrap();
+    let plan = live.apply_successor(next.clone()).unwrap_err().plan;
+    drop(live);
+    for (from, supplied) in [
+        ("wrong-store".to_owned(), plan.clone()),
+        (original.hash(), MigrationPlan::default()),
+    ] {
+        assert!(
+            Runtime::open_with_migration(
+                Store::open(&path).unwrap(),
+                next.clone(),
+                &from,
+                &supplied
+            )
+            .is_err()
+        );
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM rows WHERE table_name='items'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            conn.query_row("SELECT value FROM _meta WHERE key='generation'", [], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap(),
+            original.hash()
+        );
+    }
+    let live = Runtime::open_with_migration(
+        Store::open(&path).unwrap(),
+        next.clone(),
+        &original.hash(),
+        &plan,
+    )
+    .unwrap();
+    assert_eq!(live.generation().hash(), next.hash());
+    assert!(live.generation().schema().tables.is_empty());
+    drop(live);
+    cleanup_store(&path);
+}

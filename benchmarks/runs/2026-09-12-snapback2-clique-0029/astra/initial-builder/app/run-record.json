@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "expo": "54.0.37",
+      "expo-asset": "12.0.13",
+      "expo-constants": "18.0.14",
+      "expo-file-system": "19.0.24",
+      "expo-image-picker": "17.0.10",
+      "expo-linking": "8.0.12",
+      "expo-router": "6.0.23",
+      "expo-secure-store": "15.0.8",
+      "expo-sqlite": "16.0.10",
+      "expo-video": "3.0.16",
+      "react": "19.1.0",
+      "react-dom": "19.1.0",
+      "react-native": "0.81.5",
+      "react-native-safe-area-context": "5.6.2",
+      "react-native-screens": "4.16.0",
+      "react-native-web": "0.21.2",
+      "snapback2": "0.0.29",
+      "@types/react": "19.1.17",
+      "typescript": "5.9.2",
+      "snapback2-linux-x64": "0.0.29",
+      "node": "v24.13.1",
+      "npm": "11.8.0",
+      "os": "Ubuntu Linux x86_64",
+      "host": "expose-builder-pixel / expo-build-1000",
+      "cpu": "AMD EPYC 9454",
+      "ports": "53300–53319",
+      "playwright": "1.62.1",
+      "backend": "public npm exact snapback2@0.0.29"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-12T05:36:21.000Z",
+    "finishedAt": "2026-09-12T09:24:08.000Z"
+  },
+  "firstGreenProofAt": "2026-09-12T05:44:10.004Z",
+  "wallClock": {
+    "totalSeconds": 13667,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 6146,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": null,
+      "m7Session": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "environment",
+      "summary": "Initial client used port 53200 despite lane config; explicit URL and isolated Metro cache corrected it. Refused requests only; no other lane inspected.",
+      "evidence": "run-log.md:1789191752; evidence/expo-config.txt"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Successful login stayed on Settings; navigate to authenticated feed.",
+      "evidence": "run-log.md:1789191841"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M2 navigation lacked feed tabs outside feed, then Stack retained duplicate hidden composers. Two iterations; global tab navigation and Router Slot.",
+      "evidence": "evidence/m2-choreo-attempt1-output.log; run-log.md:1789192267,1789192350"
+    },
+    {
+      "attribution": "environment",
+      "summary": "Documented IndexedDB carrier failed in Metro with validatePath; isolated cache/server resolved it. Supersedes provisional platform attribution.",
+      "evidence": "evidence/m3-browser-carrier.log; run-log.md:1789193004",
+      "errorCode": "this.validatePath is not a function"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Concurrent harness logins exceeded two concurrent password operations. Generic initial randomized backoff reduced collision; no limiter bypass.",
+      "evidence": "evidence/m3-auth-concurrency.log",
+      "errorCode": "E_AUTH_RATE_LIMIT"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "DM resolver expected immediate commit in a same-account follower tab; observe canonical pair state for queued settlements.",
+      "evidence": "evidence/m3-choreo-attempt2-output.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Membership cutoff workflow required pre-admission unload journal, retained history, and correct unavailable-profile handling. Four iterations; decisive root cause was Shell treating partial profile as absent.",
+      "evidence": "evidence/cutoff-ui-probe.log; run-log.md:1789193615,1789193734,1789194001,1789194186"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Kit image used protected logical asset URL directly; resolve authenticated assetBlob to web object URL.",
+      "evidence": "evidence/m4-failure.png; run-log.md:1789194669"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Global-search pager received 20-row heads instead of its documented one-row contract; corrected endpoint.",
+      "evidence": "evidence/m5-search-pagination-probe.log; evidence/m5-search-pagination-fixed.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Expired server messages remained in custom history cache; honor server deadline on load/render and periodic purge.",
+      "evidence": "evidence/m5-choreo-output.log; evidence/m5-expiry-owner-status.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Insights and Trending one-shot reads ran before usable local state; connection retry insufficient, observed queries fixed initial loading. Two iterations.",
+      "evidence": "evidence/m8-insights-probe.log; evidence/m8-insights-probe-2.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Conversation mark-read effect missed mutation-readiness transition; include readiness in dependencies.",
+      "evidence": "evidence/m8-read-sync-probe.log; run-log.md:1789197784"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Scale auth backoff inspected String(error) instead of error.code; failed after 16 registrations, fixed and resumed receipt-bound exact log.",
+      "evidence": "evidence/scale-attempt-1789197787-output.log",
+      "errorCode": "E_AUTH_RATE_LIMIT"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Post-green bounded history rendering exposed view-once row lifetime; moved viewer to conversation Modal with account/message opened marker.",
+      "evidence": "evidence/once-ui-probe.log; run-log.md:1789198921"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Optimistic reply/edit text appeared without quoted preview/edited label; derive both from queued intent and known original. Two cases of incomplete optimistic presentation.",
+      "evidence": "evidence/m3-suite-1789199201242.json; run-log.md:1789199640; evidence/final-m4-suite-output.log"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Post-green M3 group-settings timeout did not recur in complete remove/readd probe or frozen rerun; no platform root cause established.",
+      "evidence": "evidence/m3-choreo-1789199201303.jsonl; evidence/final-cutoff-ui-probe.log"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "M6 push assertion immediately after browser teardown missed event; passed without product change after transports settled.",
+      "evidence": "run-log.md (M6 final push retry); evidence/final-m6-suite-output.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Partial chat-list snapshots shifted positional rows during M8 cross-device reads; preserve displayed account-scoped row identity/order and monotonic read state.",
+      "evidence": "evidence/m8-choreo-1789200013412.jsonl; src/messaging.tsx"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Final M1 created profile canonically but composite social read was unavailable on screen; separate point-profile read with viewer/known-profile fallback.",
+      "evidence": "evidence/m1-suite-latest.json; src/profile.tsx; run-log.md (M1 final profile correction)"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "Durable observed composite thread remained unavailable/partial/never-held for a canonical readable post. A plain same-bearer observer succeeds; added online read-only fallback, closed on offline cuts. No source-level platform diagnosis claimed.",
+      "evidence": "evidence/final-thread-probe.log; evidence/final-thread-probe-fixed.log; src/read-fallback.ts",
+      "errorCode": "partial / never-held"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Receipt audit found a stale green choreography log had been cited after a gated suite failure. The failed M3 suite exposed send completion clearing the next draft; preserve text, quote and attachments changed while admission is in flight. Re-ran the suite and frozen segment; all attempts retained.",
+      "evidence": "run-log.md (stale M3 log correction); evidence/final-m3-suite-output.log; src/messaging.tsx; src/feed.tsx"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "Scale resumed after a 38-second checkpoint probe with a retryable transport refusal while the owner stayed healthy. Adapter lacked bounded retry handling; added retries of the exact idempotent logical action and checkpoint-aware receipt resumption. Underlying connection trigger remains ambiguous.",
+      "evidence": "evidence/scale-attempt-1789197900-output.log; evidence/scale-verification-10%.json; scripts/replay.ts",
+      "errorCode": "E_TRANSPORT"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 2145,
+    "files": 104,
+    "sharedUiLines": 3671
+  },
+  "authParity": {
+    "posture": "sessions",
+    "notes": "Real password signup/login and generated bearer sessions for app, starter, sample and scale; developer persona only for isolated diagnostic wire journey."
+  },
+  "diary": "diary.md",
+  "notes": "Base schema diagnostic record. The composed social-messenger scored record requires driver-native usage, first-edit, terminal/clock provenance and a grader session that are unavailable inside this lane; none were fabricated. Ordinary phase splits are null because work interleaved and no trustworthy phase meter exists. Replay overlaps post-green regression and reporting; phases are not additive. See milestone-results.json for exact receipt-bound greens, all retained attempts, scale verification and explicit Linux native unavailability. Essay written after original M8 green before this tally. Single existence run; no comparative magnitude/variance claim."
+}

@@ -1,0 +1,374 @@
+{
+  "corpusVersion": 1,
+  "name": "hoisted-list-certifies-reserve",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "id": "Id",
+          "viewer": "Principal"
+        },
+        "indexes": {
+          "byConvViewer": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "viewer"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "columns": {
+          "at": "Time",
+          "authorId": "Id",
+          "conversationId": "Id",
+          "id": "Id"
+        },
+        "indexes": {
+          "byConvTime": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvViewer",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "hoisted-list-certifies-reserve",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "messages.list",
+            "table": "messages",
+            "index": "byConvTime",
+            "prefix": [
+              {
+                "Scalar": {
+                  "Literal": {
+                    "Id": "c1"
+                  }
+                }
+              }
+            ],
+            "order": "Desc",
+            "take": {
+              "Literal": 50
+            },
+            "after": null,
+            "before": null,
+            "range": null,
+            "merge_site": null,
+            "provenance": "Const"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "hoisted-list-certifies-reserve",
+    "plan_hash": "de2a581a75b786b249ef4f4d1580076dc2849dc8158e43b6c90710b5cad0ac10",
+    "schema_hash": "673e5d35a1ed12ad4a0b95b65c083dda8d0ea0323101e622277011e73b8ab18e",
+    "tables": {
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "messages.read": "194670d79136d881ef7a6926008859fed2599ecd03e4351f6d0fb0fb6363270f"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "messages.list",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Const",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 52,
+    "max_index_entries": 52,
+    "max_rule_probes": 1,
+    "max_steps": 263,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 8416,
+    "max_output_bytes": 25862,
+    "max_closure_bytes": 25800,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConvViewer",
+      "messages.byConvTime"
+    ],
+    "disclosures": [],
+    "bound_product": "messages.list take 50 (+2 reserve) × 1 calls on messages = 52",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 52,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages",
+        "site": "messages.list"
+      },
+      {
+        "meter": "index entries",
+        "value": 52,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages",
+        "site": "messages.list"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "messages.list: 1 calls × 1 rule probes",
+        "site": "messages.list"
+      },
+      {
+        "meter": "steps",
+        "value": 260,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages × 5",
+        "site": "messages.list"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "hoisted-list-certifies-reserve:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "hoisted-list-certifies-reserve:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8320,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages × 5 × 32",
+        "site": "messages.list"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "hoisted-list-certifies-reserve:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "hoisted-list-certifies-reserve:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1900,
+        "source": "50 × messages.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7800,
+        "source": "50 × messages.authorId (156 bytes each; 12 field-name/framing + Id value maximum 144)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 8100,
+        "source": "50 × messages.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7500,
+        "source": "50 × messages.id (150 bytes each; 6 field-name/framing + messages declared identity 144)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 500,
+        "source": "messages row width: framing/shared encoding/growth adjustment",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 62,
+        "source": "messages last 50 at messages.list: framing/shared encoding/growth adjustment",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1900,
+        "source": "50 × messages.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7800,
+        "source": "50 × messages.authorId (156 bytes each; 12 field-name/framing + Id value maximum 144)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 8100,
+        "source": "50 × messages.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7500,
+        "source": "50 × messages.id (150 bytes each; 6 field-name/framing + messages declared identity 144)",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 500,
+        "source": "messages row width: framing/shared encoding/growth adjustment",
+        "site": "messages.list"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "673e5d35a1ed12ad4a0b95b65c083dda8d0ea0323101e622277011e73b8ab18e",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "messages.list"
+    ],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "messages.list": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

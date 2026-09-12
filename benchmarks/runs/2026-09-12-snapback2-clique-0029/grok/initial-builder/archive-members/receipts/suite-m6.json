@@ -1,0 +1,39 @@
+{
+  "milestone": "m6",
+  "pass": false,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m6-a08",
+      "name": "push log for offline recipient",
+      "ok": true,
+      "ms": 293
+    },
+    {
+      "id": "m6-a09",
+      "name": "view-once push preview is Photo",
+      "ok": true,
+      "ms": 278
+    },
+    {
+      "id": "m6-a10",
+      "name": "custom-client-demo runs",
+      "ok": true,
+      "ms": 531
+    },
+    {
+      "id": "m6-a11",
+      "name": "demo operations exist",
+      "ok": true,
+      "ms": 47
+    },
+    {
+      "id": "m6-a13",
+      "name": "sample-50 adapter conformance",
+      "ok": false,
+      "ms": 2472,
+      "error": "Error: send-media image failed: E_FIELD missing field oncePhoto\n    at committed (file:///home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/replay.mjs:30:9)\n    at replayLog (file:///home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/replay.mjs:262:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async Object.fn (file:///home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/acceptance.mjs:581:18)\n    at async file:///home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/acceptance.mjs:643:5"
+    }
+  ],
+  "at": "2026-09-12T09:37:11.033Z"
+}

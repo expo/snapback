@@ -1,0 +1,35 @@
+{
+  "version": "0.0.31",
+  "qualifiedProduct": "d251e00dae743cc214fd70dcebb2fedb7341222e",
+  "allVerified": true,
+  "artifacts": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.31",
+      "integrity": "sha512-EaV22pnqRbIoLT92JQDt8o4H50eq1b7Fl+7soB7ffjmYr70cC+MO9C99WUjinFjgK9mZj+7ckmw93SbGzJswHw==",
+      "expected": "sha512-EaV22pnqRbIoLT92JQDt8o4H50eq1b7Fl+7soB7ffjmYr70cC+MO9C99WUjinFjgK9mZj+7ckmw93SbGzJswHw==",
+      "verified": true,
+      "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.31.tgz",
+      "at": 1789211036.95651
+    },
+    {
+      "name": "snapback2-linux-x64",
+      "version": "0.0.31",
+      "integrity": "sha512-JztKQakdlRyFWv8saP5pHNJZ08xsaejFi+F7ZJ821xgHx3IIFrcU/Xdyv2ZihA9DJ3cLj+ZHC7CI93b7YqXEdA==",
+      "expected": "sha512-JztKQakdlRyFWv8saP5pHNJZ08xsaejFi+F7ZJ821xgHx3IIFrcU/Xdyv2ZihA9DJ3cLj+ZHC7CI93b7YqXEdA==",
+      "verified": true,
+      "tarball": "https://registry.npmjs.org/snapback2-linux-x64/-/snapback2-linux-x64-0.0.31.tgz",
+      "at": 1789211036.947327
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.31",
+      "integrity": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ==",
+      "expected": "sha512-Y+vqPGrsPhQ3CovH1SGIblO6yLZsDC1DV7ibpzqNk4fdLV+JVUdUgiNoiBwkwMxX1MwkyQADxEOVB5ASp49UlQ==",
+      "verified": true,
+      "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.31.tgz",
+      "at": 1789211036.9406059
+    }
+  ],
+  "at": 1789211036.956723
+}

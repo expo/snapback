@@ -1,0 +1,356 @@
+{
+  "startedAt": "2026-09-12T09:27:35.792287+00:00",
+  "supervisorPid": 784367,
+  "database": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/.replays/scale/.snapback/store.sqlite",
+  "access": "SQLite URI mode=ro&immutable=1; query_only=ON; no row contents selected",
+  "queryTimeoutSeconds": 15,
+  "processTimeoutSeconds": 25,
+  "pid": 784428,
+  "exit": 0,
+  "endedAt": "2026-09-12T09:27:39.164601+00:00",
+  "events": [
+    {
+      "kind": "header",
+      "sqliteVersion": "3.45.1",
+      "fileBytes": 5196644352,
+      "page_size": 4096,
+      "page_count": 1268712,
+      "freelist_count": 2
+    },
+    {
+      "kind": "dbstat",
+      "status": "complete",
+      "seconds": 3.345988234039396,
+      "groups": [
+        {
+          "name": "index_entries_lookup",
+          "pages": 330641,
+          "allocatedBytes": 1354305536,
+          "payloadBytes": 1149282342,
+          "unusedBytes": 181344679
+        },
+        {
+          "name": "index_entries",
+          "pages": 318712,
+          "allocatedBytes": 1305444352,
+          "payloadBytes": 1129123593,
+          "unusedBytes": 132564515
+        },
+        {
+          "name": "rows",
+          "pages": 158488,
+          "allocatedBytes": 649166848,
+          "payloadBytes": 592347960,
+          "unusedBytes": 42189364
+        },
+        {
+          "name": "sqlite_autoindex_index_entries_1",
+          "pages": 124608,
+          "allocatedBytes": 510394368,
+          "payloadBytes": 434743582,
+          "unusedBytes": 59020434
+        },
+        {
+          "name": "index_entries_by_row",
+          "pages": 114388,
+          "allocatedBytes": 468533248,
+          "payloadBytes": 391710399,
+          "unusedBytes": 60315137
+        },
+        {
+          "name": "_search_postings_lookup",
+          "pages": 74637,
+          "allocatedBytes": 305713152,
+          "payloadBytes": 258630418,
+          "unusedBytes": 39720466
+        },
+        {
+          "name": "_search_postings",
+          "pages": 71436,
+          "allocatedBytes": 292601856,
+          "payloadBytes": 258630418,
+          "unusedBytes": 26647582
+        },
+        {
+          "name": "sqlite_autoindex_rows_1",
+          "pages": 38381,
+          "allocatedBytes": 157208576,
+          "payloadBytes": 133215270,
+          "unusedBytes": 18405966
+        },
+        {
+          "name": "_search_postings_by_row",
+          "pages": 21709,
+          "allocatedBytes": 88920064,
+          "payloadBytes": 71736926,
+          "unusedBytes": 10474110
+        },
+        {
+          "name": "_commits",
+          "pages": 9275,
+          "allocatedBytes": 37990400,
+          "payloadBytes": 32725900,
+          "unusedBytes": 5036959
+        },
+        {
+          "name": "_timers",
+          "pages": 2688,
+          "allocatedBytes": 11010048,
+          "payloadBytes": 10271712,
+          "unusedBytes": 372548
+        },
+        {
+          "name": "_timers_at",
+          "pages": 1123,
+          "allocatedBytes": 4599808,
+          "payloadBytes": 3825025,
+          "unusedBytes": 616639
+        },
+        {
+          "name": "_timers_schedule_row",
+          "pages": 1036,
+          "allocatedBytes": 4243456,
+          "payloadBytes": 3583905,
+          "unusedBytes": 502451
+        },
+        {
+          "name": "sqlite_autoindex__timers_1",
+          "pages": 1005,
+          "allocatedBytes": 4116480,
+          "payloadBytes": 3487457,
+          "unusedBytes": 472295
+        },
+        {
+          "name": "_search_nodes",
+          "pages": 117,
+          "allocatedBytes": 479232,
+          "payloadBytes": 395283,
+          "unusedBytes": 13957
+        },
+        {
+          "name": "sqlite_autoindex__search_nodes_1",
+          "pages": 115,
+          "allocatedBytes": 471040,
+          "payloadBytes": 379947,
+          "unusedBytes": 48761
+        },
+        {
+          "name": "_assets",
+          "pages": 94,
+          "allocatedBytes": 385024,
+          "payloadBytes": 355487,
+          "unusedBytes": 16088
+        },
+        {
+          "name": "_grants",
+          "pages": 42,
+          "allocatedBytes": 172032,
+          "payloadBytes": 157248,
+          "unusedBytes": 8208
+        },
+        {
+          "name": "_credentials",
+          "pages": 40,
+          "allocatedBytes": 163840,
+          "payloadBytes": 147164,
+          "unusedBytes": 10131
+        },
+        {
+          "name": "sqlite_autoindex__assets_1",
+          "pages": 36,
+          "allocatedBytes": 147456,
+          "payloadBytes": 118757,
+          "unusedBytes": 22226
+        },
+        {
+          "name": "_sessions",
+          "pages": 23,
+          "allocatedBytes": 94208,
+          "payloadBytes": 82656,
+          "unusedBytes": 6285
+        },
+        {
+          "name": "sqlite_autoindex__grants_1",
+          "pages": 18,
+          "allocatedBytes": 73728,
+          "payloadBytes": 59344,
+          "unusedBytes": 11148
+        },
+        {
+          "name": "_principals",
+          "pages": 17,
+          "allocatedBytes": 69632,
+          "payloadBytes": 59557,
+          "unusedBytes": 4888
+        },
+        {
+          "name": "sqlite_autoindex__sessions_1",
+          "pages": 12,
+          "allocatedBytes": 49152,
+          "payloadBytes": 37168,
+          "unusedBytes": 8820
+        },
+        {
+          "name": "_grants_principal_expiry",
+          "pages": 12,
+          "allocatedBytes": 49152,
+          "payloadBytes": 39184,
+          "unusedBytes": 6804
+        },
+        {
+          "name": "sqlite_autoindex__credentials_1",
+          "pages": 11,
+          "allocatedBytes": 45056,
+          "payloadBytes": 32128,
+          "unusedBytes": 9776
+        },
+        {
+          "name": "sqlite_autoindex__principals_1",
+          "pages": 10,
+          "allocatedBytes": 40960,
+          "payloadBytes": 32165,
+          "unusedBytes": 5646
+        },
+        {
+          "name": "sqlite_autoindex__credentials_2",
+          "pages": 8,
+          "allocatedBytes": 32768,
+          "payloadBytes": 22044,
+          "unusedBytes": 7608
+        },
+        {
+          "name": "_meta",
+          "pages": 7,
+          "allocatedBytes": 28672,
+          "payloadBytes": 27150,
+          "unusedBytes": 1426
+        },
+        {
+          "name": "sqlite_schema",
+          "pages": 4,
+          "allocatedBytes": 16384,
+          "payloadBytes": 8690,
+          "unusedBytes": 7342
+        },
+        {
+          "name": "sqlite_sequence",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 14,
+          "unusedBytes": 4070
+        },
+        {
+          "name": "sqlite_autoindex__outbox_1",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "sqlite_autoindex__meta_1",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 310,
+          "unusedBytes": 3736
+        },
+        {
+          "name": "sqlite_autoindex__jobs_1",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "sqlite_autoindex__grant_slices_1",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "sqlite_autoindex__client_intents_1",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "sqlite_autoindex__asset_views_1",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_outbox_state_next_at",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_outbox",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_jobs_state_created",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_jobs",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_grant_slices_extent",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_grant_slices",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_client_intents_at",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_client_intents",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        },
+        {
+          "name": "_asset_views",
+          "pages": 1,
+          "allocatedBytes": 4096,
+          "payloadBytes": 0,
+          "unusedBytes": 4088
+        }
+      ]
+    },
+    {
+      "kind": "source-stat",
+      "unchanged": true,
+      "mtimeNs": 1789204570352411808
+    }
+  ],
+  "stderr": ""
+}

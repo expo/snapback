@@ -1,0 +1,192 @@
+{
+  "auditedAt": "2026-09-12T11:32:19.738165+00:00",
+  "status": "VALID scorer custody and score format; explicit citation caveat retained",
+  "cell": "grok",
+  "overallScore": 60,
+  "checks": {
+    "processExitedSuccessfully": true,
+    "promptPreserved": true,
+    "inputManifestPreserved": true,
+    "rubricPreserved": true,
+    "bothNarrativePhasesPreserved": true,
+    "retainedInputsPreserved": true,
+    "actualArgvMatchesPreparedOptions": true,
+    "oneCompletedTurn": true,
+    "zeroObservedToolAttempts": true,
+    "zeroReportedWebSearches": true,
+    "finalResultMatchesAssistantText": true,
+    "exactlyOneFencedJson": true,
+    "all13Categories": true,
+    "integerScores0to100": true,
+    "notesAtMost40WhitespaceDelimitedWords": true,
+    "topLevelOutputShape": true,
+    "selfReportedScorerMatchesRequest": true,
+    "narrativeOnlyBasis": true
+  },
+  "categoryCount": 13,
+  "categoryWordCounts": {
+    "setup_and_docs": 33,
+    "data_modeling": 26,
+    "authorization": 27,
+    "queries_and_live": 28,
+    "writes_and_transactions": 22,
+    "offline_sync": 24,
+    "media_assets": 25,
+    "background_work": 29,
+    "client_integration": 24,
+    "diagnostics_dev_loop": 25,
+    "scale_and_limits": 28,
+    "operations": 27,
+    "overall": 27
+  },
+  "wordCountConvention": "Whitespace-delimited words; hyphenated and slash-separated tokens remain one word.",
+  "invalidScoreCategories": [],
+  "over40WordCategories": [],
+  "citationAudit": {
+    "abbreviatedReferences": {
+      "setup_and_docs": [
+        "diary",
+        "essay"
+      ],
+      "data_modeling": [
+        "essay",
+        "diary",
+        "final-report"
+      ],
+      "authorization": [
+        "essay"
+      ],
+      "queries_and_live": [
+        "diary",
+        "essay",
+        "m7/run-log"
+      ],
+      "writes_and_transactions": [
+        "m7/diary",
+        "essay",
+        "m7/run-log"
+      ],
+      "offline_sync": [
+        "m7/diary",
+        "m7/essay"
+      ],
+      "media_assets": [
+        "essay",
+        "final-report",
+        "final-report"
+      ],
+      "background_work": [
+        "essay",
+        "final-report",
+        "m7/run-log"
+      ],
+      "client_integration": [
+        "essay",
+        "final-report",
+        "diary"
+      ],
+      "diagnostics_dev_loop": [
+        "m7/run-log",
+        "essay"
+      ],
+      "scale_and_limits": [
+        "final-report",
+        "run-log",
+        "m7/diary"
+      ],
+      "operations": [
+        "m7/final-report",
+        "final-report"
+      ],
+      "overall": []
+    },
+    "categoriesWithoutExplicitFileReference": [
+      "overall"
+    ],
+    "caveat": "The overall note names no source file. Other category notes use abbreviated references such as diary, essay or m7/run-log (including m7/essay for essay-paragraphs). No citations have been added and no factual attribution adjudication is claimed."
+  },
+  "requestedModel": "grok-4.6",
+  "requestedEffort": "xhigh",
+  "returnedModelMetadata": [
+    {
+      "path": "0/model",
+      "value": "grok-4.6"
+    },
+    {
+      "path": "1/message/model",
+      "value": "grok-4.6"
+    }
+  ],
+  "returnedModelAttested": true,
+  "independentBackendIdentityAttested": false,
+  "returnedEffortAttested": false,
+  "modelAttestationLimit": "Init and assistant messages report grok-4.6; result usage is keyed by grok-4.6-build. These are returned provider metadata, not independent backend verification. Reasoning effort is requested only.",
+  "modelUsage": {
+    "grok-4.6-build": {
+      "inputTokens": 35659,
+      "outputTokens": 10349,
+      "cacheReadInputTokens": 5376,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.046274
+    }
+  },
+  "usage": {
+    "input_tokens": 35659,
+    "output_tokens": 10349,
+    "cache_read_input_tokens": 5376,
+    "cache_creation_input_tokens": 0,
+    "server_tool_use": {
+      "web_search_requests": 0
+    }
+  },
+  "toolAttemptCount": 0,
+  "toolAttempts": [],
+  "reportedWebSearchRequests": 0,
+  "advertisedToolCount": 25,
+  "toolCapabilityLimit": "The command requests --tools '' plus disabled web/subagents, but init advertises 25 tools. This audit establishes zero actual attempts in the complete stream, not a global inability to call tools.",
+  "eventTypes": {
+    "system": 1,
+    "assistant": 1,
+    "result": 1
+  },
+  "nestedEventTypes": {
+    "system": 1,
+    "assistant": 1,
+    "message": 1,
+    "thinking": 1,
+    "text": 1,
+    "result": 1
+  },
+  "sessionIds": [
+    "a51d95eb-734b-4124-9f4c-bed1997a329e"
+  ],
+  "process": {
+    "pid": 59233,
+    "started": 1789212350.392319,
+    "ended": 1789212543.326005,
+    "exit": 0,
+    "childExit": 0,
+    "childReaped": true,
+    "childSignal": null,
+    "interrupted": null
+  },
+  "hashes": {
+    "process.json": "3be82403baf7403217c7d43e98bf14565d5bd1f639bc13f81e5ce0325074dd5c",
+    "events.jsonl": "acc8b108216efe32d6fb13a9d4ed52084d0fd6cd6530b43eaf169e9bde6faff6",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final-response.md": "c2caa2abb844f20990a8fa531b008e9505e53a938752928af9ce0c322379541d",
+    "score.json": "04efa90097bb188f892f55dee7ee9223186504b25c727e091b9f0d74171a0705",
+    "prompt.md": "024a7e313129e48a1ddd5331bab0c24dac11e919f3f1d9e30385bd95c8a1b937",
+    "inputs.json": "35074d714f73571f808d0e3e6f420788a2298960ab45df76cb7fe329f05e984e",
+    "rubric.template.md": "85bc1180b8d73d72b4bc5da143f0cb1331d747972156da0e485cea41db5358c5",
+    "cli-options.json": "04319a1ef55a464670206a95e6b7b34fb54bb30e87d372c39936d644dbf447a0"
+  },
+  "stderrBytes": 0,
+  "finalTextFormatting": "Exact returned assistant text, no added newline.",
+  "limitations": [
+    "This is the scorer’s narrative-only interpretation, not an independent grade, causal comparison or SDK attribution finding.",
+    "All raw events and exact final response are preserved; sanitized artifacts contain no reasoning/signature blocks or auth metadata.",
+    "No prompt/helper changes, interruption, rerun or additional scorer."
+  ]
+}

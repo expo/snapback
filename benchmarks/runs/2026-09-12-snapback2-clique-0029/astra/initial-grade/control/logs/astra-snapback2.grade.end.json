@@ -1,0 +1,10 @@
+{
+  "lane": "astra-snapback2",
+  "phase": "grade",
+  "pid": 830365,
+  "startedEpoch": 1789205750,
+  "endedEpoch": 1789209760,
+  "exit": 0,
+  "interrupted": null,
+  "waitError": null
+}

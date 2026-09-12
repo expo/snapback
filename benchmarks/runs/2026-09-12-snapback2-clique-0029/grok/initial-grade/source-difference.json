@@ -1,0 +1,91 @@
+{
+  "modified": [
+    {
+      "path": "receipts/suite-m1.json",
+      "before": "19d8cfdad581e10994b9d88c4b9302726c065348d8d07949e0eae2c6f7404a02",
+      "after": "1602c1e6e3a96568cf17f2a02876f63f72e562539b12e91a9ae4eec370b0d5dc"
+    },
+    {
+      "path": "receipts/suite-m2.json",
+      "before": "c279e31c95b466d98e5173852cedfabf1ade3c47acfb7331425e94269372fe2b",
+      "after": "de1fa731b38db4138071ae780149003bb6e2d89107203a24fe2ac024b6a2d5b9"
+    },
+    {
+      "path": "receipts/suite-m3.json",
+      "before": "a2c121c4858dbd87fa64178d7beea0dbec3c0f033cbbd6338b6fbfc4a519e122",
+      "after": "ce4421dd4774ada3bae3f3dd67f9a126ca1e7606599ad94309a959af499d3e17"
+    },
+    {
+      "path": "receipts/suite-m4.json",
+      "before": "b552f61af20fd03198e1ee552015fe3d7c769a3138db1d7cf89cf89e1b55cd15",
+      "after": "183097e5d3ab06b641f7f74441b4c79a92cd4fa52b5b6a4d6e9ecaed7aee3e1e"
+    },
+    {
+      "path": "receipts/suite-m5.json",
+      "before": "c43a9ff8d28e94dc0ae62ab755e86713f7324bd760c9ce514a9d337a0aac5315",
+      "after": "6634e8b3cd216eeb0b09208c816986f710d6410b4f0b83692894408c1b4c68b8"
+    },
+    {
+      "path": "receipts/suite-m6.json",
+      "before": "688821d0b317cd56032990c93ebfa36d3938a9b4eddf989ef4515e9a442d578c",
+      "after": "07a687187d2834a34818166d78b2754e6543bad62b5c269e92b03d7e349a4912"
+    },
+    {
+      "path": "receipts/suite-m8.json",
+      "before": "53f6f0a820cb8f9abcdc2baeffc8c0b408a6dd79544f3e24f58f9b2ef8049f8b",
+      "after": "406484f0349872f573775b0c97dd13771e1a799eec08fdfd5112c139f59007be"
+    },
+    {
+      "path": "receipts/suite-status.json",
+      "before": "1e71ebd7b0d99615d9d345f383918ef0a80dbd97f57003e89b632df173ee7a09",
+      "after": "f675f33aa4ae0c9275c7ee8544a80ab120f996ac13a68176d8b6c5c770cb5f78"
+    }
+  ],
+  "missing": [],
+  "added": [
+    "receipts/coverage-m7.json",
+    "receipts/suite-m7.json",
+    "grading/DONE",
+    "grading/build-report.mjs",
+    "grading/g-browser.mjs",
+    "grading/g-browser2.mjs",
+    "grading/g-browser3.mjs",
+    "grading/g-browser4.mjs",
+    "grading/g-fix.mjs",
+    "grading/g-indep.mjs",
+    "grading/g-m1a07.mjs",
+    "grading/g-m2.mjs",
+    "grading/g-m2b.mjs",
+    "grading/g-m5a02.mjs",
+    "grading/g-m6a12.mjs",
+    "grading/g-m7counts.mjs",
+    "grading/g-m8.mjs",
+    "grading/g-m8b.mjs",
+    "grading/g-m8digest.mjs",
+    "grading/g-m8dup.mjs",
+    "grading/g-shape.mjs",
+    "grading/g-timed.mjs",
+    "grading/grader-report.json",
+    "grading/probe-feed.mjs",
+    "grading/trace.md",
+    "grading/validate.mjs",
+    "grading/validate2.mjs",
+    "grading/backup/dev-url",
+    "grading/shots/01-landing.png",
+    "grading/shots/02-after-login.png",
+    "grading/shots/03-insights.png",
+    "grading/shots/04-profile.png",
+    "grading/shots/05-post-link.png",
+    "grading/shots/06-chat-settings.png",
+    "grading/shots/07-insights-settled.png",
+    "grading/shots/08-me.png",
+    "grading/logs/backend.log",
+    "grading/logs/backend.pid",
+    "grading/logs/g-m5a02.log",
+    "grading/logs/g-m5a02.pid",
+    "grading/logs/g-timed.log",
+    "grading/logs/g-timed.pid",
+    "grading/logs/web.log",
+    "grading/logs/web.pid"
+  ]
+}

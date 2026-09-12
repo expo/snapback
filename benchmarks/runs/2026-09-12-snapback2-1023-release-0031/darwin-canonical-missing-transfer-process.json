@@ -1,0 +1,17 @@
+{
+  "pid": 94708,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "node",
+    "scripts/publish.mjs",
+    "--stage-only",
+    "--platform-artifact",
+    "/Users/ccheever/projects/snapback-1023-20260912/coverage-repair/linux-funded-initial/resume.json"
+  ],
+  "started": 1789210287.722811,
+  "source": "6246c20f1f10f965808ba7488fb090d0735e7052",
+  "exit": 1,
+  "ended": 1789210287.7989151
+}

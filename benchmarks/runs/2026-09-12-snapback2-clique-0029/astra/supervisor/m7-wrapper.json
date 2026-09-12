@@ -1,0 +1,33 @@
+{
+  "phase": "astra-m7",
+  "controllerPid": 1080314,
+  "parentPid": 1080313,
+  "startedAt": "2026-09-12T10:44:49.890168+00:00",
+  "foreground": true,
+  "promptSha256": "ea6c42f4d37453f111275edd5720f1597d04c603aa480018d904f843f90c5c45",
+  "initialGradeManifestSha256": "1ff3843e6288f8581c9c5062fd5a7d5ceb9e52372ab3fb38b041fb3520680beb",
+  "capController": "unavailable; unchanged frozen prompt-only instructions",
+  "preflight": {
+    "pid": 1080315,
+    "startedAt": "2026-09-12T10:44:49.892471+00:00",
+    "output": "/home/ccheever/clique-0029-20260912/preflight/pre-astra-m7.json",
+    "exit": 0,
+    "interrupted": null,
+    "endedAt": "2026-09-12T10:44:51.652644+00:00"
+  },
+  "launcher": {
+    "pid": 1080654,
+    "command": [
+      "/usr/bin/python3",
+      "-u",
+      "scripts/launch_m7.py",
+      "astra",
+      "snapback2"
+    ],
+    "startedAt": "2026-09-12T10:44:51.653532+00:00"
+  },
+  "exit": 0,
+  "interrupted": null,
+  "endedAt": "2026-09-12T11:03:42.664591+00:00",
+  "launcherExited": true
+}

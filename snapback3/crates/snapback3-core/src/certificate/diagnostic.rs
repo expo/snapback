@@ -1,0 +1,438 @@
+//! Explain the same products the analyzer charges, separately for each meter.
+// @ref LLP 1001#3-read-and-write-states-no-silent-states — each meter names its dominant cause and preserves the requested result in its repair.
+use super::*;
+
+#[derive(Clone)]
+pub(super) enum Repair {
+    Range {
+        nested: bool,
+    },
+    Merge,
+    Cap {
+        name: String,
+        calls: u64,
+        per_call: u64,
+        maintain_line: Option<String>,
+    },
+    Probe,
+    Uniformity,
+    Work,
+}
+
+#[derive(Clone)]
+pub(super) struct Cost {
+    pub value: u64,
+    pub site: Option<String>,
+    pub source: String,
+    pub repair: Repair,
+}
+
+fn context(factors: &[(String, u64)]) -> String {
+    if factors.is_empty() {
+        return String::new();
+    }
+    format!(
+        " (calls from {})",
+        factors
+            .iter()
+            .map(|(name, n)| format!("{name} {n}"))
+            .collect::<Vec<_>>()
+            .join(" × ")
+    )
+}
+
+impl Cost {
+    pub fn range(scan: &Scan, calls: u64, factors: &[(String, u64)], reserve: u64) -> Self {
+        let take = scan.take.maximum();
+        let (source, repair) = if let Some(merge) = &scan.merge_site {
+            (
+                format!(
+                    "merge {merge}: {calls} lanes {} at {} on {}{}",
+                    if reserve == 1 {
+                        "heads".to_owned()
+                    } else {
+                        format!("× ({take} + 2)")
+                    },
+                    scan.site,
+                    scan.table,
+                    context(factors)
+                ),
+                Repair::Merge,
+            )
+        } else {
+            (
+                format!(
+                    "{} take {take} (+2 reserve) × {calls} calls on {}{}",
+                    scan.site,
+                    scan.table,
+                    context(factors)
+                ),
+                Repair::Range {
+                    nested: !factors.is_empty(),
+                },
+            )
+        };
+        Self {
+            site: Some(scan.site.clone()),
+            value: calls.saturating_mul(reserve),
+            source,
+            repair,
+        }
+    }
+    // @ref LLP 1017#24-metering — each reserved cap names whether it scans N
+    // candidates or reads one same-key maintained count.
+    pub fn cap(
+        table: &str,
+        by: &[String],
+        max: u32,
+        maintained_target: Option<&str>,
+        calls: u64,
+        factors: &[(String, u64)],
+    ) -> Self {
+        let name = format!("cap {max} by {} on {table}", by.join(", "));
+        let per_call = if maintained_target.is_some() {
+            1
+        } else {
+            u64::from(max)
+        };
+        let source = maintained_target.map_or_else(
+            || format!("{calls} calls × {name}{}", context(factors)),
+            |target| {
+                format!(
+                    "{calls} calls × maintained {name} via {target}.byId (1 row per write){}",
+                    context(factors)
+                )
+            },
+        );
+        Self {
+            site: Some(format!("schema.tables.{table}")),
+            value: calls.saturating_mul(per_call),
+            source,
+            repair: Repair::Cap {
+                name,
+                calls,
+                per_call,
+                // A complete declaration the builder can paste: the count needs its
+                // own read rule, and `deny` keeps the count private until relaxed.
+                maintain_line: (maintained_target.is_none() && max > 1).then(|| {
+                    format!(
+                        "maintain {table}Counts: count {table} by {}\n  read <- deny",
+                        by.join(", ")
+                    )
+                }),
+            },
+        }
+    }
+    fn scaled(mut self, n: u64) -> Self {
+        self.value = self.value.saturating_mul(n);
+        if let Repair::Cap { per_call, .. } = &mut self.repair {
+            *per_call = per_call.saturating_mul(n);
+        }
+        self.source = format!("{} × {n}", self.source);
+        self
+    }
+    pub fn rewrite(&self, actual: u64, ceiling: u64) -> String {
+        match &self.repair {
+            Repair::Merge => "structural repair: preserve a hub population with compact merge heads or certified per-scope heads plus the shipped global pager (guide fanout); otherwise use a smaller lane bound, a smaller page with continuation, two reads (they are two snapshots), or a maintained feed".into(),
+            Repair::Cap {
+                name,
+                calls,
+                per_call,
+                maintain_line,
+            } => {
+                let other = actual.saturating_sub(self.value);
+                let fits = ceiling
+                    .saturating_sub(other)
+                    .saturating_div((*per_call).max(1))
+                    .min(*calls);
+                let chunk = if fits == 0 {
+                    format!("structural repair: {name} leaves no positive chunk size under this ceiling with the other reserves unchanged; reduce the other work or split the job")
+                } else {
+                    format!("reduce the chunk from {calls} to at most {fits} writes for {name}; {fits} fits this ceiling with the other reserves unchanged")
+                };
+                if let Some(line) = maintain_line {
+                    format!(
+                        "add this schema maintain with its read rule:\n{line}\nthe cap probe then prices at one row per write; {chunk}"
+                    )
+                } else {
+                    chunk
+                }
+            }
+            Repair::Range { nested: true } => "replace the nested population scan with maintain.count/sum, or reduce its declared bound".into(),
+            Repair::Range { nested: false } => "reduce the named range's page bound, or read a maintained aggregate".into(),
+            Repair::Probe => "reduce the named rule-probe product by pinning the authorization scope in the scan prefix or reducing its call bound".into(),
+            Repair::Uniformity => "make the read rule uniform over the scan prefix by pinning its authorization scope; a smaller page does not reduce the non-uniform budget reserve".into(),
+            Repair::Work => "reduce the named expression, statement, or write repetition bound; for a whole-population digest or backfill, keep the population and reduce a resumable job chunk (guide fanout)".into(),
+        }
+    }
+}
+
+#[derive(Clone, Default)]
+pub(super) struct WorkTerms([Vec<Cost>; 4]);
+impl WorkTerms {
+    pub fn locate(&mut self, site: &str) {
+        for term in self.0.iter_mut().flatten() {
+            if term.site.is_none() { term.site = Some(site.into()); }
+        }
+    }
+
+    pub fn add(&mut self, other: Self) {
+        for (target, source) in self.0.iter_mut().zip(other.0) {
+            target.extend(source);
+        }
+    }
+    pub fn branch(&mut self, other: &Self, wins: [bool; 4]) {
+        for (i, win) in wins.into_iter().enumerate() {
+            if win {
+                self.0[i] = other.0[i].clone();
+            }
+        }
+    }
+    pub fn delivery(&mut self, rows: u64, steps: u64, site: &str, label: &str) {
+        for (meter, value) in [(0, rows), (1, rows), (3, steps)] {
+            self.0[meter].push(Cost { value, site: Some(site.into()), source: label.into(), repair: Repair::Work });
+        }
+    }
+    pub fn scan(&mut self, cost: Cost) {
+        self.0[0].push(cost.clone());
+        self.0[1].push(cost.clone());
+        self.0[3].push(cost.scaled(5));
+    }
+    pub fn read(&mut self, read: &Read, calls: u64, factors: &[(String, u64)]) {
+        let cost = Cost {
+            site: Some(read.site.clone()),
+            value: calls,
+            source: format!(
+                "{} point read on {} × {calls} calls{}",
+                read.site,
+                read.table,
+                context(factors)
+            ),
+            repair: Repair::Range {
+                nested: !factors.is_empty(),
+            },
+        };
+        self.0[0].push(cost.clone());
+        self.0[1].push(cost.clone());
+        self.0[3].push(cost.scaled(4));
+    }
+    pub fn step(&mut self, value: u64, label: &str, factors: &[(String, u64)]) {
+        self.0[3].push(Cost {
+            value,
+            site: None,
+            source: format!("{label}{}", context(factors)),
+            repair: Repair::Work,
+        });
+    }
+    pub fn probes(&mut self, site: &str, calls: u64, per_call: u64, factors: &[(String, u64)]) {
+        self.0[2].push(Cost {
+            site: Some(site.into()),
+            value: calls.saturating_mul(per_call),
+            source: format!(
+                "{site}: {calls} calls × {per_call} rule probes{}",
+                context(factors)
+            ),
+            repair: Repair::Probe,
+        });
+    }
+    pub fn product(&self) -> Option<String> {
+        let terms = sorted_terms(self.for_meter("examined entries"));
+        (!terms.is_empty()).then(|| {
+            terms
+                .iter()
+                .map(|t| format!("{} = {}", t.source, t.value))
+                .collect::<Vec<_>>()
+                .join(" + ")
+        })
+    }
+    pub fn for_meter(&self, name: &str) -> Vec<Cost> {
+        let (i, scale) = match name {
+            "examined entries" => (0, 1),
+            "index entries" => (1, 1),
+            "rule probes" => (2, 1),
+            "heap bytes" => (3, HEAP_BYTES_PER_STEP),
+            _ => (3, 1),
+        };
+        self.0[i]
+            .iter()
+            .cloned()
+            .map(|term| if scale == 1 { term } else { term.scaled(scale) })
+            .collect()
+    }
+}
+
+pub(super) fn sorted_terms(terms: Vec<Cost>) -> Vec<Cost> {
+    let mut combined = BTreeMap::<(Option<String>, String), Cost>::new();
+    let mut terms_out = Vec::new();
+    for term in terms.into_iter().filter(|term| term.value > 0) {
+        if matches!(term.repair, Repair::Work) {
+            combined
+                .entry((term.site.clone(), term.source.clone()))
+                .and_modify(|old| old.value = old.value.saturating_add(term.value))
+                .or_insert(term);
+        } else {
+            terms_out.push(term);
+        }
+    }
+    let mut terms = terms_out;
+    terms.extend(combined.into_values());
+    terms.sort_by(|a, b| b.value.cmp(&a.value).then(a.source.cmp(&b.source)));
+    terms
+}
+
+impl Checker<'_> {
+    pub(super) fn check_ceiling(
+        &self,
+        name: &str,
+        actual: u64,
+        ceiling: u64,
+        summary: &Summary,
+        bytes: Option<&crate::collection_rewrite::ByteShape>,
+    ) -> Result<(), CheckError> {
+        if actual <= ceiling {
+            return Ok(());
+        }
+        let terms = meter_terms(self.schema, summary, name, actual);
+        let site = terms.first().and_then(|term| term.site.clone());
+        let delivery_dominates = site.as_ref().is_some_and(|site| site.ends_with(".deliver"));
+        let (product, rewrite) = if let Some(shape) = bytes {
+            (shape.render(), shape.rewrite())
+        } else {
+            let maintain_line = terms.iter().find_map(|term| match &term.repair {
+                Repair::Cap {
+                    maintain_line: Some(line),
+                    ..
+                } => Some(line),
+                _ => None,
+            });
+            let mut rewrite = terms
+                .first()
+                .map(|t| t.rewrite(actual, ceiling))
+                .unwrap_or_else(|| "reduce the declared work bound".into());
+            if name != "steps"
+                && let Some(line) = maintain_line
+                && !rewrite.contains(line)
+            {
+                rewrite.push_str(&format!(
+                    "; add this schema maintain with its read rule:\n{line}\nthe cap probe then prices at one row per write"
+                ));
+            }
+            (
+                terms
+                    .iter()
+                    .map(|t| format!("{} = {}", t.source, t.value))
+                    .collect::<Vec<_>>()
+                    .join(" + "),
+                rewrite,
+            )
+        };
+        Err(CheckError {
+            site,
+            code: if name == "steps" && !delivery_dominates {
+                "E_STEPS"
+            } else {
+                "E_BOUND"
+            }
+            .into(),
+            message: format!("{name} {actual} exceeds ceiling {ceiling}; product: {product}"),
+            rewrite,
+        })
+    }
+}
+
+fn meter_terms(schema: &Schema, summary: &Summary, name: &str, actual: u64) -> Vec<Cost> {
+    let mut terms = summary.costs.for_meter(name);
+    for term in &summary.derived_terms {
+        let value = match name { "steps" => term.steps, "heap bytes" => term.scratch, _ => 0 };
+        if value > 0 {
+            terms.push(Cost { value, source: term.source.clone(), site: term.site.clone(), repair: Repair::Work });
+        }
+    }
+    if name == "heap bytes" {
+        for write in &summary.writes {
+            if let Some(d) = schema.table(&write.table).and_then(|t| t.deliver.as_ref()) {
+                let rows = (u64::from(crate::delivery::group_cap(&schema.tables[&d.target], &d.prefix).unwrap_or(0))
+                    + u64::from(matches!(write.kind, WriteKind::Insert | WriteKind::Upsert))).saturating_mul(write.max_rows);
+                terms.push(Cost { value: rows.saturating_mul(crate::delivery::scratch_per_recipient(schema, d)),
+                    site: Some(format!("schema.tables.{}.deliver", write.table)),
+                    source: format!("{} on {}: candidate images, recipient map and event construction", d.line(None), write.table), repair: Repair::Work });
+            }
+        }
+    }
+    let total = terms.iter().fold(0_u64, |n, c| n.saturating_add(c.value));
+    if actual > total {
+        terms.push(Cost {
+            value: actual - total, site: None,
+            source: "rule evaluation / non-uniform budget reserve".into(),
+            repair: Repair::Uniformity,
+        });
+    }
+    sorted_terms(terms)
+}
+
+pub(super) fn priced_terms(
+    schema: &Schema, summary: &Summary, meters: &[(&str, u64)], output: &ByteShape, closure: &ByteShape,
+    maintained: &BTreeMap<String, u64>,
+) -> Vec<CostTerm> {
+    let mut result = Vec::new();
+    for &(meter, actual) in meters {
+        for cost in meter_terms(schema, summary, meter, actual) {
+            result.push(CostTerm { meter: meter.into(), value: cost.value.into(), source: cost.source, site: cost.site });
+        }
+    }
+    fn bytes(result: &mut Vec<CostTerm>, meter: &str, shape: &ByteShape, scale: u64, summary: &Summary, parent: Option<String>) {
+        let site = shape.site.clone().or_else(|| summary.reads.keys().filter(|site| shape.label.contains(site.as_str())).max_by_key(|site| site.len()).cloned()).or(parent);
+        if shape.children.is_empty() {
+            let detail = shape.detail.as_ref().map_or(String::new(), |detail| format!("; {detail}"));
+            let source = if scale > 1 { format!("{scale} × {} ({} bytes each{detail})", shape.label, shape.bytes) }
+                else if detail.is_empty() { shape.label.clone() }
+                else { format!("{} ({} bytes{detail})", shape.label, shape.bytes) };
+            result.push(CostTerm { meter: meter.into(), value: i128::from(shape.bytes.saturating_mul(scale)), source, site: site.clone() });
+        } else {
+            let child_scale = scale.saturating_mul(shape.repeat.unwrap_or(1));
+            for child in &shape.children { bytes(result, meter, child, child_scale, summary, site.clone()); }
+            // Each child reconciles to its own saturated u64 bound. Add those
+            // emitted integers exactly, so a saturated parent still reconciles.
+            let sum: i128 = shape.children.iter().map(|c| i128::from(c.bytes.saturating_mul(child_scale))).sum();
+            let delta = i128::from(shape.bytes.saturating_mul(scale)) - sum;
+            if delta != 0 { result.push(CostTerm { meter: meter.into(), value: delta, source: format!("{}: framing/shared encoding/growth adjustment", shape.label), site }); }
+        }
+    }
+    bytes(&mut result, "output bytes", output, 1, summary, None);
+    bytes(&mut result, "closure bytes", closure, 1, summary, None);
+    for write in &summary.writes {
+        let key = format!("{} {:?}", write.table, write.kind);
+        let site = summary.write_origins.get(&key).cloned().unwrap_or_else(|| format!("schema.tables.{}", write.table));
+        result.push(CostTerm { meter: "write rows".into(), value: write.max_rows.into(), source: key, site: Some(site) });
+    }
+    for (table, rows) in maintained {
+        result.push(CostTerm { meter: "write rows".into(), value: (*rows).into(), source: format!("{table} maintained applications"), site: Some(format!("schema.tables.{table}")) });
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cap_repair_names_when_other_work_leaves_no_positive_chunk() {
+        let cost = Cost {
+            value: 100,
+            site: Some("schema.tables.memberships".into()),
+            source: "10 calls × cap 10 by group on memberships".into(),
+            repair: Repair::Cap {
+                name: "cap 10 by group on memberships".into(),
+                calls: 10,
+                per_call: 10,
+                maintain_line: None,
+            },
+        };
+        let rewrite = cost.rewrite(150, 40);
+        assert!(rewrite.contains("no positive chunk size"), "{rewrite}");
+        assert!(
+            rewrite.contains("reduce the other work or split the job"),
+            "{rewrite}"
+        );
+    }
+}

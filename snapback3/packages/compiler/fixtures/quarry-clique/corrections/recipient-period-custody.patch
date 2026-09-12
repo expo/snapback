@@ -1,0 +1,351 @@
+--- a/snapback/access.q
++++ b/snapback/access.q
+@@ -5,6 +5,28 @@
+ fn conversationLog(c: conversations, p: principal, pageCursor: cursor ?): deliveries[p, c, 'message'] after pageCursor last 50 by byRecipientConversationKindAt
+ fn conversationPreview(c: conversations, p: principal): deliveries[p, c, 'message'] last 1 by byRecipientConversationKindAt
+ fn settings(): appSettings['windows']
++
++-- @ref LLP 1025.000#1-the-invariant — every source transition maintains recipient totals and distinct chats in the same transaction.
++proc queuePeriodUnread(messageId: messages, recipient: principal, conversationId: conversations, membershipId: memberships, periodStart: time):
++  prior = periodUnread[messageId, recipient]
++  if prior = null:
++    message = messages[messageId] ! else MESSAGE_REQUIRED
++    insert periodUnread { messageId, author: message.authorId, recipient, conversationId, membershipId, periodStart }
++    chat = periodChats[recipient, conversationId, membershipId, periodStart]
++    if chat = null:
++      insert periodChats { recipient, conversationId, membershipId, periodStart, total: 1 }
++    else:
++      update periodChats[chat] { total: chat.total + 1 }
++
++proc clearPeriodUnread(pending: periodUnread):
++  row = periodUnread[pending] ! else PERIOD_CUSTODY
++  chat = periodChats[row.recipient, row.conversationId, row.membershipId, row.periodStart] ! else PERIOD_CHAT_CUSTODY
++  require chat.total > 0 else PERIOD_CHAT_CUSTODY
++  delete periodUnread[row]
++  if chat.total = 1:
++    delete periodChats[chat]
++  else:
++    update periodChats[chat] { total: chat.total - 1 }
+ 
+ proc deliver(c: conversations, messageId: messages, kind: enum('message', 'edit', 'removed', 'expired')):
+   for m in conversationMembers(c):
+@@ -15,7 +37,7 @@
+         delete pendingRead[unread]
+       periodUnreadRow = periodUnread[messageId, m.principal]
+       if periodUnreadRow != null:
+-        delete periodUnread[periodUnreadRow]
++        clearPeriodUnread(periodUnreadRow.id)
+       undelivered = pendingDelivered[messageId, m.principal]
+       if undelivered != null:
+         delete pendingDelivered[undelivered]
+@@ -43,13 +65,7 @@
+     if m.principal != author:
+       insert pendingDelivered { messageId, recipient: m.principal, conversationId: c }
+       insert pendingRead { messageId, recipient: m.principal, conversationId: c, periodStart }
+-      insert periodUnread {
+-        messageId,
+-        recipient: m.principal,
+-        conversationId: c,
+-        membershipId: m.id,
+-        periodStart,
+-      }
++      queuePeriodUnread(messageId, m.principal, c, m.id, periodStart)
+       bumpUnread(c, m.principal)
+ 
+ proc bumpDailyPosts(actor: principal):
+--- a/snapback/admin.q
++++ b/snapback/admin.q
+@@ -1,5 +1,6 @@
+ fn settings from access
+ proc deliver from access
++proc clearPeriodUnread from access
+ effect notify from delivery
+ 
+ mutation setReplayMode(enabled: bool):
+@@ -21,7 +22,10 @@
+ mutation retractMessage(messageId: messages):
+   msg = messages[messageId] ! else NOT_FOUND
+   deliver(msg.conversationId, messageId, 'removed')
+-  update messages[msg] { status: 'removed' }
++  poll = polls[messageId]
++  if poll != null:
++    delete polls[poll]
++  delete messages[msg]
+   return null
+ 
+ job digestSweep(cutoff: time):
+@@ -34,24 +38,18 @@
+       prior = digests[p.principal, periodStart]
+       if prior = null:
+         newFollowers = newFollowerPeriodCounts[p.principal, true, periodStart] ?? 0
++        unreadMessages = periodUnreadByRecipientPeriod[p.principal, periodStart] ?? 0
++        unreadChats = periodChatsByRecipientPeriod[p.principal, periodStart] ?? 0
+         candidate = insert digestCandidates {
+           newPostsInFollowing: 0,
+-          unreadMessages: 0,
+-          unreadChats: 0,
++          unreadMessages,
++          unreadChats,
+         }
+         following = digestFollows[p.principal] first 500 by byFollower { followed }
+         for followed in following:
+           postCounter = postPeriodCounters[followed.followed, false, periodStart]
+           if postCounter != null:
+             update digestCandidates[candidate] { newPostsInFollowing: .newPostsInFollowing + postCounter.total }
+-        chats = memberships[p.principal] first 100 by byPrincipalConversation { id, conversationId }
+-        for membership in chats:
+-          messageCount = periodUnreadByMembershipPeriod[p.principal, membership.conversationId, membership.id, periodStart] ?? 0
+-          if messageCount > 0:
+-            update digestCandidates[candidate] {
+-              unreadMessages: .unreadMessages + messageCount,
+-              unreadChats: .unreadChats + 1,
+-            }
+         summary = digestCandidates[candidate.id] ! else DIGEST_STATE
+         if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:
+           insert digests {
+@@ -81,7 +79,7 @@
+     (_q, rem) = divmod(cutoff, cfg.digestPeriodMs)
+     currentPeriodStart = cutoff - rem
+     if row.periodStart < currentPeriodStart - cfg.digestPeriodMs:
+-      delete periodUnread[row]
++      clearPeriodUnread(row.id)
+ 
+ schedule digestPulse every 2m: digestSweep(.periodEnd)
+ 
+--- a/snapback/groups.q
++++ b/snapback/groups.q
+@@ -1,3 +1,4 @@
++proc clearPeriodUnread from access
+ fn isAdmin from access
+ fn isMember from access
+ fn conversationMembers from access
+@@ -71,6 +72,9 @@
+     delete pendingDelivered[row]
+   pendingR = pendingRead[membership.principal, conversationId] first 50 by byRecipientConversation
+   for row in pendingR:
++    periodRow = periodUnread[row.messageId, membership.principal]
++    if periodRow != null:
++      clearPeriodUnread(periodRow.id)
+     delete pendingRead[row]
+   delete memberships[membership]
+   return null
+@@ -84,9 +88,9 @@
+   pendingR = pendingRead[viewer, conversationId] first 50 by byRecipientConversation
+   for row in pendingR:
+     delete pendingRead[row]
+-  periodR = periodUnread[viewer, conversationId, membership.id] first 50 by byRecipientConversationMembership
+-  for row in periodR:
+-    delete periodUnread[row]
++  periodRows = periodUnread[viewer, conversationId, membership.id] first 50 by byRecipientConversationMembership
++  for row in periodRows:
++    clearPeriodUnread(row.id)
+   delete memberships[membership]
+   return null
+ 
+--- a/snapback/messages.q
++++ b/snapback/messages.q
+@@ -2,6 +2,7 @@
+ fn isMember from access
+ fn conversationMembers from access
+ proc deliver from access
++proc clearPeriodUnread from access
+ fn conversationLog from access
+ fn conversationPreview from access
+ fn settings from access
+@@ -9,8 +10,8 @@
+ proc clearUnread from access
+ 
+ query inbox(c: cursor ?):
+-  page = deliveries[viewer] after c first 50 by byRecipientAt
+-  return page { *, message: messages[.messageId] }
++  page = messageCustody[viewer] after c first 50 by byRecipient
++  return page { *, messageId: .row, message: messages[.row] }
+ 
+ query nextPendingDelivery():
+   return pendingDelivered[viewer] first 1 by byRecipient
+@@ -194,7 +195,7 @@
+       delete pendingDelivered[delivered]
+   periodPending = periodUnread[viewer, conversationId, membership.id] first 50 by byRecipientConversationMembership
+   for row in periodPending:
+-    delete periodUnread[row]
++    clearPeriodUnread(row.id)
+   clearUnread(conversationId, viewer)
+   return null
+ 
+--- a/snapback/posts.q
++++ b/snapback/posts.q
+@@ -10,14 +10,14 @@
+   (_period, rem) = divmod(now, cfg.digestPeriodMs)
+   periodStart = now - rem
+   if postId != null:
+-    row = insert posts { id: postId, author: viewer, body, kind: 'text', isReply: false, periodStart, at: now }
++    row = insert posts { id: postId, author: viewer, body, kind: 'text', isReply: false, periodStart, digestEligible: cfg.replayMode = false, at: now }
+     insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+     insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
+     if cfg.replayMode = false:
+       bumpPostPeriod(viewer, periodStart)
+     bumpDailyPosts(viewer)
+     return row
+-  row = insert posts { author: viewer, body, kind: 'text', isReply: false, periodStart, at: now }
++  row = insert posts { author: viewer, body, kind: 'text', isReply: false, periodStart, digestEligible: cfg.replayMode = false, at: now }
+   insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+   insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
+   if cfg.replayMode = false:
+@@ -31,14 +31,14 @@
+   (_period, rem) = divmod(now, cfg.digestPeriodMs)
+   periodStart = now - rem
+   if postId != null:
+-    row = insert posts { id: postId, author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, at: now }
++    row = insert posts { id: postId, author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, digestEligible: cfg.replayMode = false, at: now }
+     insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+     insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
+     if cfg.replayMode = false:
+       bumpPostPeriod(viewer, periodStart)
+     bumpDailyPosts(viewer)
+     return row
+-  row = insert posts { author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, at: now }
++  row = insert posts { author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, digestEligible: cfg.replayMode = false, at: now }
+   insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+   insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
+   if cfg.replayMode = false:
+@@ -53,14 +53,14 @@
+   (_period, rem) = divmod(now, cfg.digestPeriodMs)
+   periodStart = now - rem
+   if postId != null:
+-    row = insert posts { id: postId, author: viewer, body, kind: 'video', isReply: false, clip, periodStart, at: now }
++    row = insert posts { id: postId, author: viewer, body, kind: 'video', isReply: false, clip, periodStart, digestEligible: cfg.replayMode = false, at: now }
+     insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+     insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
+     if cfg.replayMode = false:
+       bumpPostPeriod(viewer, periodStart)
+     bumpDailyPosts(viewer)
+     return row
+-  row = insert posts { author: viewer, body, kind: 'video', isReply: false, clip, periodStart, at: now }
++  row = insert posts { author: viewer, body, kind: 'video', isReply: false, clip, periodStart, digestEligible: cfg.replayMode = false, at: now }
+   insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+   insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
+   if cfg.replayMode = false:
+@@ -185,3 +185,14 @@
+     liked: exists likes[.id, viewer],
+     reposted: exists reposts[.id, viewer],
+   }
++
++mutation deletePost(postId: posts):
++  post = posts[postId] ! else NOT_FOUND
++  require post.author = viewer else AUTHOR_REQUIRED
++  if post.digestEligible = true:
++    periodStart = post.periodStart ! else POST_PERIOD
++    counter = postPeriodCounters[post.author, false, periodStart] ! else POST_COUNTER
++    require counter.total > 0 else POST_COUNTER
++    update postPeriodCounters[counter] { total: counter.total - 1 }
++  delete posts[post]
++  return null
+--- a/snapback/schema.q
++++ b/snapback/schema.q
+@@ -77,13 +77,14 @@
+   image4: image <=10485760 ?
+   clip: video <=52428800 ?
+   periodStart: time ?
++  digestEligible: bool ?
+   at: time
+   by byTime: at, id
+   by byAuthorTime: author, at, id
+   by byAuthorReplyTime: author, isReply, at, id
+   by byParentTime: parentId, at, id
+   by bySearch: wordPrefixes(body), at, id
+-  immutable author, at, kind, isReply, parentId, parentAuthor, periodStart
++  immutable author, at, kind, isReply, parentId, parentAuthor, periodStart, digestEligible
+   public 'posts are globally readable product content'
+   insert <- .author = viewer
+   update <- .author = viewer
+@@ -239,7 +240,7 @@
+   by byConversationPrincipalRole: conversationId, principal, role
+   by byPrincipalConversation: principal, conversationId, id
+   cap 50 by conversationId
+-  cap 100 by principal
++  cap 1000 by principal
+   immutable conversationId, principal, joinedAt
+   read <- exists memberships[.conversationId, viewer]
+   insert <- (
+@@ -281,6 +282,7 @@
+   by bySearch: conversationId, wordPrefixes(body), at, id
+   immutable conversationId, authorId
+   retain delivered-history
++  deliver to memberships[.conversationId] as messageCustody
+   read <- exists memberships[.conversationId, viewer]
+   insert <- (
+     .authorId = viewer
+@@ -300,7 +302,6 @@
+   by byRecipientConversationKindAt: recipient, conversationId, kind, at, id
+   unique byRecipientMessageKind: recipient, messageId, kind
+   immutable recipient, conversationId, messageId, kind, at
+-  tombstones messages[.messageId] if .kind = 'removed' or .kind = 'expired'
+   read <- .recipient = viewer
+   insert <- exists memberships[.conversationId, viewer]
+   update <- deny
+@@ -345,6 +346,7 @@
+ 
+ table periodUnread:
+   messageId: messages
++  author: principal
+   recipient: principal
+   conversationId: conversations
+   membershipId: memberships
+@@ -354,17 +356,32 @@
+   by byPeriod: periodStart, id
+   cap 50 by recipient, conversationId, membershipId
+   cap 50 by messageId
+-  immutable messageId, recipient, conversationId, membershipId, periodStart
++  immutable messageId, author, recipient, conversationId, membershipId, periodStart
+   read <- (
+     .recipient = viewer
+-    or (exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer])
+-  )
+-  insert <- exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer]
++    or exists memberships[.conversationId, viewer, 'admin']
++    or (.author = viewer and exists memberships[.conversationId, viewer])
++  )
++  insert <- .author = viewer and exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer]
+   update <- deny
+   delete <- (
+     .recipient = viewer
+-    or (exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer])
+-  )
++    or exists memberships[.conversationId, viewer, 'admin']
++    or (.author = viewer and exists memberships[.conversationId, viewer])
++  )
++
++table periodChats:
++  total: int
++  recipient: principal
++  conversationId: conversations
++  membershipId: memberships
++  periodStart: time
++  unique byRecipientConversationMembershipPeriod: recipient, conversationId, membershipId, periodStart
++  immutable recipient, conversationId, membershipId, periodStart
++  read <- exists memberships[.conversationId, viewer]
++  insert <- exists memberships[.conversationId, viewer]
++  update <- exists memberships[.conversationId, viewer]
++  delete <- exists memberships[.conversationId, viewer]
+ 
+ table unreadCounts:
+   conversationId: conversations
+@@ -529,7 +546,10 @@
+ maintain pendingReadByChat: count pendingRead by recipient, conversationId
+   read <- deny
+ 
+-maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
++maintain periodUnreadByRecipientPeriod: count periodUnread by recipient, periodStart
++  read <- deny
++
++maintain periodChatsByRecipientPeriod: count periodChats by recipient, periodStart
+   read <- deny
+ 
+ maintain unreadMessageTotals: sum unreadCounts of count by principal
+@@ -543,3 +563,6 @@
+   publish <- exists memberships[conversationId, viewer]
+   subscribe <- exists memberships[conversationId, viewer]
+   ttl 5s
++
++maintain membershipCountsByPrincipal: count memberships by principal
++  read <- deny

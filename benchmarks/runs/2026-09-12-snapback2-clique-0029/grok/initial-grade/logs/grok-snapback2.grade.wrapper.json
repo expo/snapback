@@ -1,0 +1,83 @@
+{
+  "wave": "grok",
+  "phase": "grade",
+  "invocation": "88ff0e00-af6a-4239-b3ee-cf06ffc60a67",
+  "controller": {
+    "pid": 4093305,
+    "startTicks": "1176641714",
+    "bootId": "94501ac3-79fb-4b29-9b54-1a7e6567dea0"
+  },
+  "started": 1789206821.5646074,
+  "credentialTransport": "private stdin to child environment only",
+  "builderEnd": {
+    "lane": "grok-snapback2",
+    "pid": 3870211,
+    "startedEpoch": 1789191903,
+    "endedEpoch": 1789206137,
+    "exit": 0,
+    "interrupted": null,
+    "nativeManifest": null,
+    "waitError": null,
+    "nativeCaptureError": null,
+    "nativeTreeStatus": "incomplete-unavailable",
+    "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller"
+  },
+  "preflight": "/home/ccheever/clique-0029-20260912/preflight/pre-grok-grader.88ff0e00-af6a-4239-b3ee-cf06ffc60a67.json",
+  "preflightOutcome": {
+    "phase": "grade-preflight",
+    "invocation": "88ff0e00-af6a-4239-b3ee-cf06ffc60a67",
+    "started": 1789206821.7176507,
+    "pid": 4093306,
+    "childBirth": {
+      "pid": 4093306,
+      "startTicks": "1176641733",
+      "bootId": "94501ac3-79fb-4b29-9b54-1a7e6567dea0"
+    },
+    "processGroup": 4093306,
+    "childExit": 0,
+    "childReaped": true,
+    "childSignal": null,
+    "interrupted": null,
+    "ended": 1789206823.471489,
+    "exit": 0
+  },
+  "command": [
+    "/usr/bin/python3",
+    "-u",
+    "scripts/grade.py",
+    "grok",
+    "snapback2"
+  ],
+  "childOutcome": {
+    "phase": "frozen-grade-wrapper",
+    "invocation": "88ff0e00-af6a-4239-b3ee-cf06ffc60a67",
+    "started": 1789206823.4719944,
+    "pid": 4093482,
+    "childBirth": {
+      "pid": 4093482,
+      "startTicks": "1176641908",
+      "bootId": "94501ac3-79fb-4b29-9b54-1a7e6567dea0"
+    },
+    "processGroup": 4093482,
+    "childExit": 0,
+    "childReaped": true,
+    "childSignal": null,
+    "interrupted": null,
+    "ended": 1789208560.4360075,
+    "exit": 0
+  },
+  "exit": 0,
+  "ended": 1789208560.4364247,
+  "interrupted": null,
+  "frozenGraderEnd": {
+    "lane": "grok-snapback2",
+    "phase": "grade",
+    "pid": 4093483,
+    "startedEpoch": 1789206823,
+    "endedEpoch": 1789208560,
+    "exit": 0,
+    "interrupted": null,
+    "waitError": null
+  },
+  "cleanupUnresolved": false
+}

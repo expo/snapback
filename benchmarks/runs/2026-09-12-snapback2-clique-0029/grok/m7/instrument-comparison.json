@@ -1,0 +1,1121 @@
+{
+  "files": [
+    {
+      "path": "./CONTRACT.md",
+      "expected": "ecb7b0a706703c271f67be81d1899414bfb50c79f85d5b03a585c76ca02085be",
+      "actual": "ecb7b0a706703c271f67be81d1899414bfb50c79f85d5b03a585c76ca02085be",
+      "match": true
+    },
+    {
+      "path": "./ENVIRONMENT.md",
+      "expected": "d289178f5231c9e84c08b8c3878637ecd90ecfe005b812d60a210e836c6cd56e",
+      "actual": "d289178f5231c9e84c08b8c3878637ecd90ecfe005b812d60a210e836c6cd56e",
+      "match": true
+    },
+    {
+      "path": "./README.md",
+      "expected": "45efcb359346338930bcd4703aabe82026f9feadceb0a083cb718819241c2424",
+      "actual": "45efcb359346338930bcd4703aabe82026f9feadceb0a083cb718819241c2424",
+      "match": true
+    },
+    {
+      "path": "./choreography/README.md",
+      "expected": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847",
+      "actual": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847",
+      "match": true
+    },
+    {
+      "path": "./choreography/RUNBOOK.md",
+      "expected": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d",
+      "actual": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d",
+      "match": true
+    },
+    {
+      "path": "./choreography/VERSION",
+      "expected": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95",
+      "actual": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95",
+      "match": true
+    },
+    {
+      "path": "./choreography/choreography.mjs",
+      "expected": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+      "actual": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+      "match": true
+    },
+    {
+      "path": "./choreography/control-lane.mjs",
+      "expected": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9",
+      "actual": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9",
+      "match": true
+    },
+    {
+      "path": "./choreography/package.json",
+      "expected": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c",
+      "actual": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c",
+      "match": true
+    },
+    {
+      "path": "./choreography/receipts-format.md",
+      "expected": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d",
+      "actual": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d",
+      "match": true
+    },
+    {
+      "path": "./choreography/receipts.schema.json",
+      "expected": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39",
+      "actual": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39",
+      "match": true
+    },
+    {
+      "path": "./choreography/self-test.mjs",
+      "expected": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703",
+      "actual": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703",
+      "match": true
+    },
+    {
+      "path": "./choreography/setup-identity.mjs",
+      "expected": "7d2b582aa2a2fc94602b76c9e732120e83be57b3c978df392937ca178cc8bf93",
+      "actual": "7d2b582aa2a2fc94602b76c9e732120e83be57b3c978df392937ca178cc8bf93",
+      "match": true
+    },
+    {
+      "path": "./choreography/setup-identity.schema.json",
+      "expected": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b",
+      "actual": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b",
+      "match": true
+    },
+    {
+      "path": "./choreography/simulator.md",
+      "expected": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f",
+      "actual": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f",
+      "match": true
+    },
+    {
+      "path": "./choreography/startup.test.mjs",
+      "expected": "3ab86c94b0358e339bdda097049d7ea8aed107bcf536b414305fa23d2fc60e36",
+      "actual": "3ab86c94b0358e339bdda097049d7ea8aed107bcf536b414305fa23d2fc60e36",
+      "match": true
+    },
+    {
+      "path": "./choreography/w9-coterie-browser.mjs",
+      "expected": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89",
+      "actual": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89",
+      "match": true
+    },
+    {
+      "path": "./choreography/w9-host-preflight.mjs",
+      "expected": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a",
+      "actual": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a",
+      "match": true
+    },
+    {
+      "path": "./choreography/w9-native-host.mjs",
+      "expected": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924",
+      "actual": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924",
+      "match": true
+    },
+    {
+      "path": "./fixtures/.gitignore",
+      "expected": "19bec78580d2be41a0e2f535b81d36f5dff8c266240ef0bee1257a83220f1e19",
+      "actual": "19bec78580d2be41a0e2f535b81d36f5dff8c266240ef0bee1257a83220f1e19",
+      "match": true
+    },
+    {
+      "path": "./fixtures/README.md",
+      "expected": "b3793a0bb8778f9e990a1c2b645d969f4886069eaff9fde1a548e7e946ee14d6",
+      "actual": "b3793a0bb8778f9e990a1c2b645d969f4886069eaff9fde1a548e7e946ee14d6",
+      "match": true
+    },
+    {
+      "path": "./fixtures/VERSION",
+      "expected": "e70b5d2afe634b62dcd0ac0ea214a2330700439c82a131632d97f61a727855f1",
+      "actual": "e70b5d2afe634b62dcd0ac0ea214a2330700439c82a131632d97f61a727855f1",
+      "match": true
+    },
+    {
+      "path": "./fixtures/action-schema.json",
+      "expected": "a8a64c8d26ffc0ed0beb049c2df82ff4604d0a8f795afda30199ac8799d1bc55",
+      "actual": "a8a64c8d26ffc0ed0beb049c2df82ff4604d0a8f795afda30199ac8799d1bc55",
+      "match": true
+    },
+    {
+      "path": "./fixtures/action-schema.md",
+      "expected": "e5a77f0f3f99ff5eb7a64126a5cd881fae38daadc0f7ab29b7535667757ef9b4",
+      "actual": "e5a77f0f3f99ff5eb7a64126a5cd881fae38daadc0f7ab29b7535667757ef9b4",
+      "match": true
+    },
+    {
+      "path": "./fixtures/config/digest.production.json",
+      "expected": "c389728f1505612d3ac2a44597efa12a83042666a34432f27cf832e54fdfdc21",
+      "actual": "c389728f1505612d3ac2a44597efa12a83042666a34432f27cf832e54fdfdc21",
+      "match": true
+    },
+    {
+      "path": "./fixtures/config/digest.shortened.json",
+      "expected": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60",
+      "actual": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60",
+      "match": true
+    },
+    {
+      "path": "./fixtures/config/windows.production.json",
+      "expected": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764",
+      "actual": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764",
+      "match": true
+    },
+    {
+      "path": "./fixtures/config/windows.shortened.json",
+      "expected": "22dfdde4ef58026081f52eddbbabe9491624d6a00215522b6279c0f21f4c0bd9",
+      "actual": "22dfdde4ef58026081f52eddbbabe9491624d6a00215522b6279c0f21f4c0bd9",
+      "match": true
+    },
+    {
+      "path": "./fixtures/generate.mjs",
+      "expected": "6792549ff341fe15de94d004000e2f6d8dafc4429656d99675fd5d7380974c63",
+      "actual": "6792549ff341fe15de94d004000e2f6d8dafc4429656d99675fd5d7380974c63",
+      "match": true
+    },
+    {
+      "path": "./fixtures/invariant-manifest-combined.json",
+      "expected": "b8bd6b67db63c212cae622334850fdb758637bf44ec716544487f6cb41194f98",
+      "actual": "b8bd6b67db63c212cae622334850fdb758637bf44ec716544487f6cb41194f98",
+      "match": true
+    },
+    {
+      "path": "./fixtures/invariant-manifest-starter.json",
+      "expected": "da2900fd05e951454c98e7a8ba18a7a286e8f612d7cce0a4fc8a76a45f6ab7e3",
+      "actual": "da2900fd05e951454c98e7a8ba18a7a286e8f612d7cce0a4fc8a76a45f6ab7e3",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/avatar-alice.png",
+      "expected": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984",
+      "actual": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/avatar-bob.png",
+      "expected": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5",
+      "actual": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/img-01.png",
+      "expected": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c",
+      "actual": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/img-02.png",
+      "expected": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101",
+      "actual": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/img-03.png",
+      "expected": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8",
+      "actual": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/img-04.png",
+      "expected": "f0e403aaa541a4d50b35dc46ccc01c9903c96106faaa70ab96d69cb8887d44ef",
+      "actual": "f0e403aaa541a4d50b35dc46ccc01c9903c96106faaa70ab96d69cb8887d44ef",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/img-05.png",
+      "expected": "ce7543ab1030d31f2f66fec69b5bd9c22b3c820bbdfd44d71488fed3e6607fdc",
+      "actual": "ce7543ab1030d31f2f66fec69b5bd9c22b3c820bbdfd44d71488fed3e6607fdc",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/img-06.png",
+      "expected": "3b720f191084b6acf4c570fe3a2c72353f4cf887802f453e8de118579ce4695a",
+      "actual": "3b720f191084b6acf4c570fe3a2c72353f4cf887802f453e8de118579ce4695a",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/manifest.json",
+      "expected": "bd1c2bd1a40e5f22e38b8be1b9d04a8348218e152de352ed1bf1a8b73d51bb2a",
+      "actual": "bd1c2bd1a40e5f22e38b8be1b9d04a8348218e152de352ed1bf1a8b73d51bb2a",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/media-gen.mjs",
+      "expected": "8fc755e683d7b3cb25813b562662a3f49d7c4acd697bbef6494133613881abdd",
+      "actual": "8fc755e683d7b3cb25813b562662a3f49d7c4acd697bbef6494133613881abdd",
+      "match": true
+    },
+    {
+      "path": "./fixtures/media/vid-01.mp4",
+      "expected": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f",
+      "actual": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f",
+      "match": true
+    },
+    {
+      "path": "./fixtures/personas.json",
+      "expected": "605e4dedeba7c75625ee34ddfd711c4af51937321c69f97949741ef3ccef32a7",
+      "actual": "605e4dedeba7c75625ee34ddfd711c4af51937321c69f97949741ef3ccef32a7",
+      "match": true
+    },
+    {
+      "path": "./fixtures/sample-50.log",
+      "expected": "41658c95207164a9f62b3ac666f1b8ac2f372efa0b7058e8154710764347dda8",
+      "actual": "41658c95207164a9f62b3ac666f1b8ac2f372efa0b7058e8154710764347dda8",
+      "match": true
+    },
+    {
+      "path": "./fixtures/scale-log.sha256",
+      "expected": "f0a189bda878c76fa4e6721c838a38096821b13ba6c17cb1cd080753e53ae902",
+      "actual": "f0a189bda878c76fa4e6721c838a38096821b13ba6c17cb1cd080753e53ae902",
+      "match": true
+    },
+    {
+      "path": "./fixtures/scale.log",
+      "expected": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+      "actual": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+      "match": true
+    },
+    {
+      "path": "./fixtures/starter-m1.log",
+      "expected": "35265421454ed708dd0af1b3cfc4a9b48af2b96525c8d9a16b45ad5f358cef1c",
+      "actual": "35265421454ed708dd0af1b3cfc4a9b48af2b96525c8d9a16b45ad5f358cef1c",
+      "match": true
+    },
+    {
+      "path": "./fixtures/starter-m2.log",
+      "expected": "e74ec486e34ffb5d6fc0dac19d1312d3dd061c87912083be130a71e5658d3be6",
+      "actual": "e74ec486e34ffb5d6fc0dac19d1312d3dd061c87912083be130a71e5658d3be6",
+      "match": true
+    },
+    {
+      "path": "./fixtures/starter-m3.log",
+      "expected": "8ccf67728c225b44739c681a1a26020b13b31387c32264b4a208505863832f7b",
+      "actual": "8ccf67728c225b44739c681a1a26020b13b31387c32264b4a208505863832f7b",
+      "match": true
+    },
+    {
+      "path": "./fixtures/validate.mjs",
+      "expected": "40d4ae68ddacc8ed07a91c27512970f4270d11f10d0c1ba1987a52435d8311e9",
+      "actual": "40d4ae68ddacc8ed07a91c27512970f4270d11f10d0c1ba1987a52435d8311e9",
+      "match": true
+    },
+    {
+      "path": "./grader/README.md",
+      "expected": "a1e3156ee76edbb67871a4273419baf9b24fdd099d60e608f59863fd8a6a1147",
+      "actual": "a1e3156ee76edbb67871a4273419baf9b24fdd099d60e608f59863fd8a6a1147",
+      "match": true
+    },
+    {
+      "path": "./grader/VERSION",
+      "expected": "0fbbb674354c899e5462ea29b6a4af52baa99b798441e7bce2dd806ad5178c6a",
+      "actual": "0fbbb674354c899e5462ea29b6a4af52baa99b798441e7bce2dd806ad5178c6a",
+      "match": true
+    },
+    {
+      "path": "./grader/calibration.md",
+      "expected": "82081cf3df7ccc8e56029af01ca3841e937844acea591937a2d090fc6b4f9955",
+      "actual": "82081cf3df7ccc8e56029af01ca3841e937844acea591937a2d090fc6b4f9955",
+      "match": true
+    },
+    {
+      "path": "./grader/grader-prompt.md",
+      "expected": "97ce0e44d219c48b7a9dfe16ce26e9f0b90d47b00e09b43acc678cc9e2dfded6",
+      "actual": "97ce0e44d219c48b7a9dfe16ce26e9f0b90d47b00e09b43acc678cc9e2dfded6",
+      "match": true
+    },
+    {
+      "path": "./grader/grader-report.schema.json",
+      "expected": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30",
+      "actual": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30",
+      "match": true
+    },
+    {
+      "path": "./grader/planted-defects.template.json",
+      "expected": "9c018de93bf59ca9b924d4d3594ef52796c744306a76fc3a6b67e2f2ad2602d7",
+      "actual": "9c018de93bf59ca9b924d4d3594ef52796c744306a76fc3a6b67e2f2ad2602d7",
+      "match": true
+    },
+    {
+      "path": "./grader/probes/README.md",
+      "expected": "45ae6a39f366aa463b787bb5a1d67facc1ff58e58e6a8e4a242fa1c6ee8ebe73",
+      "actual": "45ae6a39f366aa463b787bb5a1d67facc1ff58e58e6a8e4a242fa1c6ee8ebe73",
+      "match": true
+    },
+    {
+      "path": "./grader/probes/categories.md",
+      "expected": "c15dbd4f6370e9f22d14676bfaec7e4f05835d802b00fea219b87cafc8b513c3",
+      "actual": "c15dbd4f6370e9f22d14676bfaec7e4f05835d802b00fea219b87cafc8b513c3",
+      "match": true
+    },
+    {
+      "path": "./grader/probes/commit-probes.mjs",
+      "expected": "35ddeb8b4dad0250bd8be8eb4c71732f874be62cc85a99df5e102bcd07b6173b",
+      "actual": "35ddeb8b4dad0250bd8be8eb4c71732f874be62cc85a99df5e102bcd07b6173b",
+      "match": true
+    },
+    {
+      "path": "./grader/probes/rotation-log.md",
+      "expected": "997257ac3b3fda313b36923460f8d2b583e847eefab9be0cbe7d2718fd47b827",
+      "actual": "997257ac3b3fda313b36923460f8d2b583e847eefab9be0cbe7d2718fd47b827",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/README.md",
+      "expected": "6b38fe0353dbd5dcd421b8c3fec17af2f35b74e7fcba3fa34b59ecbdd2c314c5",
+      "actual": "6b38fe0353dbd5dcd421b8c3fec17af2f35b74e7fcba3fa34b59ecbdd2c314c5",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/launch.py",
+      "expected": "bf88d14c6d24a211d8f3c9f56d3205f547ff757333230d9e5cf91a54182cc5f4",
+      "actual": "bf88d14c6d24a211d8f3c9f56d3205f547ff757333230d9e5cf91a54182cc5f4",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/launch_m7.py",
+      "expected": "6e97992862cc2dac8b014d2e08f56b8082625d52f53bf1095f6b94151e8621d9",
+      "actual": "6e97992862cc2dac8b014d2e08f56b8082625d52f53bf1095f6b94151e8621d9",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/preflight.py",
+      "expected": "d9f128867c361abccb91ff18615df58027d0ea72338b94ee748f6c0f1c2fc153",
+      "actual": "d9f128867c361abccb91ff18615df58027d0ea72338b94ee748f6c0f1c2fc153",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/prepare.py",
+      "expected": "b75f0946434a501041a83e3299d606d7b9e98504418cc31d1f1a726ccc6258ec",
+      "actual": "b75f0946434a501041a83e3299d606d7b9e98504418cc31d1f1a726ccc6258ec",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/render.py",
+      "expected": "0bffcf1b8f123605d1fe059c382549482fc430552a97efed848b88d77149a6ec",
+      "actual": "0bffcf1b8f123605d1fe059c382549482fc430552a97efed848b88d77149a6ec",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/run_support.py",
+      "expected": "533f7bf7eab2054025558c772181d6faec33d075a7af8e7f37ad37a79aced66d",
+      "actual": "533f7bf7eab2054025558c772181d6faec33d075a7af8e7f37ad37a79aced66d",
+      "match": true
+    },
+    {
+      "path": "./linux-runner/test_prepare.py",
+      "expected": "b32c06e3775999f36f3b7ee48d4cde2fa12d1b510e20bc61a97ed69e17b8aaa0",
+      "actual": "b32c06e3775999f36f3b7ee48d4cde2fa12d1b510e20bc61a97ed69e17b8aaa0",
+      "match": true
+    },
+    {
+      "path": "./metering/README.md",
+      "expected": "a1474bf331e73d3b3e52e5242f4804aa4d0762721c1b5f879f5a0c06f480daeb",
+      "actual": "a1474bf331e73d3b3e52e5242f4804aa4d0762721c1b5f879f5a0c06f480daeb",
+      "match": true
+    },
+    {
+      "path": "./metering/adapters/claude-session.mjs",
+      "expected": "4674ec0dbf2c99cbcc5fc03fdab3108eaa2cf55c8716d4fc042429d9939f1c68",
+      "actual": "4674ec0dbf2c99cbcc5fc03fdab3108eaa2cf55c8716d4fc042429d9939f1c68",
+      "match": true
+    },
+    {
+      "path": "./metering/adapters/codex-session.mjs",
+      "expected": "4cf1069c5250d7aec23979348594abc89363742c4d3d4d22721f16961f5a2dea",
+      "actual": "4cf1069c5250d7aec23979348594abc89363742c4d3d4d22721f16961f5a2dea",
+      "match": true
+    },
+    {
+      "path": "./metering/adapters/unavailable.mjs",
+      "expected": "2e503ad705a69c6e6c63c61c584c03d4818e6d6b25c2f76cb3491fdeee784c6f",
+      "actual": "2e503ad705a69c6e6c63c61c584c03d4818e6d6b25c2f76cb3491fdeee784c6f",
+      "match": true
+    },
+    {
+      "path": "./metering/boundaries.mjs",
+      "expected": "174e88965a2abe81b556a2843c4f8bbd42a11b1a2aa13621eef913b1b5bdad0b",
+      "actual": "174e88965a2abe81b556a2843c4f8bbd42a11b1a2aa13621eef913b1b5bdad0b",
+      "match": true
+    },
+    {
+      "path": "./metering/campaign-identity.mjs",
+      "expected": "8e1d9b4c71e33fd0fcc3ee5aa5d665aae95309451bb55df03b96077171cef7dc",
+      "actual": "8e1d9b4c71e33fd0fcc3ee5aa5d665aae95309451bb55df03b96077171cef7dc",
+      "match": true
+    },
+    {
+      "path": "./metering/codex-native-evidence.mjs",
+      "expected": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3",
+      "actual": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3",
+      "match": true
+    },
+    {
+      "path": "./metering/counts.mjs",
+      "expected": "caa946b19932d38a2e0e17c1935ef4f24ee1d116fbababa767e8b11bcbe1884b",
+      "actual": "caa946b19932d38a2e0e17c1935ef4f24ee1d116fbababa767e8b11bcbe1884b",
+      "match": true
+    },
+    {
+      "path": "./metering/coverage-manifest.mjs",
+      "expected": "e3274036359213d6444c248a97913bad156a54f36456897d9f4c51ad87c9ab0c",
+      "actual": "e3274036359213d6444c248a97913bad156a54f36456897d9f4c51ad87c9ab0c",
+      "match": true
+    },
+    {
+      "path": "./metering/finalization-diagnostics.mjs",
+      "expected": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707",
+      "actual": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707",
+      "match": true
+    },
+    {
+      "path": "./metering/joiner.mjs",
+      "expected": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be",
+      "actual": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be",
+      "match": true
+    },
+    {
+      "path": "./metering/journey-contract.mjs",
+      "expected": "01c55aef89e30a2e890f5f4a9a18a3541143b3e959a86642bac1d76f4e8b218e",
+      "actual": "01c55aef89e30a2e890f5f4a9a18a3541143b3e959a86642bac1d76f4e8b218e",
+      "match": true
+    },
+    {
+      "path": "./metering/jsonl.mjs",
+      "expected": "9a54aa643fc838f0234bc6126b52ecd1cbfae50707ce9688e48dc11318059590",
+      "actual": "9a54aa643fc838f0234bc6126b52ecd1cbfae50707ce9688e48dc11318059590",
+      "match": true
+    },
+    {
+      "path": "./metering/lane-controller.mjs",
+      "expected": "a948153ea3ec9e4b2ce39ce7ad1d01a9a07dfee0eb5554273c57c85614771f71",
+      "actual": "a948153ea3ec9e4b2ce39ce7ad1d01a9a07dfee0eb5554273c57c85614771f71",
+      "match": true
+    },
+    {
+      "path": "./metering/manifest.mjs",
+      "expected": "3ecab46a31cbf19c6b9b698b17478024199ddbd2e89825c13884ca313e14ab9a",
+      "actual": "3ecab46a31cbf19c6b9b698b17478024199ddbd2e89825c13884ca313e14ab9a",
+      "match": true
+    },
+    {
+      "path": "./metering/meter.mjs",
+      "expected": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
+      "actual": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
+      "match": true
+    },
+    {
+      "path": "./metering/mutation-guard.mjs",
+      "expected": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228",
+      "actual": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228",
+      "match": true
+    },
+    {
+      "path": "./metering/observations.mjs",
+      "expected": "12a81779e1b1a6eb8eaa04e8ed4aec209fb7f5164206aec9437bb1a07d49acbf",
+      "actual": "12a81779e1b1a6eb8eaa04e8ed4aec209fb7f5164206aec9437bb1a07d49acbf",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-cell-admission.mjs",
+      "expected": "ac122d032692838343fd910fe0657b8aba25f66f6cb3447eefb7a9c3d1b0e54f",
+      "actual": "ac122d032692838343fd910fe0657b8aba25f66f6cb3447eefb7a9c3d1b0e54f",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-cell-driver.mjs",
+      "expected": "4c9fb1d81d72f7930c0144d7a23d0457eea51147a0b41c469cb9fd61b6b5b8b8",
+      "actual": "4c9fb1d81d72f7930c0144d7a23d0457eea51147a0b41c469cb9fd61b6b5b8b8",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-cell-signal.mjs",
+      "expected": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
+      "actual": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-execution-environment.mjs",
+      "expected": "1544435cf2f4badcd732901947dc162f0fb80616e1f09ce5e10b8451f4b83be5",
+      "actual": "1544435cf2f4badcd732901947dc162f0fb80616e1f09ce5e10b8451f4b83be5",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-finalize-existing.mjs",
+      "expected": "e8adb8be16501c3d3c022e15542ba736491f5283a6e8c18b71c1429dfe3308e8",
+      "actual": "e8adb8be16501c3d3c022e15542ba736491f5283a6e8c18b71c1429dfe3308e8",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-finalize-retained-familiar.mjs",
+      "expected": "b01fb773c73a7062324f4a3434c34c8d2eeabe45e1690178ce72ecb20e8c076d",
+      "actual": "b01fb773c73a7062324f4a3434c34c8d2eeabe45e1690178ce72ecb20e8c076d",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-finalized-cell.mjs",
+      "expected": "9ca156073f18fd581f413b4b4b537d397a13c78317688fe91f1da2f1bb349bd2",
+      "actual": "9ca156073f18fd581f413b4b4b537d397a13c78317688fe91f1da2f1bb349bd2",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-host-lock.mjs",
+      "expected": "6d42cfa31e7c819a0ff0effe396cbf2947029ccce3533ad299372aadceab96b2",
+      "actual": "6d42cfa31e7c819a0ff0effe396cbf2947029ccce3533ad299372aadceab96b2",
+      "match": true
+    },
+    {
+      "path": "./metering/r2-private-paths.mjs",
+      "expected": "744f0098fb663281f40ea9a459a2d5be40814d9f9cfefdf73a241a52a0ea1012",
+      "actual": "744f0098fb663281f40ea9a459a2d5be40814d9f9cfefdf73a241a52a0ea1012",
+      "match": true
+    },
+    {
+      "path": "./metering/record-composer.mjs",
+      "expected": "c0cd5a579764d9e64611849f7d10f34cda9a9b5ba20e5e8279a4b070e27d160f",
+      "actual": "c0cd5a579764d9e64611849f7d10f34cda9a9b5ba20e5e8279a4b070e27d160f",
+      "match": true
+    },
+    {
+      "path": "./metering/scale-replay-evidence.mjs",
+      "expected": "545d4c797c54259c4e9981ad7876c8560c1b3c485c52464257ec1bcd0b7954d9",
+      "actual": "545d4c797c54259c4e9981ad7876c8560c1b3c485c52464257ec1bcd0b7954d9",
+      "match": true
+    },
+    {
+      "path": "./metering/sources.mjs",
+      "expected": "2433dc8d5ac775fea9321e332a88cdffc15d77a37a63eb18cc226e08f241cc6f",
+      "actual": "2433dc8d5ac775fea9321e332a88cdffc15d77a37a63eb18cc226e08f241cc6f",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/REAL_LOG_PROVENANCE.md",
+      "expected": "8634b614f4d592b21e026ed2efd5594d2a0ce0aa11ce956ccfe71461583d32fb",
+      "actual": "8634b614f4d592b21e026ed2efd5594d2a0ce0aa11ce956ccfe71461583d32fb",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/boundaries.json",
+      "expected": "efe3bb3cb3ec0e3b8de6c13906375576c1157be8b91662841cf68fe312f2b2fd",
+      "actual": "efe3bb3cb3ec0e3b8de6c13906375576c1157be8b91662841cf68fe312f2b2fd",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/claude-session.jsonl",
+      "expected": "3c647804ce121494bb554c43295ee657edc01043f7ba28a2dadea94ba7461d85",
+      "actual": "3c647804ce121494bb554c43295ee657edc01043f7ba28a2dadea94ba7461d85",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/codex-rollout.jsonl",
+      "expected": "85314fb918fbd4d5706d1f990079a7fa5de01d43117003fbb00df018e4735556",
+      "actual": "85314fb918fbd4d5706d1f990079a7fa5de01d43117003fbb00df018e4735556",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/first-product-edit.json",
+      "expected": "7a53f1322cbd57f086391f161cd97433a329c02bea40fa736b3c419554bdf1b8",
+      "actual": "7a53f1322cbd57f086391f161cd97433a329c02bea40fa736b3c419554bdf1b8",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/instrument-0.3.6.manifest.json",
+      "expected": "ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623",
+      "actual": "ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/instrument-0.3.7.manifest.json",
+      "expected": "94e8456333788acae69816809658d9ed441637903a6732176819d60f3bfadf48",
+      "actual": "94e8456333788acae69816809658d9ed441637903a6732176819d60f3bfadf48",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/non-green-boundaries.json",
+      "expected": "173d9c760356cc88d09fc3243e6a4d08215276e45c4b0b5ba5f4df8ee37de436",
+      "actual": "173d9c760356cc88d09fc3243e6a4d08215276e45c4b0b5ba5f4df8ee37de436",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/non-green-receipt.jsonl",
+      "expected": "20148ed7b53c3f4768b8d44d676e0fbe798a0827bb670b3ada7a27e002b232c8",
+      "actual": "20148ed7b53c3f4768b8d44d676e0fbe798a0827bb670b3ada7a27e002b232c8",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/post-terminal-channel.json",
+      "expected": "0c70b376da665c924429c327644847f87499467bdad9e1de68939deb59c34156",
+      "actual": "0c70b376da665c924429c327644847f87499467bdad9e1de68939deb59c34156",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-claude-tree-boundaries.json",
+      "expected": "c5c836de0797a12f51cbfce478bcd5dc791997cc4fccdd5702ad7eee3a85f110",
+      "actual": "c5c836de0797a12f51cbfce478bcd5dc791997cc4fccdd5702ad7eee3a85f110",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-claude-tree-descendant.jsonl",
+      "expected": "8e59a299f8aacd24ab1fb854ec5940b39f466fea7c6f96902f9277ba5478f71e",
+      "actual": "8e59a299f8aacd24ab1fb854ec5940b39f466fea7c6f96902f9277ba5478f71e",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-claude-tree-manifest.json",
+      "expected": "c4a90446ac73f83db2f2355061fe35f136ea7d91869eb4a1e24fb956ae7299e6",
+      "actual": "c4a90446ac73f83db2f2355061fe35f136ea7d91869eb4a1e24fb956ae7299e6",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-claude-tree-parent.jsonl",
+      "expected": "6468927d054321729d64d922905e9d0365b980f28c4b9b3fd5487f3a42823dcb",
+      "actual": "6468927d054321729d64d922905e9d0365b980f28c4b9b3fd5487f3a42823dcb",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-claude-tree-receipt.jsonl",
+      "expected": "48adc16ce1ea30deb9420d5a29628e106f9688f6968468aa3e74ad0a2c5da17f",
+      "actual": "48adc16ce1ea30deb9420d5a29628e106f9688f6968468aa3e74ad0a2c5da17f",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-codex-0149-zero-delta.jsonl",
+      "expected": "2c8e406bff51020810da18eef2dd965c73c6c2514b36786509892429f137ec2b",
+      "actual": "2c8e406bff51020810da18eef2dd965c73c6c2514b36786509892429f137ec2b",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-codex-aggregate-only-token-count.jsonl",
+      "expected": "2f478f94ebd6b88911da366f2c99e92a5b3072b2d03d97703ed34f23c07d4db6",
+      "actual": "2f478f94ebd6b88911da366f2c99e92a5b3072b2d03d97703ed34f23c07d4db6",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-codex-familiar-compaction-recap.jsonl",
+      "expected": "70d5af438f7470de0a7012e4cbf9f35dcb18b556049f4da5cb24be12ded0ccaf",
+      "actual": "70d5af438f7470de0a7012e4cbf9f35dcb18b556049f4da5cb24be12ded0ccaf",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-codex-r3-compaction-recap.jsonl",
+      "expected": "65af00200ce3e9657250f3b83a28948e12e3d77b57f7e9c0e71a71bbffaaac70",
+      "actual": "65af00200ce3e9657250f3b83a28948e12e3d77b57f7e9c0e71a71bbffaaac70",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-codex-r3-contradictory-token-count.jsonl",
+      "expected": "4b3e8be90b1797dde7a60466c8cac37badaa4980a102f595fc0030e5001babc9",
+      "actual": "4b3e8be90b1797dde7a60466c8cac37badaa4980a102f595fc0030e5001babc9",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-codex-tree-parent.jsonl",
+      "expected": "4044adcc43a8db2456247efb3ec86b2fbcb9f283350ecf46259bc6be56bbb075",
+      "actual": "4044adcc43a8db2456247efb3ec86b2fbcb9f283350ecf46259bc6be56bbb075",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-codex-tree-subagent.jsonl",
+      "expected": "4969047a01fd835908b5d2817059dd2ca3ce8eb74b4c17a767628b02ce46f6e1",
+      "actual": "4969047a01fd835908b5d2817059dd2ca3ce8eb74b4c17a767628b02ce46f6e1",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-familiar-orphaned-correction.jsonl",
+      "expected": "78ea8656cc1f798e7bca1f1806133c5c67558558375dd55f400aaf1b59ce5e2b",
+      "actual": "78ea8656cc1f798e7bca1f1806133c5c67558558375dd55f400aaf1b59ce5e2b",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-familiar-transition-observation.jsonl",
+      "expected": "7e05289e8ad1e3a4b1b47b86f9378eb9046ef76a04763daaff2612718d9ff541",
+      "actual": "7e05289e8ad1e3a4b1b47b86f9378eb9046ef76a04763daaff2612718d9ff541",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-grok-clique-explicit-suite-finalization.json",
+      "expected": "2bfa41fa526ed3e8eb07ad5ec488713dba3afd626521cf46943941e7b7e24eb6",
+      "actual": "2bfa41fa526ed3e8eb07ad5ec488713dba3afd626521cf46943941e7b7e24eb6",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-grok-clique-familiar-suite-finalization.json",
+      "expected": "e09ebbedd5900052fc22e96b248a213037a224527ea284aef6fca504deb89f28",
+      "actual": "e09ebbedd5900052fc22e96b248a213037a224527ea284aef6fca504deb89f28",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-grok-coterie-familiar-after-boundary-telemetry.json",
+      "expected": "18e06fbef24e41459644a31414ac6a9100568dab2642b314b08eb83587a61a83",
+      "actual": "18e06fbef24e41459644a31414ac6a9100568dab2642b314b08eb83587a61a83",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-opus-coterie-familiar-after-boundary-semantic.json",
+      "expected": "4cb2a9c1dcaa7ee2b69f4f60bf18e4b5deae0e49a79e3ab153ac3ed4f377e678",
+      "actual": "4cb2a9c1dcaa7ee2b69f4f60bf18e4b5deae0e49a79e3ab153ac3ed4f377e678",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/real-opus-shorthand-lane-observation.jsonl",
+      "expected": "a427950cbbdc01bc03ee0fb0a39f1febcbbeda2dff0b1251a9b2d4c3efd80e52",
+      "actual": "a427950cbbdc01bc03ee0fb0a39f1febcbbeda2dff0b1251a9b2d4c3efd80e52",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/receipts-m1.jsonl",
+      "expected": "e219d25e91852b624efdee288dd4b396f842292f175fd7745efedfaf19b74054",
+      "actual": "e219d25e91852b624efdee288dd4b396f842292f175fd7745efedfaf19b74054",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/receipts-m2.jsonl",
+      "expected": "f560c281b32b7e088a8ac3dd55e8d670dcf61e4419bdfb15399903d0986ebe82",
+      "actual": "f560c281b32b7e088a8ac3dd55e8d670dcf61e4419bdfb15399903d0986ebe82",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/setup-identity-0.3.7.json",
+      "expected": "62cf4fba159d712f7e57b016ec1c64d9da47e5aa8a024a2246199c73dca81831",
+      "actual": "62cf4fba159d712f7e57b016ec1c64d9da47e5aa8a024a2246199c73dca81831",
+      "match": true
+    },
+    {
+      "path": "./metering/test/fixtures/unavailable-manifest.json",
+      "expected": "b05fd463390de835fa67d316c701e177aee9e5efeecf83720eaa0cff195635d4",
+      "actual": "b05fd463390de835fa67d316c701e177aee9e5efeecf83720eaa0cff195635d4",
+      "match": true
+    },
+    {
+      "path": "./metering/test/metering-portability.test.mjs",
+      "expected": "93eea0c2c047c97b470735bd8a8dd173b540d14739985c23d00ec1749aadcfdd",
+      "actual": "93eea0c2c047c97b470735bd8a8dd173b540d14739985c23d00ec1749aadcfdd",
+      "match": true
+    },
+    {
+      "path": "./metering/test/metering.test.mjs",
+      "expected": "ee3e8ddfe0c5669ac856fcfed43e6cc80dfc306910263feadc95934ec6949d4a",
+      "actual": "ee3e8ddfe0c5669ac856fcfed43e6cc80dfc306910263feadc95934ec6949d4a",
+      "match": true
+    },
+    {
+      "path": "./metering/test/r3-packet.test.mjs",
+      "expected": "990f5433a151c3cd7b6fb5055d7534610f4f4514c769e2f6bb2b3df8502ae03c",
+      "actual": "990f5433a151c3cd7b6fb5055d7534610f4f4514c769e2f6bb2b3df8502ae03c",
+      "match": true
+    },
+    {
+      "path": "./metering/watchdog.mjs",
+      "expected": "c11b04211f254661a4194e0babcd890098bc75f351face6bb63dabeabae88d14",
+      "actual": "c11b04211f254661a4194e0babcd890098bc75f351face6bb63dabeabae88d14",
+      "match": true
+    },
+    {
+      "path": "./observability/README.md",
+      "expected": "671fc0472143cca1e950b1688b6a7b0b0ca0c5a7e0b71659e6cdf77938a5db34",
+      "actual": "671fc0472143cca1e950b1688b6a7b0b0ca0c5a7e0b71659e6cdf77938a5db34",
+      "match": true
+    },
+    {
+      "path": "./observability/generate-aggregates.mjs",
+      "expected": "a28c5f0dd54b4d87efb12f98cfd827920ea03db26bb9569bffe7bf8e04244e45",
+      "actual": "a28c5f0dd54b4d87efb12f98cfd827920ea03db26bb9569bffe7bf8e04244e45",
+      "match": true
+    },
+    {
+      "path": "./observability/observability.test.mjs",
+      "expected": "14d0b5abcf77c4fa64c8a4b75347405f0d71a9feadf295e2c52a815eb96ae9e6",
+      "actual": "14d0b5abcf77c4fa64c8a4b75347405f0d71a9feadf295e2c52a815eb96ae9e6",
+      "match": true
+    },
+    {
+      "path": "./observability/scale-observer.mjs",
+      "expected": "4bfb15b326f45bf70e23f9db129d5c14d9a2c19c2ffe05a381c911e7dfa2594d",
+      "actual": "4bfb15b326f45bf70e23f9db129d5c14d9a2c19c2ffe05a381c911e7dfa2594d",
+      "match": true
+    },
+    {
+      "path": "./observability/scale-status.schema.json",
+      "expected": "9be0d28146ff2cdc854e64720982174c27eaeda9db37e9811352d222391f4174",
+      "actual": "9be0d28146ff2cdc854e64720982174c27eaeda9db37e9811352d222391f4174",
+      "match": true
+    },
+    {
+      "path": "./protocol.md",
+      "expected": "2b4289c27c2e317664aea46689b5928461fab1a8ebe0a4df639992128d110a44",
+      "actual": "2b4289c27c2e317664aea46689b5928461fab1a8ebe0a4df639992128d110a44",
+      "match": true
+    },
+    {
+      "path": "./record-validator.mjs",
+      "expected": "fcaec358ac3ace5bb30c4432fc74a035af5e0869d2684f9de763d21cc0450155",
+      "actual": "fcaec358ac3ace5bb30c4432fc74a035af5e0869d2684f9de763d21cc0450155",
+      "match": true
+    },
+    {
+      "path": "./schema/run-record.schema.json",
+      "expected": "48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3",
+      "actual": "48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3",
+      "match": true
+    },
+    {
+      "path": "./schema/social-messenger/README.md",
+      "expected": "b082107743b53b4708789b1a1850ce1c0f61891eded769dbf344a99c863864f3",
+      "actual": "b082107743b53b4708789b1a1850ce1c0f61891eded769dbf344a99c863864f3",
+      "match": true
+    },
+    {
+      "path": "./schema/social-messenger/VERSION",
+      "expected": "56ff5020017eb5d91c9b14b2993d9d4204af1fd03076d5aebd16fa2e97abe5e5",
+      "actual": "56ff5020017eb5d91c9b14b2993d9d4204af1fd03076d5aebd16fa2e97abe5e5",
+      "match": true
+    },
+    {
+      "path": "./schema/social-messenger/applicability.json",
+      "expected": "b3d45805202375949b657cc30609e9d1de51da6a188469e9bf2c60f8fd1e37a1",
+      "actual": "b3d45805202375949b657cc30609e9d1de51da6a188469e9bf2c60f8fd1e37a1",
+      "match": true
+    },
+    {
+      "path": "./schema/social-messenger/assertions.json",
+      "expected": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+      "actual": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+      "match": true
+    },
+    {
+      "path": "./schema/social-messenger/run-record-extension.schema.json",
+      "expected": "d57d0a6ff6fec431f7f169d6f046b1bdbf2c6d0031f0528d78866c4e9477e0fd",
+      "actual": "d57d0a6ff6fec431f7f169d6f046b1bdbf2c6d0031f0528d78866c4e9477e0fd",
+      "match": true
+    },
+    {
+      "path": "./schema/social-messenger/run-record.schema.json",
+      "expected": "3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6",
+      "actual": "3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6",
+      "match": true
+    },
+    {
+      "path": "./social-messenger.md",
+      "expected": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+      "actual": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+      "match": true
+    },
+    {
+      "path": "./ui/NEUTRALITY.md",
+      "expected": "f6905ea379c0b09720869ea6f93362190c8ad79b8e2176b2cc39e69b1f397385",
+      "actual": "f6905ea379c0b09720869ea6f93362190c8ad79b8e2176b2cc39e69b1f397385",
+      "match": true
+    },
+    {
+      "path": "./ui/README.md",
+      "expected": "03422a88942099564f0eac355b97bd6d80b7bb989dd14b5a549a325db187e30d",
+      "actual": "03422a88942099564f0eac355b97bd6d80b7bb989dd14b5a549a325db187e30d",
+      "match": true
+    },
+    {
+      "path": "./ui/VERSION",
+      "expected": "a3fa57c8819a0fb2e1bef13c68adf699188b995c7ee870cccdd30a98760b10d7",
+      "actual": "a3fa57c8819a0fb2e1bef13c68adf699188b995c7ee870cccdd30a98760b10d7",
+      "match": true
+    },
+    {
+      "path": "./ui/assets/clique-logo.png",
+      "expected": "9406d0121af03c131dc2c173a9cf848242be6cbf2ac28eb7303d6f1c5377df05",
+      "actual": "9406d0121af03c131dc2c173a9cf848242be6cbf2ac28eb7303d6f1c5377df05",
+      "match": true
+    },
+    {
+      "path": "./ui/index.ts",
+      "expected": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b",
+      "actual": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b",
+      "match": true
+    },
+    {
+      "path": "./ui/package-lock.json",
+      "expected": "2d0977de17621995fb00be93549facc43cc25484eea40da1f8b3b8861c782562",
+      "actual": "2d0977de17621995fb00be93549facc43cc25484eea40da1f8b3b8861c782562",
+      "match": true
+    },
+    {
+      "path": "./ui/package.json",
+      "expected": "f9e5aab1816414099204865648f677e999999124c5c9d1c100899e5d4e560164",
+      "actual": "f9e5aab1816414099204865648f677e999999124c5c9d1c100899e5d4e560164",
+      "match": true
+    },
+    {
+      "path": "./ui/screens.md",
+      "expected": "360f55de7912191c6723fb7b93a53c6a60f54a3f4f80e181c45fd5e7f469b5d7",
+      "actual": "360f55de7912191c6723fb7b93a53c6a60f54a3f4f80e181c45fd5e7f469b5d7",
+      "match": true
+    },
+    {
+      "path": "./ui/src/AuthForm.tsx",
+      "expected": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb",
+      "actual": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb",
+      "match": true
+    },
+    {
+      "path": "./ui/src/Avatar.tsx",
+      "expected": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f",
+      "actual": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f",
+      "match": true
+    },
+    {
+      "path": "./ui/src/ChatListRow.tsx",
+      "expected": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d",
+      "actual": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d",
+      "match": true
+    },
+    {
+      "path": "./ui/src/ChatSettingsForm.tsx",
+      "expected": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e",
+      "actual": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e",
+      "match": true
+    },
+    {
+      "path": "./ui/src/Composer.tsx",
+      "expected": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767",
+      "actual": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767",
+      "match": true
+    },
+    {
+      "path": "./ui/src/FeedCard.tsx",
+      "expected": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2",
+      "actual": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2",
+      "match": true
+    },
+    {
+      "path": "./ui/src/FeedTabs.tsx",
+      "expected": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e",
+      "actual": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e",
+      "match": true
+    },
+    {
+      "path": "./ui/src/InsightsBarList.tsx",
+      "expected": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242",
+      "actual": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242",
+      "match": true
+    },
+    {
+      "path": "./ui/src/InsightsSummary.tsx",
+      "expected": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605",
+      "actual": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605",
+      "match": true
+    },
+    {
+      "path": "./ui/src/MessageBubble.tsx",
+      "expected": "3ae1a4664995f4bf2b32f5e62efc0633a6e82761be08c1543333ba2fb4ea936d",
+      "actual": "3ae1a4664995f4bf2b32f5e62efc0633a6e82761be08c1543333ba2fb4ea936d",
+      "match": true
+    },
+    {
+      "path": "./ui/src/PollCompose.tsx",
+      "expected": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054",
+      "actual": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054",
+      "match": true
+    },
+    {
+      "path": "./ui/src/PollDisplay.tsx",
+      "expected": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec",
+      "actual": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec",
+      "match": true
+    },
+    {
+      "path": "./ui/src/ProfileForm.tsx",
+      "expected": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272",
+      "actual": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272",
+      "match": true
+    },
+    {
+      "path": "./ui/src/QuotedReply.tsx",
+      "expected": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec",
+      "actual": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec",
+      "match": true
+    },
+    {
+      "path": "./ui/src/ReactionPicker.tsx",
+      "expected": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95",
+      "actual": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95",
+      "match": true
+    },
+    {
+      "path": "./ui/src/ReceiptTicks.tsx",
+      "expected": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae",
+      "actual": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae",
+      "match": true
+    },
+    {
+      "path": "./ui/src/SearchBar.tsx",
+      "expected": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420",
+      "actual": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420",
+      "match": true
+    },
+    {
+      "path": "./ui/src/TrendingRow.tsx",
+      "expected": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8",
+      "actual": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8",
+      "match": true
+    },
+    {
+      "path": "./ui/src/TypingIndicator.tsx",
+      "expected": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9",
+      "actual": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9",
+      "match": true
+    },
+    {
+      "path": "./ui/src/linkify.tsx",
+      "expected": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717",
+      "actual": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717",
+      "match": true
+    },
+    {
+      "path": "./ui/src/tokens.ts",
+      "expected": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02",
+      "actual": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02",
+      "match": true
+    },
+    {
+      "path": "./ui/src/webSemantics.ts",
+      "expected": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379",
+      "actual": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379",
+      "match": true
+    },
+    {
+      "path": "./ui/test/observability-contract.test.mjs",
+      "expected": "8e4f0a535c0b9e597cfe2bb6b64610391e7b8cd660807207b13ec68bf09ac7c7",
+      "actual": "8e4f0a535c0b9e597cfe2bb6b64610391e7b8cd660807207b13ec68bf09ac7c7",
+      "match": true
+    },
+    {
+      "path": "./ui/test/quoted-reply.test.mjs",
+      "expected": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20",
+      "actual": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20",
+      "match": true
+    },
+    {
+      "path": "./ui/test/rn-web-consumer.test.mjs",
+      "expected": "65710d3bae1b9482a8c1932c8c5574e437fbdc77004ea9dcb53aa7a0437cf0ef",
+      "actual": "65710d3bae1b9482a8c1932c8c5574e437fbdc77004ea9dcb53aa7a0437cf0ef",
+      "match": true
+    },
+    {
+      "path": "./ui/test/rn-web-consumer.tsx",
+      "expected": "9ea32951f1d0c74675473c9d0f0904016a00a2cf08e1ab17773153bcb73f798d",
+      "actual": "9ea32951f1d0c74675473c9d0f0904016a00a2cf08e1ab17773153bcb73f798d",
+      "match": true
+    },
+    {
+      "path": "./ui/tsconfig.json",
+      "expected": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52",
+      "actual": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52",
+      "match": true
+    }
+  ],
+  "harness": {
+    "actorCopy": "/home/ccheever/clique-0029-20260912/lanes/grok-snapback2/choreography/choreography.mjs",
+    "actorCopySha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+    "frozen": "/home/ccheever/clique-0029-20260912/instrument/choreography/choreography.mjs",
+    "frozenSha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+    "identical": true
+  }
+}

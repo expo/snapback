@@ -1,6 +1,6 @@
 # LLP 1023 follow-up — 0.0.31 qualification
 
-Status: source repair, complete pre-integration qualification, affected integration checks and both final code reviews pass; final dual-platform package qualification and publication are pending. The frozen Clique apps still use 0.0.29.
+Status: **published 0.0.31**. Source repair, functional qualification, affected integration checks, both final code reviews and both platform package qualifications pass. All three registry integrities match. The frozen Clique apps still use 0.0.29.
 
 The owner can return a complete `{row, count: 0}` answer and deliver an exhausted empty public grouping range. The durable twin previously overlooked that range when classifying a missing unique Get, publishing partial/unavailable at the same sequence. The repair consumes that existing proof only for literal-Allow, unique-key read coverage. It does not create negative rule authority, relax pooled-row fallback, or identify a grouping row by its canonical generated ID. Existing bounded/truncated/wrong-rule/removed-proof cases remain partial.
 
@@ -75,3 +75,24 @@ exact Linux-qualified full-platform shim. Its first invocation refused a local
 receipt whose tarballs had not yet been copied; after transferring and checking
 the two required tarball integrities, canonical qualification was restarted.
 No failed invocation is a passing consumer result.
+
+### Publication complete — 2026-09-12
+
+Source landed at `cc40e2b78e08b1c0ae91aba464903c4a519aa96e`. Final Darwin
+qualification of the exact Linux-qualified full-platform shim passed all 29
+installed-consumer checks in **34.56 seconds**. Both native artifacts retain
+production Hermes and the full media helper. The [qualification receipt](qualified-resume.json)
+binds both native integrities to the same shim.
+
+The existing publisher completed at **11:01:35 UTC** in 156.36 seconds.
+At **11:03:56 UTC**, [registry verification](registry-post-publish.json) matched
+all three 0.0.31 artifacts to the [qualified integrities](canonical-artifacts.json).
+The publisher and its observed process group are reaped/empty. The earlier
+missing-transfer refusal remains recorded separately. Reference checking passes;
+the sole cap failure remains the inherited Snapback 1 file at 1,504 lines
+(205 oversize files against a 204-file baseline), outside this change.
+
+The query child closes its scoped source follow-up. The parent retains the
+unmet 80,000-byte objective and fresh-wave outcome limits. Publication proves
+this repaired package's qualified behavior; the unchanged 0.0.29 builders
+provide no fresh adoption evidence for this follow-up.

@@ -1,0 +1,8 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m6
+
+PASS offline recipient produces exact text push seam payload
+PASS view-once push previews Photo
+PASS documented token-capable headless demo exercises all operations
+PASS frozen 50-action replay conformance and resulting state

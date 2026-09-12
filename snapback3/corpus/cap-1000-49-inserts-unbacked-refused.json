@@ -1,0 +1,255 @@
+{
+  "serverOnly": true,
+  "certificationRewrite": "add this schema maintain with its read rule:\nmaintain membershipsCounts: count memberships by principal\n  read <- deny\nthe cap probe then prices at one row per write; reduce the chunk from 49 to at most 10 writes for cap 1000 by principal on memberships; 10 fits this ceiling with the other reserves unchanged",
+  "corpusVersion": 1,
+  "name": "cap-1000-49-inserts-unbacked-refused",
+  "category": "fanout",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "group": {
+            "Optional": {
+              "Text": {
+                "max": 32
+              }
+            }
+          },
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byConversationRole": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byGroup": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipalConversation": {
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "principal"
+              ],
+              "max": 1000
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "cap-1000-49-inserts-count-backed",
+    "kind": "Mutation",
+    "args": {
+      "members": {
+        "List": {
+          "of": "Principal",
+          "max": 49
+        }
+      }
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "For": {
+          "binding": "principal",
+          "domain": {
+            "ArgList": {
+              "name": "members",
+              "max": 49
+            }
+          },
+          "body": [
+            {
+              "Insert": {
+                "table": "memberships",
+                "row": {
+                  "Object": {
+                    "conversationId": {
+                      "Literal": {
+                        "Id": "c1"
+                      }
+                    },
+                    "id": {
+                      "Input": "NewId"
+                    },
+                    "principal": {
+                      "Variable": "principal"
+                    },
+                    "role": {
+                      "Literal": {
+                        "String": "member"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Return": {
+          "Literal": "Null"
+        }
+      }
+    ]
+  },
+  "certificate": null,
+  "context": {
+    "viewer": "u0",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "errorReason": "examined entries 49000 exceeds",
+    "localResult": null,
+    "errorCode": "E_BOUND",
+    "localState": "certification-refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_BOUND\"}",
+    "digest": "96e04510ced88e896b6550e769658e2291cf5e363cd36190f6707b391f427fd4",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

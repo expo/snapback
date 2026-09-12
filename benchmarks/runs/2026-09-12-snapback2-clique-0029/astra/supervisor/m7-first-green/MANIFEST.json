@@ -1,0 +1,545 @@
+{
+  "capturedAt": "2026-09-12T11:00:21.418366+00:00",
+  "pid": 1113902,
+  "parentPid": 1113901,
+  "actorFirstGreenStamp": 1789210725,
+  "files": [
+    {
+      "path": "src/MediaView.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/MediaView.tsx",
+      "bytes": 2124,
+      "sha256": "f6c14c3c79a826958bb2b9810171acc738a6ae8152758b626b2341168ea9a659",
+      "sourceMtimeNs": 1789201325392320768,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/Provider.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/Provider.tsx",
+      "bytes": 716,
+      "sha256": "b92ed46d56347815e08f73485930970253223f65333f7f713d1dbb0c1829b853",
+      "sourceMtimeNs": 1789201325394320763,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/Provider.web.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/Provider.web.tsx",
+      "bytes": 582,
+      "sha256": "c949e0bbffad44a51a7ce2c94674343161b8a8719a52905b0d5ad15721e6d876",
+      "sourceMtimeNs": 1789201325395320761,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/Shell.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/Shell.tsx",
+      "bytes": 3203,
+      "sha256": "f968ea99d7663a4872c14e47012db33890037b22b64a8089ba76eaae2eb5f77d",
+      "sourceMtimeNs": 1789201325401320747,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/action-journal.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/action-journal.ts",
+      "bytes": 1372,
+      "sha256": "f207793b93e2404039c3853ecccdab54a3f8a09bb2e83813fb58cc713cdeb57b",
+      "sourceMtimeNs": 1789201325403320742,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/asset-uri.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/asset-uri.ts",
+      "bytes": 320,
+      "sha256": "42b8f63e5eb3f9cd82c94fb97b8292a885f8dbef5433d6daf39fe122db408951",
+      "sourceMtimeNs": 1789201325404320740,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/asset-uri.web.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/asset-uri.web.ts",
+      "bytes": 1256,
+      "sha256": "0cd1190ba924ba058e43efd3c3d09e71e6df1e327b91854f17601805f8f062bf",
+      "sourceMtimeNs": 1789201325406320735,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/backend.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/backend.ts",
+      "bytes": 98,
+      "sha256": "198c0d7454ddaa9e70352b37d30515c8ed69f2c2e5bcea78695e9eb756c3cc16",
+      "sourceMtimeNs": 1789201325406320735,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/feed.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/feed.tsx",
+      "bytes": 6398,
+      "sha256": "e6306845294f9ab5474219a5ebebe2a6857fb040aaee7d085521ddbaf3e46fb9",
+      "sourceMtimeNs": 1789201671926503001,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/global-search.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/global-search.ts",
+      "bytes": 2523,
+      "sha256": "58d092fdd8f007a449611fedc105a729f10aeb18553e5888a2ed34bb86a7b085",
+      "sourceMtimeNs": 1789201325417320709,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/history.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/history.ts",
+      "bytes": 3800,
+      "sha256": "0a8f288a1951ed0e1672ada5395a7c771281b828b46dd3b1b051d2e1143b29dc",
+      "sourceMtimeNs": 1789201325421320700,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/insights.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/insights.tsx",
+      "bytes": 1895,
+      "sha256": "f16bac70021360de4a50763856381ab2adbc7257afc92f78848495fa54cf1bd7",
+      "sourceMtimeNs": 1789201325423320695,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/local-store.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/local-store.ts",
+      "bytes": 76,
+      "sha256": "6c038c8ef3437e67958d1f2c2eeb9b02ca7db6900e2f4b16a20cb034a2c708d7",
+      "sourceMtimeNs": 1789201325423320695,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/local-store.web.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/local-store.web.ts",
+      "bytes": 1009,
+      "sha256": "983968a87efa2d8ba56169db1472504ea10a2eec2401732f5a83cf070408df6f",
+      "sourceMtimeNs": 1789201325426320688,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/media.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/media.tsx",
+      "bytes": 1936,
+      "sha256": "7b5a43a64c7022acbf8856a05375419144cc63f382cb995497b995e31affb3ba",
+      "sourceMtimeNs": 1789201325428320683,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/messaging.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/messaging.tsx",
+      "bytes": 22559,
+      "sha256": "6d14ff1fa3df66813d0088e7f835809ac7dd8c9eca97e4e11e3cd88418cdcc6a",
+      "sourceMtimeNs": 1789210547484952486,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/polls.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/polls.tsx",
+      "bytes": 2854,
+      "sha256": "3ea2e07a0913ef234f9925a679f19635e88959a77c3d9e51f4ec06d872a2acb3",
+      "sourceMtimeNs": 1789210221155928713,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/profile.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/profile.tsx",
+      "bytes": 4068,
+      "sha256": "d5d6f947bc4d001f3f47d9392ac28139bd168d140dc94ccbb0f35d490a9ec769",
+      "sourceMtimeNs": 1789201325444320646,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/read-fallback.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/read-fallback.ts",
+      "bytes": 1929,
+      "sha256": "b491038476659fcda114cc0a8851de21c45df7ee6eabb47a205c3e415be53b9e",
+      "sourceMtimeNs": 1789201325446320641,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/scroll.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/scroll.ts",
+      "bytes": 115,
+      "sha256": "ad7066b30b3493205c0aa5db8a1c5e48f42ba1d385ba114447d231a9444cc362",
+      "sourceMtimeNs": 1789201325446320641,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/search.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/search.tsx",
+      "bytes": 4682,
+      "sha256": "4c44c0f898a7a40e0474808565ed0d84e7d6468854455fb453c50ad57a88fa81",
+      "sourceMtimeNs": 1789201325449320634,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "src/witness-state.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/src/witness-state.ts",
+      "bytes": 4656,
+      "sha256": "d2026196fdb174625b8b93ebddc46910ff81baafcec22927542e0329aa5a9083",
+      "sourceMtimeNs": 1789201325452320627,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/_layout.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/_layout.tsx",
+      "bytes": 178,
+      "sha256": "af831c831309a300c0d9a896025233d56ca541f960cc9122005695ee75f239ba",
+      "sourceMtimeNs": 1789201325452320627,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/chat/[id]/index.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/chat/[id]/index.tsx",
+      "bytes": 319,
+      "sha256": "0f6f303e60674100709409782648d8e76c6a501d56ad63194ed18a48ead31678",
+      "sourceMtimeNs": 1789201325452320627,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/chat/[id]/settings.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/chat/[id]/settings.tsx",
+      "bytes": 319,
+      "sha256": "a2328e22550d99fec068874a0fe0b8c5a144cbebe0abd6cfeb43bc9299593bc9",
+      "sourceMtimeNs": 1789201325452320627,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/chats.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/chats.tsx",
+      "bytes": 175,
+      "sha256": "89f244fa268a6f4632c59c0e4ed8b84bb8fc56cb38957459ec75de2fa14b0f83",
+      "sourceMtimeNs": 1789201325453320624,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/conversation/[handle].tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/conversation/[handle].tsx",
+      "bytes": 307,
+      "sha256": "c54533207fe8297950bfb3c2d0eb3b1ed70d5fe6654b5643fdd49c9ca372945e",
+      "sourceMtimeNs": 1789201325453320624,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/conversation/group/[group]/index.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/conversation/group/[group]/index.tsx",
+      "bytes": 321,
+      "sha256": "55c2956ca5e5fe8a4ea32d229c967c4b8e2baaf5526e78cca564f16a82f7123e",
+      "sourceMtimeNs": 1789201325453320624,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/conversation/group/[group]/settings.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/conversation/group/[group]/settings.tsx",
+      "bytes": 330,
+      "sha256": "673d3e82c365e788697186522b6c4ff9643f755ec723f38f24a55f617ded9d68",
+      "sourceMtimeNs": 1789201325454320622,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/index.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/index.tsx",
+      "bytes": 458,
+      "sha256": "a90d904a89630f6193c4b338da74ae21648bb30840f7b3fdaef5e8120ee1a7a1",
+      "sourceMtimeNs": 1789201325454320622,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/insights.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/insights.tsx",
+      "bytes": 180,
+      "sha256": "a4fe4123d336c11d1f90437a29207a3b673d4b664cbd8e4965526b0b37b04264",
+      "sourceMtimeNs": 1789201325454320622,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/new-chat.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/new-chat.tsx",
+      "bytes": 179,
+      "sha256": "2ac8946f39857c083ec739a414e46426aa71ae3b2cfdc11625ef2ef6ce94d04f",
+      "sourceMtimeNs": 1789201325454320622,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/post/[id].tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/post/[id].tsx",
+      "bytes": 286,
+      "sha256": "2aefded9e1c0c2f84f21831a04fc6dacfef0220012bc0f5e462ae8820105b773",
+      "sourceMtimeNs": 1789201325455320620,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/profile/[handle].tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/profile/[handle].tsx",
+      "bytes": 312,
+      "sha256": "b72b97c7debb53d7441418e87b76a5bf7d579442a1c21fe3b3183046cf175dfa",
+      "sourceMtimeNs": 1789201325455320620,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/profile/edit.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/profile/edit.tsx",
+      "bytes": 191,
+      "sha256": "04113df1816c7151429f6568ffeb0cd39c3b8195b83a7701e5ca40932b7769ca",
+      "sourceMtimeNs": 1789201325455320620,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/search.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/search.tsx",
+      "bytes": 350,
+      "sha256": "9b024d1513b3528e3bb0e76f4a55b986e1a2c6e3fb2dbec365a37fa763cd4d43",
+      "sourceMtimeNs": 1789201325456320617,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "app/settings.tsx",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/app/settings.tsx",
+      "bytes": 418,
+      "sha256": "86baca985273f840f83b879fe4ec068803819de5690730ea28c88be0c1da03ed",
+      "sourceMtimeNs": 1789201325456320617,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/access.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/access.q",
+      "bytes": 241,
+      "sha256": "111c2e9ec3c0afc5eda595fbdc052422ef56a1c3ac91cbe3b056643a24867253",
+      "sourceMtimeNs": 1789191434125045190,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/admin.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/admin.q",
+      "bytes": 1157,
+      "sha256": "76c6b84da668bc6438b0ec1957764a5cc381d19f28912e9748f85dc0d1cfab5f",
+      "sourceMtimeNs": 1789210162691119553,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/delivery.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/delivery.ts",
+      "bytes": 779,
+      "sha256": "0b654e628cfd0a97090d712e6bd790adcac68a927f97dad26aeac0fd2744f066",
+      "sourceMtimeNs": 1789196697179217487,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/digest.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/digest.q",
+      "bytes": 3327,
+      "sha256": "938a9bea1eaa55f67ad974819c4b4f28ab2103e09aca7e546d7ce2263067f853",
+      "sourceMtimeNs": 1789196989940509123,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/digestConfig.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/digestConfig.q",
+      "bytes": 109,
+      "sha256": "ab60fd6cc4ebfd6a12464552927418c2503cf35eaeb115e709084b2577c628f4",
+      "sourceMtimeNs": 1789205844389703446,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/feeds.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/feeds.q",
+      "bytes": 711,
+      "sha256": "3c48dd9d98dea9ac2ebc1ac276792742a9ea811ae90aedd6dda9a57b16c44f21",
+      "sourceMtimeNs": 1789192297147871878,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/follows.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/follows.q",
+      "bytes": 432,
+      "sha256": "d1ef266bdca12229069b1f4ad144b2f5422dade3a5c0faffe1cfa109e9d03677",
+      "sourceMtimeNs": 1789192188565143824,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/groups.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/groups.q",
+      "bytes": 5521,
+      "sha256": "0c6bc5ea909ab8a227fd1a6adf65bd9ddf528d67c207acc6821c0edee12854ae",
+      "sourceMtimeNs": 1789210143094184919,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/insights.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/insights.q",
+      "bytes": 900,
+      "sha256": "275dec73a26a661e87e47164b342347af829bf9e118182dc4dbde0d55800a851",
+      "sourceMtimeNs": 1789196715902172171,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/messages.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/messages.q",
+      "bytes": 8916,
+      "sha256": "59931db19064b48f44f988310b1077c5d97af1177bb19cc4b5cd5cf993bcbff3",
+      "sourceMtimeNs": 1789210143094184919,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/notifications.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/notifications.q",
+      "bytes": 270,
+      "sha256": "511f98c4ab831f51da17ccca3f59bf6f5c6e5ac550100332880540df7e2bf616",
+      "sourceMtimeNs": 1789196271010249982,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/polls.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/polls.q",
+      "bytes": 1998,
+      "sha256": "d81acfaeef267782de301cfa1fede234a2235eff8cdffba34dc60e31120e98ff",
+      "sourceMtimeNs": 1789210152874152206,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/posts.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/posts.q",
+      "bytes": 2573,
+      "sha256": "7b80682af8392c51ef0dca453e532aa11c0f4ab084d760f80910085adb45aff4",
+      "sourceMtimeNs": 1789196697169217511,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/profiles.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/profiles.q",
+      "bytes": 1315,
+      "sha256": "f09b62b5e977d1caf79179fba88a9af4a5f155af7a6839643034b0d6bd842090",
+      "sourceMtimeNs": 1789195079507133660,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/runtime.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/runtime.q",
+      "bytes": 100,
+      "sha256": "447b8b9aef20493bef5cd375d0726c664ebc09d832ac7d76e1ae7902d7fc3109",
+      "sourceMtimeNs": 1789205844389703446,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/schema.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/schema.q",
+      "bytes": 8703,
+      "sha256": "e5ff870a242066bf9f2a671cd2ab58e487c41965c532bb4fbdd21507acd7be62",
+      "sourceMtimeNs": 1789210174399080847,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/seed.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/seed.ts",
+      "bytes": 97,
+      "sha256": "247a5fd0ce22c09bd4aafc73a6049d0a1121d99337c0f7e43ce728a8c99db4dd",
+      "sourceMtimeNs": 1789191480157935012,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/tests/clique.test.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/tests/clique.test.ts",
+      "bytes": 2302,
+      "sha256": "398e4c875a77108a19189c20572ea95e59cbd873be73989ca8e5003940a4f9bc",
+      "sourceMtimeNs": 1789200287678744097,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/tests/fixtures/clip.mp4",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/tests/fixtures/clip.mp4",
+      "bytes": 280,
+      "sha256": "0bf2c3c80dab9197eb6a70db98273551d7da76dbc76e1e1203099c81385086b0",
+      "sourceMtimeNs": 1789191434126045187,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/tests/fixtures/photo.jpg",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/tests/fixtures/photo.jpg",
+      "bytes": 633,
+      "sha256": "e00771915c18a0c0419b6104666f24a1316a93a364356cc0bc4d71bfdd9bd297",
+      "sourceMtimeNs": 1789191434126045187,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "snapback/windows.q",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/snapback/windows.q",
+      "bytes": 212,
+      "sha256": "0602657aa66cb522feca1b1018eb8c6291aac365697b129777b7f21c33bd2048",
+      "sourceMtimeNs": 1789205844387703450,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "scripts/acceptance-m7.ts",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/scripts/acceptance-m7.ts",
+      "bytes": 8194,
+      "sha256": "2383d8a990e9576b267b84ff81c8900b8e7dd5b3bd7964f935227352f12f4c6f",
+      "sourceMtimeNs": 1789210340256556910,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "API.md",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/API.md",
+      "bytes": 7350,
+      "sha256": "687ed6478b144268b56945e81a51ba559e2425c6c0c318274411a3d18c2e7688",
+      "sourceMtimeNs": 1789210433365279560,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "README.md",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/README.md",
+      "bytes": 8200,
+      "sha256": "17246d8caeb8b7d349835531979fe619d542cd1892c8e2485fa1768d09743a7f",
+      "sourceMtimeNs": 1789210433365279560,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "package.json",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/package.json",
+      "bytes": 1473,
+      "sha256": "298526e7441d02f061643b716a5fad4472f3f68e995163aac97d8e479a9317a4",
+      "sourceMtimeNs": 1789200174182003314,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "m7/evidence/choreography-1789210717286.jsonl",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/evidence/choreography-1789210717286.jsonl",
+      "bytes": 3936,
+      "sha256": "8d084cc4c770db66797b48db6d2d7ad63a84173621ceb23210aa92493b0651c5",
+      "sourceMtimeNs": 1789210725857463459,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "m7/evidence/acceptance.json",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/evidence/acceptance.json",
+      "bytes": 1173,
+      "sha256": "c354fb07e6e41e3edd15f0686d1776c0494800999acce28c66a3798c311c7c8d",
+      "sourceMtimeNs": 1789210717238486575,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "m7/coverage.json",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/coverage.json",
+      "bytes": 420,
+      "sha256": "0cd8ba19df7eaabd04c5bf57484ef2726258e78b8072754e44080f6fae9620b2",
+      "sourceMtimeNs": 1789210717240486569,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "m7/evidence/regressions.json",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/evidence/regressions.json",
+      "bytes": 1027,
+      "sha256": "690e548bac34b1703b78d49fbcabc85c63e7d09f75080f4d8578d052e4fc7f9d",
+      "sourceMtimeNs": 1789210696375542721,
+      "sourceChangedDuringRead": false
+    },
+    {
+      "path": "m7/evidence/snapshot-comparison.json",
+      "source": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/m7/evidence/snapshot-comparison.json",
+      "bytes": 688,
+      "sha256": "adec58d405d5ba07d86d185774cf83cfc7089a6faac6b3f490a2e0eb572e2fe3",
+      "sourceMtimeNs": 1789210177101071949,
+      "sourceChangedDuringRead": false
+    }
+  ],
+  "limitation": "First green selected acceptance/choreography snapshot during ongoing report/audit phase. M4/M6 excluded from selected regression set after grading mutated inherited sidecars. No Apple proof or populated-media/reaction starter preservation claim."
+}

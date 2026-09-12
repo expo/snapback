@@ -1,0 +1,50 @@
+{
+  "milestone": "m1",
+  "pass": true,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m1-a01",
+      "name": "signup succeeds",
+      "ok": true,
+      "ms": 109
+    },
+    {
+      "id": "m1-a02",
+      "name": "signup lands authenticated",
+      "ok": true,
+      "ms": 67
+    },
+    {
+      "id": "m1-a03",
+      "name": "duplicate handle is rejected",
+      "ok": true,
+      "ms": 82
+    },
+    {
+      "id": "m1-a04",
+      "name": "duplicate email is rejected",
+      "ok": true,
+      "ms": 3
+    },
+    {
+      "id": "m1-a08",
+      "name": "edit display name and bio persist",
+      "ok": true,
+      "ms": 97
+    },
+    {
+      "id": "m1-a10",
+      "name": "upload fixture avatar succeeds",
+      "ok": true,
+      "ms": 178
+    },
+    {
+      "id": "m1-a11",
+      "name": "uploaded avatar renders via asset url",
+      "ok": true,
+      "ms": 114
+    }
+  ],
+  "at": "2026-09-12T10:59:33.818Z"
+}

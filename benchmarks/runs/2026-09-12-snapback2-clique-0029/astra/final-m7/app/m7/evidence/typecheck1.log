@@ -1,0 +1,6 @@
+
+> astra-snapback2@1.0.0 typecheck
+> tsc --noEmit
+
+src/messaging.tsx(151,11): error TS7006: Parameter 'current' implicitly has an 'any' type.
+src/messaging.tsx(154,14): error TS7006: Parameter 'current' implicitly has an 'any' type.

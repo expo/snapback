@@ -1,0 +1,5 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m6
+
+RefusalError: too many password authentication attempts

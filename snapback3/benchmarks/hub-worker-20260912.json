@@ -1,0 +1,55 @@
+{
+  "measuredAt": "2026-09-12T11:14:43.891Z",
+  "fixture": {
+    "fixture": "snapback3-commonroom-hub-v1",
+    "scope": "Synthetic chat acquisition fixture; not the full Clique application or an M1\u2013M8 comparison.",
+    "hubPersona": "u0001",
+    "hubPrincipal": "dev:u0001",
+    "counts": {
+      "personas": 4901,
+      "groups": 100,
+      "directConversations": 900,
+      "conversations": 1000,
+      "memberships": 6800,
+      "messages": 100015,
+      "readCursors": 1000
+    },
+    "maxMembersPerConversation": 50,
+    "omitted": [
+      "Feed and follow edges: the reference schema has no feed, so no 500-follow claim is made."
+    ],
+    "bytes": 23383389,
+    "sha256": "9155c01c2c14d4769f032419fb38264d9b1c3c913e37af1e825dbc4ff284c35d"
+  },
+  "boundary": "Release Rust worker over local JSONL, authenticated authorized query envelopes, fresh SQLite seed, sequential reads. Includes IPC, JSON serialization/parsing. Excludes HTTP, browser rendering, client persistence and offline evaluation; not a sibling comparison.",
+  "machine": {
+    "hostname": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18
+  },
+  "seedAndStartupMs": 12187.134,
+  "inbox": {
+    "rooms": 1000,
+    "totalMs": 44.833,
+    "wireBytes": 593424,
+    "count": 20,
+    "p50Ms": 1.95,
+    "p95Ms": 2.678,
+    "maxMs": 4.822
+  },
+  "messages": {
+    "totalMs": 3899.123,
+    "wireBytes": 62814275,
+    "count": 3000,
+    "p50Ms": 1.279,
+    "p95Ms": 1.837,
+    "maxMs": 4.529,
+    "pages": 3000,
+    "deliveredMessages": 100015
+  },
+  "workerSha256": "f511ed8e4265b26b07bc578cf9018da12d680aa933a30f7dbf1979505b89484e",
+  "sourceBase": "a93edb979a5cbe6357f1fc1f95b66f85bd308844",
+  "sourceState": "First Snapback3 implementation working tree; its benchmark source and code land together."
+}

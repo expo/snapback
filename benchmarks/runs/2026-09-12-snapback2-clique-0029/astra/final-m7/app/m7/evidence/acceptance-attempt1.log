@@ -1,0 +1,10 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m7
+
+PASS required successor and exact starter backfill
+PASS group poll create through UI and server bounds
+PASS one vote per member and changing vote adjusts all tallies
+PASS same intent retry cannot invert or overwrite later vote
+PASS forward count handles text media polls tombstones expiry and settings
+PASS previously passing milestone suites remain passing

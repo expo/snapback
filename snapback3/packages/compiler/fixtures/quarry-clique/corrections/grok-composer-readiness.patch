@@ -1,0 +1,83 @@
+diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+--- a/lib/thread-view.tsx
++++ b/lib/thread-view.tsx
+@@ -130,6 +130,8 @@ export function ThreadView({
+   const [pollQuestion, setPollQuestion] = useState("");
+   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+   const [pendingVote, setPendingVote] = useState<{ messageId: string; optionId: string } | undefined>();
++  const [syncing, setSyncing] = useState(false);
++  const [syncError, setSyncError] = useState<string | undefined>();
+   const fileRef = useRef<HTMLInputElement | null>(null);
+   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+@@ -145,6 +147,26 @@ export function ThreadView({
+   }
+   const items = [...(thread.data ?? [])] as ThreadRow[];
+   items.reverse();
++  const selectedWrite = editId
++    ? editMut
++    : pendingFile?.type.startsWith("video/")
++      ? sendClip
++      : pendingFile
++        ? viewOnce ? sendOnce : sendPhoto
++        : send;
++
++  async function syncWrites() {
++    if (syncing) return;
++    setSyncing(true);
++    setSyncError(undefined);
++    try {
++      await snapback.online();
++    } catch (cause) {
++      setSyncError(cause instanceof Error ? cause.message : String(cause));
++    } finally {
++      setSyncing(false);
++    }
++  }
+ 
+   useEffect(() => {
+     if (unreadCount <= 0 || !markRead.can.send) return;
+@@ -344,6 +366,21 @@ export function ThreadView({
+           }}
+         />
+       ) : null}
++      {selectedWrite.can.reason ? (
++        <Text testID="sm-convo-readiness">{selectedWrite.can.reason.message}</Text>
++      ) : null}
++      {syncing || selectedWrite.can.action === "connect" ? (
++        <Pressable
++          accessibilityRole="button"
++          accessibilityLabel="Sync now"
++          disabled={syncing}
++          onPress={() => { void syncWrites(); }}
++          testID="sm-convo-sync"
++        >
++          <Text style={styles.action}>{syncing ? "Syncing…" : "Sync now"}</Text>
++        </Pressable>
++      ) : null}
++      {syncError ? <Text testID="sm-convo-sync-error">{syncError}</Text> : null}
+       {error ? <Text testID="sm-convo-error">{error}</Text> : null}
+       {Platform.OS === "web" ? (
+         <form
+@@ -403,7 +440,11 @@ export function ThreadView({
+               }}
+               style={{ flex: 1, minHeight: 44, fontSize: 16, padding: 8 }}
+             />
+-            <button type="submit" data-testid="sm-convo-send">
++            <button
++              type="submit"
++              data-testid="sm-convo-send"
++              disabled={!selectedWrite.can.send || selectedWrite.inFlight}
++            >
+               Send
+             </button>
+           </div>
+@@ -422,6 +463,8 @@ export function ThreadView({
+               ? [{ uri: URL.createObjectURL(pendingFile), kind: pendingFile.type.startsWith("video/") ? "video" : "image" }]
+               : []
+           }
++          disabled={!selectedWrite.can.send}
++          sending={selectedWrite.inFlight}
+           onSend={(text) =>
+             void submitMessage({
+               text,

@@ -1,0 +1,8 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m1
+
+PASS signup and authenticated onboarding
+PASS duplicate handle shown
+PASS profile and avatar write renders
+PASS duplicate email visible
