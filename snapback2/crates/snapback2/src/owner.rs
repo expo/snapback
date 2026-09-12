@@ -255,6 +255,10 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         },
     );
     handle.call(Action::PublishOwner)?;
+    // One worker for the whole owner: the watcher's rebuilds and `/control/run`'s
+    // explicit ad hoc compilations share it under a lock.
+    let compiler = Arc::new(Mutex::new(compiler));
+    let watcher = watch::spawn(compiler.clone(), root.clone(), handle.clone(), stop.clone());
     if let Err(error) = print_url(
         &info,
         options.json,
@@ -285,10 +289,6 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
             }
         }),
     );
-    // One worker for the whole owner: the watcher's rebuilds and `/control/run`'s
-    // explicit ad hoc compilations share it under a lock.
-    let compiler = Arc::new(Mutex::new(compiler));
-    let watcher = watch::spawn(compiler.clone(), root.clone(), handle.clone(), stop.clone());
     let server_result = server.run(ServerContext {
         handle: handle.clone(),
         root: root.clone(),

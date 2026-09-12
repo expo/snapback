@@ -21,10 +21,11 @@ pub fn spawn(
     stop: Arc<AtomicBool>,
 ) -> thread::JoinHandle<()> {
     lock_compiler(&compiler).cancel_on(stop.clone());
+    // Capture before readiness: the first post-ready edit must differ from this baseline.
+    let mut known = fingerprint(&root.join("snapback"));
     thread::Builder::new()
         .name("snapback2-watch".to_owned())
         .spawn(move || {
-            let mut known = fingerprint(&root.join("snapback"));
             while !stop.load(Ordering::SeqCst) {
                 thread::sleep(Duration::from_millis(200));
                 let next = fingerprint(&root.join("snapback"));

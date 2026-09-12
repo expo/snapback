@@ -586,7 +586,8 @@ trace-harvest harness opts into mutation execution with `queryOnly: false`.
 - **Start.** `dev` → compile (worker) → `Generation::certify` → open
   `.snapback/store.sqlite` → `Runtime::open` (or successor) → bind a free
   loopback port (or `--port`, honored or refused `E_OWNER_PORT_TAKEN`) → write
-  `owner.json { pid, port, url, secret, generation, startedAt, mode }` → print
+  `owner.json { pid, port, url, secret, generation, startedAt, mode }` → capture
+  the watch baseline and start its thread → print
   exactly one line `SNAPBACK_URL=http://127.0.0.1:<port>` (and the JSON form
   under `--json`) → detach: the foreground process exits 0 after the owner
   is ready; the owner runs with stdin closed and stdout/stderr to
@@ -598,7 +599,7 @@ trace-harvest harness opts into mutation execution with `queryOnly: false`.
 - **Attach.** If `owner.json` names a live pid whose `/control/status`
   answers with the same project root, print the same line and exit 0. Keyed
   by project root, not port.
-- **Watch.** Poll `snapback/**/*.ts` mtimes every 200 ms; on change,
+- **Watch.** Poll authored `.q`/`.ts` sources under `snapback/` every 200 ms; on change,
   compile → certify → `apply_successor`; on refusal, log it, keep serving the
   last generation, and answer `/control/status` with `applying`/`refused`
   (+ the plan, written to `.snapback/migration-<gen>.json`). Subscriptions
