@@ -78,10 +78,15 @@ impl std::io::Write for Connection {
     }
 }
 impl Connection {
-    pub(crate) fn set_timeouts(&self) -> std::io::Result<()> {
+    pub(crate) fn configure(&self) -> std::io::Result<()> {
         let timeout = Some(std::time::Duration::from_secs(5));
         match self {
-            Self::Tcp(stream) => { stream.set_read_timeout(timeout)?; stream.set_write_timeout(timeout) },
+            Self::Tcp(stream) => {
+                // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — split HTTP writes must not wait for a delayed ACK.
+                stream.set_nodelay(true)?;
+                stream.set_read_timeout(timeout)?;
+                stream.set_write_timeout(timeout)
+            },
             #[cfg(unix)]
             Self::Unix(stream) => { stream.set_read_timeout(timeout)?; stream.set_write_timeout(timeout) },
         }
@@ -198,6 +203,27 @@ impl std::fmt::Display for ListenAddr {
             Self::IP(s) => s.fmt(f),
             #[cfg(unix)]
             Self::Unix(s) => std::fmt::Debug::fmt(s, f),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepted_tcp_configuration_sets_nodelay_and_preserves_idle_timeouts() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let _client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (accepted, _) = listener.accept().unwrap();
+        accepted.set_nodelay(false).unwrap();
+        let connection = Connection::from(accepted);
+        connection.configure().unwrap();
+        for connection in [connection.try_clone().unwrap(), connection] {
+            let Connection::Tcp(stream) = connection else { unreachable!() };
+            assert!(stream.nodelay().unwrap());
+            assert_eq!(stream.read_timeout().unwrap(), Some(std::time::Duration::from_secs(5)));
+            assert_eq!(stream.write_timeout().unwrap(), Some(std::time::Duration::from_secs(5)));
         }
     }
 }
