@@ -60,6 +60,9 @@ pub struct Runner<'a> {
     /// that was `complete` only when few hidden rows were walked would
     /// count them.
     pub(crate) non_uniform: bool,
+    /// The program's page had more rows than it returned and no cursor to
+    /// continue on: the result is not `complete`, and the card says so.
+    pub(crate) page_overflow: bool,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
     pub(crate) seq: u64,
@@ -89,6 +92,7 @@ impl<'a> Runner<'a> {
             page_depth: 0,
             page: None,
             non_uniform: false,
+            page_overflow: false,
             seq,
             statement_site: String::new(),
         }

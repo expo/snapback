@@ -707,3 +707,13 @@ Three fresh Astra sessions at medium, serial, each on the published
 - The reference web app now keeps a guest session of its own when the URL
   names no persona (`?as=bob` stays the development door), and offers
   sign-out: the shape a fresh agent should copy.
+- **Loop bar, run 2 (0.0.4):** green in 572 s, two attributed loops — the
+  `??` defect again, and a new one: a merge feed of 20 rows over 28 matches
+  answered `complete: true, next: null` because the query declared no
+  cursor. The card now says `complete: false` when a cursorless page had
+  more rows than it holds (server and device alike), `check` notes such a
+  page (`N_NO_CURSOR`, with the `c: cursor ?` rewrite; the chat app's
+  `inbox` earns one), and the README says what `complete` means in each
+  case and gives `observe`'s shape (an agent-error in run 2 guessed it).
+  Run 2 fails the bar on loops; run 3 follows on 0.0.4, then a second set
+  of three on 0.0.6, which carries every fix the first set found.

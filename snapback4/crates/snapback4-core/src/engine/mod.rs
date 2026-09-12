@@ -199,7 +199,7 @@ impl Engine {
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let outcome = QueryOutcome {
-            complete: runner.meter.capped_at.is_none() && !runner.non_uniform,
+            complete: runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow,
             capped_at: runner.meter.capped_at.clone(),
             next,
             data,

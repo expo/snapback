@@ -202,7 +202,7 @@ Operations in schema.q are called by name (`api.thread`); operations in
 /// A refusal code, explained.
 /// Every refusal code `why` explains; a program's own `require` codes are
 /// the author's and are explained by the program.
-pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFLICT", "E_CONSTRAINT", "E_FANOUT", "E_BOUND", "E_OP", "E_STORE", "E_GENERATION", "E_OFFLINE", "E_PREDICT", "E_QUARRY_SYNTAX", "E_TYPE", "N_NEVER_COMPLETE"];
+pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFLICT", "E_CONSTRAINT", "E_FANOUT", "E_BOUND", "E_OP", "E_STORE", "E_GENERATION", "E_OFFLINE", "E_PREDICT", "E_QUARRY_SYNTAX", "E_TYPE", "N_NEVER_COMPLETE", "N_NO_CURSOR"];
 
 pub fn explain_code(code: &str) -> Option<String> {
     let text = match code {
@@ -221,6 +221,7 @@ pub fn explain_code(code: &str) -> Option<String> {
         "E_TYPE" => "family input — a Quarry expression has the wrong type for its position; the diagnostic names both types and a rewrite.",
         "E_OFFLINE" => "family link — the client could not reach the server; retryable. A local-first read still answers from the device with `fresh: false` and `since`; a write waits as `pending` and lands when the link returns.",
         "E_PREDICT" => "family input — the device could not predict this mutation locally (a read it needs is not on the device); the write is queued without local rows and the server judges it.",
+        "N_NO_CURSOR" => "a note, not an error — a returned page with no cursor argument cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`.",
         "N_NEVER_COMPLETE" => "a note, not an error — a page whose read rule reads a column the scan does not pin is `complete: false` on the server whatever it finds; the note names the index that would decide it, or read the page on the device.",
         "E_QUARRY_TYPE" => "a value meets a declaration of another type; the message names both.",
         "E_QUARRY_UNKNOWN" => "a name is not declared; the rewrite suggests the nearest one.",

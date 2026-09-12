@@ -230,6 +230,9 @@ impl Runner<'_> {
                 break;
             }
         }
+        if self.page_depth == 0 && !scan.opaque_cursor && has_more {
+            self.page_overflow = true;
+        }
         if self.page_depth == 0 && scan.opaque_cursor {
             let components = index.components.len();
             // A capped page continues from its last visible row whether or not
@@ -319,6 +322,9 @@ impl Runner<'_> {
         });
         let has_more = candidates.len() > take;
         candidates.truncate(take);
+        if self.page_depth == 0 && !first.scan.opaque_cursor && has_more {
+            self.page_overflow = true;
+        }
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = if self.meter.capped_at.is_some() || self.non_uniform { !candidates.is_empty() } else { has_more };
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
