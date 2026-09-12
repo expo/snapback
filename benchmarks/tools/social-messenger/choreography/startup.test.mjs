@@ -4,12 +4,25 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { chromium } from "playwright";
 
 import { validateJsonSchema } from "../../lib/json-schema.mjs";
-import { createCheckRunner } from "./choreography.mjs";
+import { createCheckRunner, waitForLoadedMedia } from "./choreography.mjs";
 import { loadSetupIdentity, verifySetupToolchain } from "./setup-identity.mjs";
 
 const PLAYWRIGHT_VERSION = "1.62.1";
+
+test("RN Web data-source-uri proves image bytes without an img descendant", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const uri = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='2' height='2' fill='indigo'/%3E%3C/svg%3E";
+    await page.setContent(`<div id="preview" data-source-uri="${uri}" style="width:2px;height:2px"></div>`);
+    await waitForLoadedMedia(page.locator("#preview"), "image", 1_000);
+  } finally {
+    await browser.close();
+  }
+});
 
 function run(args, env = {}) {
   return new Promise((resolvePromise, rejectPromise) => {

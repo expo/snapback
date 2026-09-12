@@ -2943,8 +2943,8 @@ test("physical retained 0.3.7 identity stays historical while current markers fa
     assert.equal(instrument.instrumentPin, "social-messenger@0.3.7-m8");
     assert.equal(
       sha256(instrumentBytes),
-      "sha256:8ecb92f4ee859296fb9c0da6ffdb0329af581bd31f603b64e1e6f77c84ac2f41",
-      "the retained identity fixture is the exact 126b0b5 0.3.7 freeze manifest",
+      "sha256:94e8456333788acae69816809658d9ed441637903a6732176819d60f3bfadf48",
+      "the retained identity fixture is the exact a1f5b29 0.3.7 freeze manifest",
     );
     await writeFile(join(root, "instrument.manifest.json"), instrumentBytes);
     await mkdir(join(root, "events"));
@@ -2986,11 +2986,38 @@ test("physical retained 0.3.7 identity stays historical while current markers fa
       "an exact hash-bound 0.3.7 manifest/setup/base tuple selects historical validation",
     );
 
+    const setupMutations = [
+      ["missing setup identity", (value) => { delete value.socialMessenger.setup; }],
+      ["conflicting setup schema", (value) => {
+        value.socialMessenger.setup.schemaVersion = "social-messenger.setup-identity.v2";
+      }],
+      ["conflicting setup instrument pin", (value) => {
+        value.socialMessenger.setup.instrumentPin = "social-messenger@0.3.6-m8";
+      }],
+      ["conflicting setup backend", (value) => {
+        value.socialMessenger.setup.backend.version = "0.1.30";
+      }],
+      ["conflicting setup runtime", (value) => {
+        value.socialMessenger.setup.runtime.qualifiedBinary.reason += " changed";
+      }],
+      ["conflicting setup package closure", (value) => {
+        value.socialMessenger.setup.packageClosure.artifacts[0].version += "-changed";
+      }],
+      ["conflicting setup toolchain", (value) => {
+        value.socialMessenger.setup.toolchain.node.version = "v24.19.0";
+      }],
+      ["conflicting setup host", (value) => {
+        value.socialMessenger.setup.host.id += "-changed";
+      }],
+    ];
+    assertRetainedCampaignIdentityMutations(retained, root, setupMutations);
+    await assertHashBoundBaseIdentityMutations(retained, root, setupMutations);
+
     const mixedCurrentMarker = structuredClone(retained);
     mixedCurrentMarker.socialMessenger.orientation.instrument.pin = CURRENT_INSTRUMENT_PIN;
     assert.match(
       validateSocialMessengerRecordSemantics(mixedCurrentMarker, { artifactRoot: root }).join("\n"),
-      /current observability\/orientation markers require social-messenger@0\.3\.8-m8/u,
+      /current instrument/u,
       "retained 0.3.7 evidence cannot borrow the current orientation identity",
     );
   } finally {
@@ -3081,7 +3108,7 @@ test("migrated current R2 complete replay rejects coordinated quantitative fabri
     coordinatedRetainedRelabel.socialMessenger.orientation.instrument.pin =
       "social-messenger@0.3.7-m8";
     coordinatedRetainedRelabel.socialMessenger.orientation.instrument.manifest.sha256 =
-      "8ecb92f4ee859296fb9c0da6ffdb0329af581bd31f603b64e1e6f77c84ac2f41";
+      "94e8456333788acae69816809658d9ed441637903a6732176819d60f3bfadf48";
     coordinatedRetainedRelabel.socialMessenger.orientation.instrument.versions = {
       schema: "0.3.0-m8",
       ui: "0.3.2-m8",
@@ -5604,7 +5631,7 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
     "0.3.2-m8";
   assert.match(
     composedErrors(downgradedOrientation, root).join("\n"),
-    /expected constant "social-messenger@0\.3\.7-m8"|expected constant "0\.3\.7-m8"/u,
+    /expected constant "social-messenger@0\.3\.8-m8"|expected constant "0\.3\.8-m8"/u,
   );
 
   const absentOrientation = structuredClone(record);
@@ -5629,12 +5656,12 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
       explicitInstrumentDowngrade,
       { artifactRoot: root },
     ).join("\n"),
-    /current observability\/orientation markers require social-messenger@0\.3\.7-m8/u,
+    /current observability\/orientation markers require social-messenger@0\.3\.8-m8/u,
     "semantic validation must reject explicit legacy-version substitution on an otherwise-current record",
   );
   assert.match(
     composedErrors(explicitInstrumentDowngrade, root).join("\n"),
-    /expected constant "social-messenger@0\.3\.7-m8"/u,
+    /expected constant "social-messenger@0\.3\.8-m8"/u,
     "the composed schema must make current protocol/orientation markers imply the current instrument version",
   );
 
