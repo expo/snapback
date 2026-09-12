@@ -550,7 +550,9 @@ impl<'a> Binder<'a> {
             let tmp = self.temp("or");
             out.push(Stmt::Let { name: tmp.clone(), value: l });
             let mut fallback = Vec::new();
-            let (r, rt) = self.expr(right, &mut fallback)?;
+            // `conversationId ?? 'dm1'`: a text literal after an identity is
+            // an id, as it is beside `=` and in a key.
+            let (r, rt) = if lt.required().is_identity() { self.expr_as_identity(right, &mut fallback, &lt.required())? } else { self.expr(right, &mut fallback)? };
             fallback.push(Stmt::Assign { name: tmp.clone(), value: r });
             out.push(Stmt::If { condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, then_body: fallback, else_body: Vec::new() });
             let ty = if rt.is_optional() { lt.required().join(&rt) } else { lt.required().join(&rt).required() };

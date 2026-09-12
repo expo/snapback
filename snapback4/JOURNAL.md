@@ -681,3 +681,20 @@ Three fresh Astra sessions at medium, serial, each on the published
   `hermes-compiler` was a leftover of the isolated-linker install, not a
   version conflict. `expo export --platform ios` writes the `.hbc`; the
   follow-up is closed.
+
+## 2026-09-12 — what the loop bar's first run found; 0.0.5
+
+- **`conversationId ?? 'dm1'` after an optional reference scanned nothing.**
+  The text literal on the right of `??` stayed a string when the left side
+  was an *optional* identity (`Ty::Optional(Ref)` is not `is_identity`),
+  so the key encoded as text and matched no id. Beside `=` and in a key
+  the literal was already an id; now it is after `??` too, through the
+  required type. Found by the loop bar's first agent within its first ten
+  minutes and attributed to Snapback 4, correctly.
+- **`snapback4 test` skipped queries with required arguments silently.**
+  It now derives arguments from the data and the persona (a reference is
+  the table's first row, a principal is the persona, a text is the shortest
+  that fits, an enum its first variant), prints the arguments it used on
+  each line, and names every query it still cannot run and why.
+- The online client's HTTP 400 refusals now reach the card as the refusal
+  (0.0.4 said "unreachable"). Published `snapback4@0.0.5`.
