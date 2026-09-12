@@ -40,12 +40,12 @@ fn the_chat_schema_compiles_and_runs() {
         ])
         .unwrap();
 
-    // Alice sends; the write is sent, applied once, and fans out to both members.
+    // Alice sends; the write is sent, applied once, and logged once for the group.
     let context = Context::new(alice, args(&[("conversationId", id("c1")), ("body", Value::String("hello bob".into()))])).at(1_000).with_ids(["msg1".to_owned()]);
     let sent = engine.mutate("send", Some("op-1"), context.clone()).unwrap();
     let WriteState::Sent { seq, result } = &sent.state else { panic!("send failed: {:?}", sent.state) };
     assert_eq!(result.field("id").unwrap(), &id("msg1"));
-    assert_eq!(sent.events, 4, "a message put for each member, and a count put for each member");
+    assert_eq!(sent.events, 2, "one message put and one count put, under the group, however many members");
     let replay = engine.mutate("send", Some("op-1"), context).unwrap();
     assert!(replay.replayed);
     assert!(matches!(replay.state, WriteState::Sent { seq: replayed, .. } if replayed == *seq));

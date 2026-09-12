@@ -405,7 +405,7 @@ impl Engine {
 
     pub fn stream(&mut self, principal: &str, watermark: u64, limit: usize) -> Result<partition::StreamPage, RuntimeError> {
         let tx = self.store.transaction()?;
-        let page = partition::stream(&tx, principal, watermark, limit)?;
+        let page = partition::stream(&tx, &self.schema, principal, watermark, limit)?;
         tx.rollback()?;
         Ok(page)
     }

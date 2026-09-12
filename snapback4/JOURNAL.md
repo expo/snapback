@@ -514,3 +514,33 @@ the hub run's to catch, and the run record will say whether they did.
 - The Chromium witnesses share `witness/lib.mjs` (the bundled harness, the
   seeded dev server, a CDP session for the heap); `SNAPBACK4_BIN` picks the
   binary under test.
+
+## 2026-09-12 — the log is keyed by group
+
+- **What changed (`partition.rs`).** A row of a table that syncs to a
+  target is logged once, under its group's partition
+  (`g:<table>:<group>`); a principal's own partition (`p:<principal>`)
+  carries the rows that name it by column and a `join`/`scope` event per
+  content table for every group it enters or leaves; `public` is as it was.
+  Writing a row no longer scans the audience at all. A device's stream is
+  the merge of its own partition, the public one, and each group it held
+  over the interval it held it — intervals reconstructed from its
+  memberships now and the joins and scopes logged since its watermark,
+  `[join, leave)`, so a join and a leave in one commit deliver nothing
+  (finding 4 of the partition review holds by construction). A `join` is
+  expanded to the group's rows (within the horizon) when it is streamed
+  and only while the membership still stands; it never reaches a device.
+  Pages are still whole commits; `more` looks past the watermark in every
+  partition the device holds.
+- **Numbers, release binary, the scale seed (40 × 500 × 10):** the log
+  weighs 6.0 MB for 22,080 events — **1.15× the rows** (was 10.8×, 204,800
+  events); the file 16 MB (was 78); seeding 2.1 s (was 4.0). Cold sync
+  into IndexedDB 3.3 s, heap 26 MB, unchanged in shape. A message costs one
+  log row however many members read it.
+- Read cost moved to the stream: a poll reads `2 + groups × tables` short
+  ranges (bob: 162). Fine at this scale; a principal in thousands of
+  groups is the next ceiling to measure, and `partition IN (...)` the
+  likely answer.
+- Every invariant, day-two scenario and review test passes on the new
+  log; the lang crate's chat test now expects one put per group, not one
+  per member.
