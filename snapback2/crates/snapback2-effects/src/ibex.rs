@@ -867,7 +867,10 @@ fn run_job_until(
 }
 
 #[cfg(test)]
-thread_local! { static DRIVE_TURNS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) }; }
+thread_local! {
+    static DRIVE_TURNS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    static MEASURE_LEGACY_POLL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
 
 /// Drain, read, wait, pump — until the job is quiescent, or settled with
 /// only timers left, or the deadline is reached. Isolation boundary:
@@ -918,6 +921,12 @@ fn drive(
             timer_wait.unwrap_or(idle_wait).min(idle_wait)
         }
         .min(remaining);
+        #[cfg(test)]
+        let wait = if MEASURE_LEGACY_POLL.with(|legacy| legacy.get()) {
+            Duration::from_millis(1).min(remaining)
+        } else {
+            wait
+        };
         if is_settled {
             *settled = Some(snapshot);
         }
@@ -937,7 +946,7 @@ fn drive(
         idle_wait = if ran > 0 {
             Duration::from_millis(1)
         } else {
-            (idle_wait * 2).min(Duration::from_millis(25))
+            (idle_wait * 2).min(Duration::from_millis(40))
         };
     }
 }

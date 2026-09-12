@@ -295,7 +295,7 @@ errors survive clock failures: retry scheduling falls back to the claim instant,
 with the clock failure logged separately. Stop checks also guard replayed `then`
 work, including initialization.
 
-The drive loop backs off from 1 to 25 ms only while no task is delivered,
+The drive loop backs off from 1 to 40 ms only while no task is delivered,
 resets after delivered work, and caps the wait by the next timer and the job's
 deadline. The pinned Ibex API has no public wait-only completion primitive;
 the bounded backoff avoids coupling host timer permits to Ibex's multi-pump API.

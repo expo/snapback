@@ -1,4 +1,5 @@
 //! The npm launcher pins the Node executable that launched it. Never search PATH.
+// @ref LLP 1002#runtime-hardening-2026-09-12 — direct binary use must explicitly pin trusted Node.
 use crate::protocol::Refusal;
 use std::{ffi::OsString, path::PathBuf};
 

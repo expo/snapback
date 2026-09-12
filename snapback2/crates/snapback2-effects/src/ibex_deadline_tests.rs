@@ -560,7 +560,14 @@ fn held_fetch_drive_measurement() {
     let mut host = warmed(&decl, json!({"wait":false}));
     DRIVE_TURNS.with(|turns| turns.set(0));
     let started = Instant::now();
-    let budget = Duration::from_secs(2);
+    let seconds = std::env::var("SNAPBACK2_MEASURE_SECONDS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(2)
+        .clamp(2, 30);
+    let legacy = std::env::var_os("SNAPBACK2_MEASURE_LEGACY_POLL").is_some();
+    MEASURE_LEGACY_POLL.with(|flag| flag.set(legacy));
+    let budget = Duration::from_secs(seconds);
     let outcome = host.run(
         &decl,
         &job("held-measure", json!({"wait":true,"url":provider.origin()})),
@@ -569,7 +576,13 @@ fn held_fetch_drive_measurement() {
     assert_timed_out(&outcome, budget);
     assert_eq!(provider.requests(), 1);
     let turns = DRIVE_TURNS.with(|turns| turns.get());
-    assert!(turns <= 100, "blocked fetch hot-looped: {turns} turns");
+    MEASURE_LEGACY_POLL.with(|flag| flag.set(false));
+    if !legacy {
+        assert!(
+            turns <= 50 * seconds,
+            "blocked fetch hot-looped: {turns} turns"
+        );
+    }
     eprintln!(
         "held_fetch_drive turns={turns} elapsed_ms={}",
         started.elapsed().as_millis()
