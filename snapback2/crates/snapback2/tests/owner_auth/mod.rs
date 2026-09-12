@@ -37,6 +37,39 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     let mut second_channel = Sse::open_bearer(port, TYPING_PATH, &second_token);
     let second_channel_lease = second_channel.event()["lease"].clone();
 
+    let before_refresh = bearer_request(port, "GET", "/api/auth/me", &second_token, json!({}));
+    let refreshed = bearer_request(port, "POST", "/api/auth/refresh", &second_token, json!({}));
+    assert_eq!(refreshed.status, 200, "{}", refreshed.body);
+    assert_eq!(
+        refreshed.body["principal"],
+        before_refresh.body["principal"]
+    );
+    assert_eq!(
+        refreshed.body["authEpoch"],
+        before_refresh.body["authEpoch"]
+    );
+    let rotated_token = refreshed.body["token"].as_str().unwrap().to_owned();
+    assert_ne!(rotated_token, second_token);
+    assert_auth_session(&bearer_request(
+        port,
+        "GET",
+        "/api/auth/me",
+        &second_token,
+        json!({}),
+    ));
+    assert_auth_session(&bearer_request(
+        port,
+        "POST",
+        "/api/auth/logout",
+        &second_token,
+        json!({}),
+    ));
+    assert_eq!(status(port, &secret)["subscriptions"], 2);
+    assert_eq!(status(port, &secret)["channelSubscriptions"], 2);
+    second_query.assert_silent(Duration::from_millis(100));
+    second_channel.assert_silent(Duration::from_millis(100));
+    let second_token = rotated_token;
+
     let logout = bearer_request(port, "POST", "/api/auth/logout", &first_token, json!({}));
     assert_eq!(logout.status, 200, "{}", logout.body);
     assert_session_terminal(&mut first_query);
