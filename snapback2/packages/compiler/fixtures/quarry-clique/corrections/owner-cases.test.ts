@@ -102,7 +102,10 @@ journey("digest counts current followed posts in the completed period", async ({
   }
 });
 
-journey("digest keeps the 100-membership account envelope", async ({ as, tick }) => {
+journey("digest includes the 101st membership beyond the former account limit", async ({ as, tick }) => {
+  const initial = await tick(0);
+  const current = Date.now() + Number(initial.offsetMs ?? 0);
+  await tick(120_000 - current % 120_000 + 1_000);
   const charlie = as("charlie");
   try {
     const profile = await charlie.mutation(api.profiles.createMyProfile, {
@@ -125,18 +128,29 @@ journey("digest keeps the 100-membership account envelope", async ({ as, tick })
       });
       if (group.state !== "committed") throw new Error(`group ${index} was ${group.state}`);
     }
-    const refused = await bob.mutation(api.groups.groupCreate, {
-      title: "Digest envelope refused 101",
+    const expanded = await bob.mutation(api.groups.groupCreate, {
+      title: "Digest envelope admitted 101",
       members: ["dev:charlie" as Principal],
-      conversationId: "digest-envelope-refused-101",
+      conversationId: "digest-envelope-admitted-101",
     });
-    if (refused.state !== "rejected") throw new Error(`membership 101 was ${refused.state}`);
+    if (expanded.state !== "committed") throw new Error(`membership 101 was ${expanded.state}`);
   } finally {
     bob.close();
   }
+  const sender = as("charlie");
+  try {
+    const sent = await sender.mutation(api.messages.send, {
+      conversationId: "digest-envelope-admitted-101",
+      body: "unread activity in membership 101",
+      messageId: "digest-envelope-message-101",
+    });
+    if (sent.state !== "committed") throw new Error(`101st-chat send was ${sent.state}`);
+  } finally {
+    sender.close();
+  }
   const alice = as("alice");
   try {
-    const post = await alice.mutation(api.posts.createPost, { body: "100 membership digest proof" });
+    const post = await alice.mutation(api.posts.createPost, { body: "101 membership digest proof" });
     if (post.state !== "committed") throw new Error(`post was ${post.state}`);
   } finally {
     alice.close();
@@ -148,9 +162,9 @@ journey("digest keeps the 100-membership account envelope", async ({ as, tick })
       return "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.find((row) => row.kind === "digest")
         : undefined;
-    }, "100-membership activity produced no digest");
-    if (digest.newPostsInFollowing !== 1) {
-      throw new Error(`100-membership following count was ${String(digest.newPostsInFollowing)}`);
+    }, "101-membership activity produced no digest");
+    if (digest.newPostsInFollowing !== 1 || digest.unreadMessages !== 1 || digest.unreadChats !== 1) {
+      throw new Error(`101-membership digest omitted its new chat: ${JSON.stringify(digest)}`);
     }
   } finally {
     reopened.close();
