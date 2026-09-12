@@ -480,10 +480,10 @@
     "max_rule_probes": 240,
     "max_steps": 4939,
     "derived_steps": 0,
-    "derived_scratch_bytes": 0,
-    "max_heap_bytes": 158048,
+    "derived_scratch_bytes": 650700,
+    "max_heap_bytes": 808748,
     "max_output_bytes": 8252,
-    "max_closure_bytes": 169959,
+    "max_closure_bytes": 650700,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -685,6 +685,12 @@
       },
       {
         "meter": "heap bytes",
+        "value": 650700,
+        "source": "search closure scratch",
+        "site": "words.merge"
+      },
+      {
+        "meter": "heap bytes",
         "value": 97600,
         "source": "merge words.merge: heap work × 32",
         "site": "self-probe-enriched-membership-merge:statement:2"
@@ -859,75 +865,135 @@
       },
       {
         "meter": "closure bytes",
-        "value": 4500,
-        "source": "20 × conversations.title (225 bytes each; 9 field-name/framing + text max 50 scalars: encoded value bound 216)",
+        "value": 15331,
+        "source": "members.page × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "members.page × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 130890,
+        "source": "words.lane × 100 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "words.lane"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 110800,
+        "source": "words.lane × 200 probes: separately serialized rule verdict/absence envelopes",
+        "site": "words.lane"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 16700,
+        "source": "conversation.point × 20 point reads: separately serialized keys, references and envelopes",
         "site": "conversation.point"
       },
       {
         "meter": "closure bytes",
-        "value": 16362,
-        "source": "101 × memberships.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
-        "site": "members.page"
+        "value": 39080,
+        "source": "conversation.point × 40 probes on memberships: separately serialized authority envelopes",
+        "site": "conversation.point"
       },
       {
         "meter": "closure bytes",
-        "value": 15150,
-        "source": "101 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
-        "site": "members.page"
+        "value": 3000,
+        "source": "20 × conversations.id (150 bytes each; 6 field-name/framing + conversations declared identity 144)",
+        "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 15857,
-        "source": "101 × memberships.principal (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
-        "site": "members.page"
+        "value": 4500,
+        "source": "20 × conversations.title (225 bytes each; 9 field-name/framing + text max 50 scalars: encoded value bound 216)",
+        "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 1010,
+        "value": 200,
+        "source": "conversations row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3740,
+        "source": "20 × conversations table/id envelope (187 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 55242,
+        "source": "341 × memberships.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 51150,
+        "source": "341 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 53537,
+        "source": "341 × memberships.principal (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3410,
         "source": "memberships row width: framing/shared encoding/growth adjustment",
-        "site": "members.page"
+        "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 18000,
-        "source": "120 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
-        "site": "members.page"
+        "value": 63085,
+        "source": "341 × memberships table/id envelope (185 bytes each)",
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 4636,
         "source": "122 × words.at (38 bytes each; 6 field-name/framing + time 32)",
-        "site": "words.merge"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 19764,
         "source": "122 × words.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
-        "site": "words.merge"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 18300,
         "source": "122 × words.id (150 bytes each; 6 field-name/framing + words declared identity 144)",
-        "site": "words.merge"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 34160,
         "source": "122 × words.term (280 bytes each; 8 field-name/framing + text max 64 scalars: encoded value bound 272)",
-        "site": "words.merge"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 1220,
         "source": "words row width: framing/shared encoding/growth adjustment",
-        "site": "words.merge"
+        "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 21000,
-        "source": "140 × words.id (150 bytes each; 6 field-name/framing + words declared identity 144)",
-        "site": "words.merge"
+        "value": 21838,
+        "source": "122 × words table/id envelope (179 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
       }
     ]
   },

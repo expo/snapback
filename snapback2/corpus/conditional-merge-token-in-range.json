@@ -474,10 +474,10 @@
     "max_rule_probes": 0,
     "max_steps": 22897,
     "derived_steps": 0,
-    "derived_scratch_bytes": 0,
-    "max_heap_bytes": 732704,
+    "derived_scratch_bytes": 1348352,
+    "max_heap_bytes": 2081056,
     "max_output_bytes": 2312,
-    "max_closure_bytes": 1059248,
+    "max_closure_bytes": 1348352,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -636,6 +636,12 @@
       },
       {
         "meter": "heap bytes",
+        "value": 1348352,
+        "source": "search closure scratch",
+        "site": "feed.following"
+      },
+      {
+        "meter": "heap bytes",
         "value": 517824,
         "source": "merge feed.following: heap work × 32",
         "site": "feed.conditional:statement:2:else:statement:1"
@@ -780,69 +786,111 @@
       },
       {
         "meter": "closure bytes",
-        "value": 39672,
-        "source": "1044 × posts.at (38 bytes each; 6 field-name/framing + time 32)",
-        "site": "feed.following"
+        "value": 3766,
+        "source": "feed.global × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "feed.global"
       },
       {
         "meter": "closure bytes",
-        "value": 160776,
-        "source": "1044 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
-        "site": "feed.following"
+        "value": 0,
+        "source": "feed.global × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "feed.global"
       },
       {
         "meter": "closure bytes",
-        "value": 108576,
-        "source": "1044 × posts.body (104 bytes each; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
-        "site": "feed.following"
-      },
-      {
-        "meter": "closure bytes",
-        "value": 156600,
-        "source": "1044 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
-        "site": "feed.following"
-      },
-      {
-        "meter": "closure bytes",
-        "value": 10440,
-        "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": "feed.following"
-      },
-      {
-        "meter": "closure bytes",
-        "value": 56160,
-        "source": "540 × posts.body (104 bytes each; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
-        "site": "feed.following"
-      },
-      {
-        "meter": "closure bytes",
-        "value": 156312,
-        "source": "1002 × follows.followed (156 bytes each; 12 field-name/framing + Principal value maximum 144)",
+        "value": 73310,
+        "source": "feed.follows × 1 ranges: source descriptor, suffix bounds, row/halo references",
         "site": "feed.follows"
       },
       {
         "meter": "closure bytes",
-        "value": 156312,
-        "source": "1002 × follows.follower (156 bytes each; 12 field-name/framing + Principal value maximum 144)",
+        "value": 0,
+        "source": "feed.follows × 0 probes: separately serialized rule verdict/absence envelopes",
         "site": "feed.follows"
       },
       {
         "meter": "closure bytes",
-        "value": 150300,
-        "source": "1002 × follows.id (150 bytes each; 6 field-name/framing + follows declared identity 144)",
-        "site": "feed.follows"
+        "value": 593690,
+        "source": "feed.following.lane × 500 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "feed.following.lane"
       },
       {
         "meter": "closure bytes",
-        "value": 10020,
+        "value": 0,
+        "source": "feed.following.lane × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "feed.following.lane"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 78156,
+        "source": "501 × follows.followed (156 bytes each; 12 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 78156,
+        "source": "501 × follows.follower (156 bytes each; 12 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 75150,
+        "source": "501 × follows.id (150 bytes each; 6 field-name/framing + follows declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5010,
         "source": "follows row width: framing/shared encoding/growth adjustment",
-        "site": "feed.follows"
+        "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 54080,
-        "source": "520 × follows projected value width (104 bytes each)",
-        "site": "feed.follows"
+        "value": 90681,
+        "source": "501 × follows table/id envelope (181 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20634,
+        "source": "543 × posts.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 83622,
+        "source": "543 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 56472,
+        "source": "543 × posts.body (104 bytes each; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 81450,
+        "source": "543 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5430,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 97197,
+        "source": "543 × posts table/id envelope (179 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5628,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
       }
     ]
   },

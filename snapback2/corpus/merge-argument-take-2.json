@@ -300,10 +300,10 @@
     "max_rule_probes": 0,
     "max_steps": 366,
     "derived_steps": 0,
-    "derived_scratch_bytes": 0,
-    "max_heap_bytes": 11712,
+    "derived_scratch_bytes": 27113,
+    "max_heap_bytes": 38825,
     "max_output_bytes": 7072,
-    "max_closure_bytes": 8448,
+    "max_closure_bytes": 27113,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -349,6 +349,12 @@
         "value": 1,
         "source": "statements",
         "site": "merge.review:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 27113,
+        "source": "search closure scratch",
+        "site": "merge.review"
       },
       {
         "meter": "heap bytes",
@@ -406,27 +412,63 @@
       },
       {
         "meter": "closure bytes",
+        "value": 4365,
+        "source": "merge.review.0 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "merge.review.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "merge.review.0 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "merge.review.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4365,
+        "source": "merge.review.1 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "merge.review.1"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "merge.review.1 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "merge.review.1"
+      },
+      {
+        "meter": "closure bytes",
         "value": 912,
         "source": "24 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
-        "site": "merge.review"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 3696,
         "source": "24 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
-        "site": "merge.review"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 3600,
         "source": "24 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
-        "site": "merge.review"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 240,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": "merge.review"
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4296,
+        "source": "24 × posts table/id envelope (179 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5639,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
       }
     ]
   },

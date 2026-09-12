@@ -293,10 +293,10 @@
     "max_rule_probes": 0,
     "max_steps": 96,
     "derived_steps": 0,
-    "derived_scratch_bytes": 0,
-    "max_heap_bytes": 3072,
+    "derived_scratch_bytes": 12336,
+    "max_heap_bytes": 15408,
     "max_output_bytes": 718,
-    "max_closure_bytes": 2112,
+    "max_closure_bytes": 12336,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -342,6 +342,12 @@
         "value": 1,
         "source": "statements",
         "site": "opaque-cursor-merge-capped-token:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 12336,
+        "source": "search closure scratch",
+        "site": "opaque-cursor-merge-capped-token"
       },
       {
         "meter": "heap bytes",
@@ -399,27 +405,63 @@
       },
       {
         "meter": "closure bytes",
+        "value": 1774,
+        "source": "opaque-cursor-merge-capped-token.a × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "opaque-cursor-merge-capped-token.a"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "opaque-cursor-merge-capped-token.a × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "opaque-cursor-merge-capped-token.a"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1774,
+        "source": "opaque-cursor-merge-capped-token.b × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "opaque-cursor-merge-capped-token.b"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "opaque-cursor-merge-capped-token.b × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "opaque-cursor-merge-capped-token.b"
+      },
+      {
+        "meter": "closure bytes",
         "value": 228,
         "source": "6 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
-        "site": "opaque-cursor-merge-capped-token"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 924,
         "source": "6 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
-        "site": "opaque-cursor-merge-capped-token"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 900,
         "source": "6 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
-        "site": "opaque-cursor-merge-capped-token"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 60,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": "opaque-cursor-merge-capped-token"
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1074,
+        "source": "6 × posts table/id envelope (179 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5602,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
       }
     ]
   },

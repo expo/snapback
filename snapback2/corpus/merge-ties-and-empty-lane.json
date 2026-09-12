@@ -304,10 +304,10 @@
     "max_rule_probes": 0,
     "max_steps": 110,
     "derived_steps": 0,
-    "derived_scratch_bytes": 0,
-    "max_heap_bytes": 3520,
+    "derived_scratch_bytes": 8520,
+    "max_heap_bytes": 12040,
     "max_output_bytes": 718,
-    "max_closure_bytes": 2464,
+    "max_closure_bytes": 8520,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -353,6 +353,12 @@
         "value": 1,
         "source": "statements",
         "site": "merge.ties:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8520,
+        "source": "search closure scratch",
+        "site": "merge.ties"
       },
       {
         "meter": "heap bytes",
@@ -410,27 +416,75 @@
       },
       {
         "meter": "closure bytes",
+        "value": 1562,
+        "source": "merge.ties.0 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "merge.ties.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "merge.ties.0 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "merge.ties.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1562,
+        "source": "merge.ties.1 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "merge.ties.1"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "merge.ties.1 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "merge.ties.1"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1562,
+        "source": "merge.ties.2 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "merge.ties.2"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "merge.ties.2 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "merge.ties.2"
+      },
+      {
+        "meter": "closure bytes",
         "value": 266,
         "source": "7 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
-        "site": "merge.ties"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 1078,
         "source": "7 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
-        "site": "merge.ties"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 1050,
         "source": "7 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
-        "site": "merge.ties"
+        "site": null
       },
       {
         "meter": "closure bytes",
         "value": 70,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": "merge.ties"
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1253,
+        "source": "7 × posts table/id envelope (179 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
       }
     ]
   },

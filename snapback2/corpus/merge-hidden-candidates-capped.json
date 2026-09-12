@@ -344,7 +344,7 @@
     "derived_scratch_bytes": 0,
     "max_heap_bytes": 1640896,
     "max_output_bytes": 772,
-    "max_closure_bytes": 2653,
+    "max_closure_bytes": 5685,
     "completeness": "Capped",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -531,31 +531,31 @@
       },
       {
         "meter": "closure bytes",
-        "value": 266,
-        "source": "7 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "value": 570,
+        "source": "15 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
-        "value": 1078,
-        "source": "7 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "value": 2310,
+        "source": "15 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
-        "value": 1050,
-        "source": "7 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "value": 2250,
+        "source": "15 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
-        "value": 189,
-        "source": "7 × posts.visible (27 bytes each; 11 field-name/framing + Bool value maximum 16)",
+        "value": 405,
+        "source": "15 × posts.visible (27 bytes each; 11 field-name/framing + Bool value maximum 16)",
         "site": "merge.hidden"
       },
       {
         "meter": "closure bytes",
-        "value": 70,
+        "value": 150,
         "source": "posts row width: framing/shared encoding/growth adjustment",
         "site": "merge.hidden"
       }
