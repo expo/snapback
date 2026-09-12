@@ -34,9 +34,6 @@ export function rangeSchemaIdentity(schema: any): string {
   return owned ? owned.rangeHash ??= sha256(canonicalJson(schema)) : sha256(canonicalJson(schema));
 }
 
-const I53_MAX = 9_007_199_254_740_991;
-const I53_MIN = -I53_MAX;
-
 export function canonicalValue(value: Value): string {
   if (value === "Null") return '"Null"';
   const kind = kindOf(value);
@@ -128,7 +125,7 @@ export function int(value: number): Value {
 }
 
 export function safeNumber(value: number): number {
-  if (!Number.isSafeInteger(value) || value < I53_MIN || value > I53_MAX)
+  if (!Number.isSafeInteger(value))
     fail("E_OVERFLOW", `${value} is outside the i53 value model`);
   return value;
 }
