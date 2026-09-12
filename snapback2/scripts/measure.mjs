@@ -234,7 +234,7 @@ function main() {
   }, 3, result => `package byte measurement failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   const compilerEnv = {
     ...process.env,
-    SNAPBACK2_COMPILER: compiler,
+    SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: compiler,
     SNAPBACK2_GUIDE: resolve(packageDist, "guide"),
     SNAPBACK2_TEMPLATES: resolve(packageDist, "templates"),
     SNAPBACK2_TEST_RUNNER: resolve(packageDist, "test-runner.mjs"),

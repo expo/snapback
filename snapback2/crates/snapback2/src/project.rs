@@ -2,6 +2,8 @@
 // @ref LLP 1002#1-decisions — the binary owns compilation through one worker.
 
 mod lowering;
+mod toolchain;
+pub use toolchain::node_path;
 
 use crate::protocol::{Refusal, certification_family_guide};
 use serde_json::{Value as Json, json};
@@ -154,7 +156,7 @@ impl CompilerWorker {
     }
 
     fn spawn_path(path: PathBuf) -> Result<Self, Refusal> {
-        let mut command = Command::new("node");
+        let mut command = Command::new(node_path()?);
         command
             .arg(&path)
             .arg("--worker")

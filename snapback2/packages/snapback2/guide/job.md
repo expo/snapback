@@ -28,7 +28,9 @@ mutation, or job (64 KiB maximum); jobs also accept `--plan` and `--wait`.
 The owner snapshots the store and opens the copy with no effects runner, no
 timer firing, no asset sweep, no blob writes, the clock pinned at the snapshot
 and a fresh id namespace; every chunk runs through the same driver, in-process;
-then the copy is deleted. The receipt has `dryRun: true`, rows written per
+then the copy is deleted. This writable, WAL-consistent SQLite backup copies all
+database pages, so its time and disk cost scale with store size. `--plan` reads
+index counts without making a snapshot. The receipt has `dryRun: true`, rows written per
 table, chunks, the effects it would have emitted (name, payload bytes), the
 assets it would have released, and any refusal, with exit 0 either way: the
 rehearsal told the truth. Exit 1 is `E_REHEARSAL`, the rehearsal itself could

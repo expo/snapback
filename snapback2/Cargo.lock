@@ -1820,6 +1820,7 @@ dependencies = [
 name = "snapback2-effects"
 version = "0.0.26"
 dependencies = [
+ "getrandom 0.3.4",
  "ibex2",
  "serde_json",
  "snapback2-core",

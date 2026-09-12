@@ -1645,3 +1645,11 @@ schedule kind, retention.
    benchmark run, or `init` should scaffold the backend only.
 3. `tick` as a control route (dev only) versus `ctx.now()` bound to the
    request — the spec takes the control route.
+
+### Runtime hardening (2026-09-12)
+
+The npm launcher pins `SNAPBACK2_NODE` to `process.execPath`. Compiler and
+journey subprocesses use that absolute executable, never an ambient PATH search.
+Direct-binary invocations that compile must explicitly supply the trusted absolute
+Node path; a missing, relative, or non-executable path refuses `E_OWNER_NO_COMPILER`.
+The source watcher skips symlinks, so linked directory cycles cannot recurse.

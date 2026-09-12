@@ -33,6 +33,7 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 status=0
+export SNAPBACK2_NODE="${SNAPBACK2_NODE:-$(node -p 'process.execPath')}"
 rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(8, Math.min(32, require("node:os").availableParallelism()))))' 2>/dev/null || printf '8\n')}"
 # @ref LLP 1002#11-measured — bound owner-heavy test-file concurrency while preserving every original per-test deadline.
 package_test_threads="${SNAPBACK_PACKAGE_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(2, Math.min(6, require("node:os").availableParallelism()))))' 2>/dev/null || printf '2\n')}"

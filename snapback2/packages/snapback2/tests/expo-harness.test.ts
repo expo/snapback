@@ -177,7 +177,7 @@ test("fresh chat Expo scaffold from dist resolves every relative import", async 
   const root = await mkdtemp(join(tmpdir(), "e2-scaffold-"));
   try {
     await execute(join(workspace, "target/debug/snapback2"), ["init", root, "--template", "chat", "--client", "expo", "--json"], {
-      cwd: workspace, env: { ...process.env, SNAPBACK2_TEMPLATES: join(packageRoot, "dist/templates"), SNAPBACK2_COMPILER: join(packageRoot, "dist/compiler.mjs") }, timeout: 10_000,
+      cwd: workspace, env: { ...process.env, SNAPBACK2_TEMPLATES: join(packageRoot, "dist/templates"), SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: join(packageRoot, "dist/compiler.mjs") }, timeout: 10_000,
     });
     const walk = async (directory: string): Promise<string[]> => (await Promise.all((await readdir(directory, { withFileTypes: true }))
       .filter((entry) => !entry.name.startsWith(".")).map((entry) => entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]))).flat();

@@ -279,7 +279,7 @@ function serveStatic(root) {
 async function startOwner(project) {
   const env = {
     ...process.env,
-    SNAPBACK2_COMPILER: resolve(dist, "compiler.mjs"),
+    SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: resolve(dist, "compiler.mjs"),
     SNAPBACK2_GUIDE: resolve(dist, "guide"),
     SNAPBACK2_TEMPLATES: resolve(dist, "templates"),
     SNAPBACK2_TEST_RUNNER: resolve(dist, "test-runner.mjs"),

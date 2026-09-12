@@ -798,7 +798,7 @@ function prepare(version, name, stateDirectory, requestedPlatforms = []) {
     }),
     (compiler) => {
       const doctor = command(bin, ["doctor", "--json"], {
-        env: { ...process.env, SNAPBACK2_COMPILER: compiler },
+        env: { ...process.env, SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: compiler },
       });
       if (!withoutEngine && !doctor.stdout.includes('"effects":"ibex2 + vanilla hermes"')) {
         throw new Error("artifact doctor output does not report the effects engine");

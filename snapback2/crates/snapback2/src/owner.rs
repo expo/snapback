@@ -837,7 +837,7 @@ fn pid_is_running(pid: u32) -> bool {
 
 #[cfg(unix)]
 fn pid_is_zombie(pid: u32) -> bool {
-    let output = Command::new("ps")
+    let output = Command::new("/bin/ps")
         .args(["-o", "stat=", "-p", &pid.to_string()])
         .output();
     output.is_ok_and(|output| {

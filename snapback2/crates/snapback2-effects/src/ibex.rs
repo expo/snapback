@@ -2,9 +2,7 @@ use crate::{EffectHost, EffectJob, EffectLog, Outcome};
 use ibex2::engine::hermes::{DynamicCode, Grants, Hermes, JsError};
 use serde_json::json;
 use snapback2_core::{EffectDecl, digest};
-use std::collections::{BTreeMap, hash_map::RandomState};
-use std::hash::{BuildHasher, Hash, Hasher};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 const MAX_JOBS_PER_RUNTIME: u32 = 50;
@@ -236,19 +234,11 @@ enum BuildFailure {
     Deadline,
 }
 
-static HOST_CHANNEL_NONCE: AtomicU64 = AtomicU64::new(0);
-
-fn host_channel_token() -> String {
-    let nonce = HOST_CHANNEL_NONCE.fetch_add(1, Ordering::Relaxed);
-    let random_part = |domain: u64| {
-        let mut hasher = RandomState::new().build_hasher();
-        nonce.hash(&mut hasher);
-        domain.hash(&mut hasher);
-        hasher.finish()
-    };
-    let first = random_part(0);
-    let second = random_part(1);
-    format!("{second:016x}{first:016x}")
+fn host_channel_token() -> Result<String, BuildFailure> {
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes)
+        .map_err(|_| BuildFailure::Unavailable("OS randomness unavailable"))?;
+    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 /// Freeze the JSON data captured by the compiler's effect-source IIFE without
@@ -319,8 +309,24 @@ fn build_runtime(
     bindings: Option<&BTreeMap<String, String>>,
     deadline: Instant,
 ) -> Result<EffectRuntime, BuildFailure> {
+    build_runtime_until(decl, bindings, deadline).map_err(|error| {
+        if Instant::now() >= deadline {
+            BuildFailure::Deadline
+        } else {
+            error
+        }
+    })
+}
+
+fn build_runtime_until(
+    decl: &EffectDecl,
+    bindings: Option<&BTreeMap<String, String>>,
+    deadline: Instant,
+) -> Result<EffectRuntime, BuildFailure> {
     let mut runtime = Hermes::new(DynamicCode::Closed)
         .ok_or(BuildFailure::Unavailable("Hermes::new returned None"))?;
+    // One budget covers trusted setup as well as authored execution.
+    runtime.set_deadline(deadline);
     if !runtime.install_stdlib() {
         return Err(BuildFailure::Unavailable(
             "Ibex 2 standard library install failed",
@@ -352,7 +358,7 @@ fn build_runtime(
             })?;
     }
 
-    let host_token = host_channel_token();
+    let host_token = host_channel_token()?;
     let prelude = PRELUDE
         .replace("__SNAPBACK_FETCH_FACTORY__", FETCH_FACTORY)
         .replace(
@@ -798,7 +804,7 @@ fn run_job_until(
         Err(HostFailure::Deadline) => return timed_out(effect_runtime, job, budget),
         Err(HostFailure::Message(error)) => {
             let logs = drain_logs(&effect_runtime.runtime, job);
-            return (Outcome::Failed { error, retry: true }, logs, false, true);
+            return (Outcome::Failed { error, retry: true }, logs, true, false);
         }
     }
     let mut settled = None;
@@ -860,6 +866,9 @@ fn run_job_until(
     (outcome, logs, contaminated, quiescent)
 }
 
+#[cfg(test)]
+thread_local! { static DRIVE_TURNS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) }; }
+
 /// Drain, read, wait, pump — until the job is quiescent, or settled with
 /// only timers left, or the deadline is reached. Isolation boundary:
 /// application microtasks drain while no timer permit exists; then exactly
@@ -873,7 +882,10 @@ fn drive(
     deadline: Instant,
     settled: &mut Option<JobSnapshot>,
 ) -> Result<(JobSnapshot, bool), Exit> {
+    let mut idle_wait = Duration::from_millis(1);
     loop {
+        #[cfg(test)]
+        DRIVE_TURNS.with(|turns| turns.set(turns.get() + 1));
         effect_runtime
             .runtime
             .drain_microtasks()
@@ -895,13 +907,15 @@ fn drive(
         }
 
         let remaining = deadline.saturating_duration_since(now);
+        // Ibex has no public wait-for-completion primitive. Poll blocked
+        // network work with bounded backoff, never through an authored timer.
+        let timer_wait = snapshot
+            .next_timer_delay
+            .map(|millis| Duration::from_secs_f64(millis.max(0.0) / 1000.0));
         let wait = if snapshot.pending_fetches == 0 {
-            snapshot
-                .next_timer_delay
-                .map(|millis| Duration::from_secs_f64((millis.max(0.0)) / 1000.0))
-                .unwrap_or(Duration::from_millis(1))
+            timer_wait.unwrap_or(idle_wait)
         } else {
-            Duration::from_millis(1)
+            timer_wait.unwrap_or(idle_wait).min(idle_wait)
         }
         .min(remaining);
         if is_settled {
@@ -913,13 +927,18 @@ fn drive(
 
         call_host(effect_runtime, "armTimers", &[])
             .map_err(|failure| host_channel_failed(effect_runtime, job, "arm timers", failure))?;
-        effect_runtime
+        let ran = effect_runtime
             .runtime
             .pump()
             .map_err(|error| entrance_failed(effect_runtime, job, "timer pump", error))?;
         call_host(effect_runtime, "disarmTimers", &[]).map_err(|failure| {
             host_channel_failed(effect_runtime, job, "disarm timers", failure)
         })?;
+        idle_wait = if ran > 0 {
+            Duration::from_millis(1)
+        } else {
+            (idle_wait * 2).min(Duration::from_millis(25))
+        };
     }
 }
 

@@ -740,11 +740,25 @@ fn run_journeys(
             );
         }
     };
+    let node = match project::node_path() {
+        Ok(node) => node,
+        Err(error) => {
+            return (
+                vec![CheckReceipt::fail(
+                    "journey runner",
+                    "journey",
+                    0,
+                    json!({"refusal":error}),
+                )],
+                windows,
+            );
+        }
+    };
     let mut checks = Vec::new();
     let mut available = Vec::new();
     let mut matched = false;
     for file in files {
-        let mut list = journey_command(&runner, owner);
+        let mut list = journey_command(&node, &runner, owner);
         list.arg("--list");
         if selected.is_some() {
             list.arg("--identify");
@@ -845,7 +859,7 @@ fn run_journeys(
                     continue;
                 }
             };
-            let mut command = journey_command(&runner, owner);
+            let mut command = journey_command(&node, &runner, owner);
             command.arg("--journey-index").arg(index.to_string());
             command.arg("--epoch").arg(&epoch);
             if let Some(expected) = expected_identity {
@@ -947,8 +961,8 @@ impl JourneyRunnerOutput {
     }
 }
 
-fn journey_command(runner: &Path, owner: &OwnerInfo) -> Command {
-    let mut command = Command::new("node");
+fn journey_command(node: &Path, runner: &Path, owner: &OwnerInfo) -> Command {
+    let mut command = Command::new(node);
     command
         .arg(runner)
         .arg("--url")

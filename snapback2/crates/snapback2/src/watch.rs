@@ -207,11 +207,15 @@ fn collect_authored_sources(root: &Path, output: &mut Vec<PathBuf>) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() {
+        let Ok(kind) = entry.file_type() else {
+            continue;
+        };
+        if kind.is_dir() {
             collect_authored_sources(&path, output);
-        } else if path
-            .extension()
-            .is_some_and(|extension| extension == "ts" || extension == "q")
+        } else if kind.is_file()
+            && path
+                .extension()
+                .is_some_and(|extension| extension == "ts" || extension == "q")
         {
             output.push(path);
         }
@@ -252,4 +256,20 @@ pub fn log(root: &Path, value: Json) {
             );
         }
     }
+}
+
+#[cfg(all(test, unix))]
+#[test]
+fn source_walk_does_not_follow_symlink_cycles_or_linked_files() {
+    use std::os::unix::fs::symlink;
+    let root = std::env::temp_dir().join(format!("s2-watch-cycle-{}", std::process::id()));
+    fs::create_dir_all(root.join("nested")).unwrap();
+    fs::write(root.join("schema.q"), "table t").unwrap();
+    fs::write(root.join("nested/effect.ts"), "export {}").unwrap();
+    symlink("..", root.join("nested/cycle")).unwrap();
+    symlink("schema.q", root.join("linked.q")).unwrap();
+    let found = fingerprint(&root);
+    assert_eq!(found.len(), 2);
+    assert!(found.contains_key(&root.join("schema.q")));
+    fs::remove_dir_all(root).unwrap();
 }
