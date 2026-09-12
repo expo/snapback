@@ -52,9 +52,11 @@ records a legal preserving form for all five rows:
   heads with the public `snapback2/global-search-pager` export. The helper
   walks all 1,000 scopes, limits concurrency, preserves descending order,
   suppresses duplicates, detects cursor cycles, serializes concurrent `next`
-  calls, and propagates the weakest unusable receipt. Search remains on the
-  original membership-authorized message rows; held-search authority was not
-  widened.
+  calls, and propagates the weakest unusable receipt. The installed
+  `dist/guide/recipes/global-message-search.ts` recipe binds the generated
+  client API, branded cursors, captured term, comparator, pages, and issues.
+  Search remains on the original membership-authorized message rows;
+  held-search authority was not widened.
 - Rich conversation composites use a smaller continued rich page while raw
   history remains independently pageable at 50.
 - Digest work uses maintained period cells and a resumable 50-row job chunk.
@@ -66,9 +68,13 @@ changed.
 
 ## Validation
 
-- Pinned Node 24.18.0 package build: pass; 32 guide cards, 98,003/98,304 bytes.
-- Compiler suite: 306 passed, 0 failed, including the compiling guide fixture
-  and pager coverage/order/refill/deduplication/cursor-cycle/partial-state tests.
+- Pinned Node 24.18.0 package build and pack: pass; 32 guide cards,
+  97,979/98,304 bytes. The installed recipe is present in the packed file set
+  and typechecks through the public client/pager exports against the generated
+  fanout fixture API.
+- Compiler suite: 307 passed, 0 failed, including the compiling guide fixture,
+  installed consumer binding, and pager coverage/order/refill/deduplication/
+  cursor-cycle/partial-state tests.
 - `cargo test -p snapback2-core --lib -- --test-threads=4`: 187 passed,
   0 failed.
 - Published self-reference import `snapback2/global-search-pager`: pass.

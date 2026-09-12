@@ -73,10 +73,10 @@ query conversationMessageSearch(conversation: conversations, term: text <=128, c
   return messages[conversation, term] after c last 1 by bySearch
 ```
 
-Bind `createGlobalSearchPager` from `snapback2/global-search-pager` to these
-queries and descending `(at,id)`. It covers `maxScopes` (default 1,000), limits
-one-shot concurrency to 16, refills/deduplicates, and stops on the weakest
-receipt. Recreate on term/membership changes; do not mount 1,000 live shapes.
+Copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts`.
+It binds both queries and exact `(at,id)` ordering through the public pager,
+including bounded pages, issues, and captured terms. Recreate it when the term
+or memberships change; do not mount 1,000 live shapes.
 `snapback2 new chat` supplies the write/revocation rules; reads apply current
 membership. Separate snapshots cover the discovered directory, not concurrent
 membership changes.

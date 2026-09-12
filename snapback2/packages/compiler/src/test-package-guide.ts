@@ -108,6 +108,36 @@ export function registerPackageGuideChecks(
     }
   });
 
+  test("the installed global message search recipe typechecks against its generated API", async () => {
+    const packageRoot = resolve(crate, "packages/snapback2");
+    const recipePath = resolve(packageRoot, "dist/guide/recipes/global-message-search.ts");
+    const files = packageBuildProof();
+    assert(files.has("dist/guide/recipes/global-message-search.ts"),
+      "npm pack omitted the global message search recipe");
+    const recipe = await readFile(recipePath, "utf8");
+    const fanout = await readFile(resolve(packageRoot, "dist/guide/fanout.md"), "utf8");
+    assert(fanout.includes("guide/recipes/global-message-search.ts"),
+      "the installed fanout card does not point to its runnable recipe");
+    const lowered = await lowerProject(resolve(crate, "packages/compiler/fixtures/quarry-fanout-guide"));
+    assert(lowered.ok, `fanout recipe fixture refused: ${JSON.stringify(lowered)}`);
+    await withProject({ "recipe.ts": recipe, "api.d.ts": lowered.apiDts }, async (root) => {
+      await mkdir(resolve(root, "node_modules"));
+      await symlink(packageRoot, resolve(root, "node_modules/snapback2"), "dir");
+      const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram({
+        rootNames: [resolve(root, "recipe.ts"), resolve(root, "api.d.ts")],
+        options: {
+          lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+          module: ts.ModuleKind.ESNext,
+          moduleResolution: ts.ModuleResolutionKind.Bundler,
+          noEmit: true, skipLibCheck: true, strict: true,
+          target: ts.ScriptTarget.ES2022,
+        },
+      }));
+      assert(diagnostics.length === 0, diagnostics.map((item) =>
+        `TS${item.code}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n"));
+    });
+  });
+
   test("npm pack from a clean dist builds every exported module and declaration", () => {
     const files = packageBuildProof();
     for (const path of [
