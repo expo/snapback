@@ -1,3 +1,4 @@
+import { viewedOnlyAssets } from "./store/byte-cache.js";
 // @ref LLP 1018.003.000#4-observation-and-retention —
 // a row's evidence travels with its image, through decoding, reduction, and publication.
 import { RowImage } from "../../evaluator/src/row-image.js";
@@ -11,10 +12,13 @@ import type { DeliveryEnvelopeV1 } from "./offline-protocol.js";
 import { factAssertion } from "./store/fact-integrity.js";
 import { outboxFifo } from "./store/query-inputs.js";
 
+function checked(held: StoredAnswer | undefined): held is StoredAnswer {
+  return !!held && !held.retained && !held.clockOnly && !held.needsFactProofs && held.state !== "denied";
+}
+
 /** Only a checked, complete owner answer can advance this query's membership evidence. */
 export function freshItemSelection(held: StoredAnswer | undefined): StoredAnswer["selection"] {
-  return held && !held.retained && !held.clockOnly && !held.needsFactProofs
-    && ["complete", "capped"].includes(held.state) ? { through: held.seq, order: held.order } : undefined;
+  return checked(held) && ["complete", "capped"].includes(held.state) ? { through: held.seq, order: held.order } : undefined;
 }
 
 function references(markers: unknown, data: unknown, row: (table: string, id: string, value: unknown) => void): void {
@@ -26,7 +30,7 @@ export function rowObservation(state: PersistedRangeState, key: string, held?: S
   const row = state.rows[key];
   let through = state.rowSeq[key];
   if (!row || through === undefined || through <= (state.negative[key] ?? -1)) return;
-  if (held && !held.retained && !held.clockOnly && !held.needsFactProofs && held.state !== "denied" && held.seq >= through
+  if (checked(held) && held.seq >= through
     && held.rowProofs?.[key] === factAssertion(row)) {
     return { through: held.seq, order: held.order };
   }
@@ -61,7 +65,7 @@ export class ItemCapture {
     for (const [key, through] of Object.entries(state.negative)) {
       if ((state.rowSeq[key] ?? -1) <= through) this.observations.set(key, { through, absent: true });
     }
-    if (this.held && !this.held.retained && !this.held.clockOnly && !this.held.needsFactProofs && this.held.state !== "denied") {
+    if (checked(this.held)) {
       for (const [table, index, key] of this.held.receipt?.absences ?? []) {
         if (index !== "byId" || key.length !== 1 || typeof key[0] !== "string") continue;
         const address = itemAddress(table, key[0]);
@@ -92,9 +96,10 @@ export class ItemCapture {
     const entries = value.Array ?? value.Map ?? value.Row;
     if (entries) for (const key of Object.keys(entries)) this.evaluated((entries as Record<string, unknown>)[key], (data as Record<string, unknown>)[key]);
   }
-  inputs(): ItemInputs {
+  inputs(once?: Set<string>): ItemInputs {
+    if (once?.size) for (const id of viewedOnlyAssets(this.state)) once.delete(id);
     const selection = this.held?.selection ?? freshItemSelection(this.held);
-    return { compactedThrough: this.state.compactedThrough, entries: this.entries ??= Object.values(this.state.outbox).sort(outboxFifo),
+    return { once, compactedThrough: this.state.compactedThrough, entries: this.entries ??= Object.values(this.state.outbox).sort(outboxFifo),
       observations: this.observations, values: this.values, predicted: new Map(this.predicted),
       ...(this.state.facts ? { program: { generation: this.state.facts.generation, schemaHash: this.state.facts.schemaHash } } : {}),
       ...(selection ? { selection } : {}) };

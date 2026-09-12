@@ -8,11 +8,7 @@ Authenticated readers get one original 200. Ordinary private bytes are
 is `private, no-store`. Anonymous gets 404 on public rows too. HEAD is free; width, Range and
 conditionals cannot bypass 410 `E_ASSET_VIEWED`. Add `once`: prior views unrecorded; removal is destructive.
 
-```q
-mutation inspect(photo: image <=5000000, clip: video <=50000000):
-  require clip.duration <= 60000 else TOO_LONG
-  return { photo, width: photo.width, clip }
-```
+A mutation can require `clip.duration <= 60000 else TOO_LONG`.
 
 ## Uploads and custody
 
@@ -33,7 +29,7 @@ person taps Open. Capture the selected record in component state with
 `onClick={() => setOpenedAsset(message.photo)}`, then render
 `{openedAsset && <AssetImage asset={openedAsset} alt="attachment" />}`.
 Keep the selected record until the person closes the view, even if a later
-live join becomes null. Both chat templates demonstrate a click gate.
+live join becomes null.
 `AssetImage` owns a stable viewing token, fetches bytes and durably admits
 that instance's allowance before displaying them. Unmounting ends the view;
 another mount cannot borrow its token or reopen the image.
@@ -43,17 +39,18 @@ longer readable. Render an opened/removed placeholder and preserve the already
 mounted viewing component for its allowed lifetime; never dereference a
 nullable join or treat it as a fresh unopened message.
 
-For an imperative consumer, create `const viewing = {}` once for its lifetime.
-Obtain the tokenless URL through `await client.assetUrl(asset)`; if present, fetch with
-`await client.assetBlob(url, { viewing })` (native: `assetBytes`). Keep that
-same object for subsequent reads by the same mounted consumer. The client
-performs fetch, lease checks and durable admission before resolving; there
-is no separate application-level commit to race against the fetch.
-The list overload preserves its input positions and returns `undefined` in a
-consumed asset's slot; it never compacts sibling records.
-`E_ASSET_TYPE` names a missing viewing instance, `E_ASSET_VIEWED` means its
-allowance is already consumed, and `E_OFFLINE_CARRIER` means the durable
-allowance or row custody changed. Do not retry with a new token to bypass them.
+Imperative: keep one `const viewing = {}` per mounted lifetime. Fetch
+`const url = await client.assetUrl(asset);`
+then `if (url) await client.assetBlob(url, { viewing });` (native: `assetBytes`).
+The client checks the lease and durably admits the allowance before resolving.
+A new viewing object cannot borrow it. URL-list overloads preserve positions;
+consumed slots are `undefined`.
+`E_ASSET_TYPE`: missing viewing instance; `E_ASSET_VIEWED`: consumed;
+`E_OFFLINE_CARRIER`: allowance/row custody changed. A new token is no bypass.
+
+Online unconsumed descriptors survive unrelated local updates; warm/cold
+offline projections remain null. Consumption, revocation and account changes
+cannot revive them. Preserve the mounted instance when its live join turns null.
 
 `once` is image-only. Ordinary `AssetVideo` supports video. Video/download URLs
 may carry `?s=` credentials: ten-minute expiry, 1,024-owner cap, current row checks,

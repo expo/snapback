@@ -56,6 +56,42 @@ Opt-in: `receipt` (`state`, `source`, `seq`, `next`), `freshness`, `local`,
 `{ drain: true }` on `observe`/`useQuery` pages then tails an ascending append log
 (`after c first N`, N <=50). Other shapes refuse E_OFFLINE_RESUME.
 
+## Load and refresh
+
+Insights uses the provider's `useSnapbackClient()`; `paint` updates the screen.
+A request counter fences overlapping/UTC-rollover answers. No hook refresh API:
+
+```js
+await client.ready;
+let request = 0;
+const key = () => JSON.stringify([client.snapshot.authGeneration, client.snapshot.generation]);
+let identity = key();
+const off = client.subscribeStatus(() => {
+  if (identity !== key()) {
+    identity = key(); request++;
+    paint({ state: "unavailable" });
+  }
+});
+async function refresh() {
+  const mine = ++request;
+  paint({ state: "refreshing" });
+  if (client.snapshot.auth.state === "hydrating" && client.snapshot.connection !== "offline")
+    await client.auth.me().catch(() => {});
+  const result = await client.query(api.insights.screen, {});
+  if (mine !== request || (result.state === "refused" && result.code === "E_AUTH_SUPERSEDED")) return "obsolete";
+  paint(result);
+  return result;
+}
+function cancel() { request++; paint({ state: "unavailable" }); }
+function close() { request++; off(); }
+await refresh();
+```
+
+Pull-to-refresh calls `refresh()`; unmount calls `close()`. `cancel()` ends
+UI interest, not transport or durable work. Render `refused` as an error,
+`live: false` as held/offline, and absent data as unavailable.
+Auth confirmation precedes a connected cold read; query still reports held/refused on failure.
+
 ## Channels
 
 `channel name(args):` declares typed latest state.
@@ -80,28 +116,24 @@ handle; writes never replay.
 
 ## Connected
 
-`connected` is a read-only virtual table: `exists connected[p]` tests connection;
-`connected[p]` counts authenticated SSE transports once each (including `--as`).
-Pass a nonoptional principal (`viewer` for self).
-Programs may read it; rules/maintains use durable facts. A read costs one probe,
-touches `_connected` at that principal, and shares one immutable snapshot per program run.
-Connect/close affects the next execute; live reruns wait up to 1 s to coalesce.
-Revocation closes session streams; silent partitions surface on failed writes
-with no latency guarantee. Offline reads are `hydrating` and never predicted.
-Connection promises no foreground/idle or delivery guarantee or channel/subscriber broadcast.
+`connected[p]` counts authenticated SSE transports, including personas;
+`exists connected[p]` tests presence. Pass a nonoptional principal, e.g.
+`viewer`. Programs may read it; rules/maintains use durable facts.
+Each read costs one probe and touches `_connected` at that principal;
+one run shares an immutable snapshot. Connect/close affects the next execute;
+live reruns coalesce for up to 1 s.
+Session revocation closes streams. Silent partitions appear on failed writes,
+without a latency guarantee. Offline: `hydrating`, never predicted.
+Connection promises neither foreground/idle nor delivery/subscriber status.
 
-For an application-level delivery acknowledgement loop, expose a private,
-indexed `first 1` query over the viewer's pending receipt rows. A mounted
-watcher acknowledges that exact row; its deletion advances the query to the
-next row. Authorize cleanup from that private receipt; requiring its message
-to remain present can strand the queue after unsend or expiry.
-Do not rescan a capped message page as a work queue: unrelated
-rerenders repeat every acknowledgement, and the page stops changing length at
-its cap. Drive an open-thread read acknowledgement from a certified
-viewer-specific unread value and pending-read identity instead: equal counts
-can hide an intervening read/new-message cycle, and timestamp ties can leave
-the history preview unchanged. The write's readiness belongs in the
-effect dependency so a watcher mounted before its grant becomes ready later.
+For delivery acknowledgements, watch a private indexed `first 1` pending
+receipt query. Acknowledge that exact row; deletion advances the queue.
+Authorize cleanup by the receipt so unsend/expiry cannot strand it.
+Do not use a capped message page as a queue: rerenders repeat acknowledgements,
+and full-page lengths stop changing. Open-thread read acknowledgement needs
+the viewer's certified unread value **and pending-read identity**: equal counts
+or timestamp ties can hide intervening messages. Include mutation readiness in
+the effect dependencies so a watcher mounted before its grant can start later.
 
 ## Unicode word-prefix search
 
@@ -115,5 +147,4 @@ query search(term: text <=128, c: cursor ?):
 ```
 
 Unicode 17 NFC/simple case fold/NFC; accents matter. The term must normalize to exactly one word.
-Zero words match nothing; multiple refuse. Its held twin uses
-the same index: held/partial/capped.
+Zero words match nothing; multiple refuse. The twin uses that index: held/partial/capped.

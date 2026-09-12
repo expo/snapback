@@ -216,7 +216,7 @@ export class OfflineRuntime {
     this.store = options.store();
     // Check the result once, structurally: custom carriers need no built-in brand.
     if (typeof this.store?.open !== "function") {
-      throw new InvalidOfflineStoreError("offline.store must return a RangeStore with open(); use store: indexedDbRangeStore(); snapback2 guide offline");
+      throw new InvalidOfflineStoreError("offline.store must return a store with open(); use indexedDbRangeStore()");
     }
     this.fenceDays = options.fenceDays ?? 7;
     this.maxAssetBytes = options.maxAssetBytes ?? 256 * 1024 * 1024;

@@ -6,7 +6,7 @@ import { Ordered } from '../../evaluator/src/ordered.js';
 import { canonicalJson, validateIdentity, wireJson } from '../../evaluator/src/value-runtime.js';
 import { schemaDigest } from './offline-schema.js';
 import { prepareWireRow, prepareReceipt, type DeliveryReceipt } from './offline-protocol.js';
-import { onceAssetIds, onceColumns, RowAssets } from './store/asset-policy.js';
+import { onceExhausted, onceColumns, RowAssets } from './store/asset-policy.js';
 import type { Context } from '../../evaluator/src/types.js';
 import type { HeldProgram, PersistedRangeState, StoredAnswer, StoredRow, OutboxEntry, OverlayRow } from './store/range-store.js';
 import { isolate, type StoreChange, type StoreRevision } from './store/swap-journal.js';
@@ -53,7 +53,7 @@ export class TwinStore {
   evicted = new Set<string>();
   holed = new Set<string>();
   private assets = new RowAssets({});
-  get onceAssets(): Set<string> { return this.assets.once; }
+  get onceAssets(): ReadonlyMap<string, number> { return this.assets.once; }
   private state!: PersistedRangeState;
   incarnation = 0;
   private fence = '';
@@ -257,9 +257,7 @@ export class TwinStore {
       }
     }
     const viewed = this.state.viewed[key], columns = this.state.onceColumns ?? onceColumns(this.program.schema);
-    if (viewed && (!effective || !(columns[table]?.length) || (() => {
-      const assets = onceAssetIds(columns, [effective!]); return assets.size > 0 && [...assets].every(id => viewed.assets.includes(id));
-    })())) effective = undefined;
+    if (viewed && onceExhausted(columns, effective, viewed.assets)) effective = undefined;
     let value = effective && prepareWireRow(this.program.schema,table,effective.row,this.program.schemaHash);
     if (value && base && RowImage.is(base.row) && RowImage.equal(value,base.row)) { value = base.row; owners.clear(); }
     if (value && owners.size) this.effectiveWork.set(key, [...new Map([...owners.values()].map(mark => [mark.intent, mark])).values()]);

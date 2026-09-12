@@ -607,7 +607,7 @@ export class PersistentRangeStore implements RangeStore {
         // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
         data: projected,
         caughtUp: watermark === undefined ? undefined : true, watermark: watermark?.watermark,
-      }), capture.inputs());
+      }), capture.inputs(scrubbed));
     });
   }
 

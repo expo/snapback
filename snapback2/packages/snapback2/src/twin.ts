@@ -99,7 +99,8 @@ export class Twin {
     const since = hydrated.deliveredAt;
     const capture = hydrated.captureItems(op, args);
     // A local hole cannot revoke the last authoritative page-membership proof.
-    const publish = <T extends LocalAnswer>(value: T): T => withItemInputs(value, capture.inputs());
+    const once = new Set<string>();
+    const publish = <T extends LocalAnswer>(value: T): T => withItemInputs(value, capture.inputs(once));
     const base = {
       seq: this.sources.seq(),
       ...(since === undefined ? {} : { since }),
@@ -132,7 +133,7 @@ export class Twin {
       const unheldAggregate = local.execution.trace.absences.some(absence => local.partialSites.includes(absence.site)
         && maintains?.some(maintain => maintain.target === absence.table));
       const data = unheldAggregate || local.partialSites.includes("missing-authority") || result === "Null" && local.state !== "fresh"
-        ? undefined : nullOnceMedia(wireJson(result), hydrated.onceAssets);
+        ? undefined : nullOnceMedia(wireJson(result), hydrated.onceAssets, once);
       capture.evaluated(result, data);
       const ranges = new Set(local.execution.trace.ranges.map(r => r.site));
       const search = local.execution.held || local.execution.trace.ranges.some(r => r.prefix.some(p => 'WordPrefix' in p));

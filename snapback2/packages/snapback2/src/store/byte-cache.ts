@@ -1,7 +1,7 @@
 import { plainObject, wireJson } from '../../../evaluator/src/value-runtime.js';
 import type { Value } from '../../../evaluator/src/types.js';
 import { RowImage } from '../../../evaluator/src/row-image.js';
-import { onceAssetIds, type OnceColumns } from "./asset-policy.js";
+import { onceExhausted, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1006#9b-bytes-on-the-device-author-ruling-2026-09-04 — bytes are cached under the owning row's lease, or not at all.
 // @ref LLP 1012#9-asset-bytes-on-the-device — the ByteCache sits beside the range store and joins its swap; once rows are excluded before viewing.
 
@@ -145,12 +145,8 @@ export function viewedOnlyAssets(state: Pick<ByteSwapState, "rows" | "viewed">):
 
 /** A once row is exhausted only after every current once image was consumed. */
 export function fullyViewed(state: Pick<ByteSwapState, "rows" | "viewed" | "onceColumns">): Record<string, ViewedRecord> {
-  return Object.fromEntries(Object.entries(state.viewed).filter(([key, record]) => {
-    const row = state.rows[key];
-    if (!row || !(state.onceColumns?.[row.table]?.length)) return true;
-    const images = onceAssetIds(state.onceColumns, [row]);
-    return images.size > 0 && [...images].every(id => record.assets.includes(id));
-  }));
+  return Object.fromEntries(Object.entries(state.viewed).filter(([key, record]) =>
+    onceExhausted(state.onceColumns, state.rows[key], record.assets)));
 }
 
 function checkedPut(put: ByteCachePut): void {

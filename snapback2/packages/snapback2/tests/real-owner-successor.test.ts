@@ -6,7 +6,7 @@ import { fileRangeStore } from "../dist/test.mjs";
 import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { api, createClient } from "../dist/client.mjs";
+import { api, createClient, browserTokenStore } from "../dist/client.mjs";
 import { answerOffline } from "../dist/client-observed-test.mjs";
 import { RealOwnerHarness } from "./owner-harness.ts";
 import React from "react";
@@ -1229,4 +1229,201 @@ test("owner source changes rebuild distinct totals and report hot install, migra
       assert.ok(logs.some(row => row.successor === "applied" && row.report.to === report.to && row.report.maintains.includes(line)), route);
     }
   } finally { await owner?.close(); await rm(directory, { recursive: true, force: true }); if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl; }
+});
+
+// @ref LLP 1023.000#b-make-the-existing-one-client-freshness-path-sufficient —
+// execute the packaged consumer recipe against real owner envelopes, including equal-seq clock changes.
+test("timed Clique Insights load and refresh reach the screen on one durable client", { timeout: 60000 }, async t => {
+  const directory = await mkdtemp(join(tmpdir(), "snapback-timed-insights-"));
+  const source = join(directory, "source"), carrier = fileRangeStore(join(directory, "client"));
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined, client: any, screen: any;
+  let delayed: { arrived: ReturnType<typeof Promise.withResolvers<any>>; release: ReturnType<typeof Promise.withResolvers<void>> } | undefined;
+  const envelopes: any[] = [], paints: any[] = [], observedFrames: any[] = [];
+  let transportDown = false;
+  const { JSDOM } = await import("jsdom");
+  const dom = new JSDOM("<output></output>"), output = dom.window.document.querySelector("output")!;
+  const paint = (value: any) => { paints.push(structuredClone(value)); output.textContent = JSON.stringify(value); };
+  const saved = new Map<string, string>();
+  const tokenStore = browserTokenStore({ getItem: key => saved.get(key) ?? null,
+    setItem: (key, value) => { saved.set(key, value); }, removeItem: key => { saved.delete(key); } }, "insights");
+  const kinds = ["posts", "likesReceived", "repostsReceived", "repliesReceived", "followers", "following"];
+  const totals = kinds.map(kind => `${kind}: totals[viewer, '${kind}']`).join(", ");
+  const week = Array.from({ length: 7 }, (_, i) =>
+    `d${i}: { day: today - ${6-i}, posts: daily[viewer, today - ${6-i}, 'posts'], likesReceived: daily[viewer, today - ${6-i}, 'likesReceived'] }`).join(", ");
+  try {
+    await mkdir(source);
+    await writeFile(join(source, "schema.q"), `use identity
+table profiles:
+  principal: principal
+  name: text <=40
+  unique byPrincipal: principal
+  read <- allow
+  insert <- .principal = viewer
+
+table events:
+  who: principal
+  kind: enum('posts', 'likesReceived', 'repostsReceived', 'repliesReceived', 'followers', 'following')
+  day: int
+  read <- .who = viewer
+  insert <- .who = viewer
+
+maintain totals: count events by who, kind
+  read <- .who = viewer
+maintain daily: count events by who, day, kind
+  read <- .who = viewer
+`);
+    await writeFile(join(source, "insights.q"), `query screen():
+  today = divmod(now, 86400000).quotient
+  return { viewer: profiles[viewer], ${totals}, week: { ${week} } }
+
+mutation profile():
+  insert profiles { principal: viewer, name: 'Alice' }
+  return true
+
+mutation record(kind: enum('posts', 'likesReceived', 'repostsReceived', 'repliesReceived', 'followers', 'following')):
+  insert events { who: viewer, kind, day: divmod(now, 86400000).quotient }
+  return true
+`);
+    await writeFile(join(source, "seed.ts"), `import { seed } from 'snapback2';
+export default seed({ personas: ['alice', 'bob'], rows: {
+  profiles: [{ id: 'alice-profile', principal: 'dev:alice', name: 'Alice' }],
+  events: [{ id: 'hidden', who: 'dev:bob', kind: 'posts', day: 0 }]
+} });`);
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    const traced: typeof fetch = async (input, init) => {
+      if (transportDown && new URL(String(input)).pathname === "/api/query") throw new TypeError("controlled transport loss");
+      const response = await fetch(input, init);
+      if (new URL(String(input)).pathname === "/api/query" && JSON.parse(String(init?.body)).op === "insights.screen") {
+        const body: any = await response.clone().json();
+        envelopes.push(body);
+        const gate = delayed;
+        if (gate) { delayed = undefined; gate.arrived.resolve(body); await gate.release.promise; }
+      }
+      return response;
+    };
+    client = createClient({ url: owner.url, tokenStore, fetch: traced, offline: { store: carrier } });
+    await client.ready;
+    await client.auth.guest();
+    assert.equal((await client.mutation(api.insights.profile, {})).state, 'committed');
+    // Populate distinct real maintained groups; missing groups and the hidden Bob group stay zero.
+    for (const kind of ["posts", "posts", "likesReceived", "followers", "following", "following"]) {
+      assert.equal((await client.mutation(api.insights.record, { kind })).state, "committed");
+    }
+    const guide = await readFile(new URL("../guide/live-query.md", import.meta.url), "utf8");
+    const recipe = /## Load and refresh[\s\S]*?```js\n([\s\S]*?)\n```/.exec(guide)![1];
+    const mount = new (Object.getPrototypeOf(async function() {}).constructor)("client", "api", "paint",
+      recipe + "\nreturn { refresh, cancel, close };");
+    screen = await mount(client, api, paint);
+    const loaded = paints.at(-1);
+    assert.equal(loaded.state, "complete", JSON.stringify(paints));
+    assert.equal(JSON.parse(output.textContent!).data.posts, 2, "owner load reaches the displayed consumer");
+    assert.equal(loaded.live, undefined, "imperative owner result has no offline marker");
+    assert.equal(loaded.data.viewer.name, "Alice");
+    assert.deepEqual(kinds.map(kind => loaded.data[kind]), [2, 1, 0, 0, 1, 2]);
+    assert.deepEqual(Object.values(loaded.data.week).map((day: any) => [day.posts, day.likesReceived]), [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,1]]);
+    assert.equal(envelopes.at(-1).readTime !== undefined, true, "Quarry now carries the owner's read clock");
+    for (const options of [{ live: false as const }, {}]) {
+      const observed = client.observe(api.insights.screen, {}, options);
+      const frames: any[] = [];
+      const off = observed.subscribe(() => { const value = observed.getSnapshot(); frames.push(value); observedFrames.push(value); });
+      try {
+        await until(async () => frames,
+          frames => frames.some(frame => frame.receipt?.source === "server" && frame.data?.posts === 2), "Insights observation owner delivery");
+        assert.equal(frames.some(frame => frame.data?.posts === 0), false, "never-held is not a zero paint");
+      } finally { off(); }
+    }
+    const oldGate = { arrived: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+    delayed = oldGate;
+    const older = screen.refresh();
+    const oldEnvelope = await oldGate.arrived.promise;
+    assert.equal(paints.at(-1).state, "refreshing");
+    const info = JSON.parse(await readFile(join(owner.root!, ".snapback/owner.json"), "utf8"));
+    const clock = await fetch(`${owner.url}/control/clock`, { method: "POST", headers: {
+      "content-type": "application/json", "x-snapback-control": info.secret,
+    }, body: JSON.stringify({ advanceMs: 86400000 }) });
+    assert.equal(clock.status, 200, await clock.text());
+    const newer = await screen.refresh();
+    assert.equal(newer.state, "complete", JSON.stringify(newer));
+    assert.equal(newer.seq, oldEnvelope.seq, "UTC rollover needs no durable write");
+    assert.equal(paints.at(-1).data.week.d6.day, loaded.data.week.d6.day + 1);
+    assert.deepEqual(Object.values(paints.at(-1).data.week).slice(-2).map((d: any) => [d.posts, d.likesReceived]), [[2,1],[0,0]]);
+    const display = output.textContent;
+    oldGate.release.resolve();
+    assert.equal(await older, "obsolete");
+    assert.equal(output.textContent, display, "the delayed same-sequence answer cannot repaint or finish a newer refresh");
+    const unchanged = await screen.refresh();
+    assert.deepEqual(unchanged.data, newer.data, "an unchanged owner answer still finishes refresh");
+    assert.equal((await client.mutation(api.insights.record, { kind: "likesReceived" })).state, "committed");
+    await screen.refresh();
+    assert.equal(paints.at(-1).data.likesReceived, 2);
+    assert.equal(paints.at(-1).data.week.d6.likesReceived, 1);
+
+    await client.offline();
+    await screen.refresh();
+    const offline = paints.at(-1);
+    assert.equal(offline.live, false);
+    assert.equal(offline.state, "partial", JSON.stringify(offline));
+    assert.equal(offline.data, undefined, "timed mixed totals cannot invent replay coverage");
+    screen.close(); screen = undefined;
+    await client.close();
+    client = createClient({ url: owner.url, tokenStore, startOffline: true, offline: { store: carrier }, fetch: traced });
+    await client.ready;
+    screen = await mount(client, api, paint);
+    assert.equal(paints.at(-1).state, "partial");
+    assert.equal(paints.at(-1).data, undefined);
+    await client.online();
+    const reconnected = await screen.refresh();
+    assert.ok(paints.at(-1).data, JSON.stringify({reconnected, paints: paints.slice(-5), snapshot: {auth: client.snapshot.auth, connection: client.snapshot.connection}}));
+    assert.equal(paints.at(-1).data.likesReceived, 2);
+
+    transportDown = true;
+    await screen.refresh();
+    assert.equal(paints.at(-1).live, false, "transport fallback never finishes as an owner-fresh answer");
+    assert.equal(paints.at(-1).data, undefined);
+    transportDown = false;
+    await client.online();
+    await screen.refresh();
+
+    const generationGate = { arrived: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+    delayed = generationGate;
+    const oldProgram = screen.refresh(); await generationGate.arrived.promise;
+    await owner.stop();
+    const schemaPath = join(owner.root!, "snapback/schema.q");
+    await writeFile(schemaPath, (await readFile(schemaPath, "utf8")).replace("  name: text <=40", "  name: text <=40\n  note: text <=40 ?"));
+    await owner.start(false);
+    await client.online();
+    await screen.refresh();
+    assert.equal(paints.at(-1).data?.viewer?.note, null, JSON.stringify(paints.slice(-3)));
+    const evolved = output.textContent;
+    generationGate.release.resolve();
+    assert.equal(await oldProgram, "obsolete");
+    assert.equal(output.textContent, evolved, "predecessor program answer cannot overwrite the successor");
+
+    const cancelledGate = { arrived: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+    delayed = cancelledGate;
+    const cancelled = screen.refresh(); await cancelledGate.arrived.promise;
+    screen.cancel();
+    const cancelledPaint = JSON.stringify(paints.at(-1));
+    cancelledGate.release.resolve();
+    assert.equal(await cancelled, "obsolete");
+    assert.equal(JSON.stringify(paints.at(-1)), cancelledPaint);
+    const accountGate = { arrived: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+    delayed = accountGate;
+    const predecessor = screen.refresh(); await accountGate.arrived.promise;
+    await client.auth.guest();
+    assert.deepEqual(paints.at(-1), { state: "unavailable" }, "account change clears displayed predecessor data");
+    accountGate.release.resolve();
+    assert.equal(await predecessor, "obsolete");
+    await screen.refresh();
+    assert.equal(paints.at(-1).data.viewer, null);
+    assert.deepEqual(kinds.map(kind => paints.at(-1).data[kind]), [0,0,0,0,0,0]);
+    t.diagnostic(JSON.stringify({ owner: envelopes.map(e => ({ state: e.state, seq: e.seq, readTime: e.readTime,
+      rows: e.rows?.length, receipt: e.receipt, data: e.data })), observedFrames, paints }));
+  } finally {
+    delayed?.release.resolve();
+    screen?.close(); dom.window.close(); await client?.close(); await owner?.close();
+    if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
 });

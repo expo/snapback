@@ -25,8 +25,14 @@ export function onceAssetIds(columns: OnceColumns, rows: Iterable<StoredRow>): S
   for (const row of rows) for (const column of columns[row.table] ?? []) collect(imageField(row.row,column));
   return ids;
 }
+/** The same row exhaustion test governs bytes, carrier projection, and the twin. */
+export function onceExhausted(columns: OnceColumns | undefined, row: StoredRow | undefined, viewed: readonly string[], assets?: Set<string>): boolean {
+  if (!row || !columns?.[row.table]?.length) return true;
+  assets ??= onceAssetIds(columns, [row]);
+  return assets.size > 0 && [...assets].every(id => viewed.includes(id));
+}
 /** Scrub media even when a query projects it under an alias or out of its row. */
-export function nullOnceMedia(value: unknown, ids: Set<string>, scrubbed?: Set<string>): unknown {
+export function nullOnceMedia(value: unknown, ids: { has(id: string): boolean }, scrubbed?: Set<string>): unknown {
   if (Array.isArray(value)) return value.map(item => nullOnceMedia(item, ids, scrubbed));
   if (!object(value)) return value;
   if (typeof value.id === "string" && ids.has(value.id) && "width" in value && "height" in value) {
@@ -37,22 +43,22 @@ export function nullOnceMedia(value: unknown, ids: Set<string>, scrubbed?: Set<s
 
 /** Incremental media custody shared by the carrier and effective twin rows. */
 export class RowAssets {
-  readonly once = new Set<string>();
+  // Membership and reference counts share one map; callers only ask has(id).
+  readonly once = new Map<string, number>();
   readonly exhausted: Record<string, { at: number; assets: string[] }> = {};
   private rows = new Map<string, Set<string>>();
-  private counts = new Map<string, number>();
   constructor(private columns: OnceColumns) {}
   set(key: string, row?: StoredRow, viewed?: { at: number; assets: string[] }): void {
     for (const id of this.rows.get(key) ?? []) {
-      const n = this.counts.get(id)! - 1;
-      if (n) this.counts.set(id, n); else { this.counts.delete(id); this.once.delete(id); }
+      const n = this.once.get(id)! - 1;
+      if (n) this.once.set(id, n); else this.once.delete(id);
     }
     this.rows.delete(key); delete this.exhausted[key];
-    const assets = row ? onceAssetIds(this.columns, [row]) : new Set<string>();
-    if (assets.size) {
+    const assets = row && onceAssetIds(this.columns, [row]);
+    if (assets?.size) {
       this.rows.set(key, assets);
-      for (const id of assets) { this.counts.set(id, (this.counts.get(id) ?? 0) + 1); this.once.add(id); }
+      for (const id of assets) { this.once.set(id, (this.once.get(id) ?? 0) + 1); }
     }
-    if (viewed && (!row || !this.columns[row.table]?.length || (assets.size > 0 && [...assets].every(id => viewed.assets.includes(id))))) this.exhausted[key] = viewed;
+    if (viewed && onceExhausted(this.columns, row, viewed.assets, assets)) this.exhausted[key] = viewed;
   }
 }

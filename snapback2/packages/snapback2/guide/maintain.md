@@ -17,10 +17,8 @@ mixed row/totals results need enough coverage to rerun exactly.
 For `c: counts`, `c.value`/`c { * }` (aliases/named shapes too) refuse:
 use `counts[c]` or, if optional, `counts[c ! else CODE]`.
 
-```q
-maintain messageCounts: count messages by conversationId
-  read <- exists memberships[.conversationId, viewer]
-```
+For UTC buckets, store `day = divmod(now, 86400000).quotient` in the
+source mutation; maintain by owner/day. A timed screen reads all seven trailing
+days using the owner's `now`. Load/refresh: `guide live-query`.
 
-See `guide quarry` for related topics, and `guide fanout` for folding a
-maintained count across an uncapped population with a `chunk` job.
+Use `guide fanout` to fold maintained counts across an uncapped population with a `chunk` job.

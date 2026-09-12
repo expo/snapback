@@ -223,6 +223,8 @@ export interface ItemObservation {
   readonly absent?: true;
 }
 export interface ItemInputs {
+  /** Once descriptors actually removed from this evaluated value, after row custody checks. */
+  readonly once?: Set<string>;
   readonly compactedThrough?: number;
   readonly program?: { generation: string; schemaHash: string };
   readonly entries: readonly OutboxEntry[];

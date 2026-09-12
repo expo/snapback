@@ -1,3 +1,6 @@
+import React from "react";
+import TestRenderer, { act } from "react-test-renderer";
+import { SnapbackProvider, useQuery } from "../dist/react.mjs";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { api,
@@ -20,7 +23,8 @@ test("a live view-once descriptor survives its durable refresh, while a cold off
   const directory = await mkdtemp(join(tmpdir(), "snapback-once-cold-"));
   const sender = createClient({ url: owner.url, persona: "alice" });
   let client: any;
-  let cold: any;
+  let cold: any, renderer: ReturnType<typeof TestRenderer.create> | undefined;
+  let assetFetches = 0;
   try {
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
@@ -32,6 +36,10 @@ test("a live view-once descriptor survives its durable refresh, while a cold off
       url: owner.url,
       persona: "alice",
       offline: { store: fileRangeStore(directory) },
+      fetch: (input: any, init: any) => {
+        if (new URL(String(input)).pathname.startsWith("/api/asset/")) assetFetches++;
+        return fetch(input, init);
+      },
       offlineReadObserver: (_ref: unknown, _args: unknown, result: any) => {
         if (result?.data?.some?.((row: any) => row?.message?.id === posted.data.id)) localRefresh.resolve(result);
       },
@@ -52,6 +60,27 @@ test("a live view-once descriptor survives its durable refresh, while a cold off
     assert.equal(durableLive.receipt?.source, "server");
     assert.equal(durableLive.data.find((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto.id, photo.id,
       "persisting the frame cannot replace its live server descriptor with the twin's offline null");
+    function Consumer() {
+      const snapshot = useQuery(api.messages.thread, { conversationId: "conversation-1", c: null });
+      const descriptor = snapshot.data?.find((row: any) => row?.message?.id === posted.data.id)?.message?.oncePhoto;
+      return React.createElement("output", null, descriptor?.id ?? "unavailable");
+    }
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Consumer)));
+    });
+    // The original witness stopped before the next committed local-input turn.
+    // A disjoint owner read commits another answer without changing this thread.
+    const direct: any = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+    assert.equal(direct.data.find((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto.id, photo.id);
+    await act(async () => {
+      await client.query(api.messages.thread, { conversationId: "conversation-2", c: null });
+      await new Promise(resolve => setTimeout(resolve, 100));
+    });
+    assert.equal(observed.getSnapshot().data.find((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto?.id, photo.id,
+      "an unrelated durable answer cannot replace an authorized unopened live image with offline redaction");
+    assert.deepEqual(renderer!.root.findByType("output").children, [photo.id], "the shared public hook displays that descriptor");
+    assert.equal(assetFetches, 0, "describing an unopened image fetches no bytes");
+    await act(async () => renderer!.unmount()); renderer = undefined;
     stop();
 
     await client.offline();
@@ -86,8 +115,18 @@ test("a live view-once descriptor survives its durable refresh, while a cold off
       new Promise((_, reject) => setTimeout(() => reject(new Error(`cold once-photo reconnect timed out: ${JSON.stringify(coldStates)}`)), 5_000))]);
     assert.equal(coldLive.receipt.source, "server");
     assert.equal(coldLive.freshness.live, true);
+    const url = await cold.assetUrl(photo), viewing = {};
+    const shown = await cold.assetBlob(url, { viewing });
+    assert.ok(shown.size > 0);
+    await cold.query(api.messages.thread, { conversationId: "conversation-2", c: null });
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(coldObserved.getSnapshot().data?.find((row: any) => row?.message?.id === posted.data.id)?.message?.oncePhoto, undefined,
+      "a consumed nullable join is not revived by the same selection path");
+    await assert.rejects(cold.assetBlob(url, { viewing: {} }), (error: any) => error.code === "E_ASSET_VIEWED");
+    assert.equal((await cold.assetBlob(url, { viewing })).size, shown.size, "the existing mounted instance keeps its own allowance");
     stopCold();
   } finally {
+    if (renderer) await act(async () => renderer!.unmount());
     await client?.close();
     await cold?.close();
     await sender.close();
