@@ -26,7 +26,9 @@ export function bindBuiltinCall(
   if (expression.name === "count") {
     const argument = args[0];
     if (args.length !== 1 || !argument || !["list", "empty-list", "page", "collection"].includes(argument.facts.type.kind)) {
-      typeError(expression.site, "count(x) requires exactly one bounded list or page", "use count(presentBoundedList)");
+      const text = argument?.facts.type.kind === "text";
+      typeError(expression.site, "count(x) requires exactly one bounded list or page",
+        text ? "use slice(text, 0, N) to clamp text to N Unicode scalars" : "use count(presentBoundedList)");
     }
     if (argument.facts.presence === "optional") typeError(expression.site,
       "count requires a present list; its maximum does not prove presence",

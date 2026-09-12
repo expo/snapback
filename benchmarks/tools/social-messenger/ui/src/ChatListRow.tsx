@@ -42,6 +42,7 @@ export function ChatListRow({
       accessibilityLabel={`Chat with ${title}`}
       accessibilityRole="button"
       accessibilityValue={{ text: identity }}
+      aria-valuetext={identity}
       onPress={onPress}
       style={styles.row}
       testID={testID}

@@ -49,6 +49,7 @@ export function ReactionPicker({
             accessibilityLabel={`React ${emoji}`}
             accessibilityRole="button"
             accessibilityState={{ selected }}
+            aria-pressed={selected}
             key={emoji}
             onPress={() => onPick(emoji)}
             style={[styles.option, selected && styles.optionSelected]}

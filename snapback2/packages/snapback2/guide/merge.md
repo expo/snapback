@@ -9,6 +9,9 @@ non-uniform lanes keeping per-lane reserves, all priced by retention.
 Local merges need a certificate. System reads bypass rule capping, not execution
 limits. No lanes yields an empty page. Shapes, `for`, and `count` work
 as for ranges. Pageable indexes end in `id`; one cursor applies to every lane.
+For a dynamic 1,000-scope search, use `guide fanout`'s typed
+`searchScopes` + `conversationMessageSearch` operations and installed global
+search pager; Quarry merge lanes are statically bounded source reads.
 
 ```q
 query followingFeed(c: cursor ?):

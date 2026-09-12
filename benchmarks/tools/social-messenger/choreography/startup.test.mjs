@@ -4,12 +4,25 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { chromium } from "playwright";
 
 import { validateJsonSchema } from "../../lib/json-schema.mjs";
-import { createCheckRunner } from "./choreography.mjs";
+import { createCheckRunner, waitForLoadedMedia } from "./choreography.mjs";
 import { loadSetupIdentity, verifySetupToolchain } from "./setup-identity.mjs";
 
 const PLAYWRIGHT_VERSION = "1.62.1";
+
+test("RN Web data-source-uri proves image bytes without an img descendant", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  try {
+    const uri = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='2' height='2' fill='indigo'/%3E%3C/svg%3E";
+    await page.setContent(`<div id="preview" data-source-uri="${uri}" style="width:2px;height:2px"></div>`);
+    await waitForLoadedMedia(page.locator("#preview"), "image", 1_000);
+  } finally {
+    await browser.close();
+  }
+});
 
 function run(args, env = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -29,7 +42,7 @@ function run(args, env = {}) {
 function setupValue(overrides = {}) {
   return {
     schemaVersion: "social-messenger.setup-identity.v1",
-    instrumentPin: "social-messenger@0.3.7-m8",
+    instrumentPin: "social-messenger@0.3.8-m8",
     backend: { kind: "snapback", version: "test" },
     runtime: {
       qualifiedBinary: { claimed: false, reason: "unit test does not launch a backend" },
@@ -174,7 +187,7 @@ test("a failed best-of-three attempt resets only its assertion", async () => {
 test("receipt schema accepts fresh M7 and rejects an unverified packed setup", async () => {
   const schema = JSON.parse(await readFile(new URL("./receipts.schema.json", import.meta.url)));
   const record = {
-    version: "0.3.7-m8",
+    version: "0.3.8-m8",
     runId: "00000000-0000-4000-8000-000000000007",
     recordedAt: "2026-08-25T12:00:00.000Z",
     type: "segment-summary",

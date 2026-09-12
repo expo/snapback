@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, symlink } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, symlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
@@ -107,6 +107,54 @@ export function registerPackageGuideChecks(
       assert(result.exitCode === 0, `${name}: CLI lookup failed: ${new TextDecoder().decode(result.stderr)}`);
       assert(JSON.parse(new TextDecoder().decode(result.stdout)).content === keywords[name], `${name}: CLI card diverged`);
     }
+  });
+
+  test("a cold installed CLI guides and checks maintain, caption and generated JSON windows", async () => {
+    const packageRoot = resolve(crate, "packages/snapback2");
+    const fixtureRoot = resolve(crate, "packages/compiler/fixtures/quarry-first-pass-guide");
+    const packed = packageBuildProof();
+    assert(packed.has("dist/guide/recipes/quarry-window-config.js"),
+      "npm pack omitted the JSON-to-Quarry window recipe");
+    const shim = await readFile(resolve(packageRoot, "bin/snapback2.mjs"), "utf8");
+    const platform = `snapback2-${process.platform}-${process.arch}`;
+    await withProject({
+      "config/windows.json": await readFile(resolve(fixtureRoot, "config/windows.json"), "utf8"),
+      "snapback/schema.q": await readFile(resolve(fixtureRoot, "snapback/schema.q"), "utf8"),
+      "snapback/messages.q": await readFile(resolve(fixtureRoot, "snapback/messages.q"), "utf8"),
+      "node_modules/snapback2/bin/snapback2.mjs": shim,
+      [`node_modules/${platform}/package.json`]: JSON.stringify({ name: platform, version: "0.0.0" }),
+    }, async (root) => {
+      const installed = resolve(root, "node_modules/snapback2");
+      await symlink(resolve(packageRoot, "dist"), resolve(installed, "dist"), "dir");
+      const platformBin = resolve(root, `node_modules/${platform}/bin`);
+      await mkdir(platformBin, { recursive: true });
+      await symlink(resolve(crate, "target/debug/snapback2"), resolve(platformBin, "snapback2"));
+      const command = resolve(installed, "bin/snapback2.mjs");
+      await chmod(command, 0o755);
+      const node = process.env.SNAPBACK2_NODE ?? Bun.which("node")!;
+      const run = (...args: string[]) => Bun.spawnSync({
+        cmd: [node, command, ...args], cwd: root, stdout: "pipe", stderr: "pipe",
+      });
+      for (const [topic, required] of [
+        ["maintain", "read <- allow"],
+        ["expressions", "caption: slice(body, 0, 80)"],
+        ["config", "quarry-window-config.js"],
+      ]) {
+        const guided = run("guide", topic, "--json");
+        const output = new TextDecoder().decode(guided.stdout);
+        assert(guided.exitCode === 0 && JSON.parse(output).content.includes(required),
+          `${topic}: installed guide lookup failed: ${output}${new TextDecoder().decode(guided.stderr)}`);
+      }
+      const generated = Bun.spawnSync({ cmd: [node, resolve(installed,
+        "dist/guide/recipes/quarry-window-config.js"), "config/windows.json", "snapback/config.q"],
+        cwd: root, stdout: "pipe", stderr: "pipe" });
+      assert(generated.exitCode === 0, `window generation failed: ${new TextDecoder().decode(generated.stderr)}`);
+      const constants = await readFile(resolve(root, "snapback/config.q"), "utf8");
+      assert(constants.includes("fn editWindowMs(): 60000") && constants.includes("fn searchPageSize(): 20"), constants);
+      const checked = run("check", "--project", root, "--json");
+      assert(checked.exitCode === 0,
+        `guide-derived first check failed: ${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`);
+    });
   });
 
   test("the installed global message search recipe typechecks against its generated API", async () => {

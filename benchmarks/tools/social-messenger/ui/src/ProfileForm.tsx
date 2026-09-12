@@ -208,6 +208,7 @@ function ViewProfile(
               accessibilityLabel={props.following ? 'Unfollow' : 'Follow'}
               accessibilityRole="button"
               accessibilityState={{ selected: props.following }}
+              aria-pressed={props.following}
               onPress={props.onPressFollow}
               style={props.following ? styles.secondaryButton : styles.primaryButtonSmall}
               testID="sm-profile-follow"

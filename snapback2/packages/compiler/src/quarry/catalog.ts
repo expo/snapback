@@ -272,7 +272,7 @@ export function selectIndex(
   if (candidates.length > 1) ambiguous(
     site,
     `index selection for ${table}[...] is ambiguous (${candidates.map((item) => item.name).join(", ")}); name it with by <index>`,
-    `${indexGuidance(info.declaration, candidates)}; select with by <index>`,
+    `${indexGuidance(info.declaration, candidates)}; append ${candidates.map((item) => `by ${item.name}`).join(" or ")} to the read`,
   );
   const selected = candidates[0]!;
   validateIndexKeys(info.declaration, selected, keys, mode, infer, site);

@@ -87,8 +87,8 @@ export async function loadSetupIdentity(path, { browser }) {
   if (setup?.schemaVersion !== SETUP_IDENTITY_VERSION) {
     throw new Error(`setup identity must use ${SETUP_IDENTITY_VERSION}`);
   }
-  if (setup.instrumentPin !== "social-messenger@0.3.7-m8") {
-    throw new Error(`setup identity must pin social-messenger@0.3.7-m8; received ${setup.instrumentPin ?? "none"}`);
+  if (setup.instrumentPin !== "social-messenger@0.3.8-m8") {
+    throw new Error(`setup identity must pin social-messenger@0.3.8-m8; received ${setup.instrumentPin ?? "none"}`);
   }
   if (!setup.backend || !["snapback", "external"].includes(setup.backend.kind)) {
     throw new Error("setup identity backend.kind must be snapback or external");

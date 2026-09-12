@@ -19,7 +19,7 @@ import { createRequire } from "node:module";
 import { ObservationWriter } from "../metering/observations.mjs";
 import { loadSetupIdentity, verifySetupToolchain } from "./setup-identity.mjs";
 
-const VERSION = "0.3.7-m8";
+const VERSION = "0.3.8-m8";
 const TYPING_OBSERVATION_BOUNDARY_VERSION = "v2";
 const REQUIRE = createRequire(import.meta.url);
 const SETTLEMENT_WAITS = new AsyncLocalStorage();
@@ -778,6 +778,7 @@ async function observableState(locator) {
       "data-state",
       "data-count",
       "data-selected",
+      "data-source-uri",
       "data-value",
       "src",
       "style",
@@ -1091,7 +1092,7 @@ async function setFileThroughControl(page, directId, triggerId, path, timeoutMs)
   await chooser.setFiles(path);
 }
 
-async function waitForLoadedMedia(root, kind, timeoutMs) {
+export async function waitForLoadedMedia(root, kind, timeoutMs) {
   const selector = kind === "video" ? "video" : "img";
   let media = root.locator(selector).first();
   if ((await media.count()) === 0 && (await root.count()) > 0) {
@@ -1099,6 +1100,41 @@ async function waitForLoadedMedia(root, kind, timeoutMs) {
       .first()
       .evaluate((element, expected) => element.tagName.toLowerCase() === expected, selector);
     if (rootIsMedia) media = root.first();
+  }
+  if ((await media.count()) === 0 && kind === "image") {
+    const rootSource = await root.first().getAttribute("data-source-uri").catch(() => null);
+    const sourceCarrier = rootSource !== null
+      ? root.first()
+      : root.locator("[data-source-uri]").first();
+    if ((await sourceCarrier.count()) > 0) {
+      await waitForLocator(sourceCarrier, { state: "visible", timeout: timeoutMs });
+      await waitForValue(
+        sourceCarrier,
+        async (target) => {
+          const value = await target.evaluate(async (element) => {
+            const uri = element.getAttribute("data-source-uri");
+            if (!uri) return false;
+            const probe = new Image();
+            return new Promise((resolvePromise) => {
+              const timer = setTimeout(() => resolvePromise(false), 250);
+              probe.onload = () => {
+                clearTimeout(timer);
+                resolvePromise(probe.naturalWidth > 0);
+              };
+              probe.onerror = () => {
+                clearTimeout(timer);
+                resolvePromise(false);
+              };
+              probe.src = uri;
+            });
+          });
+          return { matched: value, value: value ? 1 : 0 };
+        },
+        timeoutMs,
+        `${kind} media bytes`,
+      );
+      return;
+    }
   }
   await waitForLocator(media, { state: "visible", timeout: timeoutMs });
   await waitForValue(
@@ -2416,7 +2452,7 @@ async function m7(ctx) {
       "other-client poll tally",
     );
     // visibleMs stays click-to-tally; the selection wait below gates segment
-    // close but must not sit inside the metric window (0.3.7-m8 boundary).
+    // close but must not sit inside the metric window (0.3.8-m8 boundary).
     const visibleMs = rounded(performance.now() - started);
     const totalValue = Number(await semanticValue(testId(observerPage, "sm-poll-total")));
     if (!Number.isInteger(totalValue) || totalValue < changed.value) {
