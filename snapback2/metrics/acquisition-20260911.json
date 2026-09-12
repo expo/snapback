@@ -19058,6 +19058,282 @@
         "caps": "Existing Snapback 1 file crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs has 1,504 lines, retaining 205 oversize files versus the 204 baseline. All three changed Snapback 2 files fit at 475, 478 and 638 lines. No baseline increased.",
         "limits": "No new full battery or native run, cohort or publication qualification; prior inherited growth-guard failures remain."
       }
+    },
+    "structuralOpportunityAudit": {
+      "scope": "Read-only source and retained CPU profile analysis after6972a4ba92. No production edits, new build, browser sample or qualification.",
+      "onePoolAttribution": {
+        "artifact": "/tmp/acquisition-20260912-commit-pool-attribution.json",
+        "bytes": 9645,
+        "sha256": "82b87b5e51da68c446f41f6636c4157f39b2857d670139ae42064066e67d50f0",
+        "record": {
+          "scope": "Read-only attribution from retained image/COW CPU profile. No build, browser, owner or workload run.",
+          "profile": {
+            "path": "/tmp/sub3-20260912-bearer-image-cow-profile-01-cpu.cpuprofile",
+            "sha256": "029ff9bb3c2af5ea60503fb9a2f3ade8c1e873aed877802dc5eb2ecb0c39bc4f"
+          },
+          "sourceMap": {
+            "path": "/tmp/sub3-20260912-bearer-image-cow-profile-01-app.js.map",
+            "sha256": "9cd26084bcebbdae34eba49a6db6919bf5cd518e8f50cc111fa76778ca4652f6"
+          },
+          "method": "Map V8 call frames with exact retained source map. Locate commit callback node177 at range-store.ts:711; classify samples by the immediate child of that callback. Direct jsonState and direct imageCanonical subtrees are disjoint; include all recursive canonical/tagged/wire descendant samples once. Calls beneath applySwap, replace, carrier-index update or acknowledgements are excluded.",
+          "callSites": [
+            {
+              "file": "packages/snapback2/src/store/range-store.ts",
+              "line": 718,
+              "operation": "jsonState(rest) owns/normalizes swap metadata"
+            },
+            {
+              "file": "packages/snapback2/src/store/range-store.ts",
+              "line": 728,
+              "operation": "prepared/wire row pool comparison using canonical(images) and canonical(normalized rows)"
+            },
+            {
+              "file": "packages/snapback2/src/store/range-store.ts",
+              "line": 734,
+              "operation": "prepared/wire range comparison shares the direct canonical subtree"
+            }
+          ],
+          "windows": [
+            {
+              "scope": "content",
+              "sampledSynchronousCommitSubtreeMs": 3229.2490000001085,
+              "normalization": {
+                "source": "packages/snapback2/src/store/canonical.ts:10 jsonState",
+                "inclusiveMs": 71.32800000000071,
+                "selfMs": 71.32800000000071,
+                "nestedSelf": [
+                  {
+                    "source": "packages/snapback2/src/store/canonical.ts:10 jsonState",
+                    "ms": 71.32800000000071
+                  }
+                ]
+              },
+              "canonicalComparisons": {
+                "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+                "inclusiveMs": 184.10600000000716,
+                "selfMs": 9.741000000001236,
+                "nestedSelf": [
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+                    "ms": 94.78000000000367
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:107 tagged",
+                    "ms": 32.9440000000011
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:140 key",
+                    "ms": 31.922999999999547
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:182 wireJson",
+                    "ms": 10.864000000002136
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:106 wire",
+                    "ms": 5.308999999999287
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:116 imageWire",
+                    "ms": 2.1560000000008586
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:171 variant",
+                    "ms": 2.1080000000001746
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:206 kindOf",
+                    "ms": 1.0640000000003056
+                  },
+                  {
+                    "source": "packages/evaluator/src/hash.ts:103 compareCodepoints",
+                    "ms": 1.0639999999999645
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:64 is",
+                    "ms": 1.0630000000001019
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:92 asObject",
+                    "ms": 0.8310000000000173
+                  }
+                ]
+              },
+              "rowImageCheckMs": 1.0609999999996944,
+              "directPhaseDisjointUnionMs": 256.49500000000756,
+              "entireCommitCallbackSelfMs": 14.892000000001133,
+              "generousDirectCpuEnvelopeMs": 271.3870000000087,
+              "excludedOtherDirectSubtrees": [
+                {
+                  "source": "packages/snapback2/src/store/range-store.ts:863 applySwap",
+                  "inclusiveMs": 2123.3940000000657
+                },
+                {
+                  "source": "packages/snapback2/src/store/range-store.ts:705 replace",
+                  "inclusiveMs": 343.5070000000219
+                },
+                {
+                  "source": "packages/snapback2/src/store/carrier-index.ts:199 update",
+                  "inclusiveMs": 255.80600000000356
+                },
+                {
+                  "source": "packages/snapback2/src/delivery-acknowledgements.ts:104 applyDeliveryAcknowledgements",
+                  "inclusiveMs": 193.66200000000583
+                }
+              ]
+            },
+            {
+              "scope": "full",
+              "sampledSynchronousCommitSubtreeMs": 3318.6130000001026,
+              "normalization": {
+                "source": "packages/snapback2/src/store/canonical.ts:10 jsonState",
+                "inclusiveMs": 72.40200000000124,
+                "selfMs": 72.40200000000124,
+                "nestedSelf": [
+                  {
+                    "source": "packages/snapback2/src/store/canonical.ts:10 jsonState",
+                    "ms": 72.40200000000124
+                  }
+                ]
+              },
+              "canonicalComparisons": {
+                "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+                "inclusiveMs": 184.10600000000716,
+                "selfMs": 9.741000000001236,
+                "nestedSelf": [
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+                    "ms": 94.78000000000367
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:107 tagged",
+                    "ms": 32.9440000000011
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:140 key",
+                    "ms": 31.922999999999547
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:182 wireJson",
+                    "ms": 10.864000000002136
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:106 wire",
+                    "ms": 5.308999999999287
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:116 imageWire",
+                    "ms": 2.1560000000008586
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:171 variant",
+                    "ms": 2.1080000000001746
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:206 kindOf",
+                    "ms": 1.0640000000003056
+                  },
+                  {
+                    "source": "packages/evaluator/src/hash.ts:103 compareCodepoints",
+                    "ms": 1.0639999999999645
+                  },
+                  {
+                    "source": "packages/evaluator/src/row-image.ts:64 is",
+                    "ms": 1.0630000000001019
+                  },
+                  {
+                    "source": "packages/evaluator/src/value-runtime.ts:92 asObject",
+                    "ms": 0.8310000000000173
+                  }
+                ]
+              },
+              "rowImageCheckMs": 1.0609999999996944,
+              "directPhaseDisjointUnionMs": 257.5690000000081,
+              "entireCommitCallbackSelfMs": 15.92000000000138,
+              "generousDirectCpuEnvelopeMs": 273.48900000000947,
+              "excludedOtherDirectSubtrees": [
+                {
+                  "source": "packages/snapback2/src/store/range-store.ts:863 applySwap",
+                  "inclusiveMs": 2178.74200000006
+                },
+                {
+                  "source": "packages/snapback2/src/store/range-store.ts:705 replace",
+                  "inclusiveMs": 346.70700000002444
+                },
+                {
+                  "source": "packages/snapback2/src/store/carrier-index.ts:199 update",
+                  "inclusiveMs": 263.2710000000037
+                },
+                {
+                  "source": "packages/snapback2/src/delivery-acknowledgements.ts:104 applyDeliveryAcknowledgements",
+                  "inclusiveMs": 205.36000000000433
+                }
+              ]
+            }
+          ],
+          "limits": [
+            "Sampled CPU, not operation counts, complete asynchronous commit elapsed time, or an endpoint prediction.",
+            "The profile aggregates the same canonical callee under the same caller; row-pool and range-pool comparisons cannot be split by call site. Treating all direct canonical work as removable is generous for a row-only one-pool design.",
+            "The entire callback self time includes unrelated checks and bookkeeping; assigning all of it to the proposed phase is an intentionally generous direct-CPU envelope.",
+            "Nested canonical/wire self and inclusive numbers are included in the canonical subtree and must not be added to it.",
+            "A design still needs normalization/validation/ownership semantics. Zero replacement cost is only a counterfactual envelope, not a proposed bypass.",
+            "Allocation and GC effects are not attributed to this phase by the retained profile. The ~0.27 s envelope is not a formal upper bound on every indirect timing effect.",
+            "Minified positionTicks contain generated line9 without useful call-site columns; they cannot refine row versus range comparisons."
+          ],
+          "conclusion": "Direct sampled work supports a few tenths of a second opportunity, not a multi-second route toward the remaining 3-second target by itself.",
+          "sourceArtifacts": {
+            "/tmp/acquisition-image-cow-profile-range-store.ts": "3070abb94093432c21c84822c3dc11c5fbdbf58c117559753dfb5f4dd9512ef6",
+            "/tmp/acquisition-image-cow-profile-canonical.ts": "1ac26e570a3225075c4a3e0dfe5de7c1f35d5588fafaeb6ddcef70636a5365bc",
+            "/tmp/acquisition-image-cow-profile-row-image.ts": "f9c8036de762a73ec981d1d782fb92a802c4db69a4fc70524afbcbcaa9a96791",
+            "/tmp/acquisition-image-cow-commit-attribution-20260912.py": "be19f22074a6065a2520cb6fd55090775e4970d0b99495795193a4a6acfc4dcf",
+            "/tmp/acquisition-image-cow-commit-content-branches.json": "3046c96d923faa120522e40414c8a58af069d8c16fa65e0f7b50b7307ca21391",
+            "/tmp/acquisition-image-cow-commit-full-branches.json": "d3fb5a9fe8cd346f5e14bf8be68c02193652b9f70e702863e62fe05e2eab6577"
+          }
+        }
+      },
+      "onePoolDecision": "Do not implement. The targeted normalization and prepared/wire comparisons account for257.569ms sampled direct CPU including the row-image check; even assigning all unrelated callback self gives273.489ms. Neither is a hard endpoint ceiling; indirect GC/allocations are unmeasured. This does not justify new ordinary-input provenance plus exotic-input fallback complexity for the remaining13-second gap.",
+      "correctnessCounterexample": {
+        "source": "Independent review reproduced against current source with Bun; no repository edits",
+        "input": "A declared List<Int> uses an Array subclass containing[1] whose toJSON returns[2]. Envelope ownership and issuing-schema preparation both succeed.",
+        "current": "Prepared/wire comparison refuses because the nominal image canonicalizes list:[1] while native JSON normalization produces list:[2].",
+        "proposedUnconditionalSkip": "Would admit list:[1], changing current refusal behavior. Path-aware placeholders cannot prove raw/typed equality.",
+        "ordinaryInputVariant": "An eligibility refinement during existing envelope ownership could avoid that mismatch without adding persistent custody, but the measured direct-work opportunity does not warrant it."
+      },
+      "review": {
+        "reviewer": "/root/review",
+        "scope": "Independent source and retained-profile audit",
+        "verdict": "No material issue in attribution or rejection disposition",
+        "verification": "Eight source/artifact hashes verified; raw CPU samples independently recomputed at callback177, with recursive canonical/wire costs counted only once."
+      },
+      "feasibility": "No retained experiment establishes a credible roughly fivefold route to the unchanged three-second full endpoint. This is an evidence gap, not a physical impossibility result. Existing representation/index/execution improvements remain allowed within current custody and byte ceilings.",
+      "qualification": {
+        "subThreeSeconds": false,
+        "newEndpointSample": false,
+        "productionChange": false
+      },
+      "requestFlowAudit": {
+        "reviewer": "/root/recipe",
+        "scope": "Read-only source audit; no new workload run or timing attribution",
+        "findings": [
+          {
+            "source": "snapback2/packages/snapback2/src/drain.ts:123",
+            "finding": "The drain continues after acceptance/publication; no hidden pacing sleep was found."
+          },
+          {
+            "source": "snapback2/crates/snapback2/src/writer_batch.rs:145",
+            "finding": "The20ms target checks elapsed work between complete executions; it is not a20ms sleep."
+          },
+          {
+            "source": "snapback2/crates/snapback2/src/writer.rs:1217 and writer_offline.rs:86",
+            "finding": "Conditional query responses execute and construct the full envelope before returning unchanged. This remaining work has no seconds-scale attribution in the retained evidence."
+          },
+          {
+            "source": "snapback2/crates/snapback2/src/writer_ledger.rs:57 and snapback2/crates/snapback2-core/src/store.rs:550",
+            "finding": "After-commit expiry maintenance can open another transaction per terminal. No measured saving sufficient to justify a candidate is established."
+          }
+        ],
+        "conclusion": "The request-flow audit exposes no supported deletion large enough to reach3s. Retain per-intent commits, full explicit-event receipt work and all original endpoint obligations."
+      }
     }
   }
 }
