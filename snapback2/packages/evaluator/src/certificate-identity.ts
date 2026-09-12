@@ -70,7 +70,7 @@ function known(record: any, fields: readonly string[], what: string): void {
   }
   const unknown = Object.keys(record).filter((key) => !fields.includes(key));
   if (unknown.length > 0) {
-    throw new EvalError("E_SCHEMA", `unknown ${what} field ${unknown.join(", ")}: a schema shape newer than this evaluator`);
+    throw new EvalError("E_SCHEMA", `unknown ${what} field ${unknown.join(", ")}`);
   }
 }
 

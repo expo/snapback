@@ -187,10 +187,6 @@ export class OfflineRuntime {
   // the writer's persisted ledger as it last read it.
   private inboxConnection?: InboxConnection;
   private inboxRowsCache: InboxRow[] = [];
-  private itemRowsBasis?: InboxRow[];
-  private itemRowsOrdered: InboxRow[] = [];
-  private itemLedgerBasis?: Record<string, OutboxEntry>;
-  private itemLedgerOrdered: OutboxEntry[] = [];
   private inboxLedgerCache: Record<string, OutboxEntry> = {};
   private inboxCompactedThrough = 0;
   /** Per wait: the route's first durable read, so a client can order it before any network work (LLP 1018.004 §2). */
@@ -273,18 +269,11 @@ export class OfflineRuntime {
     return this.partition === undefined ? 0 : await this.store.outbox.compactedThrough?.() ?? 0;
   }
   async itemEntries(): Promise<OutboxEntry[]> {
-    if (this.itemRowsBasis !== this.inboxRowsCache) {
-      this.itemRowsBasis = this.inboxRowsCache;
-      this.itemRowsOrdered = unadmittedRows(this.inboxRowsCache);
-    }
-    const rows = this.itemRowsOrdered.map(inboxEntry);
+    const rows = unadmittedRows(this.inboxRowsCache).map(inboxEntry);
     if (this.inboxConnection) {
-      if (this.itemLedgerBasis !== this.inboxLedgerCache) {
-        this.itemLedgerBasis = this.inboxLedgerCache;
-        this.itemLedgerOrdered = Object.values(this.inboxLedgerCache).filter((entry) => object(entry) && typeof entry.intent === "string")
-          .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER) || left.createdAt - right.createdAt);
-      }
-      return [...this.itemLedgerOrdered, ...rows];
+      const ledger = Object.values(this.inboxLedgerCache).filter((entry) => object(entry) && typeof entry.intent === "string")
+        .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER) || left.createdAt - right.createdAt);
+      return [...ledger, ...rows];
     }
     if (this.partition === undefined) return [];
     try { return [...await this.outbox.entries(), ...rows]; }
@@ -400,8 +389,6 @@ export class OfflineRuntime {
     this.inboxConnection = undefined;
     this.inboxRowsCache = [];
     this.inboxLedgerCache = {};
-    this.itemRowsBasis = undefined; this.itemRowsOrdered = [];
-    this.itemLedgerBasis = undefined; this.itemLedgerOrdered = [];
     this.inboxCompactedThrough = 0;
   }
 
