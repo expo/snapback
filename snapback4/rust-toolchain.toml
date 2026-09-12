@@ -1,0 +1,6 @@
+[toolchain]
+# @ref LLP 0010#ci-and-review-gates — Snapback and vendored Ibex share one
+# reviewable compiler authority.
+channel = "1.97.0"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

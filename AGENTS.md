@@ -15,6 +15,14 @@ and [LLP 1000](./llp/1000-snapback2.explainer.md). Nothing below this line about
 gates, inventories, bootstraps, or proofs applies there; its LLPs are numbered
 1000 and up.
 
+**Working on Snapback 4?** It lives in [`snapback4/`](./snapback4/README.md)
+behind its own fence: read [`snapback4/AGENTS.md`](./snapback4/AGENTS.md),
+[LLP 3000](./llp/3000-snapback4.explainer.md), [`snapback4/NOT-DOING.md`](./snapback4/NOT-DOING.md)
+and [`snapback4/JOURNAL.md`](./snapback4/JOURNAL.md). It is a sibling candidate to
+Snapback 3 ([LLP 2000](./llp/2000-snapback3.rfc.md)), not a successor; its LLPs
+are numbered 3000 and up. Nothing below this line about gates, inventories,
+bootstraps, or proofs applies there, and none of Snapback 2's checks do either.
+
 This project uses **Linked Literate Programming (LLP)**. The upstream LLP
 workflow is maintained at <https://github.com/ccheever/llp>; this repository
 keeps its own LLP corpus under [`llp/`](./llp/).

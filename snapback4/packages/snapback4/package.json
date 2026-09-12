@@ -1,0 +1,16 @@
+{
+  "name": "snapback4",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Snapback 4 client: the contract first (LLP 3000 §2), the mechanism after.",
+  "exports": {
+    "./contract": "./src/contract.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

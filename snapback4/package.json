@@ -1,0 +1,11 @@
+{
+  "name": "snapback4-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "packageManager": "bun@1.3.12",
+  "scripts": {
+    "test": "bash scripts/test.sh"
+  }
+}
