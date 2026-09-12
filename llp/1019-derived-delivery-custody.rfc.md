@@ -363,9 +363,12 @@ Serving a response or accepting a cursor acknowledges nothing. With
   `received: bool`, `seq`), with a
   **table-wide** read rule inherited from the **content** table's read rule
   (a reader who may read the message may read who received it). Recipients
-  who were removed before acknowledging stay `received: false`, and the
-  brief's aggregate rule ("drop out of the aggregate requirement") is the
-  app's `count` over current members, which it can express.
+  who were removed before acknowledging stay `received: false`; visible
+  events whose body/receipt or current membership is denied reject `E_RULE`.
+  Missing or unreadable submitted events remain indistinguishable no-ops;
+  already-received receipts keep their first sequence. The brief's aggregate
+  rule ("drop out of the aggregate requirement") is the app's `count` over
+  current members, which it can express.
 - **D5 implementation correction:** the receipt query below needs rows for
   unacknowledged recipients. Delivery initializes them false; content changes
   refresh copied read-rule inputs, preserving received/seq. Only acknowledgement

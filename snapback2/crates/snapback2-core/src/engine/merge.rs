@@ -1238,7 +1238,7 @@ mod tests {
                     exhausted: true,
                     last_examined: None,
                     examined: vec!["a".into(), "b".into(), "c".into()],
-                    visible: rows.clone(),
+                    visible: rows.iter().cloned().map(Rc::new).collect(),
                     returned,
                 })
                 .unwrap();

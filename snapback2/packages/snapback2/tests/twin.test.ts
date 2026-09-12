@@ -1211,7 +1211,7 @@ test("covered evaluation errors surface; typed local mutation refusals omit pred
     let sample: any;
     try { hydrated.store.reexecute({ args: {}, body: [{ Return: { Variable: "unknown" } }] }, { args: {} }); }
     catch (error) { sample = error; }
-    assert.equal(sample.code, "E_INPUT");
+    assert.equal(sample.code, "E_TRACE_SUBSET", "unbound synthetic IR refuses before execution");
     const EvalError = sample.constructor; assert.equal(EvalError,SharedError);
     twin.hydrate = async () => hydrated;
     hydrated.store.reexecute = () => { throw new EvalError("E_OVERFLOW", "covered overflow"); };

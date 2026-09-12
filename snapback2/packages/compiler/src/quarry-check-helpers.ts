@@ -4,6 +4,25 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
 import type { FrontendDiagnostic, Program } from "./ir";
+import { ClientStore as ProductionStore, type Context } from "../../evaluator/src/evaluator";
+import type { SearchExecution } from "../../evaluator/src/search-runtime";
+import { rustCheck } from "./rust-check";
+
+/** Compiler execution fixtures still run under a real, current owner certificate. */
+export class CertifiedTestStore extends ProductionStore {
+  private certificate(program: Program) {
+    const checked = rustCheck([program], "synthetic", this.schema)[0]!;
+    assert(!checked.error && checked.certificate, `compiler fixture did not certify: ${JSON.stringify(checked)}`);
+    return checked.certificate;
+  }
+  override reexecute(program: Program, context: Context, certificate?: any, search?: SearchExecution) {
+    return super.reexecute(program, context, certificate === undefined ? this.certificate(program) : certificate, search);
+  }
+  override applyMutation(program: Program, context: Context, preview = false, certificate?: any, predictDelivery = false) {
+    return super.applyMutation(program, context, preview, certificate === undefined ? this.certificate(program) : certificate, predictDelivery);
+  }
+}
+
 import { frontendQuarryDiagnostic, prepareQuarry, type QuarryInput } from "./quarry/index";
 import { tryBindQuarryProject, type BoundQuarryProject } from "./quarry/bound-project";
 

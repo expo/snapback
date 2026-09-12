@@ -236,9 +236,16 @@ fn receipt_rules_apply_on_every_index_and_removed_recipient_stays_false() {
     execute_as(&mut e, &remove, "alice", BTreeMap::new());
     for who in ["bob", "alice", "alice"] { // Independent clients submit the same principal's event.
         let event = events.iter().find(|r| r.field("recipient").unwrap() == &id(who)).unwrap();
-        let result = execute_as(&mut e, &delivery::ack_program("messages", &d), who,
-            BTreeMap::from([("events".into(), Value::Array(vec![event.field("id").unwrap().clone()]))]));
-        assert!(matches!(result.state, ExecutionState::Committed { .. }), "{result:?}");
+        let program = delivery::ack_program("messages", &d);
+        let args = BTreeMap::from([("events".into(), Value::Array(vec![event.field("id").unwrap().clone()]))]);
+        if who == "bob" {
+            let cert = Checker::new(e.schema(), Ceilings::default()).check(&program).unwrap();
+            let error = e.execute(&program, &cert, Context::mutation(Actor::user(who).unwrap(), args)).unwrap_err();
+            assert!(matches!(error, RuntimeError::Require { code, .. } if code == "E_RULE"));
+        } else {
+            let result = execute_as(&mut e, &program, who, args);
+            assert!(matches!(result.state, ExecutionState::Committed { .. }), "{result:?}");
+        }
     }
     for (index, prefix) in [("byRow", vec![Expr::Literal(id("m"))]), ("byId", vec![])] {
         let p = receipts_query(index, prefix);

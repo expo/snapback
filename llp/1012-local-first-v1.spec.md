@@ -905,7 +905,9 @@ The live session is checked first. Stored terminals are then looked up
 using the stable replay-envelope digest before current operation lookup,
 kind checking, or schema-dependent trace decoding. Removing an operation
 or changing a traced schema cannot strand an already settled intent;
-new intents still undergo all current-program validation.
+New intents still undergo current-program validation. After grant/slice checks,
+operation removal or retargeting records a terminal rejection so FIFO replay
+can continue; current argument/trace shape failures remain unspent and retryable.
 
 **Replay.** After a resume succeeds (§8), the client drains the outbox in
 FIFO order, one intent per request, waiting for each receipt. A transport

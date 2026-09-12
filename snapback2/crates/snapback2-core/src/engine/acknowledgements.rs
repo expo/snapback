@@ -11,8 +11,10 @@ impl Runner<'_> {
             self.authority_miss_serial += 1;
             return Ok(false);
         }
+        if old.field("recipient")?.as_str()? != self.context.viewer() {
+            return Err(RuntimeError::Rule { table: table.into(), effect: Effect::Update });
+        }
         if old.field("received")? == &Value::Bool(true) { return Ok(false); }
-        if old.field("recipient")?.as_str()? != self.context.viewer() { return Ok(false); }
         let (_, d, _) = delivery::owner(self.schema, table).expect("canonical acknowledgement");
         let target = &self.schema.tables[&d.target];
         let (index, definition) = crate::cap::enforcement_index(target, &d.prefix).unwrap();
@@ -42,7 +44,8 @@ impl Runner<'_> {
             };
             member |= principal == self.context.viewer();
         }
-        Ok(member)
+        if !member { return Err(RuntimeError::Rule { table: table.into(), effect: Effect::Update }); }
+        Ok(true)
     }
 
     // False is initialized with custody; later body changes keep the copied
@@ -116,7 +119,7 @@ mod tests {
         assert!(runner.trace.constraint_inputs.is_empty());
     }
 
-    fn failed_acknowledgement(missing_original: bool) {
+    fn failed_acknowledgement(failure: &str) {
         let (mut engine, schema, d) = fixture();
         let receipt = engine.rows("deliveriesReceipts").unwrap().remove(0);
         let edit = Program { name: "edit".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None,
@@ -125,9 +128,11 @@ mod tests {
         let certificate = Checker::new(&schema, Ceilings::default()).check(&edit).unwrap();
         engine.execute(&edit, &certificate, Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new())).unwrap();
         let event = engine.rows("deliveries").unwrap().into_iter().find(|r| r.field("kind").unwrap() == &Value::String("changed".into())).unwrap();
-        if missing_original {
+        if failure == "original" {
             let id = receipt.field("id").unwrap().as_str().unwrap();
             engine.store.conn.execute("DELETE FROM rows WHERE table_name='deliveries' AND row_id=?1", [id]).unwrap();
+        } else if failure == "membership" {
+            engine.store.conn.execute("DELETE FROM rows WHERE table_name='memberships'", []).unwrap();
         } else {
             let bad = crate::object([("id", Value::Id("member".into())), ("conversationId", Value::Id("c1".into()))]);
             engine.store.conn.execute("UPDATE rows SET data=?1 WHERE table_name='memberships'", [canonical_json(&bad)]).unwrap();
@@ -138,14 +143,36 @@ mod tests {
             request_digest: "d".repeat(64), trace: Default::default(), at: 1 };
         let result = engine.execute_replay(&program, &certificate, Context::mutation(Actor::user("u1").unwrap(),
             BTreeMap::from([("events".into(), Value::Array(vec![event.field("id").unwrap().clone()]))])), &replay).unwrap();
-        assert!(matches!(result.state, ExecutionState::Rejected { .. }), "{result:?}");
-        if missing_original { assert!(result.trace.points.iter().any(|p| p.table == "deliveries" && p.digest.is_none())); }
+        assert!(matches!(&result.state, ExecutionState::Rejected { code, .. } if code == if failure == "malformed" { "E_FIELD" } else { "E_RULE" }), "{result:?}");
+        if failure == "original" { assert!(result.trace.points.iter().any(|p| p.table == "deliveries" && p.digest.is_none())); }
         else { assert!(result.trace.constraint_inputs.iter().any(|p| p.check == "DeliveryAcknowledgement")); }
         assert_eq!(engine.rows("deliveriesReceipts").unwrap()[0].field("received").unwrap(), &Value::Bool(false));
     }
 
     #[test]
-    fn acknowledgement_missing_original_is_a_traced_rejection() { failed_acknowledgement(true); }
+    fn acknowledgement_missing_original_is_a_traced_rejection() { failed_acknowledgement("original"); }
     #[test]
-    fn acknowledgement_failed_membership_probe_is_a_traced_rejection() { failed_acknowledgement(false); }
+    fn acknowledgement_failed_membership_probe_is_a_traced_rejection() { failed_acknowledgement("malformed"); }
+    #[test]
+    fn acknowledgement_departed_member_is_a_traced_rejection() { failed_acknowledgement("membership"); }
+
+    #[test]
+    fn acknowledgement_foreign_receipt_refuses_but_already_received_is_idempotent() {
+        let (mut engine, schema, d) = fixture();
+        let receipt = engine.rows("deliveriesReceipts").unwrap().remove(0);
+        let program = delivery::ack_program("messages", &d);
+        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let tx = engine.store.conn.transaction().unwrap();
+        let hashes = hashes::PolicyHashes::new(&schema);
+        let mut runner = Runner::new(&tx, &schema, &hashes, &certificate,
+            Context::mutation(Actor::user("other").unwrap(), BTreeMap::new()), &[], &[], RuleAuthority::StoreAuthoritative, 9);
+        assert!(matches!(runner.acknowledge("deliveriesReceipts", &receipt), Err(RuntimeError::Rule { .. })));
+        let mut received = receipt.as_object().unwrap().clone();
+        received.insert("received".into(), Value::Bool(true));
+        assert!(matches!(runner.acknowledge("deliveriesReceipts", &Value::Row(received.clone().into())), Err(RuntimeError::Rule { .. })));
+        received.insert("recipient".into(), Value::Id("other".into()));
+        assert!(!runner.acknowledge("deliveriesReceipts", &Value::Row(received.into())).unwrap());
+        assert_eq!(runner.trace.examined, 0);
+    }
+
 }

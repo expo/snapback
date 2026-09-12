@@ -23,9 +23,11 @@ pub fn ack_program(content: &str, d: &Deliver) -> Program {
             Stmt::If { condition: ne_null(var("event")), else_body: vec![], then_body: vec![
                 Stmt::If { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(field("event", "kind")), right: Box::new(Expr::Literal(Value::String("removed".into()))) }, else_body: vec![], then_body: vec![
                     Stmt::Let { name: "content".into(), value: get(content, field("event", "row"), &format!("{name}.content")) },
+                    Stmt::Require { condition: ne_null(var("content")), code: "E_RULE".into(), site: None },
                     Stmt::If { condition: ne_null(var("content")), else_body: vec![], then_body: vec![
                         Stmt::Let { name: "receipt".into(), value: Expr::Get(Read { site: format!("{name}.receipt"), table: d.receipts_table().unwrap(), index: "byRow".into(),
                             key: vec![field("event", "row"), Expr::Input(Input::Viewer)], provenance: KeyProvenance::Shape }) },
+                        Stmt::Require { condition: ne_null(var("receipt")), code: "E_RULE".into(), site: None },
                         Stmt::If { condition: ne_null(var("receipt")), else_body: vec![], then_body: vec![
                             Stmt::Let { name: "original".into(), value: get(&d.log, field("receipt", "id"), &format!("{name}.original")) },
                             Stmt::Update { table: d.receipts_table().unwrap(), key: field("receipt", "id"),
