@@ -1,0 +1,145 @@
+{
+  "cell": "grok",
+  "status": "Assembled and verified; not launched.",
+  "continuousBuilderPreserved": true,
+  "freshM7Preserved": true,
+  "independentGradeExcluded": true,
+  "otherCellsExcluded": true,
+  "priorRunsExcluded": true,
+  "supervisorAssessmentsExcluded": true,
+  "extraSourceFilesExcluded": true,
+  "promptPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/prompt.md",
+  "promptSha256": "024a7e313129e48a1ddd5331bab0c24dac11e919f3f1d9e30385bd95c8a1b937",
+  "promptBytes": 97133,
+  "files": [
+    {
+      "path": "frozen-brief.md",
+      "source": "/home/ccheever/clique-0029-20260912/instrument/social-messenger.md",
+      "bytes": 56730,
+      "sha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/frozen-brief.md",
+      "missing": false,
+      "kind": "frozen-brief"
+    },
+    {
+      "path": "diary.md",
+      "archiveMember": "diary.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz!/diary.md",
+      "bytes": 3185,
+      "sha256": "76f52393cd854f88821b594f2e23a2be2ea44434373a973aafe393134c0fe52a",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/grok/diary.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "essay.md",
+      "archiveMember": "essay.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz!/essay.md",
+      "bytes": 5270,
+      "sha256": "29d6dc3b7b4de5fedd9713867a0c2ee21521025c65b3c6f9b5df37165e2a5303",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/grok/essay.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "run-log.md",
+      "archiveMember": "run-log.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz!/run-log.md",
+      "bytes": 4407,
+      "sha256": "bf0d7ea5265e143edb4ea2d3124f5ae021490b50303950312680862ef1056f56",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/grok/run-log.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "final-report.md",
+      "archiveMember": "final-report.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-builder-boundary-1789206137/initial-app.tar.gz!/final-report.md",
+      "bytes": 7011,
+      "sha256": "c7184d78755f65ab5c034a038a23b4dc3734998bd4f1327a240285f57f09f421",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/grok/final-report.md",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "run-record.json",
+      "missing": true,
+      "reason": "Absent from both the preserved initial-builder inventory and immutable archive.",
+      "missingMarker": "[MISSING: run-record.json — not present in the preserved continuous-builder boundary.]",
+      "missingMarkerPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/grok/run-record.json.MISSING.txt",
+      "missingMarkerSha256": "d3fd9fce65c66763445415ec13d606173b1c8636504d0b104848300276898ec1",
+      "kind": "continuous-builder"
+    },
+    {
+      "path": "m7/diary.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/diary.md",
+      "archiveMember": "m7/diary.md",
+      "bytes": 2141,
+      "sha256": "95174c5fd8fdcec9fd34e97aed58a5e9e2a5f0ce2cd9a629ca9d489770720114",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/m7/diary.md",
+      "kind": "fresh-m7"
+    },
+    {
+      "path": "m7/essay-paragraphs.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/essay-paragraphs.md",
+      "archiveMember": "m7/essay-paragraphs.md",
+      "bytes": 2864,
+      "sha256": "e4d86568f27097aa7c5f9189cdd42e31a44f926f6a901d0337b77e9e8bd1288a",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/m7/essay-paragraphs.md",
+      "kind": "fresh-m7"
+    },
+    {
+      "path": "m7/run-log.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/run-log.md",
+      "archiveMember": "m7/run-log.md",
+      "bytes": 5422,
+      "sha256": "5d06f455735ea2ab896f43b3158d3cf3d820f2682b691f3747ba23489a750eac",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/m7/run-log.md",
+      "kind": "fresh-m7"
+    },
+    {
+      "path": "m7/final-report.md",
+      "source": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/m7-boundary-1789211925/reports/final-report.md",
+      "archiveMember": "m7/final-report.md",
+      "bytes": 3227,
+      "sha256": "e12a86b625b27dce8e03d0df7a1f496cd035772f58fa24718557c73270f1a457",
+      "missing": false,
+      "retainedPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/m7/final-report.md",
+      "kind": "fresh-m7"
+    }
+  ],
+  "sourcePhases": {
+    "continuous": {
+      "manifestPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/continuous-inputs/grok/manifest.json",
+      "manifestSha256": "657490b0780bda7b7f189f4994a6b898a1c0f8a9a4d4f49fb9452ad98dc2f9aa",
+      "remoteBoundaryManifestSha256": "44e3c4a4d6afe3064f4c4798ed460c60c991f0cf9911f90871bdf97076e27ae2"
+    },
+    "freshM7": {
+      "manifestPath": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/grok-final/m7-boundary.json",
+      "manifestSha256": "d4d6ff02fc26f66fbe6d739f7b1b853c3c71e899362b3bf8864f5a698f63c65f",
+      "remoteBoundaryManifestSha256": "7e880bb2b5203443b7398a989590e2962c1b7bc51857bd8bffa3fd458a75c57f",
+      "exit": 0
+    }
+  },
+  "rubric": {
+    "path": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/rubric.template.md",
+    "sha256": "85bc1180b8d73d72b4bc5da143f0cb1331d747972156da0e485cea41db5358c5",
+    "renderedSha256": "f2d54de75e505bf05577b655a3a52b959f2c31228b5c418a225afb2cdac4affb",
+    "substitutions": {
+      "MODEL": "grok-4.6",
+      "WAVE": "grok"
+    },
+    "absoluteScoreAnchorsAnd13CategoryDescriptionsUnchanged": true
+  },
+  "scorer": {
+    "requestedModel": "grok-4.6",
+    "requestedEffort": "xhigh",
+    "launched": false
+  },
+  "missingFiles": [
+    "run-record.json"
+  ]
+}

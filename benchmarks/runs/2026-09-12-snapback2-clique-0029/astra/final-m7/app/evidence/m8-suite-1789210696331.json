@@ -1,0 +1,60 @@
+{
+  "milestone": "m8",
+  "pass": true,
+  "at": 1789210696331,
+  "required": [
+    "m8-a01",
+    "m8-a03",
+    "m8-a04",
+    "m8-a05",
+    "m8-a06",
+    "m8-a07"
+  ],
+  "covered": [
+    "m8-a01",
+    "m8-a03",
+    "m8-a04",
+    "m8-a05",
+    "m8-a06",
+    "m8-a07"
+  ],
+  "missing": [],
+  "results": [
+    {
+      "name": "six server totals match all seeded and accepted content",
+      "ids": [
+        "m8-a01"
+      ],
+      "pass": true
+    },
+    {
+      "name": "UTC current day increments and seven days include zeros",
+      "ids": [
+        "m8-a03",
+        "m8-a04"
+      ],
+      "pass": true
+    },
+    {
+      "name": "highest liked recent original post ranks first",
+      "ids": [
+        "m8-a05"
+      ],
+      "pass": true
+    },
+    {
+      "name": "old heavily liked post excluded",
+      "ids": [
+        "m8-a06"
+      ],
+      "pass": true
+    },
+    {
+      "name": "equal likes tie breaks newest first",
+      "ids": [
+        "m8-a07"
+      ],
+      "pass": true
+    }
+  ]
+}

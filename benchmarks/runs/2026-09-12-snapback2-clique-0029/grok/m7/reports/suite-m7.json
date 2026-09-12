@@ -1,0 +1,44 @@
+{
+  "milestone": "m7",
+  "pass": true,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m7-a06",
+      "name": "backfill counts match visible history",
+      "ok": true,
+      "ms": 174
+    },
+    {
+      "id": "m7-a01",
+      "name": "create a group poll with 2-4 options",
+      "ok": true,
+      "ms": 145
+    },
+    {
+      "id": "m7-a03",
+      "name": "changing a vote adjusts tallies",
+      "ok": true,
+      "ms": 73
+    },
+    {
+      "id": "m7-a04",
+      "name": "duplicate vote mutation id does not flip state",
+      "ok": true,
+      "ms": 47
+    },
+    {
+      "id": "m7-a07",
+      "name": "counts increment with new messages",
+      "ok": true,
+      "ms": 127
+    },
+    {
+      "id": "m7-a09",
+      "name": "previously green milestone suites still pass",
+      "ok": true,
+      "ms": 460556
+    }
+  ],
+  "at": "2026-09-12T11:06:08.652Z"
+}

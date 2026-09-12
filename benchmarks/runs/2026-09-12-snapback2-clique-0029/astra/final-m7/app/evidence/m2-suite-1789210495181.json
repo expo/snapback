@@ -1,0 +1,114 @@
+{
+  "milestone": "m2",
+  "pass": true,
+  "at": 1789210495181,
+  "required": [
+    "m2-a01",
+    "m2-a02",
+    "m2-a03",
+    "m2-a06",
+    "m2-a08",
+    "m2-a09",
+    "m2-a10",
+    "m2-a11",
+    "m2-a12",
+    "m2-a13",
+    "m2-a15",
+    "m2-a16",
+    "m2-a17",
+    "m2-a18",
+    "m2-a20",
+    "m2-a21",
+    "m2-a22",
+    "m2-a23",
+    "m2-a24",
+    "m2-a25",
+    "m2-a26",
+    "m2-a27"
+  ],
+  "covered": [
+    "m2-a01",
+    "m2-a02",
+    "m2-a03",
+    "m2-a06",
+    "m2-a08",
+    "m2-a09",
+    "m2-a10",
+    "m2-a11",
+    "m2-a25",
+    "m2-a26",
+    "m2-a27",
+    "m2-a15",
+    "m2-a16",
+    "m2-a17",
+    "m2-a18",
+    "m2-a20",
+    "m2-a21",
+    "m2-a22",
+    "m2-a23",
+    "m2-a24",
+    "m2-a12",
+    "m2-a13"
+  ],
+  "missing": [],
+  "results": [
+    {
+      "name": "create text and real media posts",
+      "ids": [
+        "m2-a01",
+        "m2-a02",
+        "m2-a03"
+      ],
+      "pass": true
+    },
+    {
+      "name": "follow projections and implicit self",
+      "ids": [
+        "m2-a06",
+        "m2-a08",
+        "m2-a09",
+        "m2-a10",
+        "m2-a11",
+        "m2-a25",
+        "m2-a26",
+        "m2-a27"
+      ],
+      "pass": true
+    },
+    {
+      "name": "like set-state and repost projection",
+      "ids": [
+        "m2-a15",
+        "m2-a16",
+        "m2-a17",
+        "m2-a18"
+      ],
+      "pass": true
+    },
+    {
+      "name": "direct chronological replies absent from feeds",
+      "ids": [
+        "m2-a20",
+        "m2-a21"
+      ],
+      "pass": true
+    },
+    {
+      "name": "pagination no gaps or duplicates",
+      "ids": [
+        "m2-a22",
+        "m2-a23",
+        "m2-a24"
+      ],
+      "pass": true
+    },
+    {
+      "name": "URL opens browser without preview and reply thread UI",
+      "ids": [
+        "m2-a12",
+        "m2-a13"
+      ],
+      "pass": true
+    }
+  ]
+}

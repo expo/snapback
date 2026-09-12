@@ -1,0 +1,188 @@
+{
+  "completedAt": "2026-09-12T11:06:37.835589+00:00",
+  "scope": "EPYC Astra continuous builder, fresh independent Opus initial grade, fresh Astra M7 supervision",
+  "instrument": "b323d61f60b5d167708ca6ebe6434b1d5a79c899 social-messenger@0.3.8-m8,185 frozen files unchanged",
+  "package": "snapback2@0.0.29",
+  "phaseExits": {
+    "astra-snapback2.end.json": {
+      "lane": "astra-snapback2",
+      "pid": 3569177,
+      "startedEpoch": 1789191374,
+      "endedEpoch": 1789205055,
+      "exit": 0,
+      "interrupted": null,
+      "nativeManifest": "/home/ccheever/clique-0029-20260912/native/codex/astra-snapback2-builder/manifest.json",
+      "waitError": null,
+      "nativeCaptureError": null,
+      "nativeTreeStatus": "retained",
+      "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller"
+    },
+    "astra-snapback2.grade.end.json": {
+      "lane": "astra-snapback2",
+      "phase": "grade",
+      "pid": 830365,
+      "startedEpoch": 1789205750,
+      "endedEpoch": 1789209760,
+      "exit": 0,
+      "interrupted": null,
+      "waitError": null
+    },
+    "astra-snapback2.m7.end.json": {
+      "lane": "astra-snapback2",
+      "phase": "m7",
+      "pid": 1080660,
+      "startedEpoch": 1789209891,
+      "endedEpoch": 1789211022,
+      "exit": 0,
+      "interrupted": null,
+      "waitError": null,
+      "nativeManifest": "/home/ccheever/clique-0029-20260912/native/codex/astra-snapback2-m7/manifest.json",
+      "nativeCaptureError": null,
+      "nativeTreeStatus": "retained",
+      "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller"
+    }
+  },
+  "initialGrade": {
+    "passes": 101,
+    "enumeratedAssertions": 119,
+    "O1": 73,
+    "O2": 55,
+    "O3": null,
+    "O4": 65,
+    "O5Band": 30,
+    "majorDefects": [
+      "Sender ordinary-photo blob resolution catches transient404 without recovery for that mount",
+      "Cold sync misses30s inall3 trials; eventual62217ms,about748MB sampled JS heap"
+    ]
+  },
+  "m7": {
+    "actorReportedStatus": "green",
+    "actorWallSeconds": 1112,
+    "launcherWallSeconds": 1131,
+    "sixSuiteAssertions": true,
+    "standaloneChoreography": true,
+    "selectedRegressions": [
+      "m1",
+      "m2",
+      "m3",
+      "m5",
+      "m8"
+    ],
+    "originalBuilderGreenButNotRerunInM7": [
+      "m4",
+      "m6"
+    ],
+    "migrationMessages": 15,
+    "migrationConversations": 2,
+    "immediateSnapshotExact": true,
+    "populatedMessageMediaOrReactionsInStarter": false,
+    "finalExpectedReceiptAdvances": 10,
+    "nativeProof": "Hermes export only; no Apple simulator",
+    "postM7IndependentGrade": "not performed in this delegated sequence"
+  },
+  "finalClientArchitecture": {
+    "providerDurableClientRetained": true,
+    "additionalAuthenticatedReadFallback": true,
+    "fallbackCallsites": [
+      {
+        "file": "src/feed.tsx",
+        "line": 82
+      },
+      {
+        "file": "src/polls.tsx",
+        "line": 28
+      },
+      {
+        "file": "src/profile.tsx",
+        "line": 51
+      }
+    ],
+    "oneClientAppClaim": false
+  },
+  "limitations": [
+    "Grader routine reruns changed mutable inherited suite-status; M7 selected regressions from those changes. Original builder and grade boundaries both preserved; no unaffected handoff claim.",
+    "Initial Trending literal interpolation miss retained, while grader calls it measurement noise; no threshold edited.",
+    "Initial53200 routing incident remains with incomplete traffic custody; no global isolation/no-accepted-writes proof.",
+    "Inner M7 shell reports Node24.13.1 despite outer24.18 preflight availability; owner SNAPBACK2_NODE override remained absolute24.18.",
+    "Prompt-only caps, no authenticated boundary controller or joined native token accounting; no holdout/calibration; diagnosticN=1 and different EPYC/Ryzen hardware."
+  ],
+  "artifacts": [
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-builder-snapshot/MANIFEST.json",
+      "sha256": "6a1b0500a902233f7807145ac432105e8a56f7ae193f1773bd61a75ebe021e5b"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-sdk-payload-comparison.json",
+      "sha256": "29775b7698bd187d8539129fdb2558f26879b90860b3a512b740140113e1a4e2"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/storage-breakdown.json",
+      "sha256": "94c720a637194f3d796ace252c5e591c1dc964bf86310e1851c33780252036cb"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/builder-boundary-summary.md",
+      "sha256": "ab6ebdc1b88e9df7b94cd8bcc2264ba9317f4fb9a5d3b10955de450d10aeb40f"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-grade-snapshot/MANIFEST.json",
+      "sha256": "1ff3843e6288f8581c9c5062fd5a7d5ceb9e52372ab3fb38b041fb3520680beb"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-grade-snapshot/app/grading/grader-report.json",
+      "sha256": "717af50c241b5062e92afa570e439443d8af7da5302791e846fb7be2e94c7891"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-grade-snapshot/app/grading/trace.md",
+      "sha256": "69856b06568835b6be2414e5e073ad69fd0c687f3f69c9a32ef153572316025f"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/initial-grade-snapshot/app/grading/logs/o5-coldstart.out",
+      "sha256": "c45d2afb2505ae3bdac53d69d5109f9ff89af5ac472cf152defeb4d35ae0b0ff"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/m7-pre-migration-snapshot/MANIFEST.json",
+      "sha256": "67f087b323a958fa5de81e654ed5cb0e462f1259ebbec7f10392077c5f4e49f7"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/m7-first-green/MANIFEST.json",
+      "sha256": "0e387737099b4a88173a83318ef59883b84e403bc05643c3049275ca28dce57d"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/final-m7-snapshot/MANIFEST.json",
+      "sha256": "5a0a81881e13e12ad70ccb8858e1286e44648697fa336d4f4c8c15ca00bd6ee8"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/final-m7-snapshot/app/m7/final-report.md",
+      "sha256": "14fad06b9354775bda2a07b938ed9b7e928735e5606c53e57b2fd48628f03759"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/final-m7-snapshot/app/m7/result.json",
+      "sha256": "f59ecd7baa865a808ca3ee5e32eed82042c1aeee66d6d5aca596223e3c13ca5e"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/m7-final-verification.json",
+      "sha256": "0339f0fc576beec4737d679e7233b922b7a0027bc2fbe751e4116aada75ea20a"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/m7-handoff-observations.json",
+      "sha256": "8ef03015b44385d2c16955051463b3584853a2135f8ea21d410592ac079c0e12"
+    },
+    {
+      "path": "/home/ccheever/snapback-1023-20260912/query/astra-0029/grader-host-overlap.jsonl",
+      "sha256": "602c1fefa3bf2dfddd37d9af3a57e2980786661d3cd896972dc199806ba47770"
+    }
+  ],
+  "cleanup": {
+    "checkedAt": "2026-09-12T11:04:56.181516+00:00",
+    "frozenInstrumentFiles": 185,
+    "frozenInstrumentMatches": true,
+    "sourceOrReceiptsChangedAfterFirstGreen": [],
+    "ownedPidsStillPresent": [],
+    "assignedPortListeners": [],
+    "initialGradeReportStillMatches": true,
+    "limitations": [
+      "PID absence checked only for recorded IDs, never killed by port or name. No whole-host isolation claim."
+    ]
+  },
+  "supervisorCodeChangesToActorApp": false
+}

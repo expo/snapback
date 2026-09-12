@@ -1,0 +1,16 @@
+{
+  "controllerPid": 4122087,
+  "pid": 4122088,
+  "command": [
+    "python3",
+    "-u",
+    "scripts/preflight.py",
+    "--phase",
+    "m7",
+    "--wave",
+    "grok"
+  ],
+  "startedEpoch": 1789208792.950151,
+  "exit": 0,
+  "endedEpoch": 1789208794.8053684
+}

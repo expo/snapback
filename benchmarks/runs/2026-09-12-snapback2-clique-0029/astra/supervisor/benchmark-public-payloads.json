@@ -1,0 +1,1305 @@
+{
+  "at": 1789197400.4519172,
+  "purpose": "Read-only payload comparison at phase boundary; actual package contents versus qualified published artifacts, without touching actor files or changing the instrument. Unexpected differences are retained, not repaired.",
+  "packages": [
+    {
+      "package": "snapback2",
+      "version": "0.0.29",
+      "tarballSha256": "7145038e61818186d405a887e0b33b3edb0c60d30e0cc5b684075fadad791e45",
+      "files": [
+        {
+          "path": "dist/templates/chat/expo/metro.config.cjs",
+          "bytes": 602,
+          "sha256": "f67436eac4e420b92a9697d2f457f599d77fbba0651652a307b3c7f5d7dd46cc"
+        },
+        {
+          "path": "android/build.gradle",
+          "bytes": 326,
+          "sha256": "e112b47c8c28d061c164f8033dafc6d0679badd3b5d54a6637e2665f3c8069e1"
+        },
+        {
+          "path": "dist/templates/chat/react/index.html",
+          "bytes": 271,
+          "sha256": "733ae95dfcba812c06ebfedd7faba00a70987acc4b781953284005cb77d9713a"
+        },
+        {
+          "path": "dist/templates/react/index.html",
+          "bytes": 266,
+          "sha256": "6356b58a8c2c0743e542edb7cfb07899305ccff43510d574fedaedd983fc4c7c"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/fixtures/photo.jpg",
+          "bytes": 633,
+          "sha256": "e00771915c18a0c0419b6104666f24a1316a93a364356cc0bc4d71bfdd9bd297"
+        },
+        {
+          "path": "dist/templates/chat/expo/app.config.js",
+          "bytes": 761,
+          "sha256": "cb7bef3b0e940260e0aa65503e2eea624adff0db84e8dada159ef34334d229df"
+        },
+        {
+          "path": "dist/templates/chat/expo/index.js",
+          "bytes": 99,
+          "sha256": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b"
+        },
+        {
+          "path": "dist/guide/recipes/quarry-window-config.js",
+          "bytes": 750,
+          "sha256": "b23c20c3d5b6d24a637eb1c533dad39ce54ebd22046be121c641e278a1ba02da"
+        },
+        {
+          "path": "dist/templates/chat/expo/app.json",
+          "bytes": 356,
+          "sha256": "7eb5a8d38bdee9bcdb0508dc7773514b63c4c2741052b9d9de2c28d1d10855a4"
+        },
+        {
+          "path": "expo-module.config.json",
+          "bytes": 179,
+          "sha256": "7613bacf02f6f57c0597d694c328ad8d76fe45f352013c52b274ddc36148ef27"
+        },
+        {
+          "path": "dist/guide/families.json",
+          "bytes": 65487,
+          "sha256": "dd2222e860829bc5b3ed9be21c79ee9d68cb25855958a01763ca488d5f9f4a9e"
+        },
+        {
+          "path": "dist/guide/keywords.json",
+          "bytes": 159922,
+          "sha256": "51f7228acef8c220d35cd49565bb82268ebe70403d324725bb08cc1cc808175b"
+        },
+        {
+          "path": "package.json",
+          "bytes": 3260,
+          "sha256": "bf2613e13bd9b2f8f8b0292b0a4dce1dac6f2336fb606976da5d938ab202c47d"
+        },
+        {
+          "path": "dist/templates/chat/expo/tsconfig.json",
+          "bytes": 172,
+          "sha256": "bbced9c08dff779a942114c75fd5209c6d1f1b669392a05e6e82cb60ade9c5be"
+        },
+        {
+          "path": "android/src/main/java/expo/modules/snapback2/SnapbackMemoryVideoModule.kt",
+          "bytes": 5123,
+          "sha256": "b56498cfc01b300da5ccffc6272b2695ddcaf96990e6a281ed02184c240e26a3"
+        },
+        {
+          "path": "dist/client-observed-test.mjs.map",
+          "bytes": 4002,
+          "sha256": "9c6147c6065aae777ae05cb0673fd3338a15231efd01f21ca23f0e4420cf2bfc"
+        },
+        {
+          "path": "dist/client-runtime.mjs.map",
+          "bytes": 1282359,
+          "sha256": "2a37b57d0bf876fa1cbef0dbc8ea913643eb0f138115586efbb3b9e81752d121"
+        },
+        {
+          "path": "dist/client.mjs.map",
+          "bytes": 241834,
+          "sha256": "58980b5ba3cba2a958529debf3684ac77e62aedc1fd080ac3f89760e4a65fc5d"
+        },
+        {
+          "path": "dist/compiler-core.mjs.map",
+          "bytes": 814311,
+          "sha256": "28ad08c25c295c394e5a7da794abe4efafea885b0a3857241f1982c92567756f"
+        },
+        {
+          "path": "dist/compiler.mjs.map",
+          "bytes": 7738,
+          "sha256": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7"
+        },
+        {
+          "path": "dist/expo.mjs.map",
+          "bytes": 105901,
+          "sha256": "40b0d9cbfef95e19148c4421771fbd4011c0d6cae5812196371022b74d4e8513"
+        },
+        {
+          "path": "dist/global-search-pager.mjs.map",
+          "bytes": 12097,
+          "sha256": "ad5c0b0027ed3b473233f6378568c675c4262addb3c63fd221215be963fd0259"
+        },
+        {
+          "path": "dist/image-runtime.mjs.map",
+          "bytes": 229592,
+          "sha256": "85104b27e930fad4907ffe94b1328ac53f2f25b8d3401b08595b07fb0f348b07"
+        },
+        {
+          "path": "dist/index.mjs.map",
+          "bytes": 7605,
+          "sha256": "a7942d5e052603fa91a0e273f37d15f232fe531b95ee4b96804ba9f4be4d5d7c"
+        },
+        {
+          "path": "dist/internal.mjs.map",
+          "bytes": 7151,
+          "sha256": "c4e299f01e4efa36a05f82d65dd0e3c3212a970203695f9f92ecf871e59fe8b3"
+        },
+        {
+          "path": "dist/react-core.mjs.map",
+          "bytes": 32952,
+          "sha256": "6328818b1263c2365c943f75a531ef5ea8a33617c70e997fde23e14410f69955"
+        },
+        {
+          "path": "dist/react-native.mjs.map",
+          "bytes": 104478,
+          "sha256": "e26a5b64639c634a593d0372866b1aeed004e268cf2e98e098e057161a98df0f"
+        },
+        {
+          "path": "dist/react.mjs.map",
+          "bytes": 74743,
+          "sha256": "57baeed62a9b4eb62caf1f4fe4fe5b61047c46e562b43b29f41a33954cf8fa31"
+        },
+        {
+          "path": "dist/sqlite-test.mjs.map",
+          "bytes": 88806,
+          "sha256": "117a957009fb6ae82dde114a0f5ff088bd0875dd72bc414f606f2f4b01012e45"
+        },
+        {
+          "path": "dist/test-runner.mjs.map",
+          "bytes": 62195,
+          "sha256": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f"
+        },
+        {
+          "path": "dist/test.mjs.map",
+          "bytes": 62195,
+          "sha256": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f"
+        },
+        {
+          "path": "dist/witness-test.mjs.map",
+          "bytes": 72816,
+          "sha256": "7786e13152fbecd8f57b06b8cb1b1592aa43416dadded0c76f5578e40ae21759"
+        },
+        {
+          "path": "dist/expo/witness.mjs.map",
+          "bytes": 23220,
+          "sha256": "24fcce060a914b5d82359f116f300a04fc47481b9cefe7bf3860dbe4012e34cc"
+        },
+        {
+          "path": "dist/guide/absence.md",
+          "bytes": 799,
+          "sha256": "f8777e5035e7df88a21e2001fbc17b8bd737ade3326d3c0f241abea0c3ad23cb"
+        },
+        {
+          "path": "dist/guide/assets.md",
+          "bytes": 2913,
+          "sha256": "ce9f449a397f8634f64bd7b895276c438e0953bd4c4c7fb3e2f9305d3d425ec3"
+        },
+        {
+          "path": "dist/guide/auth.md",
+          "bytes": 6253,
+          "sha256": "26b8e05f527256c85d74cc8d7dd8530cf94f0def316adf7fb76dc2f03153f372"
+        },
+        {
+          "path": "dist/guide/bounds.md",
+          "bytes": 3389,
+          "sha256": "6cba2e1e9c6f9832c8bb121a7c50d820bc1ff7800f04da32ee52d75bf7e80198"
+        },
+        {
+          "path": "dist/guide/deliver.md",
+          "bytes": 5958,
+          "sha256": "b99c632c5b827359cd021e7a7583ab761c7f213cdf66c1735ab47188f7590663"
+        },
+        {
+          "path": "dist/guide/effects.md",
+          "bytes": 5935,
+          "sha256": "18e9d2e7b1e30651a6cb1c88ab303f0d5fb721c063a44cb01c09bad341520d97"
+        },
+        {
+          "path": "dist/guide/expiry.md",
+          "bytes": 3134,
+          "sha256": "87ae168a654a85d7e953b1f552c170067386d88b5daa40bd8d3d46eb638872ee"
+        },
+        {
+          "path": "dist/guide/expressions.md",
+          "bytes": 1976,
+          "sha256": "d18f3dc76fa1f972ce3d45c9fb63b4a3c8a5e6a11ff2b14efb60e106a166d45a"
+        },
+        {
+          "path": "dist/guide/fanout.md",
+          "bytes": 4730,
+          "sha256": "f574a0e74bff5c2bf6b1850b60fc0aba883d6f9cf9722112bae1c61d68934595"
+        },
+        {
+          "path": "dist/guide/fn.md",
+          "bytes": 400,
+          "sha256": "97dcb35afe7d03d5e54e842bba32fd5bcbef35ae2e26212705d2cc6bf20b0653"
+        },
+        {
+          "path": "dist/guide/grammar.md",
+          "bytes": 3588,
+          "sha256": "e975c1dedc8683a966903535e8bf5d15f445cc2747f8e17328bf272976e663e0"
+        },
+        {
+          "path": "dist/guide/indexes.md",
+          "bytes": 975,
+          "sha256": "6132d82edd9a5bd3a9c8a1105d1124e24c10b28b7f87db8083bd45089073674d"
+        },
+        {
+          "path": "dist/guide/job.md",
+          "bytes": 2888,
+          "sha256": "bc38d171398468be1f97faf6c9749c3458a05610dd3404cfb863960b91bc9c4c"
+        },
+        {
+          "path": "dist/guide/live-query.md",
+          "bytes": 7468,
+          "sha256": "927ebd74b606af48409c56bc9ed13458ae1d90adc2929cafe7bfa4effa242289"
+        },
+        {
+          "path": "dist/guide/maintain.md",
+          "bytes": 1246,
+          "sha256": "9c984408bd2570bd738b3218f2787d9b0db5b7d719e5ad162ea3671cee33e0d0"
+        },
+        {
+          "path": "dist/guide/merge.md",
+          "bytes": 1190,
+          "sha256": "85415b1d898d51af2e4e52f9779767d87814a4749d752c2b84956ddfd0bc02ff"
+        },
+        {
+          "path": "dist/guide/money.md",
+          "bytes": 1526,
+          "sha256": "95343e92af42d70bc87fd1275313f1dfd22c72a827f89cebd909addf44a70b24"
+        },
+        {
+          "path": "dist/guide/offline.md",
+          "bytes": 7684,
+          "sha256": "5d27df0dee1a895b4c7245a95f63b8471f3f630be107465912d427339df85db6"
+        },
+        {
+          "path": "dist/guide/operator.md",
+          "bytes": 5509,
+          "sha256": "a6db0972a4971f7aed88faa640bdff3666cefe9666212c9a78ec777c4819cad9"
+        },
+        {
+          "path": "dist/guide/pagination.md",
+          "bytes": 2807,
+          "sha256": "bb803c2519fcaacb9436d0862db70993c4c0b5d7b6a5f249f48dbdb5ed237c2a"
+        },
+        {
+          "path": "dist/guide/personas.md",
+          "bytes": 1299,
+          "sha256": "ac4fff9e83383ac91123d2a72d99c6e1527ce853c33b86b761aa4a354b3a9340"
+        },
+        {
+          "path": "dist/guide/proc.md",
+          "bytes": 500,
+          "sha256": "cb9cb8ab1444512d3ee2a1f39fd3a2863b2524c0b04e192c1cb6f440ecbfebec"
+        },
+        {
+          "path": "dist/guide/programs.md",
+          "bytes": 645,
+          "sha256": "3d4bcfce2b99f89211dd19c1ef5487bd0c9db3370d07df725322ad0b027de046"
+        },
+        {
+          "path": "dist/guide/quarry.md",
+          "bytes": 1417,
+          "sha256": "16a8b73a2973b4e3cec12651bfe804c90e7006bf73b70bce9b6d869a687ded24"
+        },
+        {
+          "path": "guide/README.md",
+          "bytes": 65,
+          "sha256": "3920186215ca7eed5a4321ca29091cda8b3095e0cf1717e26b2208584692f91f"
+        },
+        {
+          "path": "README.md",
+          "bytes": 12079,
+          "sha256": "a2ed0e261cd452b5ee28390e7a6a90752998cbebd0588b1dc7831fbd7e9a0ba5"
+        },
+        {
+          "path": "dist/guide/retain.md",
+          "bytes": 351,
+          "sha256": "fa321893d0a8d9bbc12f23c97ce65b2b15e8ae1fa589cd85af5d833925dc84fc"
+        },
+        {
+          "path": "dist/guide/rules.md",
+          "bytes": 882,
+          "sha256": "e169feb186c4f65be7d4cb0dcb1d4bc68d8e2e68343bf8ebc55674b7e69739a0"
+        },
+        {
+          "path": "dist/guide/schedule.md",
+          "bytes": 5955,
+          "sha256": "f6e67663aa5c330f3193841fdf173b8938ce497ba581b97f4d115fa858f9ba4d"
+        },
+        {
+          "path": "dist/guide/shape.md",
+          "bytes": 283,
+          "sha256": "f3855ee713d940c50351a2bf6a25fe5e921ec8c9359f52c2717a02e59a0329c3"
+        },
+        {
+          "path": "dist/guide/successor.md",
+          "bytes": 4562,
+          "sha256": "f82a10a764075e60cddfa78c89cb05c7b0816da0358c24556a2829f812e9612b"
+        },
+        {
+          "path": "dist/guide/testing.md",
+          "bytes": 7880,
+          "sha256": "d55ccf8b0fad1a6b7b83787a0fe76e83ea2c3de5f0ab95a45fbe1bd276e581b9"
+        },
+        {
+          "path": "dist/guide/types.md",
+          "bytes": 1368,
+          "sha256": "fae1c95084d61bdcb893f25da197388f3702be7408f3b18113d9e3e832416d79"
+        },
+        {
+          "path": "dist/guide/writes.md",
+          "bytes": 2727,
+          "sha256": "e3a3fe98041e8b96ecdfbb6a39dfb470ef19ef77bfc16dabc1454f3b42a985f3"
+        },
+        {
+          "path": "dist/client-observed-test.mjs",
+          "bytes": 1717,
+          "sha256": "c8f6e916c33327039d2ee031489cbce9a991ae6a696e0d13ad59b41f2fa91782"
+        },
+        {
+          "path": "dist/client-runtime.mjs",
+          "bytes": 309377,
+          "sha256": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9"
+        },
+        {
+          "path": "dist/client.mjs",
+          "bytes": 66596,
+          "sha256": "e1d771514d7fb9eba17eee373fac162524a5dd802ac84fd14150cea351f46c7a"
+        },
+        {
+          "path": "dist/compiler-core.mjs",
+          "bytes": 228738,
+          "sha256": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32"
+        },
+        {
+          "path": "dist/compiler.mjs",
+          "bytes": 2351,
+          "sha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78"
+        },
+        {
+          "path": "dist/expo.mjs",
+          "bytes": 26828,
+          "sha256": "91d9a3c0c2274266eb91a7b5dd5fe8f95096be67eb2033d70b43f3aebc84dd34"
+        },
+        {
+          "path": "dist/global-search-pager.mjs",
+          "bytes": 2604,
+          "sha256": "66690ab3ec84ab0df0c0b0eee880cd752e2f8257be9dbb84e576b2924c0ecd95"
+        },
+        {
+          "path": "dist/image-runtime.mjs",
+          "bytes": 68675,
+          "sha256": "f7f6089bce9e9fb9e41facb8ec2f68149a1ee75ba15e423b30c58852975e4f61"
+        },
+        {
+          "path": "dist/index.mjs",
+          "bytes": 1843,
+          "sha256": "e832f383edbf8acf62ee52b90cfee99de04ca5e2d86963ccc7a9f7ae1e3c752d"
+        },
+        {
+          "path": "dist/internal.mjs",
+          "bytes": 3215,
+          "sha256": "3964b27a799b80d6a276ba0ec6498ec78a7458446d336543a176ca38ce391e04"
+        },
+        {
+          "path": "dist/react-core.mjs",
+          "bytes": 6621,
+          "sha256": "30d8fdc0bb5ee92ace99df61fada970c8284f24f078fb46cd660054eebcf180c"
+        },
+        {
+          "path": "dist/react-native.mjs",
+          "bytes": 25847,
+          "sha256": "026546db338f9a38da260485895ed54bed5569aa174819d9a14e23873be67b24"
+        },
+        {
+          "path": "dist/react.mjs",
+          "bytes": 17559,
+          "sha256": "49ad820fb033c3ec09b64efd9d9babb17a6f73b40cd4c412c2c277d8edf610a3"
+        },
+        {
+          "path": "bin/snapback2.mjs",
+          "bytes": 1552,
+          "sha256": "aebb1591ef95acc6cdd1c32de03dcfea7e295aacafa91663cdd675f353833714"
+        },
+        {
+          "path": "dist/sqlite-test.mjs",
+          "bytes": 45040,
+          "sha256": "bc8e1dea10994a96005278839e4a94ef9048af63d5c6a6034a3a04a8389d8fc3"
+        },
+        {
+          "path": "dist/test-runner.mjs",
+          "bytes": 27671,
+          "sha256": "696ee6a94f774b57717411a33fecbd55d8c693a47b08f6a5163a6e807d71b93c"
+        },
+        {
+          "path": "dist/test.mjs",
+          "bytes": 27664,
+          "sha256": "b772c4b658f7c0e81dcff9eea0d0926537c5be8045d1856edc5989c555c64d7d"
+        },
+        {
+          "path": "dist/witness-test.mjs",
+          "bytes": 23669,
+          "sha256": "ccabb4ef252230f7e798ba2fa80171f201b3a7f047e00aa7702f71ae510f9a91"
+        },
+        {
+          "path": "dist/expo/witness.mjs",
+          "bytes": 6932,
+          "sha256": "190b5c4daf3ae0efb0278f7b00db45781e40799e964cd434bb2cc29627d6e3e9"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/fixtures/clip.mp4",
+          "bytes": 280,
+          "sha256": "0bf2c3c80dab9197eb6a70db98273551d7da76dbc76e1e1203099c81385086b0"
+        },
+        {
+          "path": "ios/SnapbackMemoryVideo.podspec",
+          "bytes": 716,
+          "sha256": "63056cfbc843ad0287c65b8165c1a1930b0c361b13b7ddad004a883179bef3b0"
+        },
+        {
+          "path": "dist/templates/chat/snapback/access.q",
+          "bytes": 241,
+          "sha256": "111c2e9ec3c0afc5eda595fbdc052422ef56a1c3ac91cbe3b056643a24867253"
+        },
+        {
+          "path": "dist/templates/chat/snapback/feeds.q",
+          "bytes": 424,
+          "sha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b"
+        },
+        {
+          "path": "dist/templates/chat/snapback/follows.q",
+          "bytes": 303,
+          "sha256": "81cf3ad80e1ae7a220a1bc5b549ab7e7401a6ceebace501db1e188717358fb08"
+        },
+        {
+          "path": "dist/templates/chat/snapback/groups.q",
+          "bytes": 2258,
+          "sha256": "449e3ce85df65c8e2eea4d11143f49f0813b0548d7216b7b5372162a6d9764e7"
+        },
+        {
+          "path": "dist/templates/chat/snapback/messages.q",
+          "bytes": 3157,
+          "sha256": "5b08259c377f3a396c0c124e1e54badf05de71878093b8b55f5851c16be5d8b7"
+        },
+        {
+          "path": "dist/templates/chat/snapback/notifications.q",
+          "bytes": 184,
+          "sha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347"
+        },
+        {
+          "path": "dist/templates/chat/snapback/posts.q",
+          "bytes": 163,
+          "sha256": "927f749bf552ca788df93b41e494b2361a29c5dddc636dbdb7ed2dfb4a9b863b"
+        },
+        {
+          "path": "dist/templates/chat/snapback/profiles.q",
+          "bytes": 715,
+          "sha256": "27f51d315227cf66a59005f93fa458fbabb3689cb1eda0bddd355245f535c6ae"
+        },
+        {
+          "path": "dist/templates/chat/snapback/schema.q",
+          "bytes": 3570,
+          "sha256": "7f5330c77188f95381cd8f9c81b0400e130dce856aeea82aa382b2040c47f409"
+        },
+        {
+          "path": "dist/templates/todos/snapback/schema.q",
+          "bytes": 223,
+          "sha256": "8e86ebf772160d075125a1e5cd77bbfad57260ef3952cacc90f951339206cc2b"
+        },
+        {
+          "path": "dist/templates/todos/snapback/todos.q",
+          "bytes": 165,
+          "sha256": "bacc72cee40548f50c8fd20b99ddb03f3d8ff9b0448fefe68713be3e356e04ca"
+        },
+        {
+          "path": "ios/MemoryVideoSource.swift",
+          "bytes": 1461,
+          "sha256": "0f8800aa34aa5877d502543f8f3b0e89818171962680405663988f5e8f3e8667"
+        },
+        {
+          "path": "ios/SnapbackMemoryVideoModule.swift",
+          "bytes": 3459,
+          "sha256": "8abf764b437b285f0fdefa2a63a35d2fb64c3f9700a2742a360331409d683fb3"
+        },
+        {
+          "path": "dist/api.d.ts",
+          "bytes": 1017,
+          "sha256": "14d23d817c550dac591fca315657dd66f9f05e9a4319459d6ec85b1ac41a8cf7"
+        },
+        {
+          "path": "dist/store/asset-policy.d.ts",
+          "bytes": 1387,
+          "sha256": "5d9a4bcb3fff3747d854804490bfac00d9a9ced47737c72155dffc30164336bb"
+        },
+        {
+          "path": "dist/assets.d.ts",
+          "bytes": 2249,
+          "sha256": "b724c9c610da92fcbe09b309d0b8036160da96a80a1d13aeea1948d39050f37f"
+        },
+        {
+          "path": "dist/authoring-lib.d.ts",
+          "bytes": 2554,
+          "sha256": "9672bbce020231936695d5a1274f495709eaaa55a2a512638eaf9736de5d6de0"
+        },
+        {
+          "path": "dist/store/byte-cache.d.ts",
+          "bytes": 8044,
+          "sha256": "f183a8bf85748702f8d15637c6931ac81c7886f6da25bfea4f73aaf474c8886f"
+        },
+        {
+          "path": "dist/store/canonical.d.ts",
+          "bytes": 1337,
+          "sha256": "13c920954c6dbed5e8de0900e354ad0411c65cb0e61fd0ecad6309973bedbd7d"
+        },
+        {
+          "path": "dist/store/carrier-index.d.ts",
+          "bytes": 2560,
+          "sha256": "cff7c2a2326f7e994124db8acadaf564c806d3f2d610022ad5bc914faa5df646"
+        },
+        {
+          "path": "dist/evaluator/src/certificate-identity.d.ts",
+          "bytes": 349,
+          "sha256": "8dd443f43338c920b35a65425966424e215dbd493edd187e3cacb4a058fd3e46"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/chat.test.ts",
+          "bytes": 44707,
+          "sha256": "080c602672697e01c3426de2ea29277d77f6e16a23d44acfd8f3a75699bf0e79"
+        },
+        {
+          "path": "dist/client-assets.d.ts",
+          "bytes": 1761,
+          "sha256": "78c2a775cd41223c4b5bd5e0e15036a35150fa7d2f3d61fda27dc7f9bcdf85ed"
+        },
+        {
+          "path": "dist/client-auth.d.ts",
+          "bytes": 2736,
+          "sha256": "98e1d2f0e420eb488b2218870ed7cd8af50db2f6676ba6bf3f111b8bc1e81105"
+        },
+        {
+          "path": "dist/client-channels.d.ts",
+          "bytes": 1694,
+          "sha256": "00d6adee44b42143ebd948a26666c2e5540949835617990231738b55e8e440aa"
+        },
+        {
+          "path": "dist/client-inbox.d.ts",
+          "bytes": 3791,
+          "sha256": "3ed2d349e7c00c612421f4c276bc78178b3b7c82d1990887bd01b3c72ef1c67d"
+        },
+        {
+          "path": "dist/client-items.d.ts",
+          "bytes": 7670,
+          "sha256": "a66072d1484530a35607c92c729eda00d8b22a4d4f483c64ae63adb7d4b2546e"
+        },
+        {
+          "path": "dist/client-mutations.d.ts",
+          "bytes": 1709,
+          "sha256": "a7983cb4299a61daa951b3a5d96e5237ccd964927c80f889da220f7f9bcfa2c8"
+        },
+        {
+          "path": "dist/client-observed.d.ts",
+          "bytes": 5053,
+          "sha256": "8a49502789c5099dcf40f16616d39229de14842efd4592743bd5ca001c522352"
+        },
+        {
+          "path": "dist/client-offline.d.ts",
+          "bytes": 5742,
+          "sha256": "44eee0fa056c32b726f87cea44224f4dd3cb113c74b97bdd342da6067b30c193"
+        },
+        {
+          "path": "dist/client-outbox-observed.d.ts",
+          "bytes": 819,
+          "sha256": "dd07a8d67b9295ca1b3dd266b1e83b1c3220d13d5b22862adcab0565f45c9b57"
+        },
+        {
+          "path": "dist/client-outbox-recover.d.ts",
+          "bytes": 519,
+          "sha256": "95ee6b25c88c413f038ffbe158f071121c238613550dd007f5cabb6b75e486a5"
+        },
+        {
+          "path": "dist/client-outbox.d.ts",
+          "bytes": 4129,
+          "sha256": "336ac965cf72e5916cee01391d8bbf65a785184347697d6ce78ad1f8210a2f5a"
+        },
+        {
+          "path": "dist/client-pages.d.ts",
+          "bytes": 4204,
+          "sha256": "66b14e8ce354bbc427e2f359c5bca5bb4d0c9753da76c1dd8681a942814cb62a"
+        },
+        {
+          "path": "dist/client-query.d.ts",
+          "bytes": 481,
+          "sha256": "49d2c89096c3e151156faba2b86045b855236aeb7c48048df139aba2a8e802a2"
+        },
+        {
+          "path": "dist/client-recovery.d.ts",
+          "bytes": 1631,
+          "sha256": "f80432d271616952bf4265eb5e381bbcad51eea19fcc2911f0088ef01b4522b2"
+        },
+        {
+          "path": "dist/client-sessions.d.ts",
+          "bytes": 5717,
+          "sha256": "5c5f3f94db0e5d0a5445b844b53fe61c2337bb181f91807180ffea5ff273c931"
+        },
+        {
+          "path": "dist/client-upload.d.ts",
+          "bytes": 3412,
+          "sha256": "c60bac10e6041e026853baefdd2026b9ac3c952e0ffc85155d27047b70cabcb8"
+        },
+        {
+          "path": "dist/client-wire.d.ts",
+          "bytes": 4051,
+          "sha256": "75aa71b9368bc103b99ad9367bb715fbd305032ee04fbc8fd47b1040dc99aea7"
+        },
+        {
+          "path": "dist/client.d.ts",
+          "bytes": 1112,
+          "sha256": "91dad0a94be3275094cf1862b78991930a92f7a4c97d249e3d0e93c3b33fb642"
+        },
+        {
+          "path": "dist/compiler-lib.d.ts",
+          "bytes": 3297,
+          "sha256": "34b18fc99720579b7192de9d82065f2ddcbc375e3b5f1c76caa3b7eaf1299145"
+        },
+        {
+          "path": "dist/react-native/components.d.ts",
+          "bytes": 1070,
+          "sha256": "700f0bbb6eaff5fe897a1f340a56bcbf76ab9157ac97aec9e6ca727b3c57381b"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/composed-facts.ts",
+          "bytes": 1136,
+          "sha256": "dea7504d368aaa9fd3bf053b9d15260ebd5398531086f8c9e06a988124a89ff1"
+        },
+        {
+          "path": "dist/evaluator/src/coverage-spans.d.ts",
+          "bytes": 338,
+          "sha256": "66b0a8a098d1cc27562066d05a9a8713704331e0a89843c553294b6f5626a21f"
+        },
+        {
+          "path": "dist/evaluator/src/coverage.d.ts",
+          "bytes": 1966,
+          "sha256": "3a053359d0f43b353a2b6f0725d4a6465684cb4e4f69f44d4587fd139ea45879"
+        },
+        {
+          "path": "dist/evaluator/src/cursor.d.ts",
+          "bytes": 593,
+          "sha256": "2bfe59ff3246ff2d044c3d166c3740abb88a1ce308231b0fb1669bb73eeb4b35"
+        },
+        {
+          "path": "dist/delivery-acknowledgements.d.ts",
+          "bytes": 2008,
+          "sha256": "0d3c383e5179d5f2a679712f90947740843c305c2950d0392c9360d9f749ca07"
+        },
+        {
+          "path": "dist/evaluator/src/delivery-prediction.d.ts",
+          "bytes": 528,
+          "sha256": "1fedef0b857db1549575b5214e31e3369aa4a2970ee48559c087c85d8d71bad4"
+        },
+        {
+          "path": "dist/templates/chat/snapback/delivery.ts",
+          "bytes": 802,
+          "sha256": "ab3347195ef021ceab145dea518e38f3f97ed2384ddf5db6893fb283df5f702b"
+        },
+        {
+          "path": "dist/drain.d.ts",
+          "bytes": 2029,
+          "sha256": "bda2b1cea28c5df7d21a7af913367b938662f6ba077b81d8db203feb384fcec4"
+        },
+        {
+          "path": "dist/effects-lib.d.ts",
+          "bytes": 434975,
+          "sha256": "13dd9d1f06641596a4c6ac1c080b3f45f083485baa55a4a378d5b8eba68b311d"
+        },
+        {
+          "path": "dist/templates/chat/react/src/env.d.ts",
+          "bytes": 79,
+          "sha256": "e36e1cd6ad438964910403b47a4b744d28c27aaa5dbc6baa0ebbf3ab8d19641a"
+        },
+        {
+          "path": "dist/evaluator/src/errors.d.ts",
+          "bytes": 822,
+          "sha256": "b305a582609fd35078e55e5994cc5a04ee12a58109e7fecb78221cb6af880b07"
+        },
+        {
+          "path": "dist/expo.d.ts",
+          "bytes": 256,
+          "sha256": "c67db00875dceab59e14f088ed7b1fae07d375ebe056a01dce893746e52f5f35"
+        },
+        {
+          "path": "dist/store/extent-facts.d.ts",
+          "bytes": 992,
+          "sha256": "b4fca8aa5cdbbfb825d1a8013313d619647a3216bddd53afe93f87825f284059"
+        },
+        {
+          "path": "dist/store/extent-index.d.ts",
+          "bytes": 763,
+          "sha256": "6698a2c74456d2a296bbbf83131116958e775f506e882bd287e1b971057cc2a4"
+        },
+        {
+          "path": "dist/store/fact-index.d.ts",
+          "bytes": 903,
+          "sha256": "b5acc7d86d8a627ee9a4db0f225e728925b9ed8cd140d7f094da204bdd2604d9"
+        },
+        {
+          "path": "dist/store/fact-integrity.d.ts",
+          "bytes": 4152,
+          "sha256": "38d14a569884e6456e234655dd806590e2ae69622f96cfb8ccd11e718ac3d1d8"
+        },
+        {
+          "path": "dist/expo/files.d.ts",
+          "bytes": 217,
+          "sha256": "748637d3b4a3eba670a94d839b73cd94f68ecafe11c2267969f70861e5742ca9"
+        },
+        {
+          "path": "dist/react-native/files.d.ts",
+          "bytes": 1984,
+          "sha256": "a9bcdce6a6ac48df8cf0cf4bf6d1cec2a7a9fd750d163e6e3cbfdd1d21c6ad86"
+        },
+        {
+          "path": "dist/guide/recipes/global-message-search.ts",
+          "bytes": 2478,
+          "sha256": "729f76fb5cbd27a0c5e003f3be9a230a2249d9f7c4d83efceaf0e0c163eb170d"
+        },
+        {
+          "path": "dist/global-search-pager.d.ts",
+          "bytes": 2160,
+          "sha256": "55f3e8cb31898eaa77cf8d8d579453f8fda3cb4345e1f5d18977b4dc139d6bee"
+        },
+        {
+          "path": "dist/evaluator/src/hash.d.ts",
+          "bytes": 534,
+          "sha256": "da18a0a2cd10a4968d54d00076cb06a46d89df0e20222720a2d7d608a64edb25"
+        },
+        {
+          "path": "dist/evaluator/src/held-directory.d.ts",
+          "bytes": 1045,
+          "sha256": "d7f23cbbb70872f4dedd54467fff7560c6f3c129a1a0221937c317e44bdea88e"
+        },
+        {
+          "path": "dist/held-program.d.ts",
+          "bytes": 483,
+          "sha256": "af15c42dd7847f6ab96484c9aab9d914fdd5d2e5ad153fa8d1e8f16cdf8bd58f"
+        },
+        {
+          "path": "dist/store/inbox.d.ts",
+          "bytes": 4126,
+          "sha256": "7f103d7ecad5f635a852f94ff56ea730cd9cd1ca9c305181a08393bfed97dbaa"
+        },
+        {
+          "path": "dist/evaluator/src/index-store.d.ts",
+          "bytes": 3601,
+          "sha256": "adacb70de489dbbc079624f572fefd40c052b922b58975a18a9a9a4fc457c3df"
+        },
+        {
+          "path": "dist/expo/index.d.ts",
+          "bytes": 1121,
+          "sha256": "8f14f88e2ac4734e9fc6319cb87224927737187ff1c3b7b4af8e82e51b9909a1"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "bytes": 2999,
+          "sha256": "061c545f8148c91b89c99696aafac09f552ed55cc79f3998da05148bcdaf782f"
+        },
+        {
+          "path": "dist/store/indexeddb.d.ts",
+          "bytes": 962,
+          "sha256": "b608eb919fd437cd6ec8d50538f9ed8cd94d3e911c4aca675ce60c68ad0d9a17"
+        },
+        {
+          "path": "dist/internal-access.d.ts",
+          "bytes": 699,
+          "sha256": "317deee62af1fbb280d2d9e86267ef8b1edd6bc996c67692fc68cefce2796343"
+        },
+        {
+          "path": "dist/compiler/src/ir.d.ts",
+          "bytes": 9073,
+          "sha256": "9c19d92e70ccc8adf63322bdd821bf45e50a05c0f2a9d738cc0066058e8a09bf"
+        },
+        {
+          "path": "dist/live.d.ts",
+          "bytes": 1074,
+          "sha256": "5538b9b1b7301bba9dfd30e3e2c26c90ca32536559e24e31eadcf6e07e0c1111"
+        },
+        {
+          "path": "dist/local-cursor.d.ts",
+          "bytes": 1661,
+          "sha256": "9527d73bb65974cf1c636d74d2a5f4c4fcdbfdd92bb812df16e189043636d120"
+        },
+        {
+          "path": "dist/store/locks.d.ts",
+          "bytes": 1167,
+          "sha256": "dbfcc799249f88080702b68aa662c1201a4ece5ba7b5ae352c4d0ef5c824236c"
+        },
+        {
+          "path": "dist/store/maintained-coherence.d.ts",
+          "bytes": 821,
+          "sha256": "98a87ac1911112ca95e7f3fe582538341a20c3527d202498790e5d00a8090086"
+        },
+        {
+          "path": "dist/react-native/memory-video.d.ts",
+          "bytes": 429,
+          "sha256": "95eca53ce2fb7ba0ad345e0a116c378e40e50cf41af8bf6a6e99763d204ddbd0"
+        },
+        {
+          "path": "dist/evaluator/src/merge.d.ts",
+          "bytes": 353,
+          "sha256": "37175241176e138da9eb4bdb28d74592edaa3b9145c70cd6e1e120a1d9874bec"
+        },
+        {
+          "path": "dist/store/metadata.d.ts",
+          "bytes": 811,
+          "sha256": "d7cf298936e9479da540f0346050dbea1954abb16c93e0b3d1be9cfd65d4f815"
+        },
+        {
+          "path": "dist/mutation-targets.d.ts",
+          "bytes": 2315,
+          "sha256": "886e068a570dbd668d58b638460c28514ef0700f146748e6158fcf2a882f2d4d"
+        },
+        {
+          "path": "dist/offline-protocol.d.ts",
+          "bytes": 7797,
+          "sha256": "68d2b3f19f1b54172e0e63f20946e9d9624299b26660ab1475ea576d2b283d70"
+        },
+        {
+          "path": "dist/offline-schema.d.ts",
+          "bytes": 65,
+          "sha256": "c1ec7a444f6bdbe41b7fc49074710f8978f677f0a9c0defb535609b89f33f82b"
+        },
+        {
+          "path": "dist/offline.d.ts",
+          "bytes": 14218,
+          "sha256": "5f3333accac5e08a04a6eca25f136122f5214a07fbe32d3ec0c09cbe6616960b"
+        },
+        {
+          "path": "dist/evaluator/src/ordered.d.ts",
+          "bytes": 818,
+          "sha256": "8078686fa1585a8d6954bbf6f4a8a48af5c1e7edbbfd976069a3a9cbd7bc803f"
+        },
+        {
+          "path": "dist/store/outbox.d.ts",
+          "bytes": 11729,
+          "sha256": "90f7c22e51f8b1777dfe48afe550c62136f82ae3d275b1787f1b83b74fdd3f4e"
+        },
+        {
+          "path": "dist/store/overlay-retirement.d.ts",
+          "bytes": 2711,
+          "sha256": "a54a8e12de7eb263d2f9fe0545345a5a8243b676ac94b1dfaa6df175ab35d5b9"
+        },
+        {
+          "path": "dist/evaluator/src/posting-tree.d.ts",
+          "bytes": 476,
+          "sha256": "d77e517024fc5a64e3c7a385e2b58bf3710ece246e04899095b70f761fbcc7df"
+        },
+        {
+          "path": "dist/evaluator/src/prefix-dictionary.d.ts",
+          "bytes": 329,
+          "sha256": "29ec6f9df9c1615f9f5d5be8b39cc4caf4c3f25380b46335e3b09063a48f11ce"
+        },
+        {
+          "path": "dist/store/projection.d.ts",
+          "bytes": 1322,
+          "sha256": "b39d8958e5eabdc13846c264a23844cb504b37d9814ad73af81c0c43c2698367"
+        },
+        {
+          "path": "dist/query-frame.d.ts",
+          "bytes": 759,
+          "sha256": "11fe0034699276f058f59cdca65cd11d8bec51790a672e73a7379f9bd9ce8039"
+        },
+        {
+          "path": "dist/store/query-inputs.d.ts",
+          "bytes": 596,
+          "sha256": "303b227081baef0cbcc869bf3a5ba90d5436822789724ba84acc76ff2411eae6"
+        },
+        {
+          "path": "dist/query-items.d.ts",
+          "bytes": 1677,
+          "sha256": "59aa418bf9850346fabb95a176238a037d51f81aae07fa6b336f677e00b33a46"
+        },
+        {
+          "path": "dist/evaluator/src/range-preparation.d.ts",
+          "bytes": 3847,
+          "sha256": "2a1746933cf8963e349ab23a36358003c3af7dcb79e98e0a33b773d4db2a45d9"
+        },
+        {
+          "path": "dist/store/range-store.d.ts",
+          "bytes": 19149,
+          "sha256": "f81fe55621d68ac02a2b7834516f76f174c286b55bc35c3b04e7d5bcc0f55c32"
+        },
+        {
+          "path": "dist/react-core.d.ts",
+          "bytes": 6076,
+          "sha256": "14bfd6599e32b7e6a07e486d047774c40c8be298e00b9d608ec809a4c979fda4"
+        },
+        {
+          "path": "dist/react-native.d.ts",
+          "bytes": 901,
+          "sha256": "6cbf1e4f19a498536045bbe6165ed5b5760bdc8ea8148b7b49fe044dd46f31af"
+        },
+        {
+          "path": "dist/react.d.ts",
+          "bytes": 997,
+          "sha256": "7bcf777714f26882509abc281716be6cbba77dd7eb3935e99434495efd8d6200"
+        },
+        {
+          "path": "dist/evaluator/src/row-image.d.ts",
+          "bytes": 2470,
+          "sha256": "fa40e2f3f2e4f1f53acf2a20609713195bdcc8aebb5fbf50c57d8c6bcd44fbcb"
+        },
+        {
+          "path": "dist/store/row-values.d.ts",
+          "bytes": 1378,
+          "sha256": "f3c326c70fd84446d273fd137df54cf1288d496f28391b45e53f416bfb24ec2e"
+        },
+        {
+          "path": "dist/evaluator/src/runner.d.ts",
+          "bytes": 3436,
+          "sha256": "39db6b29c91daeff486dce89061ba6a382328ae8a9762922b97af0f8d76d9a78"
+        },
+        {
+          "path": "dist/evaluator/src/search-key.d.ts",
+          "bytes": 2394,
+          "sha256": "63e58dac3f6b18d86421d7fda41172c13cab48910762d32cd975ead9a777ff4c"
+        },
+        {
+          "path": "dist/evaluator/src/search-runtime.d.ts",
+          "bytes": 685,
+          "sha256": "2feabb7984ff1b1b68619c9ff99c33b41f3d019fea02c7073e61134f37f391a2"
+        },
+        {
+          "path": "dist/templates/chat/snapback/seed.ts",
+          "bytes": 1942,
+          "sha256": "8889d745e8b9aba0ae9fe8125b1f2ed3b2295de4ef42b0699e91f54e571f57f9"
+        },
+        {
+          "path": "dist/templates/todos/snapback/seed.ts",
+          "bytes": 204,
+          "sha256": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882"
+        },
+        {
+          "path": "dist/evaluator/src/slot-tree.d.ts",
+          "bytes": 597,
+          "sha256": "3997a81d68fe54b44f6cc5141bb7669d0be1dd314b58bd8d77f44260db99ea74"
+        },
+        {
+          "path": "dist/snapshot.d.ts",
+          "bytes": 3562,
+          "sha256": "3bd87bda27b95063788ae63b541047265109d533a6229a1686ff7e98a5db08f8"
+        },
+        {
+          "path": "dist/react-native/source.d.ts",
+          "bytes": 679,
+          "sha256": "fae16d82f2f32f079f3d81320725fe94b16e9586219d409679809908a09c68dc"
+        },
+        {
+          "path": "dist/store/sqlite-driver.conformance.d.ts",
+          "bytes": 387,
+          "sha256": "f289806fee31975955fc16a721924548e008d2646d7a9a2914183ae563eb8594"
+        },
+        {
+          "path": "dist/store/sqlite-driver.d.ts",
+          "bytes": 877,
+          "sha256": "ca8186b041d1a98a62dca46f396a5f0027c5735183cdec4b925d0297ba4246c6"
+        },
+        {
+          "path": "dist/store/sqlite-expo.d.ts",
+          "bytes": 206,
+          "sha256": "d677efa86e8fb3d044502cd845952dcdefb59a7d529171517205b2e36772078e"
+        },
+        {
+          "path": "dist/store/sqlite.d.ts",
+          "bytes": 1851,
+          "sha256": "26e8b6db8a89e181d99951ec37561f759305647161c689b6ff7d4d5bdc93eb0b"
+        },
+        {
+          "path": "dist/sse-parser.d.ts",
+          "bytes": 330,
+          "sha256": "843ee5e5f56c95b4db9d87247b6316a60a42218abbe0739f08cff89e1776725d"
+        },
+        {
+          "path": "dist/sse.d.ts",
+          "bytes": 1604,
+          "sha256": "487b829535bf173e30043f2cbbc2bb3ef0c41cba9bd1b533751fe21ad7b03076"
+        },
+        {
+          "path": "dist/templates/chat/expo/shared/status.ts",
+          "bytes": 1023,
+          "sha256": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2"
+        },
+        {
+          "path": "dist/templates/chat/react/shared/status.ts",
+          "bytes": 1023,
+          "sha256": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2"
+        },
+        {
+          "path": "dist/evaluator/src/store.d.ts",
+          "bytes": 2869,
+          "sha256": "284872b069cd80dbb79fde9617d452e05197f7aad0cf50ec0fcf5ee10993cf84"
+        },
+        {
+          "path": "dist/store/success-compaction.d.ts",
+          "bytes": 356,
+          "sha256": "b945e5f82712f4a2a6e0facc1676fa54124f66456a83b4ae0fa636a229bc43b1"
+        },
+        {
+          "path": "dist/store/swap-journal.d.ts",
+          "bytes": 1336,
+          "sha256": "d9ba43fee84c472ed1d244f4bad1fa38c095a80d93e535d6f087148322a9454c"
+        },
+        {
+          "path": "dist/test.d.ts",
+          "bytes": 3709,
+          "sha256": "8fa08a5cb2ff865e5c3c8d7e00ebd93c3c774d17385f7caa65aafd3837f2de72"
+        },
+        {
+          "path": "dist/evaluator/src/text.d.ts",
+          "bytes": 68,
+          "sha256": "cd0ef87d04159a3c923d8a7dd47248c06b865ce32156444283cef9a84aa3d116"
+        },
+        {
+          "path": "dist/templates/chat/expo/shared/thread.ts",
+          "bytes": 1188,
+          "sha256": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da"
+        },
+        {
+          "path": "dist/templates/chat/react/shared/thread.ts",
+          "bytes": 1188,
+          "sha256": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da"
+        },
+        {
+          "path": "dist/templates/todos/snapback/tests/todos.test.ts",
+          "bytes": 560,
+          "sha256": "c3916dc63af647da48bbc1900657d4c4e9028923772dbf1853dbbea352e41cdc"
+        },
+        {
+          "path": "dist/expo/token-store.d.ts",
+          "bytes": 363,
+          "sha256": "c64059a4fd3ccc267e38f025333f2341f2d07776049a076f4094dfa08d67496e"
+        },
+        {
+          "path": "dist/token-store.d.ts",
+          "bytes": 498,
+          "sha256": "db0fd9b01851eb8fcab8f26f20f5a8c7ca125c395236235697b817a617a3712c"
+        },
+        {
+          "path": "dist/tombstones.d.ts",
+          "bytes": 308,
+          "sha256": "3951ae696167a3714b8e6d1d991e879d7e098cb0e999981e67abf8b04f2e9507"
+        },
+        {
+          "path": "dist/twin-hydrate.d.ts",
+          "bytes": 1321,
+          "sha256": "e853292f87506e662d4a72361549346b9d9d08b980a2f187da76dcc8f59742b3"
+        },
+        {
+          "path": "dist/twin-store.d.ts",
+          "bytes": 1927,
+          "sha256": "11176902be84f12381e797ea9331357f7d58a9ed06eedfd0743a24fee51ca46c"
+        },
+        {
+          "path": "dist/twin.d.ts",
+          "bytes": 2951,
+          "sha256": "d97110f7f24229eae56d3997e784b453d8e9679c3abf594d88db8491c9a097b4"
+        },
+        {
+          "path": "dist/evaluator/src/types.d.ts",
+          "bytes": 6318,
+          "sha256": "f133be7413811c69391d4c3385664d2f66e6fe27ab54545de4b3a70f0f3dcefc"
+        },
+        {
+          "path": "dist/types.d.ts",
+          "bytes": 24694,
+          "sha256": "44b65cae57ec3803388e25cda0396ad1f9e0f469e8c315aee15e2161e0ade737"
+        },
+        {
+          "path": "dist/evaluator/dist/unicode-tables.d.ts",
+          "bytes": 235,
+          "sha256": "09b3ded1f24361650a924bf057daf87a7534082b07b96c2d961ac78cedcdcd9d"
+        },
+        {
+          "path": "dist/evaluator/src/unicode-tables.d.ts",
+          "bytes": 603,
+          "sha256": "8bb65c20e42f45866b1b0239c119b86e695de78ca2e077050e4e4997e82c3fcd"
+        },
+        {
+          "path": "dist/evaluator/src/unicode.d.ts",
+          "bytes": 2771,
+          "sha256": "93707e0fd2e368cf6b95725be3e2ed1e00691a670ae6607198652e4abcf18a8e"
+        },
+        {
+          "path": "dist/evaluator/src/value-runtime.d.ts",
+          "bytes": 5029,
+          "sha256": "9653ce42907831d91afa0cf5ef287a81d10260ac74261f64fb222c5d1481cf59"
+        },
+        {
+          "path": "dist/templates/chat/react/vite.config.ts",
+          "bytes": 903,
+          "sha256": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd"
+        },
+        {
+          "path": "dist/templates/react/vite.config.ts",
+          "bytes": 903,
+          "sha256": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/witness-state.ts",
+          "bytes": 4436,
+          "sha256": "9b8bb4c4708e280b5297a46a5984f616458adbf09b4be2ec5793e4b74d1596d2"
+        },
+        {
+          "path": "dist/expo/witness.d.ts",
+          "bytes": 1509,
+          "sha256": "6a55f5fe5ae5b49bd0097f2e3a649331c5f7c481946dba76e90a6c6ca043c71f"
+        },
+        {
+          "path": "dist/templates/chat/react/src/witness.ts",
+          "bytes": 841,
+          "sha256": "1fa06a939f7b0b779f3b9ee03f34e9fc69a0d7585e8dedf21a79eec325e7894c"
+        },
+        {
+          "path": "dist/templates/chat/expo/App.tsx",
+          "bytes": 1150,
+          "sha256": "74985dad2ae6aa014cb314d89d19c2291016085f6b1c14da47fd29ac4d674478"
+        },
+        {
+          "path": "dist/templates/chat/react/src/App.tsx",
+          "bytes": 1984,
+          "sha256": "0b3cbd8d70755b685a2780e47f992d6bbfb01ecb283fcf005d1345fcfe3ca174"
+        },
+        {
+          "path": "dist/templates/react/src/App.tsx",
+          "bytes": 305,
+          "sha256": "265551930aee24ff6db406d3bef55e7a7e28cb205005b7a87ef7f9ab7a803524"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Auth.tsx",
+          "bytes": 2255,
+          "sha256": "4911d68902f8440903e976e9ff14fec13f66dcd6b851d63aedc31c92067913bc"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Auth.tsx",
+          "bytes": 2096,
+          "sha256": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769"
+        },
+        {
+          "path": "dist/templates/react/src/Auth.tsx",
+          "bytes": 2096,
+          "sha256": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Chat.tsx",
+          "bytes": 2320,
+          "sha256": "113c9111c65c1b43835a42620aea46e64520fe62ff8e456a7b11d609cc96393c"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Composer.tsx",
+          "bytes": 3418,
+          "sha256": "d1f55e4ec16c5c02b21c0e56089467481a11832307cfe8a5ca2a774462234c7f"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Composer.tsx",
+          "bytes": 3290,
+          "sha256": "b7e7d680c485fc35b895bcac36b8dd9bed4dd7bd4c8369d815a127ae00366096"
+        },
+        {
+          "path": "dist/templates/chat/react/src/EditMessage.tsx",
+          "bytes": 2653,
+          "sha256": "719864313760241e2a81b603cf2803f64cfd57b3e704fe62d99d66f5b84dcff4"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Inbox.tsx",
+          "bytes": 1880,
+          "sha256": "9f6ade12b284a5001caffde0bdebddaa8903b8e480bc5a57008a3e075e067c7d"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Inbox.tsx",
+          "bytes": 2049,
+          "sha256": "e8c0d8266333710cb22984ea77b4e97576640f724a5365c47e6c385af0e0ae82"
+        },
+        {
+          "path": "dist/templates/chat/react/src/main.tsx",
+          "bytes": 624,
+          "sha256": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0"
+        },
+        {
+          "path": "dist/templates/react/src/main.tsx",
+          "bytes": 624,
+          "sha256": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/MediaView.tsx",
+          "bytes": 2005,
+          "sha256": "3569b07bebfe17e295070a74b2f98168b44494eb8be1c5cf80695d6e432a07bf"
+        },
+        {
+          "path": "dist/templates/chat/react/src/MessageMedia.tsx",
+          "bytes": 3025,
+          "sha256": "58ce9d17ea4a64a2495df2d2cc1cbb60e95ba672053ee2cfb8b8db53247d1cb8"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/NewConversation.tsx",
+          "bytes": 1541,
+          "sha256": "45273a371d28a96c3f7c86b8d90ace9b89d2cf91f0c8924b9ee4a8bf0923f644"
+        },
+        {
+          "path": "dist/templates/chat/react/src/NewConversation.tsx",
+          "bytes": 1461,
+          "sha256": "29d77295651f58395feb0323e84f66b7efdd0d6ee308933c2ef8a1fbec41cbb6"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Search.tsx",
+          "bytes": 2272,
+          "sha256": "2024b63528f681c5e2f81b46b100d1610b2cbfed32305c07d2b9ee953119b069"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Search.tsx",
+          "bytes": 2438,
+          "sha256": "047ce48e1cde1d6ae5a9acb69277ea13ae2d05a3172659eabb635d3fe1509c77"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Thread.tsx",
+          "bytes": 3797,
+          "sha256": "c9a0435c54417105a8fd1c3d36c2315399de9a6e9f11f85d9324eea5fdd80159"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Thread.tsx",
+          "bytes": 5668,
+          "sha256": "e2e8999ad6804c911148f96183ed105c4b19d21b794fa9cfcf39acc5210d8bce"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Witness.tsx",
+          "bytes": 11115,
+          "sha256": "3df1258a2480e5ca0720b1442fb61195b296ed3b894932a8d9b290b4de62badc"
+        },
+        {
+          "path": "dist/unicode-LICENSE.txt",
+          "bytes": 1995,
+          "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+        },
+        {
+          "path": "android/src/main/AndroidManifest.xml",
+          "bytes": 72,
+          "sha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066"
+        }
+      ]
+    },
+    {
+      "package": "snapback2-linux-x64",
+      "version": "0.0.29",
+      "tarballSha256": "1abc233bb3c7cb10d7c5d6639b56af67ae407194f35ec1dfb8f2bdf04bd75364",
+      "files": [
+        {
+          "path": "bin/snapback2",
+          "bytes": 47923224,
+          "sha256": "2b0d8d201fc38dc5c0fd2bc8e4a4e9ad9d43358c741f4a9eed949d2d52fbaa46"
+        },
+        {
+          "path": "bin/snapback2-media",
+          "bytes": 3925096,
+          "sha256": "dc143dae684f7966843a869c6e38d05baed596fb7c9627e8e832f9c0cd9ec1e0"
+        },
+        {
+          "path": "package.json",
+          "bytes": 355,
+          "sha256": "218ffa7c7bfc7d115624f8e3e0ed635b719c66f1334d5eaf476b09e9ecd8ac5b"
+        },
+        {
+          "path": "README.md",
+          "bytes": 293,
+          "sha256": "ec5adb95b3dfb0bacd8598881948aee053300dbd48bac66480909bf4d83ed36d"
+        }
+      ]
+    }
+  ]
+}

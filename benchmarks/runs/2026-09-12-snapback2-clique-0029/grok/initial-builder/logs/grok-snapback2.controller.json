@@ -1,0 +1,14 @@
+{
+  "controllerPid": 3870208,
+  "launcherPid": 3870210,
+  "command": [
+    "python3",
+    "scripts/launch.py",
+    "grok",
+    "snapback2"
+  ],
+  "startedEpoch": 1789191903.9283445,
+  "cwd": "/home/ccheever/clique-0029-20260912",
+  "exit": 0,
+  "endedEpoch": 1789206137.5144448
+}

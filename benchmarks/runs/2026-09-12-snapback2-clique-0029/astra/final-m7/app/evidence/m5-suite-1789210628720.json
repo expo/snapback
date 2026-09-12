@@ -1,0 +1,66 @@
+{
+  "milestone": "m5",
+  "pass": true,
+  "at": 1789210628720,
+  "required": [
+    "m5-a04",
+    "m5-a05",
+    "m5-a08",
+    "m5-a09",
+    "m5-a10",
+    "m5-a11"
+  ],
+  "covered": [
+    "m5-a04",
+    "m5-a05",
+    "m5-a08",
+    "m5-a09",
+    "m5-a10",
+    "m5-a11"
+  ],
+  "missing": [],
+  "results": [
+    {
+      "name": "view-once first open renders authorized bytes",
+      "ids": [
+        "m5-a04"
+      ],
+      "pass": true
+    },
+    {
+      "name": "closing ends view and second open refused",
+      "ids": [
+        "m5-a05"
+      ],
+      "pass": true
+    },
+    {
+      "name": "non-admin group rename refused",
+      "ids": [
+        "m5-a08"
+      ],
+      "pass": true
+    },
+    {
+      "name": "people prefix finds Carol",
+      "ids": [
+        "m5-a09"
+      ],
+      "pass": true
+    },
+    {
+      "name": "scoped seeded text search",
+      "ids": [
+        "m5-a10"
+      ],
+      "pass": true
+    },
+    {
+      "name": "global results grouped by chat",
+      "ids": [
+        "m5-a11"
+      ],
+      "pass": true
+    }
+  ]
+}

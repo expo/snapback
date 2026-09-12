@@ -1,0 +1,170 @@
+{
+  "at": "2026-09-12T06:47:29.522020+00:00",
+  "status": "PREPARED ONLY; no inference or scorer started",
+  "verifiedVersions": {
+    "codex": "codex-cli0.154.0",
+    "grok": "grok1.0.30 (04b7ffed98c6) [stable]"
+  },
+  "help": [
+    {
+      "command": [
+        "/Users/ccheever/.volta/bin/codex",
+        "exec",
+        "--help"
+      ],
+      "exit": 0,
+      "file": "codex-exec-help.txt",
+      "sha256": "0e82cfde0122715250e93dc65866caa956b2ac5b9d0b20ec4ad4f9e81486509e"
+    },
+    {
+      "command": [
+        "/Users/ccheever/.volta/bin/codex",
+        "features",
+        "list"
+      ],
+      "exit": 0,
+      "file": "codex-features.txt",
+      "sha256": "362e789b2c2f10bdf217c2dc6fb67cf5b745cde0ba7978b9a4daf8f0ee29edb2"
+    },
+    {
+      "command": [
+        "/Users/ccheever/.local/bin/grok",
+        "--help"
+      ],
+      "exit": 0,
+      "file": "grok-help.txt",
+      "sha256": "cda6873e2f90a7d77de94c2e3026794671fac04b2e40ac74e4d91f429f829403"
+    },
+    {
+      "command": [
+        "/Users/ccheever/.local/bin/grok",
+        "usage",
+        "--help"
+      ],
+      "exit": 0,
+      "file": "grok-usage-help.txt",
+      "sha256": "4a575f5e1d2c9eb0b3a98e8b1d733d90e3ff03d3b85b66ad73ee739ed65b735b"
+    }
+  ],
+  "codex": {
+    "argv": [
+      "/Users/ccheever/.volta/bin/codex",
+      "-a",
+      "never",
+      "exec",
+      "--ignore-user-config",
+      "--ignore-rules",
+      "--ephemeral",
+      "--skip-git-repo-check",
+      "-C",
+      "<EMPTY_SCORER_CWD>",
+      "-s",
+      "read-only",
+      "-m",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=\"xhigh\"",
+      "-c",
+      "web_search=\"disabled\"",
+      "-c",
+      "project_doc_max_bytes=0",
+      "--disable",
+      "shell_tool",
+      "--disable",
+      "unified_exec",
+      "--disable",
+      "browser_use",
+      "--disable",
+      "computer_use",
+      "--disable",
+      "image_generation",
+      "--disable",
+      "view_image",
+      "--disable",
+      "multi_agent",
+      "--disable",
+      "apps",
+      "--disable",
+      "plugins",
+      "--disable",
+      "hooks",
+      "--disable",
+      "sleep_tool",
+      "--disable",
+      "goals",
+      "--json",
+      "--color",
+      "never",
+      "-o",
+      "<OUTPUT>/astra.last.txt",
+      "-"
+    ],
+    "stdin": "Open the frozen assembled prompt file directly as child stdin. The trailing dash is the documented stdin prompt spelling. Do not pass evidence on argv.",
+    "stdout": "astra.events.jsonl (all raw --json events)",
+    "stderr": "astra.stderr.log",
+    "finalMessage": "astra.last.txt; preserve fenced JSON requested by existing rubric",
+    "singleTurn": "New exec, no resume/fork. No documented max-turns flag was found; require a single completed scorer turn and zero tool events after completion.",
+    "toolPosture": "Prompt-only overall restriction plus documented feature reductions and read-only sandbox. This is NOT a proved global tool disable: no top-level no-tools flag appears in exec help, and remaining tools must be audited. Feature names above are present in installed features list.",
+    "configCustody": "-c supports TOML overrides; model_reasoning_effort, web_search and project_doc_max_bytes are established Codex config spellings, but exec help itself does not enumerate their schema. No inference-based resolution or served-model attestation was performed.",
+    "isolation": "Fresh empty directory outside repos/actor packets, --ignore-user-config/--ignore-rules, project_doc_max_bytes=0, plugins/hooks off. Auth remains in existing CODEX_HOME. Do not copy credentials or change auth configuration."
+  },
+  "grok": {
+    "argv": [
+      "/Users/ccheever/.local/bin/grok",
+      "--model",
+      "grok-4.6",
+      "--reasoning-effort",
+      "xhigh",
+      "--cwd",
+      "<EMPTY_SCORER_CWD>",
+      "--session-id",
+      "<FRESH_UUID>",
+      "--prompt-file",
+      "<FROZEN_PROMPT_FILE>",
+      "--tools",
+      "",
+      "--disable-web-search",
+      "--no-subagents",
+      "--no-plan",
+      "--permission-mode",
+      "dontAsk",
+      "--max-turns",
+      "1",
+      "--verbatim",
+      "--output-format",
+      "streaming-messages-json"
+    ],
+    "stdin": "Not needed; --prompt-file is explicitly documented single-turn input. Do not assume Grok reads a trailing dash from stdin.",
+    "stdout": "grok.events.jsonl, native documented streaming-messages-json (Anthropic Messages wire-shaped stream)",
+    "stderr": "grok.stderr.log",
+    "singleTurn": "--prompt-file plus --max-turns1, fresh --session-id; omit --continue/--resume/fork-session",
+    "toolPosture": "--tools is documented as a built-in allowlist; empty string is supplied as the empty list. --disable-web-search and --no-subagents explicitly disable those capabilities. Help does not prove empty-list implementation semantics, MCP/plugin removal, or a global all-tools ban. Treat this as requested CLI restriction plus prompt-only fallback until raw events confirm zero calls. --permission-mode dontAsk is not itself a no-tools guarantee.",
+    "usageFollowup": "After a completed scorer, grok usage <FRESH_UUID>1 is a documented read-only persisted per-turn usage lookup if the raw stream lacks settled usage. Do not call it before scoring or invent missing usage.",
+    "modelCustody": "Keep requested exact model/effort in invocation metadata; record returned model and usage only if emitted. --verbatim documents sending the prompt exactly as given, but help alone does not prove all global/project system context is absent."
+  },
+  "custody": {
+    "beforeLaunch": [
+      "Hash immutable assembled prompt and original rubric; record permitted input-file hashes and missing-file declarations already required by preparation.json.",
+      "Record exact argv, CLI versions/resolved executable path, cwd, requested model/effort, UTC start and the spawned PID/process group. Use existing supervision; no new runner is created here."
+    ],
+    "afterCompletion": [
+      "Keep raw stdout/stderr, unmodified final text, exit code or signal, end time, and actual emitted session/turn IDs.",
+      "Verify zero tool/function/command/MCP/web/subagent events, including denied attempts; if any appear, scorer does not satisfy the no-tools condition. Preserve it as invalid rather than silently accepting its number.",
+      "Verify one completed response, parse exactly one fenced JSON block under the unchanged rubric, and retain model-reported fields separately from requested model metadata.",
+      "Record native settled usage verbatim if available; unavailable is null/unavailable, never estimated or borrowed from another run.",
+      "Capture PID exit. A CLI or shared leader may create child/session processes; distinguish launcher PID from any persistent pre-existing daemon and do not kill foreign actors."
+    ]
+  },
+  "rubricPreservation": {
+    "rubric": "/Users/ccheever/projects/snapback-1023-20260912/scoring-preparation/rubric.template.md",
+    "rubricSha256": "85bc1180b8d73d72b4bc5da143f0cb1331d747972156da0e485cea41db5358c5",
+    "preparationSha256": "d1253542f2a56be65596b9016c147a270734a07a1c6b3e70a856f522cfd8f109",
+    "modified": false,
+    "note": "Do not add --output-schema or --json-schema: the fixed rubric asks for a fenced JSON block in model text. JSON event output wraps that text without changing the requested scoring format."
+  },
+  "limits": [
+    "No inference request, model availability resolution or tools-negative-control call was made.",
+    "No token cap is specified by this scorer task or enforced by these commands. Grok max-turns is not a token cap; Codex help exposes no max-turns option.",
+    "No auth changes, remote benchmark packet reads, live actor sources/narratives or runner mutations."
+  ]
+}

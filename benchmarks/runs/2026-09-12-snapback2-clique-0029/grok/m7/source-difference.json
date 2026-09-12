@@ -1,0 +1,112 @@
+{
+  "modified": [
+    {
+      "path": "API.md",
+      "before": "79813172f3f83471fdaaee95c65809c18910afb82b2110ef86c4305fbd18ce2e",
+      "after": "73fd9b00f1183bc498173453b15eb66b9a19c42380d39a64cbcd571093d02a54"
+    },
+    {
+      "path": "scripts/acceptance.mjs",
+      "before": "e2090b75cd3dd9bcfb933d153a6ccd5ee1b5fbe44a602cbc5f7f5cf6bfa49a4a",
+      "after": "521125d44771d546cf198fd221c8075151360341ff18badd76e3d2ffe6d1ebaa"
+    },
+    {
+      "path": "app/conversation/[handle].tsx",
+      "before": "32aa2a559077e48f95ba521618ce05010d378e4b0eda52a8631350d8b5726ade",
+      "after": "e2269ae7d359e4d6f615fd7aad2707c00a7757ccef9178f60fab1b0430952368"
+    },
+    {
+      "path": "app/conversation/group/[group]/settings.tsx",
+      "before": "a836beaff85d5fd3a5a48bf728843f64b652d13ba9edb718e28bde9568a426e4",
+      "after": "ad5d451c6ba36c7c3b54e6515d70390272f7b409657cd6fbc4537fe8fb4dc628"
+    },
+    {
+      "path": "snapback/admin.q",
+      "before": "73c6b1cec0526726bf431f773625cf570242bc715835e232316b622df4eb16bb",
+      "after": "a3bd135bf1a3ba76aae93bf370d3d4775d26d3836a682957cb9fe18a54565682"
+    },
+    {
+      "path": "snapback/feeds.q",
+      "before": "9259c172c00e947441669d9d10fb28819fb971c8d280632e04d6f3704a83a0a4",
+      "after": "10e31140983937293a0a01da127b02c71e71d6e5892bed8d4089ac561cb7b94f"
+    },
+    {
+      "path": "snapback/groups.q",
+      "before": "6d4567154ac2a17d2226c245bb4b6f95624f4a7d6d68ea74b71942f5ff1caa23",
+      "after": "4ee6fe762251c181fd6e9edbeff8a28f563367803fa40f5335c036a0491b8479"
+    },
+    {
+      "path": "snapback/messages.q",
+      "before": "7126bc736cad38fa8ef509be155e9f66ca9a12e61dbb0906b7c7a1c048dbfa08",
+      "after": "8a2f63e1a9eb96e405628e02947813fb8916e2a433bc71fb35362dc820a4848c"
+    },
+    {
+      "path": "snapback/schema.q",
+      "before": "5d6d7aeade16a57acf45caed5f76c36c79bf7ea10a2bc048209409b815c4744c",
+      "after": "c6ab29d23bc39be1aad473d04b8582fefc3b3e6872b26c7cbfb458e56e1eaf55"
+    },
+    {
+      "path": "receipts/suite-m1.json",
+      "before": "1602c1e6e3a96568cf17f2a02876f63f72e562539b12e91a9ae4eec370b0d5dc",
+      "after": "e3fdf07acf1b5d431cfd42ce4b7995dae7c8212ce875c0fedd9ba4577f1cca20"
+    },
+    {
+      "path": "receipts/suite-m2.json",
+      "before": "de1fa731b38db4138071ae780149003bb6e2d89107203a24fe2ac024b6a2d5b9",
+      "after": "be7401e5def2f87c9dc14142bab1e7626fa9726e772d7dcc0b2d987d56e4d65e"
+    },
+    {
+      "path": "receipts/suite-m3.json",
+      "before": "ce4421dd4774ada3bae3f3dd67f9a126ca1e7606599ad94309a959af499d3e17",
+      "after": "f312a84d5031a6cc3ddb6987feb99e57ad202913e54e24f09241fccb5df4f449"
+    },
+    {
+      "path": "receipts/suite-m4.json",
+      "before": "183097e5d3ab06b641f7f74441b4c79a92cd4fa52b5b6a4d6e9ecaed7aee3e1e",
+      "after": "77efb154542839311e1e3c86a644bd79bbf89f2fc882cb8c1805d04c7c9ed8fc"
+    },
+    {
+      "path": "receipts/suite-m5.json",
+      "before": "6634e8b3cd216eeb0b09208c816986f710d6410b4f0b83692894408c1b4c68b8",
+      "after": "16a950261e8d35e9cb1a4307cc0ff77b82759b453d9feb5ed04d51826ca25c5d"
+    },
+    {
+      "path": "receipts/suite-m7.json",
+      "before": "d419778d1c49b16a6c121d92d1d68a80a81791136ab54b7d072d55e930e2593f",
+      "after": "eaf521ce0697999cf8f5f2be0aacb75a7a2fe56fcdea1b411107a483c68cca09"
+    },
+    {
+      "path": "receipts/suite-m8.json",
+      "before": "406484f0349872f573775b0c97dd13771e1a799eec08fdfd5112c139f59007be",
+      "after": "ce5199cf98e895f57f744c2f5e61489e90be6d8d2f22a914199e9c1f11d8af7c"
+    },
+    {
+      "path": "receipts/suite-status.json",
+      "before": "f675f33aa4ae0c9275c7ee8544a80ab120f996ac13a68176d8b6c5c770cb5f78",
+      "after": "b54336e9d8e437acba530fa579950016ad963ed1b8aa88bf39967a0b68e0e6ed"
+    }
+  ],
+  "missing": [],
+  "added": [
+    "scripts/compare-m7-snapshot.mjs",
+    "scripts/export-m7-snapshot.mjs",
+    "scripts/m7-seed-poll.mjs",
+    "app/conversation/[handle]/settings.tsx",
+    "receipts/choreo-m7.jsonl",
+    "receipts/choreo-m7.jsonl.observations.jsonl",
+    "m7/diary.md",
+    "m7/essay-paragraphs.md",
+    "m7/final-report.md",
+    "m7/run-log.md",
+    "m7/snapshot-compare.json",
+    "m7/pre-snapshot/alice.json",
+    "m7/pre-snapshot/bob.json",
+    "m7/pre-snapshot/carol.json",
+    "m7/pre-snapshot/dave.json",
+    "m7/pre-snapshot/erin.json",
+    "m7/pre-snapshot/frank.json",
+    "m7/pre-snapshot/grace.json",
+    "m7/pre-snapshot/henry.json",
+    "m7/pre-snapshot/manifest.json"
+  ]
+}

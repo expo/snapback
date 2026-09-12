@@ -1,0 +1,83 @@
+{
+  "wave": "astra",
+  "phase": "grade",
+  "invocation": "f9528f52-5282-47ae-a0b1-42ffe6c2797f",
+  "controller": {
+    "pid": 829976,
+    "startTicks": "156466649",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+  },
+  "started": 1789205748.2333367,
+  "credentialTransport": "private stdin to child environment only",
+  "builderEnd": {
+    "lane": "astra-snapback2",
+    "pid": 3569177,
+    "startedEpoch": 1789191374,
+    "endedEpoch": 1789205055,
+    "exit": 0,
+    "interrupted": null,
+    "nativeManifest": "/home/ccheever/clique-0029-20260912/native/codex/astra-snapback2-builder/manifest.json",
+    "waitError": null,
+    "nativeCaptureError": null,
+    "nativeTreeStatus": "retained",
+    "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller"
+  },
+  "preflight": "/home/ccheever/clique-0029-20260912/preflight/pre-astra-grader.f9528f52-5282-47ae-a0b1-42ffe6c2797f.json",
+  "preflightOutcome": {
+    "phase": "grade-preflight",
+    "invocation": "f9528f52-5282-47ae-a0b1-42ffe6c2797f",
+    "started": 1789205748.3862736,
+    "pid": 829977,
+    "childBirth": {
+      "pid": 829977,
+      "startTicks": "156466667",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+    },
+    "processGroup": 829977,
+    "childExit": 0,
+    "childReaped": true,
+    "childSignal": null,
+    "interrupted": null,
+    "ended": 1789205750.0920572,
+    "exit": 0
+  },
+  "command": [
+    "/usr/bin/python3",
+    "-u",
+    "scripts/grade.py",
+    "astra",
+    "snapback2"
+  ],
+  "childOutcome": {
+    "phase": "frozen-grade-wrapper",
+    "invocation": "f9528f52-5282-47ae-a0b1-42ffe6c2797f",
+    "started": 1789205750.0928404,
+    "pid": 830364,
+    "childBirth": {
+      "pid": 830364,
+      "startTicks": "156466837",
+      "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+    },
+    "processGroup": 830364,
+    "childExit": 0,
+    "childReaped": true,
+    "childSignal": null,
+    "interrupted": null,
+    "ended": 1789209760.5729113,
+    "exit": 0
+  },
+  "exit": 0,
+  "ended": 1789209760.5734565,
+  "interrupted": null,
+  "frozenGraderEnd": {
+    "lane": "astra-snapback2",
+    "phase": "grade",
+    "pid": 830365,
+    "startedEpoch": 1789205750,
+    "endedEpoch": 1789209760,
+    "exit": 0,
+    "interrupted": null,
+    "waitError": null
+  },
+  "cleanupUnresolved": false
+}

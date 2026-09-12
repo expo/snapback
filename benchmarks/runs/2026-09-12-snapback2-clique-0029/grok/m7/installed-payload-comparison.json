@@ -1,0 +1,1571 @@
+{
+  "reference": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/benchmark-public-payloads.json",
+  "referenceSha256": "1d5ba690dd96f6c5838e35f4d1b4f1065391752a5a2748ca027057435da8de7d",
+  "packages": [
+    {
+      "package": "snapback2",
+      "expectedVersion": "0.0.29",
+      "actualVersion": "0.0.29",
+      "matches": 253,
+      "missing": 0,
+      "mismatches": 0,
+      "unlisted": [],
+      "files": [
+        {
+          "path": "dist/templates/chat/expo/metro.config.cjs",
+          "expected": "f67436eac4e420b92a9697d2f457f599d77fbba0651652a307b3c7f5d7dd46cc",
+          "actual": "f67436eac4e420b92a9697d2f457f599d77fbba0651652a307b3c7f5d7dd46cc",
+          "status": "match"
+        },
+        {
+          "path": "android/build.gradle",
+          "expected": "e112b47c8c28d061c164f8033dafc6d0679badd3b5d54a6637e2665f3c8069e1",
+          "actual": "e112b47c8c28d061c164f8033dafc6d0679badd3b5d54a6637e2665f3c8069e1",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/index.html",
+          "expected": "733ae95dfcba812c06ebfedd7faba00a70987acc4b781953284005cb77d9713a",
+          "actual": "733ae95dfcba812c06ebfedd7faba00a70987acc4b781953284005cb77d9713a",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/index.html",
+          "expected": "6356b58a8c2c0743e542edb7cfb07899305ccff43510d574fedaedd983fc4c7c",
+          "actual": "6356b58a8c2c0743e542edb7cfb07899305ccff43510d574fedaedd983fc4c7c",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/fixtures/photo.jpg",
+          "expected": "e00771915c18a0c0419b6104666f24a1316a93a364356cc0bc4d71bfdd9bd297",
+          "actual": "e00771915c18a0c0419b6104666f24a1316a93a364356cc0bc4d71bfdd9bd297",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/app.config.js",
+          "expected": "cb7bef3b0e940260e0aa65503e2eea624adff0db84e8dada159ef34334d229df",
+          "actual": "cb7bef3b0e940260e0aa65503e2eea624adff0db84e8dada159ef34334d229df",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/index.js",
+          "expected": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b",
+          "actual": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/recipes/quarry-window-config.js",
+          "expected": "b23c20c3d5b6d24a637eb1c533dad39ce54ebd22046be121c641e278a1ba02da",
+          "actual": "b23c20c3d5b6d24a637eb1c533dad39ce54ebd22046be121c641e278a1ba02da",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/app.json",
+          "expected": "7eb5a8d38bdee9bcdb0508dc7773514b63c4c2741052b9d9de2c28d1d10855a4",
+          "actual": "7eb5a8d38bdee9bcdb0508dc7773514b63c4c2741052b9d9de2c28d1d10855a4",
+          "status": "match"
+        },
+        {
+          "path": "expo-module.config.json",
+          "expected": "7613bacf02f6f57c0597d694c328ad8d76fe45f352013c52b274ddc36148ef27",
+          "actual": "7613bacf02f6f57c0597d694c328ad8d76fe45f352013c52b274ddc36148ef27",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/families.json",
+          "expected": "dd2222e860829bc5b3ed9be21c79ee9d68cb25855958a01763ca488d5f9f4a9e",
+          "actual": "dd2222e860829bc5b3ed9be21c79ee9d68cb25855958a01763ca488d5f9f4a9e",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/keywords.json",
+          "expected": "51f7228acef8c220d35cd49565bb82268ebe70403d324725bb08cc1cc808175b",
+          "actual": "51f7228acef8c220d35cd49565bb82268ebe70403d324725bb08cc1cc808175b",
+          "status": "match"
+        },
+        {
+          "path": "package.json",
+          "expected": "bf2613e13bd9b2f8f8b0292b0a4dce1dac6f2336fb606976da5d938ab202c47d",
+          "actual": "bf2613e13bd9b2f8f8b0292b0a4dce1dac6f2336fb606976da5d938ab202c47d",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/tsconfig.json",
+          "expected": "bbced9c08dff779a942114c75fd5209c6d1f1b669392a05e6e82cb60ade9c5be",
+          "actual": "bbced9c08dff779a942114c75fd5209c6d1f1b669392a05e6e82cb60ade9c5be",
+          "status": "match"
+        },
+        {
+          "path": "android/src/main/java/expo/modules/snapback2/SnapbackMemoryVideoModule.kt",
+          "expected": "b56498cfc01b300da5ccffc6272b2695ddcaf96990e6a281ed02184c240e26a3",
+          "actual": "b56498cfc01b300da5ccffc6272b2695ddcaf96990e6a281ed02184c240e26a3",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-observed-test.mjs.map",
+          "expected": "9c6147c6065aae777ae05cb0673fd3338a15231efd01f21ca23f0e4420cf2bfc",
+          "actual": "9c6147c6065aae777ae05cb0673fd3338a15231efd01f21ca23f0e4420cf2bfc",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-runtime.mjs.map",
+          "expected": "2a37b57d0bf876fa1cbef0dbc8ea913643eb0f138115586efbb3b9e81752d121",
+          "actual": "2a37b57d0bf876fa1cbef0dbc8ea913643eb0f138115586efbb3b9e81752d121",
+          "status": "match"
+        },
+        {
+          "path": "dist/client.mjs.map",
+          "expected": "58980b5ba3cba2a958529debf3684ac77e62aedc1fd080ac3f89760e4a65fc5d",
+          "actual": "58980b5ba3cba2a958529debf3684ac77e62aedc1fd080ac3f89760e4a65fc5d",
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler-core.mjs.map",
+          "expected": "28ad08c25c295c394e5a7da794abe4efafea885b0a3857241f1982c92567756f",
+          "actual": "28ad08c25c295c394e5a7da794abe4efafea885b0a3857241f1982c92567756f",
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler.mjs.map",
+          "expected": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7",
+          "actual": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo.mjs.map",
+          "expected": "40b0d9cbfef95e19148c4421771fbd4011c0d6cae5812196371022b74d4e8513",
+          "actual": "40b0d9cbfef95e19148c4421771fbd4011c0d6cae5812196371022b74d4e8513",
+          "status": "match"
+        },
+        {
+          "path": "dist/global-search-pager.mjs.map",
+          "expected": "ad5c0b0027ed3b473233f6378568c675c4262addb3c63fd221215be963fd0259",
+          "actual": "ad5c0b0027ed3b473233f6378568c675c4262addb3c63fd221215be963fd0259",
+          "status": "match"
+        },
+        {
+          "path": "dist/image-runtime.mjs.map",
+          "expected": "85104b27e930fad4907ffe94b1328ac53f2f25b8d3401b08595b07fb0f348b07",
+          "actual": "85104b27e930fad4907ffe94b1328ac53f2f25b8d3401b08595b07fb0f348b07",
+          "status": "match"
+        },
+        {
+          "path": "dist/index.mjs.map",
+          "expected": "a7942d5e052603fa91a0e273f37d15f232fe531b95ee4b96804ba9f4be4d5d7c",
+          "actual": "a7942d5e052603fa91a0e273f37d15f232fe531b95ee4b96804ba9f4be4d5d7c",
+          "status": "match"
+        },
+        {
+          "path": "dist/internal.mjs.map",
+          "expected": "c4e299f01e4efa36a05f82d65dd0e3c3212a970203695f9f92ecf871e59fe8b3",
+          "actual": "c4e299f01e4efa36a05f82d65dd0e3c3212a970203695f9f92ecf871e59fe8b3",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-core.mjs.map",
+          "expected": "6328818b1263c2365c943f75a531ef5ea8a33617c70e997fde23e14410f69955",
+          "actual": "6328818b1263c2365c943f75a531ef5ea8a33617c70e997fde23e14410f69955",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native.mjs.map",
+          "expected": "e26a5b64639c634a593d0372866b1aeed004e268cf2e98e098e057161a98df0f",
+          "actual": "e26a5b64639c634a593d0372866b1aeed004e268cf2e98e098e057161a98df0f",
+          "status": "match"
+        },
+        {
+          "path": "dist/react.mjs.map",
+          "expected": "57baeed62a9b4eb62caf1f4fe4fe5b61047c46e562b43b29f41a33954cf8fa31",
+          "actual": "57baeed62a9b4eb62caf1f4fe4fe5b61047c46e562b43b29f41a33954cf8fa31",
+          "status": "match"
+        },
+        {
+          "path": "dist/sqlite-test.mjs.map",
+          "expected": "117a957009fb6ae82dde114a0f5ff088bd0875dd72bc414f606f2f4b01012e45",
+          "actual": "117a957009fb6ae82dde114a0f5ff088bd0875dd72bc414f606f2f4b01012e45",
+          "status": "match"
+        },
+        {
+          "path": "dist/test-runner.mjs.map",
+          "expected": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "actual": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "status": "match"
+        },
+        {
+          "path": "dist/test.mjs.map",
+          "expected": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "actual": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "status": "match"
+        },
+        {
+          "path": "dist/witness-test.mjs.map",
+          "expected": "7786e13152fbecd8f57b06b8cb1b1592aa43416dadded0c76f5578e40ae21759",
+          "actual": "7786e13152fbecd8f57b06b8cb1b1592aa43416dadded0c76f5578e40ae21759",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/witness.mjs.map",
+          "expected": "24fcce060a914b5d82359f116f300a04fc47481b9cefe7bf3860dbe4012e34cc",
+          "actual": "24fcce060a914b5d82359f116f300a04fc47481b9cefe7bf3860dbe4012e34cc",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/absence.md",
+          "expected": "f8777e5035e7df88a21e2001fbc17b8bd737ade3326d3c0f241abea0c3ad23cb",
+          "actual": "f8777e5035e7df88a21e2001fbc17b8bd737ade3326d3c0f241abea0c3ad23cb",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/assets.md",
+          "expected": "ce9f449a397f8634f64bd7b895276c438e0953bd4c4c7fb3e2f9305d3d425ec3",
+          "actual": "ce9f449a397f8634f64bd7b895276c438e0953bd4c4c7fb3e2f9305d3d425ec3",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/auth.md",
+          "expected": "26b8e05f527256c85d74cc8d7dd8530cf94f0def316adf7fb76dc2f03153f372",
+          "actual": "26b8e05f527256c85d74cc8d7dd8530cf94f0def316adf7fb76dc2f03153f372",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/bounds.md",
+          "expected": "6cba2e1e9c6f9832c8bb121a7c50d820bc1ff7800f04da32ee52d75bf7e80198",
+          "actual": "6cba2e1e9c6f9832c8bb121a7c50d820bc1ff7800f04da32ee52d75bf7e80198",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/deliver.md",
+          "expected": "b99c632c5b827359cd021e7a7583ab761c7f213cdf66c1735ab47188f7590663",
+          "actual": "b99c632c5b827359cd021e7a7583ab761c7f213cdf66c1735ab47188f7590663",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/effects.md",
+          "expected": "18e9d2e7b1e30651a6cb1c88ab303f0d5fb721c063a44cb01c09bad341520d97",
+          "actual": "18e9d2e7b1e30651a6cb1c88ab303f0d5fb721c063a44cb01c09bad341520d97",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/expiry.md",
+          "expected": "87ae168a654a85d7e953b1f552c170067386d88b5daa40bd8d3d46eb638872ee",
+          "actual": "87ae168a654a85d7e953b1f552c170067386d88b5daa40bd8d3d46eb638872ee",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/expressions.md",
+          "expected": "d18f3dc76fa1f972ce3d45c9fb63b4a3c8a5e6a11ff2b14efb60e106a166d45a",
+          "actual": "d18f3dc76fa1f972ce3d45c9fb63b4a3c8a5e6a11ff2b14efb60e106a166d45a",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/fanout.md",
+          "expected": "f574a0e74bff5c2bf6b1850b60fc0aba883d6f9cf9722112bae1c61d68934595",
+          "actual": "f574a0e74bff5c2bf6b1850b60fc0aba883d6f9cf9722112bae1c61d68934595",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/fn.md",
+          "expected": "97dcb35afe7d03d5e54e842bba32fd5bcbef35ae2e26212705d2cc6bf20b0653",
+          "actual": "97dcb35afe7d03d5e54e842bba32fd5bcbef35ae2e26212705d2cc6bf20b0653",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/grammar.md",
+          "expected": "e975c1dedc8683a966903535e8bf5d15f445cc2747f8e17328bf272976e663e0",
+          "actual": "e975c1dedc8683a966903535e8bf5d15f445cc2747f8e17328bf272976e663e0",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/indexes.md",
+          "expected": "6132d82edd9a5bd3a9c8a1105d1124e24c10b28b7f87db8083bd45089073674d",
+          "actual": "6132d82edd9a5bd3a9c8a1105d1124e24c10b28b7f87db8083bd45089073674d",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/job.md",
+          "expected": "bc38d171398468be1f97faf6c9749c3458a05610dd3404cfb863960b91bc9c4c",
+          "actual": "bc38d171398468be1f97faf6c9749c3458a05610dd3404cfb863960b91bc9c4c",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/live-query.md",
+          "expected": "927ebd74b606af48409c56bc9ed13458ae1d90adc2929cafe7bfa4effa242289",
+          "actual": "927ebd74b606af48409c56bc9ed13458ae1d90adc2929cafe7bfa4effa242289",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/maintain.md",
+          "expected": "9c984408bd2570bd738b3218f2787d9b0db5b7d719e5ad162ea3671cee33e0d0",
+          "actual": "9c984408bd2570bd738b3218f2787d9b0db5b7d719e5ad162ea3671cee33e0d0",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/merge.md",
+          "expected": "85415b1d898d51af2e4e52f9779767d87814a4749d752c2b84956ddfd0bc02ff",
+          "actual": "85415b1d898d51af2e4e52f9779767d87814a4749d752c2b84956ddfd0bc02ff",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/money.md",
+          "expected": "95343e92af42d70bc87fd1275313f1dfd22c72a827f89cebd909addf44a70b24",
+          "actual": "95343e92af42d70bc87fd1275313f1dfd22c72a827f89cebd909addf44a70b24",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/offline.md",
+          "expected": "5d27df0dee1a895b4c7245a95f63b8471f3f630be107465912d427339df85db6",
+          "actual": "5d27df0dee1a895b4c7245a95f63b8471f3f630be107465912d427339df85db6",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/operator.md",
+          "expected": "a6db0972a4971f7aed88faa640bdff3666cefe9666212c9a78ec777c4819cad9",
+          "actual": "a6db0972a4971f7aed88faa640bdff3666cefe9666212c9a78ec777c4819cad9",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/pagination.md",
+          "expected": "bb803c2519fcaacb9436d0862db70993c4c0b5d7b6a5f249f48dbdb5ed237c2a",
+          "actual": "bb803c2519fcaacb9436d0862db70993c4c0b5d7b6a5f249f48dbdb5ed237c2a",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/personas.md",
+          "expected": "ac4fff9e83383ac91123d2a72d99c6e1527ce853c33b86b761aa4a354b3a9340",
+          "actual": "ac4fff9e83383ac91123d2a72d99c6e1527ce853c33b86b761aa4a354b3a9340",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/proc.md",
+          "expected": "cb9cb8ab1444512d3ee2a1f39fd3a2863b2524c0b04e192c1cb6f440ecbfebec",
+          "actual": "cb9cb8ab1444512d3ee2a1f39fd3a2863b2524c0b04e192c1cb6f440ecbfebec",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/programs.md",
+          "expected": "3d4bcfce2b99f89211dd19c1ef5487bd0c9db3370d07df725322ad0b027de046",
+          "actual": "3d4bcfce2b99f89211dd19c1ef5487bd0c9db3370d07df725322ad0b027de046",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/quarry.md",
+          "expected": "16a8b73a2973b4e3cec12651bfe804c90e7006bf73b70bce9b6d869a687ded24",
+          "actual": "16a8b73a2973b4e3cec12651bfe804c90e7006bf73b70bce9b6d869a687ded24",
+          "status": "match"
+        },
+        {
+          "path": "guide/README.md",
+          "expected": "3920186215ca7eed5a4321ca29091cda8b3095e0cf1717e26b2208584692f91f",
+          "actual": "3920186215ca7eed5a4321ca29091cda8b3095e0cf1717e26b2208584692f91f",
+          "status": "match"
+        },
+        {
+          "path": "README.md",
+          "expected": "a2ed0e261cd452b5ee28390e7a6a90752998cbebd0588b1dc7831fbd7e9a0ba5",
+          "actual": "a2ed0e261cd452b5ee28390e7a6a90752998cbebd0588b1dc7831fbd7e9a0ba5",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/retain.md",
+          "expected": "fa321893d0a8d9bbc12f23c97ce65b2b15e8ae1fa589cd85af5d833925dc84fc",
+          "actual": "fa321893d0a8d9bbc12f23c97ce65b2b15e8ae1fa589cd85af5d833925dc84fc",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/rules.md",
+          "expected": "e169feb186c4f65be7d4cb0dcb1d4bc68d8e2e68343bf8ebc55674b7e69739a0",
+          "actual": "e169feb186c4f65be7d4cb0dcb1d4bc68d8e2e68343bf8ebc55674b7e69739a0",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/schedule.md",
+          "expected": "f6e67663aa5c330f3193841fdf173b8938ce497ba581b97f4d115fa858f9ba4d",
+          "actual": "f6e67663aa5c330f3193841fdf173b8938ce497ba581b97f4d115fa858f9ba4d",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/shape.md",
+          "expected": "f3855ee713d940c50351a2bf6a25fe5e921ec8c9359f52c2717a02e59a0329c3",
+          "actual": "f3855ee713d940c50351a2bf6a25fe5e921ec8c9359f52c2717a02e59a0329c3",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/successor.md",
+          "expected": "f82a10a764075e60cddfa78c89cb05c7b0816da0358c24556a2829f812e9612b",
+          "actual": "f82a10a764075e60cddfa78c89cb05c7b0816da0358c24556a2829f812e9612b",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/testing.md",
+          "expected": "d55ccf8b0fad1a6b7b83787a0fe76e83ea2c3de5f0ab95a45fbe1bd276e581b9",
+          "actual": "d55ccf8b0fad1a6b7b83787a0fe76e83ea2c3de5f0ab95a45fbe1bd276e581b9",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/types.md",
+          "expected": "fae1c95084d61bdcb893f25da197388f3702be7408f3b18113d9e3e832416d79",
+          "actual": "fae1c95084d61bdcb893f25da197388f3702be7408f3b18113d9e3e832416d79",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/writes.md",
+          "expected": "e3a3fe98041e8b96ecdfbb6a39dfb470ef19ef77bfc16dabc1454f3b42a985f3",
+          "actual": "e3a3fe98041e8b96ecdfbb6a39dfb470ef19ef77bfc16dabc1454f3b42a985f3",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-observed-test.mjs",
+          "expected": "c8f6e916c33327039d2ee031489cbce9a991ae6a696e0d13ad59b41f2fa91782",
+          "actual": "c8f6e916c33327039d2ee031489cbce9a991ae6a696e0d13ad59b41f2fa91782",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-runtime.mjs",
+          "expected": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "actual": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "status": "match"
+        },
+        {
+          "path": "dist/client.mjs",
+          "expected": "e1d771514d7fb9eba17eee373fac162524a5dd802ac84fd14150cea351f46c7a",
+          "actual": "e1d771514d7fb9eba17eee373fac162524a5dd802ac84fd14150cea351f46c7a",
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler-core.mjs",
+          "expected": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "actual": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler.mjs",
+          "expected": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+          "actual": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo.mjs",
+          "expected": "91d9a3c0c2274266eb91a7b5dd5fe8f95096be67eb2033d70b43f3aebc84dd34",
+          "actual": "91d9a3c0c2274266eb91a7b5dd5fe8f95096be67eb2033d70b43f3aebc84dd34",
+          "status": "match"
+        },
+        {
+          "path": "dist/global-search-pager.mjs",
+          "expected": "66690ab3ec84ab0df0c0b0eee880cd752e2f8257be9dbb84e576b2924c0ecd95",
+          "actual": "66690ab3ec84ab0df0c0b0eee880cd752e2f8257be9dbb84e576b2924c0ecd95",
+          "status": "match"
+        },
+        {
+          "path": "dist/image-runtime.mjs",
+          "expected": "f7f6089bce9e9fb9e41facb8ec2f68149a1ee75ba15e423b30c58852975e4f61",
+          "actual": "f7f6089bce9e9fb9e41facb8ec2f68149a1ee75ba15e423b30c58852975e4f61",
+          "status": "match"
+        },
+        {
+          "path": "dist/index.mjs",
+          "expected": "e832f383edbf8acf62ee52b90cfee99de04ca5e2d86963ccc7a9f7ae1e3c752d",
+          "actual": "e832f383edbf8acf62ee52b90cfee99de04ca5e2d86963ccc7a9f7ae1e3c752d",
+          "status": "match"
+        },
+        {
+          "path": "dist/internal.mjs",
+          "expected": "3964b27a799b80d6a276ba0ec6498ec78a7458446d336543a176ca38ce391e04",
+          "actual": "3964b27a799b80d6a276ba0ec6498ec78a7458446d336543a176ca38ce391e04",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-core.mjs",
+          "expected": "30d8fdc0bb5ee92ace99df61fada970c8284f24f078fb46cd660054eebcf180c",
+          "actual": "30d8fdc0bb5ee92ace99df61fada970c8284f24f078fb46cd660054eebcf180c",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native.mjs",
+          "expected": "026546db338f9a38da260485895ed54bed5569aa174819d9a14e23873be67b24",
+          "actual": "026546db338f9a38da260485895ed54bed5569aa174819d9a14e23873be67b24",
+          "status": "match"
+        },
+        {
+          "path": "dist/react.mjs",
+          "expected": "49ad820fb033c3ec09b64efd9d9babb17a6f73b40cd4c412c2c277d8edf610a3",
+          "actual": "49ad820fb033c3ec09b64efd9d9babb17a6f73b40cd4c412c2c277d8edf610a3",
+          "status": "match"
+        },
+        {
+          "path": "bin/snapback2.mjs",
+          "expected": "aebb1591ef95acc6cdd1c32de03dcfea7e295aacafa91663cdd675f353833714",
+          "actual": "aebb1591ef95acc6cdd1c32de03dcfea7e295aacafa91663cdd675f353833714",
+          "status": "match"
+        },
+        {
+          "path": "dist/sqlite-test.mjs",
+          "expected": "bc8e1dea10994a96005278839e4a94ef9048af63d5c6a6034a3a04a8389d8fc3",
+          "actual": "bc8e1dea10994a96005278839e4a94ef9048af63d5c6a6034a3a04a8389d8fc3",
+          "status": "match"
+        },
+        {
+          "path": "dist/test-runner.mjs",
+          "expected": "696ee6a94f774b57717411a33fecbd55d8c693a47b08f6a5163a6e807d71b93c",
+          "actual": "696ee6a94f774b57717411a33fecbd55d8c693a47b08f6a5163a6e807d71b93c",
+          "status": "match"
+        },
+        {
+          "path": "dist/test.mjs",
+          "expected": "b772c4b658f7c0e81dcff9eea0d0926537c5be8045d1856edc5989c555c64d7d",
+          "actual": "b772c4b658f7c0e81dcff9eea0d0926537c5be8045d1856edc5989c555c64d7d",
+          "status": "match"
+        },
+        {
+          "path": "dist/witness-test.mjs",
+          "expected": "ccabb4ef252230f7e798ba2fa80171f201b3a7f047e00aa7702f71ae510f9a91",
+          "actual": "ccabb4ef252230f7e798ba2fa80171f201b3a7f047e00aa7702f71ae510f9a91",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/witness.mjs",
+          "expected": "190b5c4daf3ae0efb0278f7b00db45781e40799e964cd434bb2cc29627d6e3e9",
+          "actual": "190b5c4daf3ae0efb0278f7b00db45781e40799e964cd434bb2cc29627d6e3e9",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/fixtures/clip.mp4",
+          "expected": "0bf2c3c80dab9197eb6a70db98273551d7da76dbc76e1e1203099c81385086b0",
+          "actual": "0bf2c3c80dab9197eb6a70db98273551d7da76dbc76e1e1203099c81385086b0",
+          "status": "match"
+        },
+        {
+          "path": "ios/SnapbackMemoryVideo.podspec",
+          "expected": "63056cfbc843ad0287c65b8165c1a1930b0c361b13b7ddad004a883179bef3b0",
+          "actual": "63056cfbc843ad0287c65b8165c1a1930b0c361b13b7ddad004a883179bef3b0",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/access.q",
+          "expected": "111c2e9ec3c0afc5eda595fbdc052422ef56a1c3ac91cbe3b056643a24867253",
+          "actual": "111c2e9ec3c0afc5eda595fbdc052422ef56a1c3ac91cbe3b056643a24867253",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/feeds.q",
+          "expected": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b",
+          "actual": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/follows.q",
+          "expected": "81cf3ad80e1ae7a220a1bc5b549ab7e7401a6ceebace501db1e188717358fb08",
+          "actual": "81cf3ad80e1ae7a220a1bc5b549ab7e7401a6ceebace501db1e188717358fb08",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/groups.q",
+          "expected": "449e3ce85df65c8e2eea4d11143f49f0813b0548d7216b7b5372162a6d9764e7",
+          "actual": "449e3ce85df65c8e2eea4d11143f49f0813b0548d7216b7b5372162a6d9764e7",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/messages.q",
+          "expected": "5b08259c377f3a396c0c124e1e54badf05de71878093b8b55f5851c16be5d8b7",
+          "actual": "5b08259c377f3a396c0c124e1e54badf05de71878093b8b55f5851c16be5d8b7",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/notifications.q",
+          "expected": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347",
+          "actual": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/posts.q",
+          "expected": "927f749bf552ca788df93b41e494b2361a29c5dddc636dbdb7ed2dfb4a9b863b",
+          "actual": "927f749bf552ca788df93b41e494b2361a29c5dddc636dbdb7ed2dfb4a9b863b",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/profiles.q",
+          "expected": "27f51d315227cf66a59005f93fa458fbabb3689cb1eda0bddd355245f535c6ae",
+          "actual": "27f51d315227cf66a59005f93fa458fbabb3689cb1eda0bddd355245f535c6ae",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/schema.q",
+          "expected": "7f5330c77188f95381cd8f9c81b0400e130dce856aeea82aa382b2040c47f409",
+          "actual": "7f5330c77188f95381cd8f9c81b0400e130dce856aeea82aa382b2040c47f409",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/schema.q",
+          "expected": "8e86ebf772160d075125a1e5cd77bbfad57260ef3952cacc90f951339206cc2b",
+          "actual": "8e86ebf772160d075125a1e5cd77bbfad57260ef3952cacc90f951339206cc2b",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/todos.q",
+          "expected": "bacc72cee40548f50c8fd20b99ddb03f3d8ff9b0448fefe68713be3e356e04ca",
+          "actual": "bacc72cee40548f50c8fd20b99ddb03f3d8ff9b0448fefe68713be3e356e04ca",
+          "status": "match"
+        },
+        {
+          "path": "ios/MemoryVideoSource.swift",
+          "expected": "0f8800aa34aa5877d502543f8f3b0e89818171962680405663988f5e8f3e8667",
+          "actual": "0f8800aa34aa5877d502543f8f3b0e89818171962680405663988f5e8f3e8667",
+          "status": "match"
+        },
+        {
+          "path": "ios/SnapbackMemoryVideoModule.swift",
+          "expected": "8abf764b437b285f0fdefa2a63a35d2fb64c3f9700a2742a360331409d683fb3",
+          "actual": "8abf764b437b285f0fdefa2a63a35d2fb64c3f9700a2742a360331409d683fb3",
+          "status": "match"
+        },
+        {
+          "path": "dist/api.d.ts",
+          "expected": "14d23d817c550dac591fca315657dd66f9f05e9a4319459d6ec85b1ac41a8cf7",
+          "actual": "14d23d817c550dac591fca315657dd66f9f05e9a4319459d6ec85b1ac41a8cf7",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/asset-policy.d.ts",
+          "expected": "5d9a4bcb3fff3747d854804490bfac00d9a9ced47737c72155dffc30164336bb",
+          "actual": "5d9a4bcb3fff3747d854804490bfac00d9a9ced47737c72155dffc30164336bb",
+          "status": "match"
+        },
+        {
+          "path": "dist/assets.d.ts",
+          "expected": "b724c9c610da92fcbe09b309d0b8036160da96a80a1d13aeea1948d39050f37f",
+          "actual": "b724c9c610da92fcbe09b309d0b8036160da96a80a1d13aeea1948d39050f37f",
+          "status": "match"
+        },
+        {
+          "path": "dist/authoring-lib.d.ts",
+          "expected": "9672bbce020231936695d5a1274f495709eaaa55a2a512638eaf9736de5d6de0",
+          "actual": "9672bbce020231936695d5a1274f495709eaaa55a2a512638eaf9736de5d6de0",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/byte-cache.d.ts",
+          "expected": "f183a8bf85748702f8d15637c6931ac81c7886f6da25bfea4f73aaf474c8886f",
+          "actual": "f183a8bf85748702f8d15637c6931ac81c7886f6da25bfea4f73aaf474c8886f",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/canonical.d.ts",
+          "expected": "13c920954c6dbed5e8de0900e354ad0411c65cb0e61fd0ecad6309973bedbd7d",
+          "actual": "13c920954c6dbed5e8de0900e354ad0411c65cb0e61fd0ecad6309973bedbd7d",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/carrier-index.d.ts",
+          "expected": "cff7c2a2326f7e994124db8acadaf564c806d3f2d610022ad5bc914faa5df646",
+          "actual": "cff7c2a2326f7e994124db8acadaf564c806d3f2d610022ad5bc914faa5df646",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/certificate-identity.d.ts",
+          "expected": "8dd443f43338c920b35a65425966424e215dbd493edd187e3cacb4a058fd3e46",
+          "actual": "8dd443f43338c920b35a65425966424e215dbd493edd187e3cacb4a058fd3e46",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/chat.test.ts",
+          "expected": "080c602672697e01c3426de2ea29277d77f6e16a23d44acfd8f3a75699bf0e79",
+          "actual": "080c602672697e01c3426de2ea29277d77f6e16a23d44acfd8f3a75699bf0e79",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-assets.d.ts",
+          "expected": "78c2a775cd41223c4b5bd5e0e15036a35150fa7d2f3d61fda27dc7f9bcdf85ed",
+          "actual": "78c2a775cd41223c4b5bd5e0e15036a35150fa7d2f3d61fda27dc7f9bcdf85ed",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-auth.d.ts",
+          "expected": "98e1d2f0e420eb488b2218870ed7cd8af50db2f6676ba6bf3f111b8bc1e81105",
+          "actual": "98e1d2f0e420eb488b2218870ed7cd8af50db2f6676ba6bf3f111b8bc1e81105",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-channels.d.ts",
+          "expected": "00d6adee44b42143ebd948a26666c2e5540949835617990231738b55e8e440aa",
+          "actual": "00d6adee44b42143ebd948a26666c2e5540949835617990231738b55e8e440aa",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-inbox.d.ts",
+          "expected": "3ed2d349e7c00c612421f4c276bc78178b3b7c82d1990887bd01b3c72ef1c67d",
+          "actual": "3ed2d349e7c00c612421f4c276bc78178b3b7c82d1990887bd01b3c72ef1c67d",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-items.d.ts",
+          "expected": "a66072d1484530a35607c92c729eda00d8b22a4d4f483c64ae63adb7d4b2546e",
+          "actual": "a66072d1484530a35607c92c729eda00d8b22a4d4f483c64ae63adb7d4b2546e",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-mutations.d.ts",
+          "expected": "a7983cb4299a61daa951b3a5d96e5237ccd964927c80f889da220f7f9bcfa2c8",
+          "actual": "a7983cb4299a61daa951b3a5d96e5237ccd964927c80f889da220f7f9bcfa2c8",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-observed.d.ts",
+          "expected": "8a49502789c5099dcf40f16616d39229de14842efd4592743bd5ca001c522352",
+          "actual": "8a49502789c5099dcf40f16616d39229de14842efd4592743bd5ca001c522352",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-offline.d.ts",
+          "expected": "44eee0fa056c32b726f87cea44224f4dd3cb113c74b97bdd342da6067b30c193",
+          "actual": "44eee0fa056c32b726f87cea44224f4dd3cb113c74b97bdd342da6067b30c193",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-outbox-observed.d.ts",
+          "expected": "dd07a8d67b9295ca1b3dd266b1e83b1c3220d13d5b22862adcab0565f45c9b57",
+          "actual": "dd07a8d67b9295ca1b3dd266b1e83b1c3220d13d5b22862adcab0565f45c9b57",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-outbox-recover.d.ts",
+          "expected": "95ee6b25c88c413f038ffbe158f071121c238613550dd007f5cabb6b75e486a5",
+          "actual": "95ee6b25c88c413f038ffbe158f071121c238613550dd007f5cabb6b75e486a5",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-outbox.d.ts",
+          "expected": "336ac965cf72e5916cee01391d8bbf65a785184347697d6ce78ad1f8210a2f5a",
+          "actual": "336ac965cf72e5916cee01391d8bbf65a785184347697d6ce78ad1f8210a2f5a",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-pages.d.ts",
+          "expected": "66b14e8ce354bbc427e2f359c5bca5bb4d0c9753da76c1dd8681a942814cb62a",
+          "actual": "66b14e8ce354bbc427e2f359c5bca5bb4d0c9753da76c1dd8681a942814cb62a",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-query.d.ts",
+          "expected": "49d2c89096c3e151156faba2b86045b855236aeb7c48048df139aba2a8e802a2",
+          "actual": "49d2c89096c3e151156faba2b86045b855236aeb7c48048df139aba2a8e802a2",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-recovery.d.ts",
+          "expected": "f80432d271616952bf4265eb5e381bbcad51eea19fcc2911f0088ef01b4522b2",
+          "actual": "f80432d271616952bf4265eb5e381bbcad51eea19fcc2911f0088ef01b4522b2",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-sessions.d.ts",
+          "expected": "5c5f3f94db0e5d0a5445b844b53fe61c2337bb181f91807180ffea5ff273c931",
+          "actual": "5c5f3f94db0e5d0a5445b844b53fe61c2337bb181f91807180ffea5ff273c931",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-upload.d.ts",
+          "expected": "c60bac10e6041e026853baefdd2026b9ac3c952e0ffc85155d27047b70cabcb8",
+          "actual": "c60bac10e6041e026853baefdd2026b9ac3c952e0ffc85155d27047b70cabcb8",
+          "status": "match"
+        },
+        {
+          "path": "dist/client-wire.d.ts",
+          "expected": "75aa71b9368bc103b99ad9367bb715fbd305032ee04fbc8fd47b1040dc99aea7",
+          "actual": "75aa71b9368bc103b99ad9367bb715fbd305032ee04fbc8fd47b1040dc99aea7",
+          "status": "match"
+        },
+        {
+          "path": "dist/client.d.ts",
+          "expected": "91dad0a94be3275094cf1862b78991930a92f7a4c97d249e3d0e93c3b33fb642",
+          "actual": "91dad0a94be3275094cf1862b78991930a92f7a4c97d249e3d0e93c3b33fb642",
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler-lib.d.ts",
+          "expected": "34b18fc99720579b7192de9d82065f2ddcbc375e3b5f1c76caa3b7eaf1299145",
+          "actual": "34b18fc99720579b7192de9d82065f2ddcbc375e3b5f1c76caa3b7eaf1299145",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/components.d.ts",
+          "expected": "700f0bbb6eaff5fe897a1f340a56bcbf76ab9157ac97aec9e6ca727b3c57381b",
+          "actual": "700f0bbb6eaff5fe897a1f340a56bcbf76ab9157ac97aec9e6ca727b3c57381b",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/composed-facts.ts",
+          "expected": "dea7504d368aaa9fd3bf053b9d15260ebd5398531086f8c9e06a988124a89ff1",
+          "actual": "dea7504d368aaa9fd3bf053b9d15260ebd5398531086f8c9e06a988124a89ff1",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/coverage-spans.d.ts",
+          "expected": "66b0a8a098d1cc27562066d05a9a8713704331e0a89843c553294b6f5626a21f",
+          "actual": "66b0a8a098d1cc27562066d05a9a8713704331e0a89843c553294b6f5626a21f",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/coverage.d.ts",
+          "expected": "3a053359d0f43b353a2b6f0725d4a6465684cb4e4f69f44d4587fd139ea45879",
+          "actual": "3a053359d0f43b353a2b6f0725d4a6465684cb4e4f69f44d4587fd139ea45879",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/cursor.d.ts",
+          "expected": "2bfe59ff3246ff2d044c3d166c3740abb88a1ce308231b0fb1669bb73eeb4b35",
+          "actual": "2bfe59ff3246ff2d044c3d166c3740abb88a1ce308231b0fb1669bb73eeb4b35",
+          "status": "match"
+        },
+        {
+          "path": "dist/delivery-acknowledgements.d.ts",
+          "expected": "0d3c383e5179d5f2a679712f90947740843c305c2950d0392c9360d9f749ca07",
+          "actual": "0d3c383e5179d5f2a679712f90947740843c305c2950d0392c9360d9f749ca07",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/delivery-prediction.d.ts",
+          "expected": "1fedef0b857db1549575b5214e31e3369aa4a2970ee48559c087c85d8d71bad4",
+          "actual": "1fedef0b857db1549575b5214e31e3369aa4a2970ee48559c087c85d8d71bad4",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/delivery.ts",
+          "expected": "ab3347195ef021ceab145dea518e38f3f97ed2384ddf5db6893fb283df5f702b",
+          "actual": "ab3347195ef021ceab145dea518e38f3f97ed2384ddf5db6893fb283df5f702b",
+          "status": "match"
+        },
+        {
+          "path": "dist/drain.d.ts",
+          "expected": "bda2b1cea28c5df7d21a7af913367b938662f6ba077b81d8db203feb384fcec4",
+          "actual": "bda2b1cea28c5df7d21a7af913367b938662f6ba077b81d8db203feb384fcec4",
+          "status": "match"
+        },
+        {
+          "path": "dist/effects-lib.d.ts",
+          "expected": "13dd9d1f06641596a4c6ac1c080b3f45f083485baa55a4a378d5b8eba68b311d",
+          "actual": "13dd9d1f06641596a4c6ac1c080b3f45f083485baa55a4a378d5b8eba68b311d",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/env.d.ts",
+          "expected": "e36e1cd6ad438964910403b47a4b744d28c27aaa5dbc6baa0ebbf3ab8d19641a",
+          "actual": "e36e1cd6ad438964910403b47a4b744d28c27aaa5dbc6baa0ebbf3ab8d19641a",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/errors.d.ts",
+          "expected": "b305a582609fd35078e55e5994cc5a04ee12a58109e7fecb78221cb6af880b07",
+          "actual": "b305a582609fd35078e55e5994cc5a04ee12a58109e7fecb78221cb6af880b07",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo.d.ts",
+          "expected": "c67db00875dceab59e14f088ed7b1fae07d375ebe056a01dce893746e52f5f35",
+          "actual": "c67db00875dceab59e14f088ed7b1fae07d375ebe056a01dce893746e52f5f35",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/extent-facts.d.ts",
+          "expected": "b4fca8aa5cdbbfb825d1a8013313d619647a3216bddd53afe93f87825f284059",
+          "actual": "b4fca8aa5cdbbfb825d1a8013313d619647a3216bddd53afe93f87825f284059",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/extent-index.d.ts",
+          "expected": "6698a2c74456d2a296bbbf83131116958e775f506e882bd287e1b971057cc2a4",
+          "actual": "6698a2c74456d2a296bbbf83131116958e775f506e882bd287e1b971057cc2a4",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/fact-index.d.ts",
+          "expected": "b5acc7d86d8a627ee9a4db0f225e728925b9ed8cd140d7f094da204bdd2604d9",
+          "actual": "b5acc7d86d8a627ee9a4db0f225e728925b9ed8cd140d7f094da204bdd2604d9",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/fact-integrity.d.ts",
+          "expected": "38d14a569884e6456e234655dd806590e2ae69622f96cfb8ccd11e718ac3d1d8",
+          "actual": "38d14a569884e6456e234655dd806590e2ae69622f96cfb8ccd11e718ac3d1d8",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/files.d.ts",
+          "expected": "748637d3b4a3eba670a94d839b73cd94f68ecafe11c2267969f70861e5742ca9",
+          "actual": "748637d3b4a3eba670a94d839b73cd94f68ecafe11c2267969f70861e5742ca9",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/files.d.ts",
+          "expected": "a9bcdce6a6ac48df8cf0cf4bf6d1cec2a7a9fd750d163e6e3cbfdd1d21c6ad86",
+          "actual": "a9bcdce6a6ac48df8cf0cf4bf6d1cec2a7a9fd750d163e6e3cbfdd1d21c6ad86",
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/recipes/global-message-search.ts",
+          "expected": "729f76fb5cbd27a0c5e003f3be9a230a2249d9f7c4d83efceaf0e0c163eb170d",
+          "actual": "729f76fb5cbd27a0c5e003f3be9a230a2249d9f7c4d83efceaf0e0c163eb170d",
+          "status": "match"
+        },
+        {
+          "path": "dist/global-search-pager.d.ts",
+          "expected": "55f3e8cb31898eaa77cf8d8d579453f8fda3cb4345e1f5d18977b4dc139d6bee",
+          "actual": "55f3e8cb31898eaa77cf8d8d579453f8fda3cb4345e1f5d18977b4dc139d6bee",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/hash.d.ts",
+          "expected": "da18a0a2cd10a4968d54d00076cb06a46d89df0e20222720a2d7d608a64edb25",
+          "actual": "da18a0a2cd10a4968d54d00076cb06a46d89df0e20222720a2d7d608a64edb25",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/held-directory.d.ts",
+          "expected": "d7f23cbbb70872f4dedd54467fff7560c6f3c129a1a0221937c317e44bdea88e",
+          "actual": "d7f23cbbb70872f4dedd54467fff7560c6f3c129a1a0221937c317e44bdea88e",
+          "status": "match"
+        },
+        {
+          "path": "dist/held-program.d.ts",
+          "expected": "af15c42dd7847f6ab96484c9aab9d914fdd5d2e5ad153fa8d1e8f16cdf8bd58f",
+          "actual": "af15c42dd7847f6ab96484c9aab9d914fdd5d2e5ad153fa8d1e8f16cdf8bd58f",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/inbox.d.ts",
+          "expected": "7f103d7ecad5f635a852f94ff56ea730cd9cd1ca9c305181a08393bfed97dbaa",
+          "actual": "7f103d7ecad5f635a852f94ff56ea730cd9cd1ca9c305181a08393bfed97dbaa",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/index-store.d.ts",
+          "expected": "adacb70de489dbbc079624f572fefd40c052b922b58975a18a9a9a4fc457c3df",
+          "actual": "adacb70de489dbbc079624f572fefd40c052b922b58975a18a9a9a4fc457c3df",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/index.d.ts",
+          "expected": "8f14f88e2ac4734e9fc6319cb87224927737187ff1c3b7b4af8e82e51b9909a1",
+          "actual": "8f14f88e2ac4734e9fc6319cb87224927737187ff1c3b7b4af8e82e51b9909a1",
+          "status": "match"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "expected": "061c545f8148c91b89c99696aafac09f552ed55cc79f3998da05148bcdaf782f",
+          "actual": "061c545f8148c91b89c99696aafac09f552ed55cc79f3998da05148bcdaf782f",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/indexeddb.d.ts",
+          "expected": "b608eb919fd437cd6ec8d50538f9ed8cd94d3e911c4aca675ce60c68ad0d9a17",
+          "actual": "b608eb919fd437cd6ec8d50538f9ed8cd94d3e911c4aca675ce60c68ad0d9a17",
+          "status": "match"
+        },
+        {
+          "path": "dist/internal-access.d.ts",
+          "expected": "317deee62af1fbb280d2d9e86267ef8b1edd6bc996c67692fc68cefce2796343",
+          "actual": "317deee62af1fbb280d2d9e86267ef8b1edd6bc996c67692fc68cefce2796343",
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler/src/ir.d.ts",
+          "expected": "9c19d92e70ccc8adf63322bdd821bf45e50a05c0f2a9d738cc0066058e8a09bf",
+          "actual": "9c19d92e70ccc8adf63322bdd821bf45e50a05c0f2a9d738cc0066058e8a09bf",
+          "status": "match"
+        },
+        {
+          "path": "dist/live.d.ts",
+          "expected": "5538b9b1b7301bba9dfd30e3e2c26c90ca32536559e24e31eadcf6e07e0c1111",
+          "actual": "5538b9b1b7301bba9dfd30e3e2c26c90ca32536559e24e31eadcf6e07e0c1111",
+          "status": "match"
+        },
+        {
+          "path": "dist/local-cursor.d.ts",
+          "expected": "9527d73bb65974cf1c636d74d2a5f4c4fcdbfdd92bb812df16e189043636d120",
+          "actual": "9527d73bb65974cf1c636d74d2a5f4c4fcdbfdd92bb812df16e189043636d120",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/locks.d.ts",
+          "expected": "dbfcc799249f88080702b68aa662c1201a4ece5ba7b5ae352c4d0ef5c824236c",
+          "actual": "dbfcc799249f88080702b68aa662c1201a4ece5ba7b5ae352c4d0ef5c824236c",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/maintained-coherence.d.ts",
+          "expected": "98a87ac1911112ca95e7f3fe582538341a20c3527d202498790e5d00a8090086",
+          "actual": "98a87ac1911112ca95e7f3fe582538341a20c3527d202498790e5d00a8090086",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/memory-video.d.ts",
+          "expected": "95eca53ce2fb7ba0ad345e0a116c378e40e50cf41af8bf6a6e99763d204ddbd0",
+          "actual": "95eca53ce2fb7ba0ad345e0a116c378e40e50cf41af8bf6a6e99763d204ddbd0",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/merge.d.ts",
+          "expected": "37175241176e138da9eb4bdb28d74592edaa3b9145c70cd6e1e120a1d9874bec",
+          "actual": "37175241176e138da9eb4bdb28d74592edaa3b9145c70cd6e1e120a1d9874bec",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/metadata.d.ts",
+          "expected": "d7cf298936e9479da540f0346050dbea1954abb16c93e0b3d1be9cfd65d4f815",
+          "actual": "d7cf298936e9479da540f0346050dbea1954abb16c93e0b3d1be9cfd65d4f815",
+          "status": "match"
+        },
+        {
+          "path": "dist/mutation-targets.d.ts",
+          "expected": "886e068a570dbd668d58b638460c28514ef0700f146748e6158fcf2a882f2d4d",
+          "actual": "886e068a570dbd668d58b638460c28514ef0700f146748e6158fcf2a882f2d4d",
+          "status": "match"
+        },
+        {
+          "path": "dist/offline-protocol.d.ts",
+          "expected": "68d2b3f19f1b54172e0e63f20946e9d9624299b26660ab1475ea576d2b283d70",
+          "actual": "68d2b3f19f1b54172e0e63f20946e9d9624299b26660ab1475ea576d2b283d70",
+          "status": "match"
+        },
+        {
+          "path": "dist/offline-schema.d.ts",
+          "expected": "c1ec7a444f6bdbe41b7fc49074710f8978f677f0a9c0defb535609b89f33f82b",
+          "actual": "c1ec7a444f6bdbe41b7fc49074710f8978f677f0a9c0defb535609b89f33f82b",
+          "status": "match"
+        },
+        {
+          "path": "dist/offline.d.ts",
+          "expected": "5f3333accac5e08a04a6eca25f136122f5214a07fbe32d3ec0c09cbe6616960b",
+          "actual": "5f3333accac5e08a04a6eca25f136122f5214a07fbe32d3ec0c09cbe6616960b",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/ordered.d.ts",
+          "expected": "8078686fa1585a8d6954bbf6f4a8a48af5c1e7edbbfd976069a3a9cbd7bc803f",
+          "actual": "8078686fa1585a8d6954bbf6f4a8a48af5c1e7edbbfd976069a3a9cbd7bc803f",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/outbox.d.ts",
+          "expected": "90f7c22e51f8b1777dfe48afe550c62136f82ae3d275b1787f1b83b74fdd3f4e",
+          "actual": "90f7c22e51f8b1777dfe48afe550c62136f82ae3d275b1787f1b83b74fdd3f4e",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/overlay-retirement.d.ts",
+          "expected": "a54a8e12de7eb263d2f9fe0545345a5a8243b676ac94b1dfaa6df175ab35d5b9",
+          "actual": "a54a8e12de7eb263d2f9fe0545345a5a8243b676ac94b1dfaa6df175ab35d5b9",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/posting-tree.d.ts",
+          "expected": "d77e517024fc5a64e3c7a385e2b58bf3710ece246e04899095b70f761fbcc7df",
+          "actual": "d77e517024fc5a64e3c7a385e2b58bf3710ece246e04899095b70f761fbcc7df",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/prefix-dictionary.d.ts",
+          "expected": "29ec6f9df9c1615f9f5d5be8b39cc4caf4c3f25380b46335e3b09063a48f11ce",
+          "actual": "29ec6f9df9c1615f9f5d5be8b39cc4caf4c3f25380b46335e3b09063a48f11ce",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/projection.d.ts",
+          "expected": "b39d8958e5eabdc13846c264a23844cb504b37d9814ad73af81c0c43c2698367",
+          "actual": "b39d8958e5eabdc13846c264a23844cb504b37d9814ad73af81c0c43c2698367",
+          "status": "match"
+        },
+        {
+          "path": "dist/query-frame.d.ts",
+          "expected": "11fe0034699276f058f59cdca65cd11d8bec51790a672e73a7379f9bd9ce8039",
+          "actual": "11fe0034699276f058f59cdca65cd11d8bec51790a672e73a7379f9bd9ce8039",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/query-inputs.d.ts",
+          "expected": "303b227081baef0cbcc869bf3a5ba90d5436822789724ba84acc76ff2411eae6",
+          "actual": "303b227081baef0cbcc869bf3a5ba90d5436822789724ba84acc76ff2411eae6",
+          "status": "match"
+        },
+        {
+          "path": "dist/query-items.d.ts",
+          "expected": "59aa418bf9850346fabb95a176238a037d51f81aae07fa6b336f677e00b33a46",
+          "actual": "59aa418bf9850346fabb95a176238a037d51f81aae07fa6b336f677e00b33a46",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/range-preparation.d.ts",
+          "expected": "2a1746933cf8963e349ab23a36358003c3af7dcb79e98e0a33b773d4db2a45d9",
+          "actual": "2a1746933cf8963e349ab23a36358003c3af7dcb79e98e0a33b773d4db2a45d9",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/range-store.d.ts",
+          "expected": "f81fe55621d68ac02a2b7834516f76f174c286b55bc35c3b04e7d5bcc0f55c32",
+          "actual": "f81fe55621d68ac02a2b7834516f76f174c286b55bc35c3b04e7d5bcc0f55c32",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-core.d.ts",
+          "expected": "14bfd6599e32b7e6a07e486d047774c40c8be298e00b9d608ec809a4c979fda4",
+          "actual": "14bfd6599e32b7e6a07e486d047774c40c8be298e00b9d608ec809a4c979fda4",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native.d.ts",
+          "expected": "6cbf1e4f19a498536045bbe6165ed5b5760bdc8ea8148b7b49fe044dd46f31af",
+          "actual": "6cbf1e4f19a498536045bbe6165ed5b5760bdc8ea8148b7b49fe044dd46f31af",
+          "status": "match"
+        },
+        {
+          "path": "dist/react.d.ts",
+          "expected": "7bcf777714f26882509abc281716be6cbba77dd7eb3935e99434495efd8d6200",
+          "actual": "7bcf777714f26882509abc281716be6cbba77dd7eb3935e99434495efd8d6200",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/row-image.d.ts",
+          "expected": "fa40e2f3f2e4f1f53acf2a20609713195bdcc8aebb5fbf50c57d8c6bcd44fbcb",
+          "actual": "fa40e2f3f2e4f1f53acf2a20609713195bdcc8aebb5fbf50c57d8c6bcd44fbcb",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/row-values.d.ts",
+          "expected": "f3c326c70fd84446d273fd137df54cf1288d496f28391b45e53f416bfb24ec2e",
+          "actual": "f3c326c70fd84446d273fd137df54cf1288d496f28391b45e53f416bfb24ec2e",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/runner.d.ts",
+          "expected": "39db6b29c91daeff486dce89061ba6a382328ae8a9762922b97af0f8d76d9a78",
+          "actual": "39db6b29c91daeff486dce89061ba6a382328ae8a9762922b97af0f8d76d9a78",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/search-key.d.ts",
+          "expected": "63e58dac3f6b18d86421d7fda41172c13cab48910762d32cd975ead9a777ff4c",
+          "actual": "63e58dac3f6b18d86421d7fda41172c13cab48910762d32cd975ead9a777ff4c",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/search-runtime.d.ts",
+          "expected": "2feabb7984ff1b1b68619c9ff99c33b41f3d019fea02c7073e61134f37f391a2",
+          "actual": "2feabb7984ff1b1b68619c9ff99c33b41f3d019fea02c7073e61134f37f391a2",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/seed.ts",
+          "expected": "8889d745e8b9aba0ae9fe8125b1f2ed3b2295de4ef42b0699e91f54e571f57f9",
+          "actual": "8889d745e8b9aba0ae9fe8125b1f2ed3b2295de4ef42b0699e91f54e571f57f9",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/seed.ts",
+          "expected": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882",
+          "actual": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/slot-tree.d.ts",
+          "expected": "3997a81d68fe54b44f6cc5141bb7669d0be1dd314b58bd8d77f44260db99ea74",
+          "actual": "3997a81d68fe54b44f6cc5141bb7669d0be1dd314b58bd8d77f44260db99ea74",
+          "status": "match"
+        },
+        {
+          "path": "dist/snapshot.d.ts",
+          "expected": "3bd87bda27b95063788ae63b541047265109d533a6229a1686ff7e98a5db08f8",
+          "actual": "3bd87bda27b95063788ae63b541047265109d533a6229a1686ff7e98a5db08f8",
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/source.d.ts",
+          "expected": "fae16d82f2f32f079f3d81320725fe94b16e9586219d409679809908a09c68dc",
+          "actual": "fae16d82f2f32f079f3d81320725fe94b16e9586219d409679809908a09c68dc",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite-driver.conformance.d.ts",
+          "expected": "f289806fee31975955fc16a721924548e008d2646d7a9a2914183ae563eb8594",
+          "actual": "f289806fee31975955fc16a721924548e008d2646d7a9a2914183ae563eb8594",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite-driver.d.ts",
+          "expected": "ca8186b041d1a98a62dca46f396a5f0027c5735183cdec4b925d0297ba4246c6",
+          "actual": "ca8186b041d1a98a62dca46f396a5f0027c5735183cdec4b925d0297ba4246c6",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite-expo.d.ts",
+          "expected": "d677efa86e8fb3d044502cd845952dcdefb59a7d529171517205b2e36772078e",
+          "actual": "d677efa86e8fb3d044502cd845952dcdefb59a7d529171517205b2e36772078e",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite.d.ts",
+          "expected": "26e8b6db8a89e181d99951ec37561f759305647161c689b6ff7d4d5bdc93eb0b",
+          "actual": "26e8b6db8a89e181d99951ec37561f759305647161c689b6ff7d4d5bdc93eb0b",
+          "status": "match"
+        },
+        {
+          "path": "dist/sse-parser.d.ts",
+          "expected": "843ee5e5f56c95b4db9d87247b6316a60a42218abbe0739f08cff89e1776725d",
+          "actual": "843ee5e5f56c95b4db9d87247b6316a60a42218abbe0739f08cff89e1776725d",
+          "status": "match"
+        },
+        {
+          "path": "dist/sse.d.ts",
+          "expected": "487b829535bf173e30043f2cbbc2bb3ef0c41cba9bd1b533751fe21ad7b03076",
+          "actual": "487b829535bf173e30043f2cbbc2bb3ef0c41cba9bd1b533751fe21ad7b03076",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/shared/status.ts",
+          "expected": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "actual": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/shared/status.ts",
+          "expected": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "actual": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/store.d.ts",
+          "expected": "284872b069cd80dbb79fde9617d452e05197f7aad0cf50ec0fcf5ee10993cf84",
+          "actual": "284872b069cd80dbb79fde9617d452e05197f7aad0cf50ec0fcf5ee10993cf84",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/success-compaction.d.ts",
+          "expected": "b945e5f82712f4a2a6e0facc1676fa54124f66456a83b4ae0fa636a229bc43b1",
+          "actual": "b945e5f82712f4a2a6e0facc1676fa54124f66456a83b4ae0fa636a229bc43b1",
+          "status": "match"
+        },
+        {
+          "path": "dist/store/swap-journal.d.ts",
+          "expected": "d9ba43fee84c472ed1d244f4bad1fa38c095a80d93e535d6f087148322a9454c",
+          "actual": "d9ba43fee84c472ed1d244f4bad1fa38c095a80d93e535d6f087148322a9454c",
+          "status": "match"
+        },
+        {
+          "path": "dist/test.d.ts",
+          "expected": "8fa08a5cb2ff865e5c3c8d7e00ebd93c3c774d17385f7caa65aafd3837f2de72",
+          "actual": "8fa08a5cb2ff865e5c3c8d7e00ebd93c3c774d17385f7caa65aafd3837f2de72",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/text.d.ts",
+          "expected": "cd0ef87d04159a3c923d8a7dd47248c06b865ce32156444283cef9a84aa3d116",
+          "actual": "cd0ef87d04159a3c923d8a7dd47248c06b865ce32156444283cef9a84aa3d116",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/shared/thread.ts",
+          "expected": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "actual": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/shared/thread.ts",
+          "expected": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "actual": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/tests/todos.test.ts",
+          "expected": "c3916dc63af647da48bbc1900657d4c4e9028923772dbf1853dbbea352e41cdc",
+          "actual": "c3916dc63af647da48bbc1900657d4c4e9028923772dbf1853dbbea352e41cdc",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/token-store.d.ts",
+          "expected": "c64059a4fd3ccc267e38f025333f2341f2d07776049a076f4094dfa08d67496e",
+          "actual": "c64059a4fd3ccc267e38f025333f2341f2d07776049a076f4094dfa08d67496e",
+          "status": "match"
+        },
+        {
+          "path": "dist/token-store.d.ts",
+          "expected": "db0fd9b01851eb8fcab8f26f20f5a8c7ca125c395236235697b817a617a3712c",
+          "actual": "db0fd9b01851eb8fcab8f26f20f5a8c7ca125c395236235697b817a617a3712c",
+          "status": "match"
+        },
+        {
+          "path": "dist/tombstones.d.ts",
+          "expected": "3951ae696167a3714b8e6d1d991e879d7e098cb0e999981e67abf8b04f2e9507",
+          "actual": "3951ae696167a3714b8e6d1d991e879d7e098cb0e999981e67abf8b04f2e9507",
+          "status": "match"
+        },
+        {
+          "path": "dist/twin-hydrate.d.ts",
+          "expected": "e853292f87506e662d4a72361549346b9d9d08b980a2f187da76dcc8f59742b3",
+          "actual": "e853292f87506e662d4a72361549346b9d9d08b980a2f187da76dcc8f59742b3",
+          "status": "match"
+        },
+        {
+          "path": "dist/twin-store.d.ts",
+          "expected": "11176902be84f12381e797ea9331357f7d58a9ed06eedfd0743a24fee51ca46c",
+          "actual": "11176902be84f12381e797ea9331357f7d58a9ed06eedfd0743a24fee51ca46c",
+          "status": "match"
+        },
+        {
+          "path": "dist/twin.d.ts",
+          "expected": "d97110f7f24229eae56d3997e784b453d8e9679c3abf594d88db8491c9a097b4",
+          "actual": "d97110f7f24229eae56d3997e784b453d8e9679c3abf594d88db8491c9a097b4",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/types.d.ts",
+          "expected": "f133be7413811c69391d4c3385664d2f66e6fe27ab54545de4b3a70f0f3dcefc",
+          "actual": "f133be7413811c69391d4c3385664d2f66e6fe27ab54545de4b3a70f0f3dcefc",
+          "status": "match"
+        },
+        {
+          "path": "dist/types.d.ts",
+          "expected": "44b65cae57ec3803388e25cda0396ad1f9e0f469e8c315aee15e2161e0ade737",
+          "actual": "44b65cae57ec3803388e25cda0396ad1f9e0f469e8c315aee15e2161e0ade737",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/dist/unicode-tables.d.ts",
+          "expected": "09b3ded1f24361650a924bf057daf87a7534082b07b96c2d961ac78cedcdcd9d",
+          "actual": "09b3ded1f24361650a924bf057daf87a7534082b07b96c2d961ac78cedcdcd9d",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/unicode-tables.d.ts",
+          "expected": "8bb65c20e42f45866b1b0239c119b86e695de78ca2e077050e4e4997e82c3fcd",
+          "actual": "8bb65c20e42f45866b1b0239c119b86e695de78ca2e077050e4e4997e82c3fcd",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/unicode.d.ts",
+          "expected": "93707e0fd2e368cf6b95725be3e2ed1e00691a670ae6607198652e4abcf18a8e",
+          "actual": "93707e0fd2e368cf6b95725be3e2ed1e00691a670ae6607198652e4abcf18a8e",
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/value-runtime.d.ts",
+          "expected": "9653ce42907831d91afa0cf5ef287a81d10260ac74261f64fb222c5d1481cf59",
+          "actual": "9653ce42907831d91afa0cf5ef287a81d10260ac74261f64fb222c5d1481cf59",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/vite.config.ts",
+          "expected": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "actual": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/vite.config.ts",
+          "expected": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "actual": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/witness-state.ts",
+          "expected": "9b8bb4c4708e280b5297a46a5984f616458adbf09b4be2ec5793e4b74d1596d2",
+          "actual": "9b8bb4c4708e280b5297a46a5984f616458adbf09b4be2ec5793e4b74d1596d2",
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/witness.d.ts",
+          "expected": "6a55f5fe5ae5b49bd0097f2e3a649331c5f7c481946dba76e90a6c6ca043c71f",
+          "actual": "6a55f5fe5ae5b49bd0097f2e3a649331c5f7c481946dba76e90a6c6ca043c71f",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/witness.ts",
+          "expected": "1fa06a939f7b0b779f3b9ee03f34e9fc69a0d7585e8dedf21a79eec325e7894c",
+          "actual": "1fa06a939f7b0b779f3b9ee03f34e9fc69a0d7585e8dedf21a79eec325e7894c",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/App.tsx",
+          "expected": "74985dad2ae6aa014cb314d89d19c2291016085f6b1c14da47fd29ac4d674478",
+          "actual": "74985dad2ae6aa014cb314d89d19c2291016085f6b1c14da47fd29ac4d674478",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/App.tsx",
+          "expected": "0b3cbd8d70755b685a2780e47f992d6bbfb01ecb283fcf005d1345fcfe3ca174",
+          "actual": "0b3cbd8d70755b685a2780e47f992d6bbfb01ecb283fcf005d1345fcfe3ca174",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/src/App.tsx",
+          "expected": "265551930aee24ff6db406d3bef55e7a7e28cb205005b7a87ef7f9ab7a803524",
+          "actual": "265551930aee24ff6db406d3bef55e7a7e28cb205005b7a87ef7f9ab7a803524",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Auth.tsx",
+          "expected": "4911d68902f8440903e976e9ff14fec13f66dcd6b851d63aedc31c92067913bc",
+          "actual": "4911d68902f8440903e976e9ff14fec13f66dcd6b851d63aedc31c92067913bc",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Auth.tsx",
+          "expected": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "actual": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/src/Auth.tsx",
+          "expected": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "actual": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Chat.tsx",
+          "expected": "113c9111c65c1b43835a42620aea46e64520fe62ff8e456a7b11d609cc96393c",
+          "actual": "113c9111c65c1b43835a42620aea46e64520fe62ff8e456a7b11d609cc96393c",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Composer.tsx",
+          "expected": "d1f55e4ec16c5c02b21c0e56089467481a11832307cfe8a5ca2a774462234c7f",
+          "actual": "d1f55e4ec16c5c02b21c0e56089467481a11832307cfe8a5ca2a774462234c7f",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Composer.tsx",
+          "expected": "b7e7d680c485fc35b895bcac36b8dd9bed4dd7bd4c8369d815a127ae00366096",
+          "actual": "b7e7d680c485fc35b895bcac36b8dd9bed4dd7bd4c8369d815a127ae00366096",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/EditMessage.tsx",
+          "expected": "719864313760241e2a81b603cf2803f64cfd57b3e704fe62d99d66f5b84dcff4",
+          "actual": "719864313760241e2a81b603cf2803f64cfd57b3e704fe62d99d66f5b84dcff4",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Inbox.tsx",
+          "expected": "9f6ade12b284a5001caffde0bdebddaa8903b8e480bc5a57008a3e075e067c7d",
+          "actual": "9f6ade12b284a5001caffde0bdebddaa8903b8e480bc5a57008a3e075e067c7d",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Inbox.tsx",
+          "expected": "e8c0d8266333710cb22984ea77b4e97576640f724a5365c47e6c385af0e0ae82",
+          "actual": "e8c0d8266333710cb22984ea77b4e97576640f724a5365c47e6c385af0e0ae82",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/main.tsx",
+          "expected": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "actual": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/src/main.tsx",
+          "expected": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "actual": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/MediaView.tsx",
+          "expected": "3569b07bebfe17e295070a74b2f98168b44494eb8be1c5cf80695d6e432a07bf",
+          "actual": "3569b07bebfe17e295070a74b2f98168b44494eb8be1c5cf80695d6e432a07bf",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/MessageMedia.tsx",
+          "expected": "58ce9d17ea4a64a2495df2d2cc1cbb60e95ba672053ee2cfb8b8db53247d1cb8",
+          "actual": "58ce9d17ea4a64a2495df2d2cc1cbb60e95ba672053ee2cfb8b8db53247d1cb8",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/NewConversation.tsx",
+          "expected": "45273a371d28a96c3f7c86b8d90ace9b89d2cf91f0c8924b9ee4a8bf0923f644",
+          "actual": "45273a371d28a96c3f7c86b8d90ace9b89d2cf91f0c8924b9ee4a8bf0923f644",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/NewConversation.tsx",
+          "expected": "29d77295651f58395feb0323e84f66b7efdd0d6ee308933c2ef8a1fbec41cbb6",
+          "actual": "29d77295651f58395feb0323e84f66b7efdd0d6ee308933c2ef8a1fbec41cbb6",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Search.tsx",
+          "expected": "2024b63528f681c5e2f81b46b100d1610b2cbfed32305c07d2b9ee953119b069",
+          "actual": "2024b63528f681c5e2f81b46b100d1610b2cbfed32305c07d2b9ee953119b069",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Search.tsx",
+          "expected": "047ce48e1cde1d6ae5a9acb69277ea13ae2d05a3172659eabb635d3fe1509c77",
+          "actual": "047ce48e1cde1d6ae5a9acb69277ea13ae2d05a3172659eabb635d3fe1509c77",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Thread.tsx",
+          "expected": "c9a0435c54417105a8fd1c3d36c2315399de9a6e9f11f85d9324eea5fdd80159",
+          "actual": "c9a0435c54417105a8fd1c3d36c2315399de9a6e9f11f85d9324eea5fdd80159",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Thread.tsx",
+          "expected": "e2e8999ad6804c911148f96183ed105c4b19d21b794fa9cfcf39acc5210d8bce",
+          "actual": "e2e8999ad6804c911148f96183ed105c4b19d21b794fa9cfcf39acc5210d8bce",
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Witness.tsx",
+          "expected": "3df1258a2480e5ca0720b1442fb61195b296ed3b894932a8d9b290b4de62badc",
+          "actual": "3df1258a2480e5ca0720b1442fb61195b296ed3b894932a8d9b290b4de62badc",
+          "status": "match"
+        },
+        {
+          "path": "dist/unicode-LICENSE.txt",
+          "expected": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+          "actual": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+          "status": "match"
+        },
+        {
+          "path": "android/src/main/AndroidManifest.xml",
+          "expected": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+          "actual": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+          "status": "match"
+        }
+      ]
+    },
+    {
+      "package": "snapback2-linux-x64",
+      "expectedVersion": "0.0.29",
+      "actualVersion": "0.0.29",
+      "matches": 4,
+      "missing": 0,
+      "mismatches": 0,
+      "unlisted": [],
+      "files": [
+        {
+          "path": "bin/snapback2",
+          "expected": "2b0d8d201fc38dc5c0fd2bc8e4a4e9ad9d43358c741f4a9eed949d2d52fbaa46",
+          "actual": "2b0d8d201fc38dc5c0fd2bc8e4a4e9ad9d43358c741f4a9eed949d2d52fbaa46",
+          "status": "match"
+        },
+        {
+          "path": "bin/snapback2-media",
+          "expected": "dc143dae684f7966843a869c6e38d05baed596fb7c9627e8e832f9c0cd9ec1e0",
+          "actual": "dc143dae684f7966843a869c6e38d05baed596fb7c9627e8e832f9c0cd9ec1e0",
+          "status": "match"
+        },
+        {
+          "path": "package.json",
+          "expected": "218ffa7c7bfc7d115624f8e3e0ed635b719c66f1334d5eaf476b09e9ecd8ac5b",
+          "actual": "218ffa7c7bfc7d115624f8e3e0ed635b719c66f1334d5eaf476b09e9ecd8ac5b",
+          "status": "match"
+        },
+        {
+          "path": "README.md",
+          "expected": "ec5adb95b3dfb0bacd8598881948aee053300dbd48bac66480909bf4d83ed36d",
+          "actual": "ec5adb95b3dfb0bacd8598881948aee053300dbd48bac66480909bf4d83ed36d",
+          "status": "match"
+        }
+      ]
+    }
+  ],
+  "scope": "Supplementary read-only phase-boundary payload observation, not a new benchmark requirement"
+}

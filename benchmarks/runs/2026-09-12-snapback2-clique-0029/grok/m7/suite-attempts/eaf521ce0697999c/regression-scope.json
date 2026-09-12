@@ -1,0 +1,9 @@
+{
+  "observedEpoch": 1789211333.0626054,
+  "source": "/home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/acceptance.mjs",
+  "sourceMtime": 1789210696.2150135,
+  "sha256": "9c87dc349baf01466eae15579e9da1c66160ff9c842d604c1d8ab3f188a72392",
+  "afterSha256": "9c87dc349baf01466eae15579e9da1c66160ff9c842d604c1d8ab3f188a72392",
+  "observation": "m7-a09 uses explicit prior=[m1,m2,m3,m4,m5,m8], not a read of suite-status.json. This set matches original builder suite greens. Initial suite/status receipts were overwritten by grader before M7 but preserved separately.",
+  "limit": "Current code captured after receipt; not an atomic code-and-run snapshot."
+}

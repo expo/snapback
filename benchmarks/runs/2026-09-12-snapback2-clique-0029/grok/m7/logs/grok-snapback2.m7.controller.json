@@ -1,0 +1,21 @@
+{
+  "phase": "fresh-m7-controller",
+  "pid": 4122598,
+  "command": [
+    "python3",
+    "-u",
+    "scripts/launch_m7.py",
+    "grok",
+    "snapback2"
+  ],
+  "startedEpoch": 1789208829.21933,
+  "promptSha256": "338f71747364fe17ef202744e211100802087d8f4534fda5396840c8726ff567",
+  "launcherSha256": "90a467b36e085eedbec8f68179eda71c42fa3973aed646e6b48392c75f7e6221",
+  "instrumentManifestSha256": "b183d949bb4c5871747afb92f0eccb153c813765037507ef4d888f76a6da07a6",
+  "preflight": "/home/ccheever/clique-0029-20260912/preflight/pre-grok-m7.json",
+  "initialGradeBoundary": "/home/ccheever/snapback-1023-20260912/web/parallel-host-preparation/initial-grade-boundary-1789208560/manifest.json",
+  "launcherPid": 4122599,
+  "exit": 0,
+  "interrupted": null,
+  "endedEpoch": 1789211925.016663
+}

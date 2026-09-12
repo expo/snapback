@@ -1,0 +1,2347 @@
+{
+  "at": "2026-09-12T09:25:23.801022+00:00",
+  "manifest": "/home/ccheever/snapback-1023-20260912/query/astra-0029/benchmark-public-payloads.json",
+  "manifestSha256": "1d5ba690dd96f6c5838e35f4d1b4f1065391752a5a2748ca027057435da8de7d",
+  "purpose": "Read-only published content custody; no actor repair, advice, or new instrument requirement.",
+  "packages": [
+    {
+      "package": "snapback2",
+      "version": "0.0.29",
+      "root": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/node_modules/snapback2",
+      "files": [
+        {
+          "path": "dist/templates/chat/expo/metro.config.cjs",
+          "bytes": 602,
+          "expectedSha256": "f67436eac4e420b92a9697d2f457f599d77fbba0651652a307b3c7f5d7dd46cc",
+          "actualSha256": "f67436eac4e420b92a9697d2f457f599d77fbba0651652a307b3c7f5d7dd46cc",
+          "actualBytes": 602,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "android/build.gradle",
+          "bytes": 326,
+          "expectedSha256": "e112b47c8c28d061c164f8033dafc6d0679badd3b5d54a6637e2665f3c8069e1",
+          "actualSha256": "e112b47c8c28d061c164f8033dafc6d0679badd3b5d54a6637e2665f3c8069e1",
+          "actualBytes": 326,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/index.html",
+          "bytes": 271,
+          "expectedSha256": "733ae95dfcba812c06ebfedd7faba00a70987acc4b781953284005cb77d9713a",
+          "actualSha256": "733ae95dfcba812c06ebfedd7faba00a70987acc4b781953284005cb77d9713a",
+          "actualBytes": 271,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/index.html",
+          "bytes": 266,
+          "expectedSha256": "6356b58a8c2c0743e542edb7cfb07899305ccff43510d574fedaedd983fc4c7c",
+          "actualSha256": "6356b58a8c2c0743e542edb7cfb07899305ccff43510d574fedaedd983fc4c7c",
+          "actualBytes": 266,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/fixtures/photo.jpg",
+          "bytes": 633,
+          "expectedSha256": "e00771915c18a0c0419b6104666f24a1316a93a364356cc0bc4d71bfdd9bd297",
+          "actualSha256": "e00771915c18a0c0419b6104666f24a1316a93a364356cc0bc4d71bfdd9bd297",
+          "actualBytes": 633,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/app.config.js",
+          "bytes": 761,
+          "expectedSha256": "cb7bef3b0e940260e0aa65503e2eea624adff0db84e8dada159ef34334d229df",
+          "actualSha256": "cb7bef3b0e940260e0aa65503e2eea624adff0db84e8dada159ef34334d229df",
+          "actualBytes": 761,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/index.js",
+          "bytes": 99,
+          "expectedSha256": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b",
+          "actualSha256": "af10e01cf5fa6d399a83829926cc80d935c1dca8fb01313ab7cb54aab84c028b",
+          "actualBytes": 99,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/recipes/quarry-window-config.js",
+          "bytes": 750,
+          "expectedSha256": "b23c20c3d5b6d24a637eb1c533dad39ce54ebd22046be121c641e278a1ba02da",
+          "actualSha256": "b23c20c3d5b6d24a637eb1c533dad39ce54ebd22046be121c641e278a1ba02da",
+          "actualBytes": 750,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/app.json",
+          "bytes": 356,
+          "expectedSha256": "7eb5a8d38bdee9bcdb0508dc7773514b63c4c2741052b9d9de2c28d1d10855a4",
+          "actualSha256": "7eb5a8d38bdee9bcdb0508dc7773514b63c4c2741052b9d9de2c28d1d10855a4",
+          "actualBytes": 356,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "expo-module.config.json",
+          "bytes": 179,
+          "expectedSha256": "7613bacf02f6f57c0597d694c328ad8d76fe45f352013c52b274ddc36148ef27",
+          "actualSha256": "7613bacf02f6f57c0597d694c328ad8d76fe45f352013c52b274ddc36148ef27",
+          "actualBytes": 179,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/families.json",
+          "bytes": 65487,
+          "expectedSha256": "dd2222e860829bc5b3ed9be21c79ee9d68cb25855958a01763ca488d5f9f4a9e",
+          "actualSha256": "dd2222e860829bc5b3ed9be21c79ee9d68cb25855958a01763ca488d5f9f4a9e",
+          "actualBytes": 65487,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/keywords.json",
+          "bytes": 159922,
+          "expectedSha256": "51f7228acef8c220d35cd49565bb82268ebe70403d324725bb08cc1cc808175b",
+          "actualSha256": "51f7228acef8c220d35cd49565bb82268ebe70403d324725bb08cc1cc808175b",
+          "actualBytes": 159922,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "package.json",
+          "bytes": 3260,
+          "expectedSha256": "bf2613e13bd9b2f8f8b0292b0a4dce1dac6f2336fb606976da5d938ab202c47d",
+          "actualSha256": "bf2613e13bd9b2f8f8b0292b0a4dce1dac6f2336fb606976da5d938ab202c47d",
+          "actualBytes": 3260,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/tsconfig.json",
+          "bytes": 172,
+          "expectedSha256": "bbced9c08dff779a942114c75fd5209c6d1f1b669392a05e6e82cb60ade9c5be",
+          "actualSha256": "bbced9c08dff779a942114c75fd5209c6d1f1b669392a05e6e82cb60ade9c5be",
+          "actualBytes": 172,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "android/src/main/java/expo/modules/snapback2/SnapbackMemoryVideoModule.kt",
+          "bytes": 5123,
+          "expectedSha256": "b56498cfc01b300da5ccffc6272b2695ddcaf96990e6a281ed02184c240e26a3",
+          "actualSha256": "b56498cfc01b300da5ccffc6272b2695ddcaf96990e6a281ed02184c240e26a3",
+          "actualBytes": 5123,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-observed-test.mjs.map",
+          "bytes": 4002,
+          "expectedSha256": "9c6147c6065aae777ae05cb0673fd3338a15231efd01f21ca23f0e4420cf2bfc",
+          "actualSha256": "9c6147c6065aae777ae05cb0673fd3338a15231efd01f21ca23f0e4420cf2bfc",
+          "actualBytes": 4002,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-runtime.mjs.map",
+          "bytes": 1282359,
+          "expectedSha256": "2a37b57d0bf876fa1cbef0dbc8ea913643eb0f138115586efbb3b9e81752d121",
+          "actualSha256": "2a37b57d0bf876fa1cbef0dbc8ea913643eb0f138115586efbb3b9e81752d121",
+          "actualBytes": 1282359,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client.mjs.map",
+          "bytes": 241834,
+          "expectedSha256": "58980b5ba3cba2a958529debf3684ac77e62aedc1fd080ac3f89760e4a65fc5d",
+          "actualSha256": "58980b5ba3cba2a958529debf3684ac77e62aedc1fd080ac3f89760e4a65fc5d",
+          "actualBytes": 241834,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler-core.mjs.map",
+          "bytes": 814311,
+          "expectedSha256": "28ad08c25c295c394e5a7da794abe4efafea885b0a3857241f1982c92567756f",
+          "actualSha256": "28ad08c25c295c394e5a7da794abe4efafea885b0a3857241f1982c92567756f",
+          "actualBytes": 814311,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler.mjs.map",
+          "bytes": 7738,
+          "expectedSha256": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7",
+          "actualSha256": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7",
+          "actualBytes": 7738,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo.mjs.map",
+          "bytes": 105901,
+          "expectedSha256": "40b0d9cbfef95e19148c4421771fbd4011c0d6cae5812196371022b74d4e8513",
+          "actualSha256": "40b0d9cbfef95e19148c4421771fbd4011c0d6cae5812196371022b74d4e8513",
+          "actualBytes": 105901,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/global-search-pager.mjs.map",
+          "bytes": 12097,
+          "expectedSha256": "ad5c0b0027ed3b473233f6378568c675c4262addb3c63fd221215be963fd0259",
+          "actualSha256": "ad5c0b0027ed3b473233f6378568c675c4262addb3c63fd221215be963fd0259",
+          "actualBytes": 12097,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/image-runtime.mjs.map",
+          "bytes": 229592,
+          "expectedSha256": "85104b27e930fad4907ffe94b1328ac53f2f25b8d3401b08595b07fb0f348b07",
+          "actualSha256": "85104b27e930fad4907ffe94b1328ac53f2f25b8d3401b08595b07fb0f348b07",
+          "actualBytes": 229592,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/index.mjs.map",
+          "bytes": 7605,
+          "expectedSha256": "a7942d5e052603fa91a0e273f37d15f232fe531b95ee4b96804ba9f4be4d5d7c",
+          "actualSha256": "a7942d5e052603fa91a0e273f37d15f232fe531b95ee4b96804ba9f4be4d5d7c",
+          "actualBytes": 7605,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/internal.mjs.map",
+          "bytes": 7151,
+          "expectedSha256": "c4e299f01e4efa36a05f82d65dd0e3c3212a970203695f9f92ecf871e59fe8b3",
+          "actualSha256": "c4e299f01e4efa36a05f82d65dd0e3c3212a970203695f9f92ecf871e59fe8b3",
+          "actualBytes": 7151,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-core.mjs.map",
+          "bytes": 32952,
+          "expectedSha256": "6328818b1263c2365c943f75a531ef5ea8a33617c70e997fde23e14410f69955",
+          "actualSha256": "6328818b1263c2365c943f75a531ef5ea8a33617c70e997fde23e14410f69955",
+          "actualBytes": 32952,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native.mjs.map",
+          "bytes": 104478,
+          "expectedSha256": "e26a5b64639c634a593d0372866b1aeed004e268cf2e98e098e057161a98df0f",
+          "actualSha256": "e26a5b64639c634a593d0372866b1aeed004e268cf2e98e098e057161a98df0f",
+          "actualBytes": 104478,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react.mjs.map",
+          "bytes": 74743,
+          "expectedSha256": "57baeed62a9b4eb62caf1f4fe4fe5b61047c46e562b43b29f41a33954cf8fa31",
+          "actualSha256": "57baeed62a9b4eb62caf1f4fe4fe5b61047c46e562b43b29f41a33954cf8fa31",
+          "actualBytes": 74743,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/sqlite-test.mjs.map",
+          "bytes": 88806,
+          "expectedSha256": "117a957009fb6ae82dde114a0f5ff088bd0875dd72bc414f606f2f4b01012e45",
+          "actualSha256": "117a957009fb6ae82dde114a0f5ff088bd0875dd72bc414f606f2f4b01012e45",
+          "actualBytes": 88806,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/test-runner.mjs.map",
+          "bytes": 62195,
+          "expectedSha256": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "actualSha256": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "actualBytes": 62195,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/test.mjs.map",
+          "bytes": 62195,
+          "expectedSha256": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "actualSha256": "da6d8e4e33050a5568328004f369c155256837dbebf41d22befd51667fe7e79f",
+          "actualBytes": 62195,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/witness-test.mjs.map",
+          "bytes": 72816,
+          "expectedSha256": "7786e13152fbecd8f57b06b8cb1b1592aa43416dadded0c76f5578e40ae21759",
+          "actualSha256": "7786e13152fbecd8f57b06b8cb1b1592aa43416dadded0c76f5578e40ae21759",
+          "actualBytes": 72816,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/witness.mjs.map",
+          "bytes": 23220,
+          "expectedSha256": "24fcce060a914b5d82359f116f300a04fc47481b9cefe7bf3860dbe4012e34cc",
+          "actualSha256": "24fcce060a914b5d82359f116f300a04fc47481b9cefe7bf3860dbe4012e34cc",
+          "actualBytes": 23220,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/absence.md",
+          "bytes": 799,
+          "expectedSha256": "f8777e5035e7df88a21e2001fbc17b8bd737ade3326d3c0f241abea0c3ad23cb",
+          "actualSha256": "f8777e5035e7df88a21e2001fbc17b8bd737ade3326d3c0f241abea0c3ad23cb",
+          "actualBytes": 799,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/assets.md",
+          "bytes": 2913,
+          "expectedSha256": "ce9f449a397f8634f64bd7b895276c438e0953bd4c4c7fb3e2f9305d3d425ec3",
+          "actualSha256": "ce9f449a397f8634f64bd7b895276c438e0953bd4c4c7fb3e2f9305d3d425ec3",
+          "actualBytes": 2913,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/auth.md",
+          "bytes": 6253,
+          "expectedSha256": "26b8e05f527256c85d74cc8d7dd8530cf94f0def316adf7fb76dc2f03153f372",
+          "actualSha256": "26b8e05f527256c85d74cc8d7dd8530cf94f0def316adf7fb76dc2f03153f372",
+          "actualBytes": 6253,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/bounds.md",
+          "bytes": 3389,
+          "expectedSha256": "6cba2e1e9c6f9832c8bb121a7c50d820bc1ff7800f04da32ee52d75bf7e80198",
+          "actualSha256": "6cba2e1e9c6f9832c8bb121a7c50d820bc1ff7800f04da32ee52d75bf7e80198",
+          "actualBytes": 3389,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/deliver.md",
+          "bytes": 5958,
+          "expectedSha256": "b99c632c5b827359cd021e7a7583ab761c7f213cdf66c1735ab47188f7590663",
+          "actualSha256": "b99c632c5b827359cd021e7a7583ab761c7f213cdf66c1735ab47188f7590663",
+          "actualBytes": 5958,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/effects.md",
+          "bytes": 5935,
+          "expectedSha256": "18e9d2e7b1e30651a6cb1c88ab303f0d5fb721c063a44cb01c09bad341520d97",
+          "actualSha256": "18e9d2e7b1e30651a6cb1c88ab303f0d5fb721c063a44cb01c09bad341520d97",
+          "actualBytes": 5935,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/expiry.md",
+          "bytes": 3134,
+          "expectedSha256": "87ae168a654a85d7e953b1f552c170067386d88b5daa40bd8d3d46eb638872ee",
+          "actualSha256": "87ae168a654a85d7e953b1f552c170067386d88b5daa40bd8d3d46eb638872ee",
+          "actualBytes": 3134,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/expressions.md",
+          "bytes": 1976,
+          "expectedSha256": "d18f3dc76fa1f972ce3d45c9fb63b4a3c8a5e6a11ff2b14efb60e106a166d45a",
+          "actualSha256": "d18f3dc76fa1f972ce3d45c9fb63b4a3c8a5e6a11ff2b14efb60e106a166d45a",
+          "actualBytes": 1976,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/fanout.md",
+          "bytes": 4730,
+          "expectedSha256": "f574a0e74bff5c2bf6b1850b60fc0aba883d6f9cf9722112bae1c61d68934595",
+          "actualSha256": "f574a0e74bff5c2bf6b1850b60fc0aba883d6f9cf9722112bae1c61d68934595",
+          "actualBytes": 4730,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/fn.md",
+          "bytes": 400,
+          "expectedSha256": "97dcb35afe7d03d5e54e842bba32fd5bcbef35ae2e26212705d2cc6bf20b0653",
+          "actualSha256": "97dcb35afe7d03d5e54e842bba32fd5bcbef35ae2e26212705d2cc6bf20b0653",
+          "actualBytes": 400,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/grammar.md",
+          "bytes": 3588,
+          "expectedSha256": "e975c1dedc8683a966903535e8bf5d15f445cc2747f8e17328bf272976e663e0",
+          "actualSha256": "e975c1dedc8683a966903535e8bf5d15f445cc2747f8e17328bf272976e663e0",
+          "actualBytes": 3588,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/indexes.md",
+          "bytes": 975,
+          "expectedSha256": "6132d82edd9a5bd3a9c8a1105d1124e24c10b28b7f87db8083bd45089073674d",
+          "actualSha256": "6132d82edd9a5bd3a9c8a1105d1124e24c10b28b7f87db8083bd45089073674d",
+          "actualBytes": 975,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/job.md",
+          "bytes": 2888,
+          "expectedSha256": "bc38d171398468be1f97faf6c9749c3458a05610dd3404cfb863960b91bc9c4c",
+          "actualSha256": "bc38d171398468be1f97faf6c9749c3458a05610dd3404cfb863960b91bc9c4c",
+          "actualBytes": 2888,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/live-query.md",
+          "bytes": 7468,
+          "expectedSha256": "927ebd74b606af48409c56bc9ed13458ae1d90adc2929cafe7bfa4effa242289",
+          "actualSha256": "927ebd74b606af48409c56bc9ed13458ae1d90adc2929cafe7bfa4effa242289",
+          "actualBytes": 7468,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/maintain.md",
+          "bytes": 1246,
+          "expectedSha256": "9c984408bd2570bd738b3218f2787d9b0db5b7d719e5ad162ea3671cee33e0d0",
+          "actualSha256": "9c984408bd2570bd738b3218f2787d9b0db5b7d719e5ad162ea3671cee33e0d0",
+          "actualBytes": 1246,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/merge.md",
+          "bytes": 1190,
+          "expectedSha256": "85415b1d898d51af2e4e52f9779767d87814a4749d752c2b84956ddfd0bc02ff",
+          "actualSha256": "85415b1d898d51af2e4e52f9779767d87814a4749d752c2b84956ddfd0bc02ff",
+          "actualBytes": 1190,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/money.md",
+          "bytes": 1526,
+          "expectedSha256": "95343e92af42d70bc87fd1275313f1dfd22c72a827f89cebd909addf44a70b24",
+          "actualSha256": "95343e92af42d70bc87fd1275313f1dfd22c72a827f89cebd909addf44a70b24",
+          "actualBytes": 1526,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/offline.md",
+          "bytes": 7684,
+          "expectedSha256": "5d27df0dee1a895b4c7245a95f63b8471f3f630be107465912d427339df85db6",
+          "actualSha256": "5d27df0dee1a895b4c7245a95f63b8471f3f630be107465912d427339df85db6",
+          "actualBytes": 7684,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/operator.md",
+          "bytes": 5509,
+          "expectedSha256": "a6db0972a4971f7aed88faa640bdff3666cefe9666212c9a78ec777c4819cad9",
+          "actualSha256": "a6db0972a4971f7aed88faa640bdff3666cefe9666212c9a78ec777c4819cad9",
+          "actualBytes": 5509,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/pagination.md",
+          "bytes": 2807,
+          "expectedSha256": "bb803c2519fcaacb9436d0862db70993c4c0b5d7b6a5f249f48dbdb5ed237c2a",
+          "actualSha256": "bb803c2519fcaacb9436d0862db70993c4c0b5d7b6a5f249f48dbdb5ed237c2a",
+          "actualBytes": 2807,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/personas.md",
+          "bytes": 1299,
+          "expectedSha256": "ac4fff9e83383ac91123d2a72d99c6e1527ce853c33b86b761aa4a354b3a9340",
+          "actualSha256": "ac4fff9e83383ac91123d2a72d99c6e1527ce853c33b86b761aa4a354b3a9340",
+          "actualBytes": 1299,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/proc.md",
+          "bytes": 500,
+          "expectedSha256": "cb9cb8ab1444512d3ee2a1f39fd3a2863b2524c0b04e192c1cb6f440ecbfebec",
+          "actualSha256": "cb9cb8ab1444512d3ee2a1f39fd3a2863b2524c0b04e192c1cb6f440ecbfebec",
+          "actualBytes": 500,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/programs.md",
+          "bytes": 645,
+          "expectedSha256": "3d4bcfce2b99f89211dd19c1ef5487bd0c9db3370d07df725322ad0b027de046",
+          "actualSha256": "3d4bcfce2b99f89211dd19c1ef5487bd0c9db3370d07df725322ad0b027de046",
+          "actualBytes": 645,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/quarry.md",
+          "bytes": 1417,
+          "expectedSha256": "16a8b73a2973b4e3cec12651bfe804c90e7006bf73b70bce9b6d869a687ded24",
+          "actualSha256": "16a8b73a2973b4e3cec12651bfe804c90e7006bf73b70bce9b6d869a687ded24",
+          "actualBytes": 1417,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "guide/README.md",
+          "bytes": 65,
+          "expectedSha256": "3920186215ca7eed5a4321ca29091cda8b3095e0cf1717e26b2208584692f91f",
+          "actualSha256": "3920186215ca7eed5a4321ca29091cda8b3095e0cf1717e26b2208584692f91f",
+          "actualBytes": 65,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "README.md",
+          "bytes": 12079,
+          "expectedSha256": "a2ed0e261cd452b5ee28390e7a6a90752998cbebd0588b1dc7831fbd7e9a0ba5",
+          "actualSha256": "a2ed0e261cd452b5ee28390e7a6a90752998cbebd0588b1dc7831fbd7e9a0ba5",
+          "actualBytes": 12079,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/retain.md",
+          "bytes": 351,
+          "expectedSha256": "fa321893d0a8d9bbc12f23c97ce65b2b15e8ae1fa589cd85af5d833925dc84fc",
+          "actualSha256": "fa321893d0a8d9bbc12f23c97ce65b2b15e8ae1fa589cd85af5d833925dc84fc",
+          "actualBytes": 351,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/rules.md",
+          "bytes": 882,
+          "expectedSha256": "e169feb186c4f65be7d4cb0dcb1d4bc68d8e2e68343bf8ebc55674b7e69739a0",
+          "actualSha256": "e169feb186c4f65be7d4cb0dcb1d4bc68d8e2e68343bf8ebc55674b7e69739a0",
+          "actualBytes": 882,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/schedule.md",
+          "bytes": 5955,
+          "expectedSha256": "f6e67663aa5c330f3193841fdf173b8938ce497ba581b97f4d115fa858f9ba4d",
+          "actualSha256": "f6e67663aa5c330f3193841fdf173b8938ce497ba581b97f4d115fa858f9ba4d",
+          "actualBytes": 5955,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/shape.md",
+          "bytes": 283,
+          "expectedSha256": "f3855ee713d940c50351a2bf6a25fe5e921ec8c9359f52c2717a02e59a0329c3",
+          "actualSha256": "f3855ee713d940c50351a2bf6a25fe5e921ec8c9359f52c2717a02e59a0329c3",
+          "actualBytes": 283,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/successor.md",
+          "bytes": 4562,
+          "expectedSha256": "f82a10a764075e60cddfa78c89cb05c7b0816da0358c24556a2829f812e9612b",
+          "actualSha256": "f82a10a764075e60cddfa78c89cb05c7b0816da0358c24556a2829f812e9612b",
+          "actualBytes": 4562,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/testing.md",
+          "bytes": 7880,
+          "expectedSha256": "d55ccf8b0fad1a6b7b83787a0fe76e83ea2c3de5f0ab95a45fbe1bd276e581b9",
+          "actualSha256": "d55ccf8b0fad1a6b7b83787a0fe76e83ea2c3de5f0ab95a45fbe1bd276e581b9",
+          "actualBytes": 7880,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/types.md",
+          "bytes": 1368,
+          "expectedSha256": "fae1c95084d61bdcb893f25da197388f3702be7408f3b18113d9e3e832416d79",
+          "actualSha256": "fae1c95084d61bdcb893f25da197388f3702be7408f3b18113d9e3e832416d79",
+          "actualBytes": 1368,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/writes.md",
+          "bytes": 2727,
+          "expectedSha256": "e3a3fe98041e8b96ecdfbb6a39dfb470ef19ef77bfc16dabc1454f3b42a985f3",
+          "actualSha256": "e3a3fe98041e8b96ecdfbb6a39dfb470ef19ef77bfc16dabc1454f3b42a985f3",
+          "actualBytes": 2727,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-observed-test.mjs",
+          "bytes": 1717,
+          "expectedSha256": "c8f6e916c33327039d2ee031489cbce9a991ae6a696e0d13ad59b41f2fa91782",
+          "actualSha256": "c8f6e916c33327039d2ee031489cbce9a991ae6a696e0d13ad59b41f2fa91782",
+          "actualBytes": 1717,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-runtime.mjs",
+          "bytes": 309377,
+          "expectedSha256": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "actualSha256": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "actualBytes": 309377,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client.mjs",
+          "bytes": 66596,
+          "expectedSha256": "e1d771514d7fb9eba17eee373fac162524a5dd802ac84fd14150cea351f46c7a",
+          "actualSha256": "e1d771514d7fb9eba17eee373fac162524a5dd802ac84fd14150cea351f46c7a",
+          "actualBytes": 66596,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler-core.mjs",
+          "bytes": 228738,
+          "expectedSha256": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "actualSha256": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "actualBytes": 228738,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler.mjs",
+          "bytes": 2351,
+          "expectedSha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+          "actualSha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+          "actualBytes": 2351,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo.mjs",
+          "bytes": 26828,
+          "expectedSha256": "91d9a3c0c2274266eb91a7b5dd5fe8f95096be67eb2033d70b43f3aebc84dd34",
+          "actualSha256": "91d9a3c0c2274266eb91a7b5dd5fe8f95096be67eb2033d70b43f3aebc84dd34",
+          "actualBytes": 26828,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/global-search-pager.mjs",
+          "bytes": 2604,
+          "expectedSha256": "66690ab3ec84ab0df0c0b0eee880cd752e2f8257be9dbb84e576b2924c0ecd95",
+          "actualSha256": "66690ab3ec84ab0df0c0b0eee880cd752e2f8257be9dbb84e576b2924c0ecd95",
+          "actualBytes": 2604,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/image-runtime.mjs",
+          "bytes": 68675,
+          "expectedSha256": "f7f6089bce9e9fb9e41facb8ec2f68149a1ee75ba15e423b30c58852975e4f61",
+          "actualSha256": "f7f6089bce9e9fb9e41facb8ec2f68149a1ee75ba15e423b30c58852975e4f61",
+          "actualBytes": 68675,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/index.mjs",
+          "bytes": 1843,
+          "expectedSha256": "e832f383edbf8acf62ee52b90cfee99de04ca5e2d86963ccc7a9f7ae1e3c752d",
+          "actualSha256": "e832f383edbf8acf62ee52b90cfee99de04ca5e2d86963ccc7a9f7ae1e3c752d",
+          "actualBytes": 1843,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/internal.mjs",
+          "bytes": 3215,
+          "expectedSha256": "3964b27a799b80d6a276ba0ec6498ec78a7458446d336543a176ca38ce391e04",
+          "actualSha256": "3964b27a799b80d6a276ba0ec6498ec78a7458446d336543a176ca38ce391e04",
+          "actualBytes": 3215,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-core.mjs",
+          "bytes": 6621,
+          "expectedSha256": "30d8fdc0bb5ee92ace99df61fada970c8284f24f078fb46cd660054eebcf180c",
+          "actualSha256": "30d8fdc0bb5ee92ace99df61fada970c8284f24f078fb46cd660054eebcf180c",
+          "actualBytes": 6621,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native.mjs",
+          "bytes": 25847,
+          "expectedSha256": "026546db338f9a38da260485895ed54bed5569aa174819d9a14e23873be67b24",
+          "actualSha256": "026546db338f9a38da260485895ed54bed5569aa174819d9a14e23873be67b24",
+          "actualBytes": 25847,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react.mjs",
+          "bytes": 17559,
+          "expectedSha256": "49ad820fb033c3ec09b64efd9d9babb17a6f73b40cd4c412c2c277d8edf610a3",
+          "actualSha256": "49ad820fb033c3ec09b64efd9d9babb17a6f73b40cd4c412c2c277d8edf610a3",
+          "actualBytes": 17559,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "bin/snapback2.mjs",
+          "bytes": 1552,
+          "expectedSha256": "aebb1591ef95acc6cdd1c32de03dcfea7e295aacafa91663cdd675f353833714",
+          "actualSha256": "aebb1591ef95acc6cdd1c32de03dcfea7e295aacafa91663cdd675f353833714",
+          "actualBytes": 1552,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/sqlite-test.mjs",
+          "bytes": 45040,
+          "expectedSha256": "bc8e1dea10994a96005278839e4a94ef9048af63d5c6a6034a3a04a8389d8fc3",
+          "actualSha256": "bc8e1dea10994a96005278839e4a94ef9048af63d5c6a6034a3a04a8389d8fc3",
+          "actualBytes": 45040,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/test-runner.mjs",
+          "bytes": 27671,
+          "expectedSha256": "696ee6a94f774b57717411a33fecbd55d8c693a47b08f6a5163a6e807d71b93c",
+          "actualSha256": "696ee6a94f774b57717411a33fecbd55d8c693a47b08f6a5163a6e807d71b93c",
+          "actualBytes": 27671,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/test.mjs",
+          "bytes": 27664,
+          "expectedSha256": "b772c4b658f7c0e81dcff9eea0d0926537c5be8045d1856edc5989c555c64d7d",
+          "actualSha256": "b772c4b658f7c0e81dcff9eea0d0926537c5be8045d1856edc5989c555c64d7d",
+          "actualBytes": 27664,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/witness-test.mjs",
+          "bytes": 23669,
+          "expectedSha256": "ccabb4ef252230f7e798ba2fa80171f201b3a7f047e00aa7702f71ae510f9a91",
+          "actualSha256": "ccabb4ef252230f7e798ba2fa80171f201b3a7f047e00aa7702f71ae510f9a91",
+          "actualBytes": 23669,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/witness.mjs",
+          "bytes": 6932,
+          "expectedSha256": "190b5c4daf3ae0efb0278f7b00db45781e40799e964cd434bb2cc29627d6e3e9",
+          "actualSha256": "190b5c4daf3ae0efb0278f7b00db45781e40799e964cd434bb2cc29627d6e3e9",
+          "actualBytes": 6932,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/fixtures/clip.mp4",
+          "bytes": 280,
+          "expectedSha256": "0bf2c3c80dab9197eb6a70db98273551d7da76dbc76e1e1203099c81385086b0",
+          "actualSha256": "0bf2c3c80dab9197eb6a70db98273551d7da76dbc76e1e1203099c81385086b0",
+          "actualBytes": 280,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "ios/SnapbackMemoryVideo.podspec",
+          "bytes": 716,
+          "expectedSha256": "63056cfbc843ad0287c65b8165c1a1930b0c361b13b7ddad004a883179bef3b0",
+          "actualSha256": "63056cfbc843ad0287c65b8165c1a1930b0c361b13b7ddad004a883179bef3b0",
+          "actualBytes": 716,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/access.q",
+          "bytes": 241,
+          "expectedSha256": "111c2e9ec3c0afc5eda595fbdc052422ef56a1c3ac91cbe3b056643a24867253",
+          "actualSha256": "111c2e9ec3c0afc5eda595fbdc052422ef56a1c3ac91cbe3b056643a24867253",
+          "actualBytes": 241,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/feeds.q",
+          "bytes": 424,
+          "expectedSha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b",
+          "actualSha256": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b",
+          "actualBytes": 424,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/follows.q",
+          "bytes": 303,
+          "expectedSha256": "81cf3ad80e1ae7a220a1bc5b549ab7e7401a6ceebace501db1e188717358fb08",
+          "actualSha256": "81cf3ad80e1ae7a220a1bc5b549ab7e7401a6ceebace501db1e188717358fb08",
+          "actualBytes": 303,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/groups.q",
+          "bytes": 2258,
+          "expectedSha256": "449e3ce85df65c8e2eea4d11143f49f0813b0548d7216b7b5372162a6d9764e7",
+          "actualSha256": "449e3ce85df65c8e2eea4d11143f49f0813b0548d7216b7b5372162a6d9764e7",
+          "actualBytes": 2258,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/messages.q",
+          "bytes": 3157,
+          "expectedSha256": "5b08259c377f3a396c0c124e1e54badf05de71878093b8b55f5851c16be5d8b7",
+          "actualSha256": "5b08259c377f3a396c0c124e1e54badf05de71878093b8b55f5851c16be5d8b7",
+          "actualBytes": 3157,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/notifications.q",
+          "bytes": 184,
+          "expectedSha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347",
+          "actualSha256": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347",
+          "actualBytes": 184,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/posts.q",
+          "bytes": 163,
+          "expectedSha256": "927f749bf552ca788df93b41e494b2361a29c5dddc636dbdb7ed2dfb4a9b863b",
+          "actualSha256": "927f749bf552ca788df93b41e494b2361a29c5dddc636dbdb7ed2dfb4a9b863b",
+          "actualBytes": 163,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/profiles.q",
+          "bytes": 715,
+          "expectedSha256": "27f51d315227cf66a59005f93fa458fbabb3689cb1eda0bddd355245f535c6ae",
+          "actualSha256": "27f51d315227cf66a59005f93fa458fbabb3689cb1eda0bddd355245f535c6ae",
+          "actualBytes": 715,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/schema.q",
+          "bytes": 3570,
+          "expectedSha256": "7f5330c77188f95381cd8f9c81b0400e130dce856aeea82aa382b2040c47f409",
+          "actualSha256": "7f5330c77188f95381cd8f9c81b0400e130dce856aeea82aa382b2040c47f409",
+          "actualBytes": 3570,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/schema.q",
+          "bytes": 223,
+          "expectedSha256": "8e86ebf772160d075125a1e5cd77bbfad57260ef3952cacc90f951339206cc2b",
+          "actualSha256": "8e86ebf772160d075125a1e5cd77bbfad57260ef3952cacc90f951339206cc2b",
+          "actualBytes": 223,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/todos.q",
+          "bytes": 165,
+          "expectedSha256": "bacc72cee40548f50c8fd20b99ddb03f3d8ff9b0448fefe68713be3e356e04ca",
+          "actualSha256": "bacc72cee40548f50c8fd20b99ddb03f3d8ff9b0448fefe68713be3e356e04ca",
+          "actualBytes": 165,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "ios/MemoryVideoSource.swift",
+          "bytes": 1461,
+          "expectedSha256": "0f8800aa34aa5877d502543f8f3b0e89818171962680405663988f5e8f3e8667",
+          "actualSha256": "0f8800aa34aa5877d502543f8f3b0e89818171962680405663988f5e8f3e8667",
+          "actualBytes": 1461,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "ios/SnapbackMemoryVideoModule.swift",
+          "bytes": 3459,
+          "expectedSha256": "8abf764b437b285f0fdefa2a63a35d2fb64c3f9700a2742a360331409d683fb3",
+          "actualSha256": "8abf764b437b285f0fdefa2a63a35d2fb64c3f9700a2742a360331409d683fb3",
+          "actualBytes": 3459,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/api.d.ts",
+          "bytes": 1017,
+          "expectedSha256": "14d23d817c550dac591fca315657dd66f9f05e9a4319459d6ec85b1ac41a8cf7",
+          "actualSha256": "14d23d817c550dac591fca315657dd66f9f05e9a4319459d6ec85b1ac41a8cf7",
+          "actualBytes": 1017,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/asset-policy.d.ts",
+          "bytes": 1387,
+          "expectedSha256": "5d9a4bcb3fff3747d854804490bfac00d9a9ced47737c72155dffc30164336bb",
+          "actualSha256": "5d9a4bcb3fff3747d854804490bfac00d9a9ced47737c72155dffc30164336bb",
+          "actualBytes": 1387,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/assets.d.ts",
+          "bytes": 2249,
+          "expectedSha256": "b724c9c610da92fcbe09b309d0b8036160da96a80a1d13aeea1948d39050f37f",
+          "actualSha256": "b724c9c610da92fcbe09b309d0b8036160da96a80a1d13aeea1948d39050f37f",
+          "actualBytes": 2249,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/authoring-lib.d.ts",
+          "bytes": 2554,
+          "expectedSha256": "9672bbce020231936695d5a1274f495709eaaa55a2a512638eaf9736de5d6de0",
+          "actualSha256": "9672bbce020231936695d5a1274f495709eaaa55a2a512638eaf9736de5d6de0",
+          "actualBytes": 2554,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/byte-cache.d.ts",
+          "bytes": 8044,
+          "expectedSha256": "f183a8bf85748702f8d15637c6931ac81c7886f6da25bfea4f73aaf474c8886f",
+          "actualSha256": "f183a8bf85748702f8d15637c6931ac81c7886f6da25bfea4f73aaf474c8886f",
+          "actualBytes": 8044,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/canonical.d.ts",
+          "bytes": 1337,
+          "expectedSha256": "13c920954c6dbed5e8de0900e354ad0411c65cb0e61fd0ecad6309973bedbd7d",
+          "actualSha256": "13c920954c6dbed5e8de0900e354ad0411c65cb0e61fd0ecad6309973bedbd7d",
+          "actualBytes": 1337,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/carrier-index.d.ts",
+          "bytes": 2560,
+          "expectedSha256": "cff7c2a2326f7e994124db8acadaf564c806d3f2d610022ad5bc914faa5df646",
+          "actualSha256": "cff7c2a2326f7e994124db8acadaf564c806d3f2d610022ad5bc914faa5df646",
+          "actualBytes": 2560,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/certificate-identity.d.ts",
+          "bytes": 349,
+          "expectedSha256": "8dd443f43338c920b35a65425966424e215dbd493edd187e3cacb4a058fd3e46",
+          "actualSha256": "8dd443f43338c920b35a65425966424e215dbd493edd187e3cacb4a058fd3e46",
+          "actualBytes": 349,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/tests/chat.test.ts",
+          "bytes": 44707,
+          "expectedSha256": "080c602672697e01c3426de2ea29277d77f6e16a23d44acfd8f3a75699bf0e79",
+          "actualSha256": "080c602672697e01c3426de2ea29277d77f6e16a23d44acfd8f3a75699bf0e79",
+          "actualBytes": 44707,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-assets.d.ts",
+          "bytes": 1761,
+          "expectedSha256": "78c2a775cd41223c4b5bd5e0e15036a35150fa7d2f3d61fda27dc7f9bcdf85ed",
+          "actualSha256": "78c2a775cd41223c4b5bd5e0e15036a35150fa7d2f3d61fda27dc7f9bcdf85ed",
+          "actualBytes": 1761,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-auth.d.ts",
+          "bytes": 2736,
+          "expectedSha256": "98e1d2f0e420eb488b2218870ed7cd8af50db2f6676ba6bf3f111b8bc1e81105",
+          "actualSha256": "98e1d2f0e420eb488b2218870ed7cd8af50db2f6676ba6bf3f111b8bc1e81105",
+          "actualBytes": 2736,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-channels.d.ts",
+          "bytes": 1694,
+          "expectedSha256": "00d6adee44b42143ebd948a26666c2e5540949835617990231738b55e8e440aa",
+          "actualSha256": "00d6adee44b42143ebd948a26666c2e5540949835617990231738b55e8e440aa",
+          "actualBytes": 1694,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-inbox.d.ts",
+          "bytes": 3791,
+          "expectedSha256": "3ed2d349e7c00c612421f4c276bc78178b3b7c82d1990887bd01b3c72ef1c67d",
+          "actualSha256": "3ed2d349e7c00c612421f4c276bc78178b3b7c82d1990887bd01b3c72ef1c67d",
+          "actualBytes": 3791,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-items.d.ts",
+          "bytes": 7670,
+          "expectedSha256": "a66072d1484530a35607c92c729eda00d8b22a4d4f483c64ae63adb7d4b2546e",
+          "actualSha256": "a66072d1484530a35607c92c729eda00d8b22a4d4f483c64ae63adb7d4b2546e",
+          "actualBytes": 7670,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-mutations.d.ts",
+          "bytes": 1709,
+          "expectedSha256": "a7983cb4299a61daa951b3a5d96e5237ccd964927c80f889da220f7f9bcfa2c8",
+          "actualSha256": "a7983cb4299a61daa951b3a5d96e5237ccd964927c80f889da220f7f9bcfa2c8",
+          "actualBytes": 1709,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-observed.d.ts",
+          "bytes": 5053,
+          "expectedSha256": "8a49502789c5099dcf40f16616d39229de14842efd4592743bd5ca001c522352",
+          "actualSha256": "8a49502789c5099dcf40f16616d39229de14842efd4592743bd5ca001c522352",
+          "actualBytes": 5053,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-offline.d.ts",
+          "bytes": 5742,
+          "expectedSha256": "44eee0fa056c32b726f87cea44224f4dd3cb113c74b97bdd342da6067b30c193",
+          "actualSha256": "44eee0fa056c32b726f87cea44224f4dd3cb113c74b97bdd342da6067b30c193",
+          "actualBytes": 5742,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-outbox-observed.d.ts",
+          "bytes": 819,
+          "expectedSha256": "dd07a8d67b9295ca1b3dd266b1e83b1c3220d13d5b22862adcab0565f45c9b57",
+          "actualSha256": "dd07a8d67b9295ca1b3dd266b1e83b1c3220d13d5b22862adcab0565f45c9b57",
+          "actualBytes": 819,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-outbox-recover.d.ts",
+          "bytes": 519,
+          "expectedSha256": "95ee6b25c88c413f038ffbe158f071121c238613550dd007f5cabb6b75e486a5",
+          "actualSha256": "95ee6b25c88c413f038ffbe158f071121c238613550dd007f5cabb6b75e486a5",
+          "actualBytes": 519,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-outbox.d.ts",
+          "bytes": 4129,
+          "expectedSha256": "336ac965cf72e5916cee01391d8bbf65a785184347697d6ce78ad1f8210a2f5a",
+          "actualSha256": "336ac965cf72e5916cee01391d8bbf65a785184347697d6ce78ad1f8210a2f5a",
+          "actualBytes": 4129,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-pages.d.ts",
+          "bytes": 4204,
+          "expectedSha256": "66b14e8ce354bbc427e2f359c5bca5bb4d0c9753da76c1dd8681a942814cb62a",
+          "actualSha256": "66b14e8ce354bbc427e2f359c5bca5bb4d0c9753da76c1dd8681a942814cb62a",
+          "actualBytes": 4204,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-query.d.ts",
+          "bytes": 481,
+          "expectedSha256": "49d2c89096c3e151156faba2b86045b855236aeb7c48048df139aba2a8e802a2",
+          "actualSha256": "49d2c89096c3e151156faba2b86045b855236aeb7c48048df139aba2a8e802a2",
+          "actualBytes": 481,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-recovery.d.ts",
+          "bytes": 1631,
+          "expectedSha256": "f80432d271616952bf4265eb5e381bbcad51eea19fcc2911f0088ef01b4522b2",
+          "actualSha256": "f80432d271616952bf4265eb5e381bbcad51eea19fcc2911f0088ef01b4522b2",
+          "actualBytes": 1631,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-sessions.d.ts",
+          "bytes": 5717,
+          "expectedSha256": "5c5f3f94db0e5d0a5445b844b53fe61c2337bb181f91807180ffea5ff273c931",
+          "actualSha256": "5c5f3f94db0e5d0a5445b844b53fe61c2337bb181f91807180ffea5ff273c931",
+          "actualBytes": 5717,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-upload.d.ts",
+          "bytes": 3412,
+          "expectedSha256": "c60bac10e6041e026853baefdd2026b9ac3c952e0ffc85155d27047b70cabcb8",
+          "actualSha256": "c60bac10e6041e026853baefdd2026b9ac3c952e0ffc85155d27047b70cabcb8",
+          "actualBytes": 3412,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client-wire.d.ts",
+          "bytes": 4051,
+          "expectedSha256": "75aa71b9368bc103b99ad9367bb715fbd305032ee04fbc8fd47b1040dc99aea7",
+          "actualSha256": "75aa71b9368bc103b99ad9367bb715fbd305032ee04fbc8fd47b1040dc99aea7",
+          "actualBytes": 4051,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/client.d.ts",
+          "bytes": 1112,
+          "expectedSha256": "91dad0a94be3275094cf1862b78991930a92f7a4c97d249e3d0e93c3b33fb642",
+          "actualSha256": "91dad0a94be3275094cf1862b78991930a92f7a4c97d249e3d0e93c3b33fb642",
+          "actualBytes": 1112,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler-lib.d.ts",
+          "bytes": 3297,
+          "expectedSha256": "34b18fc99720579b7192de9d82065f2ddcbc375e3b5f1c76caa3b7eaf1299145",
+          "actualSha256": "34b18fc99720579b7192de9d82065f2ddcbc375e3b5f1c76caa3b7eaf1299145",
+          "actualBytes": 3297,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/components.d.ts",
+          "bytes": 1070,
+          "expectedSha256": "700f0bbb6eaff5fe897a1f340a56bcbf76ab9157ac97aec9e6ca727b3c57381b",
+          "actualSha256": "700f0bbb6eaff5fe897a1f340a56bcbf76ab9157ac97aec9e6ca727b3c57381b",
+          "actualBytes": 1070,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/composed-facts.ts",
+          "bytes": 1136,
+          "expectedSha256": "dea7504d368aaa9fd3bf053b9d15260ebd5398531086f8c9e06a988124a89ff1",
+          "actualSha256": "dea7504d368aaa9fd3bf053b9d15260ebd5398531086f8c9e06a988124a89ff1",
+          "actualBytes": 1136,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/coverage-spans.d.ts",
+          "bytes": 338,
+          "expectedSha256": "66b0a8a098d1cc27562066d05a9a8713704331e0a89843c553294b6f5626a21f",
+          "actualSha256": "66b0a8a098d1cc27562066d05a9a8713704331e0a89843c553294b6f5626a21f",
+          "actualBytes": 338,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/coverage.d.ts",
+          "bytes": 1966,
+          "expectedSha256": "3a053359d0f43b353a2b6f0725d4a6465684cb4e4f69f44d4587fd139ea45879",
+          "actualSha256": "3a053359d0f43b353a2b6f0725d4a6465684cb4e4f69f44d4587fd139ea45879",
+          "actualBytes": 1966,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/cursor.d.ts",
+          "bytes": 593,
+          "expectedSha256": "2bfe59ff3246ff2d044c3d166c3740abb88a1ce308231b0fb1669bb73eeb4b35",
+          "actualSha256": "2bfe59ff3246ff2d044c3d166c3740abb88a1ce308231b0fb1669bb73eeb4b35",
+          "actualBytes": 593,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/delivery-acknowledgements.d.ts",
+          "bytes": 2008,
+          "expectedSha256": "0d3c383e5179d5f2a679712f90947740843c305c2950d0392c9360d9f749ca07",
+          "actualSha256": "0d3c383e5179d5f2a679712f90947740843c305c2950d0392c9360d9f749ca07",
+          "actualBytes": 2008,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/delivery-prediction.d.ts",
+          "bytes": 528,
+          "expectedSha256": "1fedef0b857db1549575b5214e31e3369aa4a2970ee48559c087c85d8d71bad4",
+          "actualSha256": "1fedef0b857db1549575b5214e31e3369aa4a2970ee48559c087c85d8d71bad4",
+          "actualBytes": 528,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/delivery.ts",
+          "bytes": 802,
+          "expectedSha256": "ab3347195ef021ceab145dea518e38f3f97ed2384ddf5db6893fb283df5f702b",
+          "actualSha256": "ab3347195ef021ceab145dea518e38f3f97ed2384ddf5db6893fb283df5f702b",
+          "actualBytes": 802,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/drain.d.ts",
+          "bytes": 2029,
+          "expectedSha256": "bda2b1cea28c5df7d21a7af913367b938662f6ba077b81d8db203feb384fcec4",
+          "actualSha256": "bda2b1cea28c5df7d21a7af913367b938662f6ba077b81d8db203feb384fcec4",
+          "actualBytes": 2029,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/effects-lib.d.ts",
+          "bytes": 434975,
+          "expectedSha256": "13dd9d1f06641596a4c6ac1c080b3f45f083485baa55a4a378d5b8eba68b311d",
+          "actualSha256": "13dd9d1f06641596a4c6ac1c080b3f45f083485baa55a4a378d5b8eba68b311d",
+          "actualBytes": 434975,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/env.d.ts",
+          "bytes": 79,
+          "expectedSha256": "e36e1cd6ad438964910403b47a4b744d28c27aaa5dbc6baa0ebbf3ab8d19641a",
+          "actualSha256": "e36e1cd6ad438964910403b47a4b744d28c27aaa5dbc6baa0ebbf3ab8d19641a",
+          "actualBytes": 79,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/errors.d.ts",
+          "bytes": 822,
+          "expectedSha256": "b305a582609fd35078e55e5994cc5a04ee12a58109e7fecb78221cb6af880b07",
+          "actualSha256": "b305a582609fd35078e55e5994cc5a04ee12a58109e7fecb78221cb6af880b07",
+          "actualBytes": 822,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo.d.ts",
+          "bytes": 256,
+          "expectedSha256": "c67db00875dceab59e14f088ed7b1fae07d375ebe056a01dce893746e52f5f35",
+          "actualSha256": "c67db00875dceab59e14f088ed7b1fae07d375ebe056a01dce893746e52f5f35",
+          "actualBytes": 256,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/extent-facts.d.ts",
+          "bytes": 992,
+          "expectedSha256": "b4fca8aa5cdbbfb825d1a8013313d619647a3216bddd53afe93f87825f284059",
+          "actualSha256": "b4fca8aa5cdbbfb825d1a8013313d619647a3216bddd53afe93f87825f284059",
+          "actualBytes": 992,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/extent-index.d.ts",
+          "bytes": 763,
+          "expectedSha256": "6698a2c74456d2a296bbbf83131116958e775f506e882bd287e1b971057cc2a4",
+          "actualSha256": "6698a2c74456d2a296bbbf83131116958e775f506e882bd287e1b971057cc2a4",
+          "actualBytes": 763,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/fact-index.d.ts",
+          "bytes": 903,
+          "expectedSha256": "b5acc7d86d8a627ee9a4db0f225e728925b9ed8cd140d7f094da204bdd2604d9",
+          "actualSha256": "b5acc7d86d8a627ee9a4db0f225e728925b9ed8cd140d7f094da204bdd2604d9",
+          "actualBytes": 903,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/fact-integrity.d.ts",
+          "bytes": 4152,
+          "expectedSha256": "38d14a569884e6456e234655dd806590e2ae69622f96cfb8ccd11e718ac3d1d8",
+          "actualSha256": "38d14a569884e6456e234655dd806590e2ae69622f96cfb8ccd11e718ac3d1d8",
+          "actualBytes": 4152,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/files.d.ts",
+          "bytes": 217,
+          "expectedSha256": "748637d3b4a3eba670a94d839b73cd94f68ecafe11c2267969f70861e5742ca9",
+          "actualSha256": "748637d3b4a3eba670a94d839b73cd94f68ecafe11c2267969f70861e5742ca9",
+          "actualBytes": 217,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/files.d.ts",
+          "bytes": 1984,
+          "expectedSha256": "a9bcdce6a6ac48df8cf0cf4bf6d1cec2a7a9fd750d163e6e3cbfdd1d21c6ad86",
+          "actualSha256": "a9bcdce6a6ac48df8cf0cf4bf6d1cec2a7a9fd750d163e6e3cbfdd1d21c6ad86",
+          "actualBytes": 1984,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/guide/recipes/global-message-search.ts",
+          "bytes": 2478,
+          "expectedSha256": "729f76fb5cbd27a0c5e003f3be9a230a2249d9f7c4d83efceaf0e0c163eb170d",
+          "actualSha256": "729f76fb5cbd27a0c5e003f3be9a230a2249d9f7c4d83efceaf0e0c163eb170d",
+          "actualBytes": 2478,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/global-search-pager.d.ts",
+          "bytes": 2160,
+          "expectedSha256": "55f3e8cb31898eaa77cf8d8d579453f8fda3cb4345e1f5d18977b4dc139d6bee",
+          "actualSha256": "55f3e8cb31898eaa77cf8d8d579453f8fda3cb4345e1f5d18977b4dc139d6bee",
+          "actualBytes": 2160,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/hash.d.ts",
+          "bytes": 534,
+          "expectedSha256": "da18a0a2cd10a4968d54d00076cb06a46d89df0e20222720a2d7d608a64edb25",
+          "actualSha256": "da18a0a2cd10a4968d54d00076cb06a46d89df0e20222720a2d7d608a64edb25",
+          "actualBytes": 534,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/held-directory.d.ts",
+          "bytes": 1045,
+          "expectedSha256": "d7f23cbbb70872f4dedd54467fff7560c6f3c129a1a0221937c317e44bdea88e",
+          "actualSha256": "d7f23cbbb70872f4dedd54467fff7560c6f3c129a1a0221937c317e44bdea88e",
+          "actualBytes": 1045,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/held-program.d.ts",
+          "bytes": 483,
+          "expectedSha256": "af15c42dd7847f6ab96484c9aab9d914fdd5d2e5ad153fa8d1e8f16cdf8bd58f",
+          "actualSha256": "af15c42dd7847f6ab96484c9aab9d914fdd5d2e5ad153fa8d1e8f16cdf8bd58f",
+          "actualBytes": 483,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/inbox.d.ts",
+          "bytes": 4126,
+          "expectedSha256": "7f103d7ecad5f635a852f94ff56ea730cd9cd1ca9c305181a08393bfed97dbaa",
+          "actualSha256": "7f103d7ecad5f635a852f94ff56ea730cd9cd1ca9c305181a08393bfed97dbaa",
+          "actualBytes": 4126,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/index-store.d.ts",
+          "bytes": 3601,
+          "expectedSha256": "adacb70de489dbbc079624f572fefd40c052b922b58975a18a9a9a4fc457c3df",
+          "actualSha256": "adacb70de489dbbc079624f572fefd40c052b922b58975a18a9a9a4fc457c3df",
+          "actualBytes": 3601,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/index.d.ts",
+          "bytes": 1121,
+          "expectedSha256": "8f14f88e2ac4734e9fc6319cb87224927737187ff1c3b7b4af8e82e51b9909a1",
+          "actualSha256": "8f14f88e2ac4734e9fc6319cb87224927737187ff1c3b7b4af8e82e51b9909a1",
+          "actualBytes": 1121,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "bytes": 2999,
+          "expectedSha256": "061c545f8148c91b89c99696aafac09f552ed55cc79f3998da05148bcdaf782f",
+          "actualSha256": "061c545f8148c91b89c99696aafac09f552ed55cc79f3998da05148bcdaf782f",
+          "actualBytes": 2999,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/indexeddb.d.ts",
+          "bytes": 962,
+          "expectedSha256": "b608eb919fd437cd6ec8d50538f9ed8cd94d3e911c4aca675ce60c68ad0d9a17",
+          "actualSha256": "b608eb919fd437cd6ec8d50538f9ed8cd94d3e911c4aca675ce60c68ad0d9a17",
+          "actualBytes": 962,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/internal-access.d.ts",
+          "bytes": 699,
+          "expectedSha256": "317deee62af1fbb280d2d9e86267ef8b1edd6bc996c67692fc68cefce2796343",
+          "actualSha256": "317deee62af1fbb280d2d9e86267ef8b1edd6bc996c67692fc68cefce2796343",
+          "actualBytes": 699,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/compiler/src/ir.d.ts",
+          "bytes": 9073,
+          "expectedSha256": "9c19d92e70ccc8adf63322bdd821bf45e50a05c0f2a9d738cc0066058e8a09bf",
+          "actualSha256": "9c19d92e70ccc8adf63322bdd821bf45e50a05c0f2a9d738cc0066058e8a09bf",
+          "actualBytes": 9073,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/live.d.ts",
+          "bytes": 1074,
+          "expectedSha256": "5538b9b1b7301bba9dfd30e3e2c26c90ca32536559e24e31eadcf6e07e0c1111",
+          "actualSha256": "5538b9b1b7301bba9dfd30e3e2c26c90ca32536559e24e31eadcf6e07e0c1111",
+          "actualBytes": 1074,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/local-cursor.d.ts",
+          "bytes": 1661,
+          "expectedSha256": "9527d73bb65974cf1c636d74d2a5f4c4fcdbfdd92bb812df16e189043636d120",
+          "actualSha256": "9527d73bb65974cf1c636d74d2a5f4c4fcdbfdd92bb812df16e189043636d120",
+          "actualBytes": 1661,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/locks.d.ts",
+          "bytes": 1167,
+          "expectedSha256": "dbfcc799249f88080702b68aa662c1201a4ece5ba7b5ae352c4d0ef5c824236c",
+          "actualSha256": "dbfcc799249f88080702b68aa662c1201a4ece5ba7b5ae352c4d0ef5c824236c",
+          "actualBytes": 1167,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/maintained-coherence.d.ts",
+          "bytes": 821,
+          "expectedSha256": "98a87ac1911112ca95e7f3fe582538341a20c3527d202498790e5d00a8090086",
+          "actualSha256": "98a87ac1911112ca95e7f3fe582538341a20c3527d202498790e5d00a8090086",
+          "actualBytes": 821,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/memory-video.d.ts",
+          "bytes": 429,
+          "expectedSha256": "95eca53ce2fb7ba0ad345e0a116c378e40e50cf41af8bf6a6e99763d204ddbd0",
+          "actualSha256": "95eca53ce2fb7ba0ad345e0a116c378e40e50cf41af8bf6a6e99763d204ddbd0",
+          "actualBytes": 429,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/merge.d.ts",
+          "bytes": 353,
+          "expectedSha256": "37175241176e138da9eb4bdb28d74592edaa3b9145c70cd6e1e120a1d9874bec",
+          "actualSha256": "37175241176e138da9eb4bdb28d74592edaa3b9145c70cd6e1e120a1d9874bec",
+          "actualBytes": 353,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/metadata.d.ts",
+          "bytes": 811,
+          "expectedSha256": "d7cf298936e9479da540f0346050dbea1954abb16c93e0b3d1be9cfd65d4f815",
+          "actualSha256": "d7cf298936e9479da540f0346050dbea1954abb16c93e0b3d1be9cfd65d4f815",
+          "actualBytes": 811,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/mutation-targets.d.ts",
+          "bytes": 2315,
+          "expectedSha256": "886e068a570dbd668d58b638460c28514ef0700f146748e6158fcf2a882f2d4d",
+          "actualSha256": "886e068a570dbd668d58b638460c28514ef0700f146748e6158fcf2a882f2d4d",
+          "actualBytes": 2315,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/offline-protocol.d.ts",
+          "bytes": 7797,
+          "expectedSha256": "68d2b3f19f1b54172e0e63f20946e9d9624299b26660ab1475ea576d2b283d70",
+          "actualSha256": "68d2b3f19f1b54172e0e63f20946e9d9624299b26660ab1475ea576d2b283d70",
+          "actualBytes": 7797,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/offline-schema.d.ts",
+          "bytes": 65,
+          "expectedSha256": "c1ec7a444f6bdbe41b7fc49074710f8978f677f0a9c0defb535609b89f33f82b",
+          "actualSha256": "c1ec7a444f6bdbe41b7fc49074710f8978f677f0a9c0defb535609b89f33f82b",
+          "actualBytes": 65,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/offline.d.ts",
+          "bytes": 14218,
+          "expectedSha256": "5f3333accac5e08a04a6eca25f136122f5214a07fbe32d3ec0c09cbe6616960b",
+          "actualSha256": "5f3333accac5e08a04a6eca25f136122f5214a07fbe32d3ec0c09cbe6616960b",
+          "actualBytes": 14218,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/ordered.d.ts",
+          "bytes": 818,
+          "expectedSha256": "8078686fa1585a8d6954bbf6f4a8a48af5c1e7edbbfd976069a3a9cbd7bc803f",
+          "actualSha256": "8078686fa1585a8d6954bbf6f4a8a48af5c1e7edbbfd976069a3a9cbd7bc803f",
+          "actualBytes": 818,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/outbox.d.ts",
+          "bytes": 11729,
+          "expectedSha256": "90f7c22e51f8b1777dfe48afe550c62136f82ae3d275b1787f1b83b74fdd3f4e",
+          "actualSha256": "90f7c22e51f8b1777dfe48afe550c62136f82ae3d275b1787f1b83b74fdd3f4e",
+          "actualBytes": 11729,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/overlay-retirement.d.ts",
+          "bytes": 2711,
+          "expectedSha256": "a54a8e12de7eb263d2f9fe0545345a5a8243b676ac94b1dfaa6df175ab35d5b9",
+          "actualSha256": "a54a8e12de7eb263d2f9fe0545345a5a8243b676ac94b1dfaa6df175ab35d5b9",
+          "actualBytes": 2711,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/posting-tree.d.ts",
+          "bytes": 476,
+          "expectedSha256": "d77e517024fc5a64e3c7a385e2b58bf3710ece246e04899095b70f761fbcc7df",
+          "actualSha256": "d77e517024fc5a64e3c7a385e2b58bf3710ece246e04899095b70f761fbcc7df",
+          "actualBytes": 476,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/prefix-dictionary.d.ts",
+          "bytes": 329,
+          "expectedSha256": "29ec6f9df9c1615f9f5d5be8b39cc4caf4c3f25380b46335e3b09063a48f11ce",
+          "actualSha256": "29ec6f9df9c1615f9f5d5be8b39cc4caf4c3f25380b46335e3b09063a48f11ce",
+          "actualBytes": 329,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/projection.d.ts",
+          "bytes": 1322,
+          "expectedSha256": "b39d8958e5eabdc13846c264a23844cb504b37d9814ad73af81c0c43c2698367",
+          "actualSha256": "b39d8958e5eabdc13846c264a23844cb504b37d9814ad73af81c0c43c2698367",
+          "actualBytes": 1322,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/query-frame.d.ts",
+          "bytes": 759,
+          "expectedSha256": "11fe0034699276f058f59cdca65cd11d8bec51790a672e73a7379f9bd9ce8039",
+          "actualSha256": "11fe0034699276f058f59cdca65cd11d8bec51790a672e73a7379f9bd9ce8039",
+          "actualBytes": 759,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/query-inputs.d.ts",
+          "bytes": 596,
+          "expectedSha256": "303b227081baef0cbcc869bf3a5ba90d5436822789724ba84acc76ff2411eae6",
+          "actualSha256": "303b227081baef0cbcc869bf3a5ba90d5436822789724ba84acc76ff2411eae6",
+          "actualBytes": 596,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/query-items.d.ts",
+          "bytes": 1677,
+          "expectedSha256": "59aa418bf9850346fabb95a176238a037d51f81aae07fa6b336f677e00b33a46",
+          "actualSha256": "59aa418bf9850346fabb95a176238a037d51f81aae07fa6b336f677e00b33a46",
+          "actualBytes": 1677,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/range-preparation.d.ts",
+          "bytes": 3847,
+          "expectedSha256": "2a1746933cf8963e349ab23a36358003c3af7dcb79e98e0a33b773d4db2a45d9",
+          "actualSha256": "2a1746933cf8963e349ab23a36358003c3af7dcb79e98e0a33b773d4db2a45d9",
+          "actualBytes": 3847,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/range-store.d.ts",
+          "bytes": 19149,
+          "expectedSha256": "f81fe55621d68ac02a2b7834516f76f174c286b55bc35c3b04e7d5bcc0f55c32",
+          "actualSha256": "f81fe55621d68ac02a2b7834516f76f174c286b55bc35c3b04e7d5bcc0f55c32",
+          "actualBytes": 19149,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-core.d.ts",
+          "bytes": 6076,
+          "expectedSha256": "14bfd6599e32b7e6a07e486d047774c40c8be298e00b9d608ec809a4c979fda4",
+          "actualSha256": "14bfd6599e32b7e6a07e486d047774c40c8be298e00b9d608ec809a4c979fda4",
+          "actualBytes": 6076,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native.d.ts",
+          "bytes": 901,
+          "expectedSha256": "6cbf1e4f19a498536045bbe6165ed5b5760bdc8ea8148b7b49fe044dd46f31af",
+          "actualSha256": "6cbf1e4f19a498536045bbe6165ed5b5760bdc8ea8148b7b49fe044dd46f31af",
+          "actualBytes": 901,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react.d.ts",
+          "bytes": 997,
+          "expectedSha256": "7bcf777714f26882509abc281716be6cbba77dd7eb3935e99434495efd8d6200",
+          "actualSha256": "7bcf777714f26882509abc281716be6cbba77dd7eb3935e99434495efd8d6200",
+          "actualBytes": 997,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/row-image.d.ts",
+          "bytes": 2470,
+          "expectedSha256": "fa40e2f3f2e4f1f53acf2a20609713195bdcc8aebb5fbf50c57d8c6bcd44fbcb",
+          "actualSha256": "fa40e2f3f2e4f1f53acf2a20609713195bdcc8aebb5fbf50c57d8c6bcd44fbcb",
+          "actualBytes": 2470,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/row-values.d.ts",
+          "bytes": 1378,
+          "expectedSha256": "f3c326c70fd84446d273fd137df54cf1288d496f28391b45e53f416bfb24ec2e",
+          "actualSha256": "f3c326c70fd84446d273fd137df54cf1288d496f28391b45e53f416bfb24ec2e",
+          "actualBytes": 1378,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/runner.d.ts",
+          "bytes": 3436,
+          "expectedSha256": "39db6b29c91daeff486dce89061ba6a382328ae8a9762922b97af0f8d76d9a78",
+          "actualSha256": "39db6b29c91daeff486dce89061ba6a382328ae8a9762922b97af0f8d76d9a78",
+          "actualBytes": 3436,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/search-key.d.ts",
+          "bytes": 2394,
+          "expectedSha256": "63e58dac3f6b18d86421d7fda41172c13cab48910762d32cd975ead9a777ff4c",
+          "actualSha256": "63e58dac3f6b18d86421d7fda41172c13cab48910762d32cd975ead9a777ff4c",
+          "actualBytes": 2394,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/search-runtime.d.ts",
+          "bytes": 685,
+          "expectedSha256": "2feabb7984ff1b1b68619c9ff99c33b41f3d019fea02c7073e61134f37f391a2",
+          "actualSha256": "2feabb7984ff1b1b68619c9ff99c33b41f3d019fea02c7073e61134f37f391a2",
+          "actualBytes": 685,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/snapback/seed.ts",
+          "bytes": 1942,
+          "expectedSha256": "8889d745e8b9aba0ae9fe8125b1f2ed3b2295de4ef42b0699e91f54e571f57f9",
+          "actualSha256": "8889d745e8b9aba0ae9fe8125b1f2ed3b2295de4ef42b0699e91f54e571f57f9",
+          "actualBytes": 1942,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/seed.ts",
+          "bytes": 204,
+          "expectedSha256": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882",
+          "actualSha256": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882",
+          "actualBytes": 204,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/slot-tree.d.ts",
+          "bytes": 597,
+          "expectedSha256": "3997a81d68fe54b44f6cc5141bb7669d0be1dd314b58bd8d77f44260db99ea74",
+          "actualSha256": "3997a81d68fe54b44f6cc5141bb7669d0be1dd314b58bd8d77f44260db99ea74",
+          "actualBytes": 597,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/snapshot.d.ts",
+          "bytes": 3562,
+          "expectedSha256": "3bd87bda27b95063788ae63b541047265109d533a6229a1686ff7e98a5db08f8",
+          "actualSha256": "3bd87bda27b95063788ae63b541047265109d533a6229a1686ff7e98a5db08f8",
+          "actualBytes": 3562,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/react-native/source.d.ts",
+          "bytes": 679,
+          "expectedSha256": "fae16d82f2f32f079f3d81320725fe94b16e9586219d409679809908a09c68dc",
+          "actualSha256": "fae16d82f2f32f079f3d81320725fe94b16e9586219d409679809908a09c68dc",
+          "actualBytes": 679,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite-driver.conformance.d.ts",
+          "bytes": 387,
+          "expectedSha256": "f289806fee31975955fc16a721924548e008d2646d7a9a2914183ae563eb8594",
+          "actualSha256": "f289806fee31975955fc16a721924548e008d2646d7a9a2914183ae563eb8594",
+          "actualBytes": 387,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite-driver.d.ts",
+          "bytes": 877,
+          "expectedSha256": "ca8186b041d1a98a62dca46f396a5f0027c5735183cdec4b925d0297ba4246c6",
+          "actualSha256": "ca8186b041d1a98a62dca46f396a5f0027c5735183cdec4b925d0297ba4246c6",
+          "actualBytes": 877,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite-expo.d.ts",
+          "bytes": 206,
+          "expectedSha256": "d677efa86e8fb3d044502cd845952dcdefb59a7d529171517205b2e36772078e",
+          "actualSha256": "d677efa86e8fb3d044502cd845952dcdefb59a7d529171517205b2e36772078e",
+          "actualBytes": 206,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/sqlite.d.ts",
+          "bytes": 1851,
+          "expectedSha256": "26e8b6db8a89e181d99951ec37561f759305647161c689b6ff7d4d5bdc93eb0b",
+          "actualSha256": "26e8b6db8a89e181d99951ec37561f759305647161c689b6ff7d4d5bdc93eb0b",
+          "actualBytes": 1851,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/sse-parser.d.ts",
+          "bytes": 330,
+          "expectedSha256": "843ee5e5f56c95b4db9d87247b6316a60a42218abbe0739f08cff89e1776725d",
+          "actualSha256": "843ee5e5f56c95b4db9d87247b6316a60a42218abbe0739f08cff89e1776725d",
+          "actualBytes": 330,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/sse.d.ts",
+          "bytes": 1604,
+          "expectedSha256": "487b829535bf173e30043f2cbbc2bb3ef0c41cba9bd1b533751fe21ad7b03076",
+          "actualSha256": "487b829535bf173e30043f2cbbc2bb3ef0c41cba9bd1b533751fe21ad7b03076",
+          "actualBytes": 1604,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/shared/status.ts",
+          "bytes": 1023,
+          "expectedSha256": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "actualSha256": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "actualBytes": 1023,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/shared/status.ts",
+          "bytes": 1023,
+          "expectedSha256": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "actualSha256": "34239b1cb5b2cee7a3f8871bc3603b6077690ef2dadd4fbad7873dbf3fba8ba2",
+          "actualBytes": 1023,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/store.d.ts",
+          "bytes": 2869,
+          "expectedSha256": "284872b069cd80dbb79fde9617d452e05197f7aad0cf50ec0fcf5ee10993cf84",
+          "actualSha256": "284872b069cd80dbb79fde9617d452e05197f7aad0cf50ec0fcf5ee10993cf84",
+          "actualBytes": 2869,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/success-compaction.d.ts",
+          "bytes": 356,
+          "expectedSha256": "b945e5f82712f4a2a6e0facc1676fa54124f66456a83b4ae0fa636a229bc43b1",
+          "actualSha256": "b945e5f82712f4a2a6e0facc1676fa54124f66456a83b4ae0fa636a229bc43b1",
+          "actualBytes": 356,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/store/swap-journal.d.ts",
+          "bytes": 1336,
+          "expectedSha256": "d9ba43fee84c472ed1d244f4bad1fa38c095a80d93e535d6f087148322a9454c",
+          "actualSha256": "d9ba43fee84c472ed1d244f4bad1fa38c095a80d93e535d6f087148322a9454c",
+          "actualBytes": 1336,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/test.d.ts",
+          "bytes": 3709,
+          "expectedSha256": "8fa08a5cb2ff865e5c3c8d7e00ebd93c3c774d17385f7caa65aafd3837f2de72",
+          "actualSha256": "8fa08a5cb2ff865e5c3c8d7e00ebd93c3c774d17385f7caa65aafd3837f2de72",
+          "actualBytes": 3709,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/text.d.ts",
+          "bytes": 68,
+          "expectedSha256": "cd0ef87d04159a3c923d8a7dd47248c06b865ce32156444283cef9a84aa3d116",
+          "actualSha256": "cd0ef87d04159a3c923d8a7dd47248c06b865ce32156444283cef9a84aa3d116",
+          "actualBytes": 68,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/shared/thread.ts",
+          "bytes": 1188,
+          "expectedSha256": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "actualSha256": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "actualBytes": 1188,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/shared/thread.ts",
+          "bytes": 1188,
+          "expectedSha256": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "actualSha256": "21e31de20147d371e8855ac22b6a237e56a586237a5deb513b1b15541319e3da",
+          "actualBytes": 1188,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/todos/snapback/tests/todos.test.ts",
+          "bytes": 560,
+          "expectedSha256": "c3916dc63af647da48bbc1900657d4c4e9028923772dbf1853dbbea352e41cdc",
+          "actualSha256": "c3916dc63af647da48bbc1900657d4c4e9028923772dbf1853dbbea352e41cdc",
+          "actualBytes": 560,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/token-store.d.ts",
+          "bytes": 363,
+          "expectedSha256": "c64059a4fd3ccc267e38f025333f2341f2d07776049a076f4094dfa08d67496e",
+          "actualSha256": "c64059a4fd3ccc267e38f025333f2341f2d07776049a076f4094dfa08d67496e",
+          "actualBytes": 363,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/token-store.d.ts",
+          "bytes": 498,
+          "expectedSha256": "db0fd9b01851eb8fcab8f26f20f5a8c7ca125c395236235697b817a617a3712c",
+          "actualSha256": "db0fd9b01851eb8fcab8f26f20f5a8c7ca125c395236235697b817a617a3712c",
+          "actualBytes": 498,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/tombstones.d.ts",
+          "bytes": 308,
+          "expectedSha256": "3951ae696167a3714b8e6d1d991e879d7e098cb0e999981e67abf8b04f2e9507",
+          "actualSha256": "3951ae696167a3714b8e6d1d991e879d7e098cb0e999981e67abf8b04f2e9507",
+          "actualBytes": 308,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/twin-hydrate.d.ts",
+          "bytes": 1321,
+          "expectedSha256": "e853292f87506e662d4a72361549346b9d9d08b980a2f187da76dcc8f59742b3",
+          "actualSha256": "e853292f87506e662d4a72361549346b9d9d08b980a2f187da76dcc8f59742b3",
+          "actualBytes": 1321,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/twin-store.d.ts",
+          "bytes": 1927,
+          "expectedSha256": "11176902be84f12381e797ea9331357f7d58a9ed06eedfd0743a24fee51ca46c",
+          "actualSha256": "11176902be84f12381e797ea9331357f7d58a9ed06eedfd0743a24fee51ca46c",
+          "actualBytes": 1927,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/twin.d.ts",
+          "bytes": 2951,
+          "expectedSha256": "d97110f7f24229eae56d3997e784b453d8e9679c3abf594d88db8491c9a097b4",
+          "actualSha256": "d97110f7f24229eae56d3997e784b453d8e9679c3abf594d88db8491c9a097b4",
+          "actualBytes": 2951,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/types.d.ts",
+          "bytes": 6318,
+          "expectedSha256": "f133be7413811c69391d4c3385664d2f66e6fe27ab54545de4b3a70f0f3dcefc",
+          "actualSha256": "f133be7413811c69391d4c3385664d2f66e6fe27ab54545de4b3a70f0f3dcefc",
+          "actualBytes": 6318,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/types.d.ts",
+          "bytes": 24694,
+          "expectedSha256": "44b65cae57ec3803388e25cda0396ad1f9e0f469e8c315aee15e2161e0ade737",
+          "actualSha256": "44b65cae57ec3803388e25cda0396ad1f9e0f469e8c315aee15e2161e0ade737",
+          "actualBytes": 24694,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/dist/unicode-tables.d.ts",
+          "bytes": 235,
+          "expectedSha256": "09b3ded1f24361650a924bf057daf87a7534082b07b96c2d961ac78cedcdcd9d",
+          "actualSha256": "09b3ded1f24361650a924bf057daf87a7534082b07b96c2d961ac78cedcdcd9d",
+          "actualBytes": 235,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/unicode-tables.d.ts",
+          "bytes": 603,
+          "expectedSha256": "8bb65c20e42f45866b1b0239c119b86e695de78ca2e077050e4e4997e82c3fcd",
+          "actualSha256": "8bb65c20e42f45866b1b0239c119b86e695de78ca2e077050e4e4997e82c3fcd",
+          "actualBytes": 603,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/unicode.d.ts",
+          "bytes": 2771,
+          "expectedSha256": "93707e0fd2e368cf6b95725be3e2ed1e00691a670ae6607198652e4abcf18a8e",
+          "actualSha256": "93707e0fd2e368cf6b95725be3e2ed1e00691a670ae6607198652e4abcf18a8e",
+          "actualBytes": 2771,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/evaluator/src/value-runtime.d.ts",
+          "bytes": 5029,
+          "expectedSha256": "9653ce42907831d91afa0cf5ef287a81d10260ac74261f64fb222c5d1481cf59",
+          "actualSha256": "9653ce42907831d91afa0cf5ef287a81d10260ac74261f64fb222c5d1481cf59",
+          "actualBytes": 5029,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/vite.config.ts",
+          "bytes": 903,
+          "expectedSha256": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "actualSha256": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "actualBytes": 903,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/vite.config.ts",
+          "bytes": 903,
+          "expectedSha256": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "actualSha256": "ed27dc786362c273c60e1a259f54fca3f165475798caa1299181e164d3d796dd",
+          "actualBytes": 903,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/witness-state.ts",
+          "bytes": 4436,
+          "expectedSha256": "9b8bb4c4708e280b5297a46a5984f616458adbf09b4be2ec5793e4b74d1596d2",
+          "actualSha256": "9b8bb4c4708e280b5297a46a5984f616458adbf09b4be2ec5793e4b74d1596d2",
+          "actualBytes": 4436,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/expo/witness.d.ts",
+          "bytes": 1509,
+          "expectedSha256": "6a55f5fe5ae5b49bd0097f2e3a649331c5f7c481946dba76e90a6c6ca043c71f",
+          "actualSha256": "6a55f5fe5ae5b49bd0097f2e3a649331c5f7c481946dba76e90a6c6ca043c71f",
+          "actualBytes": 1509,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/witness.ts",
+          "bytes": 841,
+          "expectedSha256": "1fa06a939f7b0b779f3b9ee03f34e9fc69a0d7585e8dedf21a79eec325e7894c",
+          "actualSha256": "1fa06a939f7b0b779f3b9ee03f34e9fc69a0d7585e8dedf21a79eec325e7894c",
+          "actualBytes": 841,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/App.tsx",
+          "bytes": 1150,
+          "expectedSha256": "74985dad2ae6aa014cb314d89d19c2291016085f6b1c14da47fd29ac4d674478",
+          "actualSha256": "74985dad2ae6aa014cb314d89d19c2291016085f6b1c14da47fd29ac4d674478",
+          "actualBytes": 1150,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/App.tsx",
+          "bytes": 1984,
+          "expectedSha256": "0b3cbd8d70755b685a2780e47f992d6bbfb01ecb283fcf005d1345fcfe3ca174",
+          "actualSha256": "0b3cbd8d70755b685a2780e47f992d6bbfb01ecb283fcf005d1345fcfe3ca174",
+          "actualBytes": 1984,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/src/App.tsx",
+          "bytes": 305,
+          "expectedSha256": "265551930aee24ff6db406d3bef55e7a7e28cb205005b7a87ef7f9ab7a803524",
+          "actualSha256": "265551930aee24ff6db406d3bef55e7a7e28cb205005b7a87ef7f9ab7a803524",
+          "actualBytes": 305,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Auth.tsx",
+          "bytes": 2255,
+          "expectedSha256": "4911d68902f8440903e976e9ff14fec13f66dcd6b851d63aedc31c92067913bc",
+          "actualSha256": "4911d68902f8440903e976e9ff14fec13f66dcd6b851d63aedc31c92067913bc",
+          "actualBytes": 2255,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Auth.tsx",
+          "bytes": 2096,
+          "expectedSha256": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "actualSha256": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "actualBytes": 2096,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/src/Auth.tsx",
+          "bytes": 2096,
+          "expectedSha256": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "actualSha256": "7d02c88184fdc0f6ee0e42f1915f8008f1fa289e3f179312eea0a37f48c01769",
+          "actualBytes": 2096,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Chat.tsx",
+          "bytes": 2320,
+          "expectedSha256": "113c9111c65c1b43835a42620aea46e64520fe62ff8e456a7b11d609cc96393c",
+          "actualSha256": "113c9111c65c1b43835a42620aea46e64520fe62ff8e456a7b11d609cc96393c",
+          "actualBytes": 2320,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Composer.tsx",
+          "bytes": 3418,
+          "expectedSha256": "d1f55e4ec16c5c02b21c0e56089467481a11832307cfe8a5ca2a774462234c7f",
+          "actualSha256": "d1f55e4ec16c5c02b21c0e56089467481a11832307cfe8a5ca2a774462234c7f",
+          "actualBytes": 3418,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Composer.tsx",
+          "bytes": 3290,
+          "expectedSha256": "b7e7d680c485fc35b895bcac36b8dd9bed4dd7bd4c8369d815a127ae00366096",
+          "actualSha256": "b7e7d680c485fc35b895bcac36b8dd9bed4dd7bd4c8369d815a127ae00366096",
+          "actualBytes": 3290,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/EditMessage.tsx",
+          "bytes": 2653,
+          "expectedSha256": "719864313760241e2a81b603cf2803f64cfd57b3e704fe62d99d66f5b84dcff4",
+          "actualSha256": "719864313760241e2a81b603cf2803f64cfd57b3e704fe62d99d66f5b84dcff4",
+          "actualBytes": 2653,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Inbox.tsx",
+          "bytes": 1880,
+          "expectedSha256": "9f6ade12b284a5001caffde0bdebddaa8903b8e480bc5a57008a3e075e067c7d",
+          "actualSha256": "9f6ade12b284a5001caffde0bdebddaa8903b8e480bc5a57008a3e075e067c7d",
+          "actualBytes": 1880,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Inbox.tsx",
+          "bytes": 2049,
+          "expectedSha256": "e8c0d8266333710cb22984ea77b4e97576640f724a5365c47e6c385af0e0ae82",
+          "actualSha256": "e8c0d8266333710cb22984ea77b4e97576640f724a5365c47e6c385af0e0ae82",
+          "actualBytes": 2049,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/main.tsx",
+          "bytes": 624,
+          "expectedSha256": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "actualSha256": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "actualBytes": 624,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/react/src/main.tsx",
+          "bytes": 624,
+          "expectedSha256": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "actualSha256": "582f51076a71e875029db83ada510dd91bb7eae0b702d417981fd1f88949f1d0",
+          "actualBytes": 624,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/MediaView.tsx",
+          "bytes": 2005,
+          "expectedSha256": "3569b07bebfe17e295070a74b2f98168b44494eb8be1c5cf80695d6e432a07bf",
+          "actualSha256": "3569b07bebfe17e295070a74b2f98168b44494eb8be1c5cf80695d6e432a07bf",
+          "actualBytes": 2005,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/MessageMedia.tsx",
+          "bytes": 3025,
+          "expectedSha256": "58ce9d17ea4a64a2495df2d2cc1cbb60e95ba672053ee2cfb8b8db53247d1cb8",
+          "actualSha256": "58ce9d17ea4a64a2495df2d2cc1cbb60e95ba672053ee2cfb8b8db53247d1cb8",
+          "actualBytes": 3025,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/NewConversation.tsx",
+          "bytes": 1541,
+          "expectedSha256": "45273a371d28a96c3f7c86b8d90ace9b89d2cf91f0c8924b9ee4a8bf0923f644",
+          "actualSha256": "45273a371d28a96c3f7c86b8d90ace9b89d2cf91f0c8924b9ee4a8bf0923f644",
+          "actualBytes": 1541,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/NewConversation.tsx",
+          "bytes": 1461,
+          "expectedSha256": "29d77295651f58395feb0323e84f66b7efdd0d6ee308933c2ef8a1fbec41cbb6",
+          "actualSha256": "29d77295651f58395feb0323e84f66b7efdd0d6ee308933c2ef8a1fbec41cbb6",
+          "actualBytes": 1461,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Search.tsx",
+          "bytes": 2272,
+          "expectedSha256": "2024b63528f681c5e2f81b46b100d1610b2cbfed32305c07d2b9ee953119b069",
+          "actualSha256": "2024b63528f681c5e2f81b46b100d1610b2cbfed32305c07d2b9ee953119b069",
+          "actualBytes": 2272,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Search.tsx",
+          "bytes": 2438,
+          "expectedSha256": "047ce48e1cde1d6ae5a9acb69277ea13ae2d05a3172659eabb635d3fe1509c77",
+          "actualSha256": "047ce48e1cde1d6ae5a9acb69277ea13ae2d05a3172659eabb635d3fe1509c77",
+          "actualBytes": 2438,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/screens/Thread.tsx",
+          "bytes": 3797,
+          "expectedSha256": "c9a0435c54417105a8fd1c3d36c2315399de9a6e9f11f85d9324eea5fdd80159",
+          "actualSha256": "c9a0435c54417105a8fd1c3d36c2315399de9a6e9f11f85d9324eea5fdd80159",
+          "actualBytes": 3797,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/react/src/Thread.tsx",
+          "bytes": 5668,
+          "expectedSha256": "e2e8999ad6804c911148f96183ed105c4b19d21b794fa9cfcf39acc5210d8bce",
+          "actualSha256": "e2e8999ad6804c911148f96183ed105c4b19d21b794fa9cfcf39acc5210d8bce",
+          "actualBytes": 5668,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/templates/chat/expo/src/Witness.tsx",
+          "bytes": 11115,
+          "expectedSha256": "3df1258a2480e5ca0720b1442fb61195b296ed3b894932a8d9b290b4de62badc",
+          "actualSha256": "3df1258a2480e5ca0720b1442fb61195b296ed3b894932a8d9b290b4de62badc",
+          "actualBytes": 11115,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "dist/unicode-LICENSE.txt",
+          "bytes": 1995,
+          "expectedSha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+          "actualSha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+          "actualBytes": 1995,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "android/src/main/AndroidManifest.xml",
+          "bytes": 72,
+          "expectedSha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+          "actualSha256": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
+          "actualBytes": 72,
+          "symlink": null,
+          "status": "match"
+        }
+      ],
+      "extraFiles": [],
+      "counts": {
+        "match": 253,
+        "missing": 0,
+        "mismatch": 0
+      }
+    },
+    {
+      "package": "snapback2-linux-x64",
+      "version": "0.0.29",
+      "root": "/home/ccheever/clique-0029-20260912/lanes/astra-snapback2/node_modules/snapback2-linux-x64",
+      "files": [
+        {
+          "path": "bin/snapback2",
+          "bytes": 47923224,
+          "expectedSha256": "2b0d8d201fc38dc5c0fd2bc8e4a4e9ad9d43358c741f4a9eed949d2d52fbaa46",
+          "actualSha256": "2b0d8d201fc38dc5c0fd2bc8e4a4e9ad9d43358c741f4a9eed949d2d52fbaa46",
+          "actualBytes": 47923224,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "bin/snapback2-media",
+          "bytes": 3925096,
+          "expectedSha256": "dc143dae684f7966843a869c6e38d05baed596fb7c9627e8e832f9c0cd9ec1e0",
+          "actualSha256": "dc143dae684f7966843a869c6e38d05baed596fb7c9627e8e832f9c0cd9ec1e0",
+          "actualBytes": 3925096,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "package.json",
+          "bytes": 355,
+          "expectedSha256": "218ffa7c7bfc7d115624f8e3e0ed635b719c66f1334d5eaf476b09e9ecd8ac5b",
+          "actualSha256": "218ffa7c7bfc7d115624f8e3e0ed635b719c66f1334d5eaf476b09e9ecd8ac5b",
+          "actualBytes": 355,
+          "symlink": null,
+          "status": "match"
+        },
+        {
+          "path": "README.md",
+          "bytes": 293,
+          "expectedSha256": "ec5adb95b3dfb0bacd8598881948aee053300dbd48bac66480909bf4d83ed36d",
+          "actualSha256": "ec5adb95b3dfb0bacd8598881948aee053300dbd48bac66480909bf4d83ed36d",
+          "actualBytes": 293,
+          "symlink": null,
+          "status": "match"
+        }
+      ],
+      "extraFiles": [],
+      "counts": {
+        "match": 4,
+        "missing": 0,
+        "mismatch": 0
+      }
+    }
+  ]
+}

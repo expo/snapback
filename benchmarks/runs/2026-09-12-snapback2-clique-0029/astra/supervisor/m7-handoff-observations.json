@@ -1,0 +1,37 @@
+{
+  "observedAt": "2026-09-12T10:48:27.826833+00:00",
+  "scope": "private supervisor observation, not actor input",
+  "artifactHandoff": {
+    "originalBuilderBoundary": "initial-builder-snapshot/MANIFEST.json",
+    "initialGradeBoundary": "initial-grade-snapshot/MANIFEST.json",
+    "changedFiles": 15,
+    "appLogicChanged": false,
+    "generatedConfigurationChanged": "snapback/windows.q production to frozen shortened windows",
+    "routineRunLogAppend": "one backend start-or-attach line",
+    "evidenceStatusScreenshotChanges": 13,
+    "actorSelectedPriorGreenMilestones": [
+      "m1",
+      "m2",
+      "m3",
+      "m5",
+      "m8"
+    ],
+    "originalBuilderFinalGreenMilestones": [
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "m5",
+      "m6",
+      "m8"
+    ],
+    "limitation": "Grader reruns overwrote inherited suite-status; fresh actor used changed statuses. Original M4/M6 greens remain in preserved builder boundary. Selected rerun set is distinct from original prior-green obligation. No unaffected handoff claim for these sidecars.",
+    "action": "No restoration, coaching or running-M7 input change."
+  },
+  "environmentObservation": {
+    "actorReportedPlainNode": "v24.13.1",
+    "outerPreflightNodeAvailable": "24.18.0",
+    "supervisorOwnerNodeOverride": "/home/ccheever/.local/node-v24.18.0-linux-x64/bin/node",
+    "attribution": "actual inner command identity differs; cause not diagnosed or repaired during active phase"
+  }
+}

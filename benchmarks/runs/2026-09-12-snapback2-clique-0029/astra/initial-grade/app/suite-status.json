@@ -1,0 +1,32 @@
+{
+  "m1": {
+    "pass": true,
+    "receipt": "evidence/m1-suite-1789205870377.json"
+  },
+  "m2": {
+    "pass": true,
+    "receipt": "evidence/m2-suite-1789205879821.json"
+  },
+  "m3": {
+    "pass": true,
+    "receipt": "evidence/m3-suite-1789205888383.json"
+  },
+  "m4": {
+    "pass": false,
+    "receipt": "evidence/m4-suite-1789206068549.json",
+    "outcomeClass": "application"
+  },
+  "m5": {
+    "pass": true,
+    "receipt": "evidence/m5-suite-1789205932223.json"
+  },
+  "m6": {
+    "pass": false,
+    "receipt": "evidence/m6-suite-1789206069169.json",
+    "outcomeClass": "application"
+  },
+  "m8": {
+    "pass": true,
+    "receipt": "evidence/m8-suite-1789205940704.json"
+  }
+}

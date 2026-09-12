@@ -1,0 +1,79 @@
+{
+  "at": "2026-09-12T10:42:19.139Z",
+  "fieldManifest": "m6-minimum-message-object",
+  "fields": [
+    "id",
+    "conversationId",
+    "senderId",
+    "at",
+    "type",
+    "text",
+    "caption",
+    "media",
+    "edited",
+    "tombstone",
+    "replyToId",
+    "reactions",
+    "receipt"
+  ],
+  "ownerUrl": "http://127.0.0.1:53400",
+  "personas": [
+    {
+      "conversations": 2,
+      "file": "alice.json",
+      "messages": 15,
+      "persona": "alice",
+      "sha256": "sha256:b4bf35cbd65d9891a56748f504307cba248bdc295e34602a93ad1be8633842bb"
+    },
+    {
+      "conversations": 2,
+      "file": "bob.json",
+      "messages": 15,
+      "persona": "bob",
+      "sha256": "sha256:b07159eaf32c4b3a2c2784796c7d5dc27fdb102c383eb0f2e128e76d0ad563b5"
+    },
+    {
+      "conversations": 1,
+      "file": "carol.json",
+      "messages": 9,
+      "persona": "carol",
+      "sha256": "sha256:03ffde3e8a8d30bce0fa06d9a6c994b75789032bbf839d0b83fc7f314e6879db"
+    },
+    {
+      "conversations": 0,
+      "file": "dave.json",
+      "messages": 0,
+      "persona": "dave",
+      "sha256": "sha256:9f2f02aa6afda06b9d5c76614a28da1e88148564618c8040301d253f9d002bc9"
+    },
+    {
+      "conversations": 0,
+      "file": "erin.json",
+      "messages": 0,
+      "persona": "erin",
+      "sha256": "sha256:d0aa6caa6a8c723cbe5a02c2b31759c5678998dbd5632a4b32bf7279524fedd4"
+    },
+    {
+      "conversations": 0,
+      "file": "frank.json",
+      "messages": 0,
+      "persona": "frank",
+      "sha256": "sha256:6e82e63561058c5b144565926fdbff1d4cc3dd133438f5d1e54649455bc79800"
+    },
+    {
+      "conversations": 0,
+      "file": "grace.json",
+      "messages": 0,
+      "persona": "grace",
+      "sha256": "sha256:b3097eeb003f9f6e5918d192f6acb0476376798f0bd9c77d9c3eff0b1041dbdc"
+    },
+    {
+      "conversations": 0,
+      "file": "henry.json",
+      "messages": 0,
+      "persona": "henry",
+      "sha256": "sha256:2b8528f0e8e0dfeb5acc9fe18f213f8b1d60fb3cd08cac38ca9d86bb8b0e4c2b"
+    }
+  ],
+  "schemaVersion": "clique-m7-pre-snapshot.v1"
+}

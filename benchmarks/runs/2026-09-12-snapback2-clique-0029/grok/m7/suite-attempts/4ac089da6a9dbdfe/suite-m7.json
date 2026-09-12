@@ -1,0 +1,45 @@
+{
+  "milestone": "m7",
+  "pass": false,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m7-a06",
+      "name": "backfill counts match visible history",
+      "ok": true,
+      "ms": 175
+    },
+    {
+      "id": "m7-a01",
+      "name": "create a group poll with 2-4 options",
+      "ok": true,
+      "ms": 152
+    },
+    {
+      "id": "m7-a03",
+      "name": "changing a vote adjusts tallies",
+      "ok": true,
+      "ms": 74
+    },
+    {
+      "id": "m7-a04",
+      "name": "duplicate vote mutation id does not flip state",
+      "ok": true,
+      "ms": 46
+    },
+    {
+      "id": "m7-a07",
+      "name": "counts increment with new messages",
+      "ok": true,
+      "ms": 124
+    },
+    {
+      "id": "m7-a09",
+      "name": "previously green milestone suites still pass",
+      "ok": false,
+      "ms": 1080,
+      "error": "Error: previously-green suites failed: m1,m2,m3,m4,m5,m8\n    at Object.fn (file:///home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/acceptance.mjs:801:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/ccheever/clique-0029-20260912/lanes/grok-snapback2/scripts/acceptance.mjs:808:5"
+    }
+  ],
+  "at": "2026-09-12T10:57:58.059Z"
+}

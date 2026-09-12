@@ -1,0 +1,11 @@
+{
+  "platform": "ios",
+  "nativeExecution": false,
+  "artifacts": [
+    {
+      "path": "m7/ios/_expo/static/js/ios/entry-19de28a2b45df7361d4cc663cde96a43.hbc",
+      "bytes": 4033590,
+      "sha256": "96aa1fcd256f3649af2e7f66e1437e3e8cd84b1c641c5096ae0ba7383fb38ef1"
+    }
+  ]
+}

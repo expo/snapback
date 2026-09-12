@@ -1,0 +1,51 @@
+{
+  "lane": "astra-clique-snapback2",
+  "phase": "m7",
+  "status": "green",
+  "start": 1789209905,
+  "end": 1789211017,
+  "wallSeconds": 1112,
+  "suitePass": true,
+  "choreographyPass": true,
+  "snapshotMigrationExact": true,
+  "finalContentIntact": true,
+  "finalReceiptAdvances": 10,
+  "previouslyPassingSuites": [
+    {
+      "milestone": "m1",
+      "pass": true,
+      "receipt": "evidence/m1-suite-1789210428826.json",
+      "sha256": "7df555096f1190118aefa2ba3905c23866b48b6fffc82368c2cf190c13a78175"
+    },
+    {
+      "milestone": "m2",
+      "pass": true,
+      "receipt": "evidence/m2-suite-1789210495181.json",
+      "sha256": "be6df5170279d50554a712d5aff272bfa48ee0831b1765cb6c47305dc52231ce"
+    },
+    {
+      "milestone": "m3",
+      "pass": true,
+      "receipt": "evidence/m3-suite-1789210562544.json",
+      "sha256": "a4f5589e8bd4f3e1f4b523417e998649e7b3e5998040c658719419a2c14ce1a5"
+    },
+    {
+      "milestone": "m5",
+      "pass": true,
+      "receipt": "evidence/m5-suite-1789210628720.json",
+      "sha256": "3b882ce1187dbf005bfa5d4dd68fa1193aed74dabb8d28f47df011f4d0401818"
+    },
+    {
+      "milestone": "m8",
+      "pass": true,
+      "receipt": "evidence/m8-suite-1789210696331.json",
+      "sha256": "8bc7164bab2bc989fb0382b2968f3f9199a58baa3e7413db575462f43a004449"
+    }
+  ],
+  "priorFailuresPreserved": [
+    "m4",
+    "m6"
+  ],
+  "nativeSimulator": "unavailable",
+  "correctionEpisodes": 6
+}

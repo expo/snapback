@@ -1,0 +1,12 @@
+
+> astra-snapback2@1.0.0 acceptance
+> node --experimental-strip-types scripts/acceptance.ts --milestone m4
+
+FAIL photo picked uploaded and rendered TimeoutError: locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'Photo 9e9c9a7c-4f21-4f5a-a8e5-b0913b642d5d' }).getByTestId('sm-convo-media') to be visible
+
+TimeoutError: locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByTestId('sm-convo-bubble').filter({ hasText: 'Photo 9e9c9a7c-4f21-4f5a-a8e5-b0913b642d5d' }).getByTestId('sm-convo-media') to be visible
+

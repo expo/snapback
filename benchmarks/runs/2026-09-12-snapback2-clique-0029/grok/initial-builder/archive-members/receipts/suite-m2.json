@@ -1,0 +1,140 @@
+{
+  "milestone": "m2",
+  "pass": true,
+  "url": "http://127.0.0.1:53400",
+  "results": [
+    {
+      "id": "m2-a01",
+      "name": "create a text post",
+      "ok": true,
+      "ms": 127
+    },
+    {
+      "id": "m2-a02",
+      "name": "create an image post with 2 images",
+      "ok": true,
+      "ms": 181
+    },
+    {
+      "id": "m2-a03",
+      "name": "create a video post",
+      "ok": true,
+      "ms": 118
+    },
+    {
+      "id": "m2-a06",
+      "name": "bob following includes alice posts",
+      "ok": true,
+      "ms": 140
+    },
+    {
+      "id": "m2-a08",
+      "name": "unfollow removes alice from following",
+      "ok": true,
+      "ms": 100
+    },
+    {
+      "id": "m2-a09",
+      "name": "unfollowed posts remain in global",
+      "ok": true,
+      "ms": 54
+    },
+    {
+      "id": "m2-a10",
+      "name": "unfollowed user appears in global",
+      "ok": true,
+      "ms": 70
+    },
+    {
+      "id": "m2-a11",
+      "name": "unfollowed user absent from following",
+      "ok": true,
+      "ms": 55
+    },
+    {
+      "id": "m2-a12",
+      "name": "http url is present as tappable text",
+      "ok": true,
+      "ms": 16
+    },
+    {
+      "id": "m2-a13",
+      "name": "no unfurl preview fields",
+      "ok": true,
+      "ms": 13
+    },
+    {
+      "id": "m2-a15",
+      "name": "unlike clears like",
+      "ok": true,
+      "ms": 162
+    },
+    {
+      "id": "m2-a16",
+      "name": "repost attributed",
+      "ok": true,
+      "ms": 76
+    },
+    {
+      "id": "m2-a17",
+      "name": "reposing again removes",
+      "ok": true,
+      "ms": 76
+    },
+    {
+      "id": "m2-a18",
+      "name": "followed user repost surfaces original",
+      "ok": true,
+      "ms": 77
+    },
+    {
+      "id": "m2-a20",
+      "name": "thread shows parent and replies in order",
+      "ok": true,
+      "ms": 3
+    },
+    {
+      "id": "m2-a21",
+      "name": "replies absent from feeds",
+      "ok": true,
+      "ms": 68
+    },
+    {
+      "id": "m2-a22",
+      "name": "following pagination",
+      "ok": true,
+      "ms": 238
+    },
+    {
+      "id": "m2-a23",
+      "name": "global pagination",
+      "ok": true,
+      "ms": 67
+    },
+    {
+      "id": "m2-a24",
+      "name": "pagination no dupes or gaps",
+      "ok": true,
+      "ms": 67
+    },
+    {
+      "id": "m2-a25",
+      "name": "own originals remain in following",
+      "ok": true,
+      "ms": 55
+    },
+    {
+      "id": "m2-a26",
+      "name": "own reposts remain in following",
+      "ok": true,
+      "ms": 83
+    },
+    {
+      "id": "m2-a27",
+      "name": "implicit self-follow does not change counts",
+      "ok": true,
+      "ms": 11
+    }
+  ],
+  "at": "2026-09-12T06:30:03.578Z"
+}

@@ -1,0 +1,106 @@
+{
+  "auditedAt": "2026-09-12T11:18:58.560129+00:00",
+  "status": "VALID narrative-only scorer result",
+  "cell": "astra",
+  "overallScore": 81,
+  "checks": {
+    "processExitedSuccessfully": true,
+    "promptPreserved": true,
+    "inputManifestPreserved": true,
+    "rubricPreserved": true,
+    "bothNarrativePhasesPreserved": true,
+    "retainedInputsPreserved": true,
+    "oneCompletedTurn": true,
+    "zeroObservedToolAttempts": true,
+    "lastMessageMatchesStream": true,
+    "exactlyOneFencedJson": true,
+    "all13Categories": true,
+    "integerScores0to100": true,
+    "notesAtMost40WhitespaceDelimitedWords": true,
+    "notesCitePermittedNarrative": true,
+    "topLevelOutputShape": true,
+    "selfReportedScorerMatchesRequest": true,
+    "narrativeOnlyBasis": true,
+    "actualArgvMatchesPreparedOptions": true
+  },
+  "categoryCount": 13,
+  "categoryWordCounts": {
+    "setup_and_docs": 30,
+    "data_modeling": 32,
+    "authorization": 34,
+    "queries_and_live": 36,
+    "writes_and_transactions": 32,
+    "offline_sync": 33,
+    "media_assets": 32,
+    "background_work": 33,
+    "client_integration": 31,
+    "diagnostics_dev_loop": 29,
+    "scale_and_limits": 33,
+    "operations": 32,
+    "overall": 31
+  },
+  "wordCountConvention": "Whitespace-delimited words; hyphenated and slash-separated tokens remain one word.",
+  "invalidScoreCategories": [],
+  "over40WordCategories": [],
+  "requestedModel": "gpt-6-astra",
+  "requestedEffort": "xhigh",
+  "returnedModelMetadata": [],
+  "returnedModelAttested": false,
+  "modelAttestationLimit": "The event stream emits no model identity; scorer.model in the JSON is self-report matching the requested model, not independent returned-model attestation. Reasoning effort is requested only.",
+  "toolAttempts": [],
+  "toolAttemptCount": 0,
+  "eventTypes": {
+    "thread.started": 1,
+    "turn.started": 1,
+    "item.completed": 1,
+    "turn.completed": 1
+  },
+  "nestedEventTypes": {
+    "thread.started": 1,
+    "turn.started": 1,
+    "item.completed": 1,
+    "agent_message": 1,
+    "turn.completed": 1
+  },
+  "threadIds": [
+    "01a0954f-e5cf-78c2-8f49-bd3733d9c763"
+  ],
+  "usage": [
+    {
+      "input_tokens": 50959,
+      "cached_input_tokens": 0,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5351,
+      "reasoning_output_tokens": 4060
+    }
+  ],
+  "process": {
+    "pid": 41794,
+    "started": 1789211436.29132,
+    "ended": 1789211628.048755,
+    "exit": 0,
+    "childExit": 0,
+    "childReaped": true,
+    "childSignal": null,
+    "interrupted": null
+  },
+  "hashes": {
+    "process.json": "4478bc81fcb57c6681425ea93d0b1f539a8405bb36144ccb4cb0176485cc1df9",
+    "events.jsonl": "3007c8d302ba997c8fc443646b171460f7fc33ed160a172f9de080b57b156434",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "astra.last.txt": "39e84c008141de2b4096a74cbdfbd851d385436d25597f1ee7c355ac5a1e60a4",
+    "assistantText": "39e84c008141de2b4096a74cbdfbd851d385436d25597f1ee7c355ac5a1e60a4",
+    "score.json": "d452eb356e4ad94bce025dd7726a09953b79da54697e4f8a1febce149f63a84e",
+    "prompt.md": "601cbeb30ed907892c5a93cb14a358e38d6d14d5003b3bac56c58a6ec4af6d70",
+    "inputs.json": "e130e732ccab3b4098142525a823bda065856d8be38154304175cce93f113547",
+    "rubric.template.md": "85bc1180b8d73d72b4bc5da143f0cb1331d747972156da0e485cea41db5358c5",
+    "cli-options.json": "04319a1ef55a464670206a95e6b7b34fb54bb30e87d372c39936d644dbf447a0"
+  },
+  "stderrBytes": 0,
+  "limitations": [
+    "A single uncontrolled narrative-only diagnostic score, not the independent grade, causal comparison or platform capability proof.",
+    "Zero observed tool attempts is established from all four emitted events; global inability to call tools is not independently proved.",
+    "Raw event stream and original final text are preserved; sanitized score/audit include no reasoning or signature text.",
+    "No prompt/helper changes or rerun performed."
+  ]
+}
