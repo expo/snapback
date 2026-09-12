@@ -1,0 +1,98 @@
+{
+  "sourceCommit": "eb681b85a1b01d69fefab28973a165cb6a06424f",
+  "original": {
+    "result": "FAIL",
+    "packagePassed": 1450,
+    "packageTests": 1451,
+    "failure": "effects-visibility.test.ts:209; IsolatedOwner::start returned E_OWNER_TEST_IO / ENOENT before any journey",
+    "log": "/Users/ccheever/projects/snapback-1023-20260912/coverage-repair/full-integrated-epyc.log",
+    "logSha256": "7a4b9fa2df3ea8dcfc4212ddcc73b9c4282253bc03c605e9d42385bf66447f2a",
+    "record": "/Users/ccheever/projects/snapback-1023-20260912/coverage-repair/full-integrated-epyc.json",
+    "recordSha256": "ddecec5d52ac8a396b592eecaefe6681d86720ee352ab65d3d2982819f152ad5",
+    "durationSeconds": 259.53283977508545
+  },
+  "isolated": {
+    "result": "PASS",
+    "passed": 9,
+    "tests": 9,
+    "nodeDurationMs": 36784.490885,
+    "harnessDurationSeconds": 36.905665159225464,
+    "previouslyFailedCaseMs": 2818.46652,
+    "previousFullCliCaseMs": 17889.213671,
+    "originalDeadlines": true,
+    "prebuilt": true,
+    "packageLayout": "Canonical warm package directory; full script used an isolated copy of the same package and the same prebuilt binary. This rerun did not reproduce parallel full-suite load/copy placement.",
+    "pid": 910209,
+    "childReaped": true,
+    "remainingObservedProcesses": [],
+    "sourceSha256": "3570edf601926d4f032e58c14885d07628260f1472c4d41b74c4000cf3f1fba6",
+    "logSha256": "29f3c69c4cce9caeadf68be2d16229af5cb2f728237d13b099966f09afd46bbb",
+    "recordSha256": "216e3ad95f545097ba394d60681296a74f8eecc51770bcc86a4365014a0ecdf8"
+  },
+  "sourceFindings": [
+    {
+      "path": "snapback2/crates/snapback2/src/test.rs",
+      "lines": [
+        160,
+        175
+      ],
+      "finding": "The failing receipt owner check is emitted only when IsolatedOwner::start returns an error; no journey executed."
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/test.rs",
+      "lines": [
+        334,
+        399,
+        1271,
+        1285,
+        1314,
+        1319
+      ],
+      "finding": "Potential ENOENT boundaries include source/build copy, executable/spawn, or owner state read. test_io preserves only OS text, with no path/operation context; original failure cannot be localized further."
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/owner.rs",
+      "lines": [
+        257,
+        262,
+        271
+      ],
+      "finding": "Owner publication precedes ready JSON/flush in the current source; a simple publication-after-ready explanation is unsupported."
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/test.rs",
+      "lines": [
+        229,
+        239,
+        272,
+        289,
+        411,
+        428
+      ],
+      "finding": "Compile worker lifecycle and owned child cleanup occur around the isolated run. No surviving source editor or absent path was captured for the failed full invocation."
+    }
+  ],
+  "sourceFiles": {
+    "snapback2/crates/snapback2/src/test.rs": {
+      "sha256": "efe746f656a262cfec0fb040ad858613c073931e810f6479a328508526e35bbb",
+      "sameAsFrozen0029": true
+    },
+    "snapback2/crates/snapback2/src/owner.rs": {
+      "sha256": "9d2d29aaa8728c0f79cb34a507c05db769d193f43cf236d80bc3887721bda4c8",
+      "sameAsFrozen0029": true
+    },
+    "snapback2/packages/snapback2/tests/effects-visibility.test.ts": {
+      "sha256": "3570edf601926d4f032e58c14885d07628260f1472c4d41b74c4000cf3f1fba6",
+      "sameAsFrozen0029": true
+    }
+  },
+  "disposition": "Failure not reproduced by the bounded isolated existing file. Keep the integrated full run failed; do not label the cause transient or attribute it to the coverage repair. The specific test and native IsolatedOwner code are unchanged from frozen0.0.29. No product or assertion change is justified by present evidence. If repeated, retain operation/path-level file failure evidence for only the owned test fixture before modifying startup behavior.",
+  "cleanup": {
+    "repositoryEdits": false,
+    "builds": false,
+    "laneStatusAfter": "",
+    "signals": [],
+    "runningOwnedProcesses": [],
+    "custodyLimit": "Supervisor recorded the direct Node child and 14 observed same-process-group members, all reaped/gone at completion. Native helpers in independently created process groups are owned and cleaned by the unchanged existing harness; this observer is not an exhaustive independent descendant ledger."
+  }
+}

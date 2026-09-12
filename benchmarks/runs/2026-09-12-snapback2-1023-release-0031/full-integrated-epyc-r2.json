@@ -1,0 +1,30 @@
+{
+  "phase": "combined-full-script-r2",
+  "source": "eb681b85a1b01d69fefab28973a165cb6a06424f",
+  "started": 1789206629.1017168,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "scripts/test.sh"
+  ],
+  "host": "EPYC",
+  "testThreads": {
+    "package": 2,
+    "native": 8
+  },
+  "reason": "Prior complete run had one generic IsolatedOwner start IO failure. Unchanged isolated file9/9 passes36.784s; source identical to frozen0.0.29. Exact cause unestablished; preserve failed run and repeat complete inventory after controlled isolation.",
+  "pid": 917252,
+  "childBirth": {
+    "pid": 917252,
+    "startTicks": "156554738",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+  },
+  "processGroup": 917252,
+  "childExit": 0,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789206799.8053656,
+  "exit": 0
+}

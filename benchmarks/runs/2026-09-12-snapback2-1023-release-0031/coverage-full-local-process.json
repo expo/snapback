@@ -1,0 +1,35 @@
+{
+  "phase": "combined-full-script",
+  "source": "2d847b7e9ef794ba5860742376f482f470123d39",
+  "started": 1789204721.305943,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "scripts/test.sh"
+  ],
+  "host": "Black M5Max local",
+  "testThreads": {
+    "package": 2,
+    "native": 8
+  },
+  "reason": "Use existing concurrency knobs to preserve deadlines and avoid placing qualification load on EPYC during frozen measurements",
+  "pid": 64945,
+  "childBirth": {
+    "pid": 64945,
+    "started": "Sat Sep 12 02:18:41 2026"
+  },
+  "processGroup": 64945,
+  "cleanup": {
+    "directChildPid": 64945,
+    "signals": [],
+    "observedRemainingGroupMembers": [],
+    "unresolved": false
+  },
+  "childExit": 1,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789204872.5650969,
+  "exit": 1
+}

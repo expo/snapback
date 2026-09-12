@@ -1,0 +1,192 @@
+{
+  "sourceHead": "2d847b7e9ef794ba5860742376f482f470123d39",
+  "file": "snapback2/packages/snapback2/tests/real-owner-successor.test.ts",
+  "fileSha256": "21309b654db546f3f21726f5ae1623b26dfe0f5d3a60c2e4119b78911a045630",
+  "patchSha256": "5a15c57f3f5584b5901ce572dac87c9976fe4cf8831b6e063a425dddfaf17446",
+  "checks": {
+    "successor-receipt-red": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "--test-name-pattern=positional reads compile after a regroup",
+        "tests/real-owner-successor.test.ts"
+      ],
+      "sourceHead": "2d847b7e9ef794ba5860742376f482f470123d39",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/snapback2/tests/real-owner-successor.test.ts": "7c508bbda81fd15cf4cd4d97c776158e49fa0f54defac1f9403dd58f17154083",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "bd7f6a7edba6d59234190043df6f9955595a78444a860556b3168f7ecfe0789a"
+      },
+      "started": 1789205052.127535,
+      "pid": 9167,
+      "exit": 1,
+      "ended": 1789205053.101356
+    },
+    "successor-full-receipt-red": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "--test-name-pattern=positional reads compile after a regroup",
+        "tests/real-owner-successor.test.ts"
+      ],
+      "sourceHead": "2d847b7e9ef794ba5860742376f482f470123d39",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/snapback2/tests/real-owner-successor.test.ts": "69cc4fc559a99924f74ba211e47dbd2f327932bf07b90f91b43e8f96ae5ab22f",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "bd7f6a7edba6d59234190043df6f9955595a78444a860556b3168f7ecfe0789a"
+      },
+      "started": 1789205083.122568,
+      "pid": 12821,
+      "exit": 1,
+      "ended": 1789205084.109167
+    },
+    "successor-qualified": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "tests/real-owner-successor.test.ts"
+      ],
+      "sourceHead": "2d847b7e9ef794ba5860742376f482f470123d39",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/snapback2/tests/real-owner-successor.test.ts": "21309b654db546f3f21726f5ae1623b26dfe0f5d3a60c2e4119b78911a045630",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "bd7f6a7edba6d59234190043df6f9955595a78444a860556b3168f7ecfe0789a"
+      },
+      "started": 1789205156.431305,
+      "pid": 21364,
+      "exit": 0,
+      "ended": 1789205181.864193
+    }
+  },
+  "owners": [
+    {
+      "pid": 9171,
+      "log": "successor-receipt-red.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 12826,
+      "log": "successor-full-receipt-red.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 21395,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 21575,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 21708,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 21837,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 21943,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 22129,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 22142,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 22217,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 22844,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 22928,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 23282,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 23474,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 23731,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 23909,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24040,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24182,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24289,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24324,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24400,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24495,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24585,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24684,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    },
+    {
+      "pid": 24803,
+      "log": "successor-qualified.log",
+      "stopRecorded": true
+    }
+  ],
+  "cleanupPsExit": 1,
+  "cleanupPs": "",
+  "outcome": "Full affected successor file18/18 green. Public Count successor byRecipient complete empty scope proves0; hidden empty receipt remainspartial; different unqueried group remainspartial. Existing generation/reset, warm/coldsum/hidden/unheld and timed controls unchanged.",
+  "scope": "Test-only, no runtime/schema/ceiling/docs/metric changes. Full original integrated failure preserved separately."
+}

@@ -40,3 +40,40 @@ pushes.
 - Run this test file repeatedly under full-suite load, find which step misses a file and
   what removed it, and fix that race rather than retrying.
 - Close as not reproduced if a few hundred loaded runs never fail.
+
+## Additional witness — 2026-09-12, LLP 1023
+
+At `eb681b85a1b01d69fefab28973a165cb6a06424f`, the unchanged full script on
+EPYC failed 1/1,451 package tests in 259.53 seconds total: the second CLI test
+invocation, `snapback2 test --journey "effect engine absence" --json`, returned
+the same `E_OWNER_TEST_IO` / ENOENT owner check before running any journey
+(`effects-visibility.test.ts:209`, assertion at 213). Native tests and the other
+phases passed. The original full run remains **failed**.
+
+An isolated run of the unchanged existing file passed **9/9** in 36.784 seconds,
+using the same prebuilt source, pinned Node 24.18, and original deadlines. The
+previously failed invocation took 2.818 seconds; its preceding full CLI test took
+17.889 seconds. This isolated run used the canonical package directory and did
+not reproduce full-suite parallel load or its package-copy placement. No cause
+is established, and no assertion, timeout, or product change was made. The test,
+`test.rs`, and `owner.rs` are byte-identical to frozen 0.0.29 source `f2c569a5e5`;
+owner publication precedes ready output, so a write-after-ready explanation is
+not supported by source alone.
+
+Retained evidence on EPYC (`100.65.137.99`), under
+`/home/ccheever/snapback-1023-20260912/coverage-followup/`:
+
+- Failed full log: `full-integrated-epyc.log`, SHA-256
+  `7a4b9fa2df3ea8dcfc4212ddcc73b9c4282253bc03c605e9d42385bf66447f2a`;
+  its adjacent JSON records exit 1 and child reaping.
+- Isolated log: `effects-visibility-isolated/test.log`, SHA-256
+  `29f3c69c4cce9caeadf68be2d16229af5cb2f728237d13b099966f09afd46bbb`;
+  `run.json` records Node PID 910209 exiting 0/reaped and all 14 observed
+  same-group process identities gone. Separately grouped native helpers were
+  owned by the existing harness, outside that observer's complete census.
+
+The local diagnosis, fixed source copies, hashes, and original failure excerpt
+are retained under
+`/Users/ccheever/projects/snapback-1023-20260912/coverage-repair/effects-visibility-diagnosis/`;
+`assessment.json` SHA-256 is
+`87e60fa447235720241e2e1bf08ef349b1c677216cc4f8472a288181c5da1fdb`.

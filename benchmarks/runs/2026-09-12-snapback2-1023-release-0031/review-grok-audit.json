@@ -1,0 +1,15 @@
+{
+  "rawSha256": "080813e0585ed7eb068b51eb1f8533e818357afcdbb720bb450292c4cba7a6cc",
+  "verdictSha256": "59028862c921feff845459ac3244a15695cb4f1be084c3df66b6bb4dcb3a080b",
+  "eventTypes": {
+    "system": 1,
+    "assistant": 1,
+    "result": 1
+  },
+  "toolEvents": [],
+  "zeroToolEvents": true,
+  "reportedModels": [
+    "grok-4.6"
+  ],
+  "processExit": 0
+}

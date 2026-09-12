@@ -1,0 +1,71 @@
+publish: snapback2-media deployment target 11.0
+publish: reusing decoder-only codec build /Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/target/media-codecs/libde265-1.1.2-libheif-1.23.3-darwin-arm64-macos-11.0/prefix
+   Compiling snapback2-media v0.0.31 (/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/crates/snapback2-media)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.59s
+────────────
+ Nextest run ID 6905cead-a7a0-4a09-8f93-a275ba4da158 with nextest profile: default
+    Starting 4 tests across 1 binary
+        PASS [   0.342s] (1/4) snapback2-media::cli unknown_argv_is_bounded_too
+        PASS [   0.354s] (2/4) snapback2-media::cli every_verb_refuses_with_exit_two_one_bounded_json_line
+        PASS [   0.371s] (3/4) snapback2-media::cli executable_success_path_covers_every_verb
+        PASS [   0.378s] (4/4) snapback2-media::cli executable_probe_reports_display_dimensions_for_orientations_one_through_eight
+────────────
+     Summary [   0.378s] 4 tests run: 4 passed, 0 skipped
+warning: unused import: `SequentialWriter`
+ --> vendor/tiny_http/src/util/mod.rs:7:28
+  |
+7 | pub use self::sequential::{SequentialWriter, SequentialWriterBuilder};
+  |                            ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:164:7
+    |
+164 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `secure` is never used
+  --> vendor/tiny_http/src/client.rs:76:12
+   |
+51 | impl ClientConnection {
+   | --------------------- method in this implementation
+...
+76 |     pub fn secure(&self) -> bool {
+   |            ^^^^^^
+
+warning: unused import: `SequentialWriter`
+ --> vendor/tiny_http/src/util/mod.rs:7:28
+  |
+7 | pub use self::sequential::{SequentialWriter, SequentialWriterBuilder};
+  |                            ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:164:7
+    |
+164 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `secure` is never used
+  --> vendor/tiny_http/src/client.rs:76:12
+   |
+51 | impl ClientConnection {
+   | --------------------- method in this implementation
+...
+76 |     pub fn secure(&self) -> bool {
+   |            ^^^^^^
+
+guide/live-query.md: below 20% headroom; split this topic before expanding it
+guide/offline.md: below 20% headroom; split this topic before expanding it
+guide/testing.md: below 20% headroom; split this topic before expanding it
+guide: 32 cards, 98194/98304 bytes (0% headroom)
+
+added 1 package in 14s
+publish consumer: {"steps":[{"name":"install tarballs","seconds":0.9347198749999807,"ok":true},{"name":"platform README guidance","seconds":0,"ok":true},{"name":"doctor","seconds":0.24986062500000117,"ok":true},{"name":"guide auth","seconds":0.02899808300001314,"ok":true},{"name":"public client and React exports","seconds":0.03489233400000376,"ok":true},{"name":"todos init","seconds":0.4098756670000148,"ok":true},{"name":"raw binary check missing-compiler guidance","seconds":0.004718958999990718,"ok":true},{"name":"raw binary check missing-node guidance","seconds":0.004246249999996507,"ok":true},{"name":"raw binary dev missing-compiler guidance","seconds":0.004510624999995343,"ok":true},{"name":"raw binary dev missing-node guidance","seconds":0.004387042000016664,"ok":true},{"name":"raw binary default detached dev guidance","seconds":0.060593124999984864,"ok":true},{"name":"raw binary default detached dev missing-node guidance","seconds":0.06546037499999512,"ok":true},{"name":"raw binary default detached dev public-wrapper recovery","seconds":0.31506208299999705,"ok":true},{"name":"raw binary default detached dev recovery stop","seconds":0.18164979199998196,"ok":true},{"name":"raw binary default detached dev owner+worker cleanup","seconds":0,"ok":true},{"name":"todos check","seconds":0.4023730420000211,"ok":true},{"name":"todos React bundle","seconds":1.5803430839999928,"ok":true},{"name":"todos dev","seconds":0.20714712499998858,"ok":true},{"name":"React live query round trip","seconds":0.08763416700001107,"ok":true},{"name":"todos receipt","accepted":true,"verdict":"pass"},{"name":"todos test","seconds":0.6370022499999904,"ok":true},{"name":"todos stop","seconds":0.14383383399999003,"ok":true},{"name":"chat init","seconds":0.5478143750000163,"ok":true},{"name":"chat check","seconds":0.5750987500000047,"ok":true},{"name":"chat React bundle","seconds":0.7080733750000072,"ok":true},{"name":"chat dev","seconds":0.6249425830000255,"ok":true},{"name":"chat receipt","accepted":true,"verdict":"pass"},{"name":"chat test","seconds":4.791998290999996,"ok":true},{"name":"chat stop","seconds":0.1934643330000108,"ok":true}]}
+staged and qualified snapback2-darwin-arm64@0.0.31; transfer /Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.31 and pass its resume.json with --platform-artifact

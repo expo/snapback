@@ -36,8 +36,8 @@ three `0.0.29` packages are published with verified registry integrity and
 29 installed-consumer checks on each native platform. The parent remains
 **Accepted, not complete**: fresh Clique evidence is still outstanding and the
 80,000-byte target remains unmet. The fresh wave also reproduced a durable
-mixed-row/zero-count read defect; its focused repair passes and is awaiting
-integrated review and publication below.
+mixed-row/zero-count read defect. Its focused repair, independent reviews and
+complete script pass; final production-package qualification is in progress below.
 The separate 0.0.30 follow-up below completes
 the exact digest recipe. The residual research is context, not a fourth
 implementation work order.
@@ -464,6 +464,19 @@ and durable clients and covers subsequent publication, owner update, cold file
 reopen and admitted removal. It is not an IndexedDB or repaired actor witness.
 Initial red tests and fixture/provenance expectation corrections remain retained
 under `second-reader-repair/`; the runtime costs 55 additional gzip bytes,
-**89,898 / 90,000**, still above the 80,000 target. Integrated review and package
-qualification remain pending. The frozen app still does not demonstrate the
-one-client outcome; the initial release's narrower passing evidence remains valid.
+**89,898 / 90,000**, still above the 80,000 target. Fresh independent Sol and
+Grok code reviews both return READY for integrated product source `2d847b7e9e`;
+the actual reviews are retained in the existing code-review documents. The
+subsequent `b9d96fb5cc` changes only an existing successor test: its receipt
+proves the new public grouping is completely empty, so complete zero is now
+correct; an unrelated unheld group must remain partial. All 18 tests in that
+file pass. Darwin production staging passes all 29 installed-consumer checks.
+The complete script passes at `eb681b85a1` (1,451 package and 1,204 native
+tests plus compiler/evaluator/doctests; 170.70 seconds with the existing low
+concurrency settings). Earlier failures remain recorded, including the known
+isolated-owner IO signature that passed in isolation and the unchanged repeat.
+This is not a 60-second loop claim. Final dual-platform package qualification
+remains pending; [the scoped record](../benchmarks/runs/2026-09-12-snapback2-1023-release-0031/README.md)
+retains actual reviews, failed and passing runs, and package-stage evidence.
+The frozen app still does not demonstrate the one-client outcome; the initial
+release's narrower passing evidence remains valid.

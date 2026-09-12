@@ -1,0 +1,29 @@
+{
+  "phase": "full-integrated-script",
+  "source": "adc641a10787b1eabac71b1d169e4d2552906074",
+  "started": 1789201196.762422,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "scripts/test.sh"
+  ],
+  "pid": 51659,
+  "childBirth": {
+    "pid": 51659,
+    "started": "Sat Sep 12 01:19:56 2026"
+  },
+  "processGroup": 51659,
+  "cleanup": {
+    "directChildPid": 51659,
+    "signals": [],
+    "observedRemainingGroupMembers": [],
+    "unresolved": false
+  },
+  "childExit": 1,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789201390.7450619,
+  "exit": 1
+}

@@ -1,0 +1,216 @@
+{
+  "candidate": "2d847b7e9ef794ba5860742376f482f470123d39",
+  "base": "00a22325e20188e67dd821137374c95621d142a9",
+  "promptSha256": "3f018bfb0e7d6e581e86dbd755ae9e3e14b6929a565ac9ca3d87ff888a16ed75",
+  "files": [
+    {
+      "path": "snapback2/packages/evaluator/src/store.ts",
+      "sha256": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+      "spans": [
+        [
+          1,
+          247
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/coverage.ts",
+      "sha256": "c0936f440370dcbf92b28677217fe5d36ac411ca86864de006e62b663a878781",
+      "spans": [
+        [
+          1,
+          196
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/range-preparation.ts",
+      "sha256": "228b9b5d2379754ab8e72fba2bf3f23863ce6fd14cb96faaaf0bd4aee9697d81",
+      "spans": [
+        [
+          1,
+          177
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/coverage-spans.ts",
+      "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+      "spans": [
+        [
+          1,
+          36
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/test-maintained-address.ts",
+      "sha256": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+      "spans": [
+        [
+          1,
+          309
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts",
+      "sha256": "1c5b60d883dcd03b85065547ab6968882cf5040a8932ad4dd5b2aa95947063f3",
+      "spans": [
+        [
+          1,
+          358
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/bound-schema.ts",
+      "sha256": "c04c5daceec6b02b4111b376d0eba1519b1905e7e04abc9e1330942d5b5ea220",
+      "spans": [
+        [
+          1,
+          475
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/diagnostics.ts",
+      "sha256": "78ad673b743c903c5171860be5779eb53ccfe19ec5fd414a7d18b36f347e4f1f",
+      "spans": [
+        [
+          1,
+          132
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry-check-helpers.ts",
+      "sha256": "897a95dd5fc5f3f18490fc88a909ccca0c6c987b56b0136b6999af197c7d2ea4",
+      "spans": [
+        [
+          1,
+          144
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/rules.md",
+      "sha256": "e169feb186c4f65be7d4cb0dcb1d4bc68d8e2e68343bf8ebc55674b7e69739a0",
+      "spans": [
+        [
+          1,
+          16
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/index-store.ts",
+      "sha256": "d45a86969addb3f315412a8cff57a19d4de29bf81f017b7b17f2334ef7280609",
+      "spans": [
+        [
+          1,
+          170
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/runner.ts",
+      "sha256": "bbc9b64cd8ae2bbc3e8445844c25e6e5c25529932286dcf1298ac31938bfe3b9",
+      "spans": [
+        [
+          180,
+          210
+        ],
+        [
+          535,
+          583
+        ],
+        [
+          1010,
+          1080
+        ],
+        [
+          1100,
+          1240
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/cap.rs",
+      "sha256": "9cc91a215d311d80e274316d92dfde215341bc3c6e526fcac16e1be9b001e7d4",
+      "spans": [
+        [
+          1,
+          180
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/offline.rs",
+      "sha256": "47743590c8ec792a1cc07045db0fc244c6a98c245f4b7265d9a620e72e933ab3",
+      "spans": [
+        [
+          390,
+          440
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/crates/snapback2-core/src/engine/containment.rs",
+      "sha256": "2ee0ac508ddacd8d07ca9823a4118465ba255414d58de71899986863ada3b20b",
+      "spans": [
+        [
+          1,
+          90
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/client-observed.ts",
+      "sha256": "b1102f98aaee2d0821e4c5c935cdad14f62105ae5441c87118df18e7f85bc9ca",
+      "spans": [
+        [
+          275,
+          335
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline.ts",
+      "sha256": "c6469408d3fba73ccca4e2ae4ac47b0505d015b21171bb1e9292928ee8424582",
+      "spans": [
+        [
+          1210,
+          1270
+        ]
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/twin.ts",
+      "sha256": "7b1dfc7c0bf79b6fb9a3c8c702c5182c77fdf9a560e5181d1d577382381628f5",
+      "spans": [
+        [
+          95,
+          150
+        ]
+      ]
+    },
+    {
+      "path": "llp/1012-local-first-v1.spec.md",
+      "sha256": "38e2f91b9a9e557d22a836ee2a67761844b72effc7e4a4a64f2aff088c143eac",
+      "spans": [
+        [
+          420,
+          490
+        ],
+        [
+          625,
+          705
+        ]
+      ]
+    }
+  ],
+  "peerReviewsIncluded": false,
+  "toolsRequested": false,
+  "at": 1789204258.683703
+}

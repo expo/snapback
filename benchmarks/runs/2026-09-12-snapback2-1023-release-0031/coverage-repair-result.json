@@ -1,0 +1,501 @@
+{
+  "base": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+  "patchSha256": "e7c4fb102dae9a80bdc95cfba99b52c36226009efa46159c484fb19254c21611",
+  "sourceHashes": {
+    "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+    "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+    "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "1c5b60d883dcd03b85065547ab6968882cf5040a8932ad4dd5b2aa95947063f3",
+    "llp/1012-local-first-v1.spec.md": "fd2f5bd460931977fc34a3d84b10e1207536855bf740a89c01ae385a3339c07e",
+    "snapback2/metrics/twin.jsonl": "c00c7edb18e000598d58edae28a45fd6f3a0bedaf45d3c1982b9816410151c76"
+  },
+  "runtimeInputHashes": {
+    "snapback2/packages/evaluator/src/hash.ts": "0bbcf2e5dfa1048c84e585a704d2b090b82b5dfcc62dfbedca5ba20b2d80ccb2",
+    "snapback2/packages/evaluator/src/errors.ts": "5390000049fda166e5d45b5e3a46c71fec0f994ea6dd3a3f9257abc4834eb7df",
+    "snapback2/packages/evaluator/src/certificate-identity.ts": "a0db4e418aeb1dbf51103a6dbd2f1b26678bd6be93b4c585c052a54e491124dd",
+    "snapback2/packages/evaluator/src/ordered.ts": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+    "snapback2/packages/evaluator/src/slot-tree.ts": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+    "snapback2/packages/evaluator/src/posting-tree.ts": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+    "snapback2/packages/evaluator/src/prefix-dictionary.ts": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+    "snapback2/crates/snapback2-core/ir-contract.json": "a90850d26571c908c131a74a871d7a0eb51d57a113304ce8fb96bcc9ecf6f90d",
+    "snapback2/packages/evaluator/src/cursor.ts": "6904287b53fa930450a85997cfdbd22f5826fde57030884841e4e7e5b9c3ceec",
+    "snapback2/packages/evaluator/dist/unicode-tables.ts": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+    "snapback2/packages/evaluator/src/unicode-tables.ts": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+    "snapback2/packages/evaluator/src/unicode.ts": "620f73dfa301609fe98cfbb4c415cec55b8601d0d66d75ddafa31cae4aaccd48",
+    "snapback2/packages/evaluator/src/value-runtime.ts": "4489bccd1e8d7925d0e827c141615469513d3503132190f53e33807ee8f72e25",
+    "snapback2/packages/evaluator/src/search-key.ts": "019d7e325b3fd7289db07fb3a25c0d6d0e0a4aaadcabadbf7673750f147a9c03",
+    "snapback2/packages/evaluator/src/index-store.ts": "d45a86969addb3f315412a8cff57a19d4de29bf81f017b7b17f2334ef7280609",
+    "snapback2/packages/evaluator/src/row-image.ts": "4ce5322e65c9a37435c13140337f03fc867a49f527d5d10b977463634b5eb514",
+    "snapback2/packages/snapback2/src/store/row-values.ts": "a36dc4040b5d9576ba98056f4deb49bf7135312832f057235b0a0120d7069846",
+    "snapback2/packages/snapback2/src/store/asset-policy.ts": "3e555438efdec94ad0542944afb9dbcc1898dd8c5fb6237aee88d49854aa4fb1",
+    "snapback2/packages/evaluator/src/search-runtime.ts": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+    "snapback2/packages/snapback2/src/local-cursor.ts": "c7c4bc57f2819933ed9ac332a62c925f99eacec5c7192ad123cd5b3cee8b56cf",
+    "snapback2/packages/evaluator/src/merge.ts": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+    "snapback2/packages/evaluator/src/delivery-prediction.ts": "2cb78d20140b79bc5424c6a69794e1420de51e19d622271b0ddc91fb2a9590bc",
+    "snapback2/packages/evaluator/src/text.ts": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+    "snapback2/packages/evaluator/src/runner.ts": "bbc9b64cd8ae2bbc3e8445844c25e6e5c25529932286dcf1298ac31938bfe3b9",
+    "snapback2/packages/snapback2/src/held-program.ts": "2f2b8d216c75f6a1fc09a76dc0fda06bb220970372493f863d18c2bf1c10524a",
+    "snapback2/packages/evaluator/src/range-preparation.ts": "228b9b5d2379754ab8e72fba2bf3f23863ce6fd14cb96faaaf0bd4aee9697d81",
+    "snapback2/packages/evaluator/src/held-directory.ts": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+    "snapback2/packages/evaluator/src/coverage-spans.ts": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+    "snapback2/packages/evaluator/src/coverage.ts": "c0936f440370dcbf92b28677217fe5d36ac411ca86864de006e62b663a878781",
+    "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+    "snapback2/packages/snapback2/src/offline-schema.ts": "4aa490de90ccc13806b5d365139d6fe3e35f9fa1f31b78a9fcdbc46200b9070b",
+    "snapback2/packages/snapback2/src/offline-protocol.ts": "dd44f576b09779c33c610a7432e0b5b65f9c4f1993760621ec447f79db956348",
+    "snapback2/packages/snapback2/src/store/swap-journal.ts": "a260c65e8ed22c2ddf0f52827e4528f215371f5d1f31cb6351cea4e6b66c0a3b",
+    "snapback2/packages/snapback2/src/store/byte-cache.ts": "9c997efe1aff1710bb94f79ea537be1c628b6703a01b5b0e2eeb5b08b9115025",
+    "snapback2/packages/snapback2/src/store/canonical.ts": "1ac26e570a3225075c4a3e0dfe5de7c1f35d5588fafaeb6ddcef70636a5365bc",
+    "snapback2/packages/snapback2/src/query-frame.ts": "3f344fd8c72eb681c286f3976eccc070931da8e8144599991f42fb74e552b3cb",
+    "snapback2/packages/snapback2/src/store/extent-facts.ts": "15b9045b5b5155ea6a051181d324666275ad3d1eae564bd2780a4ec47961d73d",
+    "snapback2/packages/snapback2/src/store/extent-index.ts": "55a9b4c72e272be194884f784017973a0dae5bab2f54e90ffa60f7cfc493f1d1",
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts": "8ae9b8daf77315d7a7245eacc4d5266ca88cd646364bcd679aeb51d23480bc41",
+    "snapback2/packages/snapback2/src/store/query-inputs.ts": "775cc3446f7c5232a8555ddd5339df1b3622a6412498a701cea9a543dc0a123f",
+    "snapback2/packages/snapback2/src/query-items.ts": "4261f09901d6ae1636a11951945a30881a193b96e0d312ac28fdabee2f0a90b5",
+    "snapback2/packages/snapback2/src/twin-store.ts": "dde779fa6ebe78e8a9c5bbb30ae43e7c688e88e1831040c8038ca08e2300f425",
+    "snapback2/packages/snapback2/src/store/inbox.ts": "81a4547e502f6d33c77125c7a7bc223c96d4b35056d4bf9d95b792607d5dccef",
+    "snapback2/packages/snapback2/src/api.ts": "f210a2df041644b645ada12a3f47603c8fbcf0691c28b58419c0d1beeb34dfbb",
+    "snapback2/packages/snapback2/src/mutation-targets.ts": "d8e60b708be3979596ce8c5acd633ee7ab18696b1036e8e99c6c4f184f3aedb6",
+    "snapback2/packages/snapback2/src/store/outbox.ts": "e71cee9c3a88e69128b110a3250ec856a15bcd16ac546f9082869606bea52d75",
+    "snapback2/packages/snapback2/src/twin-hydrate.ts": "c603a29e91b18bd3bbc54a6d9d615751a3410cdec652468eb9709091b319b4fd",
+    "snapback2/packages/snapback2/src/twin.ts": "7b1dfc7c0bf79b6fb9a3c8c702c5182c77fdf9a560e5181d1d577382381628f5",
+    "snapback2/packages/snapback2/src/types.ts": "ae9477846527dfe05ef3ea5b4a2ee629bec7e4538e13f2490facb888433592ce",
+    "snapback2/packages/snapback2/src/store/overlay-retirement.ts": "034d9f907e69a5aa753ebad87bbe0cece6ea67146e76ceb3cbec69fd82d90ac3",
+    "snapback2/packages/snapback2/src/delivery-acknowledgements.ts": "ec9d9a198b6991007ca43f6203a628a291d56239da3d6ebc8b56c48b8c22cf17",
+    "snapback2/packages/snapback2/src/store/fact-index.ts": "d96884d4b01fcfa19df3abd0ca163a86aa8922dc3725b32ccdaf8e6084a76df8",
+    "snapback2/packages/snapback2/src/store/carrier-index.ts": "4b683935222dad7236861f9c19e38b9b3597162c8b7c00f7d82e22dbad6f491e",
+    "snapback2/packages/snapback2/src/store/success-compaction.ts": "49a1e064df39737b2f3f5b08c64a625e7d8cb8cc7c00abe9cab64cba5b1f1f6d",
+    "snapback2/packages/snapback2/src/store/maintained-coherence.ts": "e6cb56f4ffef5d0981718e1aacfd47ea22e74280a987dbb3edf0122ff08918fb",
+    "snapback2/packages/snapback2/src/store/range-store.ts": "de3685165026e0a1b649d76e56fe155828ed378b7d7b1c6e7b04e2b89c2f35bf",
+    "snapback2/packages/snapback2/src/tombstones.ts": "74419eec099897fa4e8e39c401a995cfe4db7f8295bf7df2e6a30965ede6ba59",
+    "snapback2/packages/snapback2/src/client-wire.ts": "c5248346232ff20943989d90bd6dab7881cd5ec7ff019771e24c73dc2d47daef",
+    "snapback2/packages/snapback2/src/offline.ts": "c6469408d3fba73ccca4e2ae4ac47b0505d015b21171bb1e9292928ee8424582",
+    "snapback2/packages/snapback2/src/store/metadata.ts": "04812aaaecff4e7f6207ee4d56405a445cfa54329b235110ffe6a07e8a8ba148",
+    "snapback2/packages/snapback2/src/store/projection.ts": "56488dd329ae9846bed9ee5310d020c26ad18ae3617d1a5846cdea7842003b8e"
+  },
+  "checks": {
+    "bytes-r1": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "build.mjs",
+        "--measure-twin"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+        "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "1c5b60d883dcd03b85065547ab6968882cf5040a8932ad4dd5b2aa95947063f3",
+        "llp/1012-local-first-v1.spec.md": "fd2f5bd460931977fc34a3d84b10e1207536855bf740a89c01ae385a3339c07e"
+      },
+      "started": 1789204013.007125,
+      "pid": 76000,
+      "exit": 0,
+      "ended": 1789204013.2432818
+    },
+    "custody-r1": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "tests/offline-owner-custody.test.ts",
+        "tests/twin.test.ts",
+        "tests/store-review-custody.test.ts",
+        "tests/overlay-retirement.test.ts",
+        "tests/offline-view-once.test.ts"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+        "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "1c5b60d883dcd03b85065547ab6968882cf5040a8932ad4dd5b2aa95947063f3",
+        "llp/1012-local-first-v1.spec.md": "fd2f5bd460931977fc34a3d84b10e1207536855bf740a89c01ae385a3339c07e"
+      },
+      "started": 1789204013.2653282,
+      "pid": 76042,
+      "exit": 0,
+      "ended": 1789204015.8740008
+    },
+    "evaluator-r1": {
+      "pid": 3985,
+      "command": [
+        "/Users/ccheever/.bun/bin/bun",
+        "src/test.ts"
+      ],
+      "started": 1789203426.181689,
+      "sourceHead": "253cb389",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec"
+      },
+      "exit": 0,
+      "ended": 1789203429.424593
+    },
+    "owner-r1-provenance": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "tests/real-owner-prediction.test.ts"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+        "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "1c5b60d883dcd03b85065547ab6968882cf5040a8932ad4dd5b2aa95947063f3",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "bd7f6a7edba6d59234190043df6f9955595a78444a860556b3168f7ecfe0789a"
+      },
+      "started": 1789203922.232893,
+      "pid": 63700,
+      "exit": 0,
+      "ended": 1789203924.341814
+    },
+    "owner-r1": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "tests/real-owner-prediction.test.ts"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+        "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "3425bd8503c5ef454345dd7bb24613558ffdefa30e310b63330361adc26b810b",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "bd7f6a7edba6d59234190043df6f9955595a78444a860556b3168f7ecfe0789a"
+      },
+      "started": 1789203879.322838,
+      "pid": 58383,
+      "exit": 1,
+      "ended": 1789203886.076971
+    },
+    "owner-red": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "--test-name-pattern=a durable observed row and zero count",
+        "tests/real-owner-prediction.test.ts"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+        "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "3425bd8503c5ef454345dd7bb24613558ffdefa30e310b63330361adc26b810b",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9"
+      },
+      "started": 1789203795.083137,
+      "pid": 48612,
+      "exit": 1,
+      "ended": 1789203796.472728
+    },
+    "package-build-r1": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "build.mjs"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+        "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "3425bd8503c5ef454345dd7bb24613558ffdefa30e310b63330361adc26b810b"
+      },
+      "started": 1789203839.087253,
+      "pid": 53550,
+      "exit": 0,
+      "ended": 1789203840.9055092
+    },
+    "package-selftest-r1": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "build.mjs",
+        "--self-test"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec",
+        "snapback2/packages/snapback2/tests/real-owner-prediction.test.ts": "1c5b60d883dcd03b85065547ab6968882cf5040a8932ad4dd5b2aa95947063f3",
+        "llp/1012-local-first-v1.spec.md": "fd2f5bd460931977fc34a3d84b10e1207536855bf740a89c01ae385a3339c07e"
+      },
+      "started": 1789204010.830536,
+      "pid": 75749,
+      "exit": 0,
+      "ended": 1789204012.995409
+    },
+    "timed-r1": {
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "--test",
+        "--test-name-pattern=timed Clique Insights load and refresh",
+        "tests/real-owner-successor.test.ts"
+      ],
+      "sourceHead": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/snapback2/tests/real-owner-successor.test.ts": "fdeaea3de2992e6d583537524a1b994b3f2e43e8aa567c9b39e049f961107c63",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "bd7f6a7edba6d59234190043df6f9955595a78444a860556b3168f7ecfe0789a"
+      },
+      "started": 1789203971.8268108,
+      "pid": 70739,
+      "exit": 0,
+      "ended": 1789203973.4949608
+    },
+    "unit-r1-control": {
+      "pid": 95897,
+      "command": [
+        "/Users/ccheever/.bun/bin/bun",
+        "src/test-maintained-address.ts"
+      ],
+      "started": 1789203362.789382,
+      "sourceHead": "253cb389",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "45d5cbf6444cc88fcd240caf0b6306b399d126c6f3f8a9a00241914bc6a3e1e5"
+      },
+      "exit": 1,
+      "ended": 1789203362.872201
+    },
+    "unit-r1-final": {
+      "pid": 99390,
+      "command": [
+        "/Users/ccheever/.bun/bin/bun",
+        "src/test-maintained-address.ts"
+      ],
+      "started": 1789203391.346313,
+      "sourceHead": "253cb389",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "30e8febddd3e6713d2c2db3d52c12ddabe06da921b7a812d5be8b098aea43886"
+      },
+      "exit": 1,
+      "ended": 1789203391.415584
+    },
+    "unit-r1-green": {
+      "pid": 1932,
+      "command": [
+        "/Users/ccheever/.bun/bin/bun",
+        "src/test-maintained-address.ts"
+      ],
+      "started": 1789203407.8041768,
+      "sourceHead": "253cb389",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "f0c3edb48305ed4ed89906e0f38802f39cf8ec3f9c335572fdc6a25a5610c5ec"
+      },
+      "exit": 0,
+      "ended": 1789203407.874897
+    },
+    "unit-r1-valid-bounds": {
+      "pid": 93219,
+      "command": [
+        "/Users/ccheever/.bun/bin/bun",
+        "src/test-maintained-address.ts"
+      ],
+      "started": 1789203337.983347,
+      "sourceHead": "253cb389",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "d1676dbe5d4c00d95262777a252fd37d51657fdd34a8b055ee1f58c792564677"
+      },
+      "exit": 1,
+      "ended": 1789203337.991364
+    },
+    "unit-r1": {
+      "pid": 89108,
+      "command": [
+        "/Users/ccheever/.bun/bin/bun",
+        "src/test-maintained-address.ts"
+      ],
+      "started": 1789203303.750987,
+      "sourceHead": "253cb389",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "b14cb8e056f1ac5c1231859ad4401e90c6a54d4de906c7a7e86727853780eedd",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "56c0960971585c839edccc903be59f17a6b120f1ecf746a71eb081f48f4b4828"
+      },
+      "exit": 1,
+      "ended": 1789203303.826786
+    },
+    "unit-red": {
+      "pid": 85576,
+      "command": [
+        "/Users/ccheever/.bun/bin/bun",
+        "src/test-maintained-address.ts"
+      ],
+      "started": 1789203269.313867,
+      "sourceHead": "253cb389",
+      "sourceHashes": {
+        "snapback2/packages/evaluator/src/store.ts": "8f2913c062de4488c974ce994816a0317493d23628362de7b40ef432c5a9fe0c",
+        "snapback2/packages/evaluator/src/test-maintained-address.ts": "56c0960971585c839edccc903be59f17a6b120f1ecf746a71eb081f48f4b4828"
+      },
+      "exit": 1,
+      "ended": 1789203269.394614
+    }
+  },
+  "owners": [
+    {
+      "pid": 58386,
+      "log": "owner-r1.log",
+      "stopped": true
+    },
+    {
+      "pid": 58476,
+      "log": "owner-r1.log",
+      "stopped": true
+    },
+    {
+      "pid": 58492,
+      "log": "owner-r1.log",
+      "stopped": true
+    },
+    {
+      "pid": 48616,
+      "log": "owner-red.log",
+      "stopped": true
+    },
+    {
+      "pid": 48646,
+      "log": "owner-red.log",
+      "stopped": true
+    },
+    {
+      "pid": 70774,
+      "log": "timed-r1.log",
+      "stopped": true
+    },
+    {
+      "pid": 70951,
+      "log": "timed-r1.log",
+      "stopped": true
+    },
+    {
+      "pid": 63705,
+      "log": "owner-r1-provenance.log",
+      "stopped": true
+    },
+    {
+      "pid": 63724,
+      "log": "owner-r1-provenance.log",
+      "stopped": true
+    },
+    {
+      "pid": 63815,
+      "log": "owner-r1-provenance.log",
+      "stopped": true
+    }
+  ],
+  "ownedRecordedPids": [
+    1932,
+    3985,
+    48612,
+    48616,
+    48646,
+    53550,
+    58383,
+    58386,
+    58476,
+    58492,
+    63700,
+    63705,
+    63724,
+    63815,
+    70739,
+    70774,
+    70951,
+    75749,
+    76000,
+    76042,
+    85576,
+    89108,
+    93219,
+    95897,
+    99390
+  ],
+  "cleanupPsExit": 1,
+  "cleanupPs": "",
+  "at": 1789204073.610821,
+  "measurement": {
+    "at": "2026-09-12T09:06:53.178Z",
+    "sha": "253cb389f57df2d533efb066b57b4acdf80f55e2",
+    "entry": "complete-local-runtime",
+    "minified": 272037,
+    "gzip": 89898,
+    "runtime_gzip_bytes": 89898,
+    "ceiling": 90000,
+    "target": 80000,
+    "toolchain": {
+      "node": "v24.18.0",
+      "esbuild": "0.25.9",
+      "gzipLevel": 9
+    },
+    "inputs": [
+      "../evaluator/src/hash.ts",
+      "../evaluator/src/errors.ts",
+      "../evaluator/src/certificate-identity.ts",
+      "../evaluator/src/ordered.ts",
+      "../evaluator/src/slot-tree.ts",
+      "../evaluator/src/posting-tree.ts",
+      "../evaluator/src/prefix-dictionary.ts",
+      "../../crates/snapback2-core/ir-contract.json",
+      "../evaluator/src/cursor.ts",
+      "../evaluator/dist/unicode-tables.ts",
+      "../evaluator/src/unicode-tables.ts",
+      "../evaluator/src/unicode.ts",
+      "../evaluator/src/value-runtime.ts",
+      "../evaluator/src/search-key.ts",
+      "../evaluator/src/index-store.ts",
+      "../evaluator/src/row-image.ts",
+      "src/store/row-values.ts",
+      "src/store/asset-policy.ts",
+      "../evaluator/src/search-runtime.ts",
+      "src/local-cursor.ts",
+      "../evaluator/src/merge.ts",
+      "../evaluator/src/delivery-prediction.ts",
+      "../evaluator/src/text.ts",
+      "../evaluator/src/runner.ts",
+      "src/held-program.ts",
+      "../evaluator/src/range-preparation.ts",
+      "../evaluator/src/held-directory.ts",
+      "../evaluator/src/coverage-spans.ts",
+      "../evaluator/src/coverage.ts",
+      "../evaluator/src/store.ts",
+      "src/offline-schema.ts",
+      "src/offline-protocol.ts",
+      "src/store/swap-journal.ts",
+      "src/store/byte-cache.ts",
+      "src/store/canonical.ts",
+      "src/query-frame.ts",
+      "src/store/extent-facts.ts",
+      "src/store/extent-index.ts",
+      "src/store/fact-integrity.ts",
+      "src/store/query-inputs.ts",
+      "src/query-items.ts",
+      "src/twin-store.ts",
+      "src/store/inbox.ts",
+      "src/api.ts",
+      "src/mutation-targets.ts",
+      "src/store/outbox.ts",
+      "src/twin-hydrate.ts",
+      "src/twin.ts",
+      "src/types.ts",
+      "src/store/overlay-retirement.ts",
+      "src/delivery-acknowledgements.ts",
+      "src/store/fact-index.ts",
+      "src/store/carrier-index.ts",
+      "src/store/success-compaction.ts",
+      "src/store/maintained-coherence.ts",
+      "src/store/range-store.ts",
+      "src/tombstones.ts",
+      "src/client-wire.ts",
+      "src/offline.ts",
+      "src/store/metadata.ts",
+      "src/store/projection.ts",
+      "<stdin>"
+    ]
+  },
+  "measurementDelta": {
+    "minified": 174,
+    "gzip": 55,
+    "baselineGzip": 89843,
+    "headroom": 102
+  },
+  "limits": [
+    "New public observed composite regression uses a fresh guest bearer and file carrier; not a browser IndexedDB or original actor witness.",
+    "Cached pooled-object fallback, rule absence authority, restricted read rules and timers are unchanged.",
+    "Original failures and test fixture corrections retained in separate logs.",
+    "No native implementation change; parent owns full combined qualification/review/publication."
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "status": "confirmed SDK one-client defect; no SDK implementation changed",
+  "fixedPublicVersion": "0.0.29",
+  "fixedSdk": "f2c569a5e50f8add3c7fc0680cc0ec093fba7a23",
+  "currentClientRuntime": "Public client.mjs/client-runtime.mjs/image-runtime.mjs and client-observed-test.mjs byte-identical to staged0.0.29; source-manifest confirms relevant fixed source matches current",
+  "runs": {
+    "synthetic": "10/10pass; missing-authority, pending-overlay, sequence/order, eviction, maintained-coherence and denied-row safeguards",
+    "owner1": "exit1 instrumentation wait targeted obsolete transport path; actual server\u2192twin degradation captured; owner exit0",
+    "owner2": "exit0 full zero/nonzero/frame/control capture; removal rejected E_OFFLINE_ID_BLOCK, not an overlay witness",
+    "owner3": "exit0 confirmed auth, owner updates and admitted predicted removals; no stale row revival"
+  },
+  "recordedChecks": {
+    "zeroOwnerComplete": true,
+    "zeroPublicServerThenTwinPartial": true,
+    "zeroHeldCompleteButLocalPartialSameSelection": true,
+    "zeroAuthenticatedStillPartialAfterCommittedOwnerChange": true,
+    "nonzeroAuthenticatedOwnerUpdateExact": true,
+    "zeroRemovalAdmittedPredicted": true,
+    "nonzeroRemovalAdmittedNoRevivedRow": true
+  },
+  "mechanism": {
+    "nativeProof": "core/cap.rs47\u201380 permits separate proof pair only for uniformly readable Count target, full unique grouping index, typed scalar keys. cap.rs115\u2013179 produces exhausted empty group range and separately checked primary-ID absence. engine/containment.rs23\u201364 requires exact source point and separate primary absence proof.",
+    "wire": "core/offline.rs411\u2013420 exports only byId negatives deliberately; alternate-key misses remain indistinguishable from hidden rows. Exhausted group range is also delivered.",
+    "retention": "twin-store.ts281\u2013291 prepares both and installs into CoverageIndex. Original query held answer stays complete at identical selection through1/order1.",
+    "mismatch": "evaluator/runner.ts561\u2013568 traces missing Get under counts/byTarget. evaluator/store.ts142 checks only exact hasAbsence(table,index,key), implemented by coverage.ts162. The surviving negative is counts/byId, while the exhausted counts/byTarget range is not consulted for point absence.",
+    "publication": "twin.ts131\u2013137 suppresses data for unheld aggregate; offline.ts1242\u20131254 excludes pooled rows from scalar/literal fallback; client-observed.ts309\u2013324 republishes partial twin as live. Runtime remains connected and auth-confirmed.",
+    "timing": "Run3 original zero owner frame/complete snapshot and partial twin share seq1; exact timestamps in events.json. After valid owner rename at seq2, same defect persists with current selection and no pending work."
+  },
+  "recommendedNextReview": {
+    "direction": "Repair qualified coverage consumption for the actual readable group absence; leave cachedAnswerOnly pooled-row exclusion in place.",
+    "candidate": "At the absent-point coverage boundary, allow the held fully exhausted exact grouping-range proof (with current schema, scoped read-rule and complete typed key) to discharge the matching public-count Get. Reuse existing CoverageIndex drained/covers preparation; do not infer zero from missing local data.",
+    "mustNot": "Do not use the canonical primary ID alone as group-address equivalence: cap.rs45\u201346 and cap_count_tests.rs177/349 explicitly cover surviving noncanonical ID/group pairings. Do not emit arbitrary alternate-key negative facts or change the frozen wire authority policy.",
+    "reviewBeforeImplementation": [
+      "Full exact key and unique public Count eligibility; no Sum, partial/group-prefix/hidden counter widening",
+      "Receipt existence, own current rule/schema/authority, range exhaustion/absence, hole/eviction invalidation",
+      "Noncanonical existing group row and canonical-ID collision controls already in native cap_count_tests",
+      "No synthesized zero under missing authority, revoked/deleted facts or pending overlay",
+      "Preserve newer pooled row plus old computed field hazard; changed sequence/order, maintained-coherence and read-time buckets",
+      "Warm/cold and identical production bearer/web carrier follow-up if needed after headless mechanism fix"
+    ]
+  },
+  "limits": [
+    "This isolates a causal SDK failure matching the actor symptom; it does not prove every actor unavailable query has this cause.",
+    "Live owner used dummy dev:alice and fileRangeStore. Auth was explicitly confirmed. Same-bearer/IndexedDB/full actor query remains to qualify later, without touching the running actor.",
+    "Negative missing-authority/eviction/denial/sequence/order/maintained-coherence are synthetic; real owner update and admitted removal controls executed. Real access revocation and timed query controls not executed in this bounded diagnosis.",
+    "No source fix, output ceiling change, full Clique success, or one-client repaired outcome claimed."
+  ],
+  "custody": {
+    "allDirectChildrenReaped": true,
+    "owners": [
+      {
+        "pid": 55196,
+        "exit": 0
+      },
+      {
+        "pid": 66619,
+        "exit": 0
+      },
+      {
+        "pid": 84614,
+        "exit": 0
+      }
+    ],
+    "psAudit": "",
+    "psExit": 1,
+    "noBenchmarkEndpointsTokensOrFilesUsed": true,
+    "noActorGraderFeedback": true,
+    "retention": "Retain scripts, fixture source, manifests and logs/events; owner-run*/durable-* are dummy carrier stores and are not release evidence."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "rawSha256": "dac6f165a4e97a7c2835d0828cba1d3ab1cf5915c0bfb776f6c1bf90444dc12d",
+  "verdictSha256": "3b1a6e6d26d2a57626c9b93476882ab3219b5788be1e4dd975dc1657c061d3e5",
+  "eventTypes": {
+    "thread.started": 1,
+    "turn.started": 1,
+    "item.completed": 1,
+    "turn.completed": 1
+  },
+  "toolEvents": [],
+  "zeroToolEvents": true,
+  "reportedModels": [],
+  "processExit": 0
+}

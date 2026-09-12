@@ -1,0 +1,15 @@
+{
+  "pid": 10309,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "node",
+    "scripts/publish.mjs",
+    "--stage-only"
+  ],
+  "started": 1789204286.79744,
+  "source": "2d847b7e9ef794ba5860742376f482f470123d39",
+  "exit": 0,
+  "ended": 1789204445.3819242
+}

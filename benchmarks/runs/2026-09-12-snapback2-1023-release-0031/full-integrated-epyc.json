@@ -1,0 +1,36 @@
+{
+  "phase": "combined-full-script",
+  "source": "eb681b85a1b01d69fefab28973a165cb6a06424f",
+  "started": 1789205995.0344973,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "scripts/test.sh"
+  ],
+  "testThreads": {
+    "package": 2,
+    "native": 8
+  },
+  "host": "EPYC",
+  "overlap": "Private initial grader functional browser phase; no builder scale measurement; nice 10 bounded native and package concurrency",
+  "pid": 843434,
+  "childBirth": {
+    "pid": 843434,
+    "startTicks": "156491332",
+    "bootId": "76ef40aa-0ed8-4f57-85c6-898bb42ea7e4"
+  },
+  "processGroup": 843434,
+  "cleanup": {
+    "directChildPid": 843434,
+    "signals": [],
+    "observedRemainingGroupMembers": [],
+    "unresolved": false
+  },
+  "childExit": 1,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789206254.567337,
+  "exit": 1
+}

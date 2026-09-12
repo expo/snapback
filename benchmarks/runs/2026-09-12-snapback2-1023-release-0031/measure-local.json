@@ -1,0 +1,33 @@
+{
+  "phase": "follow-up-loop-measurement",
+  "source": "eb681b85a1b01d69fefab28973a165cb6a06424f",
+  "started": 1789206868.058957,
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "node",
+    "scripts/measure.mjs",
+    "--check"
+  ],
+  "sourceWorkingEdits": "Parent/query prose and retained evidence only; product identical to reviewed2d847b7",
+  "host": "Black M5 Max",
+  "pid": 30678,
+  "childBirth": {
+    "pid": 30678,
+    "started": "Sat Sep 12 02:54:28 2026"
+  },
+  "processGroup": 30678,
+  "cleanup": {
+    "directChildPid": 30678,
+    "signals": [],
+    "observedRemainingGroupMembers": [],
+    "unresolved": false
+  },
+  "childExit": 1,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789206933.119272,
+  "exit": 1
+}

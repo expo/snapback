@@ -1,0 +1,25 @@
+{
+  "phase": "isolated-original-deadline-asset-pending-control",
+  "source": "2d847b7e9ef794ba5860742376f482f470123d39",
+  "started": 1789205011.7299259,
+  "command": [
+    "node",
+    "--test",
+    "--test-timeout=10000",
+    "tests/asset-pending.test.ts"
+  ],
+  "deadlineMs": 10000,
+  "fullRunRemainsFailed": true,
+  "pid": 4293,
+  "childBirth": {
+    "pid": 4293,
+    "started": "Sat Sep 12 02:23:31 2026"
+  },
+  "processGroup": 4293,
+  "childExit": 0,
+  "childReaped": true,
+  "childSignal": null,
+  "interrupted": null,
+  "ended": 1789205018.98992,
+  "exit": 0
+}

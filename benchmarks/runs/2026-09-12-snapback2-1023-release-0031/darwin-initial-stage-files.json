@@ -1,0 +1,21 @@
+{
+  "source": "2d847b7e9ef794ba5860742376f482f470123d39",
+  "stage": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.31",
+  "files": [
+    {
+      "name": "resume.json",
+      "bytes": 4704,
+      "sha256": "c27580a1b7fcf58d01109826743df4d78f2b5f4423a7fac2676067f40167271a"
+    },
+    {
+      "name": "snapback2-darwin-arm64-0.0.31.tgz",
+      "bytes": 5357885,
+      "sha256": "cf47878d24692b76ccef669cfb277d34b2205ba67088da8b8677e4e0fa8eb73f"
+    },
+    {
+      "name": "snapback2-0.0.31.tgz",
+      "bytes": 1392985,
+      "sha256": "1a8416dc67c0cb8fb6220f5e658ffe8e5975e7aadba44acb12ea23c3ce8cdfa8"
+    }
+  ]
+}
