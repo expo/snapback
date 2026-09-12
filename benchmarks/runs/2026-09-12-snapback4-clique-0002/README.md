@@ -27,8 +27,8 @@ Snapback 4 candidate on the benchmark, one week into its four-week clock.
 | Phase | State |
 | --- | --- |
 | Continuous builder | **complete**: start 1789222278, end 1789230003 (7,725 s); M1–M6 and M8 green, M7 not-run by design; `builder-final-report.md`, `builder-essay.md`, `builder-platform-gaps.md`, `builder-diary.md`, `builder-run-log.md`, `record-astra-snapback4.json` beside this file |
-| Independent grade (fresh Claude session on the frozen grader prompt) | running |
-| M7 day-2 evolution (fresh Astra session, same lane) | pending |
+| Independent grade (fresh Claude session on the frozen grader prompt) | **complete** (claude-opus-5, uncalibrated grader, not contaminated, one rerun used): 69 pass / 2 fail / 9 not-run / 21 not-applicable (struck) of 101 assertions; coverage spot-verification `honest`; defects 2 major, 2 minor, 1 cosmetic; O1 78, O2 48, O4 72 (O3, O5 null: no holdout set, no scale band in this scope); `grading-astra-snapback4.json`, `grading-astra-snapback4.trace.md` beside this file |
+| M7 day-2 evolution (fresh Astra session, same lane) | running |
 | Record and validation | pending |
 
 ## What the lane found in Snapback 4 during the run
@@ -94,6 +94,16 @@ plain JSON protocol and stable mutation ids made the replay adapter
 preference is "conditional": a relational application whose authorization
 and synchronization rules fit Quarry, especially with offline writes at
 the center, budgeting time for client lifecycle validation.
+
+## The grade's defects, against today's main
+
+| Defect | Severity | Disposition |
+| --- | --- | --- |
+| d-01 receipt-row updates never reached the sender's established replica in a group, even across a reload | major | not reproduced on 0.0.15 at the client level (the lane's schema, three clients, acknowledgements arrive within 3 s and survive a reload); the lane's UI on 0.0.2 likely sat on the orphaned-watch race fixed in 0.0.12 or its own aggregation; re-grade on a current pin owed |
+| d-02 reactions through the UI intermittently never visible on the peer; the API path fine | major | the flush that read the outbox once (0.0.8) |
+| d-03 a push payload dropped within ~12 s of an abrupt disconnect | minor | the lane's presence-lease design for the push seam |
+| d-04 live updates intermittently past the 10 s budget | minor | load average 17–25 on the shared host (the loop-bar sets ran beside the lane) |
+| d-05 `/q/history` short page with `complete: false` and no `next` | cosmetic | a cursorless page on the meter's cut; documented by the lane; `check` notes it today |
 
 ## Results
 

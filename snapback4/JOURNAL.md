@@ -882,3 +882,36 @@ eight distinct findings, every one but the expiry gap fixed on main and
 published the same day (0.0.4 through 0.0.15); the expiry gap is in
 NOT-DOING as the `expires` clause on `sync`. The independent grade (a
 fresh Claude session on the frozen grader prompt) runs now; M7 follows.
+
+## 2026-09-12 — the independent grade of the Clique lane
+
+A fresh Claude session (claude-opus-5, an uncalibrated grader by the
+protocol's own rule, not contaminated, one rerun) on the frozen grader
+prompt: 69 of 101 assertions pass, 2 fail, 9 not-run, 21 not-applicable
+(the struck media and scheduled work); coverage spot-verification
+`honest`; O1 78, O2 48, O4 72 (O3 and O5 have no input in this scope).
+For the anchor: Snapback 2 0.0.29's Astra lane graded O1 73, O2 55, O4
+65 on the full brief. The two failed assertions: m3-a09 (the sender's
+receipt indicator on an established replica) and m5-a01 (the disclosed
+expiry gap). The five defects, read against today's main:
+
+- d-01 (major) receipt-row updates never reached the sender's established
+  replica in a group, even across a reload. Not reproduced on 0.0.15 at
+  the client level: with the lane's own schema, bob's and carol's
+  acknowledgements reach alice's SQLite replica within three seconds and
+  survive a reload. The lane's UI on 0.0.2 sat on the orphaned-watch race
+  fixed in 0.0.12 or on its own aggregation; the grader's probes drove the
+  UI. Open until the M7 session's app is re-graded on a current pin.
+- d-02 (major) reactions set through the UI intermittently never reached
+  the peer while the API path did in ~100–300 ms: the flush that read the
+  outbox once, fixed in 0.0.8.
+- d-03 (minor) a push payload dropped for a message sent within ~12 s of
+  an abrupt disconnect: the lane's own presence-lease design for the push
+  seam (scheduled re-evaluation is struck work).
+- d-04 (minor) live updates intermittently past the harness's 10 s budget
+  under a load average of 17–25 on the shared host: the loop-bar sets ran
+  beside the lane; environmental, as the grader says.
+- d-05 (cosmetic) `/q/history` returned 32 of 50 rows with `complete: false`
+  and no `next`: a cursorless page on the meter's cut, documented by the
+  lane's API.md; today's `check` notes such a page and the README says
+  what the card means.
