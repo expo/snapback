@@ -1,13 +1,61 @@
 # Clique: Astra medium on published Snapback 2, Linux
 
-Status: **builder running**, started2026-09-11 at21:36:51 UTC on
-expo-build-1000. PID2598100, Codex thread
+Status: **builder complete; independent grading running**. The builder ran
+2026-09-11 at21:36:51 through2026-09-12 at01:37:35 UTC on expo-build-1000,
+exit0,14,444s harness wall. PID2598100, Codex thread
 `01a09266-ee00-7701-bd60-d118acbb9fc0`, foreground harness session52200.
 All three0.0.24 packages were registry-visible with exact staged hashes and
 both native registry-only consumer suites passed19/19 before launch.
 No independent benchmark grade exists yet. Builder-reported checkpoints
 below remain provisional. This document records one run, not a new benchmark
 protocol.
+
+## Builder handoff and grading
+
+The builder reports M1–M6 and M8 suites and implemented web choreography
+green. The last M8 boundary was1789176963; its authored run clock is
+1789162624–1789177036 (14,412s), distinct from the harness clock above.
+These are builder results, not independent acceptance of every assertion.
+The strict scale timing failures, unavailable native simulator proof and
+custody incidents below remain in force.
+
+The [public handoff archive](./astra-snapback2-builder-public-handoff.tgz)
+retains the actual final report, essay, diary, run log, base-schema run
+record, coverage, final suites/choreography, correction ledger and selected
+receipts. SHA-256:
+`0877f3c55a20876bf5fdc0bdf8873cfa81d04976cdfaa6a1cee31ead250237cf`.
+The [source snapshot](./astra-snapback2-pre-m7-source.tgz), taken before
+M7, retains app/backend/scripts/configuration, vendored UI and lockfile,
+without stores, credentials, dependencies or private transcripts. SHA-256:
+`5ffa555a3907f8dcb6623ce59d492c6c8273a71901fe08bdc9558bd20c85c91f`.
+Raw native rollout retention found the root and selected one tree entry;
+the builder CLI stream contains no collaboration item. The manifest is
+public, but the raw transcript stays private on the run host. This does
+not supply joined milestone token accounting or cap adjudication.
+
+The builder's final exported cold-sync probe reports55.869s for100
+conversations, maximum sampled heap636,609,816 bytes over the whole probe,
+and179,462,420 bytes retained after explicit post-settlement GC. Earlier
+measurements below remain separate rather than being replaced. This is a
+local web diagnostic with concurrent regression traffic, not a native or
+network-realistic performance claim.
+
+Some early failed standalone choreography files were overwritten by the
+frozen writer before the builder added archival. Structured miss logs,
+first-green copies and later retry archives survive. Do not claim every
+standalone failure artifact was preserved. Rich custom-client history is
+one item per page; normal app history is50 per page. The final report also
+discloses non-virtualized history, fifty-row receipt/reaction display slices,
+expensive hub-search merging, and one-minute digest dispatch cadence after
+the08:00 UTC period boundary.
+
+Fresh Claude Opus5 grading started1789177099 (01:38:19 UTC), PID2235048,
+foreground harness session18355. Preflight verified0.0.24, real Chromium,
+all assigned ports clear,239.64GiB available memory and381.63GiB free disk;
+load was8.07/9.28/6.62. The launch explicitly cleared both public backend
+URL variables and inherited harness note/port overrides. No builder
+narrative or supervisor findings were supplied to the grader. M7 and the
+scorer have not started.
 
 The package is the qualified source snapshot
 `5f115db401a41954f10dc3737e5b03872470a4eb`, published from the20:54 release
