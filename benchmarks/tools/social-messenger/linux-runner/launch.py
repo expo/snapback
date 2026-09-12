@@ -12,7 +12,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from run_support import exclusive_run_root, retain_codex_rollout_tree, rollout_snapshot, run_env, wait_tracked_process
+from run_support import (
+    ScaleOwnerCustody, enable_child_subreaper, exclusive_run_root,
+    retain_codex_rollout_tree, rollout_snapshot, run_env, wait_tracked_process,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 wave, backend = sys.argv[1], sys.argv[2]
@@ -63,7 +66,13 @@ out = open(logs / f"{name}.ndjson", "w")
 err = open(logs / f"{name}.stderr.log", "w")
 started = int(time.time())
 rollouts_before = rollout_snapshot() if wave == "astra" else set()
+# Construct custody before actor spawn so its unique run identity and every
+# pre-existing terminal are fixed before actor-authored work can begin.
+scale_custody = ScaleOwnerCustody(root=ROOT, lane=lane, name=name)
+env = scale_custody.actor_env(env)
+enable_child_subreaper()
 p = subprocess.Popen(cmd, stdin=stdin, stdout=out, stderr=err, cwd=lane, env=env)
+scale_custody.start(p.pid)
 (logs / f"{name}.pid").write_text(str(p.pid))
 (logs / f"{name}.start.json").write_text(json.dumps({
     "lane": name, "pid": p.pid, "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -72,6 +81,7 @@ p = subprocess.Popen(cmd, stdin=stdin, stdout=out, stderr=err, cwd=lane, env=env
 }, indent=2))
 print(f"{name} pid {p.pid} -> {logs / (name + '.ndjson')}", flush=True)
 wait_error = None
+scale_custody_error = None
 try:
     returncode, interrupted = wait_tracked_process(p)
 except BaseException as error:
@@ -79,6 +89,12 @@ except BaseException as error:
     returncode, interrupted = p.poll() if p.poll() is not None else 125, "harness-wait-error"
 finally:
     ended = int(time.time())
+    try:
+        scale_custody.finish(f"actor-exit:{returncode}")
+    except Exception as error:
+        scale_custody_error = f"{type(error).__name__}: {error}"
+        if returncode == 0:
+            returncode = 125
     out.close(); err.close()
     if stdin is not subprocess.DEVNULL:
         stdin.close()
@@ -96,6 +112,8 @@ if wave == "astra":
     "lane": name, "pid": p.pid, "startedEpoch": started, "endedEpoch": ended,
     "exit": returncode, "interrupted": interrupted, "nativeManifest": native_manifest,
     "waitError": wait_error,
+    "scaleCustody": str(scale_custody.receipt_path),
+    "scaleCustodyError": scale_custody_error,
     "nativeCaptureError": native_capture_error,
     "nativeTreeStatus": "retained" if native_manifest else "incomplete-unavailable",
     "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller",

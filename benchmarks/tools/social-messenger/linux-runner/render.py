@@ -8,6 +8,46 @@ from pathlib import Path
 
 VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 
+SCALE_OWNER_CUSTODY_APPENDIX = """
+
+## Required scale-owner lifecycle handshake
+
+The Linux launcher gives this session a unique `CLIQUE_SCALE_CUSTODY_RUN_ID`.
+For every M6 or M8 scale attempt, use the maintained executable boundary to
+start a fresh scale backend:
+
+```sh
+result="$PWD/evidence/scale-replay/result.json"
+python {RUN_ROOT}/scripts/run_support.py scale-attempt \\
+  --lane "$PWD" --project "$PWD/replays/scale-m8-attempt-1" \\
+  --milestone M8 --attempt 1 --result "$result" -- \\
+  npx snapback2 dev --project "$PWD/replays/scale-m8-attempt-1" --port <assigned-port>
+```
+
+Use the real milestone, monotonically increasing positive attempt number, and
+the absolute path of that attempt's eventual JSON result. A retry starts a new
+owner with a new attempt number and its own result path. The command creates a
+one-shot association sidecar and binds it to the exact owner process and
+`owner.json`; an ordinary unassociated `snapback2 dev` scale owner is stopped
+immediately and makes the launcher fail.
+
+Write the normal full
+`snapback.full-journey-scale-replay.v1`,
+`snapback.full-journey-scale-replay-failure.v1`, or raw replay report shape to
+`$result.unbound`, then publish it through the same boundary:
+
+```sh
+python {RUN_ROOT}/scripts/run_support.py bind-result \\
+  --lane "$PWD" --result "$result" --source "$result.unbound"
+```
+
+`bind-result` adds the exact attempt association without changing the current
+result fields. A copied result from another simultaneous attempt, a generic
+pass/state object, stale bytes, malformed/unsupported JSON, or an undeclared
+path does not stop an owner. Actor exit still cleans every owner proved to
+belong to this actor and reports protocol omissions.
+"""
+
 
 def render_prompt(root: Path, version: str, port_start: int, port_count: int) -> Path:
     if not VERSION_PATTERN.fullmatch(version):
@@ -50,6 +90,7 @@ def render_prompt(root: Path, version: str, port_start: int, port_count: int) ->
         rendered = rendered.replace(key, value)
     if "{" in rendered.replace("M{n}", ""):
         raise SystemExit("unfilled placeholder in astra-clique-snapback2 prompt")
+    rendered = rendered.rstrip() + SCALE_OWNER_CUSTODY_APPENDIX.replace("{RUN_ROOT}", str(root))
     with prompt_path.open("x") as handle:
         handle.write(rendered)
     return prompt_path
