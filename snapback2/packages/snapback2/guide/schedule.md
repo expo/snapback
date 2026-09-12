@@ -111,6 +111,10 @@ settle. Retry a row by changing its deadline; same-value/unrelated writes do
 not re-arm it. A false row `if` settles silently; past deadlines fire next turn.
 Targets leave the client map (`E_OPERATOR_REQUIRED`); run manually `--as system`.
 
+At most 64 timers fire per turn; a chunk runs at that pinned clock only when
+none remain due. Exact expiry counts require successful synchronous cleanup
+of all custody (`guide job`).
+
 Use journey `tick(ms)` or `POST /control/clock`; inspect `/control/timers`,
 `trace timer:<id>`, `logs`, `dev --status` (`due,next_at,rejected`) and test
 receipts (`fired,late,rejected`). Lateness is measured, never promised.

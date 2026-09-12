@@ -100,17 +100,29 @@ fn fail(state: &mut State, refusal: Refusal) {
 }
 impl State {
     pub(super) fn background_turn(&mut self) -> Result<(), Refusal> {
+        self.background_turn_at(self.now())
+    }
+    // @ref LLP 1025.001#d1--the-rule — timers and the chunk share one clock;
+    // a bounded firing pass may leave work, in which case only the chunk waits.
+    pub(super) fn background_turn_at(&mut self, now: i64) -> Result<(), Refusal> {
         self.sweep_channels();
         self.flush_connected();
-        self.fire_due_timers_background_turn()?;
+        let timers_drained = self.fire_due_timers_background_turn(now)?;
         if let Some(id) = self
             .runtime()
             .store()
             .job_head()
             .map_err(|e| Refusal::from_runtime(&e))?
         {
+            if !timers_drained {
+                crate::watch::log(
+                    &self.root,
+                    json!({"kind":"job","job":id,"skipped":"timers-due","now":now}),
+                );
+                self.flush_channels();
+                return Ok(());
+            }
             let started = Instant::now();
-            let now = self.now();
             let outcome = self
                 .runtime_mut()
                 .run_chunk_at(&id, now)

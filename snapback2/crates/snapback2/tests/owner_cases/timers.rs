@@ -558,8 +558,8 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
 
     // The writer's 64-per-turn bound, observed through the owner. The re-armed period (older,
     // its target the digest job) and seventy row timers come due together: the turn fires the
-    // period first (enqueuing the job), then 63 rows, runs the job's one chunk, and the next
-    // turn fires the remaining 7 — so exactly 63 expiry commits precede the chunk's and 7 follow.
+    // period first (enqueuing the job), then 63 rows and skips the chunk. The next turn
+    // fires the remaining 7 before the chunk: all 70 expiry commits must precede it.
     let earlier: Vec<String> = control(port, &secret, "GET", "/control/jobs", json!({}))["jobs"]
         .as_array()
         .unwrap()
@@ -646,10 +646,10 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     assert_eq!(batch.len(), 70, "{commits}");
     assert_eq!(
         batch.iter().filter(|seq| **seq < chunk_seq).count(),
-        63,
-        "63 expiry firings share the period's turn before the chunk at {chunk_seq}: {batch:?}"
+        70,
+        "the timer backlog drains before the chunk at {chunk_seq}: {batch:?}"
     );
-    assert_eq!(batch.iter().filter(|seq| **seq > chunk_seq).count(), 7);
+    assert_eq!(batch.iter().filter(|seq| **seq > chunk_seq).count(), 0);
 
     // A successor installed under the advanced clock aligns its new period on the owner's
     // clock, and so does a reset: neither reads wall time.
