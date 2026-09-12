@@ -1,0 +1,76 @@
+{
+  "base": "86411120303c1ea87a890f829fd5bfc3eb70f01d",
+  "changedSourceCounts": [
+    {
+      "file": "snapback2/crates/snapback2/src/writer_jobs.rs",
+      "baseLines": 343,
+      "currentLines": 355
+    },
+    {
+      "file": "snapback2/crates/snapback2/src/writer_timers.rs",
+      "baseLines": 70,
+      "currentLines": 335
+    },
+    {
+      "file": "snapback2/crates/snapback2/tests/guide.rs",
+      "baseLines": 820,
+      "currentLines": 829
+    },
+    {
+      "file": "snapback2/crates/snapback2/tests/owner_cases/digest.rs",
+      "baseLines": 0,
+      "currentLines": 383
+    },
+    {
+      "file": "snapback2/crates/snapback2/tests/owner_cases/mod.rs",
+      "baseLines": 901,
+      "currentLines": 903
+    },
+    {
+      "file": "snapback2/crates/snapback2/tests/owner_cases/timers.rs",
+      "baseLines": 1056,
+      "currentLines": 1056
+    },
+    {
+      "file": "snapback2/packages/compiler/fixtures/quarry-clique/corrections/owner-cases.test.ts",
+      "baseLines": 1138,
+      "currentLines": 1157
+    },
+    {
+      "file": "snapback2/packages/compiler/fixtures/quarry-clique/corrections/owner-digest.test.ts",
+      "baseLines": 0,
+      "currentLines": 122
+    },
+    {
+      "file": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/admin.q",
+      "baseLines": 35,
+      "currentLines": 37
+    },
+    {
+      "file": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/custody.q",
+      "baseLines": 0,
+      "currentLines": 47
+    },
+    {
+      "file": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/digest-recipes.q",
+      "baseLines": 103,
+      "currentLines": 117
+    },
+    {
+      "file": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/message-recipes.q",
+      "baseLines": 51,
+      "currentLines": 68
+    },
+    {
+      "file": "snapback2/packages/compiler/fixtures/quarry-schedules/snapback/schema.q",
+      "baseLines": 177,
+      "currentLines": 199
+    },
+    {
+      "file": "snapback2/packages/compiler/src/quarry-schedule-checks.ts",
+      "baseLines": 247,
+      "currentLines": 259
+    }
+  ],
+  "introducedOverCap": []
+}

@@ -1,9 +1,18 @@
 effect notify from push
 
+proc queuePeriodUnread from custody
+proc clearMessagePeriodUnread from custody
+
 fn settings(): appSettings['windows']
 
 proc storeAtExpiry(conversationId: conversations, messageId: id, author: principal, target: principal, body: text <=2000 ?, photo: image <=10485760 ?, clip: video <=52428800 ?, oncePhoto: image <=10485760 ?, expiry: time ?, preview: text <=2000):
   insert messages { id: messageId, conversationId, author, body, photo, clip, oncePhoto, expiresAt: expiry }
+  cfg = settings() ! else CONFIG
+  if cfg.replayMode = false:
+    (_period, rem) = divmod(now, cfg.digestPeriodMs)
+    for member in memberships[conversationId] first 50 by byConversationPrincipal:
+      if member.principal != author:
+        queuePeriodUnread(messageId, member.principal, conversationId, member.id, now - rem)
   boundedPreview = slice(preview, 0, 80)
   insert pushLog { target, kind: 'message', chatId: conversationId, sender: author, preview: boundedPreview, messageId }
   emit notify { to: target, body: boundedPreview }
@@ -48,3 +57,11 @@ mutation sendOncePhoto(conversationId: conversations, target: principal, photo: 
   chosenId = messageId ?? new
   storeWithExpiryPolicy(conversationId, chosenId, viewer, target, body, null, null, photo, null, conversation.disappearing, cfg.disappear24hMs, cfg.disappear7dMs, 'Photo')
   return { id: chosenId, photo }
+
+mutation unsend(messageId: messages):
+  message = messages[messageId] ! else NOT_FOUND
+  require message.author = viewer else AUTHOR_REQUIRED
+  require exists memberships[message.conversationId, viewer] else MEMBERSHIP_REQUIRED
+  clearMessagePeriodUnread(messageId)
+  delete messages[message]
+  return null

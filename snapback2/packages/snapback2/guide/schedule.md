@@ -27,8 +27,8 @@ table dailyDigestReceipts:
 ```
 
 Run `snapback2 run admin.armDailyDigest '{"utcHour":8}' --as system` once.
-The clock is persisted, not reinitialized on restart. This scheduling example
-uses the fixture's profile counters and `digest` effect (`guide effects`):
+The persisted clock survives restart. The fixture supplies counters and
+`digest` (`guide effects`):
 
 ```q
 mutation armDailyDigest(utcHour: int):
@@ -53,13 +53,12 @@ schedule utcDigest on digestClocks at .nextAt: utcDigestSweep(.id, .nextAt ! els
 
 Replace sample counters with eligible activity in `[cutoff - 86400000, cutoff)`;
 source buckets need the same UTC offset. Cleanup precedes the clock chunk.
-Unique receipt, digest/log and effect commit together; zero activity emits
-nothing. Job restart/manual replay cannot duplicate logical emission; provider
-delivery needs effect idempotency (`meta.id`). If the clock stalls, inspect
-`trace`: resume a parked job; cancellation is terminal, so run `utcDigestSweep`
-again with the same clock id and original cutoff. Never reset a running deadline. The cutoff guard prevents stale replays advancing newer clocks.
-Catch-up processes every missed day serially from stored cutoff, never `now`.
-No local-zone/DST or calendar semantics.
+Receipt, log and effect commit together; zero emits nothing. Restart/replay
+cannot duplicate logical emission; provider delivery uses `meta.id`.
+Inspect stalled jobs with `trace`; resume parked work. After cancellation,
+rerun `utcDigestSweep` with the original id/cutoff. Never reset the deadline.
+The guard prevents stale replay advancing newer clocks. Catch-up uses stored
+cutoffs serially, with no local-zone/DST or calendar semantics.
 
 ## Periods and expiry
 
@@ -74,11 +73,9 @@ removed events; periods cannot use it. `guide expiry` covers recipient custody.
 schedule dailyDigest every 24h: digestSweep()
 ```
 
-`every` exposes `.periodStart` and `.periodEnd` (`time`): logical occurrence
-boundaries after a late fire, not ambient `now`. Boundaries are whole-duration
-Unix-epoch multiples. Midperiod install/reset arms the next boundary. Reopen
-preserves a legacy offset start until that boundary without history lookup;
-a full-period delay catches up to the latest whole interval.
+`every` exposes logical `.periodStart`/`.periodEnd` times at Unix-epoch duration
+multiples. Midperiod install/reset arms the next boundary. Reopen preserves
+a legacy offset until then; a full-period delay selects the latest interval.
 
 ```q
 job periodDigestSweep(cutoff: time):
@@ -98,22 +95,21 @@ schedule recipeDigest every 2m: periodDigestSweep(.periodEnd)
 
 ## Settlement and observation
 
-`_timers` is transactional: present deadline enqueues, changed value reschedules,
-null/delete cancels; writers certify `engineWrites: ["_timers"]`. Target,
-settlement and schedule/occurrence/outcome ledger commit together. Jobs only
-enqueue at fire time. Identity: `(schedule,row_id,at)` or
-`(schedule,period_start)`. Queued/running jobs coalesce; other states are history.
-Mutation targets must be idempotent.
+`_timers` enqueues deadlines, reschedules changed values, cancels null/delete;
+writers certify `engineWrites: ["_timers"]`. Target, settlement and ledger commit
+together; jobs only enqueue. Identity is `(schedule,row_id,at)` or
+`(schedule,period_start)`. Queued/running jobs coalesce. Mutations must be idempotent.
 
-Periods re-arm from their logical boundary; an outage fires only the latest
-missed interval and records `skipped`. Rejected periods re-arm; rejected rows
-settle. Retry a row by changing its deadline; same-value/unrelated writes do
-not re-arm it. A false row `if` settles silently; past deadlines fire next turn.
-Targets leave the client map (`E_OPERATOR_REQUIRED`); run manually `--as system`.
+Periods re-arm; outages select the latest missed interval and record `skipped`.
+Rejected rows settle; retry by changing the deadline. Same-value/unrelated
+writes never re-arm. False `if` settles silently; past deadlines fire next turn.
+Targets require `--as system` (`E_OPERATOR_REQUIRED`).
+
+At most 64 timers fire per turn; chunks use that pinned clock after none remain
+due (`guide job`).
 
 Use journey `tick(ms)` or `POST /control/clock`; inspect `/control/timers`,
-`trace timer:<id>`, `logs`, `dev --status` (`due,next_at,rejected`) and test
-receipts (`fired,late,rejected`). Lateness is measured, never promised.
+`trace timer:<id>`, `logs`, `dev --status` and test receipts.
 
 `E_SCHEDULE_COLUMN`: use `time ?`. `E_SCHEDULE_TARGET`: local mutation/job,
 typed arguments. `E_SCHEDULE_DURATION`: `Nm|Nh|Nd`, at least one minute;
@@ -121,19 +117,25 @@ no calendar/time-of-day syntax.
 
 ## Digest data obligations
 
-Use current bounded follows/memberships and period counts, never lifetime
-unread totals. Separate period custody, where needed, keys recipient, chat,
-membership id and period; recipient/author rules require current membership,
-and maintained counts stay owner-only. Send/read/unsend/expiry/self-leave
-update it atomically. Count only the current membership incarnation.
+The two-minute fixture admits 500 follows and 1,000 memberships per recipient,
+50 members per chat. Excess writes refuse. At emission it reads recipient/period
+message and chat counts, then recounts 500 current follows; it never scans
+memberships or accumulates stale partial totals.
 
-Prune old buckets after emission in the same job. Explicit counters must
-cover every create/delete/key change atomically; deny unpaired writers.
-Receipt, digest/log and effect share a chunk; remove scratch before commit.
-Guard replay at admission and sweep, keep relationship mirrors current,
-exclude replay follows/posts, and match configured period to duration.
-A pending-row cap bounds unread counting; paging cannot mark unseen rows read.
+`periodUnread` keys message/recipient and carries immutable author, chat,
+membership id and source period. `periodChats` keys recipient/chat/membership/
+period; its explicit `total` increments/decrements with each unread insert/delete,
+and zero deletes the chat. Count maintains on these two tables supply digest
+totals. Send/read/unsend/expiry/leave/admin removal pair cleanup atomically,
+including pruning in the later chunk of the same cutoff-bound job. Rejoin
+starts empty. Deny unpaired writers; conversation deletion needs its own job.
 
-The two-minute fixture caps 500 follows, 100 memberships per principal and
-50 members per conversation; row 101 refuses. This fixture does not cover a
-1,000-membership hub. `guide fanout` explains complete job chunking.
+Clique's source rows stay recipient/author/admin-readable. Its chat total is
+current-member-readable, like existing unreadCounts: this also discloses the
+period split. Recipient totals stay owner-only. Former members and outsiders
+cannot read chat totals.
+
+Receipt, log and effect share one chunk; zero activity is silent and scratch
+is deleted before commit. Guard replay at source admission and sweep; post
+deletes decrement only replay-eligible counters. Match period to schedule.
+Expiry is exact only after successful synchronous timer cleanup (`guide job`).

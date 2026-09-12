@@ -1,0 +1,88 @@
+diff -ru baseline/snapback/digest-recipes.q recipient-maintain/snapback/digest-recipes.q
+--- baseline/snapback/digest-recipes.q	2026-09-12 00:33:32
++++ recipient-maintain/snapback/digest-recipes.q	2026-09-12 00:33:32
+@@ -36,13 +36,22 @@
+   cfg = settings() ! else CONFIG
+   membership = memberships[conversationId, recipient] ! else MEMBERSHIP_REQUIRED
+   (_period, rem) = divmod(now, cfg.digestPeriodMs)
+-  insert periodUnread { messageId, recipient, conversationId, membershipId: membership.id, periodStart: now - rem }
++  periodStart = now - rem
++  before = periodUnreadByMembershipPeriod[membership.id, periodStart] ?? 0
++  insert periodUnread { messageId, recipient, conversationId, membershipId: membership.id, periodStart }
++  if before = 0:
++    insert periodChats { recipient, conversationId, membershipId: membership.id, periodStart }
+   return null
+ 
+ mutation clearRecipeUnread(messageId: messages, recipient: principal):
+   pending = periodUnread[messageId, recipient]
+   if pending != null:
+     delete periodUnread[pending]
++    remaining = periodUnreadByMembershipPeriod[pending.membershipId, pending.periodStart] ?? 0
++    if remaining = 0:
++      chat = periodChats[pending.recipient, pending.conversationId, pending.membershipId, pending.periodStart]
++      if chat != null:
++        delete periodChats[chat]
+   return null
+ 
+ job periodDigestSweep(cutoff: time):
+@@ -61,14 +70,9 @@
+           postCounter = postPeriodCounters[followed.followed, false, periodStart]
+           if postCounter != null:
+             update digestScratch[scratch] { newPostsInFollowing: .newPostsInFollowing + postCounter.total }
+-        chats = memberships[p.principal] first 1000 by byPrincipalConversation { id, conversationId }
+-        for membership in chats:
+-          messageCount = periodUnreadByMembershipPeriod[membership.id, periodStart] ?? 0
+-          if messageCount > 0:
+-            update digestScratch[scratch] {
+-              unreadMessages: .unreadMessages + messageCount,
+-              unreadChats: .unreadChats + 1,
+-            }
++        unreadMessages = periodUnreadByRecipientPeriod[p.principal, periodStart] ?? 0
++        unreadChats = periodChatsByRecipientPeriod[p.principal, periodStart] ?? 0
++        update digestScratch[scratch] { unreadMessages, unreadChats }
+         summary = digestScratch[scratch.id] ! else DIGEST_STATE
+         if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:
+           insert digests {
+@@ -98,5 +102,11 @@
+     currentPeriodStart = cutoff - rem
+     if row.periodStart < currentPeriodStart - cfg.digestPeriodMs:
+       delete periodUnread[row]
++  chunk chat in periodChats first 50 by byPeriod:
++    cfg = settings() ! else CONFIG
++    (_period, rem) = divmod(cutoff, cfg.digestPeriodMs)
++    currentPeriodStart = cutoff - rem
++    if chat.periodStart < currentPeriodStart - cfg.digestPeriodMs:
++      delete periodChats[chat]
+ 
+ schedule recipeDigest every 2m: periodDigestSweep(.periodEnd)
+diff -ru baseline/snapback/schema.q recipient-maintain/snapback/schema.q
+--- baseline/snapback/schema.q	2026-09-12 00:33:32
++++ recipient-maintain/snapback/schema.q	2026-09-12 00:33:32
+@@ -156,7 +156,27 @@
+ maintain newFollowerPeriodCounts: count follows by followed, digestEligible, periodStart
+   read <- allow
+ 
++table periodChats:
++  recipient: principal
++  conversationId: conversations
++  membershipId: memberships
++  periodStart: time
++  unique byRecipientConversationMembershipPeriod: recipient, conversationId, membershipId, periodStart
++  by byPeriod: periodStart, id
++  immutable recipient, conversationId, membershipId, periodStart
++  public
++  insert <- allow
++  update <- deny
++  delete <- allow
++
+ maintain periodUnreadByMembershipPeriod: count periodUnread by membershipId, periodStart
++  read <- allow
++
++maintain periodUnreadByRecipientPeriod: count periodUnread by recipient, periodStart
++  read <- allow
++
++maintain periodChatsByRecipientPeriod: count periodChats by recipient, periodStart
++  read <- allow
+   read <- allow
+ 
+ table digestClocks:

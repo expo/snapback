@@ -18,9 +18,58 @@ patch -p1 < grok-receipt-scheduling.patch
 patch -p1 < grok-message-draft-validation.patch
 patch -p1 < grok-browser-online-events.patch
 patch -p1 < grok-composer-readiness.patch
+patch -p1 < recipient-period-custody.patch
 patch -p1 < owner-inspection.patch
+patch -p1 < recipient-period-inspection.patch
 cp owner-cases.test.ts snapback/tests/recipes.test.ts
+cp owner-digest.test.ts snapback/tests/digest.test.ts
 ```
+
+
+## Current recipient-period correction (2026-09-12)
+
+`recipient-period-custody.patch` supersedes the historical 100-membership
+recipe below. It applies after the existing production patches and before
+inspection. The digest reads recipient/period counts at the 500-follow /
+1,000-membership envelope. `periodChats.total` increments/decrements with each
+period source row and disappears at zero; count maintains provide distinct
+chats and unread messages. Every send/read/unsend/expiry/leave/admin-removal
+and prune path pairs both writes. Admin removal enumerates its existing
+capped `pendingRead` rows and point-clears the corresponding period custody;
+period custody must remain a subset of lifetime pending-read rows.
+
+The checked immutable source-author shadow preserves recipient/current-author
+privacy without reading a wide message for each period-row authorization.
+Current admins can read/remove those rows, matching their existing pending-read
+authority. Chat totals are readable to current members, like `unreadCounts`:
+they also disclose its period split. Recipient totals remain owner-only.
+The new inspection journey verifies this distinction and forged-author refusal.
+
+This copied app's obsolete `tombstones` declaration is replaced by native
+`messageCustody` on messages, and its inbox drains that generated log. The
+old authored delivery/read history remains separate application state for
+thread and receipt operations; native custody supplies original-audience
+removal metadata. No retained benchmark source or database is edited.
+All six original-post branches stamp replay eligibility; `deletePost` adjusts
+only eligible period counters. A maintained membership count makes the
+1,000-membership cap efficient for group creation.
+
+The final production source certifies all 70 programs on the current checker.
+Digest: 1,890,203 closure bytes, 2,774,764 heap bytes, 1,514 examined entries,
+27,884 steps. Distilled fixture: 1,848,417 / 2,732,901 / 1,514 / 27,883.
+No ceiling was changed. LLP 1025.000 records the refined invariant and runtime
+qualification; the chronological records below describe prior generations.
+
+`recipient-period-inspection.patch` is test-only, adding private-row/aggregate
+queries and a deliberately unauthorized insertion. `owner-digest.test.ts`
+exercises distinct-chat zero transitions, source/aggregate privacy and post
+removal/replay. The existing incarnation journey now requires immediate admin
+cleanup and prunes a fresh incarnation's older bucket.
+
+Current patch SHA-256 values:
+
+- `recipient-period-custody.patch`: `2e89f92dcc63e934eaf96df2430cf3161e2e0b4fde3dc1c842d5cc948bb51da6`
+- `recipient-period-inspection.patch`: `023c4609be468f01efe341d2d5eaf47bb19c83944164e48e2a1cf80780730799`
 
 `grok-current-sdk-auth.patch` moves the copied published-app calls from the
 old flat `useAuth()` object to the current `session` and `actions` arms. Its
@@ -210,7 +259,7 @@ Run each retained case against a copied app and fresh isolated local owner; for
 example:
 
 ```sh
-snapback2 test --journey "digest keeps the 100-membership account envelope"
+snapback2 test --journey "digest includes the 101st membership beyond the former account limit"
 ```
 
 The journeys need no provider configuration and must not run against the

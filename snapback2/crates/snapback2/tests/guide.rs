@@ -251,7 +251,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("channel", "typed latest state"),
         ("connected", "counts authenticated SSE transports"),
         ("schedule", "binds a row deadline (`time ?`) or a whole-minute period"),
-        ("job", "`break` ends its sweep"),
+        ("job", "runs a chunk at that pinned clock only if none remain due"),
         (
             "chunk",
             "current rows",
@@ -311,6 +311,15 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         if keyword == "chunk" {
             assert!(paragraph.contains("upper key"), "{paragraph}");
             assert!(paragraph.contains("initial") || paragraph.contains("sweep start"), "{paragraph}");
+        }
+        if keyword == "job" {
+            for needle in [
+                "`break` ends the sweep, `return` the job; `continue` skips a row",
+                "fires ≤64 due timers",
+                "rejected/skipped targets and job targets can retain expired rows",
+            ] {
+                assert!(paragraph.contains(needle), "job lacks {needle}: {paragraph}");
+            }
         }
         if keyword == "connected" {
             assert!(content.contains("## live-query: Connected\n"), "{content}");

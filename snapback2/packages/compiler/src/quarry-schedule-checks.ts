@@ -50,7 +50,7 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
       { table: "appSettings", id: "settings", row: { Row: {
         id: { Id: "settings" }, key: { String: "windows" },
         disappear24hMs: { Int: 86_401_234 }, disappear7dMs: { Int: 604_812_345 },
-        digestPeriodMs: { Int: 120_000 }, replayMode: { Bool: false },
+        digestPeriodMs: { Int: 120_000 }, replayMode: { Bool: true },
       } } },
     ];
     const context = (conversation: string, message: string, expiresAt: Value): Context => ({
@@ -119,17 +119,18 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const certificate = checked.find((item) => item.program === job.name)!.certificate!;
     assert(certificate.kind === "job" && (certificate.perChunk as any[]).length === 2, JSON.stringify(certificate));
     const body = JSON.stringify(job.body);
-    for (const required of ["digestFollows", "postPeriodCounters", "memberships", "periodUnreadByMembershipPeriod", "digests", "pushLog", "push.notify"]) {
+    for (const required of ["digestFollows", "postPeriodCounters", "periodUnreadByRecipientPeriod", "periodChatsByRecipientPeriod", "digests", "pushLog", "push.notify"]) {
       assert(body.includes(required), `digest job lost ${required}`);
     }
     assert(!body.includes("unreadMessageTotals") && !body.includes("unreadChatCounts"), "digest job used standing unread totals");
     const source = readFileSync(resolve(fixture, "snapback/digest-recipes.q"), "utf8");
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");
     assert(source.includes("digestFollows[p.principal] first 500 by byFollower")
-      && source.includes("memberships[p.principal] first 100 by byPrincipalConversation { id, conversationId }")
-      && source.includes("periodUnreadByMembershipPeriod[p.principal, membership.conversationId, membership.id, periodStart]"),
-    "digest selection lost its 500/100 or membership-incarnation envelope");
-    assert(schema.includes("cap 500 by follower") && schema.includes("cap 100 by principal"), "digest pages are not storage-bounded");
+      && source.includes("periodUnreadByRecipientPeriod[p.principal, periodStart]")
+      && source.includes("periodChatsByRecipientPeriod[p.principal, periodStart]")
+      && !source.includes("memberships[p.principal]"),
+    "digest must count recipient activity without enumerating memberships");
+    assert(schema.includes("cap 500 by follower") && schema.includes("cap 1000 by principal"), "digest pages are not storage-bounded");
     assert(source.includes("if cfg.replayMode = false:")
       && source.includes("if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:"),
     "replay or quiet-period guard moved");
@@ -148,6 +149,17 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     "period cutoff or post-digest prune ordering moved");
     assert(source.includes("row.periodStart < currentPeriodStart - cfg.digestPeriodMs"),
       "period unread prune can delete the active completed digest bucket");
+    assert(source.includes("clearPeriodUnread(row.id)"), "prune must remove the final chat with its last unread row");
+    assert((certificate.max_closure_bytes as number) < 2_000_000
+      && (certificate.max_heap_bytes as number) < 3_000_000, "recipient digest lost its measured headroom");
+    for (const name of ["message-recipes.send", "message-recipes.sendPhoto", "message-recipes.sendClip", "message-recipes.sendOncePhoto",
+      "message-recipes.unsend", "admin.purgeMessage", "digest-recipes.clearRecipeUnread", "custody.leaveRecipeConversation", "custody.removeRecipeMember"]) {
+      const writer = JSON.stringify(operation(lowered.project.programs, name).body);
+      assert(writer.includes("periodUnread") && writer.includes("periodChats"), `${name} lost atomic chat custody`);
+    }
+    const deletion = JSON.stringify(operation(lowered.project.programs, "digest-recipes.deleteRecipePost").body);
+    assert(deletion.includes("digestEligible") && deletion.includes("postPeriodCounters") && deletion.includes("Delete"),
+      "post deletion must remove eligible period activity");
   });
   test("period schedules expose only typed logical boundary fields", async () => {
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");

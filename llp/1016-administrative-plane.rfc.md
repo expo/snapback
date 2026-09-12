@@ -23,7 +23,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-11 (configured UTC row-clock recipe; transient job-wait observation classification and recovery); 2026-09-11 (period schedules align to whole-duration epoch boundaries; legacy install-offset timers reconcile on restart; real-owner restart effect-count proof); 2026-09-11 (implementation residual close-out: diagnostic rewrites, empty ad hoc input, refusal lock release, compiled schedule identity, manifest operator view, and catalog/ref anchors); 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-12 (LLP 1025.001: pinned timer/chunk clock and backlog barrier); 2026-09-11 (configured UTC row-clock recipe; transient job-wait observation classification and recovery); 2026-09-11 (period schedules align to whole-duration epoch boundaries; legacy install-offset timers reconcile on restart; real-owner restart effect-count proof); 2026-09-11 (implementation residual close-out: diagnostic rewrites, empty ad hoc input, refusal lock release, compiled schedule identity, manifest operator view, and catalog/ref anchors); 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -317,9 +317,11 @@ and erasure actually are.
   latency unit is the whole turn, not the SQLite commit. The policy: after
   serving a client action, if the channel is empty **or** eight client
   turns have passed since the last background turn, the writer takes one
-  **background turn**: fire due timers, at most 64 (D5), then run one chunk
-  of the head job. Under continuous client load a job therefore advances at
-  least one chunk per nine turns; when idle it runs back to back. No
+  **background turn**: pin the clock once and fire due timers, at most 64
+  (D5); only if none remain due at that clock, run one chunk of the head job
+  at the same clock (LLP 1025.001). Exactly 64 firings can drain the backlog.
+  Under continuous client load a background turn occurs at least every nine
+  turns; jobs advance once the backlog permits, and run back to back when idle. No
   operator pacing flag; the author-declared `first N` is the knob, examples
   use 100, and §8 measures the turn.
 - **One operator job at a time.** `_jobs` is a FIFO; the head runs, the
@@ -425,7 +427,8 @@ schedule dailyDigest every 24h: digestSweep(.periodEnd)
   consulting retained firing history. If that transition is missed by at least
   one duration, ordinary catch-up selects the latest complete whole interval.
 - **Firing.** On a background turn (D3) the writer takes due timers,
-  oldest first, at most 64 per turn, and for each runs **one transaction**:
+  oldest first, at most 64 per turn at one pinned clock, and for each runs
+  **one transaction**:
   execute the target as `system` (a mutation runs to completion inside it;
   a job target is **enqueued** into `_jobs` inside it — a job is many
   commits and can only be started atomically, not finished), delete the row
@@ -1684,9 +1687,9 @@ Muse, both LAND WITH FIXES with no blocking defect). What changed:
 - **The writer's 64-per-turn bound, through the owner.** A re-armed period
   (older, its target the digest job) and seventy row timers come due in one
   clock advance: the turn fires the period (enqueuing the job) and 63 rows,
-  runs the job's chunk, and the next turn fires the remaining 7 — the ledger
-  shows exactly 63 expiry commits before the chunk's `seq` and 7 after
-  (`owner_cases/timers.rs`).
+  skips the chunk, and the next turn fires the remaining 7 before the chunk.
+  The ledger shows all 70 expiry commits before the chunk's `seq`
+  (`owner_cases/timers.rs`; LLP 1025.001, 2026-09-12).
 - **The `test` receipt's `schedules` block** is `attach_schedule_receipt`
   (`test.rs`), fail-closed when the owner's status is unreachable or carries
   no `schedules` object; unit-tested in `test_unit.rs`, and

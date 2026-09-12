@@ -1,52 +1,53 @@
 # Bounded jobs
 
-See `guide successor` for fill and narrowing repairs.
+Fill/narrowing repairs: `guide successor`.
 `run <job> --as system --plan` shows counts, chunks, writes and ceilings.
-`--wait` polls to completion; `--json` prints chunks and the final receipt.
-`POST /control/job` rejects `wait: true`: waiting belongs to the CLI.
+`--wait` polls to completion; `--json` prints chunks/receipt.
+Waiting is CLI-only: `POST /control/job` rejects `wait: true`.
 
-Transport pressure retries the same observation three times with backoff.
-Persistent `E_OWNER_TRANSPORT` retains `job`, `lastObservedState` and
-`lastObservedSeq`; use its project-qualified `trace` recovery command.
-For `E_OWNER_NOT_RUNNING`, start the owner, then trace the existing job.
-Malformed pages also stop with trace recovery. Repeating `run --wait`
+Transport pressure retries observation three times with backoff.
+`E_OWNER_TRANSPORT` includes `job`, `lastObservedState`, `lastObservedSeq`
+and project-qualified `trace` recovery. `E_OWNER_NOT_RUNNING`: start, then
+trace. Malformed pages stop with trace recovery. Repeating `run --wait`
 enqueues another job.
 
-`chunk` walks current rows through its initial upper key: later inserts within
-the remaining interval are visited; later keys and deleted rows are skipped.
-Cursor, writes and effects commit together. Sweeps run in declaration order
-across independent snapshots. Jobs obey constraints but bypass viewer rules;
-validate authorization and content eligibility at final emission (`guide fanout`).
-`break` ends its sweep, `return` the job; `continue` skips a row.
+`chunk` walks current rows through its initial upper key, including later
+inserts in the remaining interval; later keys/deleted rows are skipped.
+Cursor/writes/effects commit together. Sweeps use independent snapshots in
+declaration order. Jobs bypass viewer rules but obey constraints; validate
+authorization/content eligibility at final emission (`guide fanout`).
+`break` ends the sweep, `return` the job; `continue` skips a row.
 
-A refused chunk rolls back and parks; earlier commits stand. Fix it, then
-`run --resume job_id --as system`. `trace job_id` shows progress/refusal.
+A background turn fires ≤64 due timers, then runs a chunk at that pinned clock only
+if none remain due. Backlogs delay jobs (`logs`: `skipped: "timers-due"`;
+`dev --status`: due timers). Exact expiry counts need synchronous cleanup:
+rejected/skipped targets and job targets can retain expired rows.
+
+Refused chunks roll back and park; earlier commits stand. Fix, then
+`run --resume job_id --as system`; `trace job_id` shows progress/refusal.
 `run --cancel job_id --as system` is terminal. Changed declarations park:
-restore to resume, or cancel/restart. `dev --status` counts each job state.
+restore or cancel/restart. `dev --status` counts job states.
 
-Sweep index columns must be `id` or `immutable`, and the order total
-(unique or ending in `id`). Use `by byId` when unsure.
+Sweep indexes require `id`/`immutable` columns and total order
+(unique or ending in `id`); use `by byId` when unsure.
 
-`run --file repair.q --as system` accepts one query, mutation or job up to
-64 KiB; jobs also accept `--plan` and `--wait`.
+`run --file repair.q --as system`: one query, mutation or job, up to 64 KiB.
+Jobs accept `--plan` and `--wait`.
 
-`run <job|--file> [args] --as system --dry-run` uses the same chunk driver on
-a discarded store copy: pinned clock, fresh IDs, no effects runner, timers,
-asset sweep or blob writes. Its `dryRun: true` receipt lists table writes,
-chunks, proposed effects and payload sizes, released assets and refusals.
-Exit 0 includes program refusals; exit 1 is `E_REHEARSAL` (could not rehearse).
-`--dry-run` excludes `--wait` and `--plan`.
-The WAL-consistent backup's time/disk scale with store size. `--plan` reads
-index counts without copying.
+`--dry-run` rehearses a job or file on a discarded WAL-consistent copy:
+same chunks, pinned clock, fresh IDs; no effects runner, timers, asset sweep
+or blob writes. Copy time/disk scale with store size; `--plan` reads counts.
+The `dryRun: true` receipt lists writes, chunks, proposed effects/payload sizes,
+released assets and refusals. Exit 0 includes program refusals; 1 is
+`E_REHEARSAL`. Excludes `--wait`/`--plan`.
 
-States: `done` completed; `parked` refused a chunk; `rejected` failed a
-mutation constraint/require; `refused` could not start the admitted program.
-Name/kind/args/certificate admission precedes copying; ordinary errors
-(`E_OP_UNKNOWN`, `E_JOB_ARGS`) leave the owner running.
+States: `done` complete; `parked` chunk refusal; `rejected` mutation
+constraint/require; `refused` program could not start.
+Name/kind/args/certificate admission precedes copying; `E_OP_UNKNOWN` and
+`E_JOB_ARGS` leave the owner running.
 
-`/control/run` and `/control/job` default to system. `/control/execute`
-also serves personas: explicitly send `as: system`.
-Select one mode with `mode: "run" | "dry-run" | "plan"` or boolean `dryRun`
-and `plan`. `dryRun`, `plan`, `wait` must be JSON booleans.
-Contradictory flags/mode, rehearsal with plan or wait, and non-booleans refuse
-`E_INPUT` at the flag's site. No flag is silently ignored.
+`/control/run` and `/control/job` default to system; for `/control/execute`,
+send `as: system` for operator use.
+Use `mode: "run" | "dry-run" | "plan"` or boolean `dryRun`/`plan`.
+`dryRun`, `plan`, `wait` require JSON booleans; contradictions, rehearsal
+with plan/wait or non-booleans refuse `E_INPUT` at the flag's site.

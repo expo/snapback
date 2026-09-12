@@ -1,3 +1,4 @@
+import type { Principal } from "snapback2";
 import { api } from "snapback2/client";
 import { subscribe } from "snapback2/internal";
 import { fixture, journey } from "snapback2/test";
@@ -101,7 +102,10 @@ journey("digest counts current followed posts in the completed period", async ({
   }
 });
 
-journey("digest keeps the 100-membership account envelope", async ({ as, tick }) => {
+journey("digest includes the 101st membership beyond the former account limit", async ({ as, tick }) => {
+  const initial = await tick(0);
+  const current = Date.now() + Number(initial.offsetMs ?? 0);
+  await tick(120_000 - current % 120_000 + 1_000);
   const charlie = as("charlie");
   try {
     const profile = await charlie.mutation(api.profiles.createMyProfile, {
@@ -119,23 +123,34 @@ journey("digest keeps the 100-membership account envelope", async ({ as, tick })
     for (let index = 0; index < 99; index += 1) {
       const group = await bob.mutation(api.groups.groupCreate, {
         title: `Digest envelope ${index}`,
-        members: ["dev:charlie"],
+        members: ["dev:charlie" as Principal],
         conversationId: `digest-envelope-${index}`,
       });
       if (group.state !== "committed") throw new Error(`group ${index} was ${group.state}`);
     }
-    const refused = await bob.mutation(api.groups.groupCreate, {
-      title: "Digest envelope refused 101",
-      members: ["dev:charlie"],
-      conversationId: "digest-envelope-refused-101",
+    const expanded = await bob.mutation(api.groups.groupCreate, {
+      title: "Digest envelope admitted 101",
+      members: ["dev:charlie" as Principal],
+      conversationId: "digest-envelope-admitted-101",
     });
-    if (refused.state !== "rejected") throw new Error(`membership 101 was ${refused.state}`);
+    if (expanded.state !== "committed") throw new Error(`membership 101 was ${expanded.state}`);
   } finally {
     bob.close();
   }
+  const sender = as("charlie");
+  try {
+    const sent = await sender.mutation(api.messages.send, {
+      conversationId: "digest-envelope-admitted-101",
+      body: "unread activity in membership 101",
+      messageId: "digest-envelope-message-101",
+    });
+    if (sent.state !== "committed") throw new Error(`101st-chat send was ${sent.state}`);
+  } finally {
+    sender.close();
+  }
   const alice = as("alice");
   try {
-    const post = await alice.mutation(api.posts.createPost, { body: "100 membership digest proof" });
+    const post = await alice.mutation(api.posts.createPost, { body: "101 membership digest proof" });
     if (post.state !== "committed") throw new Error(`post was ${post.state}`);
   } finally {
     alice.close();
@@ -147,9 +162,9 @@ journey("digest keeps the 100-membership account envelope", async ({ as, tick })
       return "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.find((row) => row.kind === "digest")
         : undefined;
-    }, "100-membership activity produced no digest");
-    if (digest.newPostsInFollowing !== 1) {
-      throw new Error(`100-membership following count was ${String(digest.newPostsInFollowing)}`);
+    }, "101-membership activity produced no digest");
+    if (digest.newPostsInFollowing !== 1 || digest.unreadMessages !== 1 || digest.unreadChats !== 1) {
+      throw new Error(`101-membership digest omitted its new chat: ${JSON.stringify(digest)}`);
     }
   } finally {
     reopened.close();
@@ -233,7 +248,7 @@ journey("scheduled expiry drains a tombstone after offline reconnect", async ({ 
     const purged = await drain.until((value) => "data" in value
       && Array.isArray(value.data)
       && value.data.some((row: { kind?: string; messageId?: string }) =>
-        row.kind === "expired" && row.messageId === sent.data.id));
+        row.kind === "removed" && row.messageId === sent.data.id));
     if (!("data" in purged) || !Array.isArray(purged.data) || JSON.stringify(purged.data).includes(body)) {
       throw new Error("reconnect delivery retained the expired body");
     }
@@ -351,12 +366,12 @@ journey("digest revalidates follow membership read and expiry before emission", 
   let signal = 0;
   const finishPeriod = async (periodStart: number, posts = 0, unreadMessages = 0) => {
     if (signal > 0) {
-      const reset = await charlie.mutation(api.follows.setFollow, { target: "dev:bob", following: false });
+      const reset = await charlie.mutation(api.follows.setFollow, { target: "dev:bob" as Principal, following: false });
       if (reset.state !== "committed") throw new Error(`barrier unfollow was ${reset.state}`);
     }
     signal += 1;
     const follow = await charlie.mutation(api.follows.setFollow, {
-      target: "dev:bob",
+      target: "dev:bob" as Principal,
       following: true,
       mutationId: `digest-barrier-${signal}`,
     });
@@ -389,7 +404,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
     const excludedPeriod = period();
     const dropped = await alice.mutation(api.posts.createPost, { body: "unfollowed before emission" });
     if (dropped.state !== "committed") throw new Error(`unfollowed post was ${dropped.state}`);
-    const unfollow = await bob.mutation(api.follows.setFollow, { target: "dev:alice", following: false });
+    const unfollow = await bob.mutation(api.follows.setFollow, { target: "dev:alice" as Principal, following: false });
     if (unfollow.state !== "committed") throw new Error(`unfollow was ${unfollow.state}`);
 
     const readMessage = await alice.mutation(api.messages.send, {
@@ -408,7 +423,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
     const unsent = await alice.mutation(api.messages.unsend, { messageId: unsentMessage.data.id });
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
     const currentFollow = await bob.mutation(api.follows.setFollow, {
-      target: "dev:charlie",
+      target: "dev:charlie" as Principal,
       following: true,
       mutationId: "digest-revalidate-current-follow",
     });
@@ -427,7 +442,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
     offset = Number((await tick(1_001)).offsetMs ?? offset);
     const afterLeave = await alice.mutation(api.groups.memberAdd, {
       conversationId: "conversation-1",
-      principal: "dev:bob",
+      principal: "dev:bob" as Principal,
     });
     if (afterLeave.state !== "committed") throw new Error(`member restore after leave was ${afterLeave.state}`);
 
@@ -443,7 +458,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
     if (removed.state !== "committed") throw new Error(`member removal was ${removed.state}`);
     const restored = await alice.mutation(api.groups.memberAdd, {
       conversationId: "conversation-1",
-      principal: "dev:bob",
+      principal: "dev:bob" as Principal,
     });
     if (restored.state !== "committed") throw new Error(`member restore was ${restored.state}`);
 
@@ -465,7 +480,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
   }
 });
 
-journey("period unread custody rejects peers and former authors and prunes old membership incarnations", async ({ as, tick }) => {
+journey("period unread custody rejects peers and former authors and removes old incarnations atomically", async ({ as, tick }) => {
   const initial = await tick(0);
   let offset = Number(initial.offsetMs ?? 0);
   const periodStart = () => {
@@ -475,7 +490,7 @@ journey("period unread custody rejects peers and former authors and prunes old m
   const alice = as("alice");
   const bob = as("bob");
   const charlie = as("charlie");
-  const waitForDigest = async (expectedPeriod: number) => {
+  const waitForDigest = async (expectedPeriod: number, expectedUnread = 0) => {
     const digest = await advanceUntil(tick, async () => {
       const pushes = await bob.query(api.messages.pushRecent, { c: null });
       return "data" in pushes && Array.isArray(pushes.data)
@@ -483,8 +498,8 @@ journey("period unread custody rejects peers and former authors and prunes old m
         : undefined;
     }, `period ${expectedPeriod} did not finish its digest job`);
     offset = Number((await tick(0)).offsetMs ?? offset);
-    if (digest.unreadMessages !== 0 || digest.unreadChats !== 0) {
-      throw new Error(`stale incarnation entered digest ${JSON.stringify(digest)}`);
+    if (digest.unreadMessages !== expectedUnread || digest.unreadChats !== expectedUnread) {
+      throw new Error(`unexpected incarnation totals ${JSON.stringify(digest)}`);
     }
   };
   try {
@@ -498,7 +513,7 @@ journey("period unread custody rejects peers and former authors and prunes old m
 
     const group = await alice.mutation(api.groups.groupCreate, {
       title: "Former author custody",
-      members: ["dev:bob", "dev:charlie"],
+      members: ["dev:bob" as Principal, "dev:charlie" as Principal],
       conversationId: "former-author-custody",
     });
     if (group.state !== "committed") throw new Error(`group was ${group.state}`);
@@ -510,21 +525,21 @@ journey("period unread custody rejects peers and former authors and prunes old m
     if (authored.state !== "committed") throw new Error(`authored message was ${authored.state}`);
     const authorRow = await alice.query(api["owner-inspection"].periodUnreadRow, {
       messageId: authored.data.id,
-      recipient: "dev:bob",
+      recipient: "dev:bob" as Principal,
     });
     if (!("data" in authorRow) || authorRow.data?.messageId !== authored.data.id) {
       throw new Error(`current author could not inspect period custody: ${JSON.stringify(authorRow)}`);
     }
     const recipientRow = await bob.query(api["owner-inspection"].periodUnreadRow, {
       messageId: authored.data.id,
-      recipient: "dev:bob",
+      recipient: "dev:bob" as Principal,
     });
     if (!("data" in recipientRow) || recipientRow.data?.messageId !== authored.data.id) {
       throw new Error(`recipient could not inspect period custody: ${JSON.stringify(recipientRow)}`);
     }
     const peerRow = await charlie.query(api["owner-inspection"].periodUnreadRow, {
       messageId: authored.data.id,
-      recipient: "dev:bob",
+      recipient: "dev:bob" as Principal,
     });
     if (!("data" in peerRow) || peerRow.data !== null) {
       throw new Error(`ordinary peer observed period custody: ${JSON.stringify(peerRow)}`);
@@ -538,7 +553,7 @@ journey("period unread custody rejects peers and former authors and prunes old m
     if (left.state !== "committed") throw new Error(`author leave was ${left.state}`);
     const formerAuthorRow = await alice.query(api["owner-inspection"].periodUnreadRow, {
       messageId: authored.data.id,
-      recipient: "dev:bob",
+      recipient: "dev:bob" as Principal,
     });
     if (!("data" in formerAuthorRow) || formerAuthorRow.data !== null) {
       throw new Error(`former author observed period custody: ${JSON.stringify(formerAuthorRow)}`);
@@ -569,35 +584,39 @@ journey("period unread custody rejects peers and former authors and prunes old m
     if (removed.state !== "committed") throw new Error(`member removal was ${removed.state}`);
     const restored = await alice.mutation(api.groups.memberAdd, {
       conversationId: "conversation-1",
-      principal: "dev:bob",
+      principal: "dev:bob" as Principal,
     });
     if (restored.state !== "committed") throw new Error(`member restore was ${restored.state}`);
     const afterRestore = await bob.query(api["owner-inspection"].myPeriodUnread, { conversationId: "conversation-1", c: null });
     const stale = "data" in afterRestore && Array.isArray(afterRestore.data)
       ? afterRestore.data.find((row) => row.messageId === sent.data.id)
       : undefined;
-    if (!stale || stale.membershipId === restored.data.id) {
-      throw new Error(`membership incarnation was not retained distinctly: ${JSON.stringify(afterRestore)}`);
+    if (stale) {
+      throw new Error(`removed membership retained custody: ${JSON.stringify(afterRestore)}`);
     }
+    const current = await alice.mutation(api.messages.send, {
+      conversationId: "conversation-1", body: "current incarnation bucket", messageId: "current-incarnation-period-unread",
+    });
+    if (current.state !== "committed") throw new Error(`current send was ${current.state}`);
 
     const firstBarrier = await charlie.mutation(api.follows.setFollow, {
-      target: "dev:bob",
+      target: "dev:bob" as Principal,
       following: true,
       mutationId: "period-prune-barrier-1",
     });
     if (firstBarrier.state !== "committed") throw new Error(`first barrier was ${firstBarrier.state}`);
-    await waitForDigest(stalePeriod);
+    await waitForDigest(stalePeriod, 1);
     const held = await bob.query(api["owner-inspection"].myPeriodUnread, { conversationId: "conversation-1", c: null });
     if (!("data" in held) || !Array.isArray(held.data)
-      || !held.data.some((row) => row.messageId === sent.data.id)) {
+      || !held.data.some((row) => row.messageId === current.data.id)) {
       throw new Error("prune raced the last completed digest bucket");
     }
 
     const nextPeriod = periodStart();
-    const unfollow = await charlie.mutation(api.follows.setFollow, { target: "dev:bob", following: false });
+    const unfollow = await charlie.mutation(api.follows.setFollow, { target: "dev:bob" as Principal, following: false });
     if (unfollow.state !== "committed") throw new Error(`barrier unfollow was ${unfollow.state}`);
     const secondBarrier = await charlie.mutation(api.follows.setFollow, {
-      target: "dev:bob",
+      target: "dev:bob" as Principal,
       following: true,
       mutationId: "period-prune-barrier-2",
     });
@@ -606,10 +625,10 @@ journey("period unread custody rejects peers and former authors and prunes old m
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const pruned = await bob.query(api["owner-inspection"].myPeriodUnread, { conversationId: "conversation-1", c: null });
       if ("data" in pruned && Array.isArray(pruned.data)
-        && !pruned.data.some((row) => row.messageId === sent.data.id)) return;
+        && !pruned.data.some((row) => row.messageId === current.data.id)) return;
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
-    throw new Error("old membership incarnation was not pruned");
+    throw new Error("old current-incarnation bucket was not pruned");
   } finally {
     alice.close();
     bob.close();
@@ -646,7 +665,7 @@ journey("same-period replay activity stays silent and a post retry counts exactl
     const skipped = await alice.mutation(api.posts.createPost, { body: "replay period" });
     if (skipped.state !== "committed") throw new Error(`replay post was ${skipped.state}`);
     const replayFollow = await charlie.mutation(api.follows.setFollow, {
-      target: "dev:bob",
+      target: "dev:bob" as Principal,
       following: true,
       mutationId: "replay-follow-bob",
     });
@@ -715,7 +734,7 @@ journey("an ordinary member author unsends period custody without receipt access
     if (profile.state !== "committed") throw new Error(`profile was ${profile.state}`);
     const group = await alice.mutation(api.groups.groupCreate, {
       title: "Ordinary author unsend",
-      members: ["dev:bob", "dev:charlie"],
+      members: ["dev:bob" as Principal, "dev:charlie" as Principal],
       conversationId: "ordinary-author-unsend",
     });
     if (group.state !== "committed") throw new Error(`group was ${group.state}`);
@@ -727,7 +746,7 @@ journey("an ordinary member author unsends period custody without receipt access
     if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
     const before = await bob.query(api["owner-inspection"].periodUnreadRow, {
       messageId: sent.data.id,
-      recipient: "dev:alice",
+      recipient: "dev:alice" as Principal,
     });
     if (!("data" in before) || before.data?.messageId !== sent.data.id) {
       throw new Error(`ordinary author could not inspect period custody: ${JSON.stringify(before)}`);
@@ -740,13 +759,13 @@ journey("an ordinary member author unsends period custody without receipt access
     }
     const after = await alice.query(api["owner-inspection"].periodUnreadRow, {
       messageId: sent.data.id,
-      recipient: "dev:alice",
+      recipient: "dev:alice" as Principal,
     });
     if ("data" in after && after.data != null) {
       throw new Error(`period custody survived ordinary-author unsend: ${JSON.stringify(after)}`);
     }
     const barrier = await charlie.mutation(api.follows.setFollow, {
-      target: "dev:alice",
+      target: "dev:alice" as Principal,
       following: true,
       mutationId: "ordinary-author-unsend-barrier",
     });
@@ -779,7 +798,7 @@ journey("only a current message author can remove a poll while unsending", async
     if (profile.state !== "committed") throw new Error(`profile was ${profile.state}`);
     const group = await alice.mutation(api.groups.groupCreate, {
       title: "Poll unsend authority",
-      members: ["dev:bob", "dev:charlie"],
+      members: ["dev:bob" as Principal, "dev:charlie" as Principal],
       conversationId: "poll-unsend-authority",
     });
     if (group.state !== "committed") throw new Error(`group was ${group.state}`);
@@ -835,7 +854,7 @@ journey("a recipient acknowledges an unsent first row before the next live deliv
   try {
     const group = await alice.mutation(api.groups.groupCreate, {
       title: "Unsent before acknowledgement",
-      members: ["dev:bob"],
+      members: ["dev:bob" as Principal],
       conversationId,
     });
     if (group.state !== "committed") throw new Error(`group was ${JSON.stringify(group)}`);
@@ -875,7 +894,7 @@ journey("a recipient acknowledges an unsent first row before the next live deliv
     alice = as("alice");
     const successorGroup = await alice.mutation(api.groups.groupCreate, {
       title: "Delivery after reopen",
-      members: ["dev:bob"],
+      members: ["dev:bob" as Principal],
       conversationId: "delivery-after-reopen",
     });
     if (successorGroup.state !== "committed") {
@@ -902,7 +921,7 @@ journey("a recipient acknowledges an unsent first row before the next live deliv
 
     const formerGroup = await bob.mutation(api.groups.groupCreate, {
       title: "Former recipient boundary",
-      members: ["dev:alice"],
+      members: ["dev:alice" as Principal],
       conversationId: "former-recipient-boundary",
     });
     if (formerGroup.state !== "committed") throw new Error(`former group was ${JSON.stringify(formerGroup)}`);
@@ -915,7 +934,7 @@ journey("a recipient acknowledges an unsent first row before the next live deliv
     if (former.state !== "committed") throw new Error(`former send was ${JSON.stringify(former)}`);
     const members = await bob.query(api.groups.membershipsFor, { conversationId: "former-recipient-boundary" });
     const aliceMembership = "data" in members && Array.isArray(members.data)
-      ? members.data.find((row) => row.principal === "dev:alice")
+      ? members.data.find((row) => row.principal === "dev:alice" as Principal)
       : undefined;
     if (!aliceMembership?.id) throw new Error(`Alice membership was absent: ${JSON.stringify(members)}`);
     const removedMember = await bob.mutation(api.groups.memberRemove, {
@@ -944,14 +963,14 @@ journey("the pending-read head distinguishes equal-time coalesced unread-one sna
   try {
     const group = await alice.mutation(api.groups.groupCreate, {
       title: "Coalesced unread one",
-      members: ["dev:bob"],
+      members: ["dev:bob" as Principal],
       conversationId,
     });
     if (group.state !== "committed") throw new Error(`group was ${JSON.stringify(group)}`);
     const fixedAt = 1_789_017_600_000;
     const first = await alice.mutation(api["owner-inspection"].sendAtForTest, {
       conversationId,
-      recipient: "dev:bob",
+      recipient: "dev:bob" as Principal,
       body: "first unread one",
       messageId: "coalesced-unread-z",
       deliveryId: "coalesced-delivery-z",
@@ -968,7 +987,7 @@ journey("the pending-read head distinguishes equal-time coalesced unread-one sna
     if (read.state !== "committed") throw new Error(`read was ${JSON.stringify(read)}`);
     const second = await alice.mutation(api["owner-inspection"].sendAtForTest, {
       conversationId,
-      recipient: "dev:bob",
+      recipient: "dev:bob" as Principal,
       body: "second unread one without observing zero",
       messageId: "coalesced-unread-a",
       deliveryId: "coalesced-delivery-a",
@@ -995,7 +1014,7 @@ journey("the private delivery cursor drains more than 50 chats", async ({ as }) 
       const conversationId = `delivery-cursor-chat-${String(index).padStart(2, "0")}`;
       const group = await alice.mutation(api.groups.groupCreate, {
         title: `Delivery cursor ${index}`,
-        members: ["dev:bob"],
+        members: ["dev:bob" as Principal],
         conversationId,
       });
       if (group.state !== "committed") throw new Error(`group ${index} was ${JSON.stringify(group)}`);
@@ -1043,7 +1062,7 @@ journey("unread state advances a capped 50-row thread after history was acknowle
   try {
     const group = await alice.mutation(api.groups.groupCreate, {
       title: "Capped thread unread",
-      members: ["dev:bob"],
+      members: ["dev:bob" as Principal],
       conversationId,
     });
     if (group.state !== "committed") throw new Error(`group was ${JSON.stringify(group)}`);
