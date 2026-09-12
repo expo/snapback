@@ -10800,6 +10800,306 @@
     "rejectedContinuationIdeas": {
       "attemptWideGrantSnapshot": "Rejected: direct RangeStore.commit or custom carrier changes can remove a queued intent grant outside the ledger write lock without advancing trustGeneration. A delayed-read reproduction selected one intent with current per-entry reads versus two under the proposed snapshot.",
       "skipTwinChangeIsolation": "Rejected: built-in change records alias plain carrier wrappers; isolate is their first deep separation. Nominal row/key/range leaves are already shared. Baseline sampled isolate self time is 176.237 ms; this does not justify a new ownership mechanism."
+    },
+    "schemaDigestIncrement": {
+      "localSource": "5fa5726bdc9e3aa2135adacf36c2ed1347ee3cf7",
+      "remoteSource": "155562b87",
+      "change": "Runner certificate validation and ClientStore construction reuse existing validated immutable schemaDigest custody; unowned and shallow-frozen callers still rehash. Program identity checks remain per execution.",
+      "verification": {
+        "sourceReview": "Fresh independent read-only review: no material findings.",
+        "focusedSchemaOwnership": "pass",
+        "evaluatorNativeCorpus": {
+          "passed": 266,
+          "serverOnly": 27
+        },
+        "builtNodeCorpus": {
+          "node": "v24.18.0",
+          "passed": 266,
+          "serverOnly": 27
+        },
+        "packageTestsPassed": 204,
+        "packageBuild": "pass",
+        "refs": "466 LLP docs, 8156 refs, 0 errors, 0 unchecked",
+        "initialEvaluatorFailure": "Default integration binary was stale and refused native IR recertification. Re-run using the current native-lane binary passed; no product source was changed to bypass the failure."
+      },
+      "canonicalBytes": {
+        "values": {
+          "client_gzip_bytes": 143224,
+          "react_gzip_bytes": 153192,
+          "expo_gzip_bytes": 156653,
+          "runtime_gzip_bytes": 89994
+        },
+        "toolchain": {
+          "node": "v24.18.0",
+          "esbuild": "0.25.9",
+          "gzipLevel": 9
+        },
+        "format": "packaged-esm-closure-gzip-v1",
+        "ok": true
+      },
+      "measureCheck": "All latency steps pass; four inherited byte-growth comparisons fail. No byte baseline accepted.",
+      "measureLogSha256": "b0f066a3bd8e9aa100b4929c20c6c8f74e806959d44977b781ad546b4afe6688",
+      "adjacentPair": {
+        "record": "acquisitionContinuation20260912SchemaDigest",
+        "remoteHost": "450b",
+        "remoteRoot": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition",
+        "scope": "Adjacent diagnostic pair: fresh proof control then schema-digest candidate, serial Chromium runs, fixed native8 owner/current-main compiler/frozen full bearer harness. All 10,008 message identities/bodies, 201 ordinary earned acknowledgement terminals, 89 empty terminals, 5,558 receipt effects, first offline history/search, full hashes and physical reopen remain required. No sample discarded.",
+        "instrumented": false,
+        "diagnosticOnly": true,
+        "cohortQualified": false,
+        "publicationQualified": false,
+        "goalMs": 3000,
+        "goalAchieved": false,
+        "candidateSourceNote": "One source comment was added after the bundle; executable source is unchanged. Archive/module hashes bind the executed artifact.",
+        "samples": [
+          {
+            "experiment": "sub3-20260912-bearer-proof-control-02",
+            "variant": "adjacent-proof-control-for-schema-digest",
+            "startedAt": "2026-09-12T10:35:40.216Z",
+            "finishedAt": "2026-09-12T10:36:22.912Z",
+            "instrumented": false,
+            "firstInboxMs": 1149.7257099999997,
+            "coldSyncedMs": 15077.839186999998,
+            "ackCompleteMs": 25240.17013,
+            "completeAcquisitionMs": 25284.164678,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+            "runtimeSha": "b84911a52a0e60de6a672f267fa92b4889d40bf7235669bb70c7b3949d7d52ac",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "d76885360f8513ef158bbdd97cec5b08b17958bcffc69ef5a86f0f2709422a5c",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "candidateSource": "476c78ed2b4bf331b770df39af711f7a5373828e",
+            "candidateArchiveSha256": "f4966d39d23a68d97bb9e115e81edb741be4dfb9e96d65ee57641e2ce0eaf9bc",
+            "runtimeGzipBytes": 90000,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "ef7a264d9c0a6eb4d1ee31e24ff673bd6abd44857b0d356961e456b2872b0fe5",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "b84911a52a0e60de6a672f267fa92b4889d40bf7235669bb70c7b3949d7d52ac",
+              "dist/image-runtime.mjs": "406704207ccdf13d5d657abb5b44983b789c64bc66b4a4a1d74560576ec247ca"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 2,
+            "firstOfflineSearchMs": 2.6000003814697266,
+            "reopenPass": true,
+            "reopenMs": 6115.715666999997,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 173.37096900000324,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true
+          },
+          {
+            "experiment": "sub3-20260912-bearer-schema-digest-01",
+            "variant": "adjacent-schema-digest-candidate-89994gzip",
+            "startedAt": "2026-09-12T10:36:51.035Z",
+            "finishedAt": "2026-09-12T10:37:34.105Z",
+            "instrumented": false,
+            "firstInboxMs": 1050.4048050000001,
+            "coldSyncedMs": 15146.413353000002,
+            "ackCompleteMs": 25655.905611000002,
+            "completeAcquisitionMs": 25697.959891,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+            "runtimeSha": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "4fb1a434c838172e39d77b20981bdec6d35353b3753ce6e817cb73ec0c323c50",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "candidateSource": "5fa5726bdc9e3aa2135adacf36c2ed1347ee3cf7",
+            "candidateArchiveSha256": "6428112397b0bdbd643f12ab9a53bba21433f8f285bdc0ace8a54b34c4e24ff9",
+            "runtimeGzipBytes": 89994,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "5130329444a836c832362eee6b61956147f4ae36bd8f61f60a0dd42fc35a4fac",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+              "dist/image-runtime.mjs": "406704207ccdf13d5d657abb5b44983b789c64bc66b4a4a1d74560576ec247ca"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.6000003814697266,
+            "firstOfflineSearchMs": 1.6999988555908203,
+            "reopenPass": true,
+            "reopenMs": 6144.262952999998,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 211.90780800000357,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "shutdownVerification": {
+              "rawStopStatus": 0,
+              "rawPostStopProcess": "",
+              "separateReadOnlyProcExists": false,
+              "note": "The generic summary initially classified empty-string postStopProcess differently from null. A separate read-only /proc check confirmed owner PID 4127609 was absent. Raw sample is unchanged; no benchmark rerun."
+            }
+          }
+        ],
+        "differencesMs": {
+          "firstInboxMs": -99.32090499999958,
+          "coldSyncedMs": 68.57416600000397,
+          "ackCompleteMs": 415.73548100000335,
+          "completeAcquisitionMs": 413.7952129999976
+        },
+        "failures": [],
+        "limits": "A single adjacent pair is descriptive, not a qualified distribution or isolated causal estimate. Runtime ceiling pass is not whole-package or publication qualification."
+      },
+      "limits": "The single adjacent pair shows no end-to-end speedup: candidate 25,697.959891 ms versus control 25,284.164678 ms. Keep the full target and qualification cohort open."
+    },
+    "boundedDiagnosticRejections": {
+      "fixtureCounts": {
+        "database": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-bearer-proof-01/owner/.snapback/store.sqlite",
+        "readOnly": true,
+        "messageCount": 10008,
+        "membershipTotal": 199,
+        "conversationGroupsWithMemberships": 100,
+        "conversationGroupsWithMessages": 1,
+        "busyConversationMessages": 10008,
+        "busyConversationMemberships": 1,
+        "membershipGroupSizeHistogram": {
+          "1": 1,
+          "2": 99
+        },
+        "messageGroupSizeHistogram": {
+          "10008": 1
+        },
+        "storedMessageJsonUtf8Bytes": {
+          "count": 10008,
+          "min": 177,
+          "p50": 249.0,
+          "p90NearestRank": 249,
+          "p95NearestRank": 249,
+          "p99NearestRank": 249,
+          "max": 249,
+          "mean": 248.9928057553957,
+          "total": 2491920
+        },
+        "busyStoredMessageJsonUtf8Bytes": {
+          "count": 10008,
+          "min": 177,
+          "p50": 249.0,
+          "p90NearestRank": 249,
+          "p95NearestRank": 249,
+          "p99NearestRank": 249,
+          "max": 249,
+          "mean": 248.9928057553957,
+          "total": 2491920
+        },
+        "bodyUtf8Bytes": {
+          "count": 10008,
+          "min": 31,
+          "p50": 31.0,
+          "p90NearestRank": 31,
+          "p95NearestRank": 31,
+          "p99NearestRank": 31,
+          "max": 31,
+          "mean": 31.0,
+          "total": 310248
+        },
+        "sizeScope": "UTF-8 byte lengths of exact persisted rows.data JSON; body lengths are aggregate only. No body or identity contents emitted."
+      },
+      "membershipProbe": {
+        "index": "byConversationPrincipal",
+        "limit": 51,
+        "median_ms": 14.3125,
+        "median_us_per_probe": 2.5751169485426413,
+        "memberships": 199,
+        "probes": 5558,
+        "samples_ms": [
+          16.836791,
+          14.037875,
+          15.175915999999999,
+          14.218417,
+          14.413416,
+          14.3125,
+          13.495458,
+          13.578875,
+          15.031834000000002
+        ],
+        "scope": "current scan_indexed plus full principal validation; no cache candidate; warm memory SQLite; release",
+        "target": "memberships",
+        "host": "local macOS arm64; not the checked Ryzen browser host",
+        "logSha256": "9afafeab2b249076c4f2426a74c04994f590206f4ddf1cd2867bb5bb009324ba",
+        "decision": "Rejected: one member in the busy group and approximately 14 ms for all 5,558 probes on this diagnostic host do not justify cache/invalidation machinery. Temporary test source restored; no product change.",
+        "limits": "Warm memory SQLite microbenchmark; excludes required trace/certificate/step work. Not a full acquisition measurement or cross-host timing bound."
+      },
+      "hashRepresentation": {
+        "recordSha256": "64a8ee6eadde6992b6f1d56aa9fae24ca0a8d9b19f8298de6c19af674d93e3e2",
+        "node": "v25.9.0",
+        "differentialCases": 1011,
+        "decision": "No variant selected: six temporary array/typed-array and closure/shared-compression variants showed small noisy synthetic differences, not evidence of a full-endpoint benefit. Repository SHA implementation unchanged."
+      },
+      "pairwiseOutboxObservation": "Rejected: entry-reference equality and reserializing both old/new entries lose the previous serialized value when Date internal slots, getters, or toJSON change despite Object.freeze. Keep the historical serialized ledger value; no new custody mechanism."
     }
   }
 }
