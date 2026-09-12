@@ -1,0 +1,2 @@
+{"at":"2026-09-12T13:32:06.389Z","groups":40,"messages":500,"members":10,"seeded":20440,"seedMs":32994,"rowsBytes":5238390,"rowCount":20480,"indexBytes":2187600,"logBytes":56577820,"logEvents":204800,"fileBytes":77950976,"logPerRows":10.8,"filePerRows":14.88}
+{"at":"2026-09-12T13:34:32.285Z","binary":"release","groups":40,"messages":500,"members":10,"seeded":20440,"seedMs":4021,"rowsBytes":5238390,"rowCount":20480,"indexBytes":2187600,"logBytes":56577820,"logEvents":204800,"fileBytes":77950976,"logPerRows":10.8,"filePerRows":14.88}

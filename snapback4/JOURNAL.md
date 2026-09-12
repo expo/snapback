@@ -475,3 +475,42 @@ the app), misleading compiler advice (every diagnostic here carries its
 rewrite; the hub run judges them), vacuous tests and stale receipts (the
 fixture wrapper fails on any mismatch and the loop bar records N≥3) — are
 the hub run's to catch, and the run record will say whether they did.
+
+## 2026-09-12 — the client owns its session; cold sync and storage at scale, measured
+
+- **Session restoration (`snapback4/local`, `snapback4/auth`).** A device
+  keeps its session itself: `createLocalClient({ url, session })` keeps the
+  session from `guest()`/`login()`/`signup()`; `createLocalClient({ url })`
+  restores it on the next start; `guest: true` mints one when none is kept;
+  `signOut()` ends it on the server and forgets it; a session the server
+  refuses (`E_AUTH`) is forgotten and `session()` reads null, so the app
+  shows sign-in and nothing else. The store is `localStorage` on the web,
+  memory elsewhere, or whatever the app passes (`expo-secure-store` fits
+  behind three methods). The `"token"` placeholder principal is gone: a
+  session names its principal, and predictions carry it. Nothing but
+  navigation is the app's. Test: a cold start mints a guest, the next start
+  is the same principal, sign-out kills the token on the server, a fresh
+  start with `guest: true` is someone new.
+- **Cold sync at scale (`witness/scale.mjs`, release binary).** Bob holds
+  40 groups × 500 messages × 10 members: a 5.2 MB snapshot of 20,480
+  events. A fresh Chromium page syncs it into IndexedDB in 4.4 s with the
+  JS heap at 26 MB after; a thread page reads in 6 ms, the inbox (40
+  conversations with counts) in 17 ms; a reload reopens in 3 ms. Snapback
+  2's run: 62 s and 748 MB. `metrics/witness.jsonl` has both lines
+  (debug: 3.7 s, the same heap).
+- **Storage at scale (`scripts/measure-storage.mjs`, `snapback4 doctor`'s
+  new `storage` line).** The same seed on the server: rows 5.2 MB (20,480),
+  index entries 2.2 MB, the partition log 56.6 MB for 204,800 events —
+  **10.8× the rows** — and the file 78 MB (14.9×). Seeding took 4.0 s on
+  the release binary (31.7 s debug): 204,800 log inserts for 20,440 rows.
+  This is the recipient-delivery amplification the Snapback 2 report
+  names, in Snapback 4's own shape: the log writes every event once per
+  recipient, image included. Next: a group-keyed log — a target audience's
+  events logged once under the group, a device's stream merged from the
+  groups it holds over the intervals it held them, joins expanded at stream
+  time — so a message costs one log row however many members. The
+  reviews' tests and the simulator's invariants are the safety net for
+  that change.
+- The Chromium witnesses share `witness/lib.mjs` (the bundled harness, the
+  seeded dev server, a CDP session for the heap); `SNAPBACK4_BIN` picks the
+  binary under test.

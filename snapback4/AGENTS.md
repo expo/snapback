@@ -19,6 +19,9 @@ bun run --cwd packages/snapback4 typecheck   # the contract, the client and the 
 cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
 cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
 node witness/idb.mjs                 # the Chromium witness: the local-first client on IndexedDB (needs Chrome)
+node witness/scale.mjs [G] [N] [M]   # cold sync at scale: G groups × N messages × M members into IndexedDB; wall time + JS heap → metrics/witness.jsonl
+node scripts/measure-storage.mjs     # what the store weighs on the scale seed (rows, indexes, partition log) → metrics/storage.jsonl
+                                     # SNAPBACK4_BIN=target/release/snapback4 measures the release build (throughput numbers)
 node scripts/measure-client.mjs      # each client tier's bytes on the pinned toolchain → metrics/client.jsonl
 ```
 

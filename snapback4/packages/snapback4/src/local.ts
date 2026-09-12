@@ -10,16 +10,33 @@ import { mintId } from "./client.ts";
 import { Interpreter, Refused, type LocalRead, type ProgramJson } from "./replica/interpreter.ts";
 import { Replica, type StreamPage } from "./replica/replica.ts";
 import { MemoryStore, openIndexedDb, type Row, type SchemaJson, type Store } from "./replica/store.ts";
+import { defaultSessionStore, forgetSession, guest, keepSession, logout, restoreSession, type Session, type SessionStore } from "./auth.ts";
 
 export interface LocalOptions {
   readonly url: string;
+  /** A development persona (loopback only): `alice` acts as `dev:alice`. */
   readonly persona?: string;
-  readonly token?: string;
+  /** A session from `guest()`, `login()` or `signup()`; the client keeps it
+   * and restores it on the next start, so an app passes it once. */
+  readonly session?: Session;
+  /** With no session kept for this server, mint a guest (`use identity guests`). */
+  readonly guest?: boolean;
+  /** Where the session is kept: `localStorage` by default, memory without one. */
+  readonly sessionStore?: SessionStore;
   readonly fetch?: typeof fetch;
   /** `"indexeddb"` on the web (the default when available), `"memory"` for tests. */
   readonly store?: "indexeddb" | "memory";
   readonly waitSeconds?: number;
 }
+
+export type LocalClient = Client & {
+  readonly replica: Replica;
+  sync(): Promise<void>;
+  /** The session this device holds, or null once the server has refused it. */
+  session(): Session | null;
+  /** End the session on the server and forget it here; the client closes. */
+  signOut(): Promise<void>;
+};
 
 interface Backend {
   generation: number;
@@ -48,15 +65,38 @@ interface Queued {
   predicted: string[];
 }
 
-export async function createLocalClient(options: LocalOptions): Promise<Client & { replica: Replica; sync(): Promise<void> }> {
+export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
+  const sessions = options.sessionStore ?? defaultSessionStore;
+  let session: Session | null = null;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
-  if (options.token) headers.authorization = `Bearer ${options.token}`;
-  const viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.token ? ("token" as Principal) : null;
-  if (!viewer) throw new Error("createLocalClient: a persona or a token names whose partition to hold");
+  else {
+    // The device's session: the one passed, else the one kept for this
+    // server, else a fresh guest when the app allows one.
+    if (options.session) {
+      session = options.session;
+      await keepSession(base, session, sessions);
+    } else session = await restoreSession(base, sessions);
+    if (!session && options.guest) {
+      const signedIn = await guest(base, doFetch);
+      if (!signedIn.ok) throw new Error(`createLocalClient: ${signedIn.why.code}: ${signedIn.why.message}`);
+      session = signedIn.session;
+      await keepSession(base, session, sessions);
+    }
+    if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
+    headers.authorization = `Bearer ${session.token}`;
+  }
+  const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
+  let sessionDead = false;
+  const refusedSession = async (denied: unknown) => {
+    if (session && !sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") {
+      sessionDead = true;
+      await forgetSession(base, sessions);
+    }
+  };
 
   const backend = await loadBackend(doFetch, base, headers);
   const useIdb = options.store === "indexeddb" || (options.store === undefined && typeof indexedDB !== "undefined");
@@ -96,7 +136,10 @@ export async function createLocalClient(options: LocalOptions): Promise<Client &
         const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}`, { headers });
         if (response.status >= 500) return { denied: offline() };
         const page = (await response.json()) as StreamPage & { denied?: unknown };
-        if (page.denied) return { denied: page.denied };
+        if (page.denied) {
+          await refusedSession(page.denied);
+          return { denied: page.denied };
+        }
         if (link !== "online") setLink("online");
         if (page.watermark > seq) seq = page.watermark;
         if (page.generation !== undefined && page.generation !== backend.generation) {
@@ -202,7 +245,8 @@ export async function createLocalClient(options: LocalOptions): Promise<Client &
             }
           }
         });
-        settled.get(entry.id)?.(json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) } : { state: "failed", id: entry.id, why: (json.why as Refusal) ?? offline() });
+        if (json.denied) await refusedSession(json.denied);
+        settled.get(entry.id)?.(json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) } : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? offline() });
         settled.delete(entry.id);
         if (json.state === "sent" && Number(json.seq) > seq) seq = Number(json.seq);
         if (json.state === "sent") await replica.syncOnce();
@@ -284,6 +328,13 @@ export async function createLocalClient(options: LocalOptions): Promise<Client &
       return () => linkListeners.delete(listener);
     },
     viewer: () => viewer,
+    session: () => (sessionDead ? null : session),
+    async signOut() {
+      if (session && !sessionDead) await logout(base, session.token, doFetch);
+      await forgetSession(base, sessions);
+      sessionDead = true;
+      await client.close();
+    },
     async close() {
       closed = true;
       aborter.abort();

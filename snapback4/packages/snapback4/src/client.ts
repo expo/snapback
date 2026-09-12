@@ -5,13 +5,16 @@
 // Every word a screen reads is on the card (contract.ts).
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Session } from "./auth.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
   readonly url: string;
   /** A development persona (loopback only): `alice` acts as `dev:alice`. */
   readonly persona?: string;
-  /** A bearer token from sign-in (deployed servers). */
+  /** A session from `guest()`, `login()` or `signup()` (deployed servers). */
+  readonly session?: Session;
+  /** A bare bearer token, when the app keeps sessions itself. */
   readonly token?: string;
   readonly fetch?: typeof fetch;
   /** How long a change poll waits at the server, in seconds. */
@@ -55,8 +58,9 @@ export function createClient(options: ClientOptions): Client {
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
-  if (options.token) headers.authorization = `Bearer ${options.token}`;
-  const viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.token ? ("token" as Principal) : null;
+  const token = options.session?.token ?? options.token;
+  if (token) headers.authorization = `Bearer ${token}`;
+  const viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.session ? (options.session.principal as Principal) : null;
   let link: Link = viewer ? "online" : "signed-out";
   let closed = false;
   const aborter = new AbortController();
