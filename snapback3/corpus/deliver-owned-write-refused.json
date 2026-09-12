@@ -1,0 +1,390 @@
+{
+  "serverOnly": true,
+  "corpusVersion": 1,
+  "name": "deliver-owned-write-refused",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "conversations": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "columns": {
+          "at": "Time",
+          "audience": "Int",
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "incarnation": "Int",
+          "kind": {
+            "Enum": {
+              "variants": [
+                "delivered",
+                "changed",
+                "removed"
+              ]
+            }
+          },
+          "recipient": "Principal",
+          "row": {
+            "Ref": {
+              "table": "messages"
+            }
+          },
+          "seq": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byRecipient": {
+            "components": [
+              {
+                "Column": "recipient"
+              },
+              {
+                "Column": "seq"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byRecipientGroup": {
+            "components": [
+              {
+                "Column": "recipient"
+              },
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "kind"
+              },
+              {
+                "Column": "seq"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byRow": {
+            "components": [
+              {
+                "Column": "row"
+              },
+              {
+                "Column": "kind"
+              },
+              {
+                "Column": "recipient"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "recipient"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Immutable": {
+              "fields": [
+                "at",
+                "audience",
+                "conversationId",
+                "incarnation",
+                "kind",
+                "recipient",
+                "row",
+                "seq"
+              ]
+            }
+          }
+        ],
+        "retain": "until-revoked",
+        "tombstones": [
+          {
+            "table": "messages",
+            "column": "row",
+            "when": {
+              "Eq": [
+                {
+                  "Field": "kind"
+                },
+                {
+                  "Literal": {
+                    "String": "removed"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 3
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "columns": {
+          "authorId": "Principal",
+          "body": {
+            "Text": {
+              "max": 256
+            }
+          },
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked",
+        "deliver": {
+          "target": "memberships",
+          "prefix": [
+            "conversationId"
+          ],
+          "principal": "principal",
+          "log": "deliveries"
+        }
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "deliver-owned-write-refused",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "deliveries",
+          "row": {
+            "Literal": {
+              "Row": {
+                "at": {
+                  "Int": 1
+                },
+                "audience": {
+                  "Int": 1
+                },
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "e1"
+                },
+                "incarnation": {
+                  "Int": 1
+                },
+                "kind": {
+                  "String": "delivered"
+                },
+                "recipient": {
+                  "Id": "u1"
+                },
+                "row": {
+                  "Id": "m1"
+                },
+                "seq": {
+                  "Int": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Literal": "Null"
+        }
+      }
+    ]
+  },
+  "certificate": null,
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "errorReason": "engine-owned table deliveries",
+    "localResult": null,
+    "errorCode": "E_SCHEMA_DELIVER",
+    "localState": "certification-refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_SCHEMA_DELIVER\"}",
+    "digest": "e39b4b669a5fe6dbf2ad00dd8d6973e92995a402b04f0b5af26a6440062ba7bf",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

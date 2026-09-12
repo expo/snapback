@@ -1,0 +1,355 @@
+{
+  "corpusVersion": 1,
+  "name": "asset-list-shrink-mutation",
+  "category": "asset-twin-program",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "media": {
+        "columns": {
+          "clips": {
+            "List": {
+              "of": {
+                "Video": {
+                  "max": 25000000
+                }
+              },
+              "max": 4
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "media.shrinkList",
+    "kind": "Mutation",
+    "args": {
+      "asset": {
+        "List": {
+          "of": {
+            "Video": {
+              "max": 25000000
+            }
+          },
+          "max": 4
+        }
+      },
+      "rowId": "Id"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Update": {
+          "table": "media",
+          "key": {
+            "Variable": "rowId"
+          },
+          "patch": {
+            "Object": {
+              "clips": {
+                "Variable": "asset"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Variable": "asset"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "media.shrinkList",
+    "plan_hash": "1d0a7bf9ad211eb36fd58e7547fa9ecc026feb4d2f809ed21b65e23904c64af6",
+    "schema_hash": "80bf836b0ec53e330b9ba2e95da4c1ca70a84d74f3c5303093d766056aa9aaa7",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "media.update": "f83184e284dbe10ba1adda05742a7b0576b43a095ec12f19cb6a6d0e70bde73c"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "media",
+        "kind": "Update",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "media",
+          "kind": "update",
+          "source": {
+            "argument": "rowId"
+          }
+        }
+      ],
+      "complete": true
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "media:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 11,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 352,
+    "max_output_bytes": 1164,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "media Update writes",
+        "site": "media.shrinkList:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "media.shrinkList:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "media.shrinkList:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "media.shrinkList:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "media.shrinkList:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "media Update writes × 32",
+        "site": "media.shrinkList:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "media.shrinkList:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "media.shrinkList:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "media.shrinkList:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "media.shrinkList:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1164,
+        "source": "argument asset",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "media Update",
+        "site": "media.shrinkList:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "asset": {
+        "Array": [
+          {
+            "Map": {
+              "duration": {
+                "Int": 1000
+              },
+              "height": {
+                "Int": 240
+              },
+              "id": {
+                "String": "s2id-00000000000000000000000000000006-0000000000000003"
+              },
+              "width": {
+                "Int": 320
+              }
+            }
+          }
+        ]
+      },
+      "rowId": {
+        "Id": "media-1"
+      }
+    },
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "80bf836b0ec53e330b9ba2e95da4c1ca70a84d74f3c5303093d766056aa9aaa7",
+    "rows": [
+      {
+        "table": "media",
+        "id": "media-1",
+        "row": {
+          "Row": {
+            "clips": {
+              "Array": [
+                {
+                  "Map": {
+                    "duration": {
+                      "Int": 9000
+                    },
+                    "height": {
+                      "Int": 1080
+                    },
+                    "id": {
+                      "String": "s2id-00000000000000000000000000000006-0000000000000002"
+                    },
+                    "width": {
+                      "Int": 1920
+                    }
+                  }
+                },
+                {
+                  "Map": {
+                    "duration": {
+                      "Int": 1000
+                    },
+                    "height": {
+                      "Int": 240
+                    },
+                    "id": {
+                      "String": "s2id-00000000000000000000000000000006-0000000000000003"
+                    },
+                    "width": {
+                      "Int": 320
+                    }
+                  }
+                }
+              ]
+            },
+            "id": {
+              "Id": "media-1"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Map": {
+            "duration": {
+              "Int": 1000
+            },
+            "height": {
+              "Int": 240
+            },
+            "id": {
+              "String": "s2id-00000000000000000000000000000006-0000000000000003"
+            },
+            "width": {
+              "Int": 320
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Map\":{\"duration\":{\"Int\":1000},\"height\":{\"Int\":240},\"id\":{\"String\":\"s2id-00000000000000000000000000000006-0000000000000003\"},\"width\":{\"Int\":320}}}]}",
+    "digest": "b9aa34541e160169858811c66a8da1e4976a3fc15e165fed87bdeb023ad21b54",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

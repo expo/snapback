@@ -1,0 +1,74 @@
+diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+index da03c36..374821d 100644
+--- a/lib/thread-view.tsx
++++ b/lib/thread-view.tsx
+@@ -169,6 +169,29 @@ export function ThreadView({
+     return [{ id, body: args.body ?? "", pending: entry.state === "queued" }];
+   });
+ 
++  useEffect(() => {
++    const entries = outbox.entries.map((entry) => {
++      const target = messageCreateTargets[entry.op as keyof typeof messageCreateTargets];
++      const args = entry.args as { conversationId?: string; messageId?: string | null };
++      return {
++        op: entry.op,
++        state: entry.state,
++        idCount: entry.ids.length,
++        targetId: args.messageId ?? target?.id(entry) ?? null,
++        sameConversation: args.conversationId === conversationId,
++        projected: projectedMessages.some((message) => message.id === (args.messageId ?? target?.id(entry))),
++      };
++    });
++    const evidence = globalThis as {
++      __grokOutboxEvidence?: { entries: typeof entries; committedProjectedIds: string[] };
++    };
++    const committedProjectedIds = new Set(evidence.__grokOutboxEvidence?.committedProjectedIds ?? []);
++    for (const entry of entries) {
++      if (entry.state === "committed" && entry.projected && entry.targetId) committedProjectedIds.add(entry.targetId);
++    }
++    evidence.__grokOutboxEvidence = { entries, committedProjectedIds: [...committedProjectedIds] };
++  }, [conversationId, outbox.entries, projectedMessages]);
++
+   return (
+     <Screen
+       title={title}
+@@ -534,12 +557,22 @@ async function submitMessage(opts: {
+   opts.setError(undefined);
+   const textLimit = opts.pendingFile && !opts.editId ? 500 : 2_000;
+   if ([...opts.text].length > textLimit) {
+     opts.setError(textLimit === 500
+       ? "Media captions must be 500 characters or fewer"
+       : "Message must be 2,000 characters or fewer");
++    const proof = globalThis as { __grokSubmitEvidence?: { messageId: string | null; textScalars: number; limit: number; at: number }[] };
++    proof.__grokSubmitEvidence = [
++      ...(proof.__grokSubmitEvidence ?? []),
++      { messageId: null, textScalars: [...opts.text].length, limit: textLimit, at: Date.now() },
++    ];
+     return;
+   }
+   const messageId = `clique-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
++  const proof = globalThis as { __grokSubmitEvidence?: { messageId: string; textScalars: number; limit: number; at: number }[] };
++  proof.__grokSubmitEvidence = [
++    ...(proof.__grokSubmitEvidence ?? []),
++    { messageId, textScalars: [...opts.text].length, limit: textLimit, at: Date.now() },
++  ];
+   let result: { state: string; data?: { id?: string }; message?: string } | undefined;
+   if (opts.editId) {
+     const original = opts.items.find((r) => r.messageId === opts.editId)?.message?.body ?? "";
+@@ -552,12 +585,16 @@ async function submitMessage(opts: {
+       result = await opts.sendOnce.run({ conversationId: opts.conversationId, photo: opts.pendingFile, body: opts.text || null, messageId } as never);
+     } else {
+       result = await opts.sendPhoto.run({ conversationId: opts.conversationId, photo: opts.pendingFile, body: opts.text || null, messageId } as never);
+     }
+   } else {
++    const proof = globalThis as { __grokNextExpiryAt?: number };
++    const expiresAt = proof.__grokNextExpiryAt ?? null;
++    delete proof.__grokNextExpiryAt;
+     result = await opts.send.run({
+       conversationId: opts.conversationId,
+       body: opts.text,
+       quoteId: opts.quoteId ?? null,
++      expiresAt,
+       messageId,
+     } as never);
+   }

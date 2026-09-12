@@ -1,0 +1,237 @@
+{
+  "corpusVersion": 1,
+  "name": "scenario-incomplete-unique",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "id": "Id",
+          "slug": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "bySlug": {
+            "components": [
+              {
+                "Column": "slug"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "items.insert",
+    "kind": "Mutation",
+    "args": {
+      "slug": "Scalar"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "items",
+          "row": {
+            "Object": {
+              "id": {
+                "Input": "NewId"
+              },
+              "slug": {
+                "Variable": "slug"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "items.insert",
+    "plan_hash": "3b3bade9a7870cc839fd8ee33ab6373e932c38bf68ceed072b5a9b70e6bed3e2",
+    "schema_hash": "9489b2a703bfe9cc838f65f845d93fca32e070da5f03aa2f21319bbaba2e597b",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "items.insert": "a1f6b2d56d902b77648b623f21ef702c986c6a0562e3f3b0792295d14c1afd08"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "items",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "items",
+          "kind": "create",
+          "source": {
+            "newId": 0
+          }
+        }
+      ],
+      "complete": true
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "items:Unique(byId)",
+      "items:Unique(bySlug)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 9,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 288,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "items Insert writes",
+        "site": "items.insert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "items.insert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "items Insert writes × 32",
+        "site": "items.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "items.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.insert:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "items Insert",
+        "site": "items.insert:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "slug": {
+        "String": "held-elsewhere"
+      }
+    },
+    "now": 0,
+    "new_ids": [
+      "local-item"
+    ],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "9489b2a703bfe9cc838f65f845d93fca32e070da5f03aa2f21319bbaba2e597b",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "items.bySlug"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

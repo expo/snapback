@@ -1,0 +1,10 @@
+{
+  "name": "snapback3-evaluator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../build.mjs --evaluator-only",
+    "test": "bun src/test.ts",
+    "corpus:node": "node dist/corpus-runner.js"
+  }
+}

@@ -1,0 +1,2 @@
+query ping():
+  return null

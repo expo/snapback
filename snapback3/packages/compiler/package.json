@@ -1,0 +1,9 @@
+{
+  "name": "snapback3-compiler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node ../../build.mjs --unicode-only && tsc -p tsconfig.json",
+    "test": "node ../../build.mjs --compiler-only && node --test test/compiler.test.mjs"
+  }
+}

@@ -1,0 +1,768 @@
+{
+  "corpusVersion": 1,
+  "name": "maintain-value-group-query",
+  "category": "maintain",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "counts": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Allow",
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byOwner"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "maintain value corpus"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "counts",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "maintain-value-group-query",
+    "kind": "Query",
+    "args": {
+      "other": "Principal"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "presentRow",
+          "value": {
+            "Get": {
+              "site": "present",
+              "table": "counts",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Input": "Viewer"
+                }
+              ],
+              "provenance": "Viewer"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "present",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "presentRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "present",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "presentRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Let": {
+          "name": "absentRow",
+          "value": {
+            "Get": {
+              "site": "absent",
+              "table": "counts",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Variable": "other"
+                }
+              ],
+              "provenance": "Arg"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "absent",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "absentRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "absent",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "absentRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "absent": {
+              "Variable": "absent"
+            },
+            "present": {
+              "Variable": "present"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "maintain-value-group-query",
+    "plan_hash": "3446261ba3e89599595bec0dbe54433d03c783ae27203f0731083666ccb4c7f1",
+    "schema_hash": "3c4651ebc6fed28f8538e34c53bee5efb2986e85243e35b8b3d69570fdf07156",
+    "tables": {
+      "counts": {
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "counts.read": "eecc5a38b6f1dd0f4cea7caffd0b1e1f7e414d19a14a41c9c3190d24e710b938"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "absent",
+        "table": "counts",
+        "index": "byOwner",
+        "prefix_template": "Arg",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "present",
+        "table": "counts",
+        "index": "byOwner",
+        "prefix_template": "Viewer",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "counts:public-count-absence"
+    ],
+    "max_examined": 2,
+    "max_index_entries": 2,
+    "max_rule_probes": 0,
+    "max_steps": 44,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 3948,
+    "max_heap_bytes": 5356,
+    "max_output_bytes": 113,
+    "max_closure_bytes": 8117,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "counts.byId",
+      "counts.byOwner"
+    ],
+    "disclosures": [],
+    "bound_product": "absent point read on counts × 1 calls = 1 + present point read on counts × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "absent point read on counts × 1 calls",
+        "site": "absent"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "present point read on counts × 1 calls",
+        "site": "present"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "absent point read on counts × 1 calls",
+        "site": "absent"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "present point read on counts × 1 calls",
+        "site": "present"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "absent point read on counts × 1 calls × 4",
+        "site": "absent"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "present point read on counts × 1 calls × 4",
+        "site": "present"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "public count absence evidence",
+        "site": "maintain-value-group-query:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "public count absence evidence",
+        "site": "maintain-value-group-query:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-value-group-query:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-group-query:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3948,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "absent point read on counts × 1 calls × 4 × 32",
+        "site": "absent"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "present point read on counts × 1 calls × 4 × 32",
+        "site": "present"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "public count absence evidence × 32",
+        "site": "maintain-value-group-query:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "public count absence evidence × 32",
+        "site": "maintain-value-group-query:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-value-group-query:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-group-query:statement:7"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "absent"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "present"
+      },
+      {
+        "meter": "output bytes",
+        "value": 31,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 987,
+        "source": "absent × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "absent"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 987,
+        "source": "present × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "present"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 618,
+        "source": "2 × counts.id (309 bytes each; 6 field-name/framing + counts declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 306,
+        "source": "2 × counts.owner (153 bytes each; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 82,
+        "source": "2 × counts.value (41 bytes each; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 678,
+        "source": "2 × counts table/id envelope (339 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 270,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4169,
+        "source": "public count absence evidence",
+        "site": null
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "other": {
+        "Id": "u2"
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "3c4651ebc6fed28f8538e34c53bee5efb2986e85243e35b8b3d69570fdf07156",
+    "rows": [
+      {
+        "table": "counts",
+        "id": "[{\"Id\":\"u1\"}]",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "[{\"Id\":\"u1\"}]"
+            },
+            "owner": {
+              "Id": "u1"
+            },
+            "value": {
+              "Int": 1
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "absent",
+        "table": "counts",
+        "index": "byOwner",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "u2"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 1,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "eecc5a38b6f1dd0f4cea7caffd0b1e1f7e414d19a14a41c9c3190d24e710b938",
+        "row_ids": [],
+        "stop": "Exhausted",
+        "absence": true,
+        "halo": null,
+        "n2_suffix": null
+      }
+    ],
+    "absences": [
+      [
+        "counts",
+        "byId",
+        [
+          {
+            "Id": "[{\"Id\":\"u2\"}]"
+          }
+        ]
+      ],
+      [
+        "counts",
+        "byOwner",
+        [
+          {
+            "Id": "u2"
+          }
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "absent": {
+          "Int": 0
+        },
+        "present": {
+          "Int": 1
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Row\":{\"absent\":{\"Int\":0},\"present\":{\"Int\":1}}}",
+    "digest": "0345e246aedd2e3c0d162365e1c28f37b2a740db05535d725b0bbeec7d00a473",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

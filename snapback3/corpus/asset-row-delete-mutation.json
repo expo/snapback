@@ -1,0 +1,242 @@
+{
+  "corpusVersion": 1,
+  "name": "asset-row-delete-mutation",
+  "category": "asset-twin-program",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "media": {
+        "columns": {
+          "id": "Id",
+          "photo": {
+            "Image": {
+              "max": 5000000
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "media.deleteForSuccessorWitness",
+    "kind": "Mutation",
+    "args": {
+      "rowId": "Id"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Delete": {
+          "table": "media",
+          "key": {
+            "Variable": "rowId"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "media.deleteForSuccessorWitness",
+    "plan_hash": "38e5d27d721d9720fd0955820ab633862ccd6551479b4d5388499b76b3ff4f82",
+    "schema_hash": "31431891f72e007e693566062437e9b6d6247a8203a15116aaf58870a673f9a0",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "media.delete": "4a463fa5963b02e0a429907f72fc23e4c8d24b4316bf9e98a29fe0fe178c473e"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "media",
+        "kind": "Delete",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "media",
+          "kind": "remove",
+          "source": {
+            "argument": "rowId"
+          }
+        }
+      ],
+      "complete": true
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "media:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 7,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "media Delete writes",
+        "site": "media.deleteForSuccessorWitness:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "media.deleteForSuccessorWitness:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "media.deleteForSuccessorWitness:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "media Delete writes × 32",
+        "site": "media.deleteForSuccessorWitness:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "media.deleteForSuccessorWitness:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "media.deleteForSuccessorWitness:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "media Delete",
+        "site": "media.deleteForSuccessorWitness:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "rowId": {
+        "Id": "media-1"
+      }
+    },
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "31431891f72e007e693566062437e9b6d6247a8203a15116aaf58870a673f9a0",
+    "rows": [
+      {
+        "table": "media",
+        "id": "media-1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "media-1"
+            },
+            "photo": {
+              "Map": {
+                "height": {
+                  "Int": 480
+                },
+                "id": {
+                  "String": "s2id-00000000000000000000000000000006-0000000000000001"
+                },
+                "width": {
+                  "Int": 640
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

@@ -1,0 +1,1438 @@
+{
+  "schema": {
+    "maintains": [],
+    "tables": {
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 50
+            }
+          }
+        },
+        "constraints": [],
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "retain": "until-revoked",
+        "rules": {
+          "delete": "Deny",
+          "insert": "Deny",
+          "read": {
+            "Public": {
+              "reason": "conversations is public in Quarry"
+            }
+          },
+          "update": "Deny"
+        }
+      },
+      "memberships": {
+        "columns": {
+          "conversation": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byConversationPrincipal"
+            }
+          },
+          {
+            "Cap": {
+              "by": [
+                "principal"
+              ],
+              "max": 100
+            }
+          }
+        ],
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversation"
+              },
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversation"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "retain": "until-revoked",
+        "rules": {
+          "delete": "Deny",
+          "insert": "Deny",
+          "read": {
+            "Exists": {
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversation"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape",
+              "table": "memberships"
+            }
+          },
+          "update": "Deny"
+        }
+      },
+      "messages": {
+        "columns": {
+          "at": "Time",
+          "body": {
+            "Optional": {
+              "Text": {
+                "max": 4000
+              }
+            }
+          },
+          "caption": {
+            "Optional": {
+              "Text": {
+                "max": 50
+              }
+            }
+          },
+          "conversation": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id"
+        },
+        "constraints": [],
+        "indexes": {
+          "byConversationWords": {
+            "components": [
+              {
+                "Column": "conversation"
+              },
+              {
+                "WordPrefixes": {
+                  "contract": "u17-nfc-scf-nfc-wsp-p",
+                  "fields": [
+                    "body",
+                    "caption"
+                  ]
+                }
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "retain": "until-revoked",
+        "rules": {
+          "delete": "Deny",
+          "insert": "Deny",
+          "read": {
+            "Exists": {
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversation"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape",
+              "table": "memberships"
+            }
+          },
+          "update": "Deny"
+        }
+      },
+      "people": {
+        "columns": {
+          "handle": {
+            "Optional": {
+              "Text": {
+                "max": 20
+              }
+            }
+          },
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 50
+            }
+          }
+        },
+        "constraints": [],
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byNameWords": {
+            "components": [
+              {
+                "WordPrefixes": {
+                  "contract": "u17-nfc-scf-nfc-wsp-p",
+                  "fields": [
+                    "name",
+                    "handle"
+                  ]
+                }
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "retain": "until-revoked",
+        "rules": {
+          "delete": "Deny",
+          "insert": "Deny",
+          "read": {
+            "Public": {
+              "reason": "people is public in Quarry"
+            }
+          },
+          "update": "Deny"
+        }
+      }
+    }
+  },
+  "operations": {
+    "search.findPeople": {
+      "program": {
+        "args": {
+          "c": {
+            "Optional": "Cursor"
+          },
+          "term": {
+            "Text": {
+              "max": 2000
+            }
+          }
+        },
+        "body": [
+          {
+            "Return": {
+              "Scan": {
+                "after": {
+                  "Variable": "c"
+                },
+                "before": null,
+                "index": "byNameWords",
+                "merge_site": null,
+                "opaque_cursor": true,
+                "order": "Asc",
+                "prefix": [
+                  {
+                    "WordPrefix": {
+                      "contract": "u17-nfc-scf-nfc-wsp-p",
+                      "source": {
+                        "Variable": "term"
+                      },
+                      "source_max": 2000
+                    }
+                  }
+                ],
+                "provenance": "Arg",
+                "range": null,
+                "site": "search.findPeople.0",
+                "table": "people",
+                "take": {
+                  "Literal": 20
+                }
+              }
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "search.findPeople",
+        "read_time_granularity_ms": null
+      },
+      "certificate": {
+        "bound_product": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people = 22",
+        "completeness": "Page",
+        "constraint_checks": [],
+        "derived_scratch_bytes": 332351,
+        "derived_steps": 353091,
+        "disclosures": [],
+        "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+        "halo_rows": 1,
+        "indexes_required": [
+          "people.byNameWords"
+        ],
+        "maintained_amplification": 0,
+        "max_closure_bytes": 39475,
+        "max_examined": 22,
+        "max_heap_bytes": 335999,
+        "max_index_entries": 22,
+        "max_output_bytes": 9832,
+        "max_rule_probes": 0,
+        "max_steps": 353205,
+        "plan_hash": "f54ad4592f9d82eccf701a3f5bac84672f2d9409dbcf81d08d04ecd70cffced6",
+        "prediction_sites": [],
+        "program": "search.findPeople",
+        "read_sites": [
+          {
+            "complete": false,
+            "decided_true": true,
+            "hoist": true,
+            "index": "byNameWords",
+            "max_calls": 1,
+            "prefix_template": "Arg",
+            "rule_probes_per_candidate": 0,
+            "site": "search.findPeople.0",
+            "table": "people",
+            "take": 20
+          }
+        ],
+        "read_time_granularity_ms": null,
+        "result_pages": {
+          "0": {
+            "index": "byNameWords",
+            "merge": false,
+            "order": "Asc",
+            "site": "search.findPeople.0",
+            "suffix": [
+              {
+                "kind": "Id",
+                "name": "id"
+              }
+            ],
+            "table": "people"
+          }
+        },
+        "rule_hashes": {
+          "people.read": "4defc44932a19c78ade9ac86058f742aeed9ca769c6584a24ee746c26046717b"
+        },
+        "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+        "tables": {
+          "conversations": {
+            "retain": "until-revoked"
+          },
+          "memberships": {
+            "retain": "until-revoked"
+          },
+          "messages": {
+            "retain": "until-revoked"
+          },
+          "people": {
+            "retain": "until-revoked"
+          }
+        },
+        "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+        "write_sites": []
+      }
+    },
+    "search.global": {
+      "program": {
+        "args": {
+          "c": {
+            "Optional": "Cursor"
+          },
+          "term": {
+            "Text": {
+              "max": 2000
+            }
+          }
+        },
+        "body": [
+          {
+            "Const": {
+              "name": "page",
+              "value": {
+                "Merge": {
+                  "held_search": {
+                    "after": {
+                      "Variable": "c"
+                    },
+                    "discovery": {
+                      "authorization_index": "byConversationPrincipal",
+                      "binding": "m",
+                      "scan": {
+                        "after": null,
+                        "before": null,
+                        "index": "byPrincipal",
+                        "merge_site": null,
+                        "order": "Asc",
+                        "prefix": [
+                          {
+                            "Scalar": {
+                              "Input": "Viewer"
+                            }
+                          }
+                        ],
+                        "provenance": "Viewer",
+                        "range": null,
+                        "site": "search.global.0",
+                        "table": "memberships",
+                        "take": {
+                          "Literal": 100
+                        }
+                      }
+                    },
+                    "index": "byConversationWords",
+                    "order": "Desc",
+                    "scope": [
+                      {
+                        "column": "conversation",
+                        "value": {
+                          "Field": {
+                            "base": {
+                              "Variable": "m"
+                            },
+                            "name": "conversation"
+                          }
+                        }
+                      }
+                    ],
+                    "suffix": [
+                      "at",
+                      "id"
+                    ],
+                    "table": "messages",
+                    "take": {
+                      "Literal": 20
+                    },
+                    "term": {
+                      "contract": "u17-nfc-scf-nfc-wsp-p",
+                      "source": {
+                        "Variable": "term"
+                      },
+                      "source_max": 2000
+                    }
+                  },
+                  "lanes": [
+                    {
+                      "binding": "m",
+                      "scan": {
+                        "after": {
+                          "Variable": "c"
+                        },
+                        "before": null,
+                        "index": "byConversationWords",
+                        "merge_site": "snapback/search.q:5:10",
+                        "opaque_cursor": true,
+                        "order": "Desc",
+                        "prefix": [
+                          {
+                            "Scalar": {
+                              "Field": {
+                                "base": {
+                                  "Variable": "m"
+                                },
+                                "name": "conversation"
+                              }
+                            }
+                          },
+                          {
+                            "WordPrefix": {
+                              "contract": "u17-nfc-scf-nfc-wsp-p",
+                              "source": {
+                                "Variable": "term"
+                              },
+                              "source_max": 2000
+                            }
+                          }
+                        ],
+                        "provenance": "Shape",
+                        "range": null,
+                        "site": "search.global.1",
+                        "table": "messages",
+                        "take": {
+                          "Literal": 20
+                        }
+                      },
+                      "source": {
+                        "after": null,
+                        "before": null,
+                        "index": "byPrincipal",
+                        "merge_site": null,
+                        "order": "Asc",
+                        "prefix": [
+                          {
+                            "Scalar": {
+                              "Input": "Viewer"
+                            }
+                          }
+                        ],
+                        "provenance": "Viewer",
+                        "range": null,
+                        "site": "search.global.0",
+                        "table": "memberships",
+                        "take": {
+                          "Literal": 100
+                        }
+                      }
+                    }
+                  ],
+                  "site": "snapback/search.q:5:10"
+                }
+              }
+            }
+          },
+          {
+            "Return": {
+              "Variable": "page"
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "search.global",
+        "read_time_granularity_ms": null
+      },
+      "certificate": {
+        "bound_product": "merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) = 122 + search.global.0 take 100 (+2 reserve) × 1 calls on memberships = 102",
+        "completeness": "Page",
+        "constraint_checks": [],
+        "derived_scratch_bytes": 5358477,
+        "derived_steps": 353091,
+        "disclosures": [],
+        "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+        "halo_rows": 1,
+        "indexes_required": [
+          "memberships.byConversationPrincipal",
+          "memberships.byPrincipal",
+          "messages.byConversationWords"
+        ],
+        "maintained_amplification": 0,
+        "max_closure_bytes": 3456257,
+        "max_examined": 224,
+        "max_heap_bytes": 5504877,
+        "max_index_entries": 224,
+        "max_output_bytes": 332212,
+        "max_rule_probes": 200,
+        "max_steps": 357666,
+        "merge_sites": [
+          {
+            "lane_sites": [
+              "search.global.1"
+            ],
+            "max_lanes": 100,
+            "site": "snapback/search.q:5:10",
+            "take": 20,
+            "uniform": true
+          }
+        ],
+        "plan_hash": "077d62361ae1b4d06d95ddd682fcee30501deaffc147b7bdacc80338615f5a36",
+        "prediction_sites": [],
+        "program": "search.global",
+        "read_sites": [
+          {
+            "complete": false,
+            "decided_true": true,
+            "hoist": true,
+            "index": "byPrincipal",
+            "max_calls": 1,
+            "prefix_template": "Viewer",
+            "rule_probes_per_candidate": 0,
+            "site": "search.global.0",
+            "table": "memberships",
+            "take": 100
+          },
+          {
+            "complete": false,
+            "hoist": true,
+            "index": "byConversationWords",
+            "max_calls": 100,
+            "prefix_template": "Shape",
+            "rule_probes_per_candidate": 2,
+            "site": "search.global.1",
+            "table": "messages",
+            "take": 20
+          }
+        ],
+        "read_time_granularity_ms": null,
+        "result_pages": {
+          "1": {
+            "index": "byConversationWords",
+            "merge": true,
+            "order": "Desc",
+            "site": "snapback/search.q:5:10",
+            "suffix": [
+              {
+                "kind": "Time",
+                "name": "at"
+              },
+              {
+                "kind": "Id",
+                "name": "id"
+              }
+            ],
+            "table": "messages"
+          }
+        },
+        "rule_hashes": {
+          "memberships.read": "56555365e08c5f206eda1a31751e8ffd686d203c6d0634dc813c9a53082b3ff9",
+          "messages.read": "56555365e08c5f206eda1a31751e8ffd686d203c6d0634dc813c9a53082b3ff9"
+        },
+        "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+        "tables": {
+          "conversations": {
+            "retain": "until-revoked"
+          },
+          "memberships": {
+            "retain": "until-revoked"
+          },
+          "messages": {
+            "retain": "until-revoked"
+          },
+          "people": {
+            "retain": "until-revoked"
+          }
+        },
+        "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+        "write_sites": []
+      }
+    },
+    "search.inConversation": {
+      "program": {
+        "args": {
+          "c": {
+            "Optional": "Cursor"
+          },
+          "conversation": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "term": {
+            "Text": {
+              "max": 2000
+            }
+          }
+        },
+        "body": [
+          {
+            "Return": {
+              "Scan": {
+                "after": {
+                  "Variable": "c"
+                },
+                "before": null,
+                "index": "byConversationWords",
+                "merge_site": null,
+                "opaque_cursor": true,
+                "order": "Desc",
+                "prefix": [
+                  {
+                    "Scalar": {
+                      "Variable": "conversation"
+                    }
+                  },
+                  {
+                    "WordPrefix": {
+                      "contract": "u17-nfc-scf-nfc-wsp-p",
+                      "source": {
+                        "Variable": "term"
+                      },
+                      "source_max": 2000
+                    }
+                  }
+                ],
+                "provenance": "Arg",
+                "range": null,
+                "site": "search.inConversation.0",
+                "table": "messages",
+                "take": {
+                  "Literal": 20
+                }
+              }
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "search.inConversation",
+        "read_time_granularity_ms": null
+      },
+      "certificate": {
+        "bound_product": "search.inConversation.0 take 20 (+2 reserve) × 1 calls on messages = 22",
+        "completeness": "Page",
+        "constraint_checks": [],
+        "derived_scratch_bytes": 673723,
+        "derived_steps": 353091,
+        "disclosures": [],
+        "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+        "halo_rows": 1,
+        "indexes_required": [
+          "memberships.byConversationPrincipal",
+          "messages.byConversationWords"
+        ],
+        "maintained_amplification": 0,
+        "max_closure_bytes": 380847,
+        "max_examined": 22,
+        "max_heap_bytes": 677403,
+        "max_index_entries": 22,
+        "max_output_bytes": 332212,
+        "max_rule_probes": 2,
+        "max_steps": 353206,
+        "plan_hash": "948b7ad2fe924a511d40a16b9080f619af95bc1983d803e94e4d956ec72329dd",
+        "prediction_sites": [],
+        "program": "search.inConversation",
+        "read_sites": [
+          {
+            "complete": false,
+            "hoist": true,
+            "index": "byConversationWords",
+            "max_calls": 1,
+            "prefix_template": "Arg",
+            "rule_probes_per_candidate": 2,
+            "site": "search.inConversation.0",
+            "table": "messages",
+            "take": 20
+          }
+        ],
+        "read_time_granularity_ms": null,
+        "result_pages": {
+          "0": {
+            "index": "byConversationWords",
+            "merge": false,
+            "order": "Desc",
+            "site": "search.inConversation.0",
+            "suffix": [
+              {
+                "kind": "Time",
+                "name": "at"
+              },
+              {
+                "kind": "Id",
+                "name": "id"
+              }
+            ],
+            "table": "messages"
+          }
+        },
+        "rule_hashes": {
+          "messages.read": "56555365e08c5f206eda1a31751e8ffd686d203c6d0634dc813c9a53082b3ff9"
+        },
+        "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+        "tables": {
+          "conversations": {
+            "retain": "until-revoked"
+          },
+          "memberships": {
+            "retain": "until-revoked"
+          },
+          "messages": {
+            "retain": "until-revoked"
+          },
+          "people": {
+            "retain": "until-revoked"
+          }
+        },
+        "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+        "write_sites": []
+      }
+    },
+    "search.tokenize": {
+      "program": {
+        "args": {
+          "body": {
+            "Optional": {
+              "Text": {
+                "max": 50
+              }
+            }
+          }
+        },
+        "body": [
+          {
+            "Const": {
+              "name": "terms",
+              "value": {
+                "Builtin": {
+                  "args": [
+                    {
+                      "Variable": "body"
+                    }
+                  ],
+                  "builtin": "Words"
+                }
+              }
+            }
+          },
+          {
+            "Return": {
+              "Variable": "terms"
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "search.tokenize",
+        "read_time_granularity_ms": null
+      },
+      "certificate": {
+        "bound_product": null,
+        "completeness": "Page",
+        "constraint_checks": [],
+        "derived_scratch_bytes": 25316,
+        "derived_steps": 10131,
+        "disclosures": [],
+        "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+        "halo_rows": 1,
+        "indexes_required": [],
+        "maintained_amplification": 0,
+        "max_closure_bytes": 2529,
+        "max_examined": 0,
+        "max_heap_bytes": 25476,
+        "max_index_entries": 0,
+        "max_output_bytes": 2529,
+        "max_rule_probes": 0,
+        "max_steps": 10136,
+        "plan_hash": "485d759146134d1d4b43e558cdae962cd921414ca3b91e62f3a2f7d943912cd2",
+        "prediction_sites": [],
+        "program": "search.tokenize",
+        "read_sites": [],
+        "read_time_granularity_ms": null,
+        "rule_hashes": {},
+        "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+        "tables": {
+          "conversations": {
+            "retain": "until-revoked"
+          },
+          "memberships": {
+            "retain": "until-revoked"
+          },
+          "messages": {
+            "retain": "until-revoked"
+          },
+          "people": {
+            "retain": "until-revoked"
+          }
+        },
+        "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+        "write_sites": []
+      }
+    }
+  },
+  "format": {
+    "certificate": {
+      "bound_product": null,
+      "completeness": "Page",
+      "constraint_checks": [],
+      "derived_scratch_bytes": 0,
+      "derived_steps": 0,
+      "disclosures": [],
+      "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+      "halo_rows": 1,
+      "indexes_required": [],
+      "maintained_amplification": 0,
+      "max_closure_bytes": 0,
+      "max_examined": 0,
+      "max_heap_bytes": 64,
+      "max_index_entries": 0,
+      "max_output_bytes": 816,
+      "max_rule_probes": 0,
+      "max_steps": 2,
+      "plan_hash": "95a0f9f34e3341ef8ccbb652f509e763fd2315aff4fef11ef6f5cfac4f73516f",
+      "prediction_sites": [],
+      "program": "formats",
+      "read_sites": [],
+      "read_time_granularity_ms": null,
+      "rule_hashes": {},
+      "schema_hash": "005bd50d94d26be8b98ea68e450669a329aeae293831aea1fb4f04683d7da0c1",
+      "tables": {},
+      "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+      "write_sites": []
+    },
+    "program": {
+      "args": {
+        "handle": {
+          "Text": {
+            "format": "handle",
+            "max": 200
+          }
+        },
+        "items": {
+          "List": {
+            "max": 2,
+            "of": {
+              "Text": {
+                "format": "handle",
+                "max": 200
+              }
+            }
+          }
+        },
+        "link": {
+          "Optional": {
+            "Text": {
+              "format": "url",
+              "max": 200
+            }
+          }
+        }
+      },
+      "body": [
+        {
+          "Return": {
+            "Variable": "link"
+          }
+        }
+      ],
+      "kind": "Query",
+      "name": "formats",
+      "read_time_granularity_ms": null
+    },
+    "schema": {
+      "channels": {
+        "topic": {
+          "args": {
+            "handle": {
+              "Text": {
+                "format": "handle",
+                "max": 200
+              }
+            },
+            "items": {
+              "List": {
+                "max": 2,
+                "of": {
+                  "Text": {
+                    "format": "handle",
+                    "max": 200
+                  }
+                }
+              }
+            },
+            "link": {
+              "Optional": {
+                "Text": {
+                  "format": "url",
+                  "max": 200
+                }
+              }
+            }
+          },
+          "publish": "Allow",
+          "subscribe": "Allow",
+          "ttl_ms": 1000,
+          "value": {
+            "handle": {
+              "Text": {
+                "format": "handle",
+                "max": 200
+              }
+            },
+            "items": {
+              "List": {
+                "max": 2,
+                "of": {
+                  "Text": {
+                    "format": "handle",
+                    "max": 200
+                  }
+                }
+              }
+            },
+            "link": {
+              "Optional": {
+                "Text": {
+                  "format": "url",
+                  "max": 200
+                }
+              }
+            }
+          }
+        }
+      },
+      "maintains": [],
+      "tables": {}
+    }
+  },
+  "minimum": {
+    "certificate": {
+      "program": "minimum",
+      "plan_hash": "5adaa282549f2ba9703d5f868dd47b804b5f47af0b70e9748331334dd68f7ad3",
+      "schema_hash": "d6ab45a2aff59ad1e33363a073aa365e469b8171d4ca896c5277c24ca3073f34",
+      "tables": {},
+      "rule_hashes": {},
+      "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+      "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+      "read_sites": [],
+      "write_sites": [],
+      "maintained_amplification": 0,
+      "constraint_checks": [],
+      "max_examined": 0,
+      "max_index_entries": 0,
+      "max_rule_probes": 0,
+      "max_steps": 2,
+      "derived_steps": 0,
+      "derived_scratch_bytes": 0,
+      "max_heap_bytes": 64,
+      "max_output_bytes": 32,
+      "max_closure_bytes": 0,
+      "completeness": "Page",
+      "prediction_sites": [],
+      "read_time_granularity_ms": null,
+      "halo_rows": 1,
+      "indexes_required": [],
+      "disclosures": [],
+      "bound_product": null
+    },
+    "program": {
+      "args": {
+        "term": {
+          "Text": {
+            "max": 4,
+            "min": 2
+          }
+        }
+      },
+      "body": [
+        {
+          "Return": {
+            "Variable": "term"
+          }
+        }
+      ],
+      "kind": "Query",
+      "name": "minimum",
+      "read_time_granularity_ms": null
+    },
+    "schema": {
+      "channels": {
+        "topic": {
+          "args": {
+            "term": {
+              "Text": {
+                "max": 4,
+                "min": 2
+              }
+            }
+          },
+          "publish": "Allow",
+          "subscribe": "Allow",
+          "ttl_ms": 1000,
+          "value": {
+            "term": {
+              "Text": {
+                "max": 4,
+                "min": 2
+              }
+            }
+          }
+        }
+      },
+      "maintains": [],
+      "tables": {}
+    }
+  },
+  "clock": {
+    "generation": "fe8e9dc6b5aef18ca5ad416db15929c92843d8ab955e8d8a990b2c9aec1f4c24",
+    "programs": {
+      "clock.read": {
+        "kind": "query",
+        "planHash": "6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637",
+        "ir": {
+          "args": {},
+          "body": [
+            {
+              "Return": {
+                "Object": {
+                  "now": {
+                    "Input": "ReadTime"
+                  },
+                  "rows": {
+                    "Scan": {
+                      "after": null,
+                      "before": null,
+                      "index": "byAt",
+                      "merge_site": null,
+                      "order": "Asc",
+                      "prefix": [],
+                      "provenance": "Const",
+                      "range": {
+                        "gt": null,
+                        "gte": null,
+                        "lt": {
+                          "Input": "ReadTime"
+                        },
+                        "lte": null
+                      },
+                      "site": "clock.range",
+                      "table": "events",
+                      "take": {
+                        "Literal": 10
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "kind": "Query",
+          "name": "clock.read",
+          "read_time_granularity_ms": 1
+        },
+        "certificate": {
+          "program": "clock.read",
+          "plan_hash": "6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637",
+          "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+          "tables": {
+            "events": {
+              "retain": "until-revoked"
+            }
+          },
+          "rule_hashes": {
+            "events.read": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+          },
+          "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+          "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+          "read_sites": [
+            {
+              "site": "clock.range",
+              "table": "events",
+              "index": "byAt",
+              "prefix_template": "Const",
+              "take": 10,
+              "max_calls": 1,
+              "rule_probes_per_candidate": 0,
+              "hoist": true,
+              "decided_true": true,
+              "complete": false
+            }
+          ],
+          "write_sites": [],
+          "maintained_amplification": 0,
+          "constraint_checks": [],
+          "max_examined": 12,
+          "max_index_entries": 12,
+          "max_rule_probes": 0,
+          "max_steps": 65,
+          "derived_steps": 0,
+          "derived_scratch_bytes": 0,
+          "max_heap_bytes": 2080,
+          "max_output_bytes": 2059,
+          "max_closure_bytes": 2012,
+          "completeness": "Page",
+          "prediction_sites": [],
+          "read_time_granularity_ms": 1,
+          "halo_rows": 1,
+          "indexes_required": [
+            "events.byAt"
+          ],
+          "disclosures": [],
+          "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12"
+        }
+      }
+    },
+    "schema": {
+      "maintains": [],
+      "tables": {
+        "events": {
+          "columns": {
+            "at": "Time",
+            "id": "Id"
+          },
+          "constraints": [],
+          "indexes": {
+            "byAt": {
+              "components": [
+                {
+                  "Column": "at"
+                },
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": false
+            },
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            }
+          },
+          "retain": "until-revoked",
+          "rules": {
+            "delete": "Allow",
+            "insert": "Allow",
+            "read": "Allow",
+            "update": "Allow"
+          }
+        }
+      }
+    },
+    "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243"
+  },
+  "ownershipCertificate": {
+    "program": "ownedSearch",
+    "plan_hash": "7b8a1ea76e84631f223eecca5d7674d373b43858cd7e775636e0537bc5d1cb30",
+    "schema_hash": "3f0f641b375d0510e4542d1eec15a18f7d6054716f13ab473df61fa416d37b13",
+    "tables": {
+      "notes": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "notes.read": "0db8ba4ec73a6e559cde938fbf7313735af627268c86e5a29848701ecce43def"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "owned",
+        "table": "notes",
+        "index": "search",
+        "prefix_template": "Arg",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "complete": false
+      }
+    ],
+    "result_pages": {
+      "0": {
+        "site": "owned",
+        "table": "notes",
+        "index": "search",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 4,
+    "max_index_entries": 4,
+    "max_rule_probes": 0,
+    "max_steps": 6686,
+    "derived_steps": 6661,
+    "derived_scratch_bytes": 17266,
+    "max_heap_bytes": 18066,
+    "max_output_bytes": 944,
+    "max_closure_bytes": 9270,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "notes.search"
+    ],
+    "disclosures": [],
+    "bound_product": "owned take 2 (+2 reserve) × 1 calls on notes = 4"
+  },
+  "fixedClockCertificate": {
+    "program": "clock.fixed",
+    "plan_hash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50",
+    "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+    "tables": {
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "events.read": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "clock.range",
+        "table": "events",
+        "index": "byAt",
+        "prefix_template": "Const",
+        "take": 10,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 12,
+    "max_index_entries": 12,
+    "max_rule_probes": 0,
+    "max_steps": 64,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 2048,
+    "max_output_bytes": 2059,
+    "max_closure_bytes": 2012,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": 1,
+    "halo_rows": 1,
+    "indexes_required": [
+      "events.byAt"
+    ],
+    "disclosures": [],
+    "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12"
+  },
+  "boundedClockCertificate": {
+    "program": "clock.bounded",
+    "plan_hash": "21e93d3e8c9b34e3bcefeceacaa68affd93227465ea0cf992b743eff33fe699b",
+    "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+    "tables": {
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "events.read": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "clock.range",
+        "table": "events",
+        "index": "byAt",
+        "prefix_template": "Const",
+        "take": 10,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 12,
+    "max_index_entries": 12,
+    "max_rule_probes": 0,
+    "max_steps": 65,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 2080,
+    "max_output_bytes": 2059,
+    "max_closure_bytes": 2012,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": 1,
+    "halo_rows": 1,
+    "indexes_required": [
+      "events.byAt"
+    ],
+    "disclosures": [],
+    "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12"
+  },
+  "timedSearchCertificate": {
+    "program": "search.timed",
+    "plan_hash": "24fca8299ebc69c57d1555f4932e101c01940328063d748dce953e4560190a6d",
+    "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      },
+      "people": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "people.read": "4defc44932a19c78ade9ac86058f742aeed9ca769c6584a24ee746c26046717b"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "search.findPeople.0",
+        "table": "people",
+        "index": "byNameWords",
+        "prefix_template": "Arg",
+        "take": 20,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 22,
+    "max_index_entries": 22,
+    "max_rule_probes": 0,
+    "max_steps": 353207,
+    "derived_steps": 353091,
+    "derived_scratch_bytes": 332351,
+    "max_heap_bytes": 336063,
+    "max_output_bytes": 9889,
+    "max_closure_bytes": 39507,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": 1,
+    "halo_rows": 1,
+    "indexes_required": [
+      "people.byNameWords"
+    ],
+    "disclosures": [],
+    "bound_product": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people = 22"
+  },
+  "nativeR8": {"ownerSha256":"4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e","scope":"Unmodified native26c9 program/envelopes; external static IR compiler, no Quarry lowering claim","movement":{"sourceSha256":"a7bf8620fc3e68d08ac353177e9ca55328904ab07278864056e600052fa325f6","packet":{"generation":"69977204280adcdc093ba27f291566b16833132b00187cde44a525f395cc0f65","programs":{"clock.bounded":{"certificate":{"bound_product":"clock.range take 10 (+2 reserve) × 1 calls on events = 12","completeness":"Page","constraint_checks":[],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["events.byAt"],"maintained_amplification":0,"max_closure_bytes":2012,"max_examined":12,"max_heap_bytes":2080,"max_index_entries":12,"max_output_bytes":2059,"max_rule_probes":0,"max_steps":65,"plan_hash":"21e93d3e8c9b34e3bcefeceacaa68affd93227465ea0cf992b743eff33fe699b","prediction_sites":[],"program":"clock.bounded","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byAt","max_calls":1,"prefix_template":"Const","rule_probes_per_candidate":0,"site":"clock.range","table":"events","take":10}],"read_time_granularity_ms":1,"rule_hashes":{"events.read":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"},"schema_hash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","tables":{"events":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"ir":{"args":{},"body":[{"Return":{"Object":{"now":{"Input":"ReadTime"},"rows":{"Scan":{"after":null,"before":null,"index":"byAt","merge_site":null,"order":"Asc","prefix":[],"provenance":"Const","range":{"gt":null,"gte":null,"lt":{"Literal":{"Int":1}},"lte":null},"site":"clock.range","table":"events","take":{"Literal":10}}}}}}],"kind":"Query","name":"clock.bounded","read_time_granularity_ms":1},"kind":"query","planHash":"21e93d3e8c9b34e3bcefeceacaa68affd93227465ea0cf992b743eff33fe699b"},"clock.move":{"certificate":{"bound_product":null,"completeness":"Page","constraint_checks":["events:Unique(byId)"],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":[],"maintained_amplification":0,"max_closure_bytes":0,"max_examined":0,"max_heap_bytes":288,"max_index_entries":0,"max_output_bytes":6,"max_rule_probes":0,"max_steps":9,"plan_hash":"883707edfef50a0e04a929386ce5d286e94c7e3987e42c0e305c1478ee68c22e","prediction_sites":[],"program":"clock.move","read_sites":[],"read_time_granularity_ms":null,"rule_hashes":{"events.update":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"},"schema_hash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","tables":{"events":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[{"kind":"Update","max_rows":1,"table":"events"}]},"ir":{"args":{},"body":[{"Update":{"key":{"Literal":{"Id":"one"}},"patch":{"Object":{"at":{"Literal":{"Int":5}}}},"table":"events"}}],"kind":"Mutation","name":"clock.move","read_time_granularity_ms":null},"kind":"mutation","planHash":"883707edfef50a0e04a929386ce5d286e94c7e3987e42c0e305c1478ee68c22e"},"clock.read":{"certificate":{"bound_product":"clock.range take 10 (+2 reserve) × 1 calls on events = 12","completeness":"Page","constraint_checks":[],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["events.byAt"],"maintained_amplification":0,"max_closure_bytes":2012,"max_examined":12,"max_heap_bytes":2080,"max_index_entries":12,"max_output_bytes":2059,"max_rule_probes":0,"max_steps":65,"plan_hash":"6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637","prediction_sites":[],"program":"clock.read","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byAt","max_calls":1,"prefix_template":"Const","rule_probes_per_candidate":0,"site":"clock.range","table":"events","take":10}],"read_time_granularity_ms":1,"rule_hashes":{"events.read":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"},"schema_hash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","tables":{"events":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"ir":{"args":{},"body":[{"Return":{"Object":{"now":{"Input":"ReadTime"},"rows":{"Scan":{"after":null,"before":null,"index":"byAt","merge_site":null,"order":"Asc","prefix":[],"provenance":"Const","range":{"gt":null,"gte":null,"lt":{"Input":"ReadTime"},"lte":null},"site":"clock.range","table":"events","take":{"Literal":10}}}}}}],"kind":"Query","name":"clock.read","read_time_granularity_ms":1},"kind":"query","planHash":"6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637"}},"schema":{"maintains":[],"tables":{"events":{"columns":{"at":"Time","id":"Id"},"constraints":[],"indexes":{"byAt":{"components":[{"Column":"at"},{"Column":"id"}],"unique":false},"byId":{"components":[{"Column":"id"}],"unique":true}},"retain":"until-revoked","rules":{"delete":"Allow","insert":"Allow","read":"Allow","update":"Allow"}}}},"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243"},"first":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716995804,"rows":[{"$row":{"id":"one","table":"events"}}]},"generation":"69977204280adcdc093ba27f291566b16833132b00187cde44a525f395cc0f65","next":null,"planHash":"21e93d3e8c9b34e3bcefeceacaa68affd93227465ea0cf992b743eff33fe699b","protocol":1,"readTime":1788716995804,"receipt":{"absences":[],"ranges":[{"absence":false,"after":null,"before":null,"gt":null,"gte":null,"index":"byAt","lt":1,"lte":null,"order":"Asc","prefix":[],"rowIds":["one"],"ruleHash":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca","site":"clock.range","stop":"Exhausted","table":"events","take":10}],"verdicts":[]},"rows":[{"id":"one","row":{"at":0,"id":"one"},"table":"events"}],"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","seq":1,"state":"complete","validator":"baacad5079aa003367013a5eea9bc282f27737962582cdfa2dc4916e6c67cc5d"},"hole":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716995807,"rows":[]},"generation":"69977204280adcdc093ba27f291566b16833132b00187cde44a525f395cc0f65","next":null,"planHash":"21e93d3e8c9b34e3bcefeceacaa68affd93227465ea0cf992b743eff33fe699b","protocol":1,"readTime":1788716995807,"receipt":{"absences":[],"ranges":[{"absence":true,"after":null,"before":null,"gt":null,"gte":null,"index":"byAt","lt":1,"lte":null,"order":"Asc","prefix":[],"rowIds":[],"ruleHash":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca","site":"clock.range","stop":"Exhausted","table":"events","take":10}],"verdicts":[]},"rows":[],"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","seq":2,"state":"complete","validator":"2dc953591057dd7991e8fa7d592158d464586144b5af2d5c1ded0fa0e2c44dc3"},"moved":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716995807,"rows":[{"$row":{"id":"one","table":"events"}}]},"generation":"69977204280adcdc093ba27f291566b16833132b00187cde44a525f395cc0f65","next":null,"planHash":"6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637","protocol":1,"readTime":1788716995807,"receipt":{"absences":[],"ranges":[{"absence":false,"after":null,"before":null,"gt":null,"gte":null,"index":"byAt","lt":1788716995807,"lte":null,"order":"Asc","prefix":[],"rowIds":["one"],"ruleHash":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca","site":"clock.range","stop":"Exhausted","table":"events","take":10}],"verdicts":[]},"rows":[{"id":"one","row":{"at":5,"id":"one"},"table":"events"}],"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","seq":2,"state":"complete","validator":"2ac48e5ecc12ea97becf220860df5baa61d8c2f9a776aa922393d04557567526"}},"revocation":{"program":{"generation":"fc90f84721d7cef22bebfc12c6708f1acd3ded5968658005da11a84b2e78633b","programs":{"anchor":{"certificate":{"bound_product":"anchor.0 point read on docs × 1 calls = 1","completeness":"Page","constraint_checks":[],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["docs.byId"],"maintained_amplification":0,"max_closure_bytes":291,"max_examined":1,"max_heap_bytes":256,"max_index_entries":1,"max_output_bytes":308,"max_rule_probes":0,"max_steps":8,"plan_hash":"780feb21447c8b7a4b4e6a8eb287b855927a342907ccc6617e7d506d591aa801","prediction_sites":[],"program":"anchor","read_sites":[{"complete":false,"hoist":false,"index":"byId","max_calls":1,"prefix_template":"Arg","rule_probes_per_candidate":0,"site":"anchor.0","table":"docs","take":1}],"read_time_granularity_ms":null,"rule_hashes":{"docs.read":"46a861767f660a76dea9ca8772187ff9b16f0c6e0e2b0a8b78c20a8df2ab14f0"},"schema_hash":"bb96ea698ef2feea1a3213a0f46282d7a78ec02f6be40779600cf8d05877295d","tables":{"docs":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"ir":{"args":{"id":{"Ref":{"table":"docs"}}},"body":[{"Return":{"Object":{"row":{"Get":{"index":"byId","key":[{"Variable":"id"}],"provenance":"Arg","site":"anchor.0","table":"docs"}}}}}],"kind":"Query","name":"anchor","read_time_granularity_ms":null},"kind":"query","planHash":"780feb21447c8b7a4b4e6a8eb287b855927a342907ccc6617e7d506d591aa801"},"hide":{"certificate":{"bound_product":null,"completeness":"Page","constraint_checks":["docs:Unique(byId)"],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":[],"maintained_amplification":0,"max_closure_bytes":0,"max_examined":0,"max_heap_bytes":352,"max_index_entries":0,"max_output_bytes":6,"max_rule_probes":0,"max_steps":11,"plan_hash":"8a28392447df362c4924c21ffbbd564db7515dac8f985c81eb5948beb2793032","prediction_sites":[],"program":"hide","read_sites":[],"read_time_granularity_ms":null,"rule_hashes":{"docs.update":"fe5e495a3321ed41996d60acc976ed6ad838038f8599bbce68688d639c5807bc"},"schema_hash":"bb96ea698ef2feea1a3213a0f46282d7a78ec02f6be40779600cf8d05877295d","tables":{"docs":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[{"kind":"Update","max_rows":1,"table":"docs"}]},"ir":{"args":{"id":{"Ref":{"table":"docs"}}},"body":[{"Update":{"key":{"Variable":"id"},"patch":{"Object":{"visible":{"Literal":{"Bool":false}}}},"table":"docs"}},{"Return":{"Literal":"Null"}}],"kind":"Mutation","name":"hide","read_time_granularity_ms":null},"kind":"mutation","planHash":"8a28392447df362c4924c21ffbbd564db7515dac8f985c81eb5948beb2793032"},"timed":{"certificate":{"bound_product":"timed.0 point read on docs × 1 calls = 1","completeness":"Page","constraint_checks":[],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["docs.byId"],"maintained_amplification":0,"max_closure_bytes":323,"max_examined":1,"max_heap_bytes":288,"max_index_entries":1,"max_output_bytes":347,"max_rule_probes":0,"max_steps":9,"plan_hash":"da50e8d5ff17ea9636993286bdf755cab7436fc4ca46081734b7e21765ee7527","prediction_sites":[],"program":"timed","read_sites":[{"complete":false,"hoist":false,"index":"byId","max_calls":1,"prefix_template":"Arg","rule_probes_per_candidate":0,"site":"timed.0","table":"docs","take":1}],"read_time_granularity_ms":1,"rule_hashes":{"docs.read":"46a861767f660a76dea9ca8772187ff9b16f0c6e0e2b0a8b78c20a8df2ab14f0"},"schema_hash":"bb96ea698ef2feea1a3213a0f46282d7a78ec02f6be40779600cf8d05877295d","tables":{"docs":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"ir":{"args":{"id":{"Ref":{"table":"docs"}}},"body":[{"Return":{"Object":{"now":{"Input":"ReadTime"},"row":{"Get":{"index":"byId","key":[{"Variable":"id"}],"provenance":"Arg","site":"timed.0","table":"docs"}}}}}],"kind":"Query","name":"timed","read_time_granularity_ms":1},"kind":"query","planHash":"da50e8d5ff17ea9636993286bdf755cab7436fc4ca46081734b7e21765ee7527"}},"schema":{"maintains":[],"tables":{"docs":{"columns":{"body":{"Text":{"max":20}},"id":"Id","visible":"Bool"},"constraints":[],"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"retain":"until-revoked","rules":{"delete":"Allow","insert":"Allow","read":{"Eq":[{"Field":"visible"},{"Literal":{"Bool":true}}]},"update":"Allow"}}}},"schemaHash":"bb96ea698ef2feea1a3213a0f46282d7a78ec02f6be40779600cf8d05877295d"},"first":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716864581,"row":{"$row":{"id":"one","table":"docs"}}},"generation":"fc90f84721d7cef22bebfc12c6708f1acd3ded5968658005da11a84b2e78633b","next":null,"planHash":"da50e8d5ff17ea9636993286bdf755cab7436fc4ca46081734b7e21765ee7527","protocol":1,"readTime":1788716864581,"receipt":{"absences":[],"ranges":[],"verdicts":[]},"rows":[{"id":"one","row":{"body":"secret","id":"one","visible":true},"table":"docs"}],"schemaHash":"bb96ea698ef2feea1a3213a0f46282d7a78ec02f6be40779600cf8d05877295d","seq":1,"state":"complete","validator":"1897551e0dd44ce2ab8f336e165152ff048846c9cc96037235b7935282480981"},"last":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716864590,"row":null},"generation":"fc90f84721d7cef22bebfc12c6708f1acd3ded5968658005da11a84b2e78633b","next":null,"planHash":"da50e8d5ff17ea9636993286bdf755cab7436fc4ca46081734b7e21765ee7527","protocol":1,"readTime":1788716864590,"receipt":{"absences":[],"ranges":[],"verdicts":[]},"rows":[],"schemaHash":"bb96ea698ef2feea1a3213a0f46282d7a78ec02f6be40779600cf8d05877295d","seq":2,"state":"complete","validator":"b9ebe1e2eace70cbe1f34fe77f58e0a59a5444cbdbc4896ee70c89a80e930cb8"},"anchor":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"row":{"$row":{"id":"one","table":"docs"}}},"generation":"fc90f84721d7cef22bebfc12c6708f1acd3ded5968658005da11a84b2e78633b","next":null,"planHash":"780feb21447c8b7a4b4e6a8eb287b855927a342907ccc6617e7d506d591aa801","protocol":1,"receipt":{"absences":[],"ranges":[],"verdicts":[]},"rows":[{"id":"one","row":{"body":"secret","id":"one","visible":true},"table":"docs"}],"schemaHash":"bb96ea698ef2feea1a3213a0f46282d7a78ec02f6be40779600cf8d05877295d","seq":1,"state":"complete","validator":"9aacdd7434620746043606b9564118d8b3ea42492b616bd7502928a0d5f6b8aa"},"sourceSha256":{"program":"2a4065e46e6ded402c7680fec7a48092d99db68172a51b6a89b9ac2bcbcfc89a","first":"024ed61e41431a4576533eab4269a1e5224b773fed6bb6cf2e740af5fe431134","last":"e7bd99ce5195fca151cf4a5d8a33aecd9227c823cc3d5e90d61bf4a735b0b1ce","anchor":"ad01c5ae9fac378cceafb7fa3a36c5d7fbe3550bbe2af1e323ad4454b0548218"}},"halo":{"program":{"generation":"7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8","programs":{"clock.fixed":{"certificate":{"bound_product":"clock.range take 10 (+2 reserve) × 1 calls on events = 12","completeness":"Page","constraint_checks":[],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["events.byAt"],"maintained_amplification":0,"max_closure_bytes":2012,"max_examined":12,"max_heap_bytes":2048,"max_index_entries":12,"max_output_bytes":2059,"max_rule_probes":0,"max_steps":64,"plan_hash":"2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50","prediction_sites":[],"program":"clock.fixed","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byAt","max_calls":1,"prefix_template":"Const","rule_probes_per_candidate":0,"site":"clock.range","table":"events","take":10}],"read_time_granularity_ms":1,"rule_hashes":{"events.read":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"},"schema_hash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","tables":{"events":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"ir":{"args":{},"body":[{"Return":{"Object":{"now":{"Input":"ReadTime"},"rows":{"Scan":{"after":null,"before":null,"index":"byAt","merge_site":null,"order":"Asc","prefix":[],"provenance":"Const","range":null,"site":"clock.range","table":"events","take":{"Literal":10}}}}}}],"kind":"Query","name":"clock.fixed","read_time_granularity_ms":1},"kind":"query","planHash":"2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50"},"clock.read":{"certificate":{"bound_product":"clock.range take 10 (+2 reserve) × 1 calls on events = 12","completeness":"Page","constraint_checks":[],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["events.byAt"],"maintained_amplification":0,"max_closure_bytes":2012,"max_examined":12,"max_heap_bytes":2080,"max_index_entries":12,"max_output_bytes":2059,"max_rule_probes":0,"max_steps":65,"plan_hash":"6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637","prediction_sites":[],"program":"clock.read","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byAt","max_calls":1,"prefix_template":"Const","rule_probes_per_candidate":0,"site":"clock.range","table":"events","take":10}],"read_time_granularity_ms":1,"rule_hashes":{"events.read":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"},"schema_hash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","tables":{"events":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"ir":{"args":{},"body":[{"Return":{"Object":{"now":{"Input":"ReadTime"},"rows":{"Scan":{"after":null,"before":null,"index":"byAt","merge_site":null,"order":"Asc","prefix":[],"provenance":"Const","range":{"gt":null,"gte":null,"lt":{"Input":"ReadTime"},"lte":null},"site":"clock.range","table":"events","take":{"Literal":10}}}}}}],"kind":"Query","name":"clock.read","read_time_granularity_ms":1},"kind":"query","planHash":"6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637"},"remove":{"certificate":{"bound_product":null,"completeness":"Page","constraint_checks":["events:Unique(byId)"],"derived_scratch_bytes":0,"derived_steps":0,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":[],"maintained_amplification":0,"max_closure_bytes":0,"max_examined":0,"max_heap_bytes":288,"max_index_entries":0,"max_output_bytes":6,"max_rule_probes":0,"max_steps":9,"plan_hash":"b7259cd5070a45cb4084a80d3ac7bb2696c1dc1fcf6814fb42f53aaecfb937ca","prediction_sites":[],"program":"remove","read_sites":[],"read_time_granularity_ms":null,"rule_hashes":{"events.delete":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"},"schema_hash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","tables":{"events":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[{"kind":"Delete","max_rows":1,"table":"events"}]},"ir":{"args":{"id":{"Ref":{"table":"events"}}},"body":[{"Delete":{"key":{"Variable":"id"},"table":"events"}},{"Return":{"Literal":"Null"}}],"kind":"Mutation","name":"remove","read_time_granularity_ms":null},"kind":"mutation","planHash":"b7259cd5070a45cb4084a80d3ac7bb2696c1dc1fcf6814fb42f53aaecfb937ca"}},"schema":{"maintains":[],"tables":{"events":{"columns":{"at":"Time","id":"Id"},"constraints":[],"indexes":{"byAt":{"components":[{"Column":"at"},{"Column":"id"}],"unique":false},"byId":{"components":[{"Column":"id"}],"unique":true}},"retain":"until-revoked","rules":{"delete":"Allow","insert":"Allow","read":"Allow","update":"Allow"}}}},"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243"},"first":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716955206,"rows":[{"$row":{"id":"r0","table":"events"}},{"$row":{"id":"r1","table":"events"}},{"$row":{"id":"r2","table":"events"}},{"$row":{"id":"r3","table":"events"}},{"$row":{"id":"r4","table":"events"}},{"$row":{"id":"r5","table":"events"}},{"$row":{"id":"r6","table":"events"}},{"$row":{"id":"r7","table":"events"}},{"$row":{"id":"r8","table":"events"}},{"$row":{"id":"r9","table":"events"}}]},"generation":"7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8","next":null,"planHash":"2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50","protocol":1,"readTime":1788716955206,"receipt":{"absences":[],"ranges":[{"absence":false,"after":null,"before":null,"gt":null,"gte":null,"haloId":"halo","index":"byAt","lt":null,"lte":null,"order":"Asc","prefix":[],"rowIds":["r0","r1","r2","r3","r4","r5","r6","r7","r8","r9"],"ruleHash":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca","site":"clock.range","stop":"Limit","table":"events","take":10}],"verdicts":[]},"rows":[{"id":"halo","row":{"at":10,"id":"halo"},"table":"events"},{"id":"r0","row":{"at":0,"id":"r0"},"table":"events"},{"id":"r1","row":{"at":1,"id":"r1"},"table":"events"},{"id":"r2","row":{"at":2,"id":"r2"},"table":"events"},{"id":"r3","row":{"at":3,"id":"r3"},"table":"events"},{"id":"r4","row":{"at":4,"id":"r4"},"table":"events"},{"id":"r5","row":{"at":5,"id":"r5"},"table":"events"},{"id":"r6","row":{"at":6,"id":"r6"},"table":"events"},{"id":"r7","row":{"at":7,"id":"r7"},"table":"events"},{"id":"r8","row":{"at":8,"id":"r8"},"table":"events"},{"id":"r9","row":{"at":9,"id":"r9"},"table":"events"}],"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","seq":1,"state":"capped","validator":"065de77b5e334c275d8ac093c39dcd8e7a51fb4e73c1e3a11162b8a6482c0761"},"last":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716955215,"rows":[{"$row":{"id":"r0","table":"events"}},{"$row":{"id":"r1","table":"events"}},{"$row":{"id":"r2","table":"events"}},{"$row":{"id":"r3","table":"events"}},{"$row":{"id":"r4","table":"events"}},{"$row":{"id":"r5","table":"events"}},{"$row":{"id":"r6","table":"events"}},{"$row":{"id":"r7","table":"events"}},{"$row":{"id":"r8","table":"events"}},{"$row":{"id":"r9","table":"events"}}]},"generation":"7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8","next":null,"planHash":"2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50","protocol":1,"readTime":1788716955215,"receipt":{"absences":[],"ranges":[{"absence":false,"after":null,"before":null,"gt":null,"gte":null,"index":"byAt","lt":null,"lte":null,"order":"Asc","prefix":[],"rowIds":["r0","r1","r2","r3","r4","r5","r6","r7","r8","r9"],"ruleHash":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca","site":"clock.range","stop":"Exhausted","table":"events","take":10}],"verdicts":[]},"rows":[{"id":"r0","row":{"at":0,"id":"r0"},"table":"events"},{"id":"r1","row":{"at":1,"id":"r1"},"table":"events"},{"id":"r2","row":{"at":2,"id":"r2"},"table":"events"},{"id":"r3","row":{"at":3,"id":"r3"},"table":"events"},{"id":"r4","row":{"at":4,"id":"r4"},"table":"events"},{"id":"r5","row":{"at":5,"id":"r5"},"table":"events"},{"id":"r6","row":{"at":6,"id":"r6"},"table":"events"},{"id":"r7","row":{"at":7,"id":"r7"},"table":"events"},{"id":"r8","row":{"at":8,"id":"r8"},"table":"events"},{"id":"r9","row":{"at":9,"id":"r9"},"table":"events"}],"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","seq":2,"state":"complete","validator":"7cfffc5b1e8f8c873891f75c5e026ad3e0906f15fb1f91c07889ae18d84a0cbb"},"anchor":{"authority":{"authEpoch":0,"principal":"dev:alice"},"data":{"now":1788716955201,"rows":[{"$row":{"id":"r0","table":"events"}},{"$row":{"id":"r1","table":"events"}},{"$row":{"id":"r2","table":"events"}},{"$row":{"id":"r3","table":"events"}},{"$row":{"id":"r4","table":"events"}},{"$row":{"id":"r5","table":"events"}},{"$row":{"id":"r6","table":"events"}},{"$row":{"id":"r7","table":"events"}},{"$row":{"id":"r8","table":"events"}},{"$row":{"id":"r9","table":"events"}}]},"generation":"7a96c3187569ca1f9a3369fb9f297bc40485b38945cfaedd5556f461bf1721a8","next":null,"planHash":"6cf114cc8cf78b10a652aee9ed78463712e1528c0d4056715773fb498911b637","protocol":1,"readTime":1788716955201,"receipt":{"absences":[],"ranges":[{"absence":false,"after":null,"before":null,"gt":null,"gte":null,"haloId":"halo","index":"byAt","lt":1788716955201,"lte":null,"order":"Asc","prefix":[],"rowIds":["r0","r1","r2","r3","r4","r5","r6","r7","r8","r9"],"ruleHash":"75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca","site":"clock.range","stop":"Limit","table":"events","take":10}],"verdicts":[]},"rows":[{"id":"halo","row":{"at":10,"id":"halo"},"table":"events"},{"id":"r0","row":{"at":0,"id":"r0"},"table":"events"},{"id":"r1","row":{"at":1,"id":"r1"},"table":"events"},{"id":"r2","row":{"at":2,"id":"r2"},"table":"events"},{"id":"r3","row":{"at":3,"id":"r3"},"table":"events"},{"id":"r4","row":{"at":4,"id":"r4"},"table":"events"},{"id":"r5","row":{"at":5,"id":"r5"},"table":"events"},{"id":"r6","row":{"at":6,"id":"r6"},"table":"events"},{"id":"r7","row":{"at":7,"id":"r7"},"table":"events"},{"id":"r8","row":{"at":8,"id":"r8"},"table":"events"},{"id":"r9","row":{"at":9,"id":"r9"},"table":"events"}],"schemaHash":"e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243","seq":1,"state":"capped","validator":"3e4954b42f7e402000a7f25952b9bf0093b538b38c2472955239f1327e0ba094"},"sourceSha256":{"program":"53c8d6dcfb03131f16bb56708c8414d53812b34bc00059d16a070360a197ebef","first":"b125bc9d577bfe95762368e8aab87ea8e4696fdd69b31d52edcee893adcbf417","last":"2207697b28ccd9c082e3b58c7224ae2ae3aaa2675415503de30fbc31e7c8949e","anchor":"67a995d1eb391ba11f4470a33502571433b0c7b2db5d203a9f2b437bd262b507"}},"words":{"sourceSha256":"04c0306596e8b711538e7df4e1a41530c9fb48d19736424b1a61d131b81a4e59","case":{"corpusVersion":1,"name":"search-words-unicode","category":"unicode-search","randomSeed":null,"schema":{"tables":{"conversations":{"columns":{"id":"Id","title":{"Text":{"max":50}}},"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true}},"rules":{"read":{"Public":{"reason":"conversations is public in Quarry"}},"insert":"Deny","update":"Deny","delete":"Deny"},"constraints":[],"retain":"until-revoked"},"memberships":{"columns":{"conversation":{"Ref":{"table":"conversations"}},"id":"Id","principal":"Principal"},"indexes":{"byConversationPrincipal":{"components":[{"Column":"conversation"},{"Column":"principal"}],"unique":true},"byId":{"components":[{"Column":"id"}],"unique":true},"byPrincipal":{"components":[{"Column":"principal"},{"Column":"conversation"},{"Column":"id"}],"unique":false}},"rules":{"read":{"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}},"insert":"Deny","update":"Deny","delete":"Deny"},"constraints":[{"Unique":{"index":"byConversationPrincipal"}},{"Cap":{"by":["principal"],"max":100}}],"retain":"until-revoked"},"messages":{"columns":{"at":"Time","body":{"Optional":{"Text":{"max":4000}}},"caption":{"Optional":{"Text":{"max":50}}},"conversation":{"Ref":{"table":"conversations"}},"id":"Id"},"indexes":{"byConversationWords":{"components":[{"Column":"conversation"},{"WordPrefixes":{"fields":["body","caption"],"contract":"u17-nfc-scf-nfc-wsp-p"}},{"Column":"at"},{"Column":"id"}],"unique":false},"byId":{"components":[{"Column":"id"}],"unique":true}},"rules":{"read":{"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}},"insert":"Deny","update":"Deny","delete":"Deny"},"constraints":[],"retain":"until-revoked"},"people":{"columns":{"handle":{"Optional":{"Text":{"max":20}}},"id":"Id","name":{"Text":{"max":50}}},"indexes":{"byId":{"components":[{"Column":"id"}],"unique":true},"byNameWords":{"components":[{"WordPrefixes":{"fields":["name","handle"],"contract":"u17-nfc-scf-nfc-wsp-p"}},{"Column":"id"}],"unique":false}},"rules":{"read":{"Public":{"reason":"people is public in Quarry"}},"insert":"Deny","update":"Deny","delete":"Deny"},"constraints":[],"retain":"until-revoked"}},"maintains":[]},"program":{"name":"search.tokenize","kind":"Query","args":{"body":{"Optional":{"Text":{"max":50}}}},"read_time_granularity_ms":null,"body":[{"Const":{"name":"terms","value":{"Builtin":{"builtin":"Words","args":[{"Variable":"body"}]}}}},{"Return":{"Variable":"terms"}}]},"certificate":{"program":"search.tokenize","plan_hash":"485d759146134d1d4b43e558cdae962cd921414ca3b91e62f3a2f7d943912cd2","schema_hash":"4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3","tables":{"conversations":{"retain":"until-revoked"},"memberships":{"retain":"until-revoked"},"messages":{"retain":"until-revoked"},"people":{"retain":"until-revoked"}},"rule_hashes":{},"evaluator_version":"bounded-spike-rust-search-text-refinements-5","value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","read_sites":[],"write_sites":[],"maintained_amplification":0,"constraint_checks":[],"max_examined":0,"max_index_entries":0,"max_rule_probes":0,"max_steps":10136,"derived_steps":10131,"derived_scratch_bytes":25316,"max_heap_bytes":25476,"max_output_bytes":2529,"max_closure_bytes":2529,"completeness":"Page","prediction_sites":[],"read_time_granularity_ms":null,"halo_rows":1,"indexes_required":[],"disclosures":[],"bound_product":null},"context":{"viewer":"alice","principal_kind":"user","auth_epoch":1,"args":{"body":{"String":"Straße STRASSE café CAFÉ 漢字"}},"now":null,"new_ids":[],"read_time":null},"receipt":{"schema_hash":"4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3","rows":[],"ranges":[],"absences":[],"verdicts":[]},"prelude":[],"replacementReceipt":null,"expected":{"localResult":{"Array":[{"String":"straße"},{"String":"strasse"},{"String":"café"},{"String":"漢字"}]},"errorCode":null,"localState":"fresh","partialSites":[],"canonicalResult":"{\"Array\":[{\"String\":\"straße\"},{\"String\":\"strasse\"},{\"String\":\"café\"},{\"String\":\"漢字\"}]}","digest":"acd6e8b92eb1360727b761e7937656dcd53dcd46bbc98dafd6e7b2afec651509","rangeStops":{},"evictedRows":null,"next":null}}}}
+}

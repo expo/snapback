@@ -15,6 +15,13 @@ and [LLP 1000](./llp/1000-snapback2.explainer.md). Nothing below this line about
 gates, inventories, bootstraps, or proofs applies there; its LLPs are numbered
 1000 and up.
 
+**Working on Snapback 3?** It lives in [`snapback3/`](./snapback3/README.md)
+in this checkout, beside Snapback 2 and Snapback 4. Read
+[`snapback3/AGENTS.md`](./snapback3/AGENTS.md) and
+[LLP 2000](./llp/2000-snapback3.rfc.md). Its LLPs are numbered 2000–2999.
+It has independent Cargo and JavaScript workspaces; the Snapback 1 and 2
+gates, inventories, and runtime bootstraps do not apply inside that fence.
+
 **Working on Snapback 4?** It lives in [`snapback4/`](./snapback4/README.md)
 behind its own fence: read [`snapback4/AGENTS.md`](./snapback4/AGENTS.md),
 [LLP 3000](./llp/3000-snapback4.explainer.md), [`snapback4/NOT-DOING.md`](./snapback4/NOT-DOING.md)

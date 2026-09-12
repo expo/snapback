@@ -1,0 +1,33 @@
+{
+  "name": "snapback3",
+  "version": "0.0.1-experimental.0",
+  "private": true,
+  "description": "Experimental Snapback 3 compiler, client, and local application server",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "files": ["dist", "LICENSE"],
+  "bin": { "snapback3": "dist/cli.mjs" },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./compiler": {
+      "types": "./dist/compiler-api.d.ts",
+      "import": "./dist/compiler-api.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.mjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.mjs"
+    }
+  },
+  "peerDependencies": { "react": "^19.0.0" },
+  "peerDependenciesMeta": { "react": { "optional": true } },
+  "dependencies": { "typescript": "5.9.2" },
+  "scripts": { "build": "node ../../build.mjs" }
+}

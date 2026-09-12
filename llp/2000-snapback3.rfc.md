@@ -1,13 +1,13 @@
 # LLP 2000: Snapback 3 — the whole application as the unit of design
 
 **Type:** RFC
-**Status:** Draft
-**Role:** Proposed root of the Snapback 3 corpus
+**Status:** Accepted
+**Role:** Root of the commissioned Snapback 3 experiment
 **Systems:** Snapback 3 product architecture, authoring, client, authorization,
 live data, offline behavior, performance, developer tools, deployment and operations
 **Author:** Codex / GPT-6 Astra, at Charlie Cheever's request
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (initial proposal from the Snapback 3 discussion)
+**Revised:** 2026-09-12 (commissioned experiment; first runnable slice and qualification)
 **Related:** LLP 2000.000 (second opinion: keep the core, flip two substrates), LLP 3000 (Snapback 4, the sibling candidate that builds it), LLP 0000, LLP 0329, LLP 1000, LLP 1014, LLP 1018,
 LLP 1018.008, LLP 1018.008.008, LLP 1018.008.009, LLP 1020, LLP 1023
 
@@ -32,6 +32,13 @@ turns out well. That is the author direction behind this document. The
 architecture preferences, reference applications, experimental sequence, and
 evaluation criteria below are proposed by Codex; they are not measured results
 or separately ratified technical decisions.
+
+Charlie subsequently explicitly commissioned implementation, permitted reuse
+from Snapback 2, and commissioned Fable's independent Snapback 4 attempt for
+comparison. Acceptance here records authorization for this experiment; it
+does not claim the proposed architecture has met its product goals. He also
+requested side-by-side directories in the main checkout and Oxc/Rolldown or
+TypeScript instead of esbuild absent a specific reason to choose otherwise.
 
 The first implementation experiment should combine a composed live screen,
 durable offline editing, cold acquisition, and a schema change with pending
@@ -428,3 +435,103 @@ does not establish that outcome.
 Resolve these through the first slice and record selected mechanisms and
 their evidence here. The experiment begins with a product promise and
 concrete interactions; its final architecture remains something to discover.
+
+## 13. First implementation choices
+
+Work lives in `snapback3/`, with independent Cargo and Bun workspaces and
+private per-application state in `.snapback3/`. Snapback 1 stays in its existing
+root layout. Snapback 2 and Snapback 4 stay independent sibling directories.
+The copied compiler, Rust core, evaluator, Unicode data, and corpus come from
+Snapback 2 at `a93edb979a5cbe6357f1fc1f95b66f85bd308844`; copying that foundation
+preserves tested semantics while the product's division of responsibility changes.
+
+Start with Quarry and existing static certification. Use Rolldown for bundles
+and TypeScript for type checks. A Node owner manages compilation, HTTP, and
+the development loop; a private Rust child owns the SQLite connection and
+executes certified operations serially. Only named authenticated operations
+reach clients. Private traces, raw storage, seed installation, and successor
+installation are not public HTTP APIs. Unsupported runtime capabilities are
+refused at admission, even when inherited syntax can compile them.
+
+The client owns independently complete query resources, a shared normalized
+authorized fact pool, and evidence for local evaluation. Completeness and
+freshness remain separate. Evidence from different revisions is not silently
+combined into a current snapshot. Missing summary evidence produces an unknown
+summary, and does not erase known messages. Receipts are SDK implementation
+details. This is the first alternative to the partition replica proposed in
+[LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md).
+
+The Node owner sends complete, independent resource replacements over an
+authenticated POST SSE stream. Reads in one owner batch share its sequence;
+errors belong to the affected resource. Ordinary commits refresh values directly
+without a whole-screen invalidation gap. Connections have bounded demand, frame
+size, backlog, and heartbeat authentication. Account changes, old sequences, and
+superseded manifest responses are fenced by the client.
+
+Positive fact admission stages only the incoming batch, persists it in one
+IndexedDB transaction, then publishes it. Normalized row and resource stores avoid
+rewriting the complete cache for every page. A denial or negative projection change
+redacts previous data immediately, including when persistence fails; the client
+attempts a smaller durable cache clear and keeps the error visible. Resource-owned
+projection identity survives fact-pool renewal so a complete empty result cannot
+accidentally leave a revoked row on screen. Durable terminal sequences constrain
+cold reopen as well as live delivery.
+
+The served surface currently includes authenticated persisted queries and
+mutations. Clock-sensitive live queries and connected presence are refused along
+with effects, jobs, schedules, channels, and media because their live/runtime
+owners do not yet exist. Mutation timestamps work. Compiler acceptance alone
+does not widen this runtime contract.
+
+Fixture import is a private administrative path with a 64 MiB input limit,
+150,000 supplied rows, 10,000 personas, and explicit larger certification budgets
+that account for maintained writes. Ordinary operation ceilings remain unchanged.
+Imported application rows still pass the same validator and commit atomically.
+The new seed API leaves the inherited ordinary seed budget unchanged; native
+delivery expansion still applies its inherited custody budget. The present hub
+fixture has no delivery declarations.
+
+### Durable operation ownership
+
+The application requests a mutation once. Before transmission the client
+durably saves an immutable operation ID, program identity, and arguments.
+The server authenticates every attempt and scopes identity to that principal.
+It looks up a stored terminal before resolving the current program: a lost
+reply remains recoverable after an upgrade. Reusing an ID with different
+request content is refused. An uncommitted operation whose program identity
+changed is parked for an explicit resolution, never silently reinterpreted.
+
+Mutation data and its terminal receipt commit in the same SQLite transaction.
+Generated row IDs derive deterministically from the principal, intent, and
+ordinal, so retry needs no client grant allocator. The operation ledger has
+no automatic age-based deletion: any future retention policy needs an explicit
+expiry contract that also prevents an expired ID from executing again.
+Legacy grant replay remains an internal inherited compatibility path, not a
+second public write protocol.
+
+IDs are allocated lazily as an operation consumes them, with a 4,096-ID bound,
+rather than constructing a full grant-sized string queue for every mutation.
+After the terminal receipt is durable, an `observing` phase keeps accepted work
+visible until relevant active queries have observed its commit. A removed query,
+account transition, or new program generation cannot strand that phase. Transient
+transport and owner-capacity failures preserve the same identity for retry;
+application refusals and program-identity changes have explicit terminal or parked
+states. Retained operation handles are sealed across account changes.
+
+Commonroom owns its offline application shell separately from client data. A
+successful first online visit installs integrity-checked, versioned HTML, JS, and
+CSS. Its service worker never caches API responses and activates updates after
+older tabs close, without forcing a reload. The real-browser witness disconnects
+the entire network, closes and reopens the page, and recovers the same saved
+operation exactly once after reconnect. A separate update witness checks waiting
+workers, cache boundaries, and draft continuity.
+
+The hub fixture and day-two changes belong in early evaluation, as Fable's
+critique proposes. None of these implementation choices establishes a win:
+measure a working screen, durable recovery, acquisition cost, and the builder's
+whole experience before treating them as settled improvements.
+
+The first implementation, its observed friction, and the scoped hub measurement
+are recorded in [Diary 0120](../diaries/0120-snapback3-commonroom.diary.md).
+The working slice and [builder guide](../snapback3/guide.md) provide the starting
+point for further implementation and the sibling comparison.

@@ -1,0 +1,285 @@
+{
+  "corpusVersion": 1,
+  "name": "write-alternate-key-missing",
+  "category": "write",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "id": "Id",
+          "label": {
+            "Text": {
+              "max": 40
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byLabel": {
+            "components": [
+              {
+                "Column": "label"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "writeAlternateKeyMissing",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "current",
+          "value": {
+            "Get": {
+              "site": "write.alternate.lookup",
+              "table": "items",
+              "index": "byLabel",
+              "key": [
+                {
+                  "Literal": {
+                    "String": "missing"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Require": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "current"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "code": "NOT_FOUND"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "writeAlternateKeyMissing",
+    "plan_hash": "669e764e7c2e8f712f64f2e23fb48afb223f2a13ca39891cfda3a6b4343bd9ce",
+    "schema_hash": "3c599a9d6ec003263bd8a97d398f7056c38d71a6b49025cd0743d17555aecd96",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "items.read": "e1f80eea22131af041ac1d4aabac4278bb0c1708f36abdc6966a212d14269614"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "write.alternate.lookup",
+        "table": "items",
+        "index": "byLabel",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "mutation_targets": {
+      "targets": [],
+      "complete": true
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 0,
+    "max_steps": 11,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 352,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "items.byLabel"
+    ],
+    "disclosures": [],
+    "bound_product": "write.alternate.lookup point read on items × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "write.alternate.lookup point read on items × 1 calls",
+        "site": "write.alternate.lookup"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "write.alternate.lookup point read on items × 1 calls",
+        "site": "write.alternate.lookup"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "write.alternate.lookup point read on items × 1 calls × 4",
+        "site": "write.alternate.lookup"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "writeAlternateKeyMissing:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "writeAlternateKeyMissing:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "writeAlternateKeyMissing:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "writeAlternateKeyMissing:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "write.alternate.lookup point read on items × 1 calls × 4 × 32",
+        "site": "write.alternate.lookup"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "writeAlternateKeyMissing:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "writeAlternateKeyMissing:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "writeAlternateKeyMissing:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "writeAlternateKeyMissing:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "3c599a9d6ec003263bd8a97d398f7056c38d71a6b49025cd0743d17555aecd96",
+    "rows": [],
+    "ranges": [],
+    "absences": [
+      [
+        "items",
+        "byLabel",
+        [
+          {
+            "String": "missing"
+          }
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": "NOT_FOUND",
+    "localState": "rejected",
+    "partialSites": [],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

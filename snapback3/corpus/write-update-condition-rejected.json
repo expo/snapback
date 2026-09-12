@@ -1,0 +1,341 @@
+{
+  "corpusVersion": 1,
+  "name": "write-update-condition-rejected",
+  "category": "write",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "id": "Id",
+          "label": {
+            "Text": {
+              "max": 40
+            }
+          }
+        },
+        "indexes": {
+          "byAId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byLabel": {
+            "components": [
+              {
+                "Column": "label"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "guarded.update",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Check": {
+          "condition": {
+            "Literal": {
+              "Bool": false
+            }
+          },
+          "current": {
+            "site": "current",
+            "table": "items",
+            "index": "byId",
+            "key": [
+              {
+                "Literal": {
+                  "Id": "old"
+                }
+              }
+            ],
+            "provenance": "Const"
+          }
+        }
+      },
+      {
+        "Delete": {
+          "table": "items",
+          "key": {
+            "Literal": {
+              "Id": "old"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "guarded.update",
+    "plan_hash": "5823f925ec7ae431aed1b4928565a1184e9aac49f846b04bd412793bea7231e4",
+    "schema_hash": "b1e8d740838ccc4ba97fd1f377af5748bfdab378591d8772b881e9e85d96f434",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "items.delete": "10169884768acb0601566f669741fceca05fb0716f87ff4a6789b2af16dbbad2",
+      "items.read": "10169884768acb0601566f669741fceca05fb0716f87ff4a6789b2af16dbbad2"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "current",
+        "table": "items",
+        "index": "byId",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "items",
+        "kind": "Delete",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "items",
+          "kind": "remove",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "items:Unique(byAId)",
+      "items:Unique(byId)",
+      "items:Unique(byLabel)"
+    ],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 0,
+    "max_steps": 15,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 480,
+    "max_output_bytes": 345,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "items.byId"
+    ],
+    "disclosures": [],
+    "bound_product": "current point read on items × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "current point read on items × 1 calls",
+        "site": "current"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "current point read on items × 1 calls",
+        "site": "current"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "items Delete writes",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "current point read on items × 1 calls × 4",
+        "site": "current"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "items Delete writes × 32",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "current point read on items × 1 calls × 4 × 32",
+        "site": "current"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 150,
+        "source": "items.id (150 bytes; 6 field-name/framing + items declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 185,
+        "source": "items.label (185 bytes; 9 field-name/framing + text max 40 scalars: encoded value bound 176)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "items row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "items Delete",
+        "site": "guarded.update:statement:2"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "b1e8d740838ccc4ba97fd1f377af5748bfdab378591d8772b881e9e85d96f434",
+    "rows": [
+      {
+        "table": "items",
+        "id": "old",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "old"
+            },
+            "label": {
+              "String": "same"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": "E_CONFLICT",
+    "localState": "rejected",
+    "partialSites": [],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

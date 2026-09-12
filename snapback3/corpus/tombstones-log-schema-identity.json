@@ -1,0 +1,399 @@
+{
+  "corpusVersion": 1,
+  "name": "tombstones-log-schema-identity",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "at": "Time",
+          "id": "Id",
+          "kind": {
+            "Enum": {
+              "variants": [
+                "message",
+                "edit",
+                "removed",
+                "expired"
+              ]
+            }
+          },
+          "messageId": {
+            "Ref": {
+              "table": "messages"
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byMessageAt": {
+            "components": [
+              {
+                "Column": "messageId"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked",
+        "tombstones": [
+          {
+            "table": "messages",
+            "column": "messageId",
+            "when": {
+              "Or": [
+                {
+                  "Eq": [
+                    {
+                      "Field": "kind"
+                    },
+                    {
+                      "Literal": {
+                        "String": "removed"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "Eq": [
+                    {
+                      "Field": "kind"
+                    },
+                    {
+                      "Literal": {
+                        "String": "expired"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "messages": {
+        "columns": {
+          "body": {
+            "Text": {
+              "max": 256
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "tombstones-log-schema-identity",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "deliveries.forMessage",
+            "table": "deliveries",
+            "index": "byMessageAt",
+            "prefix": [
+              {
+                "Scalar": {
+                  "Literal": {
+                    "Id": "m1"
+                  }
+                }
+              }
+            ],
+            "order": "Asc",
+            "take": {
+              "Literal": 10
+            },
+            "after": null,
+            "before": null,
+            "range": null,
+            "merge_site": null,
+            "provenance": "Const"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "tombstones-log-schema-identity",
+    "plan_hash": "aa04bb74015d36b87acca61bbe1fc31bff21f1daaab180605cdfd19c9d47ce8e",
+    "schema_hash": "8fcfffb826c959091ac60f5d5fac03ac07fae356755b63acb43dcd17366bbf02",
+    "tables": {
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "deliveries.read": "be134aef004c8cb0632dafd4e74523c7f5f0ba64dd7f621380b309567f36a1e5"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "deliveries.forMessage",
+        "table": "deliveries",
+        "index": "byMessageAt",
+        "prefix_template": "Const",
+        "take": 10,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 12,
+    "max_index_entries": 12,
+    "max_rule_probes": 0,
+    "max_steps": 63,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 2016,
+    "max_output_bytes": 3882,
+    "max_closure_bytes": 3860,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "deliveries.byMessageAt"
+    ],
+    "disclosures": [],
+    "bound_product": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries = 12",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 12,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "index entries",
+        "value": 12,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries × 5",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries × 5 × 32",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 380,
+        "source": "10 × deliveries.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1500,
+        "source": "10 × deliveries.id (150 bytes each; 6 field-name/framing + deliveries declared identity 144)",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 310,
+        "source": "10 × deliveries.kind (31 bytes each; 8 field-name/framing + enum maximum 23 (escaped value maximum 20))",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1570,
+        "source": "10 × deliveries.messageId (157 bytes each; 13 field-name/framing + messages declared identity 144)",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 100,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 22,
+        "source": "deliveries first 10 at deliveries.forMessage: framing/shared encoding/growth adjustment",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 380,
+        "source": "10 × deliveries.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1500,
+        "source": "10 × deliveries.id (150 bytes each; 6 field-name/framing + deliveries declared identity 144)",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 310,
+        "source": "10 × deliveries.kind (31 bytes each; 8 field-name/framing + enum maximum 23 (escaped value maximum 20))",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1570,
+        "source": "10 × deliveries.messageId (157 bytes each; 13 field-name/framing + messages declared identity 144)",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 100,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "deliveries.forMessage"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "8fcfffb826c959091ac60f5d5fac03ac07fae356755b63acb43dcd17366bbf02",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "deliveries.forMessage"
+    ],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "deliveries.forMessage": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

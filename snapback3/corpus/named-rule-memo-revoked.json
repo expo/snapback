@@ -1,0 +1,468 @@
+{
+  "corpusVersion": 1,
+  "name": "named-rule-memo-revoked",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "actions": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": {
+            "Exists": {
+              "table": "grants",
+              "index": "byPrincipal",
+              "key": [
+                "Viewer"
+              ],
+              "provenance": "Viewer"
+            }
+          },
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "docs": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "grants",
+              "index": "byPrincipal",
+              "key": [
+                "Viewer"
+              ],
+              "provenance": "Viewer"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "grants": {
+        "columns": {
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "components": [
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "actions.afterRevoke",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "probe",
+          "value": {
+            "Get": {
+              "site": "memo.doc",
+              "table": "docs",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "doc-1"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Delete": {
+          "table": "grants",
+          "key": {
+            "Literal": {
+              "Id": "grant-1"
+            }
+          }
+        }
+      },
+      {
+        "Insert": {
+          "table": "actions",
+          "row": {
+            "Literal": {
+              "Row": {
+                "id": {
+                  "Id": "action-1"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "actions.afterRevoke",
+    "plan_hash": "9d7f8c459fb6622403a4900fdcba166ee9b99825def1f93df6307dc8dc39c473",
+    "schema_hash": "d29338edfd78fa18ec1a969856e488b2fa388260b881f2037c9bc348791d09a9",
+    "tables": {
+      "actions": {
+        "retain": "until-revoked"
+      },
+      "docs": {
+        "retain": "until-revoked"
+      },
+      "grants": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "actions.insert": "6de22694d2e41cbe361b47190bba810003f6cbdf532cb88adef8b51f8bc7cc36",
+      "docs.read": "6de22694d2e41cbe361b47190bba810003f6cbdf532cb88adef8b51f8bc7cc36",
+      "grants.delete": "82042e944093f90611662f6f97339eed88659df896a42c295b552025f6152787"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "memo.doc",
+        "table": "docs",
+        "index": "byId",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "grants",
+        "kind": "Delete",
+        "max_rows": 1
+      },
+      {
+        "table": "actions",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "actions",
+          "kind": "create",
+          "unresolved": "computed"
+        },
+        {
+          "table": "grants",
+          "kind": "remove",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "actions:Unique(byId)",
+      "grants:Unique(byId)",
+      "grants:Unique(byPrincipal)"
+    ],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 2,
+    "max_steps": 21,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 672,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "docs.byId",
+      "grants.byPrincipal"
+    ],
+    "disclosures": [],
+    "bound_product": "memo.doc point read on docs × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "memo.doc point read on docs × 1 calls",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "memo.doc point read on docs × 1 calls",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "actions Insert rules/final constraints: 1 calls × 1 rule probes",
+        "site": "actions Insert rules/final constraints"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "memo.doc: 1 calls × 1 rule probes",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "actions Insert writes",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "grants Delete writes",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "memo.doc point read on docs × 1 calls × 4",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "actions Insert writes × 32",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "grants Delete writes × 32",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "memo.doc point read on docs × 1 calls × 4 × 32",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "grants Delete",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "actions Insert",
+        "site": "actions.afterRevoke:statement:3"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "d29338edfd78fa18ec1a969856e488b2fa388260b881f2037c9bc348791d09a9",
+    "rows": [
+      {
+        "table": "docs",
+        "id": "doc-1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "doc-1"
+            }
+          }
+        }
+      },
+      {
+        "table": "grants",
+        "id": "grant-1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "grant-1"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_RULE",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_RULE\"}",
+    "digest": "019eaa556d3ef2f0587cf87e1dedfda30eb15ce4ff6e493b29b4abc41710e85c",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

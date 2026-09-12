@@ -1,0 +1,126 @@
+diff --git a/app/chats.tsx b/app/chats.tsx
+--- a/app/chats.tsx
++++ b/app/chats.tsx
+@@ -10,7 +10,7 @@ import { accentHex, chatIdentity } from "../lib/format";
+ 
+ export default function ChatsScreen() {
+   const router = useRouter();
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   const me = auth.state === "authenticated" ? auth.viewer : undefined;
+   const chats = usePage(api.messages.myChats, {});
+   return (
+@@ -51,7 +51,7 @@ function ChatRow({
+   const other = row.pair ? (row.pair.lo === me ? row.pair.hi : row.pair.hi === me ? row.pair.lo : row.pair.hi) : undefined;
+   const otherProfile = useQuery(api.profiles.byPrincipal, { person: (other ?? me ?? "pending") as never });
+   const typing = useChannel(api.typing, { conversationId: conv?.id ?? "pending" });
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   const viewer = auth.state === "authenticated" ? auth.viewer : undefined;
+   if (!conv) return null;
+   const isGroup = conv.kind === "group";
+diff --git a/app/index.tsx b/app/index.tsx
+--- a/app/index.tsx
++++ b/app/index.tsx
+@@ -13,7 +13,7 @@ import { Screen, TabBar } from "../lib/chrome";
+ import { Composer } from "../vendor-ui/src/Composer";
+ 
+ export default function HomeScreen() {
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   if (auth.state === "hydrating") {
+     return (
+       <View style={styles.center}>
+@@ -28,7 +28,7 @@ export default function HomeScreen() {
+ }
+ 
+ function AuthGate() {
+-  const auth = useAuth();
++  const { actions: auth } = useAuth();
+   const [mode, setMode] = useState<"sign-up" | "sign-in">("sign-in");
+   const [email, setEmail] = useState("");
+   const [password, setPassword] = useState("");
+@@ -128,7 +128,7 @@ function AuthGate() {
+ }
+ 
+ function Onboard() {
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   const createProfile = useMutation(api.profiles.createMyProfile);
+   const guess = (auth.state === "authenticated" ? "user" : "user").slice(0, 20);
+   const [values, setValues] = useState({
+diff --git a/app/settings.tsx b/app/settings.tsx
+--- a/app/settings.tsx
++++ b/app/settings.tsx
+@@ -8,7 +8,7 @@ import { Screen } from "../lib/chrome";
+ 
+ export default function SettingsScreen() {
+   const router = useRouter();
+-  const auth = useAuth();
++  const { actions: auth } = useAuth();
+   const mine = useQuery(api.profiles.mine, {});
+   return (
+     <Screen title="Settings" onBack={() => router.push("/")}>
+diff --git a/app/profile/[handle].tsx b/app/profile/[handle].tsx
+--- a/app/profile/[handle].tsx
++++ b/app/profile/[handle].tsx
+@@ -2,5 +2,5 @@ import React from "react";
+ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+ import { useLocalSearchParams, useRouter } from "expo-router";
+ import { api } from "snapback3/client";
+-import { useAssetUrl, useAuth, useMutation, usePage, useQuery } from "snapback3/react";
++import { useAssetUrl, useMutation, usePage, useQuery } from "snapback3/react";
+ import { ProfileForm } from "../../vendor-ui/src/ProfileForm";
+@@ -12,4 +12,3 @@ export default function ProfileScreen() {
+   const { handle } = useLocalSearchParams<{ handle: string }>();
+   const router = useRouter();
+-  const auth = useAuth();
+   const profile = useQuery(api.profiles.byHandle, { handle: String(handle ?? "") });
+diff --git a/lib/chat-settings-screen.tsx b/lib/chat-settings-screen.tsx
+--- a/lib/chat-settings-screen.tsx
++++ b/lib/chat-settings-screen.tsx
+@@ -9,7 +9,7 @@ import { Screen } from "./chrome";
+ 
+ export function ChatSettingsScreen({ groupTitle, conversationId }: { groupTitle?: string; conversationId?: string }) {
+   const router = useRouter();
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   const viewer = auth.state === "authenticated" ? auth.viewer : undefined;
+   const found = useQuery(api.groups.byTitle, { title: groupTitle ?? "" });
+   const id = conversationId ?? found.data?.[0]?.id;
+diff --git a/lib/conversation-screen.tsx b/lib/conversation-screen.tsx
+--- a/lib/conversation-screen.tsx
++++ b/lib/conversation-screen.tsx
+@@ -34,7 +34,7 @@ export function ConversationScreen({
+   groupTitle?: string;
+ }) {
+   const router = useRouter();
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   const viewer = auth.state === "authenticated" ? auth.viewer : undefined;
+   const byHandle = useQuery(api.profiles.byHandle, { handle: handle ?? "" });
+   const groups = useQuery(api.groups.byTitle, { title: groupTitle ?? "" });
+diff --git a/lib/delivery-watcher.tsx b/lib/delivery-watcher.tsx
+--- a/lib/delivery-watcher.tsx
++++ b/lib/delivery-watcher.tsx
+@@ -4,7 +4,7 @@ import { useAuth, useMutation, useQuery } from "snapback3/react";
+ 
+ /** Ack delivery for inbox rows while the signed-in client is connected, even off the thread. */
+ export function DeliveryWatcher() {
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   const viewer = auth.state === "authenticated" ? auth.viewer : undefined;
+   const inbox = useQuery(api.messages.inbox, { c: null });
+   const markDelivered = useMutation(api.messages.markDelivered);
+diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+--- a/lib/thread-view.tsx
++++ b/lib/thread-view.tsx
+@@ -48,7 +48,7 @@ export function ThreadView({
+   groupTitle?: string;
+ }) {
+   const router = useRouter();
+-  const auth = useAuth();
++  const { session: auth } = useAuth();
+   const snapback = useSnapbackClient();
+   const viewer = auth.state === "authenticated" ? auth.viewer : undefined;
+   const send = useMutation(api.messages.send);

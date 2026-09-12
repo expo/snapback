@@ -1,0 +1,1267 @@
+{
+  "corpusVersion": 1,
+  "name": "self-probe-enriched-membership-merge",
+  "category": "visibility",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 50
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipalConversation": {
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversationId"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "principal"
+              ],
+              "max": 100
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "words": {
+        "columns": {
+          "at": "Time",
+          "conversationId": "Id",
+          "id": "Id",
+          "term": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byConversationTermTime": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "term"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "self-probe-enriched-membership-merge",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "result",
+          "value": {
+            "Array": []
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "merged",
+          "value": {
+            "Merge": {
+              "site": "words.merge",
+              "lanes": [
+                {
+                  "scan": {
+                    "site": "words.lane",
+                    "table": "words",
+                    "index": "byConversationTermTime",
+                    "prefix": [
+                      {
+                        "Scalar": {
+                          "Field": {
+                            "base": {
+                              "Variable": "seat"
+                            },
+                            "name": "conversationId"
+                          }
+                        }
+                      },
+                      {
+                        "Scalar": {
+                          "Literal": {
+                            "String": "hello"
+                          }
+                        }
+                      }
+                    ],
+                    "order": "Asc",
+                    "take": {
+                      "Literal": 20
+                    },
+                    "after": null,
+                    "before": null,
+                    "range": null,
+                    "merge_site": "words.merge",
+                    "provenance": "Shape"
+                  },
+                  "source": {
+                    "site": "members.page",
+                    "table": "memberships",
+                    "index": "byPrincipalConversation",
+                    "prefix": [
+                      {
+                        "Scalar": {
+                          "Input": "Viewer"
+                        }
+                      }
+                    ],
+                    "order": "Asc",
+                    "take": {
+                      "Literal": 100
+                    },
+                    "after": null,
+                    "before": null,
+                    "range": null,
+                    "merge_site": null,
+                    "provenance": "Viewer"
+                  },
+                  "binding": "seat"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "For": {
+          "binding": "entry",
+          "domain": {
+            "DerivedArray": {
+              "value": {
+                "Variable": "merged"
+              },
+              "max": 20,
+              "bound_source": "merge words take 20"
+            }
+          },
+          "body": [
+            {
+              "Const": {
+                "name": "conversation",
+                "value": {
+                  "Get": {
+                    "site": "conversation.point",
+                    "table": "conversations",
+                    "index": "byId",
+                    "key": [
+                      {
+                        "Field": {
+                          "base": {
+                            "Variable": "entry"
+                          },
+                          "name": "conversationId"
+                        }
+                      }
+                    ],
+                    "provenance": "Shape"
+                  }
+                }
+              }
+            },
+            {
+              "Let": {
+                "name": "shape",
+                "value": {
+                  "Literal": "Null"
+                }
+              }
+            },
+            {
+              "If": {
+                "condition": {
+                  "Binary": {
+                    "op": "Ne",
+                    "left": {
+                      "Variable": "conversation"
+                    },
+                    "right": {
+                      "Literal": "Null"
+                    }
+                  }
+                },
+                "then_body": [
+                  {
+                    "Assign": {
+                      "name": "shape",
+                      "value": {
+                        "Object": {
+                          "title": {
+                            "Field": {
+                              "base": {
+                                "Variable": "conversation"
+                              },
+                              "name": "title"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "else_body": []
+              }
+            },
+            {
+              "Push": {
+                "target": "result",
+                "value": {
+                  "Object": {
+                    "conversation": {
+                      "Variable": "shape"
+                    },
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "entry"
+                        },
+                        "name": "id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Return": {
+          "Variable": "result"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "self-probe-enriched-membership-merge",
+    "plan_hash": "f2794f411ebabaf239a25464a6301c8c4ea7d2cc3df05e9a2473e7297e78927e",
+    "schema_hash": "f1ccf1cc7ea0f12b9d5d46a0844194623ca1e03fc18c6a1590cd3c7e3fc0ef79",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "words": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "conversations.read": "52b7dc0d1bb4ecd34f28412b4566e0b9375171640a71e2037f7fef7c4c18ca00",
+      "memberships.read": "033f799fa54b571ea6d3e2da467e0ac45944a38d0e5881936ce777b052001011",
+      "words.read": "033f799fa54b571ea6d3e2da467e0ac45944a38d0e5881936ce777b052001011"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "conversation.point",
+        "table": "conversations",
+        "index": "byId",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 20,
+        "rule_probes_per_candidate": 2,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "members.page",
+        "table": "memberships",
+        "index": "byPrincipalConversation",
+        "prefix_template": "Viewer",
+        "take": 100,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      },
+      {
+        "site": "words.lane",
+        "table": "words",
+        "index": "byConversationTermTime",
+        "prefix_template": "Shape",
+        "take": 20,
+        "max_calls": 100,
+        "rule_probes_per_candidate": 2,
+        "hoist": true,
+        "complete": false
+      }
+    ],
+    "merge_sites": [
+      {
+        "site": "words.merge",
+        "lane_sites": [
+          "words.lane"
+        ],
+        "take": 20,
+        "max_lanes": 100,
+        "uniform": true
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 244,
+    "max_index_entries": 244,
+    "max_rule_probes": 240,
+    "max_steps": 4939,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 650700,
+    "max_heap_bytes": 808748,
+    "max_output_bytes": 8252,
+    "max_closure_bytes": 650700,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "conversations.byId",
+      "memberships.byConversationPrincipal",
+      "memberships.byPrincipalConversation",
+      "words.byConversationTermTime"
+    ],
+    "disclosures": [],
+    "bound_product": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100) = 122 + members.page take 100 (+2 reserve) × 1 calls on memberships = 102 + conversation.point point read on conversations × 20 calls (calls from merge words take 20 20) = 20",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 122,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100)",
+        "site": "words.merge"
+      },
+      {
+        "meter": "examined entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "examined entries",
+        "value": 20,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "index entries",
+        "value": 122,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100)",
+        "site": "words.merge"
+      },
+      {
+        "meter": "index entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "index entries",
+        "value": 20,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "rule probes",
+        "value": 200,
+        "source": "words.lane: 100 calls × 2 rule probes (calls from members.page take 100)",
+        "site": "words.lane"
+      },
+      {
+        "meter": "rule probes",
+        "value": 40,
+        "source": "conversation.point: 20 calls × 2 rule probes (calls from merge words take 20 20)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 3050,
+        "source": "merge words.merge: heap work",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 610,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100) × 5",
+        "site": "words.merge"
+      },
+      {
+        "meter": "steps",
+        "value": 510,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5",
+        "site": "members.page"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 80,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20) × 4",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 80,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 650700,
+        "source": "search closure scratch",
+        "site": "words.merge"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 97600,
+        "source": "merge words.merge: heap work × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 19520,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100) × 5 × 32",
+        "site": "words.merge"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 16320,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5 × 32",
+        "site": "members.page"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2560,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20) × 4 × 32",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2560,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 4500,
+        "source": "20 × conversations.title (225 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 200,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 3000,
+        "source": "20 × words.id (150 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 520,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "merge words.merge: emitted page (20 repetitions): framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 15331,
+        "source": "members.page × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "members.page × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 130890,
+        "source": "words.lane × 100 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "words.lane"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 110800,
+        "source": "words.lane × 200 probes: separately serialized rule verdict/absence envelopes",
+        "site": "words.lane"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 16700,
+        "source": "conversation.point × 20 point reads: separately serialized keys, references and envelopes",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 39080,
+        "source": "conversation.point × 40 probes on memberships: separately serialized authority envelopes",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3000,
+        "source": "20 × conversations.id (150 bytes each; 6 field-name/framing + conversations declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4500,
+        "source": "20 × conversations.title (225 bytes each; 9 field-name/framing + text max 50 scalars: encoded value bound 216)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 200,
+        "source": "conversations row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3740,
+        "source": "20 × conversations table/id envelope (187 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 55242,
+        "source": "341 × memberships.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 51150,
+        "source": "341 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 53537,
+        "source": "341 × memberships.principal (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3410,
+        "source": "memberships row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 63085,
+        "source": "341 × memberships table/id envelope (185 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4636,
+        "source": "122 × words.at (38 bytes each; 6 field-name/framing + time 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 19764,
+        "source": "122 × words.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 18300,
+        "source": "122 × words.id (150 bytes each; 6 field-name/framing + words declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 34160,
+        "source": "122 × words.term (280 bytes each; 8 field-name/framing + text max 64 scalars: encoded value bound 272)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1220,
+        "source": "words row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 21838,
+        "source": "122 × words table/id envelope (179 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "f1ccf1cc7ea0f12b9d5d46a0844194623ca1e03fc18c6a1590cd3c7e3fc0ef79",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "m1"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m2",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c2"
+            },
+            "id": {
+              "Id": "m2"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "words",
+        "id": "w1",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "w1"
+            },
+            "term": {
+              "String": "hello"
+            }
+          }
+        }
+      },
+      {
+        "table": "words",
+        "id": "w2",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 2
+            },
+            "conversationId": {
+              "Id": "c2"
+            },
+            "id": {
+              "Id": "w2"
+            },
+            "term": {
+              "String": "hello"
+            }
+          }
+        }
+      },
+      {
+        "table": "conversations",
+        "id": "c1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "c1"
+            },
+            "title": {
+              "String": "c1"
+            }
+          }
+        }
+      },
+      {
+        "table": "conversations",
+        "id": "c2",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "c2"
+            },
+            "title": {
+              "String": "c2"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "members.page",
+        "table": "memberships",
+        "index": "byPrincipalConversation",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "u1"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 100,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "033f799fa54b571ea6d3e2da467e0ac45944a38d0e5881936ce777b052001011",
+        "row_ids": [
+          "m1",
+          "m2"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_suffix": null
+      },
+      {
+        "site": "words.lane",
+        "table": "words",
+        "index": "byConversationTermTime",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "c1"
+            }
+          },
+          {
+            "Scalar": {
+              "String": "hello"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 20,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "033f799fa54b571ea6d3e2da467e0ac45944a38d0e5881936ce777b052001011",
+        "row_ids": [
+          "w1"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_suffix": null
+      },
+      {
+        "site": "words.lane",
+        "table": "words",
+        "index": "byConversationTermTime",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "c2"
+            }
+          },
+          {
+            "Scalar": {
+              "String": "hello"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 20,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "033f799fa54b571ea6d3e2da467e0ac45944a38d0e5881936ce777b052001011",
+        "row_ids": [
+          "w2"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_suffix": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "conversation": {
+              "Row": {
+                "title": {
+                  "String": "c1"
+                }
+              }
+            },
+            "id": {
+              "Id": "w1"
+            }
+          }
+        },
+        {
+          "Row": {
+            "conversation": {
+              "Row": {
+                "title": {
+                  "String": "c2"
+                }
+              }
+            },
+            "id": {
+              "Id": "w2"
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"conversation\":{\"Row\":{\"title\":{\"String\":\"c1\"}}},\"id\":{\"Id\":\"w1\"}}},{\"Row\":{\"conversation\":{\"Row\":{\"title\":{\"String\":\"c2\"}}},\"id\":{\"Id\":\"w2\"}}}]}",
+    "digest": "6351aee6f261ec53c785ff4d480eaa9f9a45d458aedfbde27445b2651a7fac6f",
+    "rangeStops": {
+      "members.page": [
+        "exhausted"
+      ],
+      "words.lane": [
+        "exhausted",
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

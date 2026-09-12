@@ -1,0 +1,898 @@
+{
+  "corpusVersion": 1,
+  "name": "composite-hidden-page-1",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "at": "Time",
+          "group": "Id",
+          "id": "Id",
+          "owner": "Principal"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "shares",
+              "index": "byItemViewer",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "columns": {
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 20
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "id"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "columns": {
+          "id": "Id",
+          "item": "Id",
+          "viewer": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byItemViewer": {
+            "components": [
+              {
+                "Column": "item"
+              },
+              {
+                "Column": "viewer"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "items.enriched",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      },
+      "global": "Bool"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "If": {
+          "condition": {
+            "Variable": "global"
+          },
+          "then_body": [
+            {
+              "Let": {
+                "name": "rows",
+                "value": {
+                  "Array": []
+                }
+              }
+            },
+            {
+              "For": {
+                "binding": "item",
+                "domain": {
+                  "Page": {
+                    "site": "items.page",
+                    "table": "items",
+                    "index": "byGroup",
+                    "prefix": [
+                      {
+                        "Scalar": {
+                          "Literal": {
+                            "Id": "g1"
+                          }
+                        }
+                      }
+                    ],
+                    "order": "Asc",
+                    "take": {
+                      "Literal": 1
+                    },
+                    "after": {
+                      "Variable": "c"
+                    },
+                    "before": null,
+                    "range": null,
+                    "opaque_cursor": true,
+                    "merge_site": null,
+                    "provenance": "Const"
+                  }
+                },
+                "body": [
+                  {
+                    "Const": {
+                      "name": "profile",
+                      "value": {
+                        "Get": {
+                          "site": "profiles.owner",
+                          "table": "profiles",
+                          "index": "byId",
+                          "key": [
+                            {
+                              "Field": {
+                                "base": {
+                                  "Variable": "item"
+                                },
+                                "name": "owner"
+                              }
+                            }
+                          ],
+                          "provenance": "Shape"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "Let": {
+                      "name": "shape",
+                      "value": {
+                        "Literal": "Null"
+                      }
+                    }
+                  },
+                  {
+                    "If": {
+                      "condition": {
+                        "Binary": {
+                          "op": "Ne",
+                          "left": {
+                            "Variable": "profile"
+                          },
+                          "right": {
+                            "Literal": "Null"
+                          }
+                        }
+                      },
+                      "then_body": [
+                        {
+                          "Assign": {
+                            "name": "shape",
+                            "value": {
+                              "Object": {
+                                "name": {
+                                  "Field": {
+                                    "base": {
+                                      "Variable": "profile"
+                                    },
+                                    "name": "name"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "else_body": []
+                    }
+                  },
+                  {
+                    "Push": {
+                      "target": "rows",
+                      "value": {
+                        "Object": {
+                          "id": {
+                            "Field": {
+                              "base": {
+                                "Variable": "item"
+                              },
+                              "name": "id"
+                            }
+                          },
+                          "owner": {
+                            "Variable": "shape"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "Return": {
+                "Object": {
+                  "messages": {
+                    "Variable": "rows"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": [
+            {
+              "Return": {
+                "Array": []
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "items.enriched",
+    "plan_hash": "696f9cbc1346bc75dabaedab75b31a555698395db9a096437f377a9ddcd35bae",
+    "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "items.read": "ce546f6d28ea1d2823ddd9da28d0cd0b1c128392073308c95d156eda437989d0",
+      "profiles.read": "dd0f14161df560b8eadee94e36dea41684c12b094fca46724484aae7caec3859"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "items.page",
+        "table": "items",
+        "index": "byGroup",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "profiles.owner",
+        "table": "profiles",
+        "index": "byId",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "result_pages": {
+      "0/then/2": {
+        "site": "items.page",
+        "table": "items",
+        "index": "byGroup",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Time"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 10240,
+    "max_steps": 51228,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 1639296,
+    "max_output_bytes": 318,
+    "max_closure_bytes": 254,
+    "completeness": "Capped",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "items.byGroup",
+      "profiles.byId",
+      "shares.byItemViewer"
+    ],
+    "disclosures": [],
+    "bound_product": "items.page take 1 (+2 reserve) × 1 calls on items = 3 + profiles.owner point read on profiles × 1 calls (calls from items.page take 1) = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 10236,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "examined entries",
+        "value": 3,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items",
+        "site": "items.page"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1)",
+        "site": "profiles.owner"
+      },
+      {
+        "meter": "index entries",
+        "value": 10236,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "index entries",
+        "value": 3,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items",
+        "site": "items.page"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1)",
+        "site": "profiles.owner"
+      },
+      {
+        "meter": "rule probes",
+        "value": 10237,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "rule probes",
+        "value": 3,
+        "source": "items.page: 3 calls × 1 rule probes",
+        "site": "items.page"
+      },
+      {
+        "meter": "steps",
+        "value": 51180,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 15,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items × 5",
+        "site": "items.page"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "expressions (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1) × 4",
+        "site": "profiles.owner"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1637760,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 480,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items × 5 × 32",
+        "site": "items.page"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "expressions (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1) × 4 × 32",
+        "site": "profiles.owner"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 150,
+        "source": "items.id",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 104,
+        "source": "profiles.name",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 19,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1,
+        "source": "items first 1 at items.page (1 repetitions): framing/shared encoding/growth adjustment",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 22,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 150,
+        "source": "items.id (150 bytes; 6 field-name/framing + items declared identity 144)",
+        "site": "items.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 104,
+        "source": "profiles.name (104 bytes; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
+        "site": "profiles.owner"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": "Null",
+      "global": {
+        "Bool": true
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
+    "rows": [
+      {
+        "table": "shares",
+        "id": "s-i1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "s-i1"
+            },
+            "item": {
+              "Id": "i1"
+            },
+            "viewer": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "items",
+        "id": "i1",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "group": {
+              "Id": "g1"
+            },
+            "id": {
+              "Id": "i1"
+            },
+            "owner": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "profiles",
+        "id": "u1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "u1"
+            },
+            "name": {
+              "String": "Visible"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "messages": {
+          "Array": [
+            {
+              "Row": {
+                "id": {
+                  "Id": "i1"
+                },
+                "owner": {
+                  "Row": {
+                    "name": {
+                      "String": "Visible"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "items.page"
+    ],
+    "canonicalResult": "{\"Row\":{\"messages\":{\"Array\":[{\"Row\":{\"id\":{\"Id\":\"i1\"},\"owner\":{\"Row\":{\"name\":{\"String\":\"Visible\"}}}}}]}}}",
+    "digest": "8c26482303584490b3978a8bdb71212be97c94837682337e79ca16e0d802bcd6",
+    "rangeStops": {
+      "items.page": [
+        "limit"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

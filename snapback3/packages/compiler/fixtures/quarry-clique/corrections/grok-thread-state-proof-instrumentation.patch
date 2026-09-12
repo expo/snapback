@@ -1,0 +1,41 @@
+diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+--- a/lib/thread-view.tsx
++++ b/lib/thread-view.tsx
+@@ -183,6 +183,8 @@ export function ThreadView({
+     if (!id || items.some((row) => row.messageId === id)) return [];
+     return [{ id, body: args.body ?? "", pending: entry.state === "queued" }];
+   });
++  const visibleMessageIds = items.map((row) => row.messageId);
++  const visibleMessageIdsKey = visibleMessageIds.join("\u0000");
+ 
+   useEffect(() => {
+     const entries = outbox.entries.map((entry) => {
+@@ -207,6 +209,27 @@ export function ThreadView({
+     evidence.__grokOutboxEvidence = { entries, committedProjectedIds: [...committedProjectedIds] };
+   }, [conversationId, outbox.entries, projectedMessages]);
+ 
++  useEffect(() => {
++    const evidence = globalThis as {
++      __grokThreadStateEvidence?: {
++        conversationId: string;
++        visibleMessageIds: string[];
++        unreadCount: number;
++        unreadActivityId: string | null;
++        at: number;
++      }[];
++    };
++    evidence.__grokThreadStateEvidence = [
++      ...(evidence.__grokThreadStateEvidence ?? []),
++      {
++        conversationId,
++        visibleMessageIds,
++        unreadCount,
++        unreadActivityId: unreadActivityId ?? null,
++        at: Date.now(),
++      },
++    ];
++  }, [conversationId, unreadCount, unreadActivityId, visibleMessageIdsKey]);
++
+   return (
+     <Screen
+       title={title}

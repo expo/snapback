@@ -1,0 +1,348 @@
+{
+  "corpusVersion": 1,
+  "name": "named-rbac-final-seat-missing",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "groups": {
+        "columns": {
+          "creator": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen RBAC twin fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "FinalExistsOnInsert": {
+              "table": "memberships",
+              "index": "byGroupPrincipalRole",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                {
+                  "Field": "creator"
+                },
+                {
+                  "Literal": {
+                    "String": "admin"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "group": "Id",
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 16
+            }
+          }
+        },
+        "indexes": {
+          "byGroupPrincipalRole": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "role"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen RBAC twin fixture"
+            }
+          },
+          "insert": {
+            "Created": {
+              "table": "groups",
+              "index": "byId",
+              "key": [
+                {
+                  "Field": "group"
+                }
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "update": {
+            "And": [
+              {
+                "Eq": [
+                  {
+                    "OldField": "role"
+                  },
+                  {
+                    "Literal": {
+                      "String": "member"
+                    }
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "NextField": "role"
+                  },
+                  {
+                    "Literal": {
+                      "String": "admin"
+                    }
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "group"
+                  },
+                  {
+                    "NextField": "group"
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "principal"
+                  },
+                  {
+                    "NextField": "principal"
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "principal"
+                  },
+                  "Viewer"
+                ]
+              }
+            ]
+          },
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "groups.missingCreatorSeat",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "groups",
+          "row": {
+            "Literal": {
+              "Row": {
+                "creator": {
+                  "Id": "u1"
+                },
+                "id": {
+                  "Id": "group-new"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "groups.missingCreatorSeat",
+    "plan_hash": "aa15b7863642d61578340e4683d73566954e80ebba1a51f6802041fe6e1ceadf",
+    "schema_hash": "f2e31d2dc049dce1f84861e4b66cdef3c5e91b8979b048b83fa014372bdfa61c",
+    "tables": {
+      "groups": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "groups.insert": "09b276421c70f130e5cc25c20b92206914ef7eb24c49b5dcada044b0b7ac9b0a"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "groups",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "groups",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "groups:Unique(byId)",
+      "memberships:FinalExistsOnInsert(groups->memberships.byGroupPrincipalRole,[Field(\"id\"), Field(\"creator\"), Literal(String(\"admin\"))])"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 1,
+    "max_steps": 7,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byGroupPrincipalRole"
+    ],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "groups Insert rules/final constraints: 1 calls × 1 rule probes",
+        "site": "groups Insert rules/final constraints"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "groups Insert writes",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "groups Insert writes × 32",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "groups Insert",
+        "site": "groups.missingCreatorSeat:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "f2e31d2dc049dce1f84861e4b66cdef3c5e91b8979b048b83fa014372bdfa61c",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_CONSTRAINT",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_CONSTRAINT\"}",
+    "digest": "e1e7bb43a4702c4812836a881ca6813abebafb1f5f07a5b3264ca6f85175b24d",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

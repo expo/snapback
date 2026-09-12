@@ -1,0 +1,369 @@
+{
+  "corpusVersion": 1,
+  "name": "named-rbac-created-preexisting-denied",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "groups": {
+        "columns": {
+          "creator": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen RBAC twin fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "FinalExistsOnInsert": {
+              "table": "memberships",
+              "index": "byGroupPrincipalRole",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                {
+                  "Field": "creator"
+                },
+                {
+                  "Literal": {
+                    "String": "admin"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "group": "Id",
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 16
+            }
+          }
+        },
+        "indexes": {
+          "byGroupPrincipalRole": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "role"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen RBAC twin fixture"
+            }
+          },
+          "insert": {
+            "Created": {
+              "table": "groups",
+              "index": "byId",
+              "key": [
+                {
+                  "Field": "group"
+                }
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "update": {
+            "And": [
+              {
+                "Eq": [
+                  {
+                    "OldField": "role"
+                  },
+                  {
+                    "Literal": {
+                      "String": "member"
+                    }
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "NextField": "role"
+                  },
+                  {
+                    "Literal": {
+                      "String": "admin"
+                    }
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "group"
+                  },
+                  {
+                    "NextField": "group"
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "principal"
+                  },
+                  {
+                    "NextField": "principal"
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "principal"
+                  },
+                  "Viewer"
+                ]
+              }
+            ]
+          },
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "groups.claimPreexisting",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "memberships",
+          "row": {
+            "Literal": {
+              "Row": {
+                "group": {
+                  "Id": "group-existing"
+                },
+                "id": {
+                  "Id": "seat-new"
+                },
+                "principal": {
+                  "Id": "u1"
+                },
+                "role": {
+                  "String": "admin"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "groups.claimPreexisting",
+    "plan_hash": "3fcdad66a1d0bd8cb44b9f57caba1aa7489001dcb0cf2b951950da21ce8eff74",
+    "schema_hash": "f2e31d2dc049dce1f84861e4b66cdef3c5e91b8979b048b83fa014372bdfa61c",
+    "tables": {
+      "groups": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "memberships.insert": "628850de29ccf70c7dcb9814614ca5d9d64ba40f1cbec28934c311b0c6cd037b"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "memberships",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "memberships",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "memberships:Unique(byGroupPrincipalRole)",
+      "memberships:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 1,
+    "max_steps": 7,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "groups.byId"
+    ],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "memberships Insert rules/final constraints: 1 calls × 1 rule probes",
+        "site": "memberships Insert rules/final constraints"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "memberships Insert writes",
+        "site": "groups.claimPreexisting:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "groups.claimPreexisting:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "groups.claimPreexisting:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "memberships Insert writes × 32",
+        "site": "groups.claimPreexisting:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "groups.claimPreexisting:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "groups.claimPreexisting:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "memberships Insert",
+        "site": "groups.claimPreexisting:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "f2e31d2dc049dce1f84861e4b66cdef3c5e91b8979b048b83fa014372bdfa61c",
+    "rows": [
+      {
+        "table": "groups",
+        "id": "group-existing",
+        "row": {
+          "Row": {
+            "creator": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "group-existing"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_RULE",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_RULE\"}",
+    "digest": "019eaa556d3ef2f0587cf87e1dedfda30eb15ce4ff6e493b29b4abc41710e85c",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

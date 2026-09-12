@@ -1,0 +1,245 @@
+{
+  "serverOnly": true,
+  "corpusVersion": 1,
+  "name": "fanout-refused-merge",
+  "category": "fanout",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "group": {
+            "Optional": {
+              "Text": {
+                "max": 32
+              }
+            }
+          },
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byConversationRole": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byGroup": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 50
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "fanout-refused-merge",
+    "kind": "Mutation",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      },
+      "choice": "Bool",
+      "n": "Int"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "For": {
+          "binding": "m",
+          "domain": {
+            "Page": {
+              "site": "members.page",
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "prefix": [
+                {
+                  "Scalar": {
+                    "Literal": {
+                      "Id": "c1"
+                    }
+                  }
+                }
+              ],
+              "order": "Asc",
+              "take": {
+                "Literal": 50
+              },
+              "after": null,
+              "before": null,
+              "range": null,
+              "merge_site": "union",
+              "provenance": "Const"
+            }
+          },
+          "body": [
+            {
+              "Insert": {
+                "table": "deliveries",
+                "row": {
+                  "Object": {
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "m"
+                        },
+                        "name": "id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": null,
+  "context": {
+    "viewer": "u0",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "errorReason": "a merge page has no union proof",
+    "localResult": null,
+    "errorCode": "E_STRUCTURAL_FANOUT",
+    "localState": "certification-refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_STRUCTURAL_FANOUT\"}",
+    "digest": "bc23ccb5a4b3c5144cee3fe0fa005ba688138724e1df2e96a4d0d1b8adcb5597",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

@@ -1,0 +1,266 @@
+{
+  "corpusVersion": 1,
+  "name": "edge-bytes-max-refusal",
+  "category": "edge",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "blobs": {
+        "columns": {
+          "id": "Id",
+          "payload": {
+            "Bytes": {
+              "max": 4
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPayload": {
+            "components": [
+              {
+                "Column": "payload"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "bytesInsert",
+    "kind": "Mutation",
+    "args": {
+      "id": "Scalar",
+      "payload": "Scalar"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "blobs",
+          "row": {
+            "Object": {
+              "id": {
+                "Variable": "id"
+              },
+              "payload": {
+                "Variable": "payload"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Variable": "payload"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "bytesInsert",
+    "plan_hash": "b0627f7f08034868e5ff3bf25e26e0f3660cc221b48ca150bd24c37f18555a3c",
+    "schema_hash": "ab5e1b51154d569e4beaf5715f833b9a9179b1dc610271e266d03a386bbbfcd2",
+    "tables": {
+      "blobs": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "blobs.insert": "7f4b61f14b78d41f24438587a256d3f441e271236ecf56f4ca3509b7e3b5b796"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "blobs",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "blobs",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "blobs:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 11,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 352,
+    "max_output_bytes": 1024,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "blobs Insert writes",
+        "site": "bytesInsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "bytesInsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "bytesInsert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "bytesInsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "bytesInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "blobs Insert writes × 32",
+        "site": "bytesInsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "bytesInsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "bytesInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "bytesInsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "bytesInsert:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1024,
+        "source": "argument payload",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "blobs Insert",
+        "site": "bytesInsert:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "id": {
+        "Id": "too-large"
+      },
+      "payload": {
+        "Bytes": "0001020304"
+      }
+    },
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "ab5e1b51154d569e4beaf5715f833b9a9179b1dc610271e266d03a386bbbfcd2",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_INPUT",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_INPUT\"}",
+    "digest": "5ee5e4d7b111ebf8faeecb0490fe79766aeb97067ec8f13fafa649c346209d78",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

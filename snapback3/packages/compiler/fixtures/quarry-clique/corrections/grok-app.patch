@@ -1,0 +1,712 @@
+diff --git a/snapback/access.q b/snapback/access.q
+index 7937ceba8..3f12f9ad9 100644
+--- a/snapback/access.q
++++ b/snapback/access.q
+@@ -9,6 +9,16 @@ fn settings(): appSettings['windows']
+ proc deliver(c: conversations, messageId: messages, kind: enum('message', 'edit', 'removed', 'expired')):
+   for m in conversationMembers(c):
+     insert deliveries { recipient: m.principal, conversationId: c, messageId, kind, at: now }
++    if kind = 'removed' or kind = 'expired':
++      unread = pendingRead[messageId, m.principal]
++      if unread != null:
++        delete pendingRead[unread]
++      periodUnreadRow = periodUnread[messageId, m.principal]
++      if periodUnreadRow != null:
++        delete periodUnread[periodUnreadRow]
++      undelivered = pendingDelivered[messageId, m.principal]
++      if undelivered != null:
++        delete pendingDelivered[undelivered]
+
+ proc bumpUnread(c: conversations, recipient: principal):
+   existing = unreadCounts[c, recipient]
+@@ -28,27 +38,20 @@ proc clearUnread(c: conversations, recipient: principal):
+   if flag != null:
+     delete unreadFlags[flag]
+
+-proc snapshotRecipients(c: conversations, messageId: messages, author: principal):
++proc snapshotRecipients(c: conversations, messageId: messages, author: principal, periodStart: time):
+   for m in conversationMembers(c):
+     if m.principal != author:
+       insert pendingDelivered { messageId, recipient: m.principal, conversationId: c }
+-      insert pendingRead { messageId, recipient: m.principal, conversationId: c }
++      insert pendingRead { messageId, recipient: m.principal, conversationId: c, periodStart }
++      insert periodUnread {
++        messageId,
++        recipient: m.principal,
++        conversationId: c,
++        membershipId: m.id,
++        periodStart,
++      }
+       bumpUnread(c, m.principal)
+
+-proc bumpNewFollower(target: principal, periodStart: time):
+-  existing = digestBuckets[target, periodStart]
+-  if existing != null:
+-    update digestBuckets[existing] { newFollowers: existing.newFollowers + 1 }
+-  else:
+-    insert digestBuckets { principal: target, periodStart, newFollowers: 1, newPostsInFollowing: 0 }
+-
+-proc bumpNewPostForFollower(follower: principal, periodStart: time):
+-  existing = digestBuckets[follower, periodStart]
+-  if existing != null:
+-    update digestBuckets[existing] { newPostsInFollowing: existing.newPostsInFollowing + 1 }
+-  else:
+-    insert digestBuckets { principal: follower, periodStart, newFollowers: 0, newPostsInFollowing: 1 }
+-
+ proc bumpDailyPosts(actor: principal):
+   (day, _rem) = divmod(now, 86400000)
+   existing = dailyStats[actor, day]
+@@ -57,6 +60,13 @@ proc bumpDailyPosts(actor: principal):
+   else:
+     insert dailyStats { principal: actor, day, posts: 1, likes: 0 }
+
++proc bumpPostPeriod(actor: principal, periodStart: time):
++  existing = postPeriodCounters[actor, false, periodStart]
++  if existing != null:
++    update postPeriodCounters[existing] { total: existing.total + 1 }
++  else:
++    insert postPeriodCounters { author: actor, isReply: false, periodStart, total: 1 }
++
+ proc bumpDailyLikes(author: principal):
+   (day, _rem) = divmod(now, 86400000)
+   existing = dailyStats[author, day]
+@@ -72,13 +82,14 @@ proc dropDailyLikes(author: principal, at: time):
+     if existing.likes > 0:
+       update dailyStats[existing] { likes: existing.likes - 1 }
+
+-proc afterSend(c: conversations, messageId: messages, author: principal, preview: text <=2000, replayMode: bool):
++proc afterSend(c: conversations, messageId: messages, author: principal, preview: text <=2000, replayMode: bool, periodStart: time):
+   deliver(c, messageId, 'message')
+   if replayMode = false:
+-    snapshotRecipients(c, messageId, author)
++    snapshotRecipients(c, messageId, author, periodStart)
+     me = profiles[author] ! else PROFILE_REQUIRED
++    boundedPreview = slice(preview, 0, 80)
+     for member in conversationMembers(c):
+       if member.principal != author:
+         if not exists connected[member.principal]:
+-          insert pushLog { target: member.principal, kind: 'message', chatId: c, senderDisplayName: me.displayName, preview, at: now }
+-          emit notify { to: member.principal, body: preview }
++          insert pushLog { target: member.principal, kind: 'message', chatId: c, senderDisplayName: me.displayName, preview: boundedPreview, at: now }
++          emit notify { to: member.principal, body: boundedPreview }
+diff --git a/snapback/admin.q b/snapback/admin.q
+index 365475c5d..169d70788 100644
+--- a/snapback/admin.q
++++ b/snapback/admin.q
+@@ -24,65 +24,65 @@ mutation retractMessage(messageId: messages):
+   update messages[msg] { status: 'removed' }
+   return null
+
+-job digestSweep():
+-  chunk p in profiles first 100 by byId:
++job digestSweep(cutoff: time):
++  chunk p in profiles first 1 by byId:
+     cfg = settings() ! else CONFIG
+     if cfg.replayMode = false:
+-      (_q, rem) = divmod(now, 120000)
+-      periodEnd = now - rem
+-      periodStart = periodEnd - 120000
++      (_q, rem) = divmod(cutoff, cfg.digestPeriodMs)
++      periodEnd = cutoff - rem
++      periodStart = periodEnd - cfg.digestPeriodMs
+       prior = digests[p.principal, periodStart]
+       if prior = null:
+-        bucket = digestBuckets[p.principal, periodStart]
+-        unreadM = unreadMessageTotals[p.principal]
+-        unreadC = unreadChatCounts[p.principal]
+-        if bucket != null:
+-          if bucket.newFollowers != 0 or bucket.newPostsInFollowing != 0 or unreadM != 0 or unreadC != 0:
+-            insert digests {
+-              principal: p.principal,
+-              periodStart,
+-              periodEnd,
+-              newFollowers: bucket.newFollowers,
+-              newPostsInFollowing: bucket.newPostsInFollowing,
+-              unreadMessages: unreadM,
+-              unreadChats: unreadC,
++        newFollowers = newFollowerPeriodCounts[p.principal, true, periodStart] ?? 0
++        candidate = insert digestCandidates {
++          newPostsInFollowing: 0,
++          unreadMessages: 0,
++          unreadChats: 0,
++        }
++        following = digestFollows[p.principal] first 500 by byFollower { followed }
++        for followed in following:
++          postCounter = postPeriodCounters[followed.followed, false, periodStart]
++          if postCounter != null:
++            update digestCandidates[candidate] { newPostsInFollowing: .newPostsInFollowing + postCounter.total }
++        chats = memberships[p.principal] first 100 by byPrincipalConversation { id, conversationId }
++        for membership in chats:
++          messageCount = periodUnreadByMembershipPeriod[p.principal, membership.conversationId, membership.id, periodStart] ?? 0
++          if messageCount > 0:
++            update digestCandidates[candidate] {
++              unreadMessages: .unreadMessages + messageCount,
++              unreadChats: .unreadChats + 1,
+             }
+-            insert pushLog {
+-              target: p.principal,
+-              kind: 'digest',
+-              periodStart,
+-              periodEnd,
+-              newFollowers: bucket.newFollowers,
+-              newPostsInFollowing: bucket.newPostsInFollowing,
+-              unreadMessages: unreadM,
+-              unreadChats: unreadC,
+-              at: now,
+-            }
+-            emit notify { to: p.principal, body: 'digest' }
+-        if bucket = null:
+-          if unreadM != 0 or unreadC != 0:
+-            insert digests {
+-              principal: p.principal,
+-              periodStart,
+-              periodEnd,
+-              newFollowers: 0,
+-              newPostsInFollowing: 0,
+-              unreadMessages: unreadM,
+-              unreadChats: unreadC,
+-            }
+-            insert pushLog {
+-              target: p.principal,
+-              kind: 'digest',
+-              periodStart,
+-              periodEnd,
+-              newFollowers: 0,
+-              newPostsInFollowing: 0,
+-              unreadMessages: unreadM,
+-              unreadChats: unreadC,
+-              at: now,
+-            }
+-            emit notify { to: p.principal, body: 'digest' }
++        summary = digestCandidates[candidate.id] ! else DIGEST_STATE
++        if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:
++          insert digests {
++            principal: p.principal,
++            periodStart,
++            periodEnd,
++            newFollowers,
++            newPostsInFollowing: summary.newPostsInFollowing,
++            unreadMessages: summary.unreadMessages,
++            unreadChats: summary.unreadChats,
++          }
++          insert pushLog {
++            target: p.principal,
++            kind: 'digest',
++            periodStart,
++            periodEnd,
++            newFollowers,
++            newPostsInFollowing: summary.newPostsInFollowing,
++            unreadMessages: summary.unreadMessages,
++            unreadChats: summary.unreadChats,
++            at: now,
++          }
++          emit notify { to: p.principal, body: 'digest' }
++        delete digestCandidates[summary]
++  chunk row in periodUnread first 50 by byPeriod:
++    cfg = settings() ! else CONFIG
++    (_q, rem) = divmod(cutoff, cfg.digestPeriodMs)
++    currentPeriodStart = cutoff - rem
++    if row.periodStart < currentPeriodStart - cfg.digestPeriodMs:
++      delete periodUnread[row]
+
+-schedule digestPulse every 2m: digestSweep()
++schedule digestPulse every 2m: digestSweep(.periodEnd)
+
+ schedule expireTrending on trendingPosts at .expiresAt: dropTrending(.id)
+diff --git a/snapback/follows.q b/snapback/follows.q
+index 390ec5de1..92c7dc0dc 100644
+--- a/snapback/follows.q
++++ b/snapback/follows.q
+@@ -1,5 +1,4 @@
+ fn settings from access
+-proc bumpNewFollower from access
+
+ query isFollowing(person: principal):
+   return follows[viewer, person]
+@@ -11,22 +10,34 @@ mutation setFollow(target: principal, following: bool, mutationId: text <=80 ?):
+   existing = follows[viewer, target]
+   if following:
+     if existing != null:
++      edge = digestFollows[viewer, target]
++      if edge = null:
++        insert digestFollows { follower: viewer, followed: target }
+       return existing
+     if mutationId != null:
+       prior = follows[mutationId]
+       if prior != null:
++        require prior.follower = viewer and prior.followed = target else MUTATION_REUSED
++        edge = digestFollows[viewer, target]
++        if edge = null:
++          insert digestFollows { follower: viewer, followed: target }
+         return prior
+     cfg = settings() ! else CONFIG
+-    (_q, rem) = divmod(now, 120000)
++    (_q, rem) = divmod(now, cfg.digestPeriodMs)
+     periodStart = now - rem
+     row = insert follows {
+       follower: viewer,
+       followed: target,
+       mutationId: mutationId ?? 'follow',
++      digestEligible: cfg.replayMode = false,
++      periodStart,
+       at: now,
+     }
+-    bumpNewFollower(target, periodStart)
++    insert digestFollows { follower: viewer, followed: target }
+     return row
++  edge = digestFollows[viewer, target]
++  if edge != null:
++    delete digestFollows[edge]
+   if existing != null:
+     delete follows[existing]
+   return null
+diff --git a/snapback/groups.q b/snapback/groups.q
+index 2cf95c775..20a53f369 100644
+--- a/snapback/groups.q
++++ b/snapback/groups.q
+@@ -78,6 +78,15 @@ mutation memberRemove(conversationId: conversations, membershipId: memberships):
+ mutation memberLeave(conversationId: conversations, membershipId: memberships):
+   membership = memberships[conversationId, viewer] ! else MEMBERSHIP_REQUIRED
+   require membership.id = membershipId else MEMBERSHIP_SELF_REQUIRED
++  pendingD = pendingDelivered[viewer, conversationId] first 50 by byRecipientConversation
++  for row in pendingD:
++    delete pendingDelivered[row]
++  pendingR = pendingRead[viewer, conversationId] first 50 by byRecipientConversation
++  for row in pendingR:
++    delete pendingRead[row]
++  periodR = periodUnread[viewer, conversationId, membership.id] first 50 by byRecipientConversationMembership
++  for row in periodR:
++    delete periodUnread[row]
+   delete memberships[membership]
+   return null
+
+diff --git a/snapback/messages.q b/snapback/messages.q
+index 67c8833fd..842c33821 100644
+--- a/snapback/messages.q
++++ b/snapback/messages.q
+@@ -88,41 +88,56 @@ query pushRecent(c: cursor ?):
+
+ proc afterSend from access
+
++proc storeAtExpiry(conversationId: conversations, messageId: id, author: principal, body: text <=2000 ?, photo: image <=10485760 ?, clip: video <=52428800 ?, oncePhoto: image <=10485760 ?, quoteId: messages ?, expiry: time ?, preview: text <=2000, replayMode: bool, digestPeriodMs: int):
++  insert messages { id: messageId, conversationId, authorId: author, body, photo, clip, oncePhoto, quoteId, expiresAt: expiry, status: 'ok', at: now }
++  (_period, rem) = divmod(now, digestPeriodMs)
++  periodStart = now - rem
++  afterSend(conversationId, messageId, author, preview, replayMode, periodStart)
++
++proc storeWithExpiryPolicy(conversationId: conversations, messageId: id, author: principal, body: text <=2000 ?, photo: image <=10485760 ?, clip: video <=52428800 ?, oncePhoto: image <=10485760 ?, quoteId: messages ?, explicitExpiry: time ?, disappearing: enum('off', '24h', '7d'), disappear24hMs: int, disappear7dMs: int, preview: text <=2000, replayMode: bool, digestPeriodMs: int):
++  if explicitExpiry != null:
++    storeAtExpiry(conversationId, messageId, author, body, photo, clip, oncePhoto, quoteId, explicitExpiry, preview, replayMode, digestPeriodMs)
++  else:
++    if disappearing = '24h':
++      storeAtExpiry(conversationId, messageId, author, body, photo, clip, oncePhoto, quoteId, now + disappear24hMs, preview, replayMode, digestPeriodMs)
++    else:
++      if disappearing = '7d':
++        storeAtExpiry(conversationId, messageId, author, body, photo, clip, oncePhoto, quoteId, now + disappear7dMs, preview, replayMode, digestPeriodMs)
++      else:
++        storeAtExpiry(conversationId, messageId, author, body, photo, clip, oncePhoto, quoteId, null, preview, replayMode, digestPeriodMs)
++
+ mutation send(conversationId: conversations, body: text <=2000, expiresAt: time ?, quoteId: messages ?, messageId: id ?):
+   require isMember(conversationId, viewer) else NOT_MEMBER
+   conv = conversations[conversationId] ! else NOT_FOUND
+   cfg = settings() ! else CONFIG
+-  ttl = expiresAt
+-  if ttl = null:
+-    if conv.disappearing = '24h':
+-      ttl = 180000 + now
+-    if conv.disappearing = '7d':
+-      ttl = 300000 + now
+-  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, quoteId, expiresAt: ttl, status: 'ok', at: now }
+-  afterSend(conversationId, row.id, viewer, body, cfg.replayMode)
+-  return { id: row.id }
++  chosenId = messageId ?? new
++  storeWithExpiryPolicy(conversationId, chosenId, viewer, body, null, null, null, quoteId, expiresAt, conv.disappearing, cfg.disappear24hMs, cfg.disappear7dMs, body, cfg.replayMode, cfg.digestPeriodMs)
++  return { id: chosenId }
+
+ mutation sendPhoto(conversationId: conversations, photo: image <=10485760, body: text <=500 ?, messageId: id ?):
+   require isMember(conversationId, viewer) else NOT_MEMBER
++  conv = conversations[conversationId] ! else NOT_FOUND
+   cfg = settings() ! else CONFIG
+-  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, photo, status: 'ok', at: now }
+-  afterSend(conversationId, row.id, viewer, body ?? 'Photo', cfg.replayMode)
+-  return { id: row.id, photo: row.photo }
++  chosenId = messageId ?? new
++  storeWithExpiryPolicy(conversationId, chosenId, viewer, body, photo, null, null, null, null, conv.disappearing, cfg.disappear24hMs, cfg.disappear7dMs, body ?? 'Photo', cfg.replayMode, cfg.digestPeriodMs)
++  return { id: chosenId, photo }
+
+ mutation sendClip(conversationId: conversations, clip: video <=52428800, body: text <=500 ?, messageId: id ?):
+   require isMember(conversationId, viewer) else NOT_MEMBER
+   require clip.duration <= 60000 else VIDEO_TOO_LONG
++  conv = conversations[conversationId] ! else NOT_FOUND
+   cfg = settings() ! else CONFIG
+-  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, clip, status: 'ok', at: now }
+-  afterSend(conversationId, row.id, viewer, body ?? 'Video', cfg.replayMode)
+-  return { id: row.id, clip: row.clip, duration: clip.duration }
++  chosenId = messageId ?? new
++  storeWithExpiryPolicy(conversationId, chosenId, viewer, body, null, clip, null, null, null, conv.disappearing, cfg.disappear24hMs, cfg.disappear7dMs, body ?? 'Video', cfg.replayMode, cfg.digestPeriodMs)
++  return { id: chosenId, clip, duration: clip.duration }
+
+ mutation sendOncePhoto(conversationId: conversations, photo: image <=10485760, body: text <=500 ?, messageId: id ?):
+   require isMember(conversationId, viewer) else NOT_MEMBER
++  conv = conversations[conversationId] ! else NOT_FOUND
+   cfg = settings() ! else CONFIG
+-  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, oncePhoto: photo, status: 'ok', at: now }
+-  afterSend(conversationId, row.id, viewer, 'Photo', cfg.replayMode)
+-  return { id: row.id, photo: row.oncePhoto }
++  chosenId = messageId ?? new
++  storeWithExpiryPolicy(conversationId, chosenId, viewer, body, null, null, photo, null, null, conv.disappearing, cfg.disappear24hMs, cfg.disappear7dMs, 'Photo', cfg.replayMode, cfg.digestPeriodMs)
++  return { id: chosenId, photo }
+
+ mutation unsend(messageId: messages):
+   msg = messages[messageId] ! else NOT_FOUND
+@@ -147,6 +162,9 @@ mutation edit(messageId: messages, body: text <=2000, baseBody: text <=2000):
+ mutation purgeMessage(messageId: messages):
+   msg = messages[messageId] ! else NOT_FOUND
+   deliver(msg.conversationId, messageId, 'expired')
++  poll = polls[messageId]
++  if poll != null:
++    delete polls[poll]
+   update messages[msg] { status: 'expired', body: null, photo: null, clip: null, oncePhoto: null }
+   return null
+
+@@ -159,13 +177,16 @@ mutation markDelivered(messageId: messages):
+   return null
+
+ mutation markRead(conversationId: conversations):
+-  require isMember(conversationId, viewer) else NOT_MEMBER
++  membership = memberships[conversationId, viewer] ! else NOT_MEMBER
+   pending = pendingRead[viewer, conversationId] first 50 by byRecipientConversation
+   for row in pending:
+     delete pendingRead[row]
+     delivered = pendingDelivered[row.messageId, viewer]
+     if delivered != null:
+       delete pendingDelivered[delivered]
++  periodPending = periodUnread[viewer, conversationId, membership.id] first 50 by byRecipientConversationMembership
++  for row in periodPending:
++    delete periodUnread[row]
+   clearUnread(conversationId, viewer)
+   return null
+
+@@ -183,16 +204,10 @@ mutation sendPoll(conversationId: conversations, question: text 1..200, option1:
+     require optionId4 != optionId1 else POLL_IDS
+     require optionId4 != optionId2 else POLL_IDS
+   cfg = settings() ! else CONFIG
+-  row = insert messages {
+-    id: messageId ?? new,
+-    conversationId,
+-    authorId: viewer,
+-    body: question,
+-    status: 'ok',
+-    at: now,
+-  }
++  chosenId = messageId ?? new
++  storeWithExpiryPolicy(conversationId, chosenId, viewer, question, null, null, null, null, null, conv.disappearing, cfg.disappear24hMs, cfg.disappear7dMs, question, cfg.replayMode, cfg.digestPeriodMs)
+   insert polls {
+-    messageId: row.id,
++    messageId: chosenId,
+     conversationId,
+     question,
+     option1,
+@@ -204,8 +219,7 @@ mutation sendPoll(conversationId: conversations, question: text 1..200, option1:
+     optionId3,
+     optionId4,
+   }
+-  afterSend(conversationId, row.id, viewer, question, cfg.replayMode)
+-  return { id: row.id }
++  return { id: chosenId }
+
+ mutation setPollVote(messageId: messages, optionId: text <=80, mutationId: text <=80):
+   msg = messages[messageId] ! else NOT_FOUND
+diff --git a/snapback/posts.q b/snapback/posts.q
+index bf454c847..27b6f6c96 100644
+--- a/snapback/posts.q
++++ b/snapback/posts.q
+@@ -1,49 +1,70 @@
+ fn settings from access
+ proc bumpDailyPosts from access
++proc bumpPostPeriod from access
+ proc bumpDailyLikes from access
+ proc dropDailyLikes from access
+-proc bumpNewPostForFollower from access
+
+ mutation createPost(body: text <=500, postId: id ?):
+   require exists profiles[viewer] else PROFILE_REQUIRED
++  cfg = settings() ! else CONFIG
++  (_period, rem) = divmod(now, cfg.digestPeriodMs)
++  periodStart = now - rem
+   if postId != null:
+-    row = insert posts { id: postId, author: viewer, body, kind: 'text', isReply: false, at: now }
++    row = insert posts { id: postId, author: viewer, body, kind: 'text', isReply: false, periodStart, at: now }
+     insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+     insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
++    if cfg.replayMode = false:
++      bumpPostPeriod(viewer, periodStart)
+     bumpDailyPosts(viewer)
+     return row
+-  row = insert posts { author: viewer, body, kind: 'text', isReply: false, at: now }
++  row = insert posts { author: viewer, body, kind: 'text', isReply: false, periodStart, at: now }
+   insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+   insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
++  if cfg.replayMode = false:
++    bumpPostPeriod(viewer, periodStart)
+   bumpDailyPosts(viewer)
+   return row
+
+ mutation createImagePost(body: text <=500, image1: image <=10485760, image2: image <=10485760 ?, image3: image <=10485760 ?, image4: image <=10485760 ?, postId: id ?):
+   require exists profiles[viewer] else PROFILE_REQUIRED
++  cfg = settings() ! else CONFIG
++  (_period, rem) = divmod(now, cfg.digestPeriodMs)
++  periodStart = now - rem
+   if postId != null:
+-    row = insert posts { id: postId, author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, at: now }
++    row = insert posts { id: postId, author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, at: now }
+     insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+     insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
++    if cfg.replayMode = false:
++      bumpPostPeriod(viewer, periodStart)
+     bumpDailyPosts(viewer)
+     return row
+-  row = insert posts { author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, at: now }
++  row = insert posts { author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, at: now }
+   insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+   insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
++  if cfg.replayMode = false:
++    bumpPostPeriod(viewer, periodStart)
+   bumpDailyPosts(viewer)
+   return row
+
+ mutation createVideoPost(body: text <=500, clip: video <=52428800, postId: id ?):
+   require exists profiles[viewer] else PROFILE_REQUIRED
+   require clip.duration <= 60000 else VIDEO_TOO_LONG
++  cfg = settings() ! else CONFIG
++  (_period, rem) = divmod(now, cfg.digestPeriodMs)
++  periodStart = now - rem
+   if postId != null:
+-    row = insert posts { id: postId, author: viewer, body, kind: 'video', isReply: false, clip, at: now }
++    row = insert posts { id: postId, author: viewer, body, kind: 'video', isReply: false, clip, periodStart, at: now }
+     insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+     insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
++    if cfg.replayMode = false:
++      bumpPostPeriod(viewer, periodStart)
+     bumpDailyPosts(viewer)
+     return row
+-  row = insert posts { author: viewer, body, kind: 'video', isReply: false, clip, at: now }
++  row = insert posts { author: viewer, body, kind: 'video', isReply: false, clip, periodStart, at: now }
+   insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
+   insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
++  if cfg.replayMode = false:
++    bumpPostPeriod(viewer, periodStart)
+   bumpDailyPosts(viewer)
+   return row
+
+diff --git a/snapback/schema.q b/snapback/schema.q
+index cfe3d1746..f5e7e8a6e 100644
+--- a/snapback/schema.q
++++ b/snapback/schema.q
+@@ -37,18 +37,33 @@ table follows:
+   follower: principal
+   followed: principal
+   mutationId: text <=80
++  digestEligible: bool
++  periodStart: time ?
+   at: time
+   unique byFollowerFollowed: follower, followed
+   unique byMutationId: mutationId
+   by byFollower: follower, followed
+   by byFollowed: followed, follower
+   by byFollowedAt: followed, at, id
+-  immutable follower, followed, mutationId
++  cap 500 by follower
++  immutable follower, followed, mutationId, digestEligible, periodStart
+   public 'follows are public product-selection relationships'
+   insert <- .follower = viewer
+   update <- deny
+   delete <- .follower = viewer
+
++table digestFollows:
++  follower: principal
++  followed: principal
++  unique byFollowerFollowed: follower, followed
++  by byFollower: follower, followed
++  cap 500 by follower
++  immutable follower, followed
++  public 'digest selection mirrors current public follows'
++  insert <- .follower = viewer
++  update <- deny
++  delete <- .follower = viewer
++
+ table posts:
+   author: principal
+   body: text <=500
+@@ -61,13 +76,14 @@ table posts:
+   image3: image <=10485760 ?
+   image4: image <=10485760 ?
+   clip: video <=52428800 ?
++  periodStart: time ?
+   at: time
+   by byTime: at, id
+   by byAuthorTime: author, at, id
+   by byAuthorReplyTime: author, isReply, at, id
+   by byParentTime: parentId, at, id
+   by bySearch: wordPrefixes(body), at, id
+-  immutable author, at, kind, isReply, parentId, parentAuthor
++  immutable author, at, kind, isReply, parentId, parentAuthor, periodStart
+   public 'posts are globally readable product content'
+   insert <- .author = viewer
+   update <- .author = viewer
+@@ -143,16 +159,26 @@ table dailyStats:
+   update <- exists profiles[viewer]
+   delete <- deny
+
+-table digestBuckets:
+-  principal: principal
++table postPeriodCounters:
++  author: principal
++  isReply: bool
+   periodStart: time
+-  newFollowers: int
++  total: int
++  unique byAuthorReplyPeriod: author, isReply, periodStart
++  immutable author, isReply, periodStart
++  public 'constant-cost post activity counters for digest reads'
++  insert <- .author = viewer
++  update <- .author = viewer
++  delete <- deny
++
++table digestCandidates:
+   newPostsInFollowing: int
+-  unique byPrincipalPeriod: principal, periodStart
++  unreadMessages: int
++  unreadChats: int
+   read <- exists profiles[viewer]
+   insert <- exists profiles[viewer]
+   update <- exists profiles[viewer]
+-  delete <- deny
++  delete <- exists profiles[viewer]
+
+ table digests:
+   principal: principal
+@@ -213,6 +239,7 @@ table memberships:
+   by byConversationPrincipalRole: conversationId, principal, role
+   by byPrincipalConversation: principal, conversationId, id
+   cap 50 by conversationId
++  cap 100 by principal
+   immutable conversationId, principal, joinedAt
+   read <- exists memberships[.conversationId, viewer]
+   insert <- (
+@@ -249,6 +276,7 @@ table messages:
+   edited: bool ?
+   status: enum('ok', 'removed', 'expired')
+   at: time
++  unique byIdAuthor: id, authorId
+   by byConvTime: conversationId, at, id
+   by bySearch: conversationId, wordPrefixes(body), at, id
+   immutable conversationId, authorId
+@@ -286,25 +314,57 @@ table pendingDelivered:
+   by byRecipient: recipient, messageId
+   by byRecipientConversation: recipient, conversationId, messageId
+   cap 50 by recipient, conversationId
++  cap 50 by messageId
+   immutable messageId, recipient, conversationId
+-  read <- .recipient = viewer
++  read <- (
++    exists memberships[.conversationId, viewer, 'admin']
++    or .recipient = viewer
++  )
+   insert <- exists memberships[.conversationId, viewer]
+   update <- deny
+-  delete <- .recipient = viewer or exists memberships[.conversationId, viewer]
++  delete <- .recipient = viewer or exists memberships[.conversationId, viewer, 'admin']
+
+ table pendingRead:
+   messageId: messages
+   recipient: principal
+   conversationId: conversations
++  periodStart: time ?
+   unique byMessageRecipient: messageId, recipient
+   by byRecipient: recipient, messageId
+   by byRecipientConversation: recipient, conversationId, messageId
+   cap 50 by recipient, conversationId
+-  immutable messageId, recipient, conversationId
+-  read <- .recipient = viewer
++  cap 50 by messageId
++  immutable messageId, recipient, conversationId, periodStart
++  read <- (
++    exists memberships[.conversationId, viewer, 'admin']
++    or .recipient = viewer
++  )
+   insert <- exists memberships[.conversationId, viewer]
+   update <- deny
+-  delete <- .recipient = viewer or exists memberships[.conversationId, viewer]
++  delete <- .recipient = viewer or exists memberships[.conversationId, viewer, 'admin']
++
++table periodUnread:
++  messageId: messages
++  recipient: principal
++  conversationId: conversations
++  membershipId: memberships
++  periodStart: time
++  unique byMessageRecipient: messageId, recipient
++  by byRecipientConversationMembership: recipient, conversationId, membershipId, messageId
++  by byPeriod: periodStart, id
++  cap 50 by recipient, conversationId, membershipId
++  cap 50 by messageId
++  immutable messageId, recipient, conversationId, membershipId, periodStart
++  read <- (
++    .recipient = viewer
++    or (exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer])
++  )
++  insert <- exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer]
++  update <- deny
++  delete <- (
++    .recipient = viewer
++    or (exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer])
++  )
+
+ table unreadCounts:
+   conversationId: conversations
+@@ -390,7 +450,7 @@ table pushLog:
+   kind: enum('message', 'digest')
+   chatId: conversations ?
+   senderDisplayName: text <=50 ?
+-  preview: text <=2000 ?
++  preview: text <=80 ?
+   periodStart: time ?
+   periodEnd: time ?
+   newFollowers: int ?
+@@ -451,6 +511,9 @@ maintain followerCounts: count follows by followed
+ maintain followingCounts: count follows by follower
+   read <- exists profiles[viewer]
+
++maintain newFollowerPeriodCounts: count follows by followed, digestEligible, periodStart
++  read <- exists profiles[viewer]
++
+ maintain pendingDeliveredCounts: count pendingDelivered by messageId
+   read <- exists messages[.messageId]
+
+@@ -463,6 +526,9 @@ maintain pendingDeliveredByChat: count pendingDelivered by recipient, conversati
+ maintain pendingReadByChat: count pendingRead by recipient, conversationId
+   read <- deny
+
++maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
++  read <- deny
++
+ maintain unreadMessageTotals: sum unreadCounts of count by principal
+   read <- .principal = viewer
+
+diff --git a/snapback/seed.ts b/snapback/seed.ts
+index 365302f24..d55156fca 100644
+--- a/snapback/seed.ts
++++ b/snapback/seed.ts
+@@ -48,7 +48,10 @@ export default seed({
+       { id: "te-post-bob", actor: "dev:bob", at: 2, postId: "post-bob", kind: "post" },
+     ],
+     follows: [
+-      { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", mutationId: "seed-follow-bob-alice", at: 1 },
++      { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", mutationId: "seed-follow-bob-alice", digestEligible: true, at: 1 },
++    ],
++    digestFollows: [
++      { id: "digest-follow-bob-alice", follower: "dev:bob", followed: "dev:alice" },
+     ],
+     notifications: [
+       { id: "notification-1", outboxId: "seed-outbox", effect: "notify", providerId: "seed-provider" },

@@ -1,0 +1,885 @@
+{
+  "corpusVersion": 1,
+  "name": "decided-or-enriched-membership-page",
+  "category": "visibility",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 50
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipalConversation": {
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversationId"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Or": [
+              {
+                "Eq": [
+                  {
+                    "Field": "conversationId"
+                  },
+                  {
+                    "Literal": {
+                      "Id": "c0"
+                    }
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "Field": "principal"
+                  },
+                  "Viewer"
+                ]
+              }
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "principal"
+              ],
+              "max": 100
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "words": {
+        "columns": {
+          "at": "Time",
+          "conversationId": "Id",
+          "id": "Id",
+          "term": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byConversationTermTime": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "term"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "decided-or-enriched-membership-page",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "result",
+          "value": {
+            "Array": []
+          }
+        }
+      },
+      {
+        "For": {
+          "binding": "entry",
+          "domain": {
+            "Page": {
+              "site": "members.page",
+              "table": "memberships",
+              "index": "byPrincipalConversation",
+              "prefix": [
+                {
+                  "Scalar": {
+                    "Input": "Viewer"
+                  }
+                }
+              ],
+              "order": "Asc",
+              "take": {
+                "Literal": 100
+              },
+              "after": null,
+              "before": null,
+              "range": null,
+              "merge_site": null,
+              "provenance": "Viewer"
+            }
+          },
+          "body": [
+            {
+              "Const": {
+                "name": "conversation",
+                "value": {
+                  "Get": {
+                    "site": "conversation.point",
+                    "table": "conversations",
+                    "index": "byId",
+                    "key": [
+                      {
+                        "Field": {
+                          "base": {
+                            "Variable": "entry"
+                          },
+                          "name": "conversationId"
+                        }
+                      }
+                    ],
+                    "provenance": "Shape"
+                  }
+                }
+              }
+            },
+            {
+              "Let": {
+                "name": "shape",
+                "value": {
+                  "Literal": "Null"
+                }
+              }
+            },
+            {
+              "If": {
+                "condition": {
+                  "Binary": {
+                    "op": "Ne",
+                    "left": {
+                      "Variable": "conversation"
+                    },
+                    "right": {
+                      "Literal": "Null"
+                    }
+                  }
+                },
+                "then_body": [
+                  {
+                    "Assign": {
+                      "name": "shape",
+                      "value": {
+                        "Object": {
+                          "title": {
+                            "Field": {
+                              "base": {
+                                "Variable": "conversation"
+                              },
+                              "name": "title"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "else_body": []
+              }
+            },
+            {
+              "Push": {
+                "target": "result",
+                "value": {
+                  "Object": {
+                    "conversation": {
+                      "Variable": "shape"
+                    },
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "entry"
+                        },
+                        "name": "id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Return": {
+          "Variable": "result"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "decided-or-enriched-membership-page",
+    "plan_hash": "1726b6bb4f9e64329ed592a57d96b928d30190580e61ef65df9f97df42d70377",
+    "schema_hash": "73118de089ba1b2810871ee3ca37a24834e18184fce675be81719822db85f4e5",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "words": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "conversations.read": "6492da2cc1f37b7b07d20f17a326a065a3452f5bf3e9721b909cb8a1913b52f0",
+      "memberships.read": "14ae9d1fa92cbbdb5c36541bb319f04443432181c94a8b1f29f43dedf5d3bf5f"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "conversation.point",
+        "table": "conversations",
+        "index": "byId",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 100,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "members.page",
+        "table": "memberships",
+        "index": "byPrincipalConversation",
+        "prefix_template": "Viewer",
+        "take": 100,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 202,
+    "max_index_entries": 202,
+    "max_rule_probes": 100,
+    "max_steps": 2816,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 90112,
+    "max_output_bytes": 41212,
+    "max_closure_bytes": 37500,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "conversations.byId",
+      "memberships.byConversationPrincipal",
+      "memberships.byPrincipalConversation"
+    ],
+    "disclosures": [],
+    "bound_product": "members.page take 100 (+2 reserve) × 1 calls on memberships = 102 + conversation.point point read on conversations × 100 calls (calls from members.page take 100) = 100",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "examined entries",
+        "value": 100,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "index entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "index entries",
+        "value": 100,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "rule probes",
+        "value": 100,
+        "source": "conversation.point: 100 calls × 1 rule probes (calls from members.page take 100)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 510,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5",
+        "site": "members.page"
+      },
+      {
+        "meter": "steps",
+        "value": 400,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100) × 4",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 400,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "decided-or-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "decided-or-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "decided-or-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "decided-or-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "decided-or-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "decided-or-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 16320,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5 × 32",
+        "site": "members.page"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 12800,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100) × 4 × 32",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 12800,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "decided-or-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "decided-or-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "decided-or-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "decided-or-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "decided-or-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "decided-or-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "decided-or-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 22500,
+        "source": "100 × conversations.title (225 bytes each)",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1000,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 15000,
+        "source": "100 × memberships.id (150 bytes each)",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2600,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 100,
+        "source": "memberships first 100 at members.page (100 repetitions): framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 22500,
+        "source": "100 × conversations.title (225 bytes each; 9 field-name/framing + text max 50 scalars: encoded value bound 216)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 15000,
+        "source": "100 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
+        "site": "members.page"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "73118de089ba1b2810871ee3ca37a24834e18184fce675be81719822db85f4e5",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "m1"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m2",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c2"
+            },
+            "id": {
+              "Id": "m2"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "conversations",
+        "id": "c1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "c1"
+            },
+            "title": {
+              "String": "c1"
+            }
+          }
+        }
+      },
+      {
+        "table": "conversations",
+        "id": "c2",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "c2"
+            },
+            "title": {
+              "String": "c2"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "members.page",
+        "table": "memberships",
+        "index": "byPrincipalConversation",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "u1"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 100,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "14ae9d1fa92cbbdb5c36541bb319f04443432181c94a8b1f29f43dedf5d3bf5f",
+        "row_ids": [
+          "m1",
+          "m2"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_suffix": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "conversation": {
+              "Row": {
+                "title": {
+                  "String": "c1"
+                }
+              }
+            },
+            "id": {
+              "Id": "m1"
+            }
+          }
+        },
+        {
+          "Row": {
+            "conversation": {
+              "Row": {
+                "title": {
+                  "String": "c2"
+                }
+              }
+            },
+            "id": {
+              "Id": "m2"
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"conversation\":{\"Row\":{\"title\":{\"String\":\"c1\"}}},\"id\":{\"Id\":\"m1\"}}},{\"Row\":{\"conversation\":{\"Row\":{\"title\":{\"String\":\"c2\"}}},\"id\":{\"Id\":\"m2\"}}}]}",
+    "digest": "da38ec95d742a949578303e3556b428dacbffe3ba35fdf9e35766396e1b62580",
+    "rangeStops": {
+      "members.page": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}
