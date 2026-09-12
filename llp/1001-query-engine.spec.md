@@ -1342,6 +1342,17 @@ twin/held-state and local cursor contract is LLP 1012 §"Indexed held search".
   JSON for the result and retained rows, respectively. Text costs
   `4 * max + 16` bytes; JSON costs `max_bytes + 16`; Bytes costs
   `2 * max + 16`.
+  The result and full receipt are separate serialized products, not one
+  combined `Execution` allowance. Uniform merge closure pricing independently
+  dominates its pooled receipt estimate and retained intermediate-collection peaks; their
+  maximum does not claim to bound their sum or native heap. Constructed result
+  fields remain subject to the output limit. The review control in
+  `tests/merge.rs` executes 500-follow+self pages shaped as
+  `{post: entry, note: wideArg}` with 12,000 non-BMP scalars per note:
+  two receipts use 718,227/799,875 of 1,349,429 bytes and results use
+  967,386/967,371 of 967,932 bytes. Each product refuses when its own ceiling
+  falls below its measured size. This clarifies the existing meter contracts;
+  no accounting formula or ceiling changes.
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
   in `tests/{store,live,successor,successor_maintains,identity,outbox,
   certificate_retention,completeness,tier0_authorization}.rs`.

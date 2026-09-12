@@ -536,12 +536,12 @@ mod tests {
         let table = schema.tables.get_mut("posts").unwrap();
         table
             .columns
-            .insert("author".into(), ColumnType::Text { max: 8192 });
+            .insert("author".into(), ColumnType::Text { max: 7000 });
         let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
         program.args.insert(
             "scope".into(),
             ArgType::Text {
-                max: 8192,
+                max: 7000,
                 min: 0,
                 format: None,
             },
@@ -563,13 +563,15 @@ mod tests {
                 lane
             })
             .collect();
+        // Keep 64 lanes while pricing their complete wide receipt descriptors
+        // inside the ordinary closure ceiling, including when execution is empty.
         let certificate = Checker::new(&schema, Ceilings::default())
             .check(&program)
             .unwrap();
         let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else {
             unreachable!()
         };
-        let wide = Value::String("𐀀".repeat(8192));
+        let wide = Value::String("𐀀".repeat(7000));
         let table = &schema.tables["posts"];
         let index = &table.indexes[&merge.lanes[0].scan.index];
         let reserve = initial_seek_reserve(merge, 64);
@@ -589,6 +591,10 @@ mod tests {
         .unwrap();
         let retained = initial.retained_bytes().unwrap();
         assert!(retained <= reserve && reserve <= certificate.max_heap_bytes);
+        // Predecessor control: retaining even one unused equality encoding
+        // would still exceed the same template reserve at this admitted width.
+        let old_prefix_bytes = index::encode_index_value(&wide).unwrap().capacity() as u64;
+        assert!(retained + old_prefix_bytes > reserve);
         // Every authored lane shares the one shape, even though none has a head.
         for bucket in 0..64 {
             assert!(initial.matches(&[wide.clone(), Value::Int(bucket)], None, None, None));
@@ -854,12 +860,12 @@ mod tests {
             .get_mut("posts")
             .unwrap()
             .columns
-            .insert("at".into(), ColumnType::Text { max: 8192 });
+            .insert("at".into(), ColumnType::Text { max: 2048 });
         let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
         program.args.insert(
             "low".into(),
             ArgType::Text {
-                max: 8192,
+                max: 2048,
                 min: 0,
                 format: None,
             },
@@ -867,7 +873,7 @@ mod tests {
         program.args.insert(
             "high".into(),
             ArgType::Text {
-                max: 8192,
+                max: 2048,
                 min: 0,
                 format: None,
             },
@@ -900,6 +906,8 @@ mod tests {
                 lane
             })
             .collect();
+        // Four wide bounds per lane must fit the full receipt allowance. This
+        // width still exceeds the unchanged shared-template reserve below.
         let certificate = Checker::new(&schema, Ceilings::default())
             .check(&program)
             .unwrap();
@@ -910,8 +918,8 @@ mod tests {
         let scan = &merge.lanes[0].scan;
         let index = &table.indexes[&scan.index];
         let reserve = initial_seek_reserve(merge, 64);
-        let low = Value::String("𐀀".repeat(8192));
-        let high = Value::String("𐀁".repeat(8192));
+        let low = Value::String("𐀀".repeat(2048));
+        let high = Value::String("𐀁".repeat(2048));
         let after = Value::Array(vec![low.clone(), Value::Id("".into())]);
         let before = Value::Array(vec![high.clone(), Value::Id("z".into())]);
         let range = EvaluatedRange {
@@ -935,6 +943,8 @@ mod tests {
         )
         .unwrap()
         .unwrap();
+        // The unlimited control reproduces the predecessor's missing reserve
+        // check; bounded admission must still select ordinary seeks and refills.
         let retained = unbounded.retained_bytes().unwrap();
         assert!(retained > reserve);
         assert!(

@@ -483,6 +483,9 @@ impl<'a> Checker<'a> {
                 }
             }
         }
+        // @ref LLP 1001#10-what-binds-and-how-it-is-checked — receipt and
+        // result are separate serialized products. Closure also guards retained
+        // collection peaks; it does not sum the entire Execution or price heap.
         if let Some(search) = search_closure {
             if search.bytes > closure.bytes {
                 closure = search;

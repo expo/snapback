@@ -1173,3 +1173,61 @@ unsafe impl std::alloc::GlobalAlloc for ProfileAllocator {
         unsafe { std::alloc::System.dealloc(ptr, layout) }
     }
 }
+
+#[test]
+fn constructed_merge_output_and_receipt_obey_their_separate_byte_bounds() {
+    let (schema, mut program) = fixture(500, 20);
+    let Stmt::Return(page) = program.body.remove(0) else { unreachable!() };
+    program.args.insert("note".into(), ArgType::Text { max: 12_000, min: 0, format: None });
+    program.body = vec![
+        Stmt::Const { name: "page".into(), value: page },
+        Stmt::Let { name: "rows".into(), value: Expr::Array(vec![]) },
+        Stmt::For {
+            binding: "entry".into(),
+            domain: LoopDomain::DerivedArray { value: var("page"), max: 20, bound_source: "page".into() },
+            body: vec![Stmt::Push { target: "rows".into(), value: Expr::Object(BTreeMap::from([
+                ("post".into(), var("entry")), ("note".into(), var("note")),
+            ])) }],
+        },
+        Stmt::Return(var("rows")),
+    ];
+    let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    for n in 0..500 {
+        let author = format!("{n:04}{}", "a".repeat(131));
+        seed_follow(&mut engine, n, &author);
+        for k in 0..3 {
+            engine.seed("posts", entry(&format!("p{n:04}-{k}{}", "x".repeat(128)), &author,
+                ((n * 17 + k * 37) % 101) as i64)).unwrap();
+        }
+    }
+    let note = "\u{10000}".repeat(12_000);
+    let mut cursor = None;
+    for _ in 0..2 {
+        let mut context = ctx(cursor);
+        context.args.insert("note".into(), Value::String(note.clone()));
+        let result = engine.execute(&program, &certificate, context).unwrap();
+        let receipt_bytes = canonical_json(&result.receipt).len() as u64;
+        let result_bytes = canonical_json(&result.result).len() as u64;
+        eprintln!("constructed merge: receipt={receipt_bytes}/{} output={result_bytes}/{} combined={} heap={}",
+            certificate.max_closure_bytes, certificate.max_output_bytes, receipt_bytes + result_bytes, certificate.max_heap_bytes);
+        assert!(receipt_bytes <= certificate.max_closure_bytes);
+        assert!(result_bytes <= certificate.max_output_bytes);
+        // Each serialized product has its own ceiling. A wide constructed
+        // result cannot hide behind a sufficiently large receipt allowance.
+        for (product, ceilings) in [
+            ("output bytes", Ceilings { output_bytes: result_bytes - 1, ..Ceilings::default() }),
+            ("closure bytes", Ceilings { closure_bytes: receipt_bytes - 1, ..Ceilings::default() }),
+        ] {
+            let errors = Checker::new(&schema, ceilings).check_all(&program).unwrap_err();
+            assert!(errors.iter().any(|error| error.message.starts_with(product)), "{product}: {errors:?}");
+        }
+        assert_eq!(result.result.as_array().unwrap().len(), 20);
+        for row in result.result.as_array().unwrap() {
+            assert_eq!(row.field("note").unwrap().as_str().unwrap(), note);
+        }
+        check_trace(&result, &certificate);
+        cursor = result.next;
+        assert!(cursor.is_some());
+    }
+}
