@@ -737,3 +737,20 @@ Three fresh Astra sessions at medium, serial, each on the published
   stays for online-only tables. The README says how to write a history
   query. The lane also met the IndexedDB abort a second time (fixed in
   0.0.4; it keeps 0.0.2). Published `snapback4@0.0.7`.
+
+## 2026-09-12 — two more from the runs; 0.0.8
+
+- **Two writes at once left one `pending` on a healthy link** (the Clique
+  lane at M3: "acknowledge and send return pending with no failed request
+  and do not flush"). A write queued while a flush was running waited for
+  the next link change: the flush read the outbox once. It now runs
+  another pass whenever a write arrived during the last one. The
+  end-to-end test sends two at once and sees two `sent`.
+- **A merged feed with a cursor answered `next: null` over more rows than
+  the page** (loop bar set B, run 1). Each lane read exactly `take` rows,
+  so a lane that alone filled the page could not show there was more. Each
+  lane now reads one row past the page, on the server and on the device;
+  the second page picks up where the first ended.
+- `crates/snapback4-sim/tests/loopbar.rs` carries the loop bar's three
+  attributed findings as tests (the merge continuation, the cursorless
+  page, `??` after an optional reference). Published `snapback4@0.0.8`.

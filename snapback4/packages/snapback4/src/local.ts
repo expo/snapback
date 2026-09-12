@@ -227,10 +227,27 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   let flushing = false;
+  let flushAgain = false;
   async function flush() {
-    if (flushing) return;
+    // A write queued while a flush runs is flushed by the same flush, on
+    // its next pass: nothing waits for the next link change.
+    if (flushing) {
+      flushAgain = true;
+      return;
+    }
     flushing = true;
     try {
+      do {
+        flushAgain = false;
+        await flushOnce();
+      } while (flushAgain && link === "online" && !closed);
+    } finally {
+      flushing = false;
+    }
+  }
+
+  async function flushOnce() {
+    {
       for (const entry of await queued()) {
         if (link !== "online") return;
         const result = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.newIds });
@@ -255,8 +272,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (json.state === "sent") await replica.syncOnce();
         else for (const watch of watches.values()) void rerun(watch);
       }
-    } finally {
-      flushing = false;
     }
   }
 

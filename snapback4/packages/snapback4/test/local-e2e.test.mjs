@@ -63,11 +63,17 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
     // Alice sends: the outcome is sent with a sequence; bob's thread shows it.
     const sent = await alice.mutate(api.send, { conversationId: "c1", body: "hello bob" });
     assert.equal(sent.state, "sent", JSON.stringify(sent));
+    // Two writes at once on a healthy link both land: a write queued while
+    // a flush runs is flushed by that flush's next pass, not by the next
+    // link change.
+    const pair = await Promise.all([alice.mutate(api.send, { conversationId: "c1", body: "one" }), alice.mutate(api.send, { conversationId: "c1", body: "two" })]);
+    assert.deepEqual(pair.map((w) => w.state), ["sent", "sent"], JSON.stringify(pair));
+    for (const w of pair) assert.ok(w.seq > 0);
     const bobThread = bob.observe(api.thread, { conversationId: "c1" });
-    const thread = await until(() => { const r = bobThread.getSnapshot(); return isReady(r) && r.data.length === 1 ? r : null; });
-    assert.equal(thread.data[0].body, "hello bob");
+    const thread = await until(() => { const r = bobThread.getSnapshot(); return isReady(r) && r.data.length === 3 ? r : null; });
+    assert.equal(thread.data[2].body, "hello bob");
     assert.equal(thread.data[0].pending, undefined);
-    await until(() => { const r = bobInbox.getSnapshot(); return isReady(r) && r.data[0].count === 1; });
+    await until(() => { const r = bobInbox.getSnapshot(); return isReady(r) && r.data[0].count === 3; });
 
     // Alice goes offline: her send is pending on her own thread, her reads say when they are from.
     offline = true;
@@ -82,9 +88,9 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
 
     // Back online: the queued write lands on the server and reaches bob.
     offline = false;
-    await until(() => { const r = bobThread.getSnapshot(); return isReady(r) && r.data.length === 2 ? r : null; }, 15_000);
+    await until(() => { const r = bobThread.getSnapshot(); return isReady(r) && r.data.length === 4 ? r : null; }, 15_000);
     const confirmed = await until(() => { const r = aliceThread.getSnapshot(); return isReady(r) && r.data.every((m) => !m.pending) ? r : null; }, 15_000);
-    assert.equal(confirmed.data.length, 2);
+    assert.equal(confirmed.data.length, 4);
     assert.equal(alice.link(), "online");
 
     // A stranger's local read is denied by the author's code, offline or on.

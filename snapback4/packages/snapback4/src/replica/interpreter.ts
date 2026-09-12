@@ -468,7 +468,9 @@ export class Interpreter {
         if (lane.source) this.env.set(lane.binding as string, source);
         await this.statements((lane.setup as unknown[]) ?? [], merge.site as string);
         this.pageDepth++;
-        const rows = await this.scan(lane.scan as Record<string, unknown>);
+        // One row past the page per lane, so a lane that alone fills the
+        // page still shows there is more (as on the server).
+        const rows = await this.scan({ ...(lane.scan as Record<string, unknown>), take: { Literal: take + 1 } });
         this.pageDepth = depth;
         for (const row of rows as Row[]) {
           if (seen.has(row.id)) continue;

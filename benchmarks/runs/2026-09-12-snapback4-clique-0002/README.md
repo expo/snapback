@@ -44,7 +44,9 @@ fixed on main the same day and published after the lane's pin (the lane keeps
 | environment / snapback4 | killing the `npx snapback4` wrapper did not stop the binary ("Address already in use" on restart) | 0.0.4: the wrapper forwards signals |
 | docs | the wire's `/auth/*` response shapes were not written down; the `sync` card said "contains the matching disjunct" where the validator requires the rule to be exactly the audience | README and card corrected (0.0.3, 0.0.4) |
 | environment | the packet lacked `lib/json-schema.mjs`, which the choreography harness imports from the instrument's sibling directory | added to the packet for the later phases |
-| snapback4 (secondary) | the online client reported an HTTP 400 refusal as "unreachable" | landed on main after 0.0.4; unpublished at the time of writing |
+| snapback4 (secondary) | the online client reported an HTTP 400 refusal as "unreachable" | 0.0.5 |
+| snapback4-defect (M3) | under `retain delivered-history` the device kept a left conversation's messages but hid every one, re-evaluating the read rule the server had already applied | 0.0.7: a synced table's rows are the partition; the device runs no read rule on them (LLP 3000 §7) |
+| snapback4-defect (M3, repeat) | the IndexedDB abort page error, met again while predicting typing state | the 0.0.4 fix; counted twice by the lane on 0.0.2 |
 
 ## Anchors, for the comparison
 
