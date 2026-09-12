@@ -122,7 +122,9 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         store.install(&schema)?;
-        Ok(Self { store, schema, programs: programs.into_iter().map(|p| (p.name.clone(), p)).collect(), ceilings: Ceilings::default(), entropy: crate::ids::seed() })
+        let mut engine = Self { store, schema, programs: programs.into_iter().map(|p| (p.name.clone(), p)).collect(), ceilings: Ceilings::default(), entropy: crate::ids::seed() };
+        engine.rebuild_unbuilt_maintains()?;
+        Ok(engine)
     }
 
     pub fn memory(schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
@@ -166,11 +168,50 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         self.store.install(&schema)?;
-        self.schema = schema;
+        let previous = std::mem::replace(&mut self.schema, schema);
         self.programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        // An aggregate the change adds or redefines is built from the rows
+        // that are already there, in one commit that fans out like any other.
+        let added: Vec<crate::schema::Maintain> = self.schema.maintains.iter().filter(|m| !previous.maintains.contains(m)).cloned().collect();
+        self.rebuild_maintains(added)?;
         let next = self.generation() + 1;
         self.store.set_meta("generation", &next.to_string())?;
         Ok(next)
+    }
+
+    /// Aggregates whose target holds nothing while the source holds rows were
+    /// never built (a release installed over an older store): build them.
+    fn rebuild_unbuilt_maintains(&mut self) -> Result<(), RuntimeError> {
+        let mut unbuilt = Vec::new();
+        for maintain in &self.schema.maintains {
+            if self.store.count(&maintain.target)? == 0 && self.store.count(&maintain.source)? > 0 {
+                unbuilt.push(maintain.clone());
+            }
+        }
+        self.rebuild_maintains(unbuilt)
+    }
+
+    fn rebuild_maintains(&mut self, which: Vec<crate::schema::Maintain>) -> Result<(), RuntimeError> {
+        if which.is_empty() {
+            return Ok(());
+        }
+        let now = crate::now_ms();
+        let tx = self.store.transaction()?;
+        let seq = tx.next_seq()?;
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        for maintain in &which {
+            runner.rebuild_maintain(maintain)?;
+        }
+        let events = std::mem::take(&mut runner.events);
+        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+        let written = runner.rows_written;
+        drop(runner);
+        if written > 0 {
+            tx.record_commit(seq, now, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &tables, written)?;
+            partition::append(&tx, seq, &events)?;
+        }
+        tx.commit()?;
+        Ok(())
     }
 
     /// The schema generation the store serves; a device holds a partition

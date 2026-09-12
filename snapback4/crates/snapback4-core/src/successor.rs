@@ -3,7 +3,7 @@
 //! the data to fit; a rule change re-derives partitions; a rename is a drop
 //! plus an add and says so.
 
-use crate::schema::{ColumnType, Schema};
+use crate::schema::{Constraint, ColumnType, Schema};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,7 +62,17 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
         if old.sync != new.sync {
             steps.push(Step { path: format!("{path}.sync"), change: Change::RuleChange, message: format!("{name}'s sync declaration changes; every device re-derives its partition of {name}") });
         }
-        if old.constraints != new.constraints {
+        // A constraint on a column or index that did not exist before binds
+        // no existing row: only constraints over what was already there narrow.
+        let existed = |constraint: &Constraint| match constraint {
+            Constraint::Unique { index } => old.indexes.contains_key(index),
+            Constraint::Cap { by, .. } => by.iter().all(|c| old.columns.contains_key(c)),
+            Constraint::Immutable { fields } => fields.iter().all(|c| old.columns.contains_key(c)),
+            Constraint::Text { field, .. } => old.columns.contains_key(field),
+            Constraint::AppendOnly | Constraint::FinalExistsOnInsert { .. } => true,
+        };
+        let binding: Vec<&Constraint> = new.constraints.iter().filter(|c| existed(c)).collect();
+        if old.constraints.iter().collect::<Vec<_>>() != binding {
             steps.push(Step { path: format!("{path}.constraints"), change: Change::Narrowing, message: format!("{name}'s constraints change; existing rows must satisfy them") });
         }
     }

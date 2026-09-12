@@ -7,7 +7,7 @@ use super::validate::validate_row;
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{Constraint, Effect, Maintain, MaintainKind, maintained_id, maintained_key, materialize_optional_fields};
-use crate::store::index_values;
+use crate::store::{Bounds, Dir, index_values};
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json};
 use std::collections::BTreeMap;
 
@@ -261,6 +261,35 @@ impl Runner<'_> {
                 if change != 0 {
                     self.apply_aggregate(&maintain, key, change)?;
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Build one aggregate from the rows in the store: the target's rows go,
+    /// then every source row contributes once. A schema change that adds or
+    /// redefines a `maintain` calls this, so a count over existing rows is
+    /// right from its first read (day two, LLP 2000.000 §11.2).
+    pub(crate) fn rebuild_maintain(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
+        let target = self.schema.table(&maintain.target).expect("validated").clone();
+        for (existing, _) in self.tx.scan(&maintain.target, "byId", &[], &Bounds::default(), Dir::Asc, usize::MAX)? {
+            let entries = self.tx.delete(&maintain.target, &target, &existing)?;
+            self.meter.charge(MeterKind::IndexEntries, entries)?;
+            self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
+        }
+        let source = self.schema.table(&maintain.source).expect("validated").clone();
+        let mut totals: BTreeMap<String, (Vec<Value>, i128)> = BTreeMap::new();
+        for (row, _) in self.tx.scan(&maintain.source, "byId", &[], &Bounds::default(), Dir::Asc, usize::MAX)? {
+            let mut image = row;
+            materialize_optional_fields(&mut image, &source);
+            let key = maintained_key(&image, &maintain.by);
+            let change = delta(maintain, &image, 1)?;
+            let entry = totals.entry(canonical_json(&key)).or_insert((key, 0));
+            entry.1 += change;
+        }
+        for (_, (key, change)) in totals {
+            if change != 0 {
+                self.apply_aggregate(maintain, key, change)?;
             }
         }
         Ok(())

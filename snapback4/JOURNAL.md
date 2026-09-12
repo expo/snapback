@@ -915,3 +915,20 @@ expiry gap). The five defects, read against today's main:
   and no `next`: a cursorless page on the meter's cut, documented by the
   lane's API.md; today's `check` notes such a page and the README says
   what the card means.
+
+## 2026-09-12 — from the M7 session: an added aggregate is built; 0.0.16
+
+- **A `maintain` added on day two counted nothing that already existed.**
+  The classifier said "maintained aggregates change and are rebuilt";
+  nothing rebuilt them, so a message count added over an old conversation
+  read zero until the next write, and the M7 session built its own paged
+  ledger instead. `adopt` now builds every aggregate the change adds or
+  redefines from the rows in the store, in one commit that fans out to
+  the partitions like any other; a store opened by a release with an
+  aggregate whose target is empty while its source is not builds it too.
+  Test: `tests/clique.rs`.
+- **Adding an optional column with its own constraint classified as
+  Narrowing.** A constraint over a column or index that did not exist
+  before binds no existing row; the classifier now compares only
+  constraints over what was already there. Additive, as it should be.
+- Published `snapback4@0.0.16`.
