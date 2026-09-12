@@ -31,7 +31,8 @@ export async function openSqlite(driver: SqliteDriver, schema: SchemaJson): Prom
 }
 
 class SqliteStore implements Store {
-  constructor(private db: SqliteDriver, readonly schema: SchemaJson) {}
+  constructor(private db: SqliteDriver, public schema: SchemaJson) {}
+  setSchema(schema: SchemaJson) { this.schema = schema; }
 
   private tx(): StoreTx {
     const db = this.db;

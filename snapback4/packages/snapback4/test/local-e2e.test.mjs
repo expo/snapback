@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
 import { memorySessionStore } from "../dist/auth.js";
 import { isReady } from "../dist/contract.js";
+import { nodeSqliteDriver, openSqlite } from "../dist/replica/index.js";
+import { DatabaseSync } from "node:sqlite";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = join(root, "target/debug/snapback4");
@@ -139,6 +141,24 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     const fresh = await createLocalClient({ url: url2, guest: true, store: "memory", sessionStore: sessions, waitSeconds: 1 });
     assert.notEqual(fresh.viewer(), principal);
     await fresh.close();
+    // A cold start with no network: the device opens on the backend and
+    // rows it kept, reads locally with `fresh: false`, and says it is offline.
+    const file = join(dir, "device.sqlite");
+    const sqlite = { open: async (_name, schema) => openSqlite(nodeSqliteDriver(new DatabaseSync(file)), schema) };
+    const online = await createLocalClient({ url: url2, guest: true, store: sqlite, sessionStore: sessions, waitSeconds: 1 });
+    const onlineInbox = await online.query(api.inbox, {});
+    assert.ok(isReady(onlineInbox) && onlineInbox.fresh);
+    await online.close();
+    const noNetwork = () => Promise.reject(new TypeError("no network"));
+    const offline = await createLocalClient({ url: url2, store: sqlite, sessionStore: sessions, fetch: noNetwork, waitSeconds: 1 });
+    assert.equal(offline.link(), "offline");
+    assert.equal(offline.viewer(), online.viewer());
+    const offlineInbox = await offline.query(api.inbox, {});
+    assert.ok(isReady(offlineInbox), JSON.stringify(offlineInbox));
+    assert.equal(offlineInbox.fresh, false);
+    assert.ok(typeof offlineInbox.since === "number");
+    await offline.close();
+    await assert.rejects(createLocalClient({ url: url2, guest: true, store: "memory", sessionStore: memorySessionStore(), fetch: noNetwork, waitSeconds: 1 }), /cannot reach|E_OFFLINE/);
   } finally {
     server.kill();
     rmSync(dir, { recursive: true, force: true });

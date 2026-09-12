@@ -824,3 +824,16 @@ Three fresh Astra sessions at medium, serial, each on the published
   `dev --fresh`, read from the registry's newer README and absent from
   the pin it installed (the brief now names the installed README). Set D
   on 0.0.11 runs with that brief.
+
+## 2026-09-12 — a device starts offline; 0.0.14
+
+- **A device restarting with no network could not open** (the Clique lane
+  at M6, cold-start offline): `createLocalClient` fetched `/schema` before
+  it opened the replica it already held. The client now opens the store
+  first, keeps the compiled backend in it, and when the server is
+  unreachable starts from that copy: `link()` says offline, reads carry
+  `fresh: false` and `since`, and the stream catches up (and re-adopts a
+  new generation) when the link returns. Only a device that never synced
+  needs the server to open, and says so. The end-to-end test restarts a
+  SQLite-backed device with every fetch failing.
+- Published `snapback4@0.0.14`.
