@@ -66,10 +66,13 @@ out = open(logs / f"{name}.ndjson", "w")
 err = open(logs / f"{name}.stderr.log", "w")
 started = int(time.time())
 rollouts_before = rollout_snapshot() if wave == "astra" else set()
+# Construct custody before actor spawn so its unique run identity and every
+# pre-existing terminal are fixed before actor-authored work can begin.
+scale_custody = ScaleOwnerCustody(root=ROOT, lane=lane, name=name)
+env = scale_custody.actor_env(env)
 enable_child_subreaper()
 p = subprocess.Popen(cmd, stdin=stdin, stdout=out, stderr=err, cwd=lane, env=env)
-scale_custody = ScaleOwnerCustody(root=ROOT, lane=lane, actor_pid=p.pid, name=name)
-scale_custody.start()
+scale_custody.start(p.pid)
 (logs / f"{name}.pid").write_text(str(p.pid))
 (logs / f"{name}.start.json").write_text(json.dumps({
     "lane": name, "pid": p.pid, "startedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

@@ -69,17 +69,43 @@ lane's backend. If a lane deliberately needs an explicit URL, set it inside
 that lane after its owner has written `.snapback/dev-url`, then restart its
 bundler. Do not export it through the shell that starts a Clique builder.
 
-The wrappers run in the foreground. On Linux they make themselves child
-subreapers before starting the actor. A detached `snapback2 dev` whose
-`--project` path contains `scale` is claimed only when its live process ancestry
-leads to that actor (or the wrapper has adopted it) and its PID and project match
-its `owner.json`. This means the actor's ordinary `npx snapback2 dev --project
-replays/scale ...` launch enters custody without a special command. When a
-fresh `scale-replay.json`, `scale-replay-failure.json`, or
-`evidence/scale*/result.json` becomes terminal, the wrapper sends the matching
-owner's authenticated stop request and verifies that the exact recorded owner
-and compiler-worker process identities exited. It repeats that cleanup when the
-actor exits or receives INT, TERM, or HUP. Claims and cleanup receipts are in
+The wrappers run in the foreground. Before starting the actor they create a
+unique custody run ID and fingerprint any existing scale terminals; on Linux
+they then make themselves child subreapers. The actor inherits the run ID.
+Every M6/M8 scale-owner launch must declare its milestone, positive attempt
+number, and absolute result path on the owner process itself:
+
+```sh
+CLIQUE_SCALE_MILESTONE=M8 \
+CLIQUE_SCALE_ATTEMPT=1 \
+CLIQUE_SCALE_RESULT="$PWD/evidence/scale-replay/result.json" \
+npx snapback2 dev --project "$PWD/replays/scale-m8-attempt-1" --port 53103
+```
+
+`render.py` appends this mandatory handshake to every future builder prompt.
+The run ID is supplied automatically; do not override it. A retry gets a fresh
+owner, incremented `CLIQUE_SCALE_ATTEMPT`, and distinct result path.
+
+A scale owner is owned only when its live ancestry leads to the actor (or the
+subreaper adopted it), its exact PID and project match `owner.json`, and a
+pidfd opened for that PID still binds the same `/proc` start identity. Terminal
+association additionally requires the process declarations above to carry the
+current run ID and to be unique. The wrapper watches only that owner's declared
+path. It accepts the complete current
+`snapback.full-journey-scale-replay.v1` plus digest-bound receipt,
+`snapback.full-journey-scale-replay-failure.v1`, or the full raw replay report
+(`pass`, start/end, actions, fixture hash, excluded probe time). Canonical final
+attempt numbering must equal the declared attempt. Generic `pass`/`state`
+objects, unsupported or malformed JSON, stale pre-actor bytes, and results that
+predate the owner fail closed and do not stop anything. A result written before
+owner discovery remains pending and is evaluated after the owner is proved.
+
+On a matching terminal the wrapper sends only that owner's authenticated stop
+request, waits on the pidfds for the exact owner and proved descendants, and
+uses pidfd signals if escalation is needed. It never signals an owner or worker
+by numeric PID. Actor exit or INT/TERM/HUP attempts cleanup for every proved
+owner even if an earlier cleanup fails, then reports all failures together.
+Claims, association decisions, and cleanup receipts are in
 `logs/<wave>-<backend>[.m7].scale-owners.jsonl`; cleanup failure makes an
 otherwise successful actor exit nonzero.
 

@@ -8,6 +8,35 @@ from pathlib import Path
 
 VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 
+SCALE_OWNER_CUSTODY_APPENDIX = """
+
+## Required scale-owner lifecycle handshake
+
+The Linux launcher gives this session a unique `CLIQUE_SCALE_CUSTODY_RUN_ID`.
+For every M6 or M8 scale attempt, start a fresh scale backend with all three
+declarations on the `snapback2 dev` process itself:
+
+```sh
+CLIQUE_SCALE_MILESTONE=M8 \\
+CLIQUE_SCALE_ATTEMPT=1 \\
+CLIQUE_SCALE_RESULT="$PWD/evidence/scale-replay/result.json" \\
+npx snapback2 dev --project "$PWD/replays/scale-m8-attempt-1" --port <assigned-port>
+```
+
+Use the real milestone, monotonically increasing positive attempt number, and
+the absolute path of that attempt's eventual JSON result. A retry starts a new
+owner with a new attempt number and its own result path. These declarations
+are mandatory execution custody, not optional evidence metadata: the launcher
+inherits and verifies the run ID automatically, binds the declaration to the
+exact owner process and `owner.json`, and will not associate a result by path
+name or modification time. Write the normal full
+`snapback.full-journey-scale-replay.v1`,
+`snapback.full-journey-scale-replay-failure.v1`, or raw replay report shape to
+the declared path. A schema-invalid, stale, unrelated, or undeclared result
+does not stop an owner. Actor exit still cleans every owner proved to belong to
+this actor.
+"""
+
 
 def render_prompt(root: Path, version: str, port_start: int, port_count: int) -> Path:
     if not VERSION_PATTERN.fullmatch(version):
@@ -50,6 +79,7 @@ def render_prompt(root: Path, version: str, port_start: int, port_count: int) ->
         rendered = rendered.replace(key, value)
     if "{" in rendered.replace("M{n}", ""):
         raise SystemExit("unfilled placeholder in astra-clique-snapback2 prompt")
+    rendered = rendered.rstrip() + SCALE_OWNER_CUSTODY_APPENDIX
     with prompt_path.open("x") as handle:
         handle.write(rendered)
     return prompt_path
