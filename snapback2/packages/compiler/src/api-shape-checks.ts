@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import ts from "typescript";
 import { compileJourneys, lowerProject } from "./project";
+import { rustCheck } from "./rust-check";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 
@@ -86,6 +87,59 @@ void [done, wrong, rowIsNotAny];
       });
     });
   }
+
+  test("post-insert expiry refinement stays a create-only generated mutation target", async () => {
+    await withProjectFiles("snapback2-expiry-target-", {
+      "snapback/schema.q": `table messages:
+  body: text <=4000
+  expiresAt: time ?
+  public
+`,
+      "snapback/messages.q": `query all():
+  return messages[] first 10 by byId
+
+mutation deadlineOnInsert(body: text <=4000):
+  deadline = now + 3600000
+  insert messages { body, expiresAt: deadline }
+
+mutation deadlineAfterInsert(body: text <=4000):
+  row = insert messages { body, expiresAt: null }
+  update messages[row] { expiresAt: now + 3600000 }
+  return row
+
+schedule expireMessage on messages at .expiresAt: delete .
+`,
+      "snapback/tests/expiry.test.ts": `import { api, defineItems, mutationTarget } from "snapback2/client";
+const before = mutationTarget(api.messages.deadlineOnInsert, "messages");
+const after = mutationTarget(api.messages.deadlineAfterInsert, "messages");
+const beforeKind: "create" | undefined = before.__kind;
+const afterKind: "create" | undefined = after.__kind;
+defineItems(api.messages.all, { table: "messages", create: {
+  target: after, belongs: () => true, draft: ({ body }) => ({ body }),
+} });
+void [beforeKind, afterKind];
+`,
+    }, undefined, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `expiry target backend refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      for (const name of ["messages.deadlineOnInsert", "messages.deadlineAfterInsert"]) {
+        const generated = lowered.apiDts.match(new RegExp(`readonly ${name.split(".")[1]}: Op<[^\\n]+`))?.[0] ?? "";
+        assert(generated.includes('{ messages: "create" }') && !generated.includes('"update"'),
+          `${name} was not create-only: ${generated}`);
+      }
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      for (const name of ["messages.deadlineOnInsert", "messages.deadlineAfterInsert"]) {
+        const target = checked.find((item) => item.program === name);
+        assert(target?.certificate && !target.error, `${name} did not certify: ${JSON.stringify(target)}`);
+        const relation = target.certificate.mutation_targets as { targets: unknown[]; complete: boolean };
+        assert(relation.complete && JSON.stringify(relation.targets) === JSON.stringify([
+          { table: "messages", kind: "create", source: { newId: 0 } },
+        ]), `${name} target relation: ${JSON.stringify(relation)}`);
+      }
+      const journeys = await compileJourneys(root, lowered.apiDts);
+      assert(journeys.ok, `expiry target consumer refused: ${journeys.ok ? "" : diagnosticsText(journeys.diagnostics)}`);
+    });
+  });
 
   test("generated API types every Clique shaped result without any-typed fields", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-clique"));

@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import type { Document, ScalarType, TableCatalog } from "./ast";
-import type { BoundQuarryProgram, BoundType, BoundValueFacts } from "./bound";
+import type { BoundExpression, BoundQuarryProgram, BoundStatement, BoundType, BoundValueFacts } from "./bound";
 
 type PrintedType = { text: string; precedence: 1 | 2 | 3 };
 export type BoundDeclarationMode = "result" | "effect-stub";
@@ -122,13 +122,16 @@ function operationType(program: BoundQuarryProgram, rows: ReadonlyMap<string, st
 function targetTypes(program: BoundQuarryProgram): string {
   if (program.kind !== "mutation") return "";
   const tables = new Map<string, Set<string>>();
+  const absorbed = postCreateUpdates(program.body);
   const walk = (value: unknown): void => {
     if (!value || typeof value !== "object") return;
     if (Array.isArray(value)) { value.forEach(walk); return; }
     const node = value as Record<string, any>;
     if (node.kind === "write") {
       const kinds = tables.get(node.table.name) ?? new Set<string>();
-      for (const kind of node.op === "upsert" ? ["create", "update"] : [node.op === "insert" ? "create" : node.op === "delete" ? "remove" : "update"]) kinds.add(kind);
+      for (const kind of node.op === "upsert" ? ["create", "update"]
+        : [node.op === "insert" ? "create" : node.op === "delete" ? "remove" : "update"])
+        if (!absorbed.has(node as BoundExpression)) kinds.add(kind);
       tables.set(node.table.name, kinds);
     }
     for (const [key, child] of Object.entries(node)) {
@@ -138,6 +141,29 @@ function targetTypes(program: BoundQuarryProgram): string {
   walk(program.body);
   return tables.size ? `, { ${[...tables].sort(([a], [b]) => compare(a, b)).map(([table, kinds]) =>
     `${quoteProperty(table)}: ${[...kinds].sort().map(kind => JSON.stringify(kind)).join(" | ")}`).join("; ")} }` : "";
+}
+
+// @ref LLP 1018.003.001#3-semantic-mutation-targets — generated choices use
+// the same narrow semantic action as certification: updating the exact row
+// returned by an earlier unconditional insert refines its create presentation.
+function postCreateUpdates(statements: readonly BoundStatement[]): ReadonlySet<BoundExpression> {
+  const created = new Map<string, string>();
+  const absorbed = new Set<BoundExpression>();
+  const root = (statement: BoundStatement): BoundExpression | undefined =>
+    statement.kind === "bind" || statement.kind === "expr" || statement.kind === "return"
+      ? statement.value : undefined;
+  const createdTable = (expression: BoundExpression): string | undefined => {
+    if (expression.kind === "variable" && expression.symbol.kind === "local") return created.get(expression.symbol.id);
+    return expression.kind === "member" && expression.name === "id" ? createdTable(expression.base) : undefined;
+  };
+  for (const statement of statements) {
+    const value = root(statement);
+    if (value?.kind === "write" && value.op === "update" && value.index?.name === "byId"
+      && value.key.length === 1 && createdTable(value.key[0]!) === value.table.name) absorbed.add(value);
+    if (statement.kind === "bind" && statement.symbols.length === 1 && value?.kind === "write"
+      && value.op === "insert" && !value.ifAbsent) created.set(statement.symbols[0]!.id, value.table.name);
+  }
+  return absorbed;
 }
 
 function printArgs(args: readonly { name: string; type: ScalarType }[], mutation: boolean): string {
