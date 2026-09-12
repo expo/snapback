@@ -483,11 +483,16 @@ fn replay_batch_uses_live_membership_and_includes_oversized_final_terminals() {
         )
         .unwrap();
     assert_eq!(removed["state"], "committed");
+    let seq = state.runtime().store().commit_seq().unwrap();
     let second = state
         .replay_batch(json!({"batch": [entries[1]]}), alice())
         .unwrap();
-    assert_eq!(second["results"][0]["state"], "committed", "{second}");
-    assert_eq!(second["results"][0]["effects"], json!([]));
+    assert_eq!(second["results"][0]["state"], "rejected", "{second}");
+    assert_eq!(second["results"][0]["code"], "E_RULE");
+    assert!(second["results"][0].get("effects").is_none());
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), seq);
+    assert_eq!(state.replay_batch(json!({"batch": [entries[1]]}), alice()).unwrap(), second,
+        "the departed member's refusal is a stable terminal, not a fresh execution");
     let oracle = Program {
         name: "oracle".into(),
         kind: ProgramKind::Query,
