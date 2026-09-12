@@ -539,7 +539,7 @@ export function createOutboxApi(
   return {
     entries,
     status,
-    observe: observeOutbox(entries, status, notify => {
+    observe: observeOutbox(() => runtime?.itemEntries(true) ?? Promise.resolve([]), status, notify => {
       const stop = runtime?.outbox.subscribe(notify), stopInbox = inbox?.subscribe(notify), stopClient = client?.subscribe(notify);
       return () => { stop?.(); stopInbox?.(); stopClient?.(); };
     }, identity, () => (runtime?.following ? inbox?.writer : undefined), prepare, client?.connection),
