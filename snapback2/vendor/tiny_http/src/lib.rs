@@ -293,7 +293,7 @@ impl Server {
             while !inside_close_trigger.load(Relaxed) {
                 let new_client = match server.accept() {
                     Ok((sock, _)) => {
-                        if sock.set_timeouts().is_err() { continue; }
+                        if sock.configure().is_err() { continue; }
                         use util::RefinedTcpStream;
                         let (read_closable, write_closable) = match ssl {
                             None => match RefinedTcpStream::new(sock) { Ok(parts) => parts, Err(_) => continue },

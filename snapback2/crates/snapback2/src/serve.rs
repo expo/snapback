@@ -1194,6 +1194,71 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_refusal_responds_before_a_withheld_request_body() {
+        use std::io::BufRead;
+        let server = BoundServer::bind(0).unwrap();
+        let mut socket = std::net::TcpStream::connect(("127.0.0.1", server.port)).unwrap();
+        socket.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+        socket.write_all(b"POST /api/query HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1048576\r\n\r\n").unwrap();
+        let request = server.server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let responder = thread::spawn(move || request.respond(Response::from_string("denied").with_status_code(403)));
+        let mut reader = std::io::BufReader::new(socket);
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        assert!(line.contains(" 403 "), "{line}");
+        loop {
+            line.clear(); assert!(reader.read_line(&mut line).unwrap() > 0, "EOF before response headers ended");
+            if line == "\r\n" { break; }
+        }
+        let mut body = [0; 6];
+        reader.read_exact(&mut body).unwrap();
+        assert_eq!(&body, b"denied");
+        responder.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn ordinary_responses_preserve_http_version_head_and_pipeline_framing() {
+        use std::io::BufRead;
+        for version in ["1.0", "1.1"] {
+            let server = BoundServer::bind(0).unwrap();
+            let mut socket = std::net::TcpStream::connect(("127.0.0.1", server.port)).unwrap();
+            socket.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+            let methods = if version == "1.1" { vec!["POST", "HEAD", "GET"] } else { vec!["HEAD"] };
+            for method in &methods {
+                let body = if *method == "POST" { "{}" } else { "" };
+                write!(socket, "{method} / HTTP/{version}\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+            }
+            let count = methods.len();
+            let responder = thread::spawn(move || {
+                for _ in 0..count {
+                    let mut request = server.server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+                    let mut body = String::new(); request.as_reader().read_to_string(&mut body).unwrap();
+                    request.respond(Response::from_string("x".repeat(4096))
+                        .with_header(header_value("Content-Type", "application/json"))).unwrap();
+                }
+            });
+            let mut reader = std::io::BufReader::new(socket);
+            for method in methods {
+                let mut line = String::new(); reader.read_line(&mut line).unwrap();
+                assert!(line.starts_with(&format!("HTTP/{version} 200 ")), "{line}");
+                let mut headers = String::new();
+                loop {
+                    line.clear(); assert!(reader.read_line(&mut line).unwrap() > 0, "EOF before response headers ended");
+                    if line == "\r\n" { break; }
+                    headers.push_str(&line);
+                }
+                assert!(headers.contains("Content-Length: 4096\r\n"), "{headers}");
+                assert!(headers.contains("Content-Type: application/json\r\n"), "{headers}");
+                if method != "HEAD" {
+                    let mut body = vec![0; 4096]; reader.read_exact(&mut body).unwrap();
+                    assert_eq!(body, vec![b'x'; 4096]);
+                }
+            }
+            responder.join().unwrap();
+        }
+    }
+
+    #[test]
     fn spawn_failure_releases_one_connection_and_next_spawn_runs() {
         let pools = WorkerPools::default();
         let worker = pools.acquire(WorkerClass::Json).unwrap();

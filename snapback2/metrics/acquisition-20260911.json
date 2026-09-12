@@ -11099,7 +11099,728 @@
         "differentialCases": 1011,
         "decision": "No variant selected: six temporary array/typed-array and closure/shared-compression variants showed small noisy synthetic differences, not evidence of a full-endpoint benefit. Repository SHA implementation unchanged."
       },
-      "pairwiseOutboxObservation": "Rejected: entry-reference equality and reserializing both old/new entries lose the previous serialized value when Date internal slots, getters, or toJSON change despite Object.freeze. Keep the historical serialized ledger value; no new custody mechanism."
+      "pairwiseOutboxObservation": "Rejected: entry-reference equality and reserializing both old/new entries lose the previous serialized value when Date internal slots, getters, or toJSON change despite Object.freeze. Keep the historical serialized ledger value; no new custody mechanism.",
+      "explicitIndexedDbCommit": {
+        "diagnosticOnly": true,
+        "scope": "Diagnostic microbenchmark only: 50,000 synthetic JSON metadata-like records, 50 transactions of1,000 puts each, fresh database per trial. Explicit commit after synchronously queuing puts versus automatic commit; default durability unchanged. Exact readback after oncomplete, then delete database. No full acquisition improvement claim.",
+        "data": {
+          "records": 50000,
+          "groupSize": 1000,
+          "encodedJsonBytes": 16283891,
+          "dataSha256": "81d828f7bc41d63ebdd40724ceac769670a49a2852e9c05353ba0ef2397fa0df",
+          "commitSupported": true
+        },
+        "sourceSha256": "d540b4fe73c42ec2a605b6d1aaac689ec6f27671ce05f57493b3e2a411895d54",
+        "rawSha256": "6591c50c39528cf3b49d321ce0c1a8daf15c17bcce6a1306804f51631e0d7e59",
+        "rawArtifact": "450b:/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-idb-explicit-commit-micro.json",
+        "browser": "140.0.7339.186",
+        "trialWrites": {
+          "auto": [
+            8927.70000076294,
+            14382.69999885559,
+            15372.400001525879
+          ],
+          "explicit": [
+            15999.89999961853,
+            13849.89999961853,
+            18703.39999961853
+          ]
+        },
+        "medianMs": {
+          "auto": 14382.69999885559,
+          "explicit": 15999.89999961853
+        },
+        "pairs": [
+          {
+            "pair": 1,
+            "order": [
+              "auto",
+              "explicit"
+            ],
+            "autoMs": 8927.70000076294,
+            "explicitMs": 15999.89999961853,
+            "explicitMinusAutoMs": 7072.199998855591
+          },
+          {
+            "pair": 2,
+            "order": [
+              "explicit",
+              "auto"
+            ],
+            "autoMs": 14382.69999885559,
+            "explicitMs": 13849.89999961853,
+            "explicitMinusAutoMs": -532.7999992370605
+          },
+          {
+            "pair": 3,
+            "order": [
+              "auto",
+              "explicit"
+            ],
+            "autoMs": 15372.400001525879,
+            "explicitMs": 18703.39999961853,
+            "explicitMinusAutoMs": 3330.9999980926514
+          }
+        ],
+        "readbackAndCleanupPass": true,
+        "browserClosed": true,
+        "observedDurability": [
+          "default"
+        ],
+        "totalPutOperations": 300000,
+        "totalWriteTransactions": 300,
+        "failures": [],
+        "explicitCommitBenefitSupported": false,
+        "interpretation": "Explicit commit was slower in two of three alternating pairs; substantial order drift exists. This synthetic microbenchmark supplies no evidence to change product commit behavior and makes no full-acquisition performance claim."
+      }
+    },
+    "tcpNodelayIncrement": {
+      "sourceCommit": "cf84b1ff129d670fd2408f4bc51be24924fc77b3",
+      "integratedCommit": "7e2f3494ab",
+      "change": "Set TCP_NODELAY on each accepted TCP stream in the existing tiny_http fork before cloning/TLS. Preserve Request.respond, framing, unread-body cleanup, five-second timeouts, Unix sockets, and shed-one-connection setup-error behavior.",
+      "diagnostic": {
+        "scope": "Standalone actual fork, persistent Python http.client connections, two reversed rounds, eight response body sizes, 30 timed responses per mode/size/round. Direct versus coalesced output versus accepted-socket NODELAY with unchanged respond. No packet trace or full-endpoint claim.",
+        "hosts": [
+          {
+            "host": "linux",
+            "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+            "resultSha256": "eed9ab92d136a8d3130b8922c47acef4f978eabcb3d349a27ba7f09bd85aba39",
+            "rawArtifact": "/tmp/acquisition-http-nodelay-diagnostic/results-linux.json",
+            "timedResponses": 1440,
+            "controls": [
+              {
+                "http": 10,
+                "method": "GET",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 10,
+                "method": "HEAD",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 10,
+                "method": "POST",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 11,
+                "method": "GET",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 11,
+                "method": "HEAD",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 11,
+                "method": "POST",
+                "identical_headers": true,
+                "exact_body": true
+              }
+            ],
+            "summary": [
+              {
+                "bodyBytes": 2,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.1167045,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.11183749999999999,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.121447,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 128,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.1003005,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.09959900000000001,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.1060835,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 512,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.10486699999999999,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.11063049999999999,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.103415,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 900,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 40.9662965,
+                    "responsesOver30Ms": 60
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.15250350000000001,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.168237,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 1024,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 40.967939,
+                    "responsesOver30Ms": 60
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.17253800000000002,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.20079049999999998,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 4096,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 40.9655405,
+                    "responsesOver30Ms": 58
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.181772,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.19236799999999998,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 16384,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 40.960108000000005,
+                    "responsesOver30Ms": 58
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.183725,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.195763,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 65536,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.417686,
+                    "responsesOver30Ms": 8
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.38368,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.379143,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "host": "macos",
+            "platform": "macOS-26.6.2-arm64-arm-64bit",
+            "resultSha256": "a8214bacb1366fb5ead3d229a7c874a99c59b1fce9dae532accefa496b30a345",
+            "rawArtifact": "/tmp/acquisition-http-nodelay-diagnostic/results-macos.json",
+            "timedResponses": 1440,
+            "controls": [
+              {
+                "http": 10,
+                "method": "GET",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 10,
+                "method": "HEAD",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 10,
+                "method": "POST",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 11,
+                "method": "GET",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 11,
+                "method": "HEAD",
+                "identical_headers": true,
+                "exact_body": true
+              },
+              {
+                "http": 11,
+                "method": "POST",
+                "identical_headers": true,
+                "exact_body": true
+              }
+            ],
+            "summary": [
+              {
+                "bodyBytes": 2,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.086146,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.083312,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.0818335,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 128,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.0818545,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.077188,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.078146,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 512,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.07625,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.08306250000000001,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.0774165,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 900,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.0817705,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.06272900000000001,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.062229,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 1024,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.0664165,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.062708,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.063354,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 4096,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.07075000000000001,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.0633955,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.061583,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 16384,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.07718749999999999,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.07143749999999999,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.068271,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              },
+              {
+                "bodyBytes": 65536,
+                "modes": {
+                  "direct": {
+                    "count": 60,
+                    "medianMs": 0.10060450000000001,
+                    "responsesOver30Ms": 0
+                  },
+                  "coalesced": {
+                    "count": 60,
+                    "medianMs": 0.10360449999999999,
+                    "responsesOver30Ms": 0
+                  },
+                  "nodelay": {
+                    "count": 60,
+                    "medianMs": 0.088396,
+                    "responsesOver30Ms": 0
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "rawMacSourcePathCorrection": "The raw macOS tiny_http_source field hard-codes the Linux path. Retained Cargo.toml and build logs establish the actual local source as /Users/ccheever/projects/snapback-s2-c/snapback2/vendor/tiny_http. Raw results are preserved unchanged.",
+        "originalPackingDiagnosticPreserved": "The earlier 960-response coalescing diagnostic remains separate and unchanged; its result SHA256 is 431cb8a259147f08adf16b9e9b5b659d57a3a519274d93d7ae6ff063baa81dd4."
+      },
+      "verification": {
+        "socketOptionAndClonedTimeoutTests": "One passed on each of macOS and Linux.",
+        "macServeTests": "16 passed; both new ordinary-response controls passed again after explicit EOF-loop guards.",
+        "sourceReview": "Fresh independent read-only review of cf84b1ff129d670fd2408f4bc51be24924fc77b3: no material findings remain.",
+        "refs": "466 LLP docs, 8157 refs, 0 errors, 0 unchecked.",
+        "repositoryChecks": "Inherited Snapback 1 source cap failure (205 versus 204), scripts-test registration and generated-guide inventory failures reproduced. No Snapback 2 source exceeds 1500 lines; serve.rs is 1459 lines.",
+        "diagnosticEvidenceReview": "Fresh independent read-only review: all compact TCP and IndexedDB fields match the retained raw/summary artifacts; no material finding.",
+        "linuxBinaryTests": {
+          "passed": 283,
+          "skipped": 1,
+          "elapsedSeconds": 6.58,
+          "buildSeconds": 10.94,
+          "node": "v24.18.0",
+          "nextestRunId": "b2f1cbc0-0e7f-48ae-8295-d4302657b4b0",
+          "logSha256": "c4bc15400794128cbd37bf10c7c9c42a7e497c7120c5b12be9c640520fd7bbca",
+          "scope": "All snapback2 binary tests selected by existing local-proof profile; core/evaluator and package suite not rerun for this socket-only delta. Previously recorded full-suite timing and package-growth failures remain separate and unchanged.",
+          "skippedTest": "measure_rehearsal_digest_and_100mb_overhead: existing explicitly ignored LLP 1016 measurement"
+        }
+      },
+      "limits": "Single adjacent pair: all full-workload oracles pass at 25,293.470 ms control and 20,839.439 ms candidate. Descriptive reduction of 4,454.030 ms; content timing is essentially unchanged. This is not a qualified cohort or sub-three-second result. Both arms use the fixed pre-merge schema-digest client at 89,994 canonical bytes; subsequent LLP 1023 main changes are outside this endpoint sample.",
+      "linuxRelease": {
+        "source": "78f14dfa633b1e67832b86bd91ed848a630008f2",
+        "profile": "release optimized",
+        "ownerSha256": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+        "ownerBytes": 19978496,
+        "rebuiltControlSha256": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+        "sourceEquivalence": "Predecessor 155562b8 native source matches local b07260d53a; candidate adds only cf84b1ff12 native delta. Rebuilt control is byte-identical to the previous full benchmark native8 release.",
+        "preexistingRemoteMetrics": "loop.jsonl and twin.jsonl dirty contents preserved unchanged.",
+        "benchmarkArtifactDirectory": "450b:/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-cf84b1f",
+        "fixedControlAndCandidateMediaSha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b"
+      },
+      "adjacentPair": {
+        "record": "acquisitionContinuation20260912TcpNodelay",
+        "remoteHost": "450b",
+        "remoteRoot": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition",
+        "scope": "Adjacent diagnostic pair: fresh native8 control then TCP_NODELAY candidate. Same schema-digest client, current-main compiler, fixed media helper, ordinary finite bearer setup and unchanged full10,008-message harness. Serial Chromium, no profile. All 201 earned ordinary terminals/89 empty terminals/5,558 receipt effects required.",
+        "instrumented": false,
+        "diagnosticOnly": true,
+        "cohortQualified": false,
+        "publicationQualified": false,
+        "goalMs": 3000,
+        "goalAchieved": false,
+        "machineObservationBeforeControl": {
+          "cpus": 12,
+          "load1m": 0.13525390625,
+          "activeChromium": 0,
+          "unrelatedSleepingDevOwner": "PID4128980 under /home/ccheever/clique-0029-20260912/lanes/grok-snapback2, left untouched"
+        },
+        "samples": [
+          {
+            "experiment": "sub3-20260912-bearer-tcp-control-01",
+            "variant": "adjacent-native-tcp-control-schema-client",
+            "startedAt": "2026-09-12T11:01:23.148Z",
+            "finishedAt": "2026-09-12T11:02:05.646Z",
+            "instrumented": false,
+            "firstInboxMs": 1154.4353120000005,
+            "coldSyncedMs": 15246.678220000002,
+            "ackCompleteMs": 25252.554977,
+            "completeAcquisitionMs": 25293.469586,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+            "runtimeSha": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "83161500541ed2bb354df2bd385d08c0262128ef7d70267e7c000632a6bca0a7",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "runtimeGzipBytes": 89994,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "6db3ffc435da6b3f1ee2269f1c591c83de8c0d25fe08e5bb0c3d8fa6ec3f3bc0",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+              "dist/image-runtime.mjs": "406704207ccdf13d5d657abb5b44983b789c64bc66b4a4a1d74560576ec247ca"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.3999996185302734,
+            "firstOfflineSearchMs": 1.8999996185302734,
+            "reopenPass": true,
+            "reopenMs": 6122.193357000004,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 156.00538799999777,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "clientSource": "5fa5726bdc9e3aa2135adacf36c2ed1347ee3cf7",
+            "clientArchiveSha256": "6428112397b0bdbd643f12ab9a53bba21433f8f285bdc0ace8a54b34c4e24ff9",
+            "mediaHelperSha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+            "nativeSource": "8e32e6b314eb73ac7cc4fc38d9aaeb46ac5e0fd1",
+            "nativeControlEquivalence": "Recipe fresh optimized control from155562b87 (byte-identical native sources to b07260d53a, predecessor of cf84) reproduces native8 binary hash6ee176\u2026."
+          },
+          {
+            "experiment": "sub3-20260912-bearer-tcp-nodelay-01",
+            "variant": "adjacent-native-tcp-nodelay-schema-client",
+            "startedAt": "2026-09-12T11:04:03.948Z",
+            "finishedAt": "2026-09-12T11:04:42.004Z",
+            "instrumented": false,
+            "firstInboxMs": 1184.9531660000002,
+            "coldSyncedMs": 15232.263617,
+            "ackCompleteMs": 20796.483553,
+            "completeAcquisitionMs": 20839.43948,
+            "primaryPass": true,
+            "contentPass": true,
+            "ackPostPass": true,
+            "fullRowHashPass": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "stop": 0,
+            "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "runtimeSha": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "81c6bce68579073e231f31867652fd71e49ab007e0d6833edb87623bd998fcab",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "error": null,
+            "primaryError": null,
+            "runtimeGzipBytes": 89994,
+            "runtimeCeilingPass": true,
+            "publicationQualified": false,
+            "cohortQualified": false,
+            "resultSha256": "f03d217f6463d03655edc03771246b93dc9e5ca5fc5b72a08dc17e10278e90f0",
+            "moduleHashes": {
+              "dist/client-runtime.mjs": "a3cbf02a8578521cae7f0470eed66743635087b2c5e30eb633a6d5b8d593c6cb",
+              "dist/image-runtime.mjs": "406704207ccdf13d5d657abb5b44983b789c64bc66b4a4a1d74560576ec247ca"
+            },
+            "firstUsePass": true,
+            "firstOfflineHistoryMs": 1.5,
+            "firstOfflineSearchMs": 1.7999992370605469,
+            "reopenPass": true,
+            "reopenMs": 5977.898888,
+            "reopenIdentityPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "fixtureRowsUnchangedDuringSetup": true,
+            "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+            "ownerPidGone": true,
+            "ownerStopMs": 292.27732699999615,
+            "freshTerminalCount": 201,
+            "freshTerminalHistogram": [
+              {
+                "state": "committed",
+                "effects": 0,
+                "count": 89
+              },
+              {
+                "state": "committed",
+                "effects": 8,
+                "count": 1
+              },
+              {
+                "state": "committed",
+                "effects": 50,
+                "count": 111
+              }
+            ],
+            "freshActualEffects": 5558,
+            "exactAcknowledgementWorkloadPass": true,
+            "clientSource": "5fa5726bdc9e3aa2135adacf36c2ed1347ee3cf7",
+            "clientArchiveSha256": "6428112397b0bdbd643f12ab9a53bba21433f8f285bdc0ace8a54b34c4e24ff9",
+            "mediaHelperSha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+            "nativeSource": "cf84b1ff129d670fd2408f4bc51be24924fc77b3",
+            "linuxBuildSource": "78f14dfa633b1e67832b86bd91ed848a630008f2",
+            "nativeArchiveSha256": "32610f4646fed702bae48fe6a7172c9c3fa3d46de3a5d80475513f3b564265f6",
+            "nativeArtifactNote": "Executed verified native-cf84b1f directory with exact native8 sibling media helper. Archive contains newly built helper separately retained as snapback2-media-current-build. An incomplete early transfer extraction was never executed."
+          }
+        ],
+        "candidateMinusControlMs": {
+          "firstInboxMs": 30.517853999999716,
+          "coldSyncedMs": -14.41460300000108,
+          "ackCompleteMs": -4456.071424000002,
+          "completeAcquisitionMs": -4454.030105999998
+        },
+        "failures": [],
+        "limits": "One adjacent pair is descriptive, not a qualified distribution or full3s claim. Runtime byte ceiling is not whole-package or publication qualification."
+      },
+      "mainIntegration": {
+        "base": "cc40e2b78e",
+        "nativeSource": "No incoming changes to snapback2/crates/snapback2, snapback2/crates/snapback2-core, or tiny_http; TCP source patch survives integration unchanged. Cargo/package versions advanced to 0.0.31.",
+        "incomingClient": "LLP 1023 missing-point coverage repair and primitive helper funding, with previous adjacent-proof reuse experiment deferred to preserve the combined byte ceiling. Existing schema-digest reuse retained.",
+        "incomingCanonicalRuntimeBytes": 89983,
+        "incomingCanonicalMeasurementSource": "cc1112a32cf69d25b01a8d6b1a4f4a426d62f2fe",
+        "endpointQualification": "The frozen 89,994-byte benchmark client is retained in both pair arms. Current merged client needs a separately identified endpoint sample.",
+        "resolution": "Union of independent LLP continuation paragraphs; no executable conflict resolution."
+      }
     }
   }
 }
