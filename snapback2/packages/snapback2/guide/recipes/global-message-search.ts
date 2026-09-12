@@ -49,5 +49,12 @@ export async function nextGlobalMessagePage(search: GlobalMessageSearch) {
 }
 
 function compareId(left: string, right: string): number {
-  return left === right ? 0 : left > right ? 1 : -1;
+  let a = 0, b = 0;
+  while (a < left.length && b < right.length) {
+    const x = left.codePointAt(a)!, y = right.codePointAt(b)!;
+    if (x !== y) return x - y;
+    a += x > 0xffff ? 2 : 1;
+    b += y > 0xffff ? 2 : 1;
+  }
+  return left.length - a - (right.length - b);
 }

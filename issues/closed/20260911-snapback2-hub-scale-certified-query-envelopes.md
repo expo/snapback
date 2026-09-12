@@ -54,7 +54,8 @@ records a legal preserving form for all five rows:
   suppresses duplicates, detects cursor cycles, serializes concurrent `next`
   calls, and propagates the weakest unusable receipt. The installed
   `dist/guide/recipes/global-message-search.ts` recipe binds the generated
-  client API, branded cursors, captured term, comparator, pages, and issues.
+  client API, branded cursors, captured term, Unicode-scalar comparator, pages,
+  and issues.
   Search remains on the original membership-authorized message rows;
   held-search authority was not widened.
 - Rich conversation composites use a smaller continued rich page while raw
@@ -78,6 +79,8 @@ changed.
 - `cargo test -p snapback2-core --lib -- --test-threads=4`: 187 passed,
   0 failed.
 - Published self-reference import `snapback2/global-search-pager`: pass.
+- Installed recipe equal-time ordering: astral, BMP, and shared-prefix IDs
+  match the engine and twin's Unicode-scalar order.
 - `./ref-check --verbose`: 450 LLP docs, 8,109 refs, 0 errors, 0 unchecked.
 - `scripts/caps.mjs` still reports the two inherited Snapback 1 line-cap reds;
   every file changed here is below 1,500 lines.

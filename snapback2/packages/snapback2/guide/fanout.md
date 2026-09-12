@@ -1,21 +1,21 @@
 # Fan-out
 
-`E_STRUCTURAL_FANOUT` requires a complete bound from your loop, argument, or
-schema `cap`; caps reject rows. Use read merge/jobs for uncapped scope.
+`E_STRUCTURAL_FANOUT` needs a complete loop, argument, or `cap` bound. Caps
+reject rows; use merge/jobs for uncapped scope.
 
 ## Hub envelopes
 
-| refusal | preserving form |
-| --- | --- |
-| 1,000-follow feed | narrow heads + 20 point reads |
-| 1,000-chat search | every scope + shipped head pager |
-| 50 rich rows | paged rich rows + raw page of 50 |
-| whole digest | maintained cells + chunk job |
-| 100-row backfill | 25-row chunks through `done` |
+| refusal | legal form |
+|---|---|
+| follows 1,000 | heads 20 + points |
+| chats 1,000 | all scope pages + pager |
+| rich 50 | rich pages + raw 50 |
+| digest | cells + job chunks |
+| backfill 100 | chunks 25 to `done` |
 
 ## 1,000-follow feed
 
-Write/delete post and head atomically; edits leave the head unchanged.
+Publish/remove post+head atomically; edits retain the head.
 
 ```q
 table postHeads:
@@ -58,12 +58,10 @@ mutation removePost(postId: posts):
   return null
 ```
 
-1,001 lanes/20 rows cost output 48,752; closure 2,024,488; heap 1,605,760;
-steps 50,180. Page wider rows; keep every lane.
+1,001 lanes × 20: output 48,752; closure 2,024,488; heap 1,605,760;
+steps 50,180. Page wider rows across every lane.
 
 ## Search every chat
-
-Page memberships; fetch one head per chat.
 
 ```q
 query searchScopes(c: cursor ?):
@@ -74,17 +72,15 @@ query conversationMessageSearch(conversation: conversations, term: text <=128, c
 ```
 
 Copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts`.
-It binds both queries and exact `(at,id)` ordering through the public pager,
-including bounded pages, issues, and captured terms. Recreate it when the term
-or memberships change; do not mount 1,000 live shapes.
-`snapback2 new chat` supplies the write/revocation rules; reads apply current
-membership. Separate snapshots cover the discovered directory, not concurrent
-membership changes.
+It binds both queries, the captured term, branded cursors, `(at,id)` Unicode
+scalar order, pages, and issues. Recreate after term/membership changes;
+never mount 1,000 live shapes. `snapback2 new chat` supplies writes/revocation.
+Reads use current membership; scope/message snapshots exclude concurrent changes.
 
 ## Rich rows and jobs
 
-Keep raw history at 50; page rich rows (often 10). `next` reaches every row;
-the reads are separate snapshots (`guide pagination`).
+Page all raw history at 50 and rich rows at 10; snapshots are separate
+(`guide pagination`).
 
 ```q
 job digestPass(period: int):
@@ -101,4 +97,4 @@ job directoryBackfill():
     update directory[entry] { normalized: entry.handle }
 ```
 
-Jobs continue through the table; literals bound one commit, not population.
+Jobs cover the table; literals bound a commit, not population.

@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, symlink } from "node:fs/promises";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import type { PackageBuildProof } from "./package-regression-checks";
 import { lowerProject } from "./project";
@@ -136,6 +137,45 @@ export function registerPackageGuideChecks(
       assert(diagnostics.length === 0, diagnostics.map((item) =>
         `TS${item.code}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n"));
     });
+  });
+
+  test("the installed global search recipe matches scalar ID order across chats", async () => {
+    const recipePath = resolve(crate, "packages/snapback2/dist/guide/recipes/global-message-search.ts");
+    const recipe = await import(`${pathToFileURL(recipePath).href}?ordering=${Date.now()}`) as {
+      createGlobalMessageSearch(client: object, term: string): object;
+      nextGlobalMessagePage(search: object): Promise<{
+        messages: readonly { id: string }[];
+        state: string;
+        issues: readonly unknown[];
+      }>;
+    };
+    const ids = {
+      astral: "message-prefix-\u{10000}",
+      bmp: "message-prefix-\u{e000}",
+      prefix: "message-prefix-",
+    };
+    const rows: Record<string, { id: string; at: number }> = {
+      astral: { id: ids.astral, at: 7 },
+      bmp: { id: ids.bmp, at: 7 },
+      prefix: { id: ids.prefix, at: 7 },
+    };
+    const terms: string[] = [];
+    const client = { query: async (ref: { op: string }, args: { conversation?: string; term?: string }) => {
+      if (ref.op === "feeds.searchScopes") return {
+        state: "complete", data: Object.keys(rows).map(conversation => ({ conversation })), seq: 1, next: null,
+      };
+      assert(ref.op === "feeds.conversationMessageSearch" && args.conversation !== undefined,
+        `recipe called an unexpected operation: ${ref.op}`);
+      terms.push(args.term ?? "");
+      return { state: "complete", data: [rows[args.conversation]!], seq: 1, next: null };
+    } };
+    const search = recipe.createGlobalMessageSearch(client, "needle");
+    const page = await recipe.nextGlobalMessagePage(search);
+    assert(page.state === "complete" && page.issues.length === 0,
+      `recipe did not complete: ${JSON.stringify(page)}`);
+    assert(JSON.stringify(page.messages.map(row => row.id)) === JSON.stringify([ids.astral, ids.bmp, ids.prefix]),
+      `recipe diverged from engine/twin Unicode scalar order: ${JSON.stringify(page.messages)}`);
+    assert(terms.length === 3 && terms.every(term => term === "needle"), "recipe did not capture its search term");
   });
 
   test("npm pack from a clean dist builds every exported module and declaration", () => {
