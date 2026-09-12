@@ -22391,6 +22391,1693 @@
         "nextConstraint": "Any further redesign must demonstrate end-to-end gains against the same full workload and ordinary receipt work. Stop component-only timing and byte-funding loops.",
         "inferenceLimit": "Not proof that3seconds is fundamentally impossible; no attribution of combined speedup to individual changes or final physical record counts to write-operation counts."
       }
+    },
+    "nativeAcquisitionRestart": {
+      "kind": "snapback2-native-acquisition-restart-evidence",
+      "date": "2026-09-12",
+      "status": "full vertical prototype passes frozen correctness witness; 2–3-second target missed; source preserved on experimental remote branch",
+      "source": {
+        "commit": "a2680554e1bd84f828d7a44ed1620d6d0e950bb8",
+        "base": "4037b676f7a52af47ce75cb4ec48b6b1e0b056f8",
+        "branch": "llp-ship/acquisition-20260912/architecture-restart",
+        "worktree": "/Users/ccheever/projects/snapback-s2-b",
+        "remote": "origin/llp-ship/acquisition-20260912/architecture-restart, remote-confirmed a2680554e1bd84f828d7a44ed1620d6d0e950bb8"
+      },
+      "architecture": {
+        "server": "Schema-derived generated-log page and native receipt kernels; full authorization and row-change lifecycle",
+        "client": "One evaluator row pool/index owner; explicit current-page IDB transaction; durable bounded receipt packets; direct cold rehydrate",
+        "receiptContract": "State idempotence replaces ordinary ACK historical intent terminals; product mutation semantics unchanged",
+        "scope": "Full frozen message and receipt workload on a new minimal DOM UI, not a matched-UI speedup test"
+      },
+      "verification": {
+        "packageBuild": {
+          "log": "/tmp/acquisition-native-restart-package-build-04.log",
+          "result": "pass",
+          "initialFailures": "ES2022 Promise.withResolvers and TS never/narrowing fixed; first3buildlogs preserved"
+        },
+        "client": {
+          "log": "/tmp/acquisition-native-restart-affected-client-tests-01.log",
+          "passed": 405,
+          "failed": 0,
+          "skipped": 0
+        },
+        "nativeClient": {
+          "log": "/tmp/acquisition-native-restart-client-tests-01.log",
+          "passed": 14,
+          "failed": 0
+        },
+        "evaluator": {
+          "log": "/tmp/acquisition-native-restart-evaluator-01.log",
+          "corpusPassed": 266,
+          "nativeCoveragePassed": 15,
+          "deliveryPassed": 10,
+          "visibilityPassed": 2,
+          "failed": 0
+        },
+        "refs": {
+          "log": "/tmp/acquisition-native-restart-ref-check-01.log",
+          "docs": 466,
+          "refs": 8648,
+          "errors": 0
+        },
+        "bytes": {
+          "log": "/tmp/acquisition-native-restart-bytes-02.log",
+          "gzip": 97973,
+          "minified": 295804,
+          "ceiling": 90000,
+          "result": "fails; prototype only",
+          "toolchain": {
+            "node": "24.18.0",
+            "esbuild": "0.25.9",
+            "gzipLevel": 9
+          },
+          "measurementChange": "same five source roots; explicitly retain new NativeAcquisitionClient export from existing offline.ts root so tree shaking cannot omit required prototype runtime",
+          "rejectedPreliminary": {
+            "log": "/tmp/acquisition-native-restart-bytes-01.log",
+            "gzip": 91345,
+            "reason": "new API was not in explicit export root, so 6628 required bytes tree-shook away; not a complete-runtime measurement"
+          }
+        },
+        "review": {
+          "agent": "/root/native_review",
+          "result": "APPROVE; no material finding remains within isolated prototype scope",
+          "findingsResolved": [
+            "unfinished native prefix restore",
+            "terminal auth refusal before initialized custody"
+          ],
+          "scope": "readonly inspection + actual testlogs, no independent test invocation",
+          "commit": "a2680554e1bd84f828d7a44ed1620d6d0e950bb8",
+          "cleanCheckoutVerified": true
+        },
+        "finalLinux": {
+          "ownerSha256": "fab3aea600a372b41f9a250586bccd66e4ff4fbcfe286b5ba66c57eb5b441ead",
+          "ownerBytes": 20157912,
+          "nativeTests": 7,
+          "coreAckTests": 5,
+          "failed": 0,
+          "manifest": "/tmp/acquisition-native-restart-linux-20260912/artifact-manifest.json",
+          "manifestSha256": "154fabc11a618369c36c933a6ffbd9b91a386393586e7af8091c91179127a0d8",
+          "runtime": "rustc/cargo1.97.0 LLVM22.1.6 x86_64Linux release",
+          "dependencyRecovery": "four missing cc1.4.4 src/target files restored from cached exact Cargo.lock checksum archive; original files/versions unchanged",
+          "sourceScope": "all11finalRustfiles match committedsource; full1193staging snapshot checked"
+        }
+      },
+      "verificationArtifacts": [
+        {
+          "path": "/tmp/acquisition-native-restart-package-build-04.log",
+          "bytes": 277,
+          "sha256": "4212e002c75ed0c7a686723c107fd45bfdf98dedc53d5130aa4d2dcffc778d74"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-affected-client-tests-01.log",
+          "bytes": 38945,
+          "sha256": "638a05e84fbe4ec5c087bb20279e3e7595fba2ca9a60c30dbcc335fef66d1fe8"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-client-tests-01.log",
+          "bytes": 1644,
+          "sha256": "1c929fa8e8f79a485576f578d80a448e57864a23f5ccd30a79912ed14e023a45"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-evaluator-01.log",
+          "bytes": 3614,
+          "sha256": "b05568cab892be45ab245bcef2c0d26772bc9f14b77d37297d8bf5212301ee43"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-ref-check-01.log",
+          "bytes": 80,
+          "sha256": "8a10066d729694e2b2c75dcb1cf6515a181315494b5958032fb2ba92fb807fa4"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-bytes-02.log",
+          "bytes": 2490,
+          "sha256": "7e775088362aefaaf34e77ea9e9da5dd0785663ef27bee563bad7c322cfb34b6"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-bytes-01.log",
+          "bytes": 2490,
+          "sha256": "8b1f8b713207d9c4dfa7a0d64ead4acf1724519dda805d3a6134328582818eec"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-source-02-20260912.json",
+          "bytes": 224015,
+          "sha256": "56a818cf6b242a7ea22b6ce54354490d2c3ef1bdbb0daf11e75a59b1f3b1eb85"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-client-20260912.json",
+          "bytes": 55259,
+          "sha256": "4d605ee52984e046b39e128d2890d737f843fe82fd495d41e5acc13b4aab59fb"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-linux-20260912/toolchain.txt",
+          "bytes": 232,
+          "sha256": "856e4cad4242f859dad88fe7929dff8608f2654344342ee3135d52fa3a75cac7"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-linux-20260912/core-ack-tests.log",
+          "bytes": 1850,
+          "sha256": "a5d2f0f85863154825c70e9e816196f62b0fe3a2f76ba358b45b29e33ba9c1e6"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-linux-20260912/dependency-recovery.json",
+          "bytes": 1280,
+          "sha256": "ce3f96128757fff9a9d4f6fc84c57bec7455dd3a6f6b89408257e99a96be5293"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-linux-20260912/release-build.log",
+          "bytes": 6459,
+          "sha256": "e4fa5d8ccbf33e7cad2bee2eaaa262eaa4a1675df106b5b2a1f0d17d3272eb19"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-linux-20260912/artifact-manifest.json",
+          "bytes": 2974,
+          "sha256": "154fabc11a618369c36c933a6ffbd9b91a386393586e7af8091c91179127a0d8"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-linux-20260912/native-tests.log",
+          "bytes": 2819,
+          "sha256": "e148c44ca256fb31aef94df6510249b11fd47ee62de8d21a8dbfcb1e9a563a7c"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-linux-20260912/release-build-02.log",
+          "bytes": 4510,
+          "sha256": "ce6ee1c4fe42b3bbe3de6e8ff3ede86927af431cef7a12c3274fa8758b7bb890"
+        }
+      ],
+      "limitations": [
+        "One exploratory full run cannot establish a distribution or publication claim.",
+        "Minimal DOM shell omits old React/provider mounting, live subscriptions, preview aggregation, composer controls and development overlay.",
+        "Ordinary mutation replay, sparse overlays, generic reauthorization/adoption, negative chronology, media custody, mobile/followers and timed-query restoration remain unqualified.",
+        "Distinct experimental IndexedDB format; no existing-store migration qualification.",
+        "Native acknowledgements preserve receipt states and original first sequence, not ordinary ACK historical terminal replies.",
+        "97,973 gzip bytes exceeds unchanged 90,000 ceiling; no source promotion or byte waiver.",
+        "No first-use loading, indexing or hydration moved before navigation."
+      ],
+      "summary": {
+        "completeAcquisitionMs": 8080.116027,
+        "durableContentMs": 5241.443168,
+        "receiptSettlementMs": 8057.697082000001,
+        "firstInboxMs": 366.4430460000003,
+        "firstOfflineHistoryMs": 3.1999988555908203,
+        "firstOfflineSearchMs": 1.5,
+        "physicalReopenMs": 2763.1703460000026,
+        "targetMs": [
+          2000,
+          3000
+        ],
+        "targetMet": false,
+        "remainingFactorToThreeSeconds": 2.693372009,
+        "note": "One exploratory candidate. Timeline milestones include overlapping work and do not attribute cost to subsystems. Historical React/ordinary-ACK results are contextual only."
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/sub3-20260912-native-architecture-restart-03.json",
+          "bytes": 53915,
+          "sha256": "55e3b4baa33988747b7f25772783bdb51c2621c97b1facbbe525ec91a73f45d1"
+        },
+        {
+          "path": "/tmp/sub3-20260912-native-architecture-restart-03.log",
+          "bytes": 356,
+          "sha256": "2d845ca8d078aee0552d15e144bf9f95b3221dd54dfdd8c11c9860f0d756077e"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-v2-20260912.mjs",
+          "bytes": 36862,
+          "sha256": "1c3b967d82e528a2e2e7ec805e63296f113ee20152bae07793a3bddd1c9ad1d4"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-v2-manifest-20260912.json",
+          "bytes": 1259,
+          "sha256": "16ce14db9f2927fc934d5eaf1f49c7108f9670dfadea443da3be2d4464720c92"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-client-20260912.tar.gz",
+          "bytes": 1708905,
+          "sha256": "90453b88e25110bc374bd33ad25bb8c2ee6723b700c664d8b7fe3ef69b90a5e6"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-source-02-20260912.tar.gz",
+          "bytes": 4835401,
+          "sha256": "27a9f494530a563a6fe42bd21dd50399395d078a952b3419a6fc0529b9239db4"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-sample-20260912.json",
+          "bytes": 15590,
+          "sha256": "f395f961c86340f130283e8ee6cd509499725dfbdb0f9140af38bbda1c52a623"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-postflight-03-20260912.json",
+          "bytes": 662,
+          "sha256": "fb9ed7fa249cda1293092b705c4db7751fc9b6c120e65a867b47f816852e0d59"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-launch-03-20260912.sh",
+          "bytes": 1146,
+          "sha256": "ff017ddda47c0b115877dfd369b259740ee6c59657fa964f9cf9ce604403ec62"
+        }
+      ],
+      "excludedSetupAttempts": [
+        {
+          "experiment": "sub3-20260912-native-architecture-restart-01",
+          "status": "FAIL_SETUP",
+          "reason": "Required SNAPBACK2_NODE environment omitted from launcher; no navigation.",
+          "artifact": {
+            "path": "/tmp/sub3-20260912-native-architecture-restart-01.json",
+            "bytes": 5570,
+            "sha256": "d7819afbb369c36fde4099aed1a8474b6e1c2301889be11d0f3ad8638be9a3ce"
+          },
+          "sample": {
+            "oracleVersion": "native-acquisition-restart-v1",
+            "experiment": "sub3-20260912-native-architecture-restart-01",
+            "variant": "native-architecture-restart",
+            "size": 10008,
+            "conversations": 100,
+            "timeoutMs": 180000,
+            "primary": "navigation through SDK/program/auth initialization, actual paginated groups.mine inbox rendering, native deliveries acquisition and durable receipt-packet settlement, then first owner-cut messages.history and messages.search via the actual held IR evaluator",
+            "protocol": {
+              "version": "native-restart-v1",
+              "ordinaryAckTerminals": "retired",
+              "retiredLegacyOracle": {
+                "total": 201,
+                "empty": 89,
+                "eightEffects": 1,
+                "fiftyEffects": 111
+              },
+              "replacement": "same frozen receipt rows: exactly 5558 initially false rows become true, all 10008 finish true, and every initially true row retains its first sequence",
+              "limitation": "Receipt-row outcomes are compared independently in SQLite after timing; this is not the same acknowledgement transport or terminal protocol."
+            },
+            "comparability": {
+              "sameFixture": true,
+              "sameBearerSetup": true,
+              "sameNavigationClockBoundary": true,
+              "sameFirstOfflineQueries": true,
+              "changed": [
+                "standalone NativeAcquisitionClient SDK",
+                "native acquisition/receipt protocol",
+                "three-store current-page carrier format",
+                "minimal plain-DOM inbox replaces React StrictMode chat template"
+              ],
+              "scope": "Full vertical candidate endpoint. Older React/legacy-protocol measurements are contextual; no matched-UI or same-protocol speedup claim. No first-use index construction or SDK hydration is moved before navigation.",
+              "omittedLegacyUI": [
+                "React/provider mounting",
+                "live subscriptions",
+                "message-preview aggregation",
+                "composer/new-conversation controls",
+                "development overlay"
+              ],
+              "durability": "Await actual IndexedDB transaction completion; default browser durability, not fsync or power-loss qualification."
+            },
+            "instrumented": false,
+            "startedAt": "2026-09-12T18:03:08.254Z",
+            "errors": [],
+            "host": {
+              "hostname": "expose-builder-pixel-a",
+              "platform": "linux",
+              "release": "6.8.0-100-generic",
+              "node": "v24.13.1",
+              "cpus": 12,
+              "load": [
+                0.12,
+                0.48,
+                0.48
+              ]
+            },
+            "hashes": {
+              "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+              "oracle": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+              "owner": "fab3aea600a372b41f9a250586bccd66e4ff4fbcfe286b5ba66c57eb5b441ead",
+              "compilerCore": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "browser": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+              "harness": "e6fc5bdbef2d74c51a76a657edc51039bf16f1db3a3223e122e5fcb1424098fa",
+              "clientEntry": "786986e4243c261303cd0f40ee90605dc82a8bf6f0f3511ec24e15a165d03105"
+            },
+            "fixtureBefore": {
+              "rowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+              "counts": {
+                "conversations": 100,
+                "deliveries": 10008,
+                "deliveriesReceipts": 10008,
+                "memberCounts": 100,
+                "memberships": 199,
+                "messageCounts": 1,
+                "messages": 10008,
+                "profiles": 1
+              },
+              "totalReceipts": 10008,
+              "received": 4450,
+              "unreceived": 5558,
+              "receiptsSha256": "1e645fce5a8b9a4ac3cebdd0b0f6a65d729d1ab5aa5cf2e02c8986b37ea7a6cb"
+            },
+            "primaryPass": false,
+            "error": "Error: fixture compile: {\"code\":\"E_OWNER_NO_COMPILER\",\"family\":\"owner\",\"message\":\"no absolute Node executable was pinned by the launcher\",\"rewrite\":\"run npx snapback2 check --project /home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-01/owner --json; or set SNAPBACK2_NODE=/absolute/path/to/trusted/node\",\"guide\":\"owner/dev\"}\n\n    at command (file:///home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-native-restart-20260912.mjs:73:31)\n    at file:///home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-native-restart-20260912.mjs:330:3",
+            "finalBrowserPids": [],
+            "ownerReceipts": {
+              "sameKeys": true,
+              "total": 10008,
+              "finalReceived": 4450,
+              "falseToTrue": 0,
+              "trueToFalse": 0,
+              "identityChanges": 0,
+              "initiallyReceived": 4450,
+              "firstSequenceChanges": 0,
+              "nonadvancingNewSequences": 0,
+              "validSequences": true,
+              "transitionsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "retainedFirstSequenceSha256": "0dff8e2c29afaace6e39b98c082198ee297cd598251222b2f93a06642cbdc936",
+              "observation": "Per-row before/after committed SQLite states. This counts changed receipt rows, not internal UPDATE statements or transport packets.",
+              "pass": false
+            },
+            "finishedAt": "2026-09-12T18:03:10.007Z",
+            "finishedLoad": [
+              0.19,
+              0.49,
+              0.48
+            ],
+            "fixtureUnchanged": true,
+            "oracleUnchanged": true,
+            "retained": {
+              "owner": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-01/owner",
+              "browserProfile": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-01/browser",
+              "sourceFixtureUntouched": true,
+              "note": "Only this experiment owner/profile was used; no app/session token included in this evidence. Browser profile remains private, as in the earlier benchmark."
+            }
+          }
+        },
+        {
+          "experiment": "sub3-20260912-native-architecture-restart-02",
+          "status": "FAIL_SETUP",
+          "reason": "Chrome rewrites /proc cmdline into one space-joined argv entry, so exact NUL-token profile scanner returned no process; no navigation. Proven by fresh03 actual argv. Corrected scanner requires exact profile option boundaries and verified executable/descendants, plus saved PID start ticks and strict shutdown checks.",
+          "artifact": {
+            "path": "/tmp/sub3-20260912-native-architecture-restart-02.json",
+            "bytes": 8401,
+            "sha256": "0268fcba2942d6545151bbd49319d16f53a7616c70b1a116db42a691de76fc2c"
+          },
+          "sample": {
+            "oracleVersion": "native-acquisition-restart-v1",
+            "experiment": "sub3-20260912-native-architecture-restart-02",
+            "variant": "native-architecture-restart",
+            "size": 10008,
+            "conversations": 100,
+            "timeoutMs": 180000,
+            "primary": "navigation through SDK/program/auth initialization, actual paginated groups.mine inbox rendering, native deliveries acquisition and durable receipt-packet settlement, then first owner-cut messages.history and messages.search via the actual held IR evaluator",
+            "protocol": {
+              "version": "native-restart-v1",
+              "ordinaryAckTerminals": "retired",
+              "retiredLegacyOracle": {
+                "total": 201,
+                "empty": 89,
+                "eightEffects": 1,
+                "fiftyEffects": 111
+              },
+              "replacement": "same frozen receipt rows: exactly 5558 initially false rows become true, all 10008 finish true, and every initially true row retains its first sequence",
+              "limitation": "Receipt-row outcomes are compared independently in SQLite after timing; this is not the same acknowledgement transport or terminal protocol."
+            },
+            "comparability": {
+              "sameFixture": true,
+              "sameBearerSetup": true,
+              "sameNavigationClockBoundary": true,
+              "sameFirstOfflineQueries": true,
+              "changed": [
+                "standalone NativeAcquisitionClient SDK",
+                "native acquisition/receipt protocol",
+                "three-store current-page carrier format",
+                "minimal plain-DOM inbox replaces React StrictMode chat template"
+              ],
+              "scope": "Full vertical candidate endpoint. Older React/legacy-protocol measurements are contextual; no matched-UI or same-protocol speedup claim. No first-use index construction or SDK hydration is moved before navigation.",
+              "omittedLegacyUI": [
+                "React/provider mounting",
+                "live subscriptions",
+                "message-preview aggregation",
+                "composer/new-conversation controls",
+                "development overlay"
+              ],
+              "durability": "Await actual IndexedDB transaction completion; default browser durability, not fsync or power-loss qualification."
+            },
+            "instrumented": false,
+            "startedAt": "2026-09-12T18:09:17.156Z",
+            "errors": [],
+            "host": {
+              "hostname": "expose-builder-pixel-a",
+              "platform": "linux",
+              "release": "6.8.0-100-generic",
+              "node": "v24.13.1",
+              "cpus": 12,
+              "load": [
+                0.03,
+                0.16,
+                0.32
+              ]
+            },
+            "hashes": {
+              "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+              "oracle": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+              "owner": "fab3aea600a372b41f9a250586bccd66e4ff4fbcfe286b5ba66c57eb5b441ead",
+              "compilerCore": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "browser": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+              "harness": "e6fc5bdbef2d74c51a76a657edc51039bf16f1db3a3223e122e5fcb1424098fa",
+              "clientEntry": "786986e4243c261303cd0f40ee90605dc82a8bf6f0f3511ec24e15a165d03105",
+              "compiledProject": "526a8ddf51c2cb1b15aee97bc2695538d60a78aeeb7246c948d1ab6be020cdab",
+              "app": "a22b92beac9e3afa596898a73b33ef0b4062f3693e36033a65ef8670a49725d1"
+            },
+            "fixtureBefore": {
+              "rowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+              "counts": {
+                "conversations": 100,
+                "deliveries": 10008,
+                "deliveriesReceipts": 10008,
+                "memberCounts": 100,
+                "memberships": 199,
+                "messageCounts": 1,
+                "messages": 10008,
+                "profiles": 1
+              },
+              "totalReceipts": 10008,
+              "received": 4450,
+              "unreceived": 5558,
+              "receiptsSha256": "1e645fce5a8b9a4ac3cebdd0b0f6a65d729d1ab5aa5cf2e02c8986b37ea7a6cb"
+            },
+            "sessionAdoption": {
+              "pid": 183586,
+              "generation": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927",
+              "stopped": true
+            },
+            "sessionSetup": {
+              "authEpoch": 1,
+              "expiresAt": 1789322961367,
+              "generation": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927",
+              "kind": "persona",
+              "principal": "dev:alice",
+              "setup": "Runtime::persona on a stopped disposable fixture; ordinary finite bearer for a dev owner",
+              "helper": {
+                "coreSourceCommit": "940a702c286933edc3e44ba1ef289f58d7d7a5e7",
+                "coreSourceBase": "195ccc9b90d5816f4cdc6145b29b5215bd348579",
+                "api": "snapback2_core::Runtime::persona",
+                "scope": "finite stored dev bearer for dev:alice; no route or browser admission changes",
+                "files": {
+                  "main.rs": "7b0817643def0993d7f8e1a6cdd4dcda49e33693be60f7a7047d8d3f79bc580c",
+                  "Cargo.toml": "5f184981907087051368d1a51a4fbeb98d1251072d90f00c652b4d2f0b038032",
+                  "Cargo.lock": "45c9ff2d5e3e5cb154386383dd20793c636f984064a959ca48432d3b71f20bcc",
+                  "helper": "e178b2bd94cb9b1382e260a5511a250ac889b1dd3acf675d39c286d5d18dea2e"
+                }
+              },
+              "scope": "same finite dev bearer for existing fixture principal; no signup/serve claim",
+              "clock": "fixture/session setup is preclock; SDK/program/session loads begin only after navigation",
+              "tokenCustody": "private 0600 helper file removed after reading; memory then origin-scoped localStorage in replacement entry; no bundle/evidence token"
+            },
+            "owner": {
+              "pid": 183657,
+              "url": "http://127.0.0.1:39051",
+              "generation": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927",
+              "mode": "dev",
+              "project": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-02/owner"
+            },
+            "appBuild": {
+              "mode": "production",
+              "minify": true,
+              "ui": "plain DOM native-restart-v1",
+              "inputs": {
+                "lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-restart-client/dist/image-runtime.mjs": "cb1758e47d91e0cc5d8ff56d5c7848eafb042e5c7052460d1f99ca3d584ecd4e",
+                "lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-restart-client/dist/client-runtime.mjs": "15acc93adb38806e83d18ec55d74fb8f827f7476a5a0fa2dcec29c83a5e3c59b",
+                "lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-restart-client/dist/client.mjs": "786986e4243c261303cd0f40ee90605dc82a8bf6f0f3511ec24e15a165d03105",
+                "../../tmp/snapback2-native-restart-app-vuMPly/entry.ts": "1f1a623dabb3f2c85409ad193b0e31ee015a205064820e28532d0c341330fe64"
+              }
+            },
+            "browser": "140.0.7339.186",
+            "initialBrowserPids": [],
+            "primaryPass": false,
+            "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(result.initialBrowserPids.length > 0)\n\n    at file:///home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-native-restart-20260912.mjs:361:53\n    at runNextTicks (node:internal/process/task_queues:64:5)\n    at process.processImmediate (node:internal/timers:472:9)",
+            "finalBrowserPids": [],
+            "stop": {
+              "status": 0,
+              "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+              "stderr": "",
+              "elapsedMs": 254.20238100000006,
+              "error": null,
+              "ownerPid": 183657,
+              "postStopProcess": null
+            },
+            "ownerReceipts": {
+              "sameKeys": true,
+              "total": 10008,
+              "finalReceived": 4450,
+              "falseToTrue": 0,
+              "trueToFalse": 0,
+              "identityChanges": 0,
+              "initiallyReceived": 4450,
+              "firstSequenceChanges": 0,
+              "nonadvancingNewSequences": 0,
+              "validSequences": true,
+              "transitionsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "retainedFirstSequenceSha256": "0dff8e2c29afaace6e39b98c082198ee297cd598251222b2f93a06642cbdc936",
+              "observation": "Per-row before/after committed SQLite states. This counts changed receipt rows, not internal UPDATE statements or transport packets.",
+              "pass": false
+            },
+            "finishedAt": "2026-09-12T18:09:23.543Z",
+            "finishedLoad": [
+              0.11,
+              0.18,
+              0.33
+            ],
+            "fixtureUnchanged": true,
+            "oracleUnchanged": true,
+            "retained": {
+              "owner": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-02/owner",
+              "browserProfile": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-02/browser",
+              "sourceFixtureUntouched": true,
+              "note": "Only this experiment owner/profile was used; no app/session token included in this evidence. Browser profile remains private, as in the earlier benchmark."
+            }
+          }
+        }
+      ],
+      "methodologyReview": {
+        "reviewer": "fresh read-only /root/native_review session, no source/harness edits or execution",
+        "result": "APPROVE; no material finding remains for one exploratory candidate sample",
+        "sourceCommit": "a2680554e1bd84f828d7a44ed1620d6d0e950bb8",
+        "harnessSha256": "1c3b967d82e528a2e2e7ec805e63296f113ee20152bae07793a3bddd1c9ad1d4",
+        "rawSampleSha256": "55e3b4baa33988747b7f25772783bdb51c2621c97b1facbbe525ec91a73f45d1",
+        "checked": "v2 diff only process scanner and version metadata; full endpoint clock and oracles; 8 initial verified Chrome PIDs gone, 8 distinct reopened PIDs gone, owner absent before reopen; physical snapshots unchanged; receipt identities and first sequences preserved"
+      },
+      "sample": {
+        "oracleVersion": "native-acquisition-restart-v1",
+        "harnessVersion": "v2-verified-chromium-process-title-scanner",
+        "experiment": "sub3-20260912-native-architecture-restart-03",
+        "variant": "native-architecture-restart",
+        "size": 10008,
+        "conversations": 100,
+        "timeoutMs": 180000,
+        "primary": "navigation through SDK/program/auth initialization, actual paginated groups.mine inbox rendering, native deliveries acquisition and durable receipt-packet settlement, then first owner-cut messages.history and messages.search via the actual held IR evaluator",
+        "protocol": {
+          "version": "native-restart-v1",
+          "ordinaryAckTerminals": "retired",
+          "retiredLegacyOracle": {
+            "total": 201,
+            "empty": 89,
+            "eightEffects": 1,
+            "fiftyEffects": 111
+          },
+          "replacement": "same frozen receipt rows: exactly 5558 initially false rows become true, all 10008 finish true, and every initially true row retains its first sequence",
+          "limitation": "Receipt-row outcomes are compared independently in SQLite after timing; this is not the same acknowledgement transport or terminal protocol."
+        },
+        "comparability": {
+          "sameFixture": true,
+          "sameBearerSetup": true,
+          "sameNavigationClockBoundary": true,
+          "sameFirstOfflineQueries": true,
+          "changed": [
+            "standalone NativeAcquisitionClient SDK",
+            "native acquisition/receipt protocol",
+            "three-store current-page carrier format",
+            "minimal plain-DOM inbox replaces React StrictMode chat template"
+          ],
+          "scope": "Full vertical candidate endpoint. Older React/legacy-protocol measurements are contextual; no matched-UI or same-protocol speedup claim. No first-use index construction or SDK hydration is moved before navigation.",
+          "omittedLegacyUI": [
+            "React/provider mounting",
+            "live subscriptions",
+            "message-preview aggregation",
+            "composer/new-conversation controls",
+            "development overlay"
+          ],
+          "durability": "Await actual IndexedDB transaction completion; default browser durability, not fsync or power-loss qualification."
+        },
+        "instrumented": false,
+        "startedAt": "2026-09-12T18:16:23.815Z",
+        "errors": [],
+        "host": {
+          "hostname": "expose-builder-pixel-a",
+          "platform": "linux",
+          "release": "6.8.0-100-generic",
+          "node": "v24.13.1",
+          "cpus": 12,
+          "load": [
+            0.25,
+            0.12,
+            0.23
+          ]
+        },
+        "hashes": {
+          "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "oracle": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+          "owner": "fab3aea600a372b41f9a250586bccd66e4ff4fbcfe286b5ba66c57eb5b441ead",
+          "compilerCore": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "browser": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+          "harness": "1c3b967d82e528a2e2e7ec805e63296f113ee20152bae07793a3bddd1c9ad1d4",
+          "clientEntry": "786986e4243c261303cd0f40ee90605dc82a8bf6f0f3511ec24e15a165d03105",
+          "compiledProject": "526a8ddf51c2cb1b15aee97bc2695538d60a78aeeb7246c948d1ab6be020cdab",
+          "app": "ee20e3aefe348d443210219812aab51e8a7cc039ebee90313ef7743fe6bb15f1"
+        },
+        "fixtureBefore": {
+          "rowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+          "counts": {
+            "conversations": 100,
+            "deliveries": 10008,
+            "deliveriesReceipts": 10008,
+            "memberCounts": 100,
+            "memberships": 199,
+            "messageCounts": 1,
+            "messages": 10008,
+            "profiles": 1
+          },
+          "totalReceipts": 10008,
+          "received": 4450,
+          "unreceived": 5558,
+          "receiptsSha256": "1e645fce5a8b9a4ac3cebdd0b0f6a65d729d1ab5aa5cf2e02c8986b37ea7a6cb"
+        },
+        "sessionAdoption": {
+          "pid": 187481,
+          "generation": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927",
+          "stopped": true
+        },
+        "sessionSetup": {
+          "authEpoch": 1,
+          "expiresAt": 1789323388124,
+          "generation": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927",
+          "kind": "persona",
+          "principal": "dev:alice",
+          "setup": "Runtime::persona on a stopped disposable fixture; ordinary finite bearer for a dev owner",
+          "helper": {
+            "coreSourceCommit": "940a702c286933edc3e44ba1ef289f58d7d7a5e7",
+            "coreSourceBase": "195ccc9b90d5816f4cdc6145b29b5215bd348579",
+            "api": "snapback2_core::Runtime::persona",
+            "scope": "finite stored dev bearer for dev:alice; no route or browser admission changes",
+            "files": {
+              "main.rs": "7b0817643def0993d7f8e1a6cdd4dcda49e33693be60f7a7047d8d3f79bc580c",
+              "Cargo.toml": "5f184981907087051368d1a51a4fbeb98d1251072d90f00c652b4d2f0b038032",
+              "Cargo.lock": "45c9ff2d5e3e5cb154386383dd20793c636f984064a959ca48432d3b71f20bcc",
+              "helper": "e178b2bd94cb9b1382e260a5511a250ac889b1dd3acf675d39c286d5d18dea2e"
+            }
+          },
+          "scope": "same finite dev bearer for existing fixture principal; no signup/serve claim",
+          "clock": "fixture/session setup is preclock; SDK/program/session loads begin only after navigation",
+          "tokenCustody": "private 0600 helper file removed after reading; memory then origin-scoped localStorage in replacement entry; no bundle/evidence token"
+        },
+        "owner": {
+          "pid": 187514,
+          "url": "http://127.0.0.1:45657",
+          "generation": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927",
+          "mode": "dev",
+          "project": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/owner"
+        },
+        "appBuild": {
+          "mode": "production",
+          "minify": true,
+          "ui": "plain DOM native-restart-v1",
+          "inputs": {
+            "lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-restart-client/dist/image-runtime.mjs": "cb1758e47d91e0cc5d8ff56d5c7848eafb042e5c7052460d1f99ca3d584ecd4e",
+            "lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-restart-client/dist/client-runtime.mjs": "15acc93adb38806e83d18ec55d74fb8f827f7476a5a0fa2dcec29c83a5e3c59b",
+            "lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-restart-client/dist/client.mjs": "786986e4243c261303cd0f40ee90605dc82a8bf6f0f3511ec24e15a165d03105",
+            "../../tmp/snapback2-native-restart-app-y3kxm4/entry.ts": "de1760eb178bd15755a889191850efa619e689a8836294e208191189e1bd549b"
+          }
+        },
+        "browser": "140.0.7339.186",
+        "browserProcessChecks": [
+          {
+            "profile": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser",
+            "expectedExecutable": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+            "allVerifiedChromium": [
+              {
+                "pid": 187561,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187452,
+                "startTicks": "1179658496",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --remote-debugging-pipe --noerrdialogs --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl about:blank"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187568,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187561,
+                "startTicks": "1179658499",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=zygote --no-zygote-sandbox --no-sandbox --headless --crashpad-handler-pid=187563 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187569,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187561,
+                "startTicks": "1179658499",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=zygote --no-sandbox --headless --crashpad-handler-pid=187563 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187591,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187568,
+                "startTicks": "1179658502",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=gpu-process --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless --ozone-platform=headless --use-angle=swiftshader-webgl --crashpad-handler-pid=187563 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --gpu-preferences=UAAAAAAAAAAgAAAIAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --shared-files --field-trial-handle=3,i,13034912823278766450,16019257722998836326,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187593,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187561,
+                "startTicks": "1179658503",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=187563 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,13034912823278766450,16019257722998836326,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187608,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187569,
+                "startTicks": "1179658504",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=187563 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,13034912823278766450,16019257722998836326,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187643,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187569,
+                "startTicks": "1179658507",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=renderer --crashpad-handler-pid=187563 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1777440404387788 --launch-time-ticks=11796585074514 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,13034912823278766450,16019257722998836326,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187644,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187569,
+                "startTicks": "1179658507",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=renderer --crashpad-handler-pid=187563 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --time-ticks-at-unix-epoch=-1777440404387788 --launch-time-ticks=11796585076672 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,13034912823278766450,16019257722998836326,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              }
+            ],
+            "owned": [
+              187561,
+              187568,
+              187569,
+              187591,
+              187593,
+              187608,
+              187643,
+              187644
+            ],
+            "previouslyObservedStillAlive": []
+          },
+          {
+            "profile": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser",
+            "expectedExecutable": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+            "allVerifiedChromium": [],
+            "owned": [],
+            "previouslyObservedStillAlive": []
+          },
+          {
+            "profile": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser",
+            "expectedExecutable": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+            "allVerifiedChromium": [
+              {
+                "pid": 187903,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187452,
+                "startTicks": "1179659593",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --remote-debugging-pipe --noerrdialogs --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl about:blank"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187910,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187903,
+                "startTicks": "1179659596",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=zygote --no-zygote-sandbox --no-sandbox --headless --crashpad-handler-pid=187905 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187911,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187903,
+                "startTicks": "1179659596",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=zygote --no-sandbox --headless --crashpad-handler-pid=187905 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-first-run --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187932,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187910,
+                "startTicks": "1179659600",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=gpu-process --no-sandbox --disable-dev-shm-usage --disable-breakpad --headless --ozone-platform=headless --use-angle=swiftshader-webgl --crashpad-handler-pid=187905 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --gpu-preferences=UAAAAAAAAAAgAAAIAAAAAAAAAAAAAGAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAgAAAAAAAAA --shared-files --field-trial-handle=3,i,9551009295442728200,8382877183689932253,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187934,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187903,
+                "startTicks": "1179659600",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=187905 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9551009295442728200,8382877183689932253,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187951,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187911,
+                "startTicks": "1179659601",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader-webgl --mute-audio --crashpad-handler-pid=187905 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9551009295442728200,8382877183689932253,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187984,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187911,
+                "startTicks": "1179659605",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=renderer --crashpad-handler-pid=187905 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --time-ticks-at-unix-epoch=-1777440404387788 --launch-time-ticks=11796596052214 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9551009295442728200,8382877183689932253,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              },
+              {
+                "pid": 187985,
+                "exe": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+                "parent": 187911,
+                "startTicks": "1179659605",
+                "argv": [
+                  "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome --type=renderer --crashpad-handler-pid=187905 --enable-crash-reporter=, --noerrdialogs --user-data-dir=/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser --change-stack-guard-on-fork=enable --no-sandbox --disable-dev-shm-usage --disable-back-forward-cache --disable-background-timer-throttling --disable-breakpad --enable-automation --force-color-profile=srgb --remote-debugging-pipe --allow-pre-commit-input --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --ozone-platform=headless --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --time-ticks-at-unix-epoch=-1777440404387788 --launch-time-ticks=11796596053934 --shared-files=v8_context_snapshot_data:100 --field-trial-handle=3,i,9551009295442728200,8382877183689932253,262144 --disable-features=AcceptCHFrame,AutoDeElevate,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate --variations-seed-version"
+                ],
+                "exactArgvProfile": false,
+                "profileOptionToken": true
+              }
+            ],
+            "owned": [
+              187903,
+              187910,
+              187911,
+              187932,
+              187934,
+              187951,
+              187984,
+              187985
+            ],
+            "previouslyObservedStillAlive": []
+          },
+          {
+            "profile": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser",
+            "expectedExecutable": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+            "allVerifiedChromium": [],
+            "owned": [],
+            "previouslyObservedStillAlive": []
+          }
+        ],
+        "initialBrowserPids": [
+          187561,
+          187568,
+          187569,
+          187591,
+          187593,
+          187608,
+          187643,
+          187644
+        ],
+        "preNavigation": {
+          "freshProfile": true,
+          "sdkInitialized": false,
+          "physicalReads": false,
+          "firstUseQueries": false
+        },
+        "firstInboxMs": 366.4430460000003,
+        "contentMs": 5241.443168,
+        "inboxRows": 100,
+        "settlement": {
+          "remaining": 0,
+          "rejected": 0
+        },
+        "receiptsMs": 8057.697082000001,
+        "statusAtSettlement": {
+          "principal": "dev:alice",
+          "seq": 10365,
+          "pending": 0,
+          "rejected": 0,
+          "acquired": 10008,
+          "exhausted": true
+        },
+        "firstUseStartedAtMs": 8062.313389999999,
+        "firstUse": {
+          "history": {
+            "state": "partial",
+            "connection": "offline",
+            "next": "h1.[[\"dev:alice\",\"messages.history\",\"2a44512c7a951d3e023ee31c36e15d7c8eb82d270ceab62be79eebc5d44aa705\",\"da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927\",\"7e642752324031bd8b93f6a681dde8c80848d4074d1aa73dcc49db9bd0ac040b\"],\"06b8a70a032c834610cfd016308d725a556b19468f93044b53dad57ede6dd0e2\",\"151f3a8e-981d-41d2-be43-bca68c3a7063\",[148],\"WzEsIm1lc3NhZ2VzIiwiYnlDb252VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjoxNzg5MTM3MDUzNDM1fSx7IklkIjoiczJpZC1jYjA5YWNjYmZlZTQ5MzEzYjk1NGZlNjI5N2RiMGVjMy0wMDAwMDAwMDAwOWQyMDAxIn1dXQ\"]",
+            "data": [
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009de401",
+                "body": "Busy group coffee signal 10007."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009de001",
+                "body": "Busy group coffee signal 10006."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009ddc01",
+                "body": "Busy group coffee signal 10005."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dd801",
+                "body": "Busy group coffee signal 10004."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dd401",
+                "body": "Busy group coffee signal 10003."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dd001",
+                "body": "Busy group coffee signal 10002."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dcc01",
+                "body": "Busy group coffee signal 10001."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dc801",
+                "body": "Busy group coffee signal 10000."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dc401",
+                "body": "Busy group coffee signal 09999."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dc001",
+                "body": "Busy group coffee signal 09998."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dbc01",
+                "body": "Busy group coffee signal 09997."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009db801",
+                "body": "Busy group coffee signal 09996."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009db401",
+                "body": "Busy group coffee signal 09995."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009db001",
+                "body": "Busy group coffee signal 09994."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dac01",
+                "body": "Busy group coffee signal 09993."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009da801",
+                "body": "Busy group coffee signal 09992."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009da401",
+                "body": "Busy group coffee signal 09991."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009da001",
+                "body": "Busy group coffee signal 09990."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9c01",
+                "body": "Busy group coffee signal 09989."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9801",
+                "body": "Busy group coffee signal 09988."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9401",
+                "body": "Busy group coffee signal 09987."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9001",
+                "body": "Busy group coffee signal 09986."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8c01",
+                "body": "Busy group coffee signal 09985."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8801",
+                "body": "Busy group coffee signal 09984."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8401",
+                "body": "Busy group coffee signal 09983."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8001",
+                "body": "Busy group coffee signal 09982."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7c01",
+                "body": "Busy group coffee signal 09981."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7801",
+                "body": "Busy group coffee signal 09980."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7401",
+                "body": "Busy group coffee signal 09979."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7001",
+                "body": "Busy group coffee signal 09978."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6c01",
+                "body": "Busy group coffee signal 09977."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6801",
+                "body": "Busy group coffee signal 09976."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6401",
+                "body": "Busy group coffee signal 09975."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6001",
+                "body": "Busy group coffee signal 09974."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5c01",
+                "body": "Busy group coffee signal 09973."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5801",
+                "body": "Busy group coffee signal 09972."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5401",
+                "body": "Busy group coffee signal 09971."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5001",
+                "body": "Busy group coffee signal 09970."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4c01",
+                "body": "Busy group coffee signal 09969."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4801",
+                "body": "Busy group coffee signal 09968."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4401",
+                "body": "Busy group coffee signal 09967."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4001",
+                "body": "Busy group coffee signal 09966."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3c01",
+                "body": "Busy group coffee signal 09965."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3801",
+                "body": "Busy group coffee signal 09964."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3401",
+                "body": "Busy group coffee signal 09963."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3001",
+                "body": "Busy group coffee signal 09962."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2c01",
+                "body": "Busy group coffee signal 09961."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2801",
+                "body": "Busy group coffee signal 09960."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2401",
+                "body": "Busy group coffee signal 09959."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2001",
+                "body": "Busy group coffee signal 09958."
+              }
+            ]
+          },
+          "search": {
+            "state": "held",
+            "connection": "offline",
+            "next": null,
+            "data": [
+              {
+                "id": "message-00000",
+                "body": "Busy group coffee signal 00000."
+              }
+            ]
+          },
+          "historyMs": 3.1999988555908203,
+          "searchMs": 1.5,
+          "execution": "actual named IR evaluator through NativeAcquisitionClient.query; no physical/SDK rows inspection",
+          "scope": "Preserve truthful held/partial authority states; exact result content does not establish complete authority coverage.",
+          "pass": true
+        },
+        "completeAcquisitionMs": 8080.116027,
+        "durable": {
+          "databaseVersion": 1,
+          "schema": [
+            {
+              "name": "meta",
+              "keyPath": null,
+              "autoIncrement": false,
+              "indexes": []
+            },
+            {
+              "name": "pages",
+              "keyPath": null,
+              "autoIncrement": false,
+              "indexes": []
+            },
+            {
+              "name": "proofs",
+              "keyPath": null,
+              "autoIncrement": false,
+              "indexes": []
+            }
+          ],
+          "snapshots": {
+            "meta": {
+              "records": 2,
+              "serializedJsonUtf8Bytes": 399382,
+              "sha256": "52be7f3cdcd855fa224113dcbefa9329708bcd91bb5b1180ecf9ec0542a8ebfd"
+            },
+            "pages": {
+              "records": 103,
+              "serializedJsonUtf8Bytes": 8363526,
+              "sha256": "de8e49e33bf4798b866602e19b7fe4d2b072cbde409cc77250e0d15a4d893670"
+            },
+            "proofs": {
+              "records": 3,
+              "serializedJsonUtf8Bytes": 10231,
+              "sha256": "39a4e3c20e88094f36a66f9bb36c5f1033075da03a45603945b4a803f99039e2"
+            }
+          },
+          "tables": {
+            "conversations": 100,
+            "memberships": 100,
+            "deliveries": 10008,
+            "messages": 10008
+          },
+          "state": {
+            "principal": "dev:alice",
+            "seq": 10365,
+            "serial": 201,
+            "sealed": false,
+            "logs": {
+              "deliveries": {
+                "cursor": "WzEsImRlbGl2ZXJpZXMiLCJieVJlY2lwaWVudCIsIkFzYyIsW3sibmFtZSI6InNlcSIsImtpbmQiOiJJbnQifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjEwMTA3fSx7IklkIjoiYTRmMTQ1OWU2NmFmYjVkYjQ0MDU4ODBiZDBhMmFjOGVhNWRlYWZmNjUwYzUyYjg3Y2MwOTkzYTFiOGY4MmFiMiJ9XV0",
+                "exhausted": true,
+                "acquired": 10008
+              }
+            },
+            "pendingPackets": 0,
+            "rejectedPackets": 0
+          },
+          "note": "Post-clock raw IndexedDB decode and SDK inspection only. Complete record hashes include metadata, but no bearer/token hash or raw state is exported. JSON bytes are not disk allocation or retained heap.",
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "sdkMessageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "sdkMatchesPhysical": true,
+          "matchesOwnerMessages": true
+        },
+        "storageEstimate": {
+          "quota": 280825793740,
+          "usage": 5741229,
+          "usageDetails": {
+            "indexedDB": 5741229
+          }
+        },
+        "betweenBrowserProcesses": [],
+        "stop": {
+          "status": 0,
+          "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+          "stderr": "",
+          "elapsedMs": 182.78368500000215,
+          "error": null,
+          "ownerPid": 187514,
+          "postStopProcess": null
+        },
+        "ownerReceipts": {
+          "sameKeys": true,
+          "total": 10008,
+          "finalReceived": 10008,
+          "falseToTrue": 5558,
+          "trueToFalse": 0,
+          "identityChanges": 0,
+          "initiallyReceived": 4450,
+          "firstSequenceChanges": 0,
+          "nonadvancingNewSequences": 0,
+          "validSequences": true,
+          "transitionsSha256": "ac88eea49f01f7b7157f883deccc2cceab9183470f108aa033fa19aa393a4a65",
+          "retainedFirstSequenceSha256": "0dff8e2c29afaace6e39b98c082198ee297cd598251222b2f93a06642cbdc936",
+          "observation": "Per-row before/after committed SQLite states. This counts changed receipt rows, not internal UPDATE statements or transport packets.",
+          "pass": true
+        },
+        "reopenedBrowserPids": [
+          187903,
+          187910,
+          187911,
+          187932,
+          187934,
+          187951,
+          187984,
+          187985
+        ],
+        "reopen": {
+          "history": {
+            "state": "partial",
+            "connection": "offline",
+            "next": "h1.[[\"dev:alice\",\"messages.history\",\"2a44512c7a951d3e023ee31c36e15d7c8eb82d270ceab62be79eebc5d44aa705\",\"da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927\",\"7e642752324031bd8b93f6a681dde8c80848d4074d1aa73dcc49db9bd0ac040b\"],\"06b8a70a032c834610cfd016308d725a556b19468f93044b53dad57ede6dd0e2\",\"5c16c818-194a-406c-939b-0bf04137e236\",[148],\"WzEsIm1lc3NhZ2VzIiwiYnlDb252VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjoxNzg5MTM3MDUzNDM1fSx7IklkIjoiczJpZC1jYjA5YWNjYmZlZTQ5MzEzYjk1NGZlNjI5N2RiMGVjMy0wMDAwMDAwMDAwOWQyMDAxIn1dXQ\"]",
+            "data": [
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009de401",
+                "body": "Busy group coffee signal 10007."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009de001",
+                "body": "Busy group coffee signal 10006."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009ddc01",
+                "body": "Busy group coffee signal 10005."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dd801",
+                "body": "Busy group coffee signal 10004."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dd401",
+                "body": "Busy group coffee signal 10003."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dd001",
+                "body": "Busy group coffee signal 10002."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dcc01",
+                "body": "Busy group coffee signal 10001."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dc801",
+                "body": "Busy group coffee signal 10000."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dc401",
+                "body": "Busy group coffee signal 09999."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dc001",
+                "body": "Busy group coffee signal 09998."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dbc01",
+                "body": "Busy group coffee signal 09997."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009db801",
+                "body": "Busy group coffee signal 09996."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009db401",
+                "body": "Busy group coffee signal 09995."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009db001",
+                "body": "Busy group coffee signal 09994."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009dac01",
+                "body": "Busy group coffee signal 09993."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009da801",
+                "body": "Busy group coffee signal 09992."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009da401",
+                "body": "Busy group coffee signal 09991."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009da001",
+                "body": "Busy group coffee signal 09990."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9c01",
+                "body": "Busy group coffee signal 09989."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9801",
+                "body": "Busy group coffee signal 09988."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9401",
+                "body": "Busy group coffee signal 09987."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d9001",
+                "body": "Busy group coffee signal 09986."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8c01",
+                "body": "Busy group coffee signal 09985."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8801",
+                "body": "Busy group coffee signal 09984."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8401",
+                "body": "Busy group coffee signal 09983."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d8001",
+                "body": "Busy group coffee signal 09982."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7c01",
+                "body": "Busy group coffee signal 09981."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7801",
+                "body": "Busy group coffee signal 09980."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7401",
+                "body": "Busy group coffee signal 09979."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d7001",
+                "body": "Busy group coffee signal 09978."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6c01",
+                "body": "Busy group coffee signal 09977."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6801",
+                "body": "Busy group coffee signal 09976."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6401",
+                "body": "Busy group coffee signal 09975."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d6001",
+                "body": "Busy group coffee signal 09974."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5c01",
+                "body": "Busy group coffee signal 09973."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5801",
+                "body": "Busy group coffee signal 09972."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5401",
+                "body": "Busy group coffee signal 09971."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d5001",
+                "body": "Busy group coffee signal 09970."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4c01",
+                "body": "Busy group coffee signal 09969."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4801",
+                "body": "Busy group coffee signal 09968."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4401",
+                "body": "Busy group coffee signal 09967."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d4001",
+                "body": "Busy group coffee signal 09966."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3c01",
+                "body": "Busy group coffee signal 09965."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3801",
+                "body": "Busy group coffee signal 09964."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3401",
+                "body": "Busy group coffee signal 09963."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d3001",
+                "body": "Busy group coffee signal 09962."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2c01",
+                "body": "Busy group coffee signal 09961."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2801",
+                "body": "Busy group coffee signal 09960."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2401",
+                "body": "Busy group coffee signal 09959."
+              },
+              {
+                "id": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009d2001",
+                "body": "Busy group coffee signal 09958."
+              }
+            ]
+          },
+          "search": {
+            "state": "held",
+            "connection": "offline",
+            "next": null,
+            "data": [
+              {
+                "id": "message-00000",
+                "body": "Busy group coffee signal 00000."
+              }
+            ]
+          },
+          "historyMs": 1.7000007629394531,
+          "searchMs": 2.1000003814697266,
+          "execution": "actual named IR evaluator through NativeAcquisitionClient.query; no physical/SDK rows inspection",
+          "scope": "Preserve truthful held/partial authority states; exact result content does not establish complete authority coverage.",
+          "totalMs": 2763.1703460000026,
+          "inboxRows": 100,
+          "binding": {
+            "principal": "dev:alice",
+            "tokenRestoredBy": "replacement entry localStorage; no new helper injection"
+          },
+          "physicalOwnerStopped": true,
+          "physicalChromiumRestart": true,
+          "durable": {
+            "databaseVersion": 1,
+            "schema": [
+              {
+                "name": "meta",
+                "keyPath": null,
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "pages",
+                "keyPath": null,
+                "autoIncrement": false,
+                "indexes": []
+              },
+              {
+                "name": "proofs",
+                "keyPath": null,
+                "autoIncrement": false,
+                "indexes": []
+              }
+            ],
+            "snapshots": {
+              "meta": {
+                "records": 2,
+                "serializedJsonUtf8Bytes": 399382,
+                "sha256": "52be7f3cdcd855fa224113dcbefa9329708bcd91bb5b1180ecf9ec0542a8ebfd"
+              },
+              "pages": {
+                "records": 103,
+                "serializedJsonUtf8Bytes": 8363526,
+                "sha256": "de8e49e33bf4798b866602e19b7fe4d2b072cbde409cc77250e0d15a4d893670"
+              },
+              "proofs": {
+                "records": 3,
+                "serializedJsonUtf8Bytes": 10231,
+                "sha256": "39a4e3c20e88094f36a66f9bb36c5f1033075da03a45603945b4a803f99039e2"
+              }
+            },
+            "tables": {
+              "conversations": 100,
+              "memberships": 100,
+              "deliveries": 10008,
+              "messages": 10008
+            },
+            "state": {
+              "principal": "dev:alice",
+              "seq": 10365,
+              "serial": 201,
+              "sealed": false,
+              "logs": {
+                "deliveries": {
+                  "cursor": "WzEsImRlbGl2ZXJpZXMiLCJieVJlY2lwaWVudCIsIkFzYyIsW3sibmFtZSI6InNlcSIsImtpbmQiOiJJbnQifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjEwMTA3fSx7IklkIjoiYTRmMTQ1OWU2NmFmYjVkYjQ0MDU4ODBiZDBhMmFjOGVhNWRlYWZmNjUwYzUyYjg3Y2MwOTkzYTFiOGY4MmFiMiJ9XV0",
+                  "exhausted": true,
+                  "acquired": 10008
+                }
+              },
+              "pendingPackets": 0,
+              "rejectedPackets": 0
+            },
+            "note": "Post-clock raw IndexedDB decode and SDK inspection only. Complete record hashes include metadata, but no bearer/token hash or raw state is exported. JSON bytes are not disk allocation or retained heap.",
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "sdkMessageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "sdkMatchesPhysical": true,
+            "matchesOwnerMessages": true
+          },
+          "pass": true
+        },
+        "primaryPass": true,
+        "finalBrowserPids": [],
+        "finishedAt": "2026-09-12T18:16:45.502Z",
+        "finishedLoad": [
+          0.68,
+          0.23,
+          0.27
+        ],
+        "fixtureUnchanged": true,
+        "oracleUnchanged": true,
+        "retained": {
+          "owner": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/owner",
+          "browserProfile": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/experiments/sub3-20260912-native-architecture-restart-03/browser",
+          "sourceFixtureUntouched": true,
+          "note": "Only this experiment owner/profile was used; no app/session token included in this evidence. Browser profile remains private, as in the earlier benchmark."
+        }
+      },
+      "decision": {
+        "target": "Not achieved: 8,080.116027 ms remains 5,080.116027 ms above 3 seconds.",
+        "delivery": "Source committed and pushed on isolated experimental branch; existing LLPs and evidence only on main. No runtime promotion, byte waiver, or publication.",
+        "reason": "Full runtime 97,973 gzip > 90,000; prototype does not cover every SDK contract; reduced UI still misses target.",
+        "nextConstraint": "Do not resume component-only timing, chunk-size tuning, or byte-funding loops. Any subsequent architecture attempt must explain structural removal of substantial work and demonstrate the entire endpoint again.",
+        "inferenceLimit": "No matched-UI speedup percentage, median/p95 claim, component cost attribution, proof that 3 seconds is impossible, or claim that omitted SDK/UI work has been paid."
+      },
+      "postflight": {
+        "postflight": {
+          "pass": true,
+          "active": [],
+          "recordedPids": [
+            187452,
+            187481,
+            187514,
+            187561,
+            187568,
+            187569,
+            187591,
+            187593,
+            187608,
+            187643,
+            187644,
+            187903,
+            187910,
+            187911,
+            187932,
+            187934,
+            187951,
+            187984,
+            187985
+          ],
+          "recordedPidsRemaining": [],
+          "crashpadPids": [
+            187563,
+            187905
+          ],
+          "crashpadPidsRemaining": [],
+          "ownerRecordRemoved": true,
+          "rawSha256": "55e3b4baa33988747b7f25772783bdb51c2621c97b1facbbe525ec91a73f45d1",
+          "logSha256": "2d845ca8d078aee0552d15e144bf9f95b3221dd54dfdd8c11c9860f0d756077e",
+          "load": [
+            0.208984375,
+            0.18408203125,
+            0.248046875
+          ]
+        },
+        "handle": 72586,
+        "handleExit": 0
+      },
+      "remainingArchitectureAudit": {
+        "method": "Read-only source inspection by /root/recipe on a268; no edits, builds, profiling or benchmark",
+        "finding": "No whole-database clone/rewrite; SQLite WAL updates individual rows and unchanged index keys skip physical rewrites. Remaining JSON decode/full row copy/first-image and wire evidence capture/repeated response encoding paths remain.",
+        "hypothesis": "One authoritative schema-aware immutable stored row representation across storage, authorization, command-specific evidence and response encoding. Bounded group commit separately requires defined live/crash/publication semantics.",
+        "sources": [
+          "snapback2-core/src/store.rs:116",
+          "snapback2-core/src/engine/index.rs:57",
+          "snapback2-core/src/engine/runner_ops.rs:1159",
+          "snapback2-core/src/engine/runner.rs:984",
+          "snapback2-core/src/offline.rs:185",
+          "snapback2-core/src/engine/runner_ops.rs:74",
+          "snapback2-core/src/engine/acquisition.rs:64",
+          "snapback2-core/src/offline.rs:499",
+          "snapback2/src/writer_acquire.rs:95",
+          "snapback2/src/serve.rs:741",
+          "snapback2/src/writer_ledger.rs:24"
+        ],
+        "sourcePathPrefix": "snapback2/crates/ at committed experimental source a268",
+        "constraints": [
+          "Exact typed values and fingerprints",
+          "Current authorization and authoritative audit evidence",
+          "Immutable first received sequence",
+          "Atomic packet refusal",
+          "Full transactional lifecycle writes and intermediate live/publication semantics"
+        ],
+        "inferenceLimit": "No cost attribution, dominant-bottleneck finding, sub-three-second feasibility claim, or source change follows from this audit."
+      }
     }
   }
 }

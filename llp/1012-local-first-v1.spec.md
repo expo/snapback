@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-12 (24-hour session renewal preserves same-epoch custody; hub-scale global-search pager; unheld aggregate presentation and checked totals custody; bounded transport/carrier acquisition; earlier chronology in LLP 1022)
+**Revised:** 2026-09-12 (isolated native acquisition architecture restart; unproven 2–3-second target); 2026-09-12 (24-hour session renewal preserves same-epoch custody; hub-scale global-search pager; unheld aggregate presentation and checked totals custody; bounded transport/carrier acquisition; earlier chronology in LLP 1022)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), LLP 1022 (implementation, measurement, and review history), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -1532,3 +1532,65 @@ row version numbers, or a second id form.
 No design question remains open in this implemented spec. The original O1
 scheduling recommendation is now historical and is preserved, without implying
 a new author ruling, in [LLP 1022](./1022-local-first-v1-implementation-history.explainer.md#historical-scheduling-question).
+
+
+## Native acquisition restart
+
+**Experiment, 2026-09-12; implementer: Codex acquisition lane.**
+The author commissioned a complete acquisition architecture restart toward
+2–3 seconds and explicitly permitted revisiting other Snapback 2 architecture.
+This opens the isolated acquisition prototype despite the later bakeoff freeze;
+it does not raise the 90,000-byte ceiling or promote an unfinished client. The
+existing local-first implementation above remains the shipped contract.
+
+The replacement owns one `ClientStore` row pool and its indexes. Native ingress
+validates a generation/schema/principal/epoch-bound generated-log response once,
+prepares immutable rows, and constructs an explicit carrier transaction. That
+transaction replaces current physical row pages (at most 256 records each),
+small authority records, cursor state, and newly earned receipt packets. Only
+transaction completion publishes the prepared rows to that same evaluator.
+There is no `SwapJournal`, `ProjectionCache`, answer-body cache, second row-pool
+hydration, or receipt-to-product-intent conversion on this path. On reopen,
+physical pages install directly into that evaluator before reads are exposed.
+Replacement and removal rewrite the current page: old body text cannot remain
+in an append-only segment. The initial prototype has a distinct three-store
+IndexedDB format and refuses incompatible session/program custody intact.
+
+A contiguous native proof covers only the declared generated log's
+`byRecipient` range for its authenticated recipient, after exhaustion. It
+requires the canonical generated schema, typed monotone cursors, and an
+unbroken chain from the root. It grants no content-table completeness,
+primary absence, membership, rule verdict, or mutation authority. Changes or
+removal of retained log evidence break continuity. Ordinary auxiliary queries
+retain real closure evidence; body-free historical facts in the ordinary
+client have not been reclassified as redundant body copies.
+
+Rows, cursors and receipt obligations share the durability boundary. Same-seq
+body contradiction, wrong identity, invalid chain and missing disclosed body
+refuse before persistence; ambiguous carrier/publication failure makes the
+instance unreadable until reopen. One browser writer lock owns a partition.
+Offline reopening matches the cached bearer digest, principal, epoch and
+program; a terminal authentication refusal durably seals it. Local queries
+run their installed IR and certified pagination over the owned pool; their
+cursors bind the program, principal, incarnation and committed revision.
+First history/search construction is inside the endpoint clock.
+
+This is a vertical acquisition experiment, not a replacement for every SDK
+contract. Ordinary mutation replay, sparse overlays, full mounted-query
+reauthorization/adoption, asset-byte custody, follower operation and timed-query
+clock restoration are not qualified by this prototype. These are promotion
+work, not savings to hide in a latency claim. In particular, the auxiliary
+query owner receipts are sufficient for the frozen acquisition witness but
+are not yet the general client's full negative-chronology/revocation system.
+No production or full offline-bar claim follows from the experiment.
+
+
+The full vertical prototype is preserved at
+`a2680554e1bd84f828d7a44ed1620d6d0e950bb8` on
+`llp-ship/acquisition-20260912/architecture-restart`, outside the shipped runtime.
+Its one frozen 10,008-message acquisition witness passes correctness but takes
+8,080.116 ms; cold offline reopen takes 2,763.170 ms. The complete runtime is
+97,973 gzip bytes against the unchanged 90,000-byte ceiling. The target remains
+unproven and the prototype is not promoted. See
+[LLP 1018.008.007.002 §8](./1018.008.007.002-bounded-bulk-acquisition.plan.md#8-complete-acquisition-architecture-restart)
+for the changed UI/protocol scope, exact receipt oracle and measured disposition.
