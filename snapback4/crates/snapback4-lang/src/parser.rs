@@ -79,7 +79,11 @@ impl Parser {
             "proc" => self.parse_proc_declaration(),
             "cursor" => Err(unsupported(&token.site, "cursor as a declaration", "cursor is reserved for a future Quarry form; rename this declaration")),
             "channel" => Err(unsupported(&token.site, "channel", "ephemeral channels arrive after the first slice; keep presence and typing in the client for now")),
-            "schedule" => Err(unsupported(&token.site, "schedule", "timers arrive after the first slice; run the sweep as a job from the owner's clock")),
+            "schedule" => {
+                let schedule = self.parse_schedule()?;
+                self.document.schedules.push(schedule);
+                Ok(())
+            }
             "deliver" => Err(syntax_with(&token.site, "deliver is a table line spelled sync in Snapback 4", "sync to memberships[.conversationId] last 500 by byConvTime")),
             "index" | "unique" => Err(syntax_with(&token.site, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block")),
             "device" | "oblivious" => Err(unsupported(&token.site, &token.value, "pass an explicit bounded argument to the operation")),
@@ -122,7 +126,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, public: None, sync: None, site };
+        let mut table = TableDecl { name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -178,6 +182,22 @@ impl Parser {
                 }
                 let retain = self.parse_retention()?;
                 table.retain = Some(retain);
+                Ok(())
+            }
+            "expire" => {
+                // `expire at .column`: a row past the time in `column` is
+                // absent to every reader and swept from the store.
+                if table.expire.is_some() {
+                    return Err(syntax_with(&token.site, format!("table {} has more than one expire line", table.name), "one expire line per table"));
+                }
+                let site = self.take("expire")?.site;
+                if !self.maybe("at") || !self.at(".") || self.peek_at(1).kind != Kind::Word {
+                    return Err(syntax_with(&site, "expire names the time column that ends a row's life: expire at .column", "expire at .expiresAt"));
+                }
+                self.take(".")?;
+                let column = self.word()?.value;
+                self.end_line(&site)?;
+                table.expire = Some((column, site));
                 Ok(())
             }
             "sync" => {
@@ -399,6 +419,45 @@ impl Parser {
             return Err(syntax_with(&site, format!("maintain {name} requires read <- rule"), "read <- exists memberships[.conversationId, viewer]"));
         };
         Ok(MaintainDecl { name, aggregate: aggregate.value, source, column, by, read, readable, site })
+    }
+
+    /// `schedule name every <N>m|h|d [at HH:MM]: job`.
+    fn parse_schedule(&mut self) -> Fallible<ScheduleDecl> {
+        let site = self.take("schedule")?.site;
+        let rewrite = "schedule digest every 1d at 08:00: sendDigests";
+        let name = self.binding_name()?;
+        if !self.maybe("every") {
+            return Err(syntax_with(&site, "a schedule fires every so often: schedule name every 2m: job", rewrite));
+        }
+        let amount = self.number()?;
+        let unit = self.word()?;
+        let every_ms = u64::from(amount)
+            * match unit.value.as_str() {
+                "m" => 60_000,
+                "h" => 3_600_000,
+                "d" => 86_400_000,
+                _ => return Err(syntax_with(&unit.site, "a period is a number and m, h or d: 2m, 1h, 1d", rewrite)),
+            };
+        if every_ms < 60_000 {
+            return Err(syntax_with(&unit.site, "the shortest period is 1m", rewrite));
+        }
+        let mut offset_ms = 0;
+        if self.maybe("at") {
+            let hours = self.number()?;
+            self.take(":")?;
+            let minutes = self.number()?;
+            if hours > 23 || minutes > 59 {
+                return Err(syntax_with(&site, "at takes a time of day, HH:MM", rewrite));
+            }
+            offset_ms = (u64::from(hours) * 60 + u64::from(minutes)) * 60_000;
+            if offset_ms >= every_ms {
+                return Err(syntax_with(&site, "at names a time of day inside the period; it needs every 1d (or longer)", rewrite));
+            }
+        }
+        self.take(":")?;
+        let target = self.word()?.value;
+        self.end_line(&site)?;
+        Ok(ScheduleDecl { name, every_ms, offset_ms, target, site })
     }
 
     fn parse_effect(&mut self) -> Fallible<EffectDecl> {
@@ -1399,7 +1458,7 @@ mod tests {
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
         assert_eq!(document.tables.len(), 4);
         assert_eq!(document.maintains.len(), 1);
-        assert_eq!(document.programs.len(), 7);
+        assert_eq!(document.programs.len(), 8);
         let messages = &document.tables[3];
         assert_eq!(messages.name, "messages");
         let sync = messages.sync.as_ref().unwrap();

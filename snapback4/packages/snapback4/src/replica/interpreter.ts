@@ -366,6 +366,16 @@ export class Interpreter {
 
   // ----- reads -----
 
+  /** Whether a held row is past its table's `expire` column on this
+   * device's clock: absent to every read, as on the server, until the
+   * server's sweep deletes it and the deletion arrives in the log. */
+  private expired(table: string, row: Row): boolean {
+    const column = this.schema.tables[table]?.expire;
+    if (!column) return false;
+    const at = row[column];
+    return typeof at === "number" && at <= this.ctx.now;
+  }
+
   private async get(read: ReadJson): Promise<unknown> {
     const key: unknown[] = [];
     for (const k of read.key) key.push(await this.expr(k));
@@ -379,7 +389,7 @@ export class Interpreter {
     const mark = { probes: this.probes, capped: this.capped };
     const row = await this.tx.lookup(read.table, read.index, key);
     if (!this.charge("examined")) return null;
-    if (!row) return null;
+    if (!row || this.expired(read.table, row)) return null;
     if (await this.readable(read.table, row)) return row;
     this.probes = mark.probes; this.capped = mark.capped;
     return null;
@@ -426,6 +436,9 @@ export class Interpreter {
       if (fetched.length === 0) break;
       for (const { row, key } of fetched) {
         if (!this.charge("examined")) break outer;
+        cursor = { ...cursor, after: suffixOf(this.schema, table, index, row, prefix.length) };
+        // Gone, whatever the rule says; it cost one examined row.
+        if (this.expired(table, row)) continue;
         let allowed: boolean;
         if (verdict !== null) allowed = verdict;
         else {
@@ -443,7 +456,6 @@ export class Interpreter {
           this.examined = mark.examined; this.probes = mark.probes; this.capped = mark.capped;
           break outer;
         }
-        cursor = { ...cursor, after: suffixOf(this.schema, table, index, row, prefix.length) };
       }
       if (fetched.length < batch) break;
     }
@@ -587,7 +599,8 @@ export class Interpreter {
         const b = body as { table: string; index: string; key: unknown[] };
         if (!this.charge("probes")) return false;
         this.tables.add(b.table);
-        return (await this.tx.lookup(b.table, b.index, b.key.map(term))) !== undefined;
+        const found = await this.tx.lookup(b.table, b.index, b.key.map(term));
+        return found !== undefined && !this.expired(b.table, found);
       }
       case "Created": {
         const b = body as { table: string; index: string; key: unknown[] };
@@ -651,7 +664,7 @@ export class Interpreter {
   private async update(table: string, id: string, patch: Record<string, unknown>) {
     this.tables.add(table);
     const old = await this.tx.get(table, id);
-    if (!old) throw new Refused({ code: "NOT_FOUND", family: "rule", message: "the row does not exist on this device", rule: "NOT_FOUND" });
+    if (!old || this.expired(table, old)) throw new Refused({ code: "NOT_FOUND", family: "rule", message: "the row does not exist on this device", rule: "NOT_FOUND" });
     const next = { ...old, ...patch, pending: true } as Row;
     await this.permitted(table, "update", old, next);
     await this.constraints(table, old, next, "update");
@@ -667,7 +680,7 @@ export class Interpreter {
   private async delete(table: string, id: string) {
     this.tables.add(table);
     const old = await this.tx.get(table, id);
-    if (!old) throw new Refused({ code: "NOT_FOUND", family: "rule", message: "the row does not exist on this device", rule: "NOT_FOUND" });
+    if (!old || this.expired(table, old)) throw new Refused({ code: "NOT_FOUND", family: "rule", message: "the row does not exist on this device", rule: "NOT_FOUND" });
     await this.permitted(table, "delete", undefined, old);
     this.written++;
     if (this.written > this.ceilings.rowsWritten) throw new Refused({ code: "E_BOUND", family: "bound", message: "rows written reached the ceiling", site: this.site });

@@ -140,3 +140,22 @@ test("a shape over a pending row is pending", async () => {
   assert.equal(read.data[0].pending, true, "the shaped row keeps the pending word");
   assert.equal(read.data[1].pending, undefined, "a confirmed row does not");
 });
+
+test("a row past its table's expire column is absent on the device", async () => {
+  const store = await seeded();
+  // `editedAt` stands in for an expiry column: the filter is the table's word.
+  const schema = { ...backend.schema, tables: { ...backend.schema.tables, messages: { ...backend.schema.tables.messages, expire: "editedAt" } } };
+  await store.write(async (tx) => {
+    await tx.put("messages", { id: "msg119", conversationId: "c1", authorId: "dev:alice", body: "m119", at: 1119, editedAt: 900, photo: null });
+    await tx.put("messages", { id: "msg118", conversationId: "c1", authorId: "dev:bob", body: "m118", at: 1118, editedAt: 5000, photo: null });
+  });
+  const page = await store.read((tx) => new Interpreter(tx, schema, ctx("dev:bob", { conversationId: "c1", c: null }, 1000), "query").run(programs.thread));
+  assert.equal(page.data[0].id, "msg118", "a future time is still readable");
+  assert.ok(!page.data.some((m) => m.id === "msg119"), "a past time is gone");
+  assert.equal(page.data.length, 50, "the page fills past the expired row");
+  // The author's edit of an expired row is not found, as on the server.
+  await assert.rejects(
+    store.write((tx) => new Interpreter(tx, schema, ctx("dev:alice", { messageId: "msg119", body: "late" }, 1000), "mutation").run(programs.edit)),
+    (error) => error instanceof Refused && error.refusal.code === "NOT_FOUND",
+  );
+});

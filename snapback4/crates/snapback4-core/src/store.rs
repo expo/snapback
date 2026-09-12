@@ -11,13 +11,16 @@ use crate::schema::{Index, Schema, Table};
 use crate::value::{Value, canonical_json};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
 pub struct Store {
     conn: Connection,
     catalog: BTreeMap<String, i64>,
+    /// Where uploaded bytes live: `assets/` beside the database file, or a
+    /// directory that dies with the process for a store in memory.
+    assets_dir: PathBuf,
 }
 
 /// One transaction over the store, with the catalog in reach.
@@ -50,14 +53,24 @@ impl Store {
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         let conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 5000;")?;
-        Self::prepare(conn)
+        // A release serves the shared store through a link; the assets sit
+        // beside the file itself, so every release serves the same bytes.
+        let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let assets_dir = real.parent().map(|dir| dir.join("assets")).unwrap_or_else(|| PathBuf::from("assets"));
+        Self::prepare(conn, assets_dir)
     }
 
     pub fn memory() -> Result<Self, RuntimeError> {
-        Self::prepare(Connection::open_in_memory()?)
+        let assets_dir = std::env::temp_dir().join(format!("snapback4-{}-{:x}", std::process::id(), crate::ids::seed()));
+        Self::prepare(Connection::open_in_memory()?, assets_dir)
     }
 
-    fn prepare(conn: Connection) -> Result<Self, RuntimeError> {
+    /// Where this store keeps uploaded bytes (`assets/<id>`).
+    pub fn assets_dir(&self) -> &Path {
+        &self.assets_dir
+    }
+
+    fn prepare(conn: Connection, assets_dir: PathBuf) -> Result<Self, RuntimeError> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);
@@ -70,7 +83,10 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _sessions (token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _credentials (principal TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _generations (generation INTEGER PRIMARY KEY, schema TEXT NOT NULL, programs TEXT NOT NULL, at INTEGER NOT NULL);
-             CREATE TABLE IF NOT EXISTS _outbox (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, at INTEGER NOT NULL);",
+             CREATE TABLE IF NOT EXISTS _outbox (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, at INTEGER NOT NULL);
+             CREATE TABLE IF NOT EXISTS _assets (id TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, content_type TEXT NOT NULL, bytes INTEGER NOT NULL, width INTEGER, height INTEGER, duration INTEGER, created_at INTEGER NOT NULL, home_table TEXT, home_id TEXT, home_column TEXT, released_at INTEGER);
+             CREATE TABLE IF NOT EXISTS _asset_views (asset TEXT NOT NULL, principal TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (asset, principal)) WITHOUT ROWID;
+             CREATE TABLE IF NOT EXISTS _jobs (id TEXT PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL, program_hash TEXT NOT NULL, state TEXT NOT NULL, sweep INTEGER NOT NULL, cursor TEXT, upper TEXT, chunks INTEGER NOT NULL, rows_written INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT);",
         )?;
         let version: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0)).optional()?;
         match version.as_deref() {
@@ -87,7 +103,7 @@ impl Store {
             catalog.insert(name, num);
         }
         drop(statement);
-        Ok(Self { conn, catalog })
+        Ok(Self { conn, catalog, assets_dir })
     }
 
     /// Give every table and index a number; build the entries of any index

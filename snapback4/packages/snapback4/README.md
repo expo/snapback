@@ -112,8 +112,9 @@ mutation edit(messageId: messages, body: text <=4000):
 - **Types:** `principal`, `id`, `<table>` (a reference to that table's
   id), `int`, `time` (milliseconds), `bool`, `decimal <scale>`,
   `money <CUR> [scale]`, `text <=N`, `text M..N [format handle|url]`,
-  `enum('a', 'b')`, `json <=N`, `bytes <=N`, `[type] <=N` (a list);
-  `?` after a type makes the column optional (null when absent).
+  `enum('a', 'b')`, `json <=N`, `bytes <=N`, `[type] <=N` (a list),
+  `image <=N [once]` and `video <=N` (an upload the row holds — §4,
+  assets); `?` after a type makes the column optional (null when absent).
 - **Indexes:** `by name: cols` orders rows; `unique name: cols` also
   constrains them. A scan needs an index whose leading columns are the
   scan's prefix; a page's order is the index's remaining columns.
@@ -132,6 +133,12 @@ mutation edit(messageId: messages, body: text <=4000):
 - **Sync** (§3) and **retain**: `retain until-revoked` (the default: a
   device drops a group's rows when it leaves the group) or
   `retain delivered-history` (it keeps what it was given).
+- **Expire:** `expire at .expiresAt` (a `time ?` column with an index
+  leading with it, `by byExpiresAt: expiresAt`). A row past that time is
+  absent to every reader on every host from that moment, before any rule;
+  the server sweeps it within seconds and the deletion streams to each
+  device holding it. A null time never expires. Disappearing messages
+  are `expiresAt: now + ttl if ttl` on insert; nothing else to write.
 
 ### Maintains
 
@@ -171,6 +178,32 @@ groups by the audience columns.
   present operands — narrow with `if x != null:` or `x ! else CODE`.
 - **Refusals** a program raises with `require .. else CODE` reach the
   client as `{ code: "CODE", family: "rule", .. }`.
+
+### Jobs and schedules
+
+```
+job digest(periodStart: time, periodEnd: time):
+  chunk p in profiles first 100 by byId:
+    ... a mutation's body with p bound; reads and writes as the system ...
+schedule daily every 1d at 08:00: digest        -- or: every 2m
+```
+
+A job is the server's own work: a sequence of sweeps, each `chunk x in
+table[prefix] first N by index:` walking one index a page per commit as
+the system principal (every rule passes; validation, constraints,
+aggregates and partitions apply) under the job ceilings. The cursor
+commits with the rows, so a chunk is wholly done or not started and a
+restart resumes at the next one; the index's columns are `id` or
+`immutable`, so nothing moves under the cursor, and rows inserted past
+the key captured when the sweep began are not visited. `break` ends the
+sweep, `return` the job; a refused chunk parks the job with its refusal
+(`snapback4 doctor` lists runs). No client calls a job. A schedule fires
+it once per period boundary of the server's clock (`every 2m`, `every
+1h`, `every 1d at 08:00`), exactly once per boundary across restarts,
+passing `periodStart` and `periodEnd` when the job declares them (and
+nothing else); a schedule first seen fires from its next boundary.
+`snapback4 run <job> '{..}'` runs one here and now. Jobs are not on
+`api.ts`.
 
 ### The meter
 
@@ -284,6 +317,31 @@ const viewer = useViewer();           // the principal, or null
 `useQuery` observes: it re-renders when a sync or a local prediction
 touches the query's tables. `usePage` follows `next` across pages.
 
+### Assets
+
+```ts
+const uploaded = await client.upload(file);            // Blob | ArrayBuffer | Uint8Array
+if (uploaded.ok) await client.mutate(api.sendPhoto, { conversationId, photo: { id: uploaded.asset.id } });
+const photo = useAsset(message.photo?.id);             // { status: "loading" } | { status: "ready", url, type } | { status: "denied", why }
+```
+
+An `image <=N` or `video <=N` column holds an upload: the client sends
+the bytes first (`upload` → `{ id, type, bytes, width, height,
+duration }`; the server sniffs JPEG, PNG, WebP and MP4 and refuses the
+rest with `E_ASSET_TYPE`, and anything over the largest column's bound
+with `E_ASSET_TOO_LARGE`), then places `{ id }` in the mutation; the row
+carries the facts the server established. One asset, one home: your own
+upload, placed once (`E_ASSET_UNKNOWN`, `E_ASSET_PLACED`). Serving is
+the home row's read rule: `client.asset(id)` fetches the bytes under the
+viewer's credentials and returns a blob URL (`useAsset` in React;
+`client.assetSource(id)` gives a URI and headers for native image and
+video views); a row that is deleted, whose column is cleared, that
+expired, or that the viewer may not read answers `E_ASSET_UNKNOWN`. A
+column declared `image <=N once` serves one view per principal: the
+second is `E_ASSET_VIEWED`, and the bytes are never cached anywhere
+(the sender is never counted). Uploads are online only; there is
+nothing to queue.
+
 ### Sign-in (`snapback4/auth`)
 
 `guest(url)`, `signup(url, email, password)`, `login(url, email,
@@ -332,8 +390,8 @@ flips the link.
   diagnostic with its site and rewrite; `--cost` adds each site's
   structural class.
 - **`snapback4 why <E_CODE | op | table>`**, **`data <table>`**,
-  **`doctor`**, **`guide [keyword]`** (cards: rules, sync, writes, reads,
-  shapes, bounds, types, personas, refusals).
+  **`doctor`**, **`guide [keyword]`** (cards: rules, sync, expire, assets,
+  jobs, writes, reads, shapes, bounds, types, personas, refusals).
 
 ### The wire
 
@@ -343,7 +401,9 @@ seq, next }` or `{ denied }`; `POST /m/<op>` with `{ "id", "args",
 "newIds" }` answers `{ state: "sent", seq, result }` or `{ state:
 "failed", why }` (a client-minted `id` makes the write apply at most
 once); `GET /sync?from=W` streams the partition; `GET /changes?since=S`
-long-polls for commits; `GET /schema` is the compiled backend;
+long-polls for commits; `POST /assets` (the file's bytes as the body)
+answers `{ asset }`, `GET /assets/<id>` serves them (404 hidden or gone,
+410 viewed; `Range` works); `GET /schema` is the compiled backend;
 `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
 (`{ "email", "password" }`) answer `{ "session": { principal, kind, token,
 expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout` with the
@@ -384,10 +444,10 @@ through `nodeSqliteDriver`.)
 
 ## 8. Not in this release
 
-Word search (`tokens()` and word-prefix indexes are parsed, not served),
-scheduled jobs, effects (server-side side effects to third parties),
-assets (`image`/`video` columns type-check and store metadata; there is
-no upload or serving path), platform binaries other than darwin-arm64
-(build from source with `cargo build --release -p snapback4` and set
-`SNAPBACK4_BIN`). If the package cannot express something, the
+Word search (`tokens()` and word-prefix indexes are parsed, not served:
+search over synced rows on the device, or by a prefix index), effects
+(server-side side effects to third parties: write the fact to a table
+and let a job or a reader act on it), platform binaries other than
+darwin-arm64 (build from source with `cargo build --release -p snapback4`
+and set `SNAPBACK4_BIN`). If the package cannot express something, the
 diagnostic names the term; record the gap and move on.

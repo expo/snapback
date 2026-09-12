@@ -3,14 +3,17 @@
 //! writes under the meter and returns `sent` with its sequence or `failed`
 //! with a refusal, and applies at most once per client-minted id.
 
+pub mod job;
 pub mod read;
 pub mod rules;
 pub mod runner;
 pub mod validate;
 pub mod write;
 
+use crate::assets::{self, Asset, AssetKind, asset_id};
 use crate::error::{MeterKind, Refusal, RuntimeError};
 use crate::ir::{Program, ProgramKind};
+use crate::schema::{ColumnType, Effect, materialize_optional_fields};
 use crate::meter::{Ceilings, Cut, Meter, Metered};
 use crate::partition::{self, Event};
 use crate::schema::Schema;
@@ -105,6 +108,16 @@ pub struct MutationOutcome {
     pub events: usize,
     /// Whether this call applied the write, or found it already applied.
     pub replayed: bool,
+}
+
+/// Leave to serve an asset's bytes: where they are and what they are.
+#[derive(Clone, Debug)]
+pub struct AssetGrant {
+    pub path: std::path::PathBuf,
+    pub content_type: String,
+    pub bytes: u64,
+    /// One view: never cache it anywhere.
+    pub once: bool,
 }
 
 pub struct Engine {
@@ -214,6 +227,141 @@ impl Engine {
         Ok(())
     }
 
+    /// Record an upload under `owner`: sniffed, bounded by the largest
+    /// column of its kind in this schema, written beside the store. The
+    /// asset is nobody's to see until a row claims it (the owner may).
+    pub fn store_asset(&mut self, owner: &str, bytes: &[u8], now: i64) -> Result<Asset, RuntimeError> {
+        let sniffed = assets::sniff(bytes)?;
+        let ceiling = self
+            .schema
+            .tables
+            .values()
+            .flat_map(|table| table.columns.values())
+            .filter_map(|kind| match (kind.required(), sniffed.kind) {
+                (ColumnType::Image { max, .. }, AssetKind::Image) | (ColumnType::Video { max }, AssetKind::Video) => Some(*max),
+                _ => None,
+            })
+            .max();
+        let Some(ceiling) = ceiling else {
+            return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("no column of this backend takes {} bytes; declare one (`photo: image <=10000000`)", sniffed.kind.word()) });
+        };
+        if bytes.len() as u64 > u64::from(ceiling) {
+            return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("the {} is {} bytes; the largest {} column takes {ceiling}", sniffed.kind.word(), bytes.len(), sniffed.kind.word()) });
+        }
+        let id = crate::ids::mint(now, &mut self.entropy);
+        let path = self.store.asset_path(&id);
+        let io = |error: std::io::Error| RuntimeError::Store(format!("cannot keep the upload: {error}"));
+        std::fs::create_dir_all(self.store.assets_dir()).map_err(io)?;
+        let staging = path.with_extension("part");
+        std::fs::write(&staging, bytes).map_err(io)?;
+        std::fs::rename(&staging, &path).map_err(io)?;
+        let asset = Asset { id, owner: owner.to_owned(), kind: sniffed.kind, content_type: sniffed.content_type.to_owned(), bytes: bytes.len() as u64, width: sniffed.width, height: sniffed.height, duration: sniffed.duration, created_at: now, home: None, released_at: None };
+        if let Err(error) = self.store.record_asset(&asset) {
+            let _ = std::fs::remove_file(&path);
+            return Err(error);
+        }
+        Ok(asset)
+    }
+
+    /// Whether `principal` may have the bytes of `id` now: the uploader
+    /// always; anyone else through the home row's read rule, on the row as
+    /// it stands (present, still naming the asset, not expired). A
+    /// `once` image records the view; the second view is refused. Hidden,
+    /// released and absent are one word.
+    pub fn asset_access(&mut self, principal: &str, id: &str, now: i64) -> Result<AssetGrant, RuntimeError> {
+        let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: "no asset is served under that id to this viewer".into() };
+        let path = self.store.asset_path(id);
+        let tx = self.store.transaction()?;
+        let Some(asset) = tx.asset(id)? else { return Err(unknown()) };
+        if asset.released_at.is_some() {
+            return Err(unknown());
+        }
+        let grant = |once: bool| AssetGrant { path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
+        if asset.owner == principal {
+            tx.rollback()?;
+            return Ok(grant(false));
+        }
+        let Some((table_name, row_id, column)) = &asset.home else { return Err(unknown()) };
+        let table = self.schema.table(table_name).ok_or_else(unknown)?;
+        let Some(row) = tx.get(table_name, row_id)? else { return Err(unknown()) };
+        if asset_id(row.field(column).ok()) != Some(id) || table.expired(&row, now) {
+            return Err(unknown());
+        }
+        let mut image = row.clone();
+        materialize_optional_fields(&mut image, table);
+        let mut runner = Runner::new(&tx, &self.schema, Context::new(principal, BTreeMap::new()).at(now), Meter::new(self.ceilings, Cut::Cap), 0);
+        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?;
+        drop(runner);
+        if !allowed {
+            tx.rollback()?;
+            return Err(unknown());
+        }
+        let once = matches!(table.columns.get(column).map(ColumnType::required), Some(ColumnType::Image { once: true, .. }));
+        if once {
+            if tx.asset_viewed(id, principal)? {
+                tx.rollback()?;
+                return Err(RuntimeError::Asset { code: "E_ASSET_VIEWED", message: "this photo was for one view, and it was viewed".into() });
+            }
+            tx.record_asset_view(id, principal, now)?;
+        }
+        tx.commit()?;
+        Ok(grant(once))
+    }
+
+    /// Unlink and forget the assets nobody serves any more: released by
+    /// their home, or never claimed within the grace period.
+    pub fn sweep_assets(&mut self, now: i64) -> Result<u64, RuntimeError> {
+        let stale = self.store.stale_assets(now)?;
+        for asset in &stale {
+            let _ = std::fs::remove_file(self.store.asset_path(&asset.id));
+            self.store.forget_asset(&asset.id)?;
+        }
+        Ok(stale.len() as u64)
+    }
+
+    /// Delete the rows past their `expire` column. They were absent to
+    /// every reader from the moment they expired; the sweep makes that
+    /// physical, so the log carries the deletion to each device holding
+    /// them. At most `limit` rows go in one commit; the next pass continues.
+    pub fn sweep_expired(&mut self, now: i64, limit: usize) -> Result<u64, RuntimeError> {
+        let expiring: Vec<(String, String)> = self.schema.tables.iter().filter_map(|(name, table)| table.expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
+        if expiring.is_empty() {
+            return Ok(0);
+        }
+        let tx = self.store.transaction()?;
+        let seq = tx.next_seq()?;
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        let mut removed = 0_u64;
+        let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+        'tables: for (table_name, index) in &expiring {
+            loop {
+                let batch = (limit - removed as usize).min(256);
+                if batch == 0 {
+                    break 'tables;
+                }
+                let rows = tx.scan(table_name, index, &[], &due, crate::store::Dir::Asc, batch)?;
+                let count = rows.len();
+                for (row, _) in rows {
+                    runner.remove(table_name, &row)?;
+                    removed += 1;
+                }
+                if count < batch {
+                    break;
+                }
+            }
+        }
+        let events = std::mem::take(&mut runner.events);
+        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+        let written = runner.rows_written;
+        drop(runner);
+        if written > 0 {
+            tx.record_commit(seq, now, "expire", crate::SYSTEM_PRINCIPAL, "sweep", &tables, written)?;
+            partition::append(&tx, seq, &events)?;
+        }
+        tx.commit()?;
+        Ok(removed)
+    }
+
     /// The schema generation the store serves; a device holds a partition
     /// of exactly one.
     pub fn generation(&self) -> u64 {
@@ -281,6 +429,9 @@ impl Engine {
         if program.kind == ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
         }
+        if program.kind == ProgramKind::Job {
+            return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
+        }
         if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
             return Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
         }
@@ -288,7 +439,7 @@ impl Engine {
             context.now = Some(crate::now_ms());
         }
         context.entropy = self.entropy;
-        let ceilings = if program.kind == ProgramKind::Job { Ceilings::job() } else { self.ceilings };
+        let ceilings = self.ceilings;
         let tx = self.store.transaction()?;
         if let Some(op) = op
             && let Some((_, outcome)) = tx.applied(&context.viewer, op)?

@@ -7,6 +7,7 @@
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { mintId } from "./client.ts";
+import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { Interpreter, Refused, type LocalRead, type ProgramJson } from "./replica/interpreter.ts";
 import { Replica, type StreamPage } from "./replica/replica.ts";
 import { MemoryStore, openIndexedDb, type Row, type SchemaJson, type Store } from "./replica/store.ts";
@@ -380,6 +381,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const first = await Promise.race([outcome, new Promise<Write>((resolve) => setTimeout(() => resolve({ state: "pending", id }), 4_000))]);
       return first;
     },
+    async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
+      // An upload is bytes on the server; there is nothing to queue.
+      if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
+      const uploaded = await uploadAsset(base, headers, doFetch, bytes);
+      if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
+      return uploaded;
+    },
+    asset: (id: string) => fetchAsset(base, headers, doFetch, id),
+    assetSource: (id: string) => assetSource(base, headers, id),
     link: () => link,
     onLink(listener: (link: Link) => void) {
       linkListeners.add(listener);

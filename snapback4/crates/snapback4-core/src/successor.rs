@@ -62,6 +62,9 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
         if old.sync != new.sync {
             steps.push(Step { path: format!("{path}.sync"), change: Change::RuleChange, message: format!("{name}'s sync declaration changes; every device re-derives its partition of {name}") });
         }
+        if old.expire != new.expire {
+            steps.push(Step { path: format!("{path}.expire"), change: Change::RuleChange, message: match &new.expire { Some(column) => format!("{name} now expires at .{column}; rows already past it vanish and are swept"), None => format!("{name} no longer expires; rows past .{} stay", old.expire.as_deref().unwrap_or("")) } });
+        }
         // A constraint on a column or index that did not exist before binds
         // no existing row: only constraints over what was already there narrow.
         let existed = |constraint: &Constraint| match constraint {
@@ -83,6 +86,9 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
     }
     if from.maintains != to.maintains {
         steps.push(Step { path: "maintains".into(), change: Change::Additive, message: "maintained aggregates change and are rebuilt".into() });
+    }
+    if from.schedules != to.schedules {
+        steps.push(Step { path: "schedules".into(), change: Change::Additive, message: "schedules change; each fires from its next boundary".into() });
     }
     steps
 }

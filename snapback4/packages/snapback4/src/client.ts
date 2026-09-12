@@ -6,6 +6,7 @@
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
+import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -262,6 +263,14 @@ export function createClient(options: ClientOptions): Client {
       // Durable admission on this device: the write waits for the link.
       return { state: "pending", id };
     },
+    async upload(bytes) {
+      if (!viewer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
+      const uploaded = await uploadAsset(base, headers, doFetch, bytes);
+      if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
+      return uploaded;
+    },
+    asset: (id) => fetchAsset(base, headers, doFetch, id),
+    assetSource: (id) => assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {
       linkListeners.add(listener);

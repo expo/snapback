@@ -74,6 +74,10 @@ impl<'a> Binder<'a> {
         if failed {
             return None;
         }
+        if decl.kind == ProgramKind::Job && let Err(diagnostic) = stable_chunks(catalog, decl, &body) {
+            diagnostics.push(diagnostic);
+            return None;
+        }
         let result = binder.returns.iter().fold(None, |joined: Option<Ty>, ty| Some(match joined { Some(j) => j.join(ty), None => ty.clone() })).unwrap_or(Ty::Null);
         let full_name = if module == "schema" { decl.name.clone() } else { format!("{module}.{}", decl.name) };
         let kind = match decl.kind {
@@ -1407,4 +1411,25 @@ fn title(value: &str) -> String {
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
         None => String::new(),
     }
+}
+
+/// A sweep continues across commits from a cursor, so no write may move an
+/// unvisited row across it: every column of the chunk's index is `id` or
+/// declared `immutable` (LLP 1016 §4 D2).
+fn stable_chunks(catalog: &Catalog, decl: &ast::ProgramDecl, body: &[Stmt]) -> Fallible<()> {
+    for (stmt, chunk) in body.iter().zip(&decl.body) {
+        let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt else { continue };
+        let Some(info) = catalog.tables.get(&scan.table) else { continue };
+        let Some(index) = info.indexes.iter().find(|index| index.name == scan.index) else { continue };
+        let immutable: Vec<&str> = info.decl.immutable.iter().flat_map(|(columns, _)| columns.iter().map(String::as_str)).collect();
+        let moving: Vec<&str> = index.columns.iter().map(String::as_str).filter(|column| *column != "id" && !immutable.contains(column)).collect();
+        if !moving.is_empty() {
+            let site = match chunk {
+                S::For { site, .. } => site.clone(),
+                _ => decl.site.clone(),
+            };
+            return Err(Diagnostic::new(&site, "E_JOB_CURSOR_INDEX", format!("chunk over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or sweep by byId", moving.join(", "), scan.table)).guide("jobs"));
+        }
+    }
+    Ok(())
 }

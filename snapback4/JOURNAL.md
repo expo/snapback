@@ -945,3 +945,83 @@ finding with its fix — is `benchmarks/runs/2026-09-12-snapback4-clique-0002/`;
 the loop bar's is beside it. LLP 3000 §5's fourth week is delivered:
 Expo, deploy, day two, the loop bar (met on 0.0.11), the Clique hub run
 and its record. What remains on the clock is fix-forward from evidence.
+
+## 2026-09-12 — the whole brief: expiry, assets, jobs and schedules; 0.1.0
+
+The author: "complete snapback4 to the point where the entire clique
+benchmark can be run … take whatever you want from snapback1 or 2 or 3."
+The run on 0.0.2 struck media and scheduled work; the three things it
+struck are one release, each the smallest word that closes its half of
+the brief, and each carried from Snapback 2 where Snapback 2 had it right.
+
+- **`expire at .column`** (a table line; a `time ?` column with an index
+  leading with it, the rewrite names the index). A row past that time is
+  absent to every reader on every host from that moment — before any
+  rule, in points, scans, merges, `exists` probes, and the row a mutation
+  would update or delete — and the server's sweep deletes it within
+  seconds (one commit per pass, bounded), so the deletion streams to
+  every device holding it and it leaves local stores and local search on
+  the next sync. A null time never expires; the system principal sees no
+  more than anyone, so an expired row contributes to nothing a job
+  computes. This is the M5 answer NOT-DOING deferred as "time in rules":
+  not a rule (a rule that varies with time is no audience a partition can
+  hold) but a lifetime, and the device mirrors it on its own clock while
+  the server's word is authoritative. Disappearing messages are
+  `expiresAt: now + ttl` on insert; nothing else to write.
+- **Assets** (LLP 1006's shape, the byte sniffers ported from Snapback 2's
+  media crate onto slices). `POST /assets` takes the bytes, sniffs JPEG,
+  PNG, WebP and MP4 (dimensions from the header, duration from `mvhd`),
+  bounds them by the largest column of that kind in the schema, keeps
+  them beside the store (`assets/` next to the database, so every release
+  serves the same bytes), and records them under the uploader. An
+  `image`/`video` column names an upload by id; on the write the engine
+  replaces the client's map with the facts the server established and
+  claims the asset for the row — one asset, one home, the uploader's own
+  — and releases the one a column stops naming. `GET /assets/<id>` is the
+  home row's read rule, run on the row as it stands: present, still
+  naming the asset, not expired, readable by this viewer; a `once` image
+  records one view per principal and refuses the second with 410
+  `E_ASSET_VIEWED`, `Cache-Control: no-store`; the uploader is never
+  counted. Hidden, released and absent are one word, `E_ASSET_UNKNOWN`,
+  on purpose. Released and abandoned uploads leave the disk once a
+  minute. On the client: `upload(bytes)`, `asset(id)` (a blob URL fetched
+  under the viewer's credentials, so no token ever sits in an `<img
+  src>`), `assetSource(id)` for native views, `useAsset(id)` in React
+  (revoked on unmount; a second mount of a one-view photo is `denied`,
+  which is the feature). Uploads are online only; there is nothing to
+  queue. The system principal may name an asset that was never uploaded
+  (a fixture's placeholder): metadata only, never served.
+- **Jobs and schedules** (LLP 1016 §4 D2–D5, the sweep as Snapback 2
+  built it, without the operator console). `job name(args):` is a
+  sequence of `chunk x in table[prefix] first N by index:` sweeps; each
+  chunk is one page through the body as the system principal under the
+  job ceilings, its cursor committed with the rows it wrote, so a chunk
+  is wholly done or not started and a restart resumes at the next one.
+  The index's columns are `id` or `immutable` (`E_JOB_CURSOR_INDEX`,
+  rewrite `immutable <cols>`), so nothing moves under the cursor; the
+  upper key is captured when the sweep begins, so a sweep over its own
+  table ends. `break` ends the sweep, `return` the job; a refused chunk
+  parks the run with its refusal; a run queued under one program parks
+  with `E_JOB_GENERATION` when the program changes. No client calls a job
+  (`E_OP` at the wire; jobs are not on `api.ts`). `schedule name every
+  2m|1h|1d [at HH:MM]: job` fires once per period boundary of the
+  server's clock, the boundary committed in one transaction with the job
+  row, so a restart never fires twice for one period; a schedule first
+  seen starts from its next boundary; a boundary crossed while the
+  server was down fires once on return; `periodStart`/`periodEnd` are
+  supplied when the job declares them and nothing else may be declared
+  (`E_SCHEDULE`). `snapback4 run <job>` runs one whole, now; `doctor`
+  lists schedules and the last runs. The server's maintenance thread
+  (every five seconds: the expiry sweep, due schedules, queued chunks
+  one at a time with the engine free between them, and once a minute the
+  asset sweep) is the only clock.
+- Tests: `tests/clique.rs` (expiry absent then swept; the asset flow with
+  `once` and release; a two-sweep job and a parked run; a schedule's
+  boundaries; the compiler's refusals), the sniffers' unit tests, the
+  device's expiry filter, and an end-to-end upload → `sendPhoto` →
+  serve → unsend on a live `dev`. The chat schema gains `sendPhoto`.
+- What is deliberately smaller than Snapback 2: no rungs, thumbnails or
+  HEIC; no `_timers` table (a schedule's state is one meta key); no job
+  console; missed boundaries fire once, not once per period. Recorded
+  in NOT-DOING's Moves.
+- `snapback4@0.1.0`: the first release that carries the whole brief.

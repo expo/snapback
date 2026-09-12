@@ -40,8 +40,36 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
+    let mut schema = schema;
+    for doc in &catalog.documents {
+        for decl in &doc.schedules {
+            match bind_schedule(decl, &programs) {
+                Ok(schedule) => schema.schedules.push(schedule),
+                Err(diagnostic) => diagnostics.push(diagnostic),
+            }
+        }
+    }
     let notes = completeness_notes(&schema, &programs);
     Bound { schema, programs, personas, diagnostics, notes }
+}
+
+/// A schedule fires a job; the job may take the period it covers, as
+/// `periodStart: time` and `periodEnd: time`, and nothing else.
+fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> Result<snapback4_core::schema::Schedule, Diagnostic> {
+    use snapback4_core::ir::{ArgType, ProgramKind};
+    let rewrite = format!("job {}(periodStart: time, periodEnd: time):\n  chunk p in profiles first 100 by byId:\n    ...", decl.target);
+    let Some(target) = programs.iter().find(|p| p.program.name == decl.target) else {
+        return Err(crate::diag::unknown(&decl.site, format!("schedule {} names no job {}", decl.name, decl.target), rewrite));
+    };
+    if target.program.kind != ProgramKind::Job {
+        return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} names {}, which is a {}; a schedule fires a job", decl.name, decl.target, target.program.kind.word()), rewrite));
+    }
+    for (name, kind) in &target.program.args {
+        if !(matches!(name.as_str(), "periodStart" | "periodEnd") && *kind == ArgType::Time) {
+            return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} fires {}, whose argument {name} the clock cannot supply; a scheduled job takes periodStart: time and periodEnd: time, or nothing", decl.name, decl.target), rewrite));
+        }
+    }
+    Ok(snapback4_core::schema::Schedule { name: decl.name.clone(), every_ms: decl.every_ms, offset_ms: decl.offset_ms, target: decl.target.clone() })
 }
 
 /// A scan whose read rule reads a column the prefix does not pin is

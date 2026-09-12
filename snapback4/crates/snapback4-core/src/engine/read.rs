@@ -23,7 +23,7 @@ impl Probe for Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
-        Ok(self.tx.lookup(table, index, index_def, key)?.is_some())
+        Ok(self.tx.lookup(table, index, index_def, key)?.is_some_and(|row| !self.expired(definition, &row)))
     }
 
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool {
@@ -32,6 +32,14 @@ impl Probe for Runner<'_> {
 }
 
 impl Runner<'_> {
+    /// Whether a row is past its table's `expire` column at this run's
+    /// clock. Expired is absent: to every reader, on every host, before
+    /// any rule (the sweep makes it physical). The system sees no more
+    /// than anyone: an expired row contributes to nothing.
+    pub(super) fn expired(&self, table: &Table, row: &Value) -> bool {
+        self.context.now.is_some_and(|now| table.expired(row, now))
+    }
+
     /// Whether the viewer may `effect` the row. The system principal is the
     /// store's owner and passes every rule; validation and constraints
     /// still run for it.
@@ -55,7 +63,7 @@ impl Runner<'_> {
     /// A row by id, materialized, without a rule check.
     pub(super) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        Ok(self.tx.get(table_name, id)?.map(|mut row| {
+        Ok(self.tx.get(table_name, id)?.filter(|row| !self.expired(table, row)).map(|mut row| {
             materialize_optional_fields(&mut row, table);
             row
         }))
@@ -82,6 +90,9 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else { return Ok(Value::Null) };
+        if self.expired(table, &row) {
+            return Ok(Value::Null);
+        }
         materialize_optional_fields(&mut row, table);
         if self.check_rule(&read.table, Effect::Read, None, &row)? {
             Ok(row)
@@ -93,7 +104,7 @@ impl Runner<'_> {
     }
 
     /// The scan's prefix values, evaluated.
-    fn prefix_values(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
+    pub(super) fn prefix_values(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
         scan.prefix
             .iter()
             .map(|key| match key {
@@ -196,6 +207,11 @@ impl Runner<'_> {
                     capped = true;
                     break 'outer;
                 }
+                cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().take(index.components.len()).skip(prefix.len()).collect());
+                if self.expired(table, &row) {
+                    // Gone, whatever the rule says; it cost one examined row.
+                    continue;
+                }
                 materialize_optional_fields(&mut row, table);
                 let allowed = match uniform_verdict {
                     Some(verdict) => verdict,
@@ -224,7 +240,6 @@ impl Runner<'_> {
                     self.meter.restore(mark);
                     break 'outer;
                 }
-                cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().take(index.components.len()).skip(prefix.len()).collect());
             }
             if fetched_len < batch {
                 break;

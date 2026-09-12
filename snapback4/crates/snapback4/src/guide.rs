@@ -122,6 +122,58 @@ tombstone, and the table's `retain` says whether delivered rows stay
 (`delivered-history`) or go (`until-revoked`, the default).
 
 A `maintain` grouped by the audience columns is delivered as a value row."#,
+        "expire" => r#"# Expire: a row's life ends at a time
+
+  expiresAt: time ?
+  by byExpiresAt: expiresAt
+  expire at .expiresAt
+
+A row past the time in the column is absent — to every reader, on every
+host, before any rule — from that moment; the server's sweep deletes it
+within seconds and the deletion streams to each device holding it, so
+it leaves local stores and local search on the next sync. A null time
+never expires. `now + ttl if ttl` on insert is the whole disappearing-
+messages feature; there is no purge job to write. The index leading
+with the column is required so the sweep finds due rows without a walk."#,
+        "assets" => r#"# Assets: upload, place, serve
+
+  photo: image <=10000000 ?        a column; `once` after the bound serves one view per principal
+  clip: video <=50000000 ?
+  mutation sendPhoto(conversationId: conversations, photo: image <=10000000):
+    row = insert messages { conversationId, authorId: viewer, photo, at: now }
+
+A client uploads the bytes first (`client.upload(file)` → `{ id, type,
+bytes, width, height, duration }`; the server sniffs JPEG, PNG, WebP and
+MP4 and refuses the rest) and passes `{ id }` as the mutation's argument;
+the row carries the facts the server established. One asset, one home:
+the uploader's own upload, placed once. Serving is the home row's read
+rule: `client.asset(id)` (a blob URL; `useAsset(id)` in React) or
+`client.assetSource(id)` (a URI and headers for native views) fetches
+`GET /assets/<id>` under the viewer's credentials, and a row that is
+deleted, whose column is cleared, that expired, or that the viewer may
+not read answers 404. `once`: the second fetch by the same principal is
+410 `E_ASSET_VIEWED`, and the bytes are never cached anywhere."#,
+        "jobs" => r#"# Jobs and schedules: the server's own work, on its own clock
+
+  job digest(periodStart: time, periodEnd: time):
+    chunk p in profiles first 100 by byId:
+      ...reads and writes, as a mutation's body, with p bound...
+  schedule daily every 1d at 08:00: digest        -- or: every 2m
+  snapback4 run digest '{"periodStart": 0, "periodEnd": 1}'
+
+A job is a sequence of sweeps. Each `chunk x in table[prefix] first N by
+index:` walks one index a page per commit, as the system principal (every
+rule passes; validation, constraints, aggregates and partitions apply),
+under the job ceilings; the cursor commits with the rows, so a chunk is
+wholly done or not started and a restart resumes at the next one. The
+index's columns are `id` or `immutable` (nothing moves under the cursor);
+rows inserted past the key captured when the sweep began are not
+visited, so a sweep over its own table ends. `break` ends the sweep,
+`return` the job; a refused chunk parks the job with its refusal
+(`doctor` lists runs). No client calls a job: a schedule fires it once
+per period boundary of the server's clock — exactly once across restarts,
+with `periodStart`/`periodEnd` when the job declares them (nothing else)
+— and `snapback4 run <job>` runs it here and now."#,
         "writes" => r#"# Writes
 
 insert t { fields }            -> the row (id minted unless given)
@@ -202,7 +254,7 @@ Operations in schema.q are called by name (`api.thread`); operations in
 /// A refusal code, explained.
 /// Every refusal code `why` explains; a program's own `require` codes are
 /// the author's and are explained by the program.
-pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFLICT", "E_CONSTRAINT", "E_FANOUT", "E_BOUND", "E_OP", "E_STORE", "E_GENERATION", "E_OFFLINE", "E_PREDICT", "E_QUARRY_SYNTAX", "E_TYPE", "N_NEVER_COMPLETE", "N_NO_CURSOR"];
+pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFLICT", "E_CONSTRAINT", "E_FANOUT", "E_BOUND", "E_OP", "E_STORE", "E_GENERATION", "E_OFFLINE", "E_PREDICT", "E_QUARRY_SYNTAX", "E_TYPE", "E_ASSET_TYPE", "E_ASSET_TOO_LARGE", "E_ASSET_UNKNOWN", "E_ASSET_PLACED", "E_ASSET_VIEWED", "N_NEVER_COMPLETE", "N_NO_CURSOR"];
 
 pub fn explain_code(code: &str) -> Option<String> {
     let text = match code {
@@ -221,6 +273,11 @@ pub fn explain_code(code: &str) -> Option<String> {
         "E_TYPE" => "family input — a Quarry expression has the wrong type for its position; the diagnostic names both types and a rewrite.",
         "E_OFFLINE" => "family link — the client could not reach the server; retryable. A local-first read still answers from the device with `fresh: false` and `since`; a write waits as `pending` and lands when the link returns.",
         "E_PREDICT" => "family input — the device could not predict this mutation locally (a read it needs is not on the device); the write is queued without local rows and the server judges it.",
+        "E_ASSET_TYPE" => "family asset — the upload's bytes are not a JPEG, PNG, WebP or MP4, or no column of this backend takes that kind, or the column takes the other kind. Declare `photo: image <=10000000` / `clip: video <=50000000` and upload a file of that kind.",
+        "E_ASSET_TOO_LARGE" => "family asset — the upload is larger than the largest column of its kind (or the column it is placed in). Downscale before uploading, or widen the column's bound.",
+        "E_ASSET_UNKNOWN" => "family asset — no asset is served under that id to this viewer: it was never uploaded, it is another uploader's unplaced upload, its home row is gone, cleared, expired or hidden from this viewer. Hidden and absent are one word on purpose.",
+        "E_ASSET_PLACED" => "family asset — the upload already belongs to a row: one asset, one home. Upload the bytes again for a second row.",
+        "E_ASSET_VIEWED" => "family asset — a `once` image was served to this principal already; the second view is refused (HTTP 410). The sender is never counted.",
         "N_NO_CURSOR" => "a note, not an error — a returned page with no cursor argument cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`.",
         "N_NEVER_COMPLETE" => "a note, not an error — a page whose read rule reads a column the scan does not pin is `complete: false` on the server whatever it finds; the note names the index that would decide it, or read the page on the device.",
         "E_QUARRY_TYPE" => "a value meets a declaration of another type; the message names both.",

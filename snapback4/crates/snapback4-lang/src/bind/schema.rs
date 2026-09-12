@@ -138,7 +138,35 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         },
         None => None,
     };
-    Table { columns, indexes, rules, constraints, leave, sync }
+    let expire = match &decl.expire {
+        Some((column, site)) => match bind_expire(info, column, site) {
+            Ok(column) => Some(column),
+            Err(diagnostic) => {
+                diagnostics.push(diagnostic);
+                None
+            }
+        },
+        None => None,
+    };
+    Table { columns, indexes, rules, constraints, leave, sync, expire }
+}
+
+/// `expire at .column`: a `time` column (optional means "never" when null)
+/// with an index leading with it, so the sweep finds what is due without a
+/// walk. The rewrite is the index line to add.
+fn bind_expire(info: &TableInfo, column: &str, site: &Site) -> Fallible<String> {
+    let table = &info.decl.name;
+    let Some(kind) = info.columns.get(column) else {
+        return Err(type_error(site, format!("expire at .{column}: table {table} has no column {column}"), name_rewrite(column, info.columns.keys().map(String::as_str), Some("declare `expiresAt: time ?` and expire at .expiresAt"))));
+    };
+    if kind.kind != TypeKind::Time {
+        return Err(type_error(site, format!("expire at .{column}: {table}.{column} is {}, and a row's life ends at a time", crate::print::scalar_type(kind)), format!("{column}: time ?")));
+    }
+    let title = title(column);
+    if !info.indexes.iter().any(|index| index.columns.first().map(String::as_str) == Some(column)) {
+        return Err(Diagnostic::new(site, "E_SCHEMA_CONSTRAINT", format!("expire at .{column} needs an index leading with {column}, so the sweep finds due rows without a walk"), format!("by by{title}: {column}")).guide("expire"));
+    }
+    Ok(column.to_owned())
 }
 
 fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl) -> Fallible<Sync> {
@@ -411,6 +439,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         retain: None,
         public: None,
         sync: None,
+        expire: None,
         site,
     })
 }

@@ -11,6 +11,7 @@ use snapback4_core::{Context, Engine, WriteState, wire};
 use snapback4_lang::Bound;
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
+use std::io::Read as _;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -62,6 +63,10 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         let shared = shared.clone();
         let project = Project { root: project.root.clone() };
         std::thread::spawn(move || watch_sources(project, shared));
+    }
+    {
+        let shared = shared.clone();
+        std::thread::spawn(move || maintain(shared));
     }
     let mut workers = Vec::new();
     for _ in 0..4 {
@@ -121,16 +126,79 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
     }
 }
 
+/// The server's own clock, every few seconds: rows past their `expire`
+/// column are swept, so the deletion reaches every device that holds them
+/// (readers never see an expired row in the meantime; this is the purge);
+/// schedules whose boundary passed queue their jobs; queued jobs run a
+/// chunk at a time, the engine free for requests between chunks; and once
+/// a minute, released and abandoned uploads leave the disk.
+fn maintain(shared: Arc<Shared>) {
+    let mut tick: u64 = 0;
+    loop {
+        std::thread::sleep(Duration::from_secs(5));
+        tick += 1;
+        let now = snapback4_core::now_ms();
+        let swept = shared.engine.lock().unwrap().sweep_expired(now, 2_000);
+        match swept {
+            Ok(0) => {}
+            Ok(_) => bump_seq(&shared),
+            Err(error) => eprintln!("snapback4: the expiry sweep failed: {error}"),
+        }
+        match shared.engine.lock().unwrap().fire_schedules(now) {
+            Ok(fired) => {
+                for name in fired {
+                    println!("snapback4: schedule {name} fired");
+                }
+            }
+            Err(error) => eprintln!("snapback4: schedules failed: {error}"),
+        }
+        let mut budget = 500;
+        while budget > 0 {
+            budget -= 1;
+            let ran = shared.engine.lock().unwrap().run_job_chunk(snapback4_core::now_ms());
+            match ran {
+                Ok(None) => break,
+                Ok(Some(run)) => {
+                    bump_seq(&shared);
+                    match run.state {
+                        snapback4_core::JobState::Done => println!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
+                        snapback4_core::JobState::Parked => eprintln!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or("")),
+                        _ => {}
+                    }
+                }
+                Err(error) => {
+                    eprintln!("snapback4: job failed: {error}");
+                    break;
+                }
+            }
+        }
+        if tick % 12 == 0 && let Err(error) = shared.engine.lock().unwrap().sweep_assets(now) {
+            eprintln!("snapback4: the asset sweep failed: {error}");
+        }
+    }
+}
+
+/// A commit outside a request: let every long poll see it.
+fn bump_seq(shared: &Shared) {
+    if let Ok(seq) = shared.engine.lock().unwrap().seq() {
+        let mut current = shared.seq.lock().unwrap();
+        if seq > *current {
+            *current = seq;
+            shared.committed.notify_all();
+        }
+    }
+}
+
 fn cors() -> Vec<Header> {
     vec![
         Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap(),
-        Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, authorization").unwrap(),
+        Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, authorization, range").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
         Header::from_bytes("Content-Type", "application/json").unwrap(),
     ]
 }
 
-fn respond(request: Request, status: u16, body: Json) {
+pub(crate) fn respond(request: Request, status: u16, body: Json) {
     let text = body.to_string();
     let mut response = Response::from_string(text).with_status_code(status);
     for header in cors() {
@@ -139,12 +207,12 @@ fn respond(request: Request, status: u16, body: Json) {
     let _ = request.respond(response);
 }
 
-fn refusal_json(refusal: &Refusal) -> Json {
+pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
     serde_json::to_value(refusal).unwrap_or(Json::Null)
 }
 
 /// Who is asking: a bearer session, or (in `dev`, from loopback) a persona.
-fn principal_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
+pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
     let mut persona = None;
     let mut bearer = None;
     for header in request.headers() {
@@ -189,10 +257,17 @@ fn handle(mut request: Request, shared: &Shared) {
         respond(request, 204, Json::Null);
         return;
     }
-    let mut body = String::new();
+    let mut bytes = Vec::new();
     if method == Method::Post {
-        let _ = request.as_reader().read_to_string(&mut body);
+        let _ = request.as_reader().take(crate::assets::UPLOAD_CEILING as u64 + 1).read_to_end(&mut bytes);
     }
+    if method == Method::Post && path == "/assets" {
+        return crate::assets::upload(request, bytes, shared);
+    }
+    if method == Method::Get && let Some(id) = path.strip_prefix("/assets/") {
+        return crate::assets::serve(request, id, shared);
+    }
+    let body = String::from_utf8_lossy(&bytes).into_owned();
     match (method, path.as_str()) {
         (Method::Get, "/") => {
             let bound = shared.bound.lock().unwrap();
@@ -289,6 +364,10 @@ fn handle(mut request: Request, shared: &Shared) {
             } else {
                 if program.kind == ProgramKind::Query {
                     respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}"))) }));
+                    return;
+                }
+                if program.kind == ProgramKind::Job {
+                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs")) }));
                     return;
                 }
                 let id = payload.get("id").and_then(Json::as_str).map(str::to_owned);

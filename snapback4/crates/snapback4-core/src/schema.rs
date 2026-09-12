@@ -22,6 +22,31 @@ pub struct Schema {
     pub auth: Auth,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<String>,
+    /// The owner's clock: each fires its job once per period.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub schedules: Vec<Schedule>,
+}
+
+/// `schedule name every 2m [at 08:00]: job`. Period boundaries are whole
+/// multiples of `every_ms` since the epoch, shifted by `offset_ms`; the job
+/// runs once for each boundary the server's clock crosses, with the period
+/// that ended there as `periodStart`/`periodEnd` when it declares them.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Schedule {
+    pub name: String,
+    pub every_ms: u64,
+    #[serde(default)]
+    pub offset_ms: u64,
+    pub target: String,
+}
+
+impl Schedule {
+    /// The most recent period boundary at or before `now`.
+    pub fn boundary(&self, now: i64) -> i64 {
+        let every = self.every_ms as i64;
+        let offset = self.offset_ms as i64;
+        (now - offset).div_euclid(every) * every + offset
+    }
 }
 
 impl Schema {
@@ -92,6 +117,12 @@ pub struct Table {
     /// The partition declaration. Absent means online-only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sync: Option<Sync>,
+    /// `expire at .column`: the time column that ends a row's life. A row
+    /// past it is absent to every reader on every host from that moment,
+    /// and the server's sweep deletes it so the log carries the deletion
+    /// to each device that holds it (LLP 3000 §7).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expire: Option<String>,
 }
 
 impl Table {
@@ -111,6 +142,19 @@ impl Table {
             Constraint::Immutable { fields } => fields.iter().map(String::as_str).collect::<Vec<_>>(),
             _ => Vec::new(),
         })
+    }
+
+    /// Whether `row` is past its `expire` column at `now`: absent to every
+    /// reader, pending the sweep. A null time never expires.
+    pub fn expired(&self, row: &Value, now: i64) -> bool {
+        self.expire.as_ref().is_some_and(|column| matches!(row.field(column), Ok(Value::Int(at)) if *at <= now))
+    }
+
+    /// The index the expiry sweep walks: the first leading with the
+    /// `expire` column, as the declaration requires.
+    pub fn expiry_index(&self) -> Option<(&str, &Index)> {
+        let column = self.expire.as_deref()?;
+        self.indexes.iter().find(|(_, index)| index.columns().first().map(String::as_str) == Some(column)).map(|(name, index)| (name.as_str(), index))
     }
 
     /// The column carrying the principal a `sync to T[...]` audience reads.
@@ -482,6 +526,7 @@ pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<Str
         constraints: Vec::new(),
         leave: LeavePolicy::default(),
         sync: None,
+        expire: None,
     }
 }
 
@@ -577,6 +622,17 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         }
         if let Some(sync) = &table.sync {
             validate_sync(schema, table_name, table, sync, &format!("{path}.sync"), &mut issues);
+        }
+        if let Some(column) = &table.expire {
+            let epath = format!("{path}.expire");
+            match table.columns.get(column).map(ColumnType::required) {
+                Some(ColumnType::Time) => {}
+                Some(kind) => issue(&mut issues, epath.clone(), format!("expire at .{column} needs a time column; {column} is {kind}")),
+                None => issue(&mut issues, epath.clone(), format!("expire names undeclared column {column}")),
+            }
+            if table.expiry_index().is_none() {
+                issue(&mut issues, epath, format!("expire at .{column} needs an index leading with {column}"));
+            }
         }
     }
     for (position, maintain) in schema.maintains.iter().enumerate() {

@@ -274,6 +274,8 @@ pub struct TableDecl {
     pub caps: Vec<CapDecl>,
     pub final_exists: Vec<(Expr, Site)>,
     pub retain: Option<(String, Site)>,
+    /// `expire at .column`: the time column that ends a row's life.
+    pub expire: Option<(String, Site)>,
     pub public: Option<(String, Site)>,
     pub sync: Option<SyncDecl>,
     pub site: Site,
@@ -314,6 +316,19 @@ pub struct ProgramDecl {
     pub site: Site,
 }
 
+/// `schedule name every 2m [at 08:00]: job` — the owner's clock fires a
+/// job once per period, with the period it covers as `periodStart` and
+/// `periodEnd` when the job declares them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScheduleDecl {
+    pub name: String,
+    pub every_ms: u64,
+    /// The offset of the period boundary within the period (`at 08:00`).
+    pub offset_ms: u64,
+    pub target: String,
+    pub site: Site,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EffectDecl {
     pub name: String,
@@ -335,6 +350,7 @@ pub struct Document {
     pub procs: Vec<ProcDecl>,
     pub proc_imports: Vec<Import>,
     pub programs: Vec<ProgramDecl>,
+    pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.
     pub personas: Vec<String>,
 }

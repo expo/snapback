@@ -3,6 +3,7 @@
 //! client's types; `dev` serves it and re-adopts it on every save; `run`,
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
+mod assets;
 mod guide;
 mod project;
 mod serve;
@@ -18,7 +19,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
   serve <dir> [--port N] [--bind H]   serve a release on 0.0.0.0:4400; tokens only, no personas
-  run <op> [json] --as <persona>   run one operation against the local store
+  run <op> [json] --as <persona>   run one operation against the local store (a job runs whole, as the system)
   test [--fixture dir] [--as p]    load a fixture, run every query, print the meters
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
   guide [keyword]                  the grammar, or one card: rules, sync, writes, reads, ...

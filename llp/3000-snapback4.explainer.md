@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -339,10 +339,33 @@ time-ordered 128-bit form.
   refuses that query. The device's read-rule hoist applies to online-only
   tables alone.
 
+- **2026-09-12 — a row's life ends by `expire at .col`, not by a rule
+  (lead, after the author moved the struck brief onto the doing-list).** A
+  rule that varies with time is no audience a partition can hold; a
+  lifetime is a fact of the row. A row past its `expire` column is absent
+  to every reader on every host from that moment, before any rule; the
+  server's sweep deletes it and the log carries the deletion; a null time
+  never expires; the device filters on its own clock while the server's
+  word is authoritative.
+- **2026-09-12 — one asset, one home; serving is the home row's read rule
+  (lead).** An upload is the uploader's until a row's `image`/`video`
+  column claims it, once; the row carries the facts the server sniffed,
+  never the client's; the bytes are served to a viewer the home row's
+  read rule admits on the row as it stands, and to nobody once the row
+  is deleted, the column cleared, or the row expired; `once` is one view
+  per principal, never cached. Hidden, released and absent are one word.
+- **2026-09-12 — jobs are sweeps, schedules are boundaries (lead, LLP
+  1016 §4 carried).** A chunk is one page per commit with its cursor, as
+  the system principal, over an index whose columns cannot move; a
+  schedule fires once per period boundary of the server's clock, the
+  boundary committed with the job row, so restarts never double-fire and
+  a schedule first seen starts from its next boundary. No client calls a
+  job.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
-carries the chronology. Week four, 2026-09-12:
+carries the chronology. After week four, 2026-09-12 (0.1.0):
 
 | Piece | What runs | Landed |
 | --- | --- | --- |
@@ -363,8 +386,10 @@ carries the chronology. Week four, 2026-09-12:
 
 | `benchmarks/runs/2026-09-12-snapback4-clique-0002/`, `benchmarks/runs/2026-09-12-snapback4-loopbar/` | the Clique hub run on 0.0.2 (Astra medium, media and scheduled work struck): every milestone green in 7,725 s, graded 69/80 applicable with two majors read against main, M7 green in 917 s; the loop bar met on 0.0.11 (3/3, 443–537 s, no attributed loop); every finding and its fix | the run's landings |
 
-Not in slice one by decision: effects execution, jobs at runtime, word
-search, assets, time in rules (`NOT-DOING.md`).
+| `crates/snapback4-core/src/assets.rs`, `engine/job.rs`, `crates/snapback4/src/assets.rs` | 0.1.0, the whole brief: `expire at .col` (absent everywhere at once, swept, streamed); assets (sniffed JPEG/PNG/WebP/MP4, one asset one home, served by the home row's read rule, `once`); jobs (`chunk` sweeps, a page per commit with its cursor, parked on refusal) and `schedule … every N [at HH:MM]` (once per boundary across restarts); the maintenance thread; the client's `upload`/`asset`/`assetSource`/`useAsset` | the 0.1.0 landing |
+
+Not in slice one by decision: effects execution, word search
+(`NOT-DOING.md`).
 
 ## How to orient
 

@@ -4,6 +4,7 @@
 //! evaluation with hoisting, the runtime meter, the interpreter, and the
 //! partition log. Nothing here knows about HTTP, files, or a device.
 
+pub mod assets;
 pub mod cursor;
 pub mod engine;
 pub mod error;
@@ -19,7 +20,8 @@ pub mod successor;
 pub mod value;
 pub mod wire;
 
-pub use engine::{Context, Engine, MutationOutcome, QueryOutcome, WriteState};
+pub use engine::job::{JobRun, JobState};
+pub use engine::{AssetGrant, Context, Engine, MutationOutcome, QueryOutcome, WriteState};
 pub use error::{MeterKind, Refusal, RuntimeError};
 pub use ir::{Program, ProgramKind};
 pub use meter::{Ceilings, Metered};

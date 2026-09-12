@@ -164,3 +164,65 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("an upload is placed once and served by the home row's read rule", { timeout: 60_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sb4-assets-"));
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
+  const assetPort = port + 20;
+  const assetUrl = `http://127.0.0.1:${assetPort}`;
+  const server = spawn(binary, ["dev", "--port", String(assetPort), "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  let log = "";
+  server.stdout.on("data", (d) => (log += d));
+  server.stderr.on("data", (d) => (log += d));
+  try {
+    await until(async () => { try { await fetch(assetUrl); return true; } catch { return false; } });
+    await fetch(`${assetUrl}/seed`, { method: "POST", body: JSON.stringify([
+      { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
+      { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
+      { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
+    ]) });
+    const alice = await createLocalClient({ url: assetUrl, persona: "alice", store: "memory", waitSeconds: 2 });
+    const bob = await createLocalClient({ url: assetUrl, persona: "bob", store: "memory", waitSeconds: 2 });
+    const mallory = await createLocalClient({ url: assetUrl, persona: "mallory", store: "memory", waitSeconds: 2 });
+    // A 2x3 PNG: signature, IHDR, and nothing more (the server reads the header).
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 2, 0, 0, 0, 3, 8, 6, 0, 0, 0, 0, 0, 0, 0]);
+    const refused = await alice.upload(new TextEncoder().encode("not an image"));
+    assert.equal(refused.ok, false);
+    assert.equal(refused.why.code, "E_ASSET_TYPE");
+    const uploaded = await alice.upload(png);
+    assert.equal(uploaded.ok, true, JSON.stringify(uploaded));
+    assert.deepEqual([uploaded.asset.type, uploaded.asset.width, uploaded.asset.height, uploaded.asset.bytes], ["image/png", 2, 3, png.length]);
+    // Unplaced: the uploader may see it; nobody else may.
+    assert.ok("url" in (await alice.asset(uploaded.asset.id)));
+    assert.equal((await bob.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
+    // Placed by a photo message: the row carries the server's facts, and bob is served.
+    const sent = await alice.mutate({ kind: "mutation", name: "sendPhoto" }, { conversationId: "c1", photo: { id: uploaded.asset.id }, body: "look" });
+    assert.equal(sent.state, "sent", JSON.stringify(sent));
+    const thread = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.length === 1 ? r : null; });
+    assert.equal(thread.data[0].photo.width, 2);
+    assert.equal(thread.data[0].photo.type, "image/png");
+    const served = await bob.asset(uploaded.asset.id);
+    assert.ok("url" in served, JSON.stringify(served));
+    assert.equal(served.type, "image/png");
+    assert.equal(served.bytes, png.length);
+    served.revoke();
+    assert.equal((await mallory.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
+    // A second home is refused.
+    const twice = await alice.mutate({ kind: "mutation", name: "sendPhoto" }, { conversationId: "c1", photo: { id: uploaded.asset.id } });
+    assert.equal(twice.state, "failed");
+    assert.equal(twice.why.code, "E_ASSET_PLACED");
+    // Unsending stops the bytes for everyone, the uploader included.
+    const gone = await alice.mutate({ kind: "mutation", name: "unsend" }, { messageId: thread.data[0].id });
+    assert.equal(gone.state, "sent");
+    assert.equal((await bob.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
+    assert.equal((await alice.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
+    await alice.close(); await bob.close(); await mallory.close();
+  } catch (error) {
+    error.message += `\n--- server log ---\n${log}`;
+    throw error;
+  } finally {
+    server.kill();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

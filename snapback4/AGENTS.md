@@ -11,7 +11,7 @@ before minting a new number).
 ```
 cargo build                          # the binary; no JS engine, no bootstrap, nothing outside crates.io
 scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
-./target/debug/snapback4 --help      # init · check [--cost] · dev · run · test · why · guide · data · doctor
+./target/debug/snapback4 --help      # init · check [--cost] · dev · run (an op, or a job as the system) · test · why · guide · data · doctor
 cd apps/chat && ../../target/debug/snapback4 check     # compiles snapback/*.q, writes snapback/generated/api.ts
 cd apps/chat && ../../target/debug/snapback4 dev       # serves 127.0.0.1:4400; re-adopts the schema on save
 cd apps/chat && bun run dev                            # the app on the real client (?as=bob picks a persona)
