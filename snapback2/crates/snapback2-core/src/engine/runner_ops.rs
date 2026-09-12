@@ -92,7 +92,7 @@ impl<'a> Runner<'a> {
             new.insert(name.clone(), value.clone());
         }
         if self.acknowledgement.as_deref() == Some(table) { new.insert("seq".into(), Value::Int(self.seq as i64)); }
-        self.replace(table, key, Value::Row(new.into()))
+        self.replace_existing(table, key, old, Value::Row(new.into()))
     }
 
     pub(super) fn upsert(
@@ -103,29 +103,23 @@ impl<'a> Runner<'a> {
     ) -> Result<(), RuntimeError> {
         validate_row(&self.schema, table, &row)?;
         validate_addressed_row_id(table, key, &row)?;
-        if self.fetch_id(table, key.as_str()?)?.is_some() {
-            self.replace(table, key, row)
+        if let Some(old) = self.fetch_id(table, key.as_str()?)? {
+            self.replace_existing(table, key, old, row)
         } else {
             self.insert(table, row)
         }
     }
 
-    pub(super) fn replace(
+    // Callers have just fetched this preimage, with no intervening row writes.
+    // Update and upsert share validation and the complete write lifecycle.
+    fn replace_existing(
         &mut self,
         table: &str,
         key: &Value,
+        old: Value,
         new: Value,
     ) -> Result<(), RuntimeError> {
         let key_id = key.as_str()?;
-        let row_id = new.field("id")?.as_str()?;
-        if key_id != row_id {
-            return Err(RuntimeError::Input(format!(
-                "{table} replacement key {key_id} does not match row id {row_id}"
-            )));
-        }
-        let old = self
-            .fetch_id(table, key_id)?
-            .ok_or_else(|| RuntimeError::Input(format!("missing {table} row")))?;
         validate_row(&self.schema, table, &new)?;
         validate_addressed_row_id(table, key, &new)?;
         // @ref LLP 1001#9-schema-additions — update policy is one relation over both row images.
@@ -1148,13 +1142,11 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn fetch_id(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
-        let data: Option<String> = self
-            .tx
-            .query_row(
-                "SELECT data FROM rows WHERE table_name = ?1 AND row_id = ?2",
-                params![table, id],
-                |row| row.get(0),
-            )
+        let mut statement = self.tx.prepare_cached(
+            "SELECT data FROM rows WHERE table_name = ?1 AND row_id = ?2",
+        )?;
+        let data: Option<String> = statement
+            .query_row(params![table, id], |row| row.get(0))
             .optional()?;
         let mut row = data
             .map(|data| {
