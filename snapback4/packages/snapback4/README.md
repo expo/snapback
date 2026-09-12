@@ -227,10 +227,12 @@ durably and predicts its rows, and follows the server's stream for the
 rest. Its options: `url`; one of `persona` (development), `session` (from
 `snapback4/auth`, kept and restored by the client), or `guest: true`
 (mint one when none is kept); `store`; `sessionStore`; `fetch`;
-`waitSeconds`. It has `query`, `observe`, `mutate`, `link()`, `onLink`,
-`viewer()`, `session()`, `signOut()`, `sync()`, `replica`, `close()`. The
-online client takes `url` with `persona`, `session` or `token`, and has
-the same card without a store.
+`waitSeconds`. It has `query(op, args) → Read`, `observe(op, args) →
+{ getSnapshot(), subscribe(listener) → unsubscribe, close() }` (a live
+read; React's `useSyncExternalStore` shape), `mutate(op, args) → Write`,
+`link()`, `onLink`, `viewer()`, `session()`, `signOut()`, `sync()`,
+`replica`, `close()`. The online client takes `url` with `persona`,
+`session` or `token`, and has the same card without a store.
 
 ### The card
 
@@ -245,10 +247,14 @@ type Write = { state: "pending"; id } | { state: "sent"; id; seq } | { state: "f
 type Refusal = { code: string; family: "input" | "schema" | "auth" | "rule" | "constraint" | "bound" | "op" | "link" | "generation"; message: string; site?: string; rewrite?: string; guide?: string; retryable?: boolean };
 ```
 
-`complete` says the page is whole; `fresh` says the device has everything
-the server had at the last sync (`since` is the last sync's time when it
-does not); `next` is the cursor for the next page (pass it as the query's
-`cursor ?` argument). A row this device wrote and the server has not yet
+`complete` says this is everything the query can answer: false when the
+meter cut the page, when a scan's read rule is not decided by its prefix
+(§2, the meter), or when a page declared without a cursor had more rows
+than it holds (declare `c: cursor ?` and page with `after c`; `check`
+notes it). `fresh` says the device has everything the server had at the
+last sync (`since` is the last sync's time when it does not); `next` is
+the cursor for the next page (pass it as the query's `cursor ?` argument);
+a page with a cursor and more rows is `complete: true` with `next`. A row this device wrote and the server has not yet
 confirmed carries `pending: true`. A write is `pending` while the link is
 down (it lands when it returns), `sent` with the server's sequence, or
 `failed` with the refusal and its predicted rows withdrawn. `isReady`,

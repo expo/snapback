@@ -200,7 +200,10 @@ fn h1_check_notes_a_page_that_is_never_complete() {
     assert!(messages.iter().any(|m| m.contains("query feed") && m.contains("never `complete`") && m.contains(".owner")), "{messages:?}");
     assert!(!messages.iter().any(|m| m.contains("query theirs")), "a prefix that pins the rule's column is decided: {messages:?}");
     let chat = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
-    assert!(chat.notes.is_empty(), "{:?}", chat.notes.iter().map(|n| n.message.clone()).collect::<Vec<_>>());
+    let never: Vec<&str> = chat.notes.iter().filter(|n| n.code == "N_NEVER_COMPLETE").map(|n| n.message.as_str()).collect();
+    assert!(never.is_empty(), "{never:?}");
+    // `inbox` returns a page with no cursor: the compiler says so too.
+    assert!(chat.notes.iter().any(|n| n.code == "N_NO_CURSOR" && n.message.contains("query inbox")), "{:?}", chat.notes.iter().map(|n| n.message.clone()).collect::<Vec<_>>());
 }
 
 /// H4: a point read of an absent row and of a hidden one cost the same.

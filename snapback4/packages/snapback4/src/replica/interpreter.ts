@@ -142,6 +142,8 @@ export class Interpreter {
   private written = 0;
   private capped = false;
   private beyondHorizon = false;
+  /** The program's page had more rows and no cursor to continue on. */
+  private pageOverflow = false;
   private page: { table: string; index: string; order: "Asc" | "Desc"; prefixLen: number; next: unknown[] | null } | null = null;
   private pageDepth = 0;
   private created = new Set<string>();
@@ -174,7 +176,7 @@ export class Interpreter {
     }
     const flow = await this.statements(program.body, program.name);
     const data = flow instanceof Flow && flow.kind === "return" ? flow.value : null;
-    return { data, complete: !this.capped && !this.beyondHorizon, next: this.capped ? null : this.nextCursor(), tables: this.tables };
+    return { data, complete: !this.capped && !this.beyondHorizon && !this.pageOverflow, next: this.capped ? null : this.nextCursor(), tables: this.tables };
   }
 
   private nextCursor(): string | null {
@@ -440,6 +442,7 @@ export class Interpreter {
       const held = await this.tx.count(table, index, prefix, horizon.last);
       if (held >= horizon.last) this.beyondHorizon = true;
     }
+    if (this.pageDepth === 0 && !scan.opaque_cursor && hasMore) this.pageOverflow = true;
     if (this.pageDepth === 0 && scan.opaque_cursor) {
       const columns = definition.indexes[index]!.components.length;
       this.page = { table, index, order, prefixLen: prefix.length, next: hasMore && lastKey && visible.length ? suffixOf(this.schema, table, index, visible[visible.length - 1] as Row, prefix.length).slice(0, columns - prefix.length) : null };
@@ -477,6 +480,7 @@ export class Interpreter {
     candidates.sort((a, b) => { const c = totalCompare(a.key, b.key); return order === "Asc" ? c : -c; });
     const hasMore = candidates.length > take;
     const page = candidates.slice(0, take);
+    if (this.pageDepth === 0 && !first.opaque_cursor && hasMore) this.pageOverflow = true;
     if (this.pageDepth === 0 && first.opaque_cursor) this.page = { table, index, order, prefixLen, next: hasMore && page.length ? page[page.length - 1]!.key : null };
     return page.map((c) => c.row);
   }

@@ -51,6 +51,22 @@ pub fn bind(documents: Vec<Document>) -> Bound {
 fn completeness_notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for bound in programs {
+        // A page returned without a cursor: when more rows exist than it
+        // holds, the card reads `complete: false` with no `next`.
+        for stmt in &bound.program.body {
+            use snapback4_core::ir::{Expr, LoopDomain, Stmt};
+            let page = match stmt {
+                Stmt::Return(Expr::Scan(scan)) => scan,
+                Stmt::Return(Expr::Merge(merge)) => match merge.lanes.first() { Some(lane) => &lane.scan, None => continue },
+                // A shape over a page lowers to a loop over the scan.
+                Stmt::For { domain: LoopDomain::Page(scan), .. } => scan,
+                _ => continue,
+            };
+            let (table, cursorless, take) = (page.table.clone(), !page.opaque_cursor, page.take.maximum());
+            if cursorless {
+                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>", bound.program.name, table)).guide("reads"));
+            }
+        }
         for scan in snapback4_core::ir::scans(&bound.program) {
             let Some(table) = schema.table(&scan.table) else { continue };
             if table.rules.read.is_uniformly_readable() {
