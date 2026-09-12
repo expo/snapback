@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Snapback 4 client: the contract (the card), the online-tier client, React hooks, and a labelled mock. Week two of LLP 3000.",
   "exports": {
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js"
+    },
     "./client": {
       "types": "./dist/client.d.ts",
       "import": "./dist/client.js"
@@ -11,6 +15,10 @@
     "./contract": {
       "types": "./dist/contract.d.ts",
       "import": "./dist/contract.js"
+    },
+    "./local": {
+      "types": "./dist/local.d.ts",
+      "import": "./dist/local.js"
     },
     "./mock": {
       "types": "./dist/mock.d.ts",

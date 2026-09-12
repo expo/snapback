@@ -68,6 +68,7 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _ops (principal TEXT NOT NULL, id TEXT NOT NULL, seq INTEGER NOT NULL, outcome TEXT NOT NULL, PRIMARY KEY (principal, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _principals (id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT, created_at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _sessions (token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+             CREATE TABLE IF NOT EXISTS _credentials (principal TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _generations (generation INTEGER PRIMARY KEY, schema TEXT NOT NULL, programs TEXT NOT NULL, at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _outbox (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, at INTEGER NOT NULL);",
         )?;
@@ -165,6 +166,11 @@ impl Store {
     }
 
     /// How many client-minted operation ids have been applied (sent or failed).
+    /// The recorded outcome of a client-minted op, if it applied.
+    pub fn applied_outcome(&self, principal: &str, id: &str) -> Result<Option<String>, RuntimeError> {
+        Ok(self.conn.query_row("SELECT outcome FROM _ops WHERE principal = ?1 AND id = ?2", params![principal, id], |row| row.get::<_, String>(0)).optional()?)
+    }
+
     pub fn applied_ops(&self) -> Result<u64, RuntimeError> {
         Ok(self.conn.query_row("SELECT COUNT(*) FROM _ops WHERE outcome LIKE '%\"state\":\"sent\"%'", [], |row| row.get::<_, i64>(0))? as u64)
     }

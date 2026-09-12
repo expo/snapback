@@ -158,8 +158,9 @@ impl Engine {
     }
 
     /// Replace the schema and programs in place (a successor generation);
-    /// the store keeps every row and rebuilds changed indexes.
-    pub fn adopt(&mut self, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<(), RuntimeError> {
+    /// the store keeps every row and rebuilds changed indexes; the
+    /// generation advances so every device re-derives its partition.
+    pub fn adopt(&mut self, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<u64, RuntimeError> {
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
@@ -167,7 +168,15 @@ impl Engine {
         self.store.install(&schema)?;
         self.schema = schema;
         self.programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        Ok(())
+        let next = self.generation() + 1;
+        self.store.set_meta("generation", &next.to_string())?;
+        Ok(next)
+    }
+
+    /// The schema generation the store serves; a device holds a partition
+    /// of exactly one.
+    pub fn generation(&self) -> u64 {
+        self.store.meta("generation").ok().flatten().and_then(|g| g.parse().ok()).unwrap_or(1)
     }
 
     /// Run a query. Refusals (a `require`, a rule, bad input) are the
@@ -201,9 +210,30 @@ impl Engine {
         Ok(outcome)
     }
 
+    /// The recorded outcome of a client-minted op that already applied, so a
+    /// host can answer a resend before it decodes the arguments against the
+    /// current generation: the op may have been renamed since.
+    pub fn replay(&self, viewer: &str, op: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
+        let Some(outcome) = self.store.applied_outcome(viewer, op)? else {
+            return Ok(None);
+        };
+        let mut outcome: MutationOutcome = serde_json::from_str(&outcome).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        outcome.replayed = true;
+        Ok(Some(outcome))
+    }
+
     /// Run a mutation. With an `op` id the write applies at most once: a
-    /// replay returns the recorded outcome.
+    /// replay returns the recorded outcome. The replay check comes before
+    /// anything the current generation could refuse (an op renamed, an
+    /// argument narrowed), so a write that applied under an earlier schema
+    /// is never re-judged: its row is on the server, and the device that
+    /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
+        if let Some(op) = op
+            && let Some(outcome) = self.replay(&context.viewer, op)?
+        {
+            return Ok(outcome);
+        }
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind == ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
@@ -220,6 +250,7 @@ impl Engine {
         if let Some(op) = op
             && let Some((_, outcome)) = tx.applied(&context.viewer, op)?
         {
+            // Applied between the check above and this transaction.
             let mut outcome: MutationOutcome = serde_json::from_str(&outcome).map_err(|e| RuntimeError::Store(e.to_string()))?;
             outcome.replayed = true;
             tx.rollback()?;

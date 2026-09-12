@@ -486,3 +486,148 @@ pub fn test(options: &Options) -> i32 {
     }
     if failures > 0 { 1 } else { 0 }
 }
+
+
+// ----- H0: deploy, rollback, serve -----
+
+/// A release directory: `releases/<n>/snapback/*.q`, `current` naming the
+/// live release, `releases.jsonl` as the ledger, and one store shared by
+/// every release (the schema successor rules gate what a release may do
+/// to it).
+fn release_dir(options: &Options) -> Option<std::path::PathBuf> {
+    options.positionals.first().map(|p| std::path::PathBuf::from(p))
+}
+
+fn read_current(dir: &Path) -> Option<u64> {
+    std::fs::read_to_string(dir.join("current")).ok().and_then(|s| s.trim().parse().ok())
+}
+
+fn ledger(dir: &Path, entry: Json) {
+    let _ = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("releases.jsonl")).and_then(|mut f| { use std::io::Write; writeln!(f, "{entry}") });
+}
+
+pub fn deploy(options: &Options) -> i32 {
+    let Some(dir) = release_dir(options) else {
+        eprintln!("usage: snapback4 deploy <dir> [--allow-destructive]");
+        return 2;
+    };
+    let project = project_or_exit();
+    let bound = compile_or_exit(&project, options.json);
+    if let Err(error) = std::fs::create_dir_all(dir.join("releases")) {
+        eprintln!("cannot create {}: {error}", dir.display());
+        return 2;
+    }
+    // Day two: what this release does to the live schema.
+    let previous = read_current(&dir);
+    if let Some(n) = previous {
+        let live = Project { root: dir.join("releases").join(n.to_string()) };
+        if let Ok(old) = live.compile() && old.diagnostics.is_empty() {
+            let steps = snapback4_core::successor::classify(&old.schema, &bound.schema);
+            let worst = snapback4_core::successor::worst(&steps);
+            for step in &steps {
+                println!("  {:?}: {}", step.change, step.message);
+            }
+            if worst == snapback4_core::successor::Change::Destructive && !options.flags.contains_key("allow-destructive") {
+                eprintln!("deploy: this release loses data (see above); pass --allow-destructive to confirm");
+                return 1;
+            }
+        }
+    }
+    let n = previous.map(|n| n + 1).unwrap_or(1);
+    let target = dir.join("releases").join(n.to_string()).join("snapback");
+    if let Err(error) = std::fs::create_dir_all(&target) {
+        eprintln!("cannot create {}: {error}", target.display());
+        return 2;
+    }
+    for (name, text) in project.sources().unwrap_or_default() {
+        let _ = std::fs::write(target.join(name), text);
+    }
+    // Install the schema into the shared store now, so the generation is recorded.
+    let release = Project { root: dir.join("releases").join(n.to_string()) };
+    let store_path = dir.join("store.sqlite");
+    let opened = std::fs::create_dir_all(&dir).and_then(|_| Ok(snapback4_core::Store::open(&store_path))).ok().and_then(|s| s.ok());
+    match opened.map(|store| snapback4_core::Engine::new(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()))) {
+        Some(Ok(engine)) => {
+            let _ = engine.store().set_meta("generation", &n.to_string());
+        }
+        Some(Err(error)) => {
+            eprintln!("deploy: the store refuses this schema: {error}");
+            return 1;
+        }
+        None => {
+            eprintln!("deploy: cannot open {}", store_path.display());
+            return 2;
+        }
+    }
+    let _ = std::fs::write(dir.join("current"), format!("{n}\n"));
+    ledger(&dir, json!({ "at": snapback4_core::now_ms(), "release": n, "previous": previous, "tables": bound.schema.tables.len(), "operations": bound.programs.len(), "source": project.root.display().to_string() }));
+    let _ = release;
+    println!("deploy: release {n} is current in {} — `snapback4 serve {}` runs it", dir.display(), dir.display());
+    0
+}
+
+pub fn rollback(options: &Options) -> i32 {
+    let Some(dir) = release_dir(options) else {
+        eprintln!("usage: snapback4 rollback <dir>");
+        return 2;
+    };
+    let Some(current) = read_current(&dir) else {
+        eprintln!("rollback: {} has no current release", dir.display());
+        return 1;
+    };
+    let mut previous = current.saturating_sub(1);
+    while previous > 0 && !dir.join("releases").join(previous.to_string()).join("snapback/schema.q").is_file() {
+        previous -= 1;
+    }
+    if previous == 0 {
+        eprintln!("rollback: release {current} is the first; nothing to roll back to");
+        return 1;
+    }
+    let release = Project { root: dir.join("releases").join(previous.to_string()) };
+    let bound = compile_or_exit(&release, options.json);
+    match snapback4_core::Store::open(&dir.join("store.sqlite")).and_then(|store| snapback4_core::Engine::new(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()))) {
+        Ok(engine) => {
+            let _ = engine.store().set_meta("generation", &previous.to_string());
+        }
+        Err(error) => {
+            eprintln!("rollback: the store refuses release {previous}: {error}");
+            return 1;
+        }
+    }
+    let _ = std::fs::write(dir.join("current"), format!("{previous}\n"));
+    ledger(&dir, json!({ "at": snapback4_core::now_ms(), "release": previous, "previous": current, "rollback": true }));
+    println!("rollback: release {previous} is current (was {current})");
+    0
+}
+
+pub fn serve_release(options: &Options) -> i32 {
+    let Some(dir) = release_dir(options) else {
+        eprintln!("usage: snapback4 serve <dir> [--port N] [--bind H]");
+        return 2;
+    };
+    let Some(current) = read_current(&dir) else {
+        eprintln!("serve: {} has no current release; `snapback4 deploy {}` first", dir.display(), dir.display());
+        return 1;
+    };
+    let release = Project { root: dir.join("releases").join(current.to_string()) };
+    let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
+    let bind = options.flags.get("bind").cloned().unwrap_or_else(|| "0.0.0.0".into());
+    // The release's store is the directory's shared one.
+    let shared_store = dir.join("store.sqlite");
+    let _ = std::fs::create_dir_all(release.data_dir());
+    let link = release.store_path();
+    if !link.exists() {
+        #[cfg(unix)]
+        let _ = std::os::unix::fs::symlink(std::fs::canonicalize(&dir).unwrap_or(dir.clone()).join("store.sqlite"), &link);
+        #[cfg(not(unix))]
+        let _ = std::fs::copy(&shared_store, &link);
+    }
+    let _ = shared_store;
+    match crate::serve::serve(release, port, crate::serve::Mode::Release, &bind) {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("serve: {error}");
+            1
+        }
+    }
+}

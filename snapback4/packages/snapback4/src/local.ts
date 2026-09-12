@@ -1,0 +1,325 @@
+// The local-first tier (LLP 2000.000 §7): a replica of the viewer's
+// partitions, a durable outbox of client-minted writes, and the interpreter,
+// on the same card as the online tier. Queries run locally and are
+// `complete` inside the horizon; `fresh` says the replica has everything the
+// server had at the last sync; a predictable mutation renders its rows as
+// `pending` before the server confirms them.
+
+import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import { mintId } from "./client.ts";
+import { Interpreter, Refused, type LocalRead, type ProgramJson } from "./replica/interpreter.ts";
+import { Replica, type StreamPage } from "./replica/replica.ts";
+import { MemoryStore, openIndexedDb, type Row, type SchemaJson, type Store } from "./replica/store.ts";
+
+export interface LocalOptions {
+  readonly url: string;
+  readonly persona?: string;
+  readonly token?: string;
+  readonly fetch?: typeof fetch;
+  /** `"indexeddb"` on the web (the default when available), `"memory"` for tests. */
+  readonly store?: "indexeddb" | "memory";
+  readonly waitSeconds?: number;
+}
+
+interface Backend {
+  generation: number;
+  schema: SchemaJson;
+  programs: Record<string, ProgramJson>;
+}
+
+interface Watch {
+  op: Query<unknown, unknown>;
+  args: unknown;
+  key: string;
+  tables: Set<string>;
+  snapshot: Read<unknown>;
+  lastServerAt: number;
+  subscribers: Set<() => void>;
+  running: boolean;
+  dirty: boolean;
+}
+
+interface Queued {
+  id: string;
+  op: string;
+  args: unknown;
+  newIds: string[];
+  /** Rows this write predicted, to withdraw on failure: `table/id`. */
+  predicted: string[];
+}
+
+export async function createLocalClient(options: LocalOptions): Promise<Client & { replica: Replica; sync(): Promise<void> }> {
+  const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const base = options.url.replace(/\/$/, "");
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (options.persona) headers["x-snapback-persona"] = options.persona;
+  if (options.token) headers.authorization = `Bearer ${options.token}`;
+  const viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.token ? ("token" as Principal) : null;
+  if (!viewer) throw new Error("createLocalClient: a persona or a token names whose partition to hold");
+  const principal: string = viewer;
+
+  const backend = await loadBackend(doFetch, base, headers);
+  const useIdb = options.store === "indexeddb" || (options.store === undefined && typeof indexedDB !== "undefined");
+  const store: Store = useIdb ? await openIndexedDb(`snapback4:${base}:${viewer}`, backend.schema) : new MemoryStore(backend.schema);
+  let link: Link = "online";
+  let closed = false;
+  let seq = 0;
+  const aborter = new AbortController();
+  const linkListeners = new Set<(link: Link) => void>();
+  const watches = new Map<string, Watch>();
+  const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+
+  const setLink = (next: Link) => {
+    if (link === next) return;
+    link = next;
+    for (const listener of linkListeners) listener(next);
+    if (next === "online") void flush();
+    for (const watch of watches.values()) void rerun(watch);
+  };
+
+  async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+    try {
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+      if (response.status >= 500) return { ok: false };
+      const json = (await response.json()) as Record<string, unknown>;
+      if (link !== "online") setLink("online");
+      return { ok: true, json };
+    } catch {
+      setLink("offline");
+      return { ok: false };
+    }
+  }
+
+  const replica = new Replica(store, backend.schema, {
+    async sync(from, limit) {
+      try {
+        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}`, { headers });
+        if (response.status >= 500) return { denied: offline() };
+        const page = (await response.json()) as StreamPage & { denied?: unknown };
+        if (page.denied) return { denied: page.denied };
+        if (link !== "online") setLink("online");
+        if (page.watermark > seq) seq = page.watermark;
+        if (page.generation !== undefined && page.generation !== backend.generation) {
+          // Day two: the server adopted a new generation. Load it, then let
+          // the replica re-derive the partition on its next round.
+          const next = await loadBackend(doFetch, base, headers);
+          backend.generation = next.generation;
+          backend.schema = next.schema;
+          backend.programs = next.programs;
+          replica.adopt(next.schema, next.generation);
+          return { denied: { code: "E_GENERATION", family: "generation", message: "the backend changed; re-deriving the partition", retryable: true } };
+        }
+        return page;
+      } catch {
+        setLink("offline");
+        return { denied: offline() };
+      }
+    },
+  }, backend.generation);
+
+  // Every applied batch re-runs the queries whose tables it touched.
+  replica.onChange((touched) => {
+    for (const watch of watches.values()) if ([...watch.tables].some((t) => touched.has(t))) void rerun(watch);
+  });
+
+  async function waitForChange(): Promise<void> {
+    if (link !== "online") {
+      await new Promise((r) => setTimeout(r, 1000));
+      const probe = await post("/q/__probe", {});
+      if (probe.ok) setLink("online");
+      return;
+    }
+    try {
+      const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
+      const json = (await response.json()) as { seq: number };
+      if (json.seq > seq) seq = json.seq;
+    } catch {
+      if (closed) return;
+      setLink("offline");
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
+  async function runLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string> }> {
+    const program = backend.programs[op.name];
+    if (!program) return { read: { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } }, tables: new Set() };
+    try {
+      const outcome: LocalRead = await store.read((tx) => new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint: mintId }, "query").run(program));
+      const read: Read<R> = { data: outcome.data as R, complete: outcome.complete, fresh: link === "online" && replica.isCaughtUp, next: outcome.next as Cursor | null, ...(link === "online" && replica.isCaughtUp ? {} : { since: lastSyncAt }) };
+      return { read, tables: outcome.tables };
+    } catch (error) {
+      if (error instanceof Refused) return { read: { denied: error.refusal }, tables: new Set() };
+      throw error;
+    }
+  }
+
+  let lastSyncAt = Date.now();
+
+  function notify(watch: Watch) {
+    for (const subscriber of watch.subscribers) subscriber();
+  }
+
+  async function rerun(watch: Watch) {
+    if (watch.running) { watch.dirty = true; return; }
+    watch.running = true;
+    try {
+      const { read, tables } = await runLocal(watch.op, watch.args);
+      if (closed) return;
+      watch.tables = tables;
+      watch.snapshot = read;
+      notify(watch);
+    } finally {
+      watch.running = false;
+      if (watch.dirty) { watch.dirty = false; void rerun(watch); }
+    }
+  }
+
+  // ----- the outbox -----
+
+  async function queued(): Promise<Queued[]> {
+    return store.read(async (tx) => (await tx.side("outbox").all()).map((e) => e.value as Queued).sort((a, b) => (a.id < b.id ? -1 : 1)));
+  }
+
+  let flushing = false;
+  async function flush() {
+    if (flushing) return;
+    flushing = true;
+    try {
+      for (const entry of await queued()) {
+        if (link !== "online") return;
+        const result = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.newIds });
+        if (!result.ok) return;
+        const json = result.json;
+        await store.write(async (tx) => {
+          await tx.side("outbox").delete(entry.id);
+          if (json.state !== "sent") {
+            // The prediction is withdrawn: the rows it wrote go, the stream
+            // restores anything it replaced.
+            for (const key of entry.predicted) {
+              const [table, id] = key.split("/") as [string, string];
+              const row = await tx.get(table, id);
+              if (row && row.pending) await tx.delete(table, id);
+            }
+          }
+        });
+        settled.get(entry.id)?.(json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) } : { state: "failed", id: entry.id, why: (json.why as Refusal) ?? offline() });
+        settled.delete(entry.id);
+        if (json.state === "sent" && Number(json.seq) > seq) seq = Number(json.seq);
+        if (json.state === "sent") await replica.syncOnce();
+        else for (const watch of watches.values()) void rerun(watch);
+      }
+    } finally {
+      flushing = false;
+    }
+  }
+
+  const settled = new Map<string, (write: Write) => void>();
+
+  const client = {
+    replica,
+    async sync() {
+      await replica.syncOnce();
+      lastSyncAt = Date.now();
+    },
+    async query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>> {
+      return (await runLocal(op as Query<unknown, R>, args)).read;
+    },
+    observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
+      const key = `${op.name}:${JSON.stringify(args)}`;
+      let watch = watches.get(key);
+      if (!watch) {
+        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, lastServerAt: 0, subscribers: new Set(), running: false, dirty: false };
+        watches.set(key, watch);
+        void rerun(watch);
+      }
+      const own = watch;
+      const mine = new Set<() => void>();
+      return {
+        getSnapshot: () => own.snapshot as Read<R>,
+        subscribe(listener) {
+          mine.add(listener);
+          own.subscribers.add(listener);
+          return () => { mine.delete(listener); own.subscribers.delete(listener); };
+        },
+        close() {
+          for (const s of mine) own.subscribers.delete(s);
+          if (own.subscribers.size === 0) watches.delete(own.key);
+        },
+      };
+    },
+    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
+      const id = mintId();
+      const program = backend.programs[op.name];
+      if (!program) return { state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } };
+      const newIds: string[] = [];
+      const mint = () => { const minted = mintId(); newIds.push(minted); return minted; };
+      // Predict: run the mutation over the replica; its rows render as pending.
+      let predicted: string[] = [];
+      let refused: Refusal | null = null;
+      try {
+        await store.write(async (tx) => {
+          const interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint }, "mutation");
+          await interpreter.run(program);
+          predicted = interpreter.writes.map((w) => `${w.table}/${w.row.id}`);
+          await tx.side("outbox").put(id, { id, op: op.name, args, newIds: [...newIds], predicted } satisfies Queued);
+        });
+      } catch (error) {
+        if (!(error instanceof Refused)) throw error;
+        if (error.refusal.code === "E_PREDICT") {
+          // Not predictable here: queue it without local rows.
+          await store.write((tx) => tx.side("outbox").put(id, { id, op: op.name, args, newIds: [], predicted: [] } satisfies Queued));
+        } else refused = error.refusal;
+      }
+      if (refused) return { state: "failed", id, why: refused };
+      for (const watch of watches.values()) void rerun(watch);
+      const outcome = new Promise<Write>((resolve) => settled.set(id, resolve));
+      void flush();
+      if (link !== "online") return { state: "pending", id };
+      const first = await Promise.race([outcome, new Promise<Write>((resolve) => setTimeout(() => resolve({ state: "pending", id }), 4_000))]);
+      return first;
+    },
+    link: () => link,
+    onLink(listener: (link: Link) => void) {
+      linkListeners.add(listener);
+      return () => linkListeners.delete(listener);
+    },
+    viewer: () => viewer,
+    async close() {
+      closed = true;
+      aborter.abort();
+      watches.clear();
+      linkListeners.clear();
+      await replica.close();
+    },
+  };
+  // First: catch up, then re-apply any predictions still in the outbox.
+  await client.sync();
+  await reapplyPredictions();
+  replica.follow(waitForChange);
+  void flush();
+
+  async function reapplyPredictions() {
+    for (const entry of await queued()) {
+      const program = backend.programs[entry.op];
+      if (!program || entry.predicted.length === 0) continue;
+      try {
+        await store.write(async (tx) => {
+          const interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: entry.args as Record<string, unknown>, now: Date.now(), newIds: [...entry.newIds], mint: mintId }, "mutation");
+          await interpreter.run(program);
+        });
+      } catch {
+        // The server will judge it; the rows stay absent until then.
+      }
+    }
+  }
+
+  return client;
+}
+
+async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>): Promise<Backend> {
+  const response = await doFetch(`${base}/schema`, { headers });
+  const json = (await response.json()) as { generation: number; schema: SchemaJson; programs: ProgramJson[] };
+  return { generation: json.generation, schema: json.schema, programs: Object.fromEntries(json.programs.map((p) => [p.name, p])) };
+}
+
+export type { Row };

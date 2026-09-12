@@ -13,6 +13,7 @@ run "package build" bun run --cwd packages/snapback4 build
 run "chat app check" bash -c 'cd apps/chat && ../../target/debug/snapback4 check'
 run "chat app typecheck" bun run --cwd apps/chat typecheck
 run "fixture wrapper tests" node --test fixtures/
+run "client tests" node --test 'packages/snapback4/test/*.test.mjs'
 end=$(date +%s)
 echo "== ${#failures[@]} failure(s) in $((end - start)) s"
 for f in "${failures[@]:-}"; do [ -n "$f" ] && echo "   $f"; done

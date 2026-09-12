@@ -38,6 +38,8 @@ pub struct Replica {
     failed: BTreeMap<String, String>,
     left: Vec<(String, Vec<Json>, u64)>,
     minted: u32,
+    generation: u64,
+    rebootstraps: u32,
     // Volatile.
     rid: u64,
     inflight_sync: Option<u64>,
@@ -50,31 +52,11 @@ pub struct Replica {
 impl Replica {
     pub fn factory(server: HostId, viewer: &str, script: Script, until_revoked: BTreeSet<String>) -> crate::world::HostFactory {
         let viewer = viewer.to_owned();
-        Box::new(move || {
-            Box::new(Replica {
-                server,
-                viewer: viewer.clone(),
-                script: script.clone(),
-                until_revoked: until_revoked.clone(),
-                watermark: 0,
-                rows: BTreeMap::new(),
-                outbox: Vec::new(),
-                acked: BTreeMap::new(),
-                failed: BTreeMap::new(),
-                left: Vec::new(),
-                minted: 0,
-                rid: 0,
-                inflight_sync: None,
-                reads: BTreeMap::new(),
-                unadmitted: 0,
-                watermark_regressions: 0,
-                started_at: 0,
-            })
-        })
+        Box::new(move || Box::new(Replica { server, viewer: viewer.clone(), script: script.clone(), until_revoked: until_revoked.clone(), watermark: 0, rows: BTreeMap::new(), outbox: Vec::new(), acked: BTreeMap::new(), failed: BTreeMap::new(), left: Vec::new(), minted: 0, generation: 0, rebootstraps: 0, rid: 0, inflight_sync: None, reads: BTreeMap::new(), unadmitted: 0, watermark_regressions: 0, started_at: 0 }))
     }
 
     fn durable(&self) -> Json {
-        json!({ "watermark": self.watermark, "rows": self.rows, "outbox": self.outbox, "acked": self.acked, "failed": self.failed, "left": self.left, "minted": self.minted })
+        json!({ "watermark": self.watermark, "rows": self.rows, "outbox": self.outbox, "acked": self.acked, "failed": self.failed, "left": self.left, "minted": self.minted, "generation": self.generation, "rebootstraps": self.rebootstraps })
     }
 
     fn persist(&self, ctx: &mut Ctx<'_>) -> bool {
@@ -92,6 +74,8 @@ impl Replica {
         self.failed = serde_json::from_value(json["failed"].clone()).unwrap_or_default();
         self.left = serde_json::from_value(json["left"].clone()).unwrap_or_default();
         self.minted = json["minted"].as_u64().unwrap_or(0) as u32;
+        self.generation = json["generation"].as_u64().unwrap_or(0);
+        self.rebootstraps = json["rebootstraps"].as_u64().unwrap_or(0) as u32;
     }
 
     fn request(&mut self, ctx: &mut Ctx<'_>, mut message: Map<String, Json>) -> u64 {
@@ -109,6 +93,19 @@ impl Replica {
         let from = self.watermark;
         let rid = self.request(ctx, json!({ "t": "sync", "from": from }).as_object().cloned().unwrap());
         self.inflight_sync = Some(rid);
+    }
+
+    /// A queued `send` shows on the screen as a pending row until the
+    /// stream replaces it or the server refuses it.
+    fn predict(&mut self, write: &Json) {
+        if write["op"] != "send" {
+            return;
+        }
+        let Some(message_id) = write["newIds"][0].as_str() else {
+            return;
+        };
+        let row = json!({ "id": message_id, "conversationId": write["args"]["conversationId"], "authorId": self.viewer, "body": write["args"]["body"], "at": write["at"], "pending": true });
+        self.rows.entry("messages".into()).or_default().insert(message_id.to_owned(), row);
     }
 
     fn resend(&mut self, ctx: &mut Ctx<'_>) {
@@ -218,10 +215,10 @@ impl Host for Replica {
                     self.minted += 1;
                     let id = format!("{}-{}", self.viewer, self.minted);
                     let message_id = format!("M-{}-{}", self.viewer, self.minted);
-                    let write = json!({ "id": id, "op": "send", "args": { "conversationId": self.script.conversation, "body": format!("hello {}", self.minted) }, "newIds": [message_id] });
-                    self.outbox.push(write);
+                    let write = json!({ "id": id, "op": "send", "args": { "conversationId": self.script.conversation, "body": format!("hello {}", self.minted) }, "newIds": [message_id], "at": ctx.now });
                     // The prediction: a pending row the stream will replace.
-                    self.rows.entry("messages".into()).or_default().insert(message_id.clone(), json!({ "id": message_id, "conversationId": self.script.conversation, "authorId": self.viewer, "body": format!("hello {}", self.minted), "at": ctx.now, "pending": true }));
+                    self.predict(&write);
+                    self.outbox.push(write);
                     if !self.persist(ctx) {
                         // Not admitted durably: the write and its prediction never happened.
                         self.outbox.pop();
@@ -271,6 +268,23 @@ impl Host for Replica {
                         }
                         let watermark = message["watermark"].as_u64().unwrap_or(0);
                         let snapshot = message["snapshot"].as_bool().unwrap_or(false);
+                        let generation = message["generation"].as_u64().unwrap_or(1);
+                        if self.generation != 0 && generation != self.generation {
+                            // A new generation: the partition is re-derived from a
+                            // fresh snapshot; the outbox waits and its predictions stay.
+                            self.rows.clear();
+                            let queued: Vec<Json> = self.outbox.iter().filter(|w| !self.acked.contains_key(w["id"].as_str().unwrap_or("")) && !self.failed.contains_key(w["id"].as_str().unwrap_or(""))).cloned().collect();
+                            for write in &queued {
+                                self.predict(write);
+                            }
+                            self.watermark = 0;
+                            self.generation = generation;
+                            self.rebootstraps += 1;
+                            let _ = self.persist(ctx);
+                            self.sync(ctx);
+                            return;
+                        }
+                        self.generation = generation;
                         if watermark < self.watermark {
                             self.watermark_regressions += 1;
                             return;
@@ -311,6 +325,8 @@ impl Host for Replica {
             "reads": self.reads,
             "unadmitted": self.unadmitted,
             "watermark_regressions": self.watermark_regressions,
+            "generation": self.generation,
+            "rebootstraps": self.rebootstraps,
         })
         .to_string()
     }

@@ -22,9 +22,19 @@ pub struct Shared {
     /// Woken on every commit so long polls return promptly.
     pub committed: Condvar,
     pub seq: Mutex<u64>,
+    /// `dev` admits loopback personas; a release refuses them.
+    pub personas: bool,
+    pub entropy: Mutex<u64>,
 }
 
-pub fn serve(project: Project, port: u16, watch: bool) -> Result<(), String> {
+/// How the server is run: `dev` on a project (personas, watch), or a
+/// release (`serve`): a compiled generation over a store, tokens only.
+pub enum Mode {
+    Dev { watch: bool },
+    Release,
+}
+
+pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
         for diagnostic in &bound.diagnostics {
@@ -32,15 +42,20 @@ pub fn serve(project: Project, port: u16, watch: bool) -> Result<(), String> {
         }
         return Err(format!("{} problem{} in snapback/", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
     }
-    let generated = project.write_generated(&bound).map_err(|e| e.to_string())?;
+    let dev = matches!(mode, Mode::Dev { .. });
+    let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     let engine = project.open_engine(&bound).map_err(|e| e.to_string())?;
     let seq = engine.seq().map_err(|e| e.to_string())?;
-    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(1), committed: Condvar::new(), seq: Mutex::new(seq) });
-    let server = Server::http(("127.0.0.1", port)).map_err(|e| format!("cannot listen on 127.0.0.1:{port}: {e}"))?;
+    let generation: u64 = engine.generation();
+    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()) });
+    let server = Server::http((bind, port)).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
-    println!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display());
-    if watch {
+    match &generated {
+        Some(generated) => println!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
+        None => println!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
+    }
+    if let Mode::Dev { watch: true } = mode {
         let shared = shared.clone();
         let project = Project { root: project.root.clone() };
         std::thread::spawn(move || watch_sources(project, shared));
@@ -76,18 +91,20 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                 let steps = snapback4_core::successor::classify(&shared.bound.lock().unwrap().schema, &bound.schema);
                 let worst = snapback4_core::successor::worst(&steps);
                 match shared.engine.lock().unwrap().adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
-                    Ok(()) => {
+                    Ok(next) => {
                         let _ = project.write_generated(&bound);
                         *shared.bound.lock().unwrap() = bound;
                         let mut generation = shared.generation.lock().unwrap();
-                        *generation += 1;
+                        *generation = next;
                         println!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms", *generation, worst, started.elapsed().as_millis());
                         for step in steps {
                             println!("  {:?}: {}", step.change, step.message);
                         }
                         shared.committed.notify_all();
                     }
-                    Err(error) => eprintln!("snapback4 dev: the new schema was not adopted: {error}"),
+                    Err(error) => {
+                        eprintln!("snapback4 dev: the new schema was not adopted: {error}")
+                    }
                 }
             }
             Ok(bound) => {
@@ -123,17 +140,36 @@ fn refusal_json(refusal: &Refusal) -> Json {
     serde_json::to_value(refusal).unwrap_or(Json::Null)
 }
 
-fn principal_of(request: &Request) -> Option<String> {
+/// Who is asking: a bearer session, or (in `dev`, from loopback) a persona.
+fn principal_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
+    let mut persona = None;
+    let mut bearer = None;
     for header in request.headers() {
         let name = header.field.as_str().as_str().to_ascii_lowercase();
-        if name == "x-snapback-persona" {
-            let value = header.value.as_str().trim();
-            if !value.is_empty() && value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
-                return Some(persona_principal(value));
-            }
+        let value = header.value.as_str().trim();
+        if name == "x-snapback-persona" && !value.is_empty() && value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+            persona = Some(value.to_owned());
+        }
+        if name == "authorization" && let Some(token) = value.strip_prefix("Bearer ") {
+            bearer = Some(token.trim().to_owned());
         }
     }
-    None
+    if let Some(token) = bearer {
+        let engine = shared.engine.lock().unwrap();
+        return match snapback4_core::identity::resolve(engine.store(), &token, snapback4_core::now_ms()) {
+            Ok(Some((principal, _))) => Ok(principal),
+            Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),
+            Err(error) => Err(error.refusal()),
+        };
+    }
+    if let Some(persona) = persona {
+        let loopback = request.remote_addr().is_some_and(|a| a.ip().is_loopback());
+        if shared.personas && loopback {
+            return Ok(persona_principal(&persona));
+        }
+        return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
+    }
+    Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
 }
 
 fn query_params(url: &str) -> BTreeMap<String, String> {
@@ -161,6 +197,13 @@ fn handle(mut request: Request, shared: &Shared) {
             let tables: Vec<Json> = bound.schema.tables.iter().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
             respond(request, 200, json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *shared.generation.lock().unwrap(), "seq": *shared.seq.lock().unwrap(), "ops": ops, "tables": tables }));
         }
+        (Method::Get, "/schema") => {
+            // The compiled backend a device runs locally: the schema and the
+            // programs' IR, bound to a generation.
+            let bound = shared.bound.lock().unwrap();
+            let programs: Vec<Json> = bound.programs.iter().map(|p| serde_json::to_value(&p.program).unwrap_or(Json::Null)).collect();
+            respond(request, 200, json!({ "generation": *shared.generation.lock().unwrap(), "schema": bound.schema, "programs": programs }));
+        }
         (Method::Get, "/api.ts") => {
             let text = snapback4_lang::emit::typescript(&shared.bound.lock().unwrap());
             let mut response = Response::from_string(text);
@@ -170,9 +213,12 @@ fn handle(mut request: Request, shared: &Shared) {
         }
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
             let op = path[3..].to_owned();
-            let Some(principal) = principal_of(&request) else {
-                respond(request, 401, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "sign in: send x-snapback-persona in development, or a bearer token").guide("personas")) }));
-                return;
+            let principal = match principal_of(&request, shared) {
+                Ok(principal) => principal,
+                Err(refusal) => {
+                    respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+                    return;
+                }
             };
             let payload: Json = match serde_json::from_str(if body.is_empty() { "{}" } else { &body }) {
                 Ok(json) => json,
@@ -182,6 +228,23 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
+            if path.starts_with("/m/")
+                && let Some(id) = payload.get("id").and_then(Json::as_str)
+                && let Ok(Some(outcome)) = shared.engine.lock().unwrap().replay(&principal, id)
+            {
+                // A resend of an applied write: its recorded outcome, before the
+                // current generation gets to judge its shape.
+                let body = match outcome.state {
+                    WriteState::Sent { seq, result } => {
+                        json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "replayed": true, "metered": outcome.metered })
+                    }
+                    WriteState::Failed { why, current } => {
+                        json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "replayed": true, "metered": outcome.metered })
+                    }
+                };
+                respond(request, 200, body);
+                return;
+            }
             let program = shared.bound.lock().unwrap().programs.iter().find(|p| p.program.name == op).map(|p| p.program.clone());
             let Some(program) = program else {
                 respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")) }));
@@ -235,8 +298,12 @@ fn handle(mut request: Request, shared: &Shared) {
                             shared.committed.notify_all();
                         }
                         let body = match outcome.state {
-                            WriteState::Sent { seq, result } => json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "metered": outcome.metered }),
-                            WriteState::Failed { why, current } => json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "metered": outcome.metered }),
+                            WriteState::Sent { seq, result } => {
+                                json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "metered": outcome.metered })
+                            }
+                            WriteState::Failed { why, current } => {
+                                json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "metered": outcome.metered })
+                            }
                         };
                         respond(request, 200, body);
                     }
@@ -270,9 +337,12 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         (Method::Get, "/sync") => {
-            let Some(principal) = principal_of(&request) else {
-                respond(request, 401, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "sign in to sync")) }));
-                return;
+            let principal = match principal_of(&request, shared) {
+                Ok(principal) => principal,
+                Err(refusal) => {
+                    respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+                    return;
+                }
             };
             let params = query_params(&url);
             let from: u64 = params.get("from").and_then(|s| s.parse().ok()).unwrap_or(0);
@@ -296,7 +366,54 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
         }
+        (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login") | (Method::Post, "/auth/logout") => {
+            let auth = shared.bound.lock().unwrap().schema.auth.clone();
+            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
+            let now = snapback4_core::now_ms();
+            let outcome = {
+                let engine = shared.engine.lock().unwrap();
+                let store = engine.store();
+                match path.as_str() {
+                    "/auth/guest" => {
+                        if !auth.guests {
+                            Err(snapback4_core::RuntimeError::Auth("this backend has no guests; declare `use identity guests` (or `use identity`) in schema.q".into()))
+                        } else {
+                            let mut entropy = shared.entropy.lock().unwrap();
+                            snapback4_core::identity::guest(store, now, &mut entropy)
+                        }
+                    }
+                    "/auth/signup" | "/auth/login" => {
+                        let email = payload.get("email").and_then(Json::as_str).unwrap_or("").to_owned();
+                        let password = payload.get("password").and_then(Json::as_str).unwrap_or("").to_owned();
+                        if !auth.password {
+                            Err(snapback4_core::RuntimeError::Auth("this backend has no password accounts; declare `use identity password` (or `use identity`) in schema.q".into()))
+                        } else if path == "/auth/signup" {
+                            let mut entropy = shared.entropy.lock().unwrap();
+                            snapback4_core::identity::signup(store, &email, &password, now, &mut entropy)
+                        } else {
+                            snapback4_core::identity::login(store, &email, &password, now)
+                        }
+                    }
+                    _ => {
+                        let token = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("authorization")).and_then(|h| h.value.as_str().strip_prefix("Bearer ").map(|t| t.trim().to_owned()));
+                        match token {
+                            Some(token) => snapback4_core::identity::close_session(store, &token).map(|()| snapback4_core::identity::Session { principal: String::new(), kind: String::new(), token: String::new(), expires_at: 0 }),
+                            None => Err(snapback4_core::RuntimeError::Auth("logout needs the bearer token".into())),
+                        }
+                    }
+                }
+            };
+            match outcome {
+                Ok(_) if path == "/auth/logout" => respond(request, 200, json!({ "ok": true })),
+                Ok(session) => respond(request, 200, json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at } })),
+                Err(error) => respond(request, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
+            }
+        }
         (Method::Post, "/seed") => {
+            if !shared.personas || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
+                respond(request, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
+                return;
+            }
             let rows: Vec<Json> = match serde_json::from_str(&body) {
                 Ok(Json::Array(rows)) => rows,
                 _ => {

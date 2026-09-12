@@ -21,7 +21,11 @@ fn id(s: &str) -> Value {
 
 /// The compiled chat engine, seeded with one conversation and its members.
 pub fn chat_engine(members: &[&str]) -> Engine {
-    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
+    chat_engine_from(CHAT, members)
+}
+
+pub fn chat_engine_from(source: &str, members: &[&str]) -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let mut rows = vec![("conversations".to_owned(), snapback4_core::value::object([("id", id("c1")), ("title", Value::String("General".into())), ("creatorId", id(members[0]))]))];
@@ -39,18 +43,96 @@ pub struct World {
     pub engine: Rc<RefCell<Engine>>,
 }
 
+/// Day two (LLP 2000.000 §11.2): the schema changes while a device holds a
+/// partition and a write is queued. Each kind is one edit of the chat
+/// schema; the outcome each must produce is checked in `day_two`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DayTwo {
+    /// An optional column appears: nothing a device holds changes shape.
+    Additive,
+    /// An enum gains a variant: old writes still fit.
+    Widening,
+    /// `body` shrinks to 5 characters: a queued longer send is refused, typed.
+    Narrowing,
+    /// The read rule and the horizon change: every partition re-derives.
+    RuleChange,
+    /// `body` is renamed: a queued send under the old name is refused, typed.
+    Rename,
+}
+
+impl DayTwo {
+    pub fn schema(self) -> String {
+        match self {
+            DayTwo::Additive => CHAT.replace("  editedAt: time ?\n", "  editedAt: time ?\n  reactions: int ?\n"),
+            DayTwo::Widening => CHAT.replace("role: enum('member', 'admin')", "role: enum('member', 'admin', 'owner')"),
+            DayTwo::Narrowing => CHAT.replace("body: text <=4000 ?", "body: text <=5 ?").replace("mutation send(conversationId: conversations, body: text <=4000):", "mutation send(conversationId: conversations, body: text <=5):").replace("mutation edit(messageId: messages, body: text <=4000):", "mutation edit(messageId: messages, body: text <=5):"),
+            DayTwo::RuleChange => CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]").replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId] last 3 by byConvTime"),
+            DayTwo::Rename => CHAT.replace("body: text <=4000 ?", "text: text <=4000 ?").replace("mutation send(conversationId: conversations, body: text <=4000):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages { conversationId, authorId: viewer, body, at: now }", "mutation send(conversationId: conversations, text: text <=4000):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages { conversationId, authorId: viewer, text, at: now }").replace("mutation edit(messageId: messages, body: text <=4000):", "mutation edit(messageId: messages, text: text <=4000):").replace("update messages[msg] { body, editedAt: now }", "update messages[msg] { text, editedAt: now }"),
+        }
+    }
+}
+
+/// Two devices; alice loses the link and queues sends; the server adopts
+/// the day-two schema; the link heals; every device re-derives its
+/// partition; the queued writes are judged under the new generation.
+pub fn day_two(kind: DayTwo, seed: u64) -> Result<(World, Json), String> {
+    // Alice keeps sending through the partition and the change; the others
+    // send a little, so the stream has traffic from every side.
+    let scripts = vec![Script { conversation: "c1".into(), every: 200, count: 12, leave_at: None }, Script { conversation: "c1".into(), every: 300, count: 4, leave_at: None }, Script { conversation: "c1".into(), every: 500, count: 2, leave_at: None }];
+    let mut world = world_with(seed, Faults::none(), scripts);
+    let on_card = OnTheCard;
+    let monotone = MonotoneWatermarks::new();
+    let once = AtMostOnce { engine: world.engine.clone() };
+    let revoked = RevokedNeverRenders;
+    let invariants: Vec<&dyn Invariant> = vec![&on_card, &monotone, &once, &revoked];
+    world.sim.run_until_checked(600, &invariants)?;
+    let alice = world.clients[0].0;
+    world.sim.faults.partition(alice, world.server);
+    world.sim.run_until_checked(1_000, &invariants)?;
+    let queued_before = state(&world.sim, alice).map(|j| j["pending"].as_array().map(|p| p.len()).unwrap_or(0)).unwrap_or(0);
+    let source = kind.schema();
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), source)]);
+    if !bound.diagnostics.is_empty() {
+        return Err(format!("{kind:?} schema does not compile: {:?}", bound.diagnostics));
+    }
+    let bob_before = state(&world.sim, world.clients[1].0).and_then(|j| j["held"]["messages"].as_array().map(|m| m.len())).unwrap_or(0);
+    let steps = snapback4_core::successor::classify(world.engine.borrow().schema(), &bound.schema);
+    let generation = world.engine.borrow_mut().adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|e| e.to_string())?;
+    world.sim.run_until_checked(1_500, &invariants)?;
+    world.sim.faults.heal();
+    world.sim.run_until_checked(5_000, &invariants)?;
+    let alice_state = state(&world.sim, alice).ok_or("alice is down")?;
+    let bob_state = state(&world.sim, world.clients[1].0).ok_or("bob is down")?;
+    let report = json!({
+        "kind": format!("{kind:?}"),
+        "generation": generation,
+        "class": format!("{:?}", snapback4_core::successor::worst(&steps)),
+        "queuedBeforeChange": queued_before,
+        "alice": { "pending": alice_state["pending"], "acked": alice_state["acked"].as_object().map(|a| a.len()).unwrap_or(0), "failed": alice_state["failed"], "rebootstraps": alice_state["rebootstraps"], "generation": alice_state["generation"], "predicted": alice_state["predicted"] },
+        "bob": { "rebootstraps": bob_state["rebootstraps"], "generation": bob_state["generation"], "messagesBefore": bob_before, "messages": bob_state["held"]["messages"].as_array().map(|m| m.len()).unwrap_or(0) },
+        "serverMessages": world.engine.borrow().store().count("messages").map_err(|e| e.to_string())?,
+    });
+    Ok((world, report))
+}
+
 /// Three devices on one conversation: alice and bob send; charlie sends a
 /// little and leaves at `leave_at`.
 pub fn world(seed: u64, faults: Faults, sends: u32, leave_at: Option<u64>) -> World {
-    let members = ["dev:alice", "dev:bob", "dev:charlie"];
-    let engine = Rc::new(RefCell::new(chat_engine(&members)));
+    let scripts = MEMBERS.iter().enumerate().map(|(n, _)| Script { conversation: "c1".into(), every: 40 + n as u64 * 7, count: if n == 2 { sends / 4 } else { sends }, leave_at: if n == 2 { leave_at } else { None } }).collect::<Vec<_>>();
+    world_with(seed, faults, scripts)
+}
+
+pub const MEMBERS: [&str; 3] = ["dev:alice", "dev:bob", "dev:charlie"];
+
+/// One server and one device per member, each device following its script.
+pub fn world_with(seed: u64, faults: Faults, scripts: Vec<Script>) -> World {
+    let engine = Rc::new(RefCell::new(chat_engine(&MEMBERS)));
     let until_revoked: BTreeSet<String> = engine.borrow().schema().tables.iter().filter(|(_, t)| t.leave == snapback4_core::schema::LeavePolicy::UntilRevoked).map(|(name, _)| name.clone()).collect();
     let mut sim = Sim::new(seed);
     sim.faults = faults;
     let server = sim.add(ServerHost::factory(engine.clone()));
     let mut clients = Vec::new();
-    for (n, member) in members.iter().enumerate() {
-        let script = Script { conversation: "c1".into(), every: 40 + n as u64 * 7, count: if n == 2 { sends / 4 } else { sends }, leave_at: if n == 2 { leave_at } else { None } };
+    for (member, script) in MEMBERS.iter().zip(scripts) {
         let host = sim.add_with_disk(Replica::factory(server, member, script, until_revoked.clone()), 0.1);
         clients.push((host, (*member).to_owned()));
     }
@@ -84,7 +166,10 @@ impl Invariant for OnTheCard {
 
 /// 6: watermarks are monotone per device.
 pub struct MonotoneWatermarks {
-    seen: RefCell<BTreeMap<HostId, u64>>,
+    /// Per device: the generation it last reported and its watermark then.
+    /// A watermark only moves forward within one generation; a new
+    /// generation starts it over (the device re-derives its partition).
+    seen: RefCell<BTreeMap<HostId, (u64, u64)>>,
 }
 impl MonotoneWatermarks {
     pub fn new() -> Self {
@@ -109,12 +194,17 @@ impl Invariant for MonotoneWatermarks {
                 return Err(format!("h{host} was offered a lower watermark"));
             }
             let watermark = json["watermark"].as_u64().unwrap_or(0);
+            let generation = json["generation"].as_u64().unwrap_or(0);
             let mut seen = self.seen.borrow_mut();
-            let last = seen.entry(host).or_insert(0);
-            if watermark < *last {
-                return Err(format!("h{host} watermark went from {last} to {watermark}"));
+            let last = seen.entry(host).or_insert((generation, 0));
+            if generation != last.0 {
+                *last = (generation, watermark);
+                continue;
             }
-            *last = watermark;
+            if watermark < last.1 {
+                return Err(format!("h{host} watermark went from {} to {watermark} within generation {generation}", last.1));
+            }
+            last.1 = watermark;
         }
         Ok(())
     }
@@ -264,6 +354,46 @@ pub fn run(seed: u64, sends: u32) -> Result<(Sim, u64), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn day_two_additive_and_widening_keep_every_queued_write() {
+        for kind in [DayTwo::Additive, DayTwo::Widening] {
+            let (world, report) = day_two(kind, 3).unwrap_or_else(|why| panic!("{kind:?}: {why}"));
+            assert!(report["queuedBeforeChange"].as_u64().unwrap() > 0, "{report}");
+            assert_eq!(report["alice"]["pending"].as_array().map(|p| p.len()), Some(0), "{report}");
+            assert_eq!(report["alice"]["failed"].as_object().map(|f| f.len()), Some(0), "{report}");
+            assert!(report["alice"]["rebootstraps"].as_u64().unwrap() >= 1, "{report}");
+            assert_eq!(report["bob"]["generation"], report["generation"], "{report}");
+            converged(&world).unwrap_or_else(|why| panic!("{kind:?}: {why}"));
+        }
+    }
+
+    #[test]
+    fn day_two_narrowing_and_rename_refuse_the_queued_write_typed() {
+        for (kind, code) in [(DayTwo::Narrowing, "E_INPUT"), (DayTwo::Rename, "E_INPUT")] {
+            let (world, report) = day_two(kind, 4).unwrap_or_else(|why| panic!("{kind:?}: {why}"));
+            assert!(report["queuedBeforeChange"].as_u64().unwrap() > 0, "{report}");
+            assert_eq!(report["alice"]["pending"].as_array().map(|p| p.len()), Some(0), "{report}");
+            let failed = report["alice"]["failed"].as_object().cloned().unwrap_or_default();
+            assert!(!failed.is_empty(), "{report}");
+            assert!(failed.values().all(|why| why == code), "{report}");
+            assert_eq!(report["alice"]["predicted"], 0, "withdrawn predictions: {report}");
+            converged(&world).unwrap_or_else(|why| panic!("{kind:?}: {why}"));
+        }
+    }
+
+    #[test]
+    fn day_two_rule_change_rederives_every_partition() {
+        let (world, report) = day_two(DayTwo::RuleChange, 5).unwrap();
+        assert_eq!(report["class"], "RuleChange", "{report}");
+        assert!(report["bob"]["rebootstraps"].as_u64().unwrap() >= 1, "{report}");
+        assert_eq!(report["alice"]["failed"].as_object().map(|f| f.len()), Some(0), "{report}");
+        converged(&world).unwrap();
+        // Bob held every message before; the new horizon re-derived his
+        // partition from the last three, so he holds fewer than the server.
+        let (before, after, server) = (report["bob"]["messagesBefore"].as_u64().unwrap(), report["bob"]["messages"].as_u64().unwrap(), report["serverMessages"].as_u64().unwrap());
+        assert!(before >= 3 && after < server, "{report}");
+    }
 
     #[test]
     fn the_chat_world_converges_under_faults() {
