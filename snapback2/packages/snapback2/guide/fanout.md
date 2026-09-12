@@ -127,6 +127,10 @@ See `guide pagination` for source changes and offline continuation.
 
 ## Scheduled totals
 
-Copy `dist/guide/recipes/exact-hub-digest/`. Server periods, 50-row attempts,
-final membership/source/expiry/commit-order checks and a 500-follow recount make
-the unique log/effect exact. Zero is silent; later-period messages do not retry.
+Count at the emission unit: recipient/period message rows, plus a count of
+chat/period existence rows for distinct unread chats. Maintain each chat's
+explicit total with every source transition; delete it at zero. This removes
+membership enumeration from the final transaction. `guide schedule` covers
+500 follows/1,000 memberships, cleanup, replay and aggregate disclosure.
+
+Copyable scan-based digest: `dist/guide/recipes/exact-hub-digest/`.

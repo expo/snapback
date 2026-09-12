@@ -20,4 +20,5 @@ For UTC buckets, store `day = divmod(now, 86400000).quotient` in the
 source mutation; maintain by owner/day. A timed screen reads all seven trailing
 days using the owner's `now`. Load/refresh: `guide live-query`.
 
-Use `guide fanout` to fold maintained counts across an uncapped population with a `chunk` job.
+Count an existence table for distinct groups; keep its explicit total paired
+with source writes and delete at zero (`guide fanout`).

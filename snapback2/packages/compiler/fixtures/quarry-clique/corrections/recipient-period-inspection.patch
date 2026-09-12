@@ -1,0 +1,12 @@
+--- /dev/null
++++ b/snapback/period-inspection.q
+@@ -0,0 +1,9 @@
++query periodChat(recipient: principal, conversationId: conversations, membershipId: memberships, periodStart: time):
++  return periodChats[recipient, conversationId, membershipId, periodStart]
++
++query recipientPeriodTotals(recipient: principal, periodStart: time):
++  return { messages: periodUnreadByRecipientPeriod[recipient, periodStart], chats: periodChatsByRecipientPeriod[recipient, periodStart] }
++
++mutation forgePeriodAuthor(messageId: messages, author: principal, recipient: principal, conversationId: conversations, membershipId: memberships, periodStart: time):
++  insert periodUnread { messageId, author, recipient, conversationId, membershipId, periodStart }
++  return null

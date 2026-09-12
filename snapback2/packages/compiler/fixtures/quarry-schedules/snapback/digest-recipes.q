@@ -1,5 +1,8 @@
 effect notify from push
 
+proc queuePeriodUnread from custody
+proc clearPeriodUnread from custody
+
 fn settings(): appSettings['windows']
 
 mutation setRecipeFollow(target: principal, following: bool):
@@ -23,7 +26,7 @@ mutation createRecipePost(postId: id ?):
   cfg = settings() ! else CONFIG
   (_period, rem) = divmod(now, cfg.digestPeriodMs)
   periodStart = now - rem
-  row = insert posts { id: postId ?? new, author: viewer, isReply: false, periodStart }
+  row = insert posts { id: postId ?? new, author: viewer, isReply: false, periodStart, digestEligible: cfg.replayMode = false }
   if cfg.replayMode = false:
     prior = postPeriodCounters[viewer, false, periodStart]
     if prior = null:
@@ -32,17 +35,34 @@ mutation createRecipePost(postId: id ?):
       update postPeriodCounters[prior] { total: prior.total + 1 }
   return row
 
+mutation deleteRecipePost(postId: posts):
+  post = posts[postId] ! else NOT_FOUND
+  require post.author = viewer else AUTHOR_REQUIRED
+  if post.digestEligible:
+    counter = postPeriodCounters[post.author, post.isReply, post.periodStart] ! else POST_COUNTER
+    require counter.total > 0 else POST_COUNTER
+    update postPeriodCounters[counter] { total: counter.total - 1 }
+  delete posts[post]
+  return null
+
 mutation queueRecipeUnread(messageId: messages, conversationId: conversations, recipient: principal):
   cfg = settings() ! else CONFIG
+  message = messages[messageId] ! else NOT_FOUND
+  require message.author = viewer and message.conversationId = conversationId else MESSAGE_SCOPE
+  expiry = message.expiresAt
+  if expiry != null:
+    require expiry > now else EXPIRED
   membership = memberships[conversationId, recipient] ! else MEMBERSHIP_REQUIRED
-  (_period, rem) = divmod(now, cfg.digestPeriodMs)
-  insert periodUnread { messageId, recipient, conversationId, membershipId: membership.id, periodStart: now - rem }
+  if cfg.replayMode = false and recipient != message.author:
+    (_period, rem) = divmod(now, cfg.digestPeriodMs)
+    queuePeriodUnread(messageId, recipient, conversationId, membership.id, now - rem)
   return null
 
 mutation clearRecipeUnread(messageId: messages, recipient: principal):
+  require recipient = viewer else RECIPIENT_REQUIRED
   pending = periodUnread[messageId, recipient]
   if pending != null:
-    delete periodUnread[pending]
+    clearPeriodUnread(pending.id)
   return null
 
 job periodDigestSweep(cutoff: time):
@@ -55,20 +75,14 @@ job periodDigestSweep(cutoff: time):
       prior = digests[p.principal, periodStart]
       if prior = null:
         newFollowers = newFollowerPeriodCounts[p.principal, true, periodStart] ?? 0
-        scratch = insert digestScratch { newPostsInFollowing: 0, unreadMessages: 0, unreadChats: 0 }
+        unreadMessages = periodUnreadByRecipientPeriod[p.principal, periodStart] ?? 0
+        unreadChats = periodChatsByRecipientPeriod[p.principal, periodStart] ?? 0
+        scratch = insert digestScratch { newPostsInFollowing: 0, unreadMessages, unreadChats }
         following = digestFollows[p.principal] first 500 by byFollower { followed }
         for followed in following:
           postCounter = postPeriodCounters[followed.followed, false, periodStart]
           if postCounter != null:
             update digestScratch[scratch] { newPostsInFollowing: .newPostsInFollowing + postCounter.total }
-        chats = memberships[p.principal] first 100 by byPrincipalConversation { id, conversationId }
-        for membership in chats:
-          messageCount = periodUnreadByMembershipPeriod[p.principal, membership.conversationId, membership.id, periodStart] ?? 0
-          if messageCount > 0:
-            update digestScratch[scratch] {
-              unreadMessages: .unreadMessages + messageCount,
-              unreadChats: .unreadChats + 1,
-            }
         summary = digestScratch[scratch.id] ! else DIGEST_STATE
         if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:
           insert digests {
@@ -97,6 +111,6 @@ job periodDigestSweep(cutoff: time):
     (_period, rem) = divmod(cutoff, cfg.digestPeriodMs)
     currentPeriodStart = cutoff - rem
     if row.periodStart < currentPeriodStart - cfg.digestPeriodMs:
-      delete periodUnread[row]
+      clearPeriodUnread(row.id)
 
 schedule recipeDigest every 2m: periodDigestSweep(.periodEnd)

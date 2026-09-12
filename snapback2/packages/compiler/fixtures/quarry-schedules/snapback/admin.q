@@ -1,4 +1,5 @@
 effect digest from push
+proc clearMessagePeriodUnread from custody
 
 job digestSweep():
   chunk p in profiles first 100 by byId:
@@ -8,7 +9,8 @@ job digestSweep():
 schedule dailyDigest every 24h: digestSweep()
 
 mutation purgeMessage(id: messages):
-  update messages[id] { body: null, expiresAt: null }
+  clearMessagePeriodUnread(id)
+  delete messages[id]
   return null
 
 schedule expireMessage on messages at .expiresAt: purgeMessage(.id)

@@ -83,6 +83,7 @@ table digestFollows:
   delete <- allow
 
 table posts:
+  digestEligible: bool
   author: principal
   isReply: bool
   periodStart: time
@@ -107,7 +108,8 @@ table memberships:
   principal: principal
   unique byConversationPrincipal: conversationId, principal
   by byPrincipalConversation: principal, conversationId, id
-  cap 100 by principal
+  cap 1000 by principal
+  cap 50 by conversationId
   public
   insert <- allow
   update <- deny
@@ -115,6 +117,7 @@ table memberships:
 
 table periodUnread:
   messageId: messages
+  author: principal
   recipient: principal
   conversationId: conversations
   membershipId: memberships
@@ -124,10 +127,23 @@ table periodUnread:
   by byPeriod: periodStart, id
   cap 50 by recipient, conversationId, membershipId
   cap 50 by messageId
-  immutable messageId, recipient, conversationId, membershipId, periodStart
+  immutable messageId, author, recipient, conversationId, membershipId, periodStart
   public
   insert <- allow
   update <- deny
+  delete <- allow
+
+table periodChats:
+  total: int
+  recipient: principal
+  conversationId: conversations
+  membershipId: memberships
+  periodStart: time
+  unique byRecipientConversationMembershipPeriod: recipient, conversationId, membershipId, periodStart
+  immutable recipient, conversationId, membershipId, periodStart
+  public
+  insert <- allow
+  update <- allow
   delete <- allow
 
 table digestScratch:
@@ -156,7 +172,10 @@ table digests:
 maintain newFollowerPeriodCounts: count follows by followed, digestEligible, periodStart
   read <- allow
 
-maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
+maintain periodUnreadByRecipientPeriod: count periodUnread by recipient, periodStart
+  read <- allow
+
+maintain periodChatsByRecipientPeriod: count periodChats by recipient, periodStart
   read <- allow
 
 table digestClocks:
@@ -174,3 +193,6 @@ table dailyDigestReceipts:
   insert <- deny
   update <- deny
   delete <- deny
+
+maintain membershipCountsByPrincipal: count memberships by principal
+  read <- deny
