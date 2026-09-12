@@ -1,53 +1,90 @@
 # Fan-out
 
-Fan-out is touching many rows because one row changed. The certifier refuses
-any mutation `for` loop whose population is not provably complete and bounded
-(`E_STRUCTURAL_FANOUT`). A number in that refusal is echoed from your own
-loop bound, argument maximum, or schema cap — it is never a platform maximum.
-There is no platform lane or fan-out constant: each shape below declares its
-own envelope and certifies against the read and write budgets (`guide bounds`).
+`E_STRUCTURAL_FANOUT` requires a complete bound from your loop, argument, or
+schema `cap`; caps reject rows. Use read merge/jobs for uncapped scope.
 
-Pick the shape from the need:
+## Hub envelopes
 
-| need | shape | bounded by | fresh |
-| --- | --- | --- | --- |
-| feed projection (rows from everyone the viewer follows) | `merge` lanes in a query | your declared lane bound | live |
-| per-group counter over a population you can cap (a conversation's members) | `cap N by group` + the covering mutation loop | the schema cap; every write to the capped table is priced by N | per write |
-| per-group counter over a population you must not cap (followers, likers) | `maintain` + a `chunk` job | the chunk size per step | at the period boundary |
-| whole-table pass, backfill, erasure | `chunk` in a `job` | the chunk size per step | when the job completes |
+| refusal | preserving form |
+| --- | --- |
+| 1,000-follow feed | narrow heads + 20 point reads |
+| 1,000-chat search | every scope + shipped head pager |
+| 50 rich rows | paged rich rows + raw page of 50 |
+| whole digest | maintained cells + chunk job |
+| 100-row backfill | 25-row chunks through `done` |
 
-A `cap` is a schema constraint: it refuses the next row past N in each group
-and prices every write to that table by N. Cap a population only when the
-product means it (a conversation's members); never cap followers to make a
-loop certify.
+## 1,000-follow feed
 
-**Synchronous per-write fan-out over an uncappable population has no shape
-today.** A post cannot bump a counter on each of 900 followers inside the
-posting mutation. That is the design, not a missing cap: compute at read
-time (`merge`), or fold maintained counts in at digest time (`maintain` +
-`chunk`), below.
+Write/delete post and head atomically; edits leave the head unchanged.
 
-## The feed: merge-on-read
-
-The lane bound is yours. This certifies at 500 lanes; a heavier row shape
-certifies at fewer, and `check` refuses with the real numbers when a budget
-is exceeded — the budget, not a lane constant, is the binding surface.
+```q
+table postHeads:
+  post: posts
+  author: principal
+  at: time
+  unique byPost: post
+  by byAuthorTime: author, at, id
+  immutable post, author, at
+  public
+  insert <- .author = viewer
+  delete <- .author = viewer
+```
 
 ```q
 query followingFeed(c: cursor ?):
-  page = merge posts after c last 20 by byAuthorTime:
+  heads = merge postHeads after c last 20 by byAuthorTime:
     [viewer]
-    [f.followed] for f in follows[viewer] first 500 by byFollower
-  return page { body: .body }
+    [f.followed] for f in follows[viewer] first 1000 by byFollower
+  return heads { post: posts[.post] }
 ```
 
-## The digest counter: maintain + chunk job
+```q
+mutation publishPost(body: text <=500, period: int):
+  post = insert posts { author: viewer, body, period, at: now }
+  insert postHeads { post: post.id, author: viewer, at: post.at }
+  return post
 
-`maintain periodPosts: count posts by author, period` keeps the per-author
-count at insert. The job walks `follows` in resumable chunks and folds the
-maintained count into each follower's digest row — nothing is written at
-post time, so a 900-follower author costs nothing extra. Run it from a
-`schedule` or on demand: `snapback2 run digestPass '{"period": 1}' --as system`.
+mutation editPost(postId: posts, body: text <=500):
+  post = posts[postId] ! else NOT_FOUND
+  update posts[post] { body }
+  return posts[post]
+
+mutation removePost(postId: posts):
+  post = posts[postId] ! else NOT_FOUND
+  head = postHeads[postId] by byPost
+  if head != null:
+    delete postHeads[head]
+  delete posts[post]
+  return null
+```
+
+1,001 lanes/20 rows cost output 48,752; closure 2,024,488; heap 1,605,760;
+steps 50,180. Page wider rows; keep every lane.
+
+## Search every chat
+
+Page memberships; fetch one head per chat.
+
+```q
+query searchScopes(c: cursor ?):
+  return memberships[viewer] after c first 100 by byPrincipalConversation { conversation: .conversation }
+
+query conversationMessageSearch(conversation: conversations, term: text <=128, c: cursor ?):
+  return messages[conversation, term] after c last 1 by bySearch
+```
+
+Bind `createGlobalSearchPager` from `snapback2/global-search-pager` to these
+queries and descending `(at,id)`. It covers `maxScopes` (default 1,000), limits
+one-shot concurrency to 16, refills/deduplicates, and stops on the weakest
+receipt. Recreate on term/membership changes; do not mount 1,000 live shapes.
+`snapback2 new chat` supplies the write/revocation rules; reads apply current
+membership. Separate snapshots cover the discovered directory, not concurrent
+membership changes.
+
+## Rich rows and jobs
+
+Keep raw history at 50; page rich rows (often 10). `next` reaches every row;
+the reads are separate snapshots (`guide pagination`).
 
 ```q
 job digestPass(period: int):
@@ -58,5 +95,10 @@ job digestPass(period: int):
       update digests[account] { newPostsInFollowing: account.newPostsInFollowing + n }
 ```
 
-See `guide job` for chunk semantics, `guide maintain` for aggregates,
-`guide merge` for lanes, and `guide bounds` for budgets and cap pricing.
+```q
+job directoryBackfill():
+  chunk entry in directory first 25 by byId:
+    update directory[entry] { normalized: entry.handle }
+```
+
+Jobs continue through the table; literals bound one commit, not population.

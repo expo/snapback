@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-11 (bare update row binders refuse before field lowering); 2026-09-09 (if-absent and conditional update implementation amendment); 2026-09-08 (one spelling, LLP 1011: explicit presence codes, full commissioned narrowing, maintain value reads); 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-11 (bare update row binders refuse before field lowering); 2026-09-11 (hub-scale narrow-head feed and per-scope search pager); 2026-09-09 (if-absent and conditional update implementation amendment); 2026-09-08 (one spelling, LLP 1011: explicit presence codes, full commissioned narrowing, maintain value reads); 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -378,6 +378,14 @@ query followingFeed(c: cursor ?):
   recipe say so, with the number, and say that it does not meet the later
   capability bar's larger follow graphs; that is a named product gap, not a
   silent drop, and it is acceptable for the loop bar.
+
+**Hub amendment (2026-09-11).** The guide's certified 1,000-follow form merges
+a narrow immutable head table and point-reads only the 20 winners. Global
+1,000-chat search pages the complete membership directory, runs a certified
+one-row search per chat, and uses the packaged pager for the ordered union.
+Quarry merge lane discovery still requires its canonical table page; list
+arguments and cursored authorization discovery do not acquire held-search
+eligibility. Neither hub form reduces the requested population.
 
 **Deletes.** The `merge` refusal and its rewrite text; the starving
 template and its fixture copy; client-side lane merging as the paved form

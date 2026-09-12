@@ -133,7 +133,7 @@ impl Cost {
     }
     pub fn rewrite(&self, actual: u64, ceiling: u64) -> String {
         match &self.repair {
-            Repair::Merge => "structural repair: use a smaller lane bound, a smaller page, two reads (they are two snapshots), or a maintained feed".into(),
+            Repair::Merge => "structural repair: preserve a hub population with compact merge heads or certified per-scope heads plus the shipped global pager (guide fanout); otherwise use a smaller lane bound, a smaller page with continuation, two reads (they are two snapshots), or a maintained feed".into(),
             Repair::Cap {
                 name,
                 calls,
@@ -162,7 +162,7 @@ impl Cost {
             Repair::Range { nested: false } => "reduce the named range's page bound, or read a maintained aggregate".into(),
             Repair::Probe => "reduce the named rule-probe product by pinning the authorization scope in the scan prefix or reducing its call bound".into(),
             Repair::Uniformity => "make the read rule uniform over the scan prefix by pinning its authorization scope; a smaller page does not reduce the non-uniform budget reserve".into(),
-            Repair::Work => "reduce the named expression, statement, or write repetition bound".into(),
+            Repair::Work => "reduce the named expression, statement, or write repetition bound; for a whole-population digest or backfill, keep the population and reduce a resumable job chunk (guide fanout)".into(),
         }
     }
 }
