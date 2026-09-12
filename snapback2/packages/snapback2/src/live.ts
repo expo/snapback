@@ -5,7 +5,6 @@ import { responseRefusal, wireShape, wireRefusal, isTerminalSession, RefusalErro
 interface Entry {
   id: string;
   path: string;
-  lastEventId?: string;
   controller: ReadableStreamDefaultController<Uint8Array>;
   pending?: Uint8Array;
   closed: boolean;
@@ -37,7 +36,7 @@ export class SharedSse {
   private next = 0;
   constructor(private readonly url: string, private readonly fetch: typeof globalThis.fetch) {}
 
-  open(path: string, lastEventId: string | undefined, signal: AbortSignal, headers: Headers, terminal: Connection["terminal"]): Promise<SseResponse> {
+  open(path: string, _lastEventId: string | undefined, signal: AbortSignal, headers: Headers, terminal: Connection["terminal"]): Promise<SseResponse> {
     if (signal.aborted) throw aborted();
     const key = JSON.stringify([...headers].filter(([name]) => name !== "last-event-id"));
     if (this.connection && this.connection.key !== key) this.close();
@@ -75,7 +74,7 @@ export class SharedSse {
     };
     const body = new ReadableStream<Uint8Array>({
       start: controller => {
-        entry = { id, path, lastEventId, controller, closed: false, ready: () => resolve(response), refuse: reject, detach: () => signal.removeEventListener("abort", remove) };
+        entry = { id, path, controller, closed: false, ready: () => resolve(response), refuse: reject, detach: () => signal.removeEventListener("abort", remove) };
         current.entries.set(id, entry);
         signal.addEventListener("abort", remove, { once: true });
       },
@@ -203,7 +202,7 @@ export class SharedSse {
   private async flush(connection: Connection): Promise<void> {
     while (this.connection === connection) {
       const add = [...connection.entries.values()].filter(entry => !connection.sent.has(entry.id))
-        .map(({ id, path, lastEventId }) => ({ id, path, lastEventId }));
+        .map(({ id, path }) => ({ id, path }));
       const remove = [...connection.sent].filter(id => !connection.entries.has(id));
       if (!add.length && !remove.length) return;
       for (const { id } of add) connection.sent.add(id);

@@ -294,7 +294,7 @@ pub fn route(
             query_only: body
                 .get("queryOnly")
                 .and_then(Json::as_bool)
-                .unwrap_or(false),
+                .unwrap_or(true),
             identity: control_identity(&body),
         }),
         ("GET", "/control/trace") if query.get("timer").is_some() => call(Action::TimerTrace {

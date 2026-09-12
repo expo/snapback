@@ -55,7 +55,7 @@ export class ItemCapture {
   private readonly observations = new Map<string, ItemObservation>();
   private readonly held: StoredAnswer | undefined;
   constructor(private readonly state: PersistedRangeState, op: string, args: unknown,
-    private readonly predicted: ItemInputs["predicted"] = new Map(), private readonly entries?: ItemInputs["entries"]) {
+    private readonly predicted: ItemInputs["predicted"] = new Map(), private entries?: ItemInputs["entries"]) {
     this.held = state.answers[storedAnswerKey(state, op, args)];
     // Extent eviction and viewed-once bookkeeping are deliberately excluded.
     for (const [key, through] of Object.entries(state.negative)) {
@@ -94,7 +94,7 @@ export class ItemCapture {
   }
   inputs(): ItemInputs {
     const selection = this.held?.selection ?? freshItemSelection(this.held);
-    return { compactedThrough: this.state.compactedThrough, entries: this.entries ?? Object.values(this.state.outbox).sort(outboxFifo),
+    return { compactedThrough: this.state.compactedThrough, entries: this.entries ??= Object.values(this.state.outbox).sort(outboxFifo),
       observations: this.observations, values: this.values, predicted: new Map(this.predicted),
       ...(this.state.facts ? { program: { generation: this.state.facts.generation, schemaHash: this.state.facts.schemaHash } } : {}),
       ...(selection ? { selection } : {}) };

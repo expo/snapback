@@ -7,25 +7,25 @@ use identity
 ```
 
 `use identity password` or `use identity guests`.
-`client.auth`: `signup`, `login`, `guest`, `logout`, `me`.
+`client.auth`: `signup`, `login`, `guest`, `logout`, `refresh`, `me`.
 Restore: set `tokenStore`; await `client.ready`. Browser:
 `browserTokenStore(storage, backendSpecificKey)`. Personas refuse bearer
 transitions/tokens; production refuses personas. Logout/expiry fence one session.
 
 React/Expo: `const { session, actions } = useAuth()`. `session` is the client's
-shared identity snapshot; `actions` is `signup`, `login`, `guest`, `logout`, `me`.
+shared identity snapshot; `actions` is `signup`, `login`, `guest`, `logout`, `refresh`, `me`.
 The hook does not expose a token. `useViewer()` reads the same provider identity
 in any descendant: no viewer props or extra query. It includes token-bound
 `restoringViewer` for offline display, never permission to read or write.
 
 Every React/Expo starter ships a compact `Auth.tsx`: email/password signup and
 login, guest, visible errors, identity, logout, and automatic who-am-I restoration.
-Web explicitly stores its bearer in `localStorage`; Expo uses SecureStore. Both
-keys include the backend URL. Account changes remount app state. Cold offline
+Web uses backend-keyed `sessionStorage`; Expo uses SecureStore. Browser JS can
+still read tokens: sessionStorage limits persistence, not XSS. Sessions last 24h;
+“Renew session” calls `refresh()`, invalidating the old token while retaining the
+account/epoch. Renew online before expiry; lost responses or failed token saves
+require login (guests cannot recover). Account changes remount state. Cold offline
 restoration preserves the bound account's screen; the SDK admits only held reads.
-Chat's New conversation form invites a friend's displayed account ID.
-`groups.mine` lists the viewer's memberships, so both accounts discover empty
-conversations before the first message; delivery rows still supply previews.
 Development personas belong in CLI commands and test fixtures, not starter UI.
 
 `snapshot.auth` / `useAuth().session`: `hydrating`, `authenticated`
@@ -48,13 +48,15 @@ and clear custody. `offline()` pauses timers; `online()` resumes the shared flig
 Offline restart stays paused. Logout/replacement/close cancel retries and ignore late replies.
 Closed `auth` is its last view, without `retryAt`.
 
-Confirmation recovers sync. Replay grants: `guide offline`.
 Metadata errors set `lastRefusal`; initial errors reject
 `ready`, but installed sessions succeed. `online()` retries sync. Held reads wait
 for account transitions. Same-principal login revalidates coverage and keeps queued
 writes. Built-in stores bind principal to token; custom stores
 need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold reads.
-No login rate limit. Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
+Password auth allows two concurrent attempts, eight per account, sixteen per IP
+and thirty-two per owner in sixty seconds; `E_AUTH_RATE_LIMIT` (429) means wait
+sixty seconds. Passwords require eight characters and at most 256 UTF-8 bytes.
+Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
 
 Signup authenticates before profile creation; missing profiles need onboarding.
 Each successful signup response also installs the first replay grant, so a

@@ -8,15 +8,19 @@ import {
   type CorpusCase,
 } from "./evaluator";
 
-const cases = manifest as unknown as CorpusCase[];
+const allCases = manifest as unknown as CorpusCase[];
+const cases = allCases.filter(testCase => !testCase.serverOnly);
+if (allCases.some(testCase => testCase.corpusVersion !== 1)) throw new Error("unsupported corpus version");
 const failures: { name: string; differences: string[] }[] = [];
 for (const testCase of cases) {
+  try {
   const hydration = hydrateCase(testCase);
   const differences = compareExpected(hydration.actual, testCase.expected);
   if (hydration.planState !== "ready") {
     differences.unshift(hydration.diagnostic ?? "unexpected replay mismatch");
   }
   if (differences.length > 0) failures.push({ name: testCase.name, differences });
+  } catch (error) { failures.push({ name: testCase.name, differences: [String(error)] }); }
 }
 
 const summary = {
@@ -27,6 +31,7 @@ const summary = {
         ? "hermes"
         : "javascriptcore",
   cases: cases.length,
+  skippedServerOnly: allCases.length - cases.length,
   passed: cases.length - failures.length,
   failed: failures.length,
   failures,

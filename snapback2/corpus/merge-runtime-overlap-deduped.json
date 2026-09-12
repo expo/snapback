@@ -339,19 +339,19 @@
       {
         "meter": "output bytes",
         "value": 114,
-        "source": "posts.at",
+        "source": "3 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 462,
-        "source": "posts.author",
+        "source": "3 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 450,
-        "source": "posts.id",
+        "source": "3 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": null
       },
       {
@@ -369,26 +369,26 @@
       {
         "meter": "closure bytes",
         "value": 266,
-        "source": "posts.at",
-        "site": null
+        "source": "7 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "merge.overlap"
       },
       {
         "meter": "closure bytes",
         "value": 1078,
-        "source": "posts.author",
-        "site": null
+        "source": "7 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "merge.overlap"
       },
       {
         "meter": "closure bytes",
         "value": 1050,
-        "source": "posts.id",
-        "site": null
+        "source": "7 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "merge.overlap"
       },
       {
         "meter": "closure bytes",
         "value": 70,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": null
+        "site": "merge.overlap"
       }
     ]
   },

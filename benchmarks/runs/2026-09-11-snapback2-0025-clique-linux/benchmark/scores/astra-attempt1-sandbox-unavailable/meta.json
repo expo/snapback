@@ -1,0 +1,33 @@
+{
+  "wave": "astra",
+  "pid": 2273884,
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "start": 1789177468,
+  "end": 1789177533,
+  "exit": 0,
+  "interrupted": null,
+  "waitError": null,
+  "command": [
+    "/home/ccheever/.local/bin/codex",
+    "exec",
+    "-s",
+    "read-only",
+    "--skip-git-repo-check",
+    "--json",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=xhigh",
+    "-C",
+    "/home/ccheever/clique-0025-20260911",
+    "-o",
+    "/home/ccheever/clique-0025-20260911/scores/astra/FINAL.md",
+    "-"
+  ],
+  "nativeManifest": "/home/ccheever/clique-0025-20260911/native/codex/astra-score/manifest.json",
+  "nativeCaptureError": null,
+  "nativeTreeStatus": "retained"
+}

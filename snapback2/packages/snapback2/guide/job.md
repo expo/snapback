@@ -9,8 +9,8 @@ silently discarding it. `--json` prints each chunk and the final receipt.
 `chunk` reads current rows in index order through the upper key captured
 at the start of its sweep. Later inserts between the cursor and bound are visited;
 inserts beyond it are excluded; deleted rows are skipped. Cursor and writes
-commit together. A job can have several independent chunks, in order, with
-typed arguments in their prefixes. Jobs execute as the owner, under constraints.
+commit together. `break` ends its sweep, `return` ends the job, and `continue` skips a row.
+Jobs run as the owner, under constraints.
 
 A refused chunk rolls back and parks with its refusal; earlier chunks remain.
 Fix the data or constraint, then `run --resume job_id --as system` retries it.
@@ -28,7 +28,9 @@ mutation, or job (64 KiB maximum); jobs also accept `--plan` and `--wait`.
 The owner snapshots the store and opens the copy with no effects runner, no
 timer firing, no asset sweep, no blob writes, the clock pinned at the snapshot
 and a fresh id namespace; every chunk runs through the same driver, in-process;
-then the copy is deleted. The receipt has `dryRun: true`, rows written per
+then the copy is deleted. This writable, WAL-consistent SQLite backup copies all
+database pages, so its time and disk cost scale with store size. `--plan` reads
+index counts without making a snapshot. The receipt has `dryRun: true`, rows written per
 table, chunks, the effects it would have emitted (name, payload bytes), the
 assets it would have released, and any refusal, with exit 0 either way: the
 rehearsal told the truth. Exit 1 is `E_REHEARSAL`, the rehearsal itself could

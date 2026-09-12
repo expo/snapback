@@ -1234,13 +1234,13 @@
       {
         "meter": "output bytes",
         "value": 150,
-        "source": "secretDocs.id",
+        "source": "secretDocs.id (150 bytes; 6 field-name/framing + secretDocs declared identity 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 281,
-        "source": "secretDocs.title",
+        "source": "secretDocs.title (281 bytes; 9 field-name/framing + text max 64 scalars: encoded value bound 272)",
         "site": null
       },
       {
@@ -1252,13 +1252,13 @@
       {
         "meter": "closure bytes",
         "value": 150,
-        "source": "secretDocs.id",
+        "source": "secretDocs.id (150 bytes; 6 field-name/framing + secretDocs declared identity 144)",
         "site": "programs.hiddenRuleDocument.0"
       },
       {
         "meter": "closure bytes",
         "value": 281,
-        "source": "secretDocs.title",
+        "source": "secretDocs.title (281 bytes; 9 field-name/framing + text max 64 scalars: encoded value bound 272)",
         "site": "programs.hiddenRuleDocument.0"
       },
       {

@@ -8,10 +8,15 @@ pub(super) fn drain_pending<A: OutboxAccess>(
     access: &mut A,
     limit: usize,
     drained: &mut Drained,
+    stopping: impl Fn() -> bool,
 ) -> Result<usize, OutboxError> {
     let pending = access.pending_then(limit)?;
-    let count = pending.len();
+    let mut count = 0;
     for pending in pending {
+        if stopping() {
+            break;
+        }
+        count += 1;
         let id = pending.id.clone();
         let result = catch_unwind(AssertUnwindSafe(|| run_pending_then(access, &pending)));
         match result {
@@ -97,6 +102,7 @@ pub(super) fn record_then(outcome: ThenOutcome, outbox_id: &str, drained: &mut D
 
 pub(super) fn merge_drained(total: &mut Drained, mut next: Drained) {
     total.unknown_at_start += next.unknown_at_start;
+    total.claimed += next.claimed;
     total.sent += next.sent;
     total.failed += next.failed;
     total.requeued += next.requeued;
@@ -116,4 +122,21 @@ pub(super) fn panic_message(payload: Box<dyn Any + Send>) -> String {
 pub(super) fn retry_delay_ms(attempt: u32) -> i64 {
     let exponent = attempt.saturating_sub(1).min(30);
     1_000_i64.saturating_mul(1_i64.checked_shl(exponent).unwrap_or(i64::MAX))
+}
+
+#[cfg(test)]
+#[test]
+fn merge_preserves_claimed_count() {
+    let mut total = Drained {
+        claimed: 2,
+        ..Drained::default()
+    };
+    merge_drained(
+        &mut total,
+        Drained {
+            claimed: 3,
+            ..Drained::default()
+        },
+    );
+    assert_eq!(total.claimed, 5);
 }

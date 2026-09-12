@@ -1,0 +1,79 @@
+[
+  {
+    "milestone": "m1",
+    "pass": true,
+    "attempts": [
+      {
+        "pass": true,
+        "start": 1789177077102,
+        "end": 1789177082653
+      }
+    ]
+  },
+  {
+    "milestone": "m2",
+    "pass": true,
+    "attempts": [
+      {
+        "pass": true,
+        "start": 1789177082653,
+        "end": 1789177099507
+      }
+    ]
+  },
+  {
+    "milestone": "m3",
+    "pass": true,
+    "attempts": [
+      {
+        "pass": true,
+        "start": 1789177099507,
+        "end": 1789177110188
+      }
+    ]
+  },
+  {
+    "milestone": "m4",
+    "pass": true,
+    "attempts": [
+      {
+        "pass": true,
+        "start": 1789177110188,
+        "end": 1789177119228
+      }
+    ]
+  },
+  {
+    "milestone": "m5",
+    "pass": true,
+    "attempts": [
+      {
+        "pass": true,
+        "start": 1789177119228,
+        "end": 1789177131633
+      }
+    ]
+  },
+  {
+    "milestone": "m6",
+    "pass": true,
+    "attempts": [
+      {
+        "pass": true,
+        "start": 1789177163105,
+        "end": 1789177168649
+      }
+    ]
+  },
+  {
+    "milestone": "m8",
+    "pass": true,
+    "attempts": [
+      {
+        "pass": true,
+        "start": 1789177168649,
+        "end": 1789177178627
+      }
+    ]
+  }
+]

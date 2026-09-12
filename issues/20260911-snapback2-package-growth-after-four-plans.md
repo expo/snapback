@@ -120,3 +120,28 @@ closure**, producing **142,894 / 152,823 / 156,316 / 89,995** gzip bytes. Its
 network recovery module is outside the unchanged canonical local-runtime graph,
 so runtime delta is zero. The same pinned canonical measurement was used;
 neither the public growth guard nor runtime target is met or rebaselined.
+
+## Security and correctness hardening — 2026-09-11
+
+The final hardening source `3d1c55f947` measures **143,053 / 152,966 /
+156,459 / 89,981 gzip bytes** (client / React / Expo / complete runtime),
+using canonical Node 24.18.0, esbuild 0.25.9 and gzip 9. The same measurement
+on unchanged main `27d8d7e9dd` gives **142,886 / 152,799 / 156,292 / 89,999**.
+The public entries each grow 167 bytes (under 0.12%); the runtime shrinks
+18 bytes and remains below the unchanged 90,000-byte ceiling.
+
+All four historical 1% growth guards remain red relative to the last accepted
+baseline. The final `measure.mjs --check` exits 1 for those four guards only;
+all functional, latency and absolute-size checks pass. Warm build is 0.12 s,
+incremental rebuild 3.06 s, affected consumer checks 22.66 s, project check
+0.888 s, doctor 0.037/0.037 s and init 1.631 s. Final and intermediate failed
+measurements are retained in `metrics/loop.jsonl` and `metrics/twin.jsonl`;
+`byte_baseline_accepted` remains false. No baseline, budget or measurement
+root changed, and this evidence does not qualify package publication.
+
+The separately run full functional suite passed 1,174 native, 1,438 package,
+306 compiler and 266 evaluator cases (27 server-only corpus cases skipped),
+with doctests and artifact checks passing. Its 62.95 s wall time exceeds the
+60 s total-suite budget by 2.95 s; the faster affected checks above do not
+replace that total. After the final byte reduction, the full package suite
+and affected compiler, evaluator and client tests passed again.

@@ -1,0 +1,60 @@
+{
+  "format": "clique-m6-persona-snapshot.v1",
+  "at": 1789176567413,
+  "fieldManifest": [
+    "id",
+    "conversationId",
+    "senderId",
+    "serverTimestamp",
+    "type",
+    "text",
+    "media",
+    "edited",
+    "tombstone",
+    "replyToId",
+    "reactions",
+    "receipt"
+  ],
+  "personas": [
+    {
+      "persona": "alice",
+      "file": "alice.json",
+      "sha256": "078f2e62799c8abcda7bb3c24110ca5e2a2f6c1436df4b14230d4f16e5d4ade4"
+    },
+    {
+      "persona": "bob",
+      "file": "bob.json",
+      "sha256": "306dccb54d5903b401b7ba949ca7ab0de0da6079648f9e736998e944c14eaba6"
+    },
+    {
+      "persona": "carol",
+      "file": "carol.json",
+      "sha256": "de1c42bdc4a337b8861ea07255133f6ee40eeac835c887a1159d6e2c55686363"
+    },
+    {
+      "persona": "dave",
+      "file": "dave.json",
+      "sha256": "a577da3b4dfec45c35a0af417ce76c042d3708253596015bd1a0ead68c59e2a6"
+    },
+    {
+      "persona": "erin",
+      "file": "erin.json",
+      "sha256": "5e998dbc2013c99f78e826fa8ed95a823e8967c0f07e5a0dcda0e81eb23ff14c"
+    },
+    {
+      "persona": "frank",
+      "file": "frank.json",
+      "sha256": "72ca88d799e0cbc644c35883375f5929dc04e97c274eb4b058c4da0e8078e9da"
+    },
+    {
+      "persona": "grace",
+      "file": "grace.json",
+      "sha256": "4bb35e16988ccedd1ad6d5941d1d2461ceb2919d49feedcd172d2c93467835bf"
+    },
+    {
+      "persona": "henry",
+      "file": "henry.json",
+      "sha256": "d4d214c48336943d911b06b341f3fec5aeb702aa75b57b00c9bff71a5fafebff"
+    }
+  ]
+}

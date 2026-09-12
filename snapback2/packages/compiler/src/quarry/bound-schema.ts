@@ -326,6 +326,7 @@ function bindRuleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): 
 }
 
 function bindRuleTerm(expr: Expr, context: RuleContext, expected?: ScalarType): RuleTerm {
+  rejectBareUpdateBinder(expr, context);
   if (expr.kind === "name" && expr.name === "viewer") return { value: "Viewer", kind: "other" };
   if (expr.kind === "literal") return { value: { Literal: bindLiteral(expr, expected) }, kind: "other" };
   // @ref LLP 1010#a3-one-row-binder — focal field access is the candidate row; two-image updates retain old/next.
@@ -344,6 +345,15 @@ function bindRuleTerm(expr: Expr, context: RuleContext, expected?: ScalarType): 
   }
   if (expr.kind === "member") refuse(expr.site, "rule terms cannot follow nested field chains; use a direct .field or exists/created probe");
   refuse(expr.site, "rule terms may only be viewer, literals, channel arguments, or direct .fields of the ruled row");
+}
+
+// @ref LLP 1010#a3-one-row-binder — update binders name whole row images; only channel arguments lower as bare fields.
+function rejectBareUpdateBinder(expr: Expr, context: RuleContext): void {
+  if (expr.kind === "name" && (expr.name === context.old || expr.name === context.next)) {
+    refuse(expr.site,
+      `bare ${expr.name} is the update row, not a column; name a field`,
+      `write ${expr.name}.id or ${expr.name}.<column>`);
+  }
 }
 
 function bindLiteral(expr: Extract<Expr, { kind: "literal" }>, expected?: ScalarType): Value {
@@ -379,6 +389,7 @@ function checkRuleField(context: RuleContext, name: string, site: TableDecl["sit
 }
 
 function ruleTermType(expr: Expr, context: RuleContext): ScalarType | undefined {
+  rejectBareUpdateBinder(expr, context);
   if (expr.kind === "name" && expr.name === "viewer") return { kind: "principal", optional: false };
   if (expr.kind === "literal") {
     if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, [...expr.value].length), optional: false };

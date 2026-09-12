@@ -1,0 +1,17 @@
+{
+  "reason": "bwrap loopback RTM_NEWADDR Operation not permitted before file reads",
+  "strategy": "fresh session, complete verbatim inline narrative evidence, no tool calls",
+  "files": [
+    "instrument/social-messenger.md",
+    "lanes/astra-snapback2/diary.md",
+    "lanes/astra-snapback2/essay.md",
+    "lanes/astra-snapback2/run-log.md",
+    "lanes/astra-snapback2/final-report.md",
+    "lanes/astra-snapback2/run-record.json",
+    "lanes/astra-snapback2/m7/diary.md",
+    "lanes/astra-snapback2/m7/essay-paragraphs.md",
+    "lanes/astra-snapback2/m7/run-log.md",
+    "lanes/astra-snapback2/m7/final-report.md"
+  ],
+  "at": 1789177605
+}

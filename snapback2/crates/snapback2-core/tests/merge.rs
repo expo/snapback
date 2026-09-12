@@ -1078,3 +1078,98 @@ fn malformed_opaque_page_prefix_returns_accumulated_diagnostics() {
         "{errors:?}"
     );
 }
+
+// Run alone with --ignored --nocapture to compare retained Rust allocations.
+#[test]
+#[ignore = "allocation profile; runs alone to exclude concurrent test allocations"]
+fn overlapping_merge_retention_profile() {
+    let (mut schema, mut program) = fixture(32, 3);
+    schema
+        .tables
+        .get_mut("posts")
+        .unwrap()
+        .columns
+        .insert("body".into(), ColumnType::Text { max: 2048 });
+    schema.tables.get_mut("posts").unwrap().rules.read = RuleExpr::Ne(
+        RuleTerm::Field("at".into()),
+        RuleTerm::Literal(Value::Int(0)),
+    );
+    let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+        unreachable!()
+    };
+    merge.lanes.remove(0);
+    let lane = &mut merge.lanes[0];
+    lane.scan.after = None;
+    lane.scan.opaque_cursor = false;
+    lane.scan.before = Some(Box::new(Expr::Array(vec![
+        field(var(&lane.binding), "at"),
+        lit(Value::Id("low".into())),
+    ])));
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = Engine::memory(schema).unwrap();
+    for n in 0..32 {
+        seed_follow(&mut engine, n, "u1");
+    }
+    for n in 0..2000 {
+        let mut row = entry(&format!("p{n:05}"), "u1", 1000 + n);
+        if let Value::Row(ref mut fields) = row {
+            fields.insert("body".into(), Value::String("x".repeat(2048)));
+        }
+        engine.seed("posts", row).unwrap();
+    }
+    let started = std::time::Instant::now();
+    PROFILE_LIVE.store(0, std::sync::atomic::Ordering::Relaxed);
+    PROFILE_PEAK.store(0, std::sync::atomic::Ordering::Relaxed);
+    PROFILE_ENABLED.store(true, std::sync::atomic::Ordering::Relaxed);
+    let result = engine.execute(&program, &certificate, ctx(None)).unwrap();
+    PROFILE_ENABLED.store(false, std::sync::atomic::Ordering::Relaxed);
+    assert!(
+        PROFILE_PEAK.load(std::sync::atomic::Ordering::Relaxed) < 300_000,
+        "overlapping lanes retained duplicate row bodies"
+    );
+    eprintln!(
+        "overlap: elapsed_us={} peak_bytes={} examined={} rows={} take=3 lanes=32",
+        started.elapsed().as_micros(),
+        PROFILE_PEAK.load(std::sync::atomic::Ordering::Relaxed),
+        result.trace.examined,
+        result.receipt.rows.len()
+    );
+    assert_eq!(ids(&result.result).len(), 3);
+    assert!(
+        result
+            .receipt
+            .rows
+            .iter()
+            .filter(|row| row.table == "posts")
+            .count()
+            <= 3 + 32 + 2
+    );
+    check_trace(&result, &certificate);
+}
+
+struct ProfileAllocator;
+#[global_allocator]
+static PROFILE_ALLOCATOR: ProfileAllocator = ProfileAllocator;
+static PROFILE_ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static PROFILE_LIVE: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+static PROFILE_PEAK: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(0);
+unsafe impl std::alloc::GlobalAlloc for ProfileAllocator {
+    unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
+        let ptr = unsafe { std::alloc::System.alloc(layout) };
+        if !ptr.is_null() && PROFILE_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
+            let live = PROFILE_LIVE
+                .fetch_add(layout.size() as isize, std::sync::atomic::Ordering::Relaxed)
+                + layout.size() as isize;
+            PROFILE_PEAK.fetch_max(live, std::sync::atomic::Ordering::Relaxed);
+        }
+        ptr
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: std::alloc::Layout) {
+        if PROFILE_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
+            PROFILE_LIVE.fetch_sub(layout.size() as isize, std::sync::atomic::Ordering::Relaxed);
+        }
+        unsafe { std::alloc::System.dealloc(ptr, layout) }
+    }
+}

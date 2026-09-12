@@ -13,7 +13,7 @@ export function Auth({ children }: { children: ReactNode }) {
     finally { setBusy(false); }
   };
   return <SafeAreaView style={{ flex: 1, padding: 16 }}>
-    {viewer ? <><Text selectable>{session.state === "authenticated" ? "Signed in as" : "Restoring"} {viewer} ({session.kind ?? "account"})</Text><Button title="Log out" disabled={busy} onPress={() => void run(actions.logout)} /></> : <>
+    {viewer ? <><Text selectable>{session.state === "authenticated" ? "Signed in as" : "Restoring"} {viewer} ({session.kind ?? "account"})</Text><Button title="Renew session" disabled={busy || session.state !== "authenticated"} onPress={() => void run(actions.refresh)} /><Button title="Log out" disabled={busy} onPress={() => void run(actions.logout)} /></> : <>
       <Text>Welcome</Text><TextInput accessibilityLabel="Email" placeholder="Email" keyboardType="email-address" autoCapitalize="none" autoComplete="username" value={email} onChangeText={setEmail} />
       <TextInput accessibilityLabel="Password" placeholder="Password" secureTextEntry autoComplete="current-password" value={password} onChangeText={setPassword} />
       <Button title="Log in" disabled={busy || !email || !password} onPress={() => void run(() => actions.login({ email, password }))} />

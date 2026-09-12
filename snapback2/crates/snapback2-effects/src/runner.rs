@@ -211,7 +211,9 @@ impl<H: EffectHost> Runner<H> {
             unknown_at_start: access.mark_unknown_running_at_start(now)?,
             ..Drained::default()
         };
-        drain_pending(access, DEFAULT_DRAIN_LIMIT, &mut drained)?;
+        drain_pending(access, DEFAULT_DRAIN_LIMIT, &mut drained, || {
+            self.stopping()
+        })?;
         Ok(drained)
     }
 
@@ -242,7 +244,7 @@ impl<H: EffectHost> Runner<H> {
         if self.stopping() {
             return Ok(drained);
         }
-        let pending = drain_pending(access, limit, &mut drained)?;
+        let pending = drain_pending(access, limit, &mut drained, || self.stopping())?;
         let remaining = limit.saturating_sub(pending);
         if self.host.describe() == "none" {
             access.mark_queued_unavailable("no engine in this build")?;
@@ -262,7 +264,7 @@ impl<H: EffectHost> Runner<H> {
             };
             drained.claimed += 1;
             let result = catch_unwind(AssertUnwindSafe(|| {
-                self.run_claimed(access, &job, &mut now)
+                self.run_claimed(access, &job, claim_at, &mut now)
             }));
             match result {
                 Ok(Ok(job_drained)) => {
@@ -276,6 +278,7 @@ impl<H: EffectHost> Runner<H> {
                     self.recover_claimed_job(access, &job, error.0, &mut drained);
                 }
                 Err(payload) => {
+                    self.generation_changed();
                     self.recover_claimed_job(
                         access,
                         &job,
@@ -292,6 +295,7 @@ impl<H: EffectHost> Runner<H> {
         &mut self,
         access: &mut A,
         job: &EffectJob,
+        claim_at: i64,
         now: &mut F,
     ) -> Result<Drained, OutboxError> {
         let mut drained = Drained::default();
@@ -402,7 +406,19 @@ impl<H: EffectHost> Runner<H> {
                 }
             }
             Outcome::Failed { error, retry } if retry && job.attempt < MAX_ATTEMPTS => {
-                let failed_at = now(access)?;
+                // A broken clock must not erase the provider's retryable error.
+                // The claim instant is a conservative fallback from the same clock.
+                let failed_at = now(access).unwrap_or_else(|clock_error| {
+                    drained.logs.push(EffectLog {
+                        outbox_id: job.id.clone(),
+                        level: "error".to_owned(),
+                        message: format!(
+                            "retry clock unavailable: {}; using claim instant",
+                            clock_error.0
+                        ),
+                    });
+                    claim_at
+                });
                 access.settle(
                     &job.id,
                     OutboxSettlement::Retry {
@@ -738,6 +754,7 @@ mod tests {
         logs: Vec<EffectLog>,
         calls: Vec<(EffectDecl, EffectJob)>,
         panic_once: bool,
+        discards: usize,
     }
 
     impl StubHost {
@@ -747,11 +764,15 @@ mod tests {
                 logs: Vec::new(),
                 calls: Vec::new(),
                 panic_once: false,
+                discards: 0,
             }
         }
     }
 
     impl EffectHost for StubHost {
+        fn generation_changed(&mut self) {
+            self.discards += 1;
+        }
         fn run(&mut self, decl: &EffectDecl, job: &EffectJob, _budget: Duration) -> Outcome {
             if std::mem::take(&mut self.panic_once) {
                 panic!("malformed claimed row panicked the host");
@@ -1180,6 +1201,7 @@ mod tests {
 
         assert_eq!(outbox.row("bad").state, "failed");
         assert_eq!(outbox.row("good").state, "sent");
+        assert!(runner.host().discards >= 2);
         assert!(
             drained
                 .logs
@@ -1404,5 +1426,39 @@ mod tests {
         assert_eq!(drained.failed, 1);
         assert_eq!(drained.then_failed, 1);
         assert_eq!(outbox.row("changed").state, "failed");
+    }
+    #[test]
+    fn retryable_host_failure_survives_a_clock_failure() {
+        let mut runner = Runner::new(StubHost::new([Outcome::Failed {
+            error: "provider temporary".into(),
+            retry: true,
+        }]));
+        let mut outbox = MemoryOutbox::default();
+        outbox.push("retry", "notifications.notify", "queued", 0);
+        install(&mut outbox, declaration(None));
+        let mut times = VecDeque::from([Ok(1000), Err(OutboxError("clock down".into()))]);
+        let drained = runner
+            .drain_inner(&mut outbox, 1, |_| times.pop_front().unwrap())
+            .unwrap();
+        assert_eq!(drained.requeued, 1);
+        assert_eq!(
+            outbox.row("retry").last_error.as_deref(),
+            Some("provider temporary")
+        );
+        assert_eq!(outbox.row("retry").next_at, 2000);
+    }
+
+    #[test]
+    fn stopped_initialize_does_not_replay_pending_then() {
+        let mut runner = Runner::new(StubHost::new([]));
+        runner.set_stop_flag(Arc::new(AtomicBool::new(true)));
+        let mut outbox = MemoryOutbox::default();
+        outbox.push("pending", "notifications.notify", "then_pending", 1);
+        outbox.row_mut("pending").unwrap().result = Some(json!(true));
+        outbox.row_mut("pending").unwrap().then_op = Some("notifications.recordNotified".into());
+        let drained = runner.initialize(&mut outbox).unwrap();
+        assert_eq!(drained.sent, 0);
+        assert!(outbox.system_calls.is_empty());
+        assert_eq!(outbox.row("pending").state, "then_pending");
     }
 }

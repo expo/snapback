@@ -933,26 +933,116 @@
       },
       {
         "meter": "closure bytes",
-        "value": 854,
-        "source": "1 pooled balances first images with table/id envelopes",
+        "value": 989,
+        "source": "balances.byOwner × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "balances.byOwner"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 987,
+        "source": "counts.byOwner × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "counts.byOwner"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 989,
+        "source": "decimals.byOwner × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "decimals.byOwner"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "balances.id (309 bytes; 6 field-name/framing + balances declared identity 303)",
         "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 852,
-        "source": "1 pooled counts first images with table/id envelopes",
+        "value": 153,
+        "source": "balances.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
         "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 854,
-        "source": "1 pooled decimals first images with table/id envelopes",
+        "value": 41,
+        "source": "balances.value (41 bytes; 9 field-name/framing + Money { currency: \"USD\", scale: 2 } value maximum 32)",
         "site": null
       },
       {
         "meter": "closure bytes",
-        "value": 3235,
-        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "value": 10,
+        "source": "balances row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "balances table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "counts.id (309 bytes; 6 field-name/framing + counts declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 153,
+        "source": "counts.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "counts.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 339,
+        "source": "counts table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "decimals.id (309 bytes; 6 field-name/framing + decimals declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 153,
+        "source": "decimals.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "decimals.value (41 bytes; 9 field-name/framing + Decimal { scale: 3 } value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "decimals row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "decimals table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 270,
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       }
     ]

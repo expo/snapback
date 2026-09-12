@@ -881,9 +881,11 @@ fn period_cutoff_survives_restart_and_the_second_sweep_waits_for_the_first() {
         assert_ne!(outcome.job.state, "parked", "{outcome:?}");
     }
     let cleaned = rows(&mut reopened, "items");
-    assert!(cleaned
-        .iter()
-        .all(|item| item.field("ok").unwrap() == &Value::Bool(false)));
+    assert!(
+        cleaned
+            .iter()
+            .all(|item| item.field("ok").unwrap() == &Value::Bool(false))
+    );
     drop(reopened);
     std::fs::remove_file(path).unwrap();
 }
@@ -1240,4 +1242,23 @@ fn a_schedule_declaration_site_is_diagnostics_not_identity() {
     };
     let errors = certify(vec![bad]).unwrap_err();
     assert_eq!(errors[0].0, "snapback/admin.q:2:1");
+}
+
+#[test]
+fn installing_a_row_schedule_visits_ten_thousand_rows_in_bounded_batches() {
+    let mut rt = runtime(vec![]);
+    seed(
+        &mut rt,
+        (0..10_000)
+            .map(|n| row(&format!("r{n:05}"), Some(5), true))
+            .collect(),
+    );
+    rt.apply_successor(generation(vec![row_schedule(
+        "expire",
+        "admin.purge",
+        false,
+    )]))
+    .unwrap();
+    assert_eq!(rt.store().timer_status(5).unwrap()["due"], 10_000);
+    assert_eq!(rt.store().due_timers(5, 64).unwrap().len(), 64);
 }

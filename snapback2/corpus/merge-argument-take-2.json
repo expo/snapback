@@ -377,19 +377,19 @@
       {
         "meter": "output bytes",
         "value": 760,
-        "source": "posts.at",
+        "source": "20 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 3080,
-        "source": "posts.author",
+        "source": "20 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 3000,
-        "source": "posts.id",
+        "source": "20 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": null
       },
       {
@@ -407,26 +407,26 @@
       {
         "meter": "closure bytes",
         "value": 912,
-        "source": "posts.at",
-        "site": null
+        "source": "24 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "merge.review"
       },
       {
         "meter": "closure bytes",
         "value": 3696,
-        "source": "posts.author",
-        "site": null
+        "source": "24 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "merge.review"
       },
       {
         "meter": "closure bytes",
         "value": 3600,
-        "source": "posts.id",
-        "site": null
+        "source": "24 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "merge.review"
       },
       {
         "meter": "closure bytes",
         "value": 240,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": null
+        "site": "merge.review"
       }
     ]
   },

@@ -185,6 +185,7 @@ impl ClientStore {
             // @ref LLP 1001#2-what-a-commit-records — authority-only absence
             // facts cannot cross a predecessor/successor schema boundary.
             coverage.absences.clear();
+            coverage.verdicts.clear();
         }
         coverage
     }

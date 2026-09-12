@@ -597,20 +597,56 @@
       },
       {
         "meter": "closure bytes",
-        "value": 1704,
-        "source": "2 pooled counts first images with table/id envelopes",
+        "value": 1146,
+        "source": "absent × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "absent"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 987,
+        "source": "present × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "present"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 618,
+        "source": "2 × counts.id (309 bytes each; 6 field-name/framing + counts declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 306,
+        "source": "2 × counts.owner (153 bytes each; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 82,
+        "source": "2 × counts.value (41 bytes each; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 678,
+        "source": "2 × counts table/id envelope (339 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 429,
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       },
       {
         "meter": "closure bytes",
         "value": 2085,
         "source": "public count absence evidence",
-        "site": null
-      },
-      {
-        "meter": "closure bytes",
-        "value": 2562,
-        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
         "site": null
       }
     ]

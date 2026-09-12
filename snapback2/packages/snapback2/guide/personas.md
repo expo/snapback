@@ -12,9 +12,10 @@ and remain distinct across clients. The loopback-only `--as`/header shortcut
 does not mint a stored session. First use creates the persona; `snapback2
 persona list` lists the cast. A `serve` owner refuses persona headers.
 
-For an explicit development-only preview, React and Expo may use
-`<SnapbackProvider url={url} persona="alice">`. The shipped app flow uses
-real account sessions (`guide auth`). Choose
+Browser requests cannot use personas; development CORS admits only loopback
+origins and excludes persona/control headers. Use the local CLI or a Node
+journey for persona previews. Browser apps use real account sessions
+(`guide auth`). Choose
 either a persona or bearer/token-store custody for each client.
 
 The chat seed uses the fixture handles `alice_dev` and `bob_dev`, so `alice`

@@ -1156,22 +1156,8 @@ fn multiple_sweeps_reset_the_cursor_and_commit_independent_ceilings() {
         && c.by.as_deref() == Some("tester")));
 }
 
-#[test]
-fn mutation_return_advances_only_the_visited_prefix_of_a_chunk() {
-    let mut p = job(100);
-    if let Stmt::For { body, .. } = &mut p.body[0] {
-        body.push(Stmt::Return(Expr::Literal(Value::Bool(true))));
-    }
-    let mut rt = Runtime::open(Store::memory().unwrap(), generation(schema(), p)).unwrap();
-    seed(&mut rt, &["01", "02"]);
-    let id = start(&mut rt);
-    let first = rt.run_chunk(&id).unwrap().job;
-    assert_eq!(first.state, "running");
-    assert_eq!(first.cursor, Some(vec![Value::Id("01".into())]));
-    assert_eq!(values(&mut rt)["02"], 0);
-    assert_eq!(rt.run_chunk(&id).unwrap().job.state, "done");
-    assert!(values(&mut rt).values().all(|n| *n == 1));
-}
+#[path = "jobs_cases/control_flow.rs"]
+mod control_flow;
 
 #[test]
 fn adhoc_admission_precedes_clock_sampling_and_execution_input_errors() {

@@ -284,3 +284,18 @@ per effect.
 2. The retry policy numbers (5 attempts, 1 s·2ⁿ) and the 30 s budget.
 3. Whether the published binary must always carry the engine, or a
    `snapback2-<platform>-lite` package is worth the second artifact.
+
+### Runtime hardening (2026-09-12)
+
+The host channel uses 256 bits from the operating-system CSPRNG. Runtime
+construction arms the job deadline before trusted setup, and reports an expired
+setup budget as the same retryable timeout as authored execution. Failed host
+channel calls and unwound host calls discard cached runtimes. Retryable provider
+errors survive clock failures: retry scheduling falls back to the claim instant,
+with the clock failure logged separately. Stop checks also guard replayed `then`
+work, including initialization.
+
+The drive loop backs off from 1 to 40 ms only while no task is delivered,
+resets after delivered work, and caps the wait by the next timer and the job's
+deadline. The pinned Ibex API has no public wait-only completion primitive;
+the bounded backoff avoids coupling host timer permits to Ibex's multi-pump API.

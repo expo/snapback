@@ -276,6 +276,7 @@ job fillAvatars():
   and "advanced the cursor" cannot exist: a chunk is wholly done or not
   started. Exactly-once per chunk on one owner is a fact of the commit, not
   a retry policy.
+- **Control flow.** `break` commits its processed prefix and advances to the next sweep; `return` commits that prefix and ends the job; `continue` skips the remainder of one row body. Prefetch does not make unvisited rows count as processed.
 - **Clocks.** `now` is the commit clock, pinned per chunk. A job that needs
   one instant across a sweep takes it as an argument.
 - **Failure.** A chunk that is `Rejected` — a constraint, a ceiling, an
@@ -414,7 +415,7 @@ schedule dailyDigest every 24h: digestSweep(.periodEnd)
   different `at` reschedules, an update to `null` or a delete cancels, all
   inside the row's own transaction, all certified as `engineWrites:
   [_timers]` on every program that writes the table. Installing a new `on
-  table` schedule populates `_timers` from existing rows in the successor's
+  table` schedule populates `_timers` from existing rows in 128-row pages in the successor's
   transaction, exactly as a new index is populated (LLP 1001 §4); removing
   the declaration drops its timers; changing its target rebinds them under
   the new generation. An `every` schedule owns one system row in `_timers`
@@ -442,6 +443,8 @@ schedule dailyDigest every 24h: digestSweep(.periodEnd)
   with the refusal in the ledger row and does not re-fire; `trace
   timer:<id>` and `logs` show it, `dev --status` counts `timers: { due,
   rejected }`, and the operator re-runs the target by hand if it matters.
+  Changing the deadline value re-arms a row; writing the same value or
+  unrelated columns does not resurrect the settled occurrence.
   For disappearing messages it rarely does: the server already refuses
   expired content at read (the brief's own requirement, `social-messenger.md:565`),
   so the purge is hygiene and the tombstone rows for devices, not the

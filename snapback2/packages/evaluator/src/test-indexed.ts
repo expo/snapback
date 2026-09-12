@@ -3,12 +3,13 @@ import { prepareWireRow } from '../../snapback2/src/offline-protocol';
 import { assetIdsIn } from '../../snapback2/src/store/byte-cache';
 // @ref LLP 1012#indexed-held-search — regressions exercise seeks, local authority and durable incremental replay.
 import assert from 'node:assert/strict';
-import { ClientStore, immutable } from './store';
+import { immutable } from './store';
+import { fixtureCertificate, FixtureStore as ClientStore } from './test-certificate';
 import { HeldIndex, preparePrefix } from './index-store';
 import { canonicalSchemaJson, canonicalProgramJson } from './certificate-identity';
 import { sha256 } from './hash';
 import { scopedRuleHash, wireJson } from './value-runtime';
-import { Twin } from '../../snapback2/src/twin';
+import { FixtureTwin as Twin } from './test-certificate';
 import { emptyState, PersistentRangeStore } from '../../snapback2/src/store/range-store';
 import { StoreChanges, SwapJournal } from '../../snapback2/src/store/swap-journal';
 import { cursorArgument, decodeLocalCursor, encodeLocalCursor, localBinding, StaleLocalPage, serverArguments } from '../../snapback2/src/local-cursor';
@@ -66,11 +67,11 @@ assert.throws(() => prefix('same same'), /one word/);
 assert.throws(() => prefix('\ud800'), { code: 'E_INPUT' });
 assert.throws(() => store.put('messages', typed('x'.repeat(136), 'too long id')), /144/);
 assert.equal(prefix('e\u0301'.repeat(1000)).length, 2, 'Q independent of the optional source maximum');
-
 const scan: any = { site: 'search', table: 'messages', index: 'search', prefix: [{ Scalar: { Variable: 'room' } }, { WordPrefix: { source: { Variable: 'term' }, contract: SEARCH_CONTRACT, source_max: 2000 } }], order: 'Asc', take: { Literal: 2 }, after: { Variable: 'c' }, before: null, range: null, opaque_cursor: true, merge_site: null, provenance: 'Arg' };
 const ir: any = { name: 'search', kind: 'Query', args: { room: { Text: { max: 20 } }, term: { Text: { max: 2000 } }, c: { Optional: 'Cursor' } }, read_time_granularity_ms: null, body: [{ Return: { Scan: scan } }] };
 const schemaHash = sha256(canonicalSchemaJson(schema)), planHash = sha256(canonicalProgramJson(ir));
 const operation: any = { kind: 'query', cursor: 'c', planHash, ir, certificate: { plan_hash: planHash, schema_hash: schemaHash, completeness: 'Complete', max_steps: 1_000_000, read_sites: [{ site: 'search', hoist: true, decided_true: true }], result_pages: { '0': { site: 'search', table: 'messages', index: 'search', order: 'Asc', suffix: [{ name: 'at', kind: 'Int' }, { name: 'id', kind: 'Id' }] } } } };
+operation.certificate = fixtureCertificate(schema, ir, operation.certificate);
 const program: any = { generation: 'g', schemaHash, schema, programs: { search: operation } };
 // Public derived extents order by ordinary suffix values; the query descriptor remains an equality meaning.
 const extentRows = ['e0', 'e1', 'e2'].map((id, at) => ({ table: 'messages', id, row: wireJson(typed(id, 'café', at)) }));
@@ -110,13 +111,13 @@ const before = state.rows['messages\0m1'];
 const rollback = new SwapJournal(state); rollback.draft.rows['messages\0m1'].row.body = 'changed'; rollback.rollback();
 assert.equal(state.rows['messages\0m1'], before); assert.equal(before.row.body, 'café');
 console.log('indexed seek, incremental twin, Unicode and h1 regressions passed');
-
 // Synthetic issued metadata names c, even when another Cursor formal sorts first.
 {
   const pageIr = { ...ir, args: { a: { Optional: 'Cursor' }, ...ir.args }, body: [{ Return: { Object: {
     count: { Literal: { Int: 4 } }, messages: { Scan: scan },
   } } }] };
   const pageOp = { ...operation, ir: pageIr, planHash: sha256(canonicalProgramJson(pageIr)) };
+  pageOp.certificate = fixtureCertificate(schema, pageIr, { ...pageOp.certificate, plan_hash: pageOp.planHash });
   const held = { ...program, programs: { search: pageOp } }, rows = emptyState(), revisions = new StoreChanges<typeof rows>(); revisions.reset();
   rows.facts = state.facts;
   for (let i = 0; i < 4; i++) { rows.rows[`messages\0m${i}`] = { table: 'messages', id: `m${i}`, row: wireJson(typed(`m${i}`, 'café', i)) as any }; rows.rowSeq[`messages\0m${i}`] = 1; }
@@ -136,7 +137,6 @@ console.log('indexed seek, incremental twin, Unicode and h1 regressions passed')
   assert.equal(cursorArgument(pageOp), undefined, 'missing native metadata never guesses the first formal');
   assert.equal((await local.evaluate('search', initial))?.next, null, 'an unrouteable local token is never minted');
 }
-
 // A complete ordinary source scope covers every term, but a term receipt never covers the whole scope.
 const ordinaryReceipt: any = { schema_hash: schemaHash, rows: [], ranges: [{ site: 'ordinary', table: 'messages', index: 'ordinary', prefix: [{ Scalar: { String: 'r' } }], order: 'Asc', take: 1000, after: null, before: null, gt: null, gte: null, lt: null, lte: null, rule_hash: scopedRuleHash(schema, rules.read), row_ids: [], stop: 'Exhausted', absence: false, halo: null, n2_suffix: null }], absences: [], verdicts: [] };
 const covered = new ClientStore(schema, ordinaryReceipt);

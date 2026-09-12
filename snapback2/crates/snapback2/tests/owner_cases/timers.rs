@@ -612,7 +612,7 @@ fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
         json!({"email":"reset@example.com", "password":"test-password-reset"}),
     );
     assert_eq!(signup.status, 200, "{}", signup.body);
-    let token = format!("Bearer {}", signup.body["token"].as_str().unwrap());
+    let mut token = format!("Bearer {}", signup.body["token"].as_str().unwrap());
     let reset = cli(&root, &compiler, &["reset"]);
     assert_eq!(reset.0, 0, "{reset:?}");
     assert_eq!(reset.1[0]["seed"], json!({"rows":18,"personas":3}));
@@ -631,13 +631,13 @@ fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
         "before empty reset",
         owner_now(port, &secret) + 3 * DAY,
     );
-    control(
-        port,
-        &secret,
-        "POST",
-        "/control/clock",
-        json!({"advanceMs": DAY + 1_000}),
-    );
+    // Keep the same auth epoch alive while crossing the daily schedule: the
+    // bearer now expires after 24 hours, independent of application resets.
+    control(port, &secret, "POST", "/control/clock", json!({"advanceMs": DAY / 2}));
+    let renewed = request(port, "POST", "/api/auth/refresh", &[("Authorization", &token)], json!({}));
+    assert_eq!(renewed.status, 200, "{}", renewed.body);
+    token = format!("Bearer {}", renewed.body["token"].as_str().unwrap());
+    control(port, &secret, "POST", "/control/clock", json!({"advanceMs": DAY / 2 + 1_000}));
     // The digest schedule emitted two rows; the Hermes build may already have
     // claimed or retried them, so count every outbox state rather than `queued`.
     wait_for(Duration::from_secs(5), || {

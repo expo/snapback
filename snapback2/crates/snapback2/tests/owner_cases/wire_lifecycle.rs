@@ -498,8 +498,7 @@ query before(boundary: time):
     fs::write(&messages, source).unwrap();
     let deliveries = root.join("snapback/deliveries.q");
     let delivery_source = fs::read_to_string(&deliveries).unwrap();
-    let without_count =
-        delivery_source.replace("count: messageCounts[conversationId]", "count: 0");
+    let without_count = delivery_source.replace("count: messageCounts[conversationId]", "count: 0");
     assert_ne!(
         delivery_source, without_count,
         "the chat composite query no longer reads the maintained count"
@@ -599,4 +598,85 @@ query before(boundary: time):
     if let Err(error) = fs::remove_dir_all(root) {
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     }
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn saved_migration_starts_a_stopped_owner_and_refuses_mismatched_sources() {
+    let root = temp_root();
+    fs::create_dir_all(root.join("snapback")).unwrap();
+    let schema = root.join("snapback/schema.q");
+    fs::write(root.join("snapback/queries.q"), "query ping():\n  return null\n").unwrap();
+    let next = "table kept:\n  value: int\n  public\n";
+    fs::write(
+        &schema,
+        format!("{next}\ntable removed:\n  value: int\n  public\n"),
+    )
+    .unwrap();
+    let compiler = compiler(&root);
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    owner.ready_line();
+    let info: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let port = info["port"].as_u64().unwrap() as u16;
+    let secret = info["secret"].as_str().unwrap();
+    fs::write(&schema, next).unwrap();
+    let refused = wait_for(Duration::from_secs(6), || {
+        let status = status(port, secret);
+        status["status"]["refused"][0]["migrationFile"]
+            .as_str()
+            .map(str::to_owned)
+    });
+    let stopped = request(
+        port,
+        "POST",
+        "/control/stop",
+        &[("X-Snapback-Control", secret)],
+        json!({}),
+    );
+    assert_eq!(stopped.status, 200);
+    owner.wait();
+    let invoke = || {
+        Command::new(binary)
+            .args(["dev", "--project"])
+            .arg(&root)
+            .arg("--apply-migration")
+            .arg(&refused)
+            .arg("--json")
+            .env("SNAPBACK2_COMPILER", &compiler)
+            .output()
+            .unwrap()
+    };
+    fs::write(&schema, next.replace("value: int", "value: int ?")).unwrap();
+    let mismatch = invoke();
+    assert!(!mismatch.status.success());
+    assert!(String::from_utf8_lossy(&mismatch.stdout).contains("saved project differs"));
+    assert!(!root.join(".snapback/owner.json").exists());
+    fs::write(&schema, next).unwrap();
+    let started = invoke();
+    assert!(
+        started.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&started.stdout),
+        String::from_utf8_lossy(&started.stderr)
+    );
+    let info: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let mut guard = DetachedOwnerGuard {
+        pid: info["pid"].as_u64().unwrap() as u32,
+    };
+    let stopped = request(
+        info["port"].as_u64().unwrap() as u16,
+        "POST",
+        "/control/stop",
+        &[("X-Snapback-Control", info["secret"].as_str().unwrap())],
+        json!({}),
+    );
+    assert_eq!(stopped.status, 200);
+    wait_for(Duration::from_secs(3), || {
+        (!process_alive(guard.pid)).then_some(())
+    });
+    guard.pid = 0;
+    fs::remove_dir_all(root).unwrap();
 }

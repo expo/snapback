@@ -13,6 +13,7 @@ try {
 }
 const env = {
   ...process.env,
+  SNAPBACK2_NODE: process.execPath,
   SNAPBACK2_COMPILER: fileURLToPath(new URL("../dist/compiler.mjs", import.meta.url)),
   SNAPBACK2_GUIDE: fileURLToPath(new URL("../dist/guide", import.meta.url)),
   SNAPBACK2_TEMPLATES: fileURLToPath(new URL("../dist/templates", import.meta.url)),

@@ -1164,6 +1164,15 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
     );
     let refusal = runtime.apply_successor(next.clone()).unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
+    let cold_path = temp_store_path("cold-migration-rollback");
+    runtime.store().snapshot_to(&cold_path).unwrap();
+    assert!(Runtime::open_with_migration(Store::open(&cold_path).unwrap(), next.clone(), &original_hash, &refusal.plan).is_err());
+    {
+        let unchanged = rusqlite::Connection::open(&cold_path).unwrap();
+        assert_eq!(unchanged.query_row("SELECT count(*) FROM rows WHERE table_name='archive'", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+        assert_eq!(unchanged.query_row("SELECT value FROM _meta WHERE key='generation'", [], |r| r.get::<_, String>(0)).unwrap(), original_hash);
+    }
+    cleanup_store(&cold_path);
     let error = runtime.apply_migration(next, &refusal.plan, 0).unwrap_err();
     assert!(matches!(error, RuntimeError::Constraint(message) if message.contains("overflow")));
     assert_eq!(runtime.generation().hash(), original_hash);
@@ -1349,3 +1358,78 @@ fn cleanup_store(path: &Path) {
 
 #[path = "successor/cap_targets.rs"]
 mod cap_targets;
+
+#[test]
+fn cold_migration_binds_the_old_generation_and_plan_and_rolls_back_mismatches() {
+    let original = generation(
+        schema(
+            BTreeMap::from([(
+                "items".into(),
+                table(
+                    &[
+                        ("id", ColumnType::Id),
+                        ("name", ColumnType::Text { max: 64 }),
+                    ],
+                    &[("byId", &["id"])],
+                ),
+            )]),
+            vec![],
+        ),
+        vec![],
+    );
+    let next = generation(schema(BTreeMap::new(), vec![]), vec![]);
+    let path = temp_store_path("cold-migration");
+    let mut live = Runtime::open(Store::open(&path).unwrap(), original.clone()).unwrap();
+    live.seed(&[(
+        "items".into(),
+        object([
+            ("id", Value::Id("i1".into())),
+            ("name", Value::String("kept".into())),
+        ]),
+    )])
+    .unwrap();
+    let plan = live.apply_successor(next.clone()).unwrap_err().plan;
+    drop(live);
+    for (from, supplied) in [
+        ("wrong-store".to_owned(), plan.clone()),
+        (original.hash(), MigrationPlan::default()),
+    ] {
+        assert!(
+            Runtime::open_with_migration(
+                Store::open(&path).unwrap(),
+                next.clone(),
+                &from,
+                &supplied
+            )
+            .is_err()
+        );
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM rows WHERE table_name='items'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            conn.query_row("SELECT value FROM _meta WHERE key='generation'", [], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap(),
+            original.hash()
+        );
+    }
+    let live = Runtime::open_with_migration(
+        Store::open(&path).unwrap(),
+        next.clone(),
+        &original.hash(),
+        &plan,
+    )
+    .unwrap();
+    assert_eq!(live.generation().hash(), next.hash());
+    assert!(live.generation().schema().tables.is_empty());
+    drop(live);
+    cleanup_store(&path);
+}

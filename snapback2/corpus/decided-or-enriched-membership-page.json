@@ -684,7 +684,7 @@
       {
         "meter": "output bytes",
         "value": 22500,
-        "source": "conversations.title",
+        "source": "100 × conversations.title (225 bytes each)",
         "site": "members.page"
       },
       {
@@ -696,7 +696,7 @@
       {
         "meter": "output bytes",
         "value": 15000,
-        "source": "memberships.id",
+        "source": "100 × memberships.id (150 bytes each)",
         "site": "members.page"
       },
       {
@@ -714,13 +714,13 @@
       {
         "meter": "closure bytes",
         "value": 22500,
-        "source": "conversations.title",
+        "source": "100 × conversations.title (225 bytes each; 9 field-name/framing + text max 50 scalars: encoded value bound 216)",
         "site": "conversation.point"
       },
       {
         "meter": "closure bytes",
         "value": 15000,
-        "source": "memberships.id",
+        "source": "100 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
         "site": "members.page"
       }
     ]

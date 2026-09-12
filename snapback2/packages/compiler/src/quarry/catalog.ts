@@ -244,7 +244,8 @@ export function selectIndex(
     if (derived >= 0 && (mode !== "range" || keys.length <= derived)) return false;
     if (table === "connected" && keys.length !== 1) return false;
     if (mode === "point" && (!index.unique || index.components.length !== keys.length)) return false;
-    if ((mode === "range" || mode === "exists") && index.components.length < keys.length) return false;
+    if (mode === "exists" && index.components.length !== keys.length) return false;
+    if (mode === "range" && index.components.length < keys.length) return false;
     if (named) return keys.every((key, offset) => columnAt(index.components, offset) === key.column);
     return keys.every((key, offset) => componentKeyCompatible(key.value, infer(key.value), info.declaration, index.components[offset]!));
   });
@@ -265,7 +266,7 @@ export function selectIndex(
       return column && (!key.column || key.column === column) && key.value.kind === "literal" && key.value.value === null
         && !columnType(info.declaration, column).optional ? [`${table}.${index.name}.${column} is required; null needs an optional key column`] : [];
     }));
-    refuse(site, `no ${mode === "point" ? "unique index" : "ordering"} on ${table} matches [${spelling}]; name the columns/index or add one`,
+    refuse(site, `no ${mode === "point" ? "unique index" : mode === "exists" ? "complete index" : "ordering"} on ${table} matches [${spelling}]; name the columns/index or add one`,
       [...requiredNull, indexGuidance(info.declaration, eligible)].join("; "));
   }
   if (candidates.length > 1) ambiguous(
@@ -293,7 +294,8 @@ function validateIndexKeys(
   if (derived >= 0 && mode !== "range") typeError(site, "wordPrefixes indexes are scan-only; point, exists, rule, and write addressing require ordinary indexes", "use an ordinary index for this address or first/last for search");
   if (derived >= 0 && keys.length <= derived) typeError(site, "search must equality-bind through the wordPrefixes component", "supply ordinary scope keys followed by a bounded text term");
   if (mode === "point" && (!index.unique || index.components.length !== keys.length)) refuse(site, `${table.name}.${index.name} is not a complete unique key`);
-  if ((mode === "range" || mode === "exists") && index.components.length < keys.length) refuse(site, `${table.name}.${index.name} has no ${keys.length}-column prefix`);
+  if (mode === "exists" && index.components.length !== keys.length) refuse(site, `${table.name}.${index.name} requires a complete key for exists`);
+  if (mode === "range" && index.components.length < keys.length) refuse(site, `${table.name}.${index.name} has no ${keys.length}-column prefix`);
   for (const [offset, key] of keys.entries()) {
     const component = index.components[offset]!;
     if ("WordPrefixes" in component) {

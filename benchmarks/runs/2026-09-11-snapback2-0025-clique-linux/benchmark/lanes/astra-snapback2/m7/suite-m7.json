@@ -1,0 +1,42 @@
+{
+  "pass": true,
+  "records": [
+    {
+      "ids": [
+        "m7-a06"
+      ],
+      "name": "backfilled starter counts and current visible corpus match, migration snapshot hashes intact",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a01"
+      ],
+      "name": "group poll UI creation plus server shape, group and membership validation",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a03",
+        "m7-a04"
+      ],
+      "name": "one vote per user, changeable set-state, duplicate and stale retry cannot revert",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a07"
+      ],
+      "name": "settings count maintains text, polls and repeated tombstones",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a09"
+      ],
+      "name": "all previously green milestone suites remain green",
+      "pass": true
+    }
+  ],
+  "at": 1789177178628
+}

@@ -664,13 +664,13 @@
       {
         "meter": "output bytes",
         "value": 7500,
-        "source": "items.id",
+        "source": "50 × items.id (150 bytes each)",
         "site": "items.page"
       },
       {
         "meter": "output bytes",
         "value": 5200,
-        "source": "profiles.name",
+        "source": "50 × profiles.name (104 bytes each)",
         "site": "items.page"
       },
       {
@@ -694,13 +694,13 @@
       {
         "meter": "closure bytes",
         "value": 7500,
-        "source": "items.id",
+        "source": "50 × items.id (150 bytes each; 6 field-name/framing + items declared identity 144)",
         "site": "items.page"
       },
       {
         "meter": "closure bytes",
         "value": 5200,
-        "source": "profiles.name",
+        "source": "50 × profiles.name (104 bytes each; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
         "site": "profiles.owner"
       }
     ]

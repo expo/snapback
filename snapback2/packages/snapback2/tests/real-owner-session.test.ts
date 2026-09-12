@@ -29,12 +29,17 @@ test("the package suite is pointed at a checked real owner", async (context) => 
   const preflight = await fetch(`${owner.url}/api/query`, {
     method: "OPTIONS",
     headers: {
-      Origin: "http://client.example",
+      Origin: "http://localhost:5173",
       "Access-Control-Request-Method": "POST",
     },
   });
   assert.equal(preflight.status, 204);
-  assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), "*");
+  assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), "http://localhost:5173");
+  const hostile = await fetch(`${owner.url}/api/query`, { method: "OPTIONS", headers: {
+    Origin: "http://client.example", "Access-Control-Request-Method": "POST",
+  } });
+  assert.equal(hostile.status, 403);
+  assert.equal(hostile.headers.get("Access-Control-Allow-Origin"), null);
   const allowedMethods = new Set(
     (preflight.headers.get("Access-Control-Allow-Methods") ?? "")
       .split(",")

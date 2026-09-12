@@ -287,19 +287,19 @@
       {
         "meter": "output bytes",
         "value": 76,
-        "source": "posts.at",
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": "opaque-cursor-wrong-index-refused"
       },
       {
         "meter": "output bytes",
         "value": 308,
-        "source": "posts.author",
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": "opaque-cursor-wrong-index-refused"
       },
       {
         "meter": "output bytes",
         "value": 300,
-        "source": "posts.id",
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": "opaque-cursor-wrong-index-refused"
       },
       {
@@ -317,19 +317,19 @@
       {
         "meter": "closure bytes",
         "value": 76,
-        "source": "posts.at",
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": "opaque-cursor-wrong-index-refused"
       },
       {
         "meter": "closure bytes",
         "value": 308,
-        "source": "posts.author",
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": "opaque-cursor-wrong-index-refused"
       },
       {
         "meter": "closure bytes",
         "value": 300,
-        "source": "posts.id",
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": "opaque-cursor-wrong-index-refused"
       },
       {

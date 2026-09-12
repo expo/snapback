@@ -12,7 +12,7 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-10 (t — transactional discard of validated unused staged arguments at commit, LLP 1021 §6; implementer GPT-6 Astra, traps lane); 2026-09-06 (s — pending object slots exclude successful releases; original-byte admission unchanged; Astra, asset-pending lane); (r — upload recovery and definitive-refusal cleanup);
+**Revised:** 2026-09-12 (u — bounded chunked uploads, failure custody, linear metadata lookup and blob accounting; implementer GPT-6 Astra); 2026-09-10 (t — transactional discard of validated unused staged arguments at commit, LLP 1021 §6; implementer GPT-6 Astra, traps lane); 2026-09-06 (s — pending object slots exclude successful releases; original-byte admission unchanged; Astra, asset-pending lane); (r — upload recovery and definitive-refusal cleanup);
 2026-09-05 (q — image once, server one-use delivery, lane L11);
 2026-09-04 (p/o — two-phase typed upload and descriptor fence; n — device
 byte cache; m/l — finalized-byte reservation, reclamation, helper safety);
@@ -346,9 +346,11 @@ every public image per-viewer and minutes-lived, which defeated the
 that lands on a `public` row is answered with a redirect to the canonical,
 tokenless URL, so shared caches key on one address.
 
-**Lifetime and rotation.** The carrier lives long enough to cover a paused clip
-— tens of minutes at least, and never past the session — and the SDK
-refreshes it before expiry for *new* URLs only. It never rewrites a mounted
+**Lifetime and rotation.** Carriers expire after ten minutes, never past the
+session. The owner keeps at most 1,024 entries and 32 per principal, reuses an exact-authority carrier
+with over a minute left, and purges expired entries on mint and session sweep.
+Capacity refuses rather than evicting a mounted player's valid URL. The SDK
+refreshes before expiry for *new* URLs only. It never rewrites a mounted
 player's `src`, because that restarts playback; a mounted element keeps the
 token it was given until unmount.
 
@@ -358,7 +360,10 @@ there, and test it); a response to a request that carried one is
 `Cache-Control: no-store` and never `public`; every asset response carries
 `Referrer-Policy: no-referrer`. The token's mechanism (opaque and stored, or
 keyed and stateless) is the implementer's; the contract is the properties
-above.
+above. URL credentials can still leak through history, copied links, or external
+proxy logs; operators must redact query strings there too. The ten-minute bound
+limits exposure, not transferability; it grants only current row-authorized asset
+reads, never mutation/session APIs. Header fetch remains preferred where supported.
 
 ## 3. Authoring surface
 
@@ -578,7 +583,7 @@ release does not check capacity, and cleanup/derived bytes have separate limitat
 ```
 POST /api/upload
 Authorization: Bearer …            (or X-Snapback-As: <persona> in development)
-Content-Length: …
+Content-Length: …                  (or Transfer-Encoding: chunked)
 <body = bytes>
 → 200 ImageAsset | VideoAsset          (by the accept list the bytes match — §4)
   | 422 { "code": "E_ASSET_TYPE" | "E_ASSET_TOO_LARGE", "family": "input", … }
@@ -588,8 +593,11 @@ Content-Length: …
 HEIC is an image; MP4 or MOV is a video; anything else is `E_ASSET_TYPE`.
 Revisions (f)–(i) carried an `as=` parameter because a JPEG could legitimately
 be a `file`; with `file` deferred (§13a) the parameter goes with it and comes
-back with it. `Content-Length` is required; a body over the generation's
-largest bound for that kind is refused before it is read. The route branches
+back with it. A declared `Content-Length` over the generation's largest bound
+is refused before reading. Chunked bodies authenticate first and reserve bounded
+staging scratch, then detect the kind and stream at most its bound plus one byte;
+over-bound bodies refuse, and accepted bodies enter the ledger with their exact
+received size. The route branches
 **before** the server's JSON body reader — which today takes 1 MiB of UTF-8 —
 and runs in its own bounded worker class, so four parallel photo uploads
 waiting through finalize never sit in the pool that serves queries (§14).
@@ -793,7 +801,11 @@ zeroing its payload, so no `stco`/`co64` chunk offset moves; bounds metadata
 payload and box depth against bombs; handles the QuickTime
 `meta`-is-not-a-fullbox case LLP 1005 §6 records; and reads `width`, `height`,
 and `duration` from `tkhd` and `mvhd` on the way past. It is pure Rust and
-needs no cargo feature. What it cannot prove location-free it refuses. Three
+needs no cargo feature. The walk descends through media information, data/edit,
+sample-table and fragment containers as well as movie/track metadata. Unknown
+`meta` children and duplicate `keys`/`ilst` tables refuse; indexed location keys
+use a hash set, keeping lookup linear in keys plus entries. What it cannot prove
+location-free it refuses. Three
 things the port changes, all found by the second panel: the v1 function takes
 a slice and returns a `Vec` — LLP 1005 §9's `read → Vec → put`, verbatim — so
 the port **blanks in place on the staging file** instead; the v1 facts are
@@ -831,8 +843,9 @@ refuses claimed ids, and treats missing/foreign ids identically. Receiving cance
 retains its slot/charge until physical closure; staging unlink failures retain custody.
 Ready tombstones and failed rows retain their original-byte admission charge until
 blob deletion and ledger settlement; tombstones still free pending object slots.
-Staging cancellation failures are retried per id, and one blob-delete failure does
-not prevent later siblings from deleting and settling. Reclaim candidates, physical
+Every exited failed upload records `failed`, even when staging unlink fails;
+its registered cleanup custody and byte charge remain until physical disposal.
+Staging cancellation failures retry per id, without blocking sibling settlement. Reclaim candidates, physical
 blob entries, and fork ledgers advance through fixed-size continuation pages; no
 reclamation turn materializes the complete ledger, blob directory, or fork asset
 set. Scratch bytes and objects are reserved before upload rewrites and helper work,
@@ -847,7 +860,11 @@ publication operations — put a stream and get back a key, get a key with an
 optional byte range as a stream, delete a key — plus the sweep's deliberate
 fourth operation, callback `enumerate_page(prefix, continuation, limit, visitor)`.
 The filesystem cursor owns its `ReadDir` between calls and inspects at most 64
-entries per writer turn. The ledger selects at most 32 ordered reclaim candidates;
+entries per writer turn. A page takes its cursor out of the shared registry, so
+inspection, unlink, and callbacks run without the registry lock. Publication uses
+an aggregate scratch counter and keyed entries; active writers cannot be swept.
+Staging reservations inspect physical usage before locking reservation accounting;
+worst-case outstanding reservations cover concurrent materialization. The ledger selects at most 32 ordered reclaim candidates;
 the fork scan holds its directory iterator and inspects at most eight fork entries,
 using point queries only for that bounded candidate set. Continuations are
 process-local and a restart safely begins a new complete pass over durable tombstones.

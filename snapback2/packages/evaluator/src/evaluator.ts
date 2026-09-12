@@ -1,7 +1,6 @@
-import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
 import { sha256 } from "./hash";
-import { CURRENT_VALUE_MODEL_VERSION } from "./runner";
+import { validateCertificate } from "./runner";
 import { ClientStore } from "./store";
 import { canonicalValue, clone, rangeStops } from "./value-runtime";
 import type { ActualResult, CorpusCase, CorpusExpected, HydrationResult, RowRecord } from "./types";
@@ -54,6 +53,7 @@ function schemaCertificationError(schema: any): string | null {
 }
 
 export function evaluateCase(testCase: CorpusCase): ActualResult {
+  if (testCase.corpusVersion !== 1) throw new EvalError("E_CORPUS", "unsupported corpus version");
   if (testCase.certificate === null) {
     if (testCase.serverOnly) throw new EvalError("E_CORPUS", "server-only certification case must be checked by Rust");
     const errorCode = schemaCertificationError(testCase.schema) ?? "E_CORPUS";
@@ -70,21 +70,10 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       next: null,
     };
   }
-  if (testCase.certificate?.value_model_version !== CURRENT_VALUE_MODEL_VERSION) {
-    throw new EvalError(
-      "E_TRACE_SUBSET",
-      `value model version ${String(testCase.certificate?.value_model_version)} != current ${CURRENT_VALUE_MODEL_VERSION}`,
-    );
-  }
-  if (testCase.certificate?.plan_hash !== sha256(canonicalProgramJson(testCase.program))) {
-    throw new EvalError("E_TRACE_SUBSET", "plan hash mismatch");
-  }
-  if (testCase.certificate?.schema_hash !== sha256(canonicalSchemaJson(testCase.schema))) {
-    throw new EvalError("E_TRACE_SUBSET", "schema hash mismatch");
-  }
+  validateCertificate(testCase.schema, testCase.program, testCase.certificate);
   const store = new ClientStore(testCase.schema, testCase.receipt, { program: testCase.program });
   for (const step of testCase.prelude) {
-    const prelude = store.applyMutation(step.program, step.context);
+    const prelude = store.applyMutation(step.program, step.context, false, step.certificate);
     if (prelude.state !== step.expectedState)
       throw new EvalError("E_CORPUS", `prelude state ${prelude.state} != ${step.expectedState}`);
   }

@@ -4,6 +4,7 @@ Read this, then `rules/RULES.md` and `rules/NOT-DOING.md` at the repo root, then
 `llp/1000-snapback2.explainer.md`; the specs are LLP 1001 (engine), 1002 (loop), 1003 (effects), 1012 (local-first v1; Review, binds after the loop bar).
 
 ```
+export SNAPBACK2_NODE="$(node -p 'process.execPath')"  # trusted Node for direct-binary compiler use
 cargo build                          # data plane + binary; no JS engine, no bootstrap
 rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(8, Math.min(32, require("node:os").availableParallelism()))))' 2>/dev/null || printf '8\n')}"
 NEXTEST_TEST_THREADS="$rust_test_threads" cargo nextest run \

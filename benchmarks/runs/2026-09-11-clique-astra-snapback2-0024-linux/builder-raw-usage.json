@@ -1,0 +1,15 @@
+{
+  "source": "logs/astra-snapback2.ndjson:turn.completed.usage",
+  "rootThreadId": "01a09266-ee00-7701-bd60-d118acbb9fc0",
+  "nativeRolloutSha256": "ba3b908af45c85b26fb4a7e70b697bc3754d0e724bb94a00e0f7199ed8d5e014",
+  "usage": {
+    "input_tokens": 100439987,
+    "cached_input_tokens": 98640512,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 350473,
+    "reasoning_output_tokens": 181257
+  },
+  "tokenAccounting": "raw-retained-not-joined",
+  "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller",
+  "note": "Exact CLI counter fields, not milestone charges, a priced cost estimate, or comparative token-efficiency evidence. Private reasoning content is not included."
+}

@@ -262,7 +262,7 @@ impl Refusal {
             IdentityError::ReservedSystem => {
                 "use --as system on run, data, or why against the local dev owner"
             }
-            IdentityError::PasswordWeak => "use a password containing at least 8 characters",
+            IdentityError::PasswordWeak => "use a password containing at least 8 characters and at most 256 UTF-8 bytes",
             IdentityError::GuestsOff => "sign up or enable guests in the project's snapback/schema",
             IdentityError::Session => "log in again and send Authorization: Bearer <token>",
             _ => "correct the authentication request and retry",

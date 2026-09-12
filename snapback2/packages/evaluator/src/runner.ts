@@ -1,7 +1,8 @@
+import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
 import { mergeRemainder, mergeStreams } from "./merge";
 import { DeliveryPrediction } from './delivery-prediction';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
-import { EvalError, requireRowIdentity } from "./errors";
+import { fail, EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
 import { sha256 } from "./hash";
 import { splitMentionTokens } from "./text";
@@ -75,9 +76,9 @@ export class Runner {
     this.trace.derived_steps = (this.trace.derived_steps ?? 0) + steps;
     this.trace.derived_scratch_bytes = Math.max(this.trace.derived_scratch_bytes ?? 0, scratchBytes);
     this.step(steps);
-    if (this.trace.derived_steps > (this.certificate?.derived_steps ?? Infinity)) throw new EvalError('E_STEPS', 'certified derived step budget exceeded');
+    if (this.trace.derived_steps > (this.certificate?.derived_steps ?? Infinity)) fail('E_STEPS', 'certified derived step budget exceeded');
     if (scratchBytes > Math.min(this.certificate?.derived_scratch_bytes ?? Infinity, this.certificate?.max_heap_bytes ?? 8388608, 8388608))
-      throw new EvalError('E_HEAP', 'derived scratch budget exceeded');
+      fail('E_HEAP', 'derived scratch budget exceeded');
   }
   private ruleHash(rule: unknown): string {
     let hash = this.ruleHashes.get(rule);
@@ -118,6 +119,7 @@ export class Runner {
   }
 
   execute(program: any): Execution {
+    validateCertificate(this.schema, program, this.certificate);
     this.acknowledgement = Object.values<any>(this.schema.tables).map(t => t.deliver).find(d =>
       d?.receipts && program.name === `_delivery.${d.log}.ack`)?.log;
     const flow = this.statements(program.body);
@@ -127,7 +129,7 @@ export class Runner {
       trace: this.trace,
       next: mintNext(this.context.viewer, this.certificate, this.trace, this.returnPath),
       writes: [...this.writes.values()],
-      page: this.returnPath === null ? undefined : this.certificate?.result_pages?.[this.returnPath],
+      page: this.returnPath === null ? undefined : this.certificate.result_pages?.[this.returnPath],
       ...(this.held ? { held: true } : {}),
     };
   }
@@ -144,7 +146,7 @@ export class Runner {
   private step(count = 1): void {
     this.trace.steps = (this.trace.steps ?? 0) + count;
     if (this.trace.steps > Math.min(this.certificate?.max_steps ?? 1000000, 1000000))
-      throw new EvalError("E_STEPS", "certified step budget exceeded");
+      fail("E_STEPS", "certified step budget exceeded");
   }
 
   private statements(statements: any[], prefix = ""): Flow {
@@ -163,13 +165,13 @@ export class Runner {
           break;
         case "Assign":
           if (this.consts.has(data.name))
-            throw new EvalError("E_INPUT", `cannot assign to const binding ${data.name}`);
+            fail("E_INPUT", `cannot assign to const binding ${data.name}`);
           this.env.set(data.name, this.expr(data.value));
           break;
         case "Push": {
           const target = this.env.get(data.target);
           if (target === undefined || !isVariant(target, "Array"))
-            throw new EvalError("E_TYPE", "push target is not an array");
+            fail("E_TYPE", "push target is not an array");
           target.Array.push(this.expr(data.value));
           break;
         }
@@ -192,7 +194,7 @@ export class Runner {
         case "Require": {
           const value = this.expr(data.condition);
           if (!asBool(value))
-            throw new EvalError("E_REQUIRE", "program requirement failed", data.code);
+            fail("E_REQUIRE", "program requirement failed", data.code);
           this.delivery?.require(value);
           break;
         }
@@ -200,7 +202,7 @@ export class Runner {
           if (!asBool(this.expr(data.condition))) {
             const { table, index } = data.current, key = data.current.key.map((value: any) => this.expr(value));
             if (this.store.lookup(table, index, key) === null && !this.store.hasAbsence(table, index, key)) this.partial.add("missing-authority");
-            throw new EvalError("E_REQUIRE", "the row no longer matches the update condition", "E_CONFLICT");
+            fail("E_REQUIRE", "the row no longer matches the update condition", "E_CONFLICT");
           }
           break;
         case "InsertIfAbsent": {
@@ -229,7 +231,7 @@ export class Runner {
         case "Emit":
           this.expr(data.payload);
           if (this.context.new_ids.shift() === undefined)
-            throw new EvalError("E_INPUT", "newId envelope exhausted");
+            fail("E_INPUT", "newId envelope exhausted");
           break;
         case "Return":
           flow = { kind: "return", value: this.expr(data) };
@@ -242,7 +244,7 @@ export class Runner {
           flow = { kind: "continue" };
           break;
         default:
-          throw new EvalError("E_OPAQUE", `unsupported statement ${kind}`);
+          fail("E_OPAQUE", `unsupported statement ${kind}`);
       }
       if (flow.kind !== "next") return flow;
     }
@@ -263,18 +265,18 @@ export class Runner {
       }
       case "ArgList": {
         const values = asArray(this.requiredEnv(data.name));
-        if (values.length > data.max) throw new EvalError("E_FANOUT", "argument list bound");
+        if (values.length > data.max) fail("E_FANOUT", "argument list bound");
         return values;
       }
       case "DerivedArray": {
         const values = asArray(this.expr(data.value));
-        if (values.length > data.max) throw new EvalError("E_FANOUT", "derived array bound");
+        if (values.length > data.max) fail("E_FANOUT", "derived array bound");
         return values;
       }
       case "Recurse":
         return this.recurse(data);
       default:
-        throw new EvalError("E_OPAQUE", `unsupported loop domain ${kind}`);
+        fail("E_OPAQUE", `unsupported loop domain ${kind}`);
     }
   }
 
@@ -300,7 +302,7 @@ export class Runner {
       if (next === "Null") continue;
       const successors = isVariant(next, "Array") ? next.Array : [next];
       if (successors.length > recurse.fanout)
-        throw new EvalError("E_FANOUT", "recursive fanout exceeded");
+        fail("E_FANOUT", "recursive fanout exceeded");
       for (const successor of successors) queue.push([successor, depth + 1]);
     }
     return rows;
@@ -333,13 +335,13 @@ export class Runner {
         const value = this.expr(data.value);
         if (data.op === "Not") return { Bool: !asBool(value) };
         if (data.op === "Neg") return int(-asInt(value));
-        throw new EvalError("E_OPAQUE", `unsupported unary ${data.op}`);
+        fail("E_OPAQUE", `unsupported unary ${data.op}`);
       }
       case "Builtin": {
         const builtinKind = variant(data.builtin)[0];
         const expected = builtinArity(builtinKind);
         if (data.args.length !== expected) {
-          throw new EvalError("E_INPUT", `${builtinKind} requires ${expected} arguments, received ${data.args.length}`);
+          fail("E_INPUT", `${builtinKind} requires ${expected} arguments, received ${data.args.length}`);
         }
         return this.builtin(data.builtin, data.args.map((value: any) => this.expr(value)));
       }
@@ -354,7 +356,7 @@ export class Runner {
       case "Merge":
         return this.merge(data);
       default:
-        throw new EvalError("E_OPAQUE", `unsupported expression ${kind}`);
+        fail("E_OPAQUE", `unsupported expression ${kind}`);
     }
   }
 
@@ -363,19 +365,19 @@ export class Runner {
       case "Viewer":
         return { Id: this.context.viewer };
       case "Now":
-        if (this.context.now === null) throw new EvalError("E_INPUT", "now was not pinned");
+        if (this.context.now === null) fail("E_INPUT", "now was not pinned");
         return int(this.context.now);
       case "NewId": {
         const next = this.context.new_ids.shift();
-        if (next === undefined) throw new EvalError("E_INPUT", "newId envelope exhausted");
+        if (next === undefined) fail("E_INPUT", "newId envelope exhausted");
         return { Id: next };
       }
       case "ReadTime":
         if (this.context.read_time === null)
-          throw new EvalError("E_INPUT", "readTime was not pinned");
+          fail("E_INPUT", "readTime was not pinned");
         return int(this.context.read_time);
       default:
-        throw new EvalError("E_INPUT", `unknown modeled input ${input}`);
+        fail("E_INPUT", `unknown modeled input ${input}`);
     }
   }
 
@@ -410,7 +412,7 @@ export class Runner {
       case "Or":
         return this.delivery?.copy({ Bool: asBool(left) || asBool(right) }, asBool(left) ? left : right) ?? { Bool: asBool(left) || asBool(right) };
       default:
-        throw new EvalError("E_OPAQUE", `unsupported binary ${data.op}`);
+        fail("E_OPAQUE", `unsupported binary ${data.op}`);
     }
   }
 
@@ -424,7 +426,7 @@ export class Runner {
         if (isVariant(value, "Array")) return int(value.Array.length);
         if (isVariant(value, "Row")) return int(Object.keys(value.Row).length);
         if (isVariant(value, "Map")) return int(Object.keys(value.Map).length);
-        throw new EvalError("E_TYPE", "len expects string, array, or map");
+        fail("E_TYPE", "len expects string, array, or map");
       }
       case "Slice": {
         const start = Math.max(0, asInt(args[1]));
@@ -432,7 +434,7 @@ export class Runner {
         if (isVariant(args[0], "Array")) return { Array: args[0].Array.slice(start, end) };
         if (isVariant(args[0], "String"))
           return { String: Array.from(args[0].String).slice(start, end).join("") };
-        throw new EvalError("E_TYPE", "slice expects array or string");
+        fail("E_TYPE", "slice expects array or string");
       }
       case "Concat": {
         const [left, right] = args;
@@ -442,7 +444,7 @@ export class Runner {
           return { Id: canonicalValues([left, right]) };
         if (isVariant(left, "Array") && isVariant(right, "Array"))
           return { Array: left.Array.concat(right.Array) };
-        throw new EvalError("E_TYPE", "concat operands differ");
+        fail("E_TYPE", "concat operands differ");
       }
       case "Min":
         return totalCompare(args[0], args[1]) <= 0 ? args[0] : args[1];
@@ -451,7 +453,7 @@ export class Runner {
       case "Divmod": {
         const numerator = asInt(args[0]);
         const denominator = asInt(args[1]);
-        if (denominator === 0) throw new EvalError("E_DIV_ZERO", "division by zero");
+        if (denominator === 0) fail("E_DIV_ZERO", "division by zero");
         let quotient = Math.trunc(numerator / denominator);
         let remainder = numerator - quotient * denominator;
         if (remainder < 0) {
@@ -510,14 +512,14 @@ export class Runner {
       case "DeterministicShare": {
         const amount = asInt(args[0]);
         const recipients = asArray(args[1]).slice().sort(totalCompare);
-        if (recipients.length === 0) throw new EvalError("E_DIV_ZERO", "no recipients");
+        if (recipients.length === 0) fail("E_DIV_ZERO", "no recipients");
         if (new Set(recipients.map(canonicalValue)).size !== recipients.length)
-          throw new EvalError("E_INPUT", "share recipients must be unique");
+          fail("E_INPUT", "share recipients must be unique");
         const recipient = args[2];
         const position = recipients.findIndex(
           (candidate) => canonicalValue(candidate) === canonicalValue(recipient),
         );
-        if (position < 0) throw new EvalError("E_INPUT", "recipient missing from shares");
+        if (position < 0) fail("E_INPUT", "recipient missing from shares");
         const base = Math.floor(amount / recipients.length);
         const remainder = amount - base * recipients.length;
         return int(base + (position < remainder ? 1 : 0));
@@ -531,7 +533,7 @@ export class Runner {
         return int(sum);
       }
       default:
-        throw new EvalError("E_OPAQUE", `unsupported builtin ${kind}`);
+        fail("E_OPAQUE", `unsupported builtin ${kind}`);
     }
   }
 
@@ -573,9 +575,9 @@ export class Runner {
     validateScanCursor(this.schema, scan, this.env);
     const maxima = scan.prefix.map((key: any) => key.WordPrefix?.source_max);
     const prefix = scan.prefix.map((key: any, at: number) => {
-      if (Object.keys(key).length !== 1) throw new EvalError("E_INPUT", "malformed index key");
+      if (Object.keys(key).length !== 1) fail("E_INPUT", "malformed index key");
       if ("Scalar" in key) return { Scalar: scope?.[at] ?? this.expr(key.Scalar) };
-      if (!key.WordPrefix) throw new EvalError("E_INPUT", "malformed index key");
+      if (!key.WordPrefix) fail("E_INPUT", "malformed index key");
       const p = key.WordPrefix;
       return { WordPrefix: { contract: p.contract, source: asString(this.expr(p.source)) } };
     });
@@ -585,7 +587,7 @@ export class Runner {
     const before = scan.before === null ? null : this.expr(scan.before);
     if (scan.opaque_cursor && after === "Null") after = null;
     else if (scan.opaque_cursor && after !== null) {
-      if (!isVariant(after, "String")) throw new EvalError("E_INPUT", "opaque cursor must be a string");
+      if (!isVariant(after, "String")) fail("E_INPUT", "opaque cursor must be a string");
       after = decodeCursorFor(after.String, {
         table: scan.table, index: scan.index, order: scan.order, suffix: cursorSuffix(this.schema, scan),
       }, this.schema);
@@ -597,7 +599,7 @@ export class Runner {
         ? boundData
         : asInt(this.context.args[boundData.name] ?? this.requiredEnv(boundData.name));
     if (!Number.isInteger(take) || take < 0 || (boundKind === "Arg" && take > boundData.max))
-      throw new EvalError("E_FANOUT", "scan take exceeded");
+      fail("E_FANOUT", "scan take exceeded");
     return { prefix, logical, after, before, evaluatedRange, take };
   }
 
@@ -616,7 +618,7 @@ export class Runner {
     );
     this.trace.examined = (this.trace.examined ?? 0) + examined.length;
     // The proof belongs to this scan; point reads still evaluate their row policy.
-    const readSite = this.certificate?.read_sites?.find((site: any) => site.site === scan.site);
+    const readSite = this.certificate.read_sites?.find((site: any) => site.site === scan.site);
     const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
       || ["Allow", "Public"].includes(variant(this.schema.tables[scan.table].rules.read)[0]);
     const uniform = readSite?.hoist === true || publicRule;
@@ -635,8 +637,8 @@ export class Runner {
   }
 
   private merge(merge: any): Value {
+    // execute validates certificate identity before any expression can reach a merge.
     const certificate = this.certificate;
-    if (!certificate) throw new EvalError("E_TRACE_SUBSET", `merge ${merge.site} requires a certificate; check the program before local execution`);
     for (const lane of merge.lanes) validateScanCursor(this.schema, lane.scan, this.env);
     const lanes: any[] = [];
     const prefixes = new Set<string>();
@@ -648,7 +650,7 @@ export class Runner {
       // Scope values are not manufactured here: normalize just the declared derived slot.
       this.search.atom(this.store.index(d.table, d.index).parts[d.scope.length], { WordPrefix: { source, contract: term.contract } }, term.source_max);
       const maximum = bound.Literal ?? asInt(this.context.args[bound.Arg.name]);
-      if (!Number.isSafeInteger(maximum) || maximum < 0 || (bound.Arg && maximum > bound.Arg.max)) throw new EvalError("E_FANOUT", "discovery bound exceeded");
+      if (!Number.isSafeInteger(maximum) || maximum < 0 || (bound.Arg && maximum > bound.Arg.max)) fail("E_FANOUT", "discovery bound exceeded");
       const selected = directory.select(directory.fixed.map((i: number) => this.expr(d.scope[i].value)), maximum);
       this.held = true;
       if (selected.missing) { this.partial.add('missing-authority'); return { Array: [] }; }
@@ -672,7 +674,7 @@ export class Runner {
         if (prefixes.has(key)) continue;
         prefixes.add(key);
         const read = certificate.read_sites.find((s: any) => s.site === lane.scan.site);
-        if (!read) throw new EvalError("E_TRACE_SUBSET", `undeclared merge lane ${lane.scan.site}`);
+        if (!read) fail("E_TRACE_SUBSET", `undeclared merge lane ${lane.scan.site}`);
         const table = this.schema.tables[lane.scan.table];
         const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
           || ["Allow", "Public"].includes(variant(table.rules.read)[0]);
@@ -717,7 +719,7 @@ export class Runner {
       this.recordRange(lane.scan, lane.input, suffix, lane.visible, lane.returned, remaining,
         lane.exhausted && remaining.length === 0 ? 'exhausted' : 'limit');
     }
-    const page: any = Object.values(this.certificate?.result_pages ?? {}).find((page: any) => page.merge && page.site === merge.site);
+    const page: any = Object.values(this.certificate.result_pages ?? {}).find((page: any) => page.merge && page.site === merge.site);
     this.trace.merges.push({ site: merge.site, deduplicated_union_len: result.union,
       last_returned_suffix: page?.merge && page.site === merge.site && result.rows.length
         ? suffix.map((c) => clone(field(result.rows.at(-1)!, c.name))) : null });
@@ -767,7 +769,7 @@ export class Runner {
     row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "insert", null, row))
-      throw new EvalError("E_RULE", `${table} insert`);
+      fail("E_RULE", `${table} insert`);
     if (ifAbsent) {
       const definition = this.schema.tables[table];
       const indexes = new Set<string>(Object.entries(definition.indexes).filter(([, value]: any) => value.unique).map(([name]) => name));
@@ -782,7 +784,7 @@ export class Runner {
     }
     this.checkConstraints(table, null, row, "insert");
     if (this.store.byId(table, asString(field(row, "id"))) !== null)
-      throw new EvalError("E_CONSTRAINT", `duplicate id on ${table}`);
+      fail("E_CONSTRAINT", `duplicate id on ${table}`);
     this.store.put(table, row);
     this.recordWrite(table, row);
     this.rememberCreatedRow(table, row);
@@ -817,14 +819,14 @@ export class Runner {
 
   private replace(table: string, key: Value, row: Value, fields?: string[]): void {
     const old = this.store.byId(table, asString(key));
-    if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
+    if (old === null) fail("E_INPUT", `missing ${table} row`);
     row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     this.validateAddressedRowId(table, key, row);
     // @ref LLP 1001#9-schema-additions — update authority is one relation
     // evaluated once over the old and next row images.
     if (!this.checkRule(table, "update", old, row))
-      throw new EvalError("E_RULE", `${table} update`);
+      fail("E_RULE", `${table} update`);
     this.checkConstraints(table, old, row, "update");
     this.store.put(table, row);
     this.recordWrite(table, row, fields);
@@ -841,7 +843,7 @@ export class Runner {
       return;
     }
     if (!this.checkRule(table, "delete", null, old))
-      throw new EvalError("E_RULE", `${table} delete`);
+      fail("E_RULE", `${table} delete`);
     this.checkConstraints(table, old, old, "delete");
     this.store.remove(table, id);
     this.writes.set(`${table}\0${id}`, { table, id, row: null });
@@ -859,7 +861,7 @@ export class Runner {
       this.authorityMissSerial += 1;
       return;
     }
-    throw new EvalError("E_REQUIRE", "program requirement failed", "NOT_FOUND");
+    fail("E_REQUIRE", "program requirement failed", "NOT_FOUND");
   }
 
   // @ref LLP 1019#7-the-twin — receipt-only replay maintains aggregates only.
@@ -914,7 +916,7 @@ export class Runner {
     const oldValue = existing === null ? 0 : asInt(field(existing, "value"));
     const exact = BigInt(oldValue) + delta;
     if (exact < BigInt(Number.MIN_SAFE_INTEGER) || exact > BigInt(Number.MAX_SAFE_INTEGER))
-      throw new EvalError("E_OVERFLOW", "integer overflow");
+      fail("E_OVERFLOW", "integer overflow");
     const value = Number(exact);
     const empty = value === 0;
     if (empty) {
@@ -1011,7 +1013,7 @@ export class Runner {
     for (const constraint of table.constraints ?? []) {
       const [kind, data] = variant(constraint);
       if (kind === "AppendOnly" && effect !== "insert")
-        throw new EvalError("E_CONSTRAINT", `${tableName} is appendOnly`);
+        fail("E_CONSTRAINT", `${tableName} is appendOnly`);
       if (
         kind === "Immutable" &&
         effect === "update" &&
@@ -1019,7 +1021,7 @@ export class Runner {
           (name: string) => canonicalValue(field(old!, name)) !== canonicalValue(field(row, name)),
         )
       )
-        throw new EvalError("E_CONSTRAINT", `${tableName} immutable fields changed`);
+        fail("E_CONSTRAINT", `${tableName} immutable fields changed`);
       if (kind === "Unique" && effect !== "delete")
         this.checkUnique(tableName, data.index, old, row);
       if (kind === "Cap") {
@@ -1044,7 +1046,7 @@ export class Runner {
             this.trace.examined = (this.trace.examined ?? 0) + 1;
             const count = countRow === null ? 0 : asInt(field(countRow, "value"));
             if (count >= data.max)
-              throw new EvalError("E_CONSTRAINT", `${tableName} cap ${data.max} reached for group (${data.by.join(", ")}) = ${canonicalValue({ Array: group.group })}`);
+              fail("E_CONSTRAINT", `${tableName} cap ${data.max} reached for group (${data.by.join(", ")}) = ${canonicalValue({ Array: group.group })}`);
             continue;
           }
           // @ref LLP 1017#24-metering — an unheld, unproven maintained row is not
@@ -1053,7 +1055,7 @@ export class Runner {
         const entry = Object.entries<any>(table.indexes).find(([, index]) =>
           index.components.every((c: any) => "Column" in c) && startsWith(ordinaryColumns(index), data.by),
         );
-        if (entry === undefined) throw new EvalError("E_SCHEMA", "cap index missing");
+        if (entry === undefined) fail("E_SCHEMA", "cap index missing");
         const prefix = data.by.map((name: string) => field(row, name));
         const existing = this.store.scan(
           tableName,
@@ -1066,7 +1068,7 @@ export class Runner {
           data.max,
         );
         if (existing.length >= data.max)
-          throw new EvalError("E_CONSTRAINT", `${tableName} cap ${data.max} reached for group (${data.by.join(", ")}) = ${canonicalValue({ Array: prefix })}`);
+          fail("E_CONSTRAINT", `${tableName} cap ${data.max} reached for group (${data.by.join(", ")}) = ${canonicalValue({ Array: prefix })}`);
         if (!this.store.hasCompleteRange(tableName, entry[0], prefix)) {
           this.partial.add(`${tableName}.${entry[0]}`);
         }
@@ -1076,7 +1078,7 @@ export class Runner {
         if (value !== undefined && value !== "Null") {
           const text = asString(value);
           if (Array.from(text).length < (data.min ?? 0))
-            throw new EvalError(
+            fail(
               "E_CONSTRAINT",
               `${tableName}.${data.field} must contain at least ${data.min ?? 0} characters`,
             );
@@ -1086,7 +1088,7 @@ export class Runner {
             (data.format === "handle" && /^[a-z0-9_]*$/.test(text)) ||
             (data.format === "url" && validHttpUrl(text));
           if (!valid)
-            throw new EvalError(
+            fail(
               "E_CONSTRAINT",
               `${tableName}.${data.field} has invalid ${String(data.format)} format`,
             );
@@ -1105,7 +1107,7 @@ export class Runner {
         if (kind !== "FinalExistsOnInsert") continue;
         const key = data.key.map((term: any) => this.ruleTerm(term, null, row));
         if (this.store.lookup(data.table, data.index, key) === null)
-          throw new EvalError(
+          fail(
             "E_CONSTRAINT",
             `${sourceTable} insert requires final row at ${data.table}.${data.index}`,
           );
@@ -1121,7 +1123,7 @@ export class Runner {
       found !== null &&
       (old === null || asString(field(found, "id")) !== asString(field(old, "id")))
     )
-      throw new EvalError("E_CONSTRAINT", `sealed unique conflict on ${table}.${indexName}`);
+      fail("E_CONSTRAINT", `sealed unique conflict on ${table}.${indexName}`);
     if (
       indexName !== "byId" &&
       found === null &&
@@ -1240,7 +1242,7 @@ export class Runner {
       }
       case "Created": {
         if (!createdAllowed)
-          throw new EvalError(
+          fail(
             "E_SCHEMA",
             "created-row probe evaluated outside a table insert rule",
           );
@@ -1254,7 +1256,7 @@ export class Runner {
         );
       }
       default:
-        throw new EvalError("E_OPAQUE", `unsupported rule ${kind}`);
+        fail("E_OPAQUE", `unsupported rule ${kind}`);
     }
   }
 
@@ -1292,22 +1294,22 @@ export class Runner {
     }
     if (kind === "NextField") {
       if (old === null)
-        throw new EvalError("E_SCHEMA", "next-row rule term evaluated outside an update rule");
+        fail("E_SCHEMA", "next-row rule term evaluated outside an update rule");
       return clone(field(next, data));
     }
     if (kind === "OldField") {
       if (old === null)
-        throw new EvalError("E_SCHEMA", "old-row rule term evaluated outside an update rule");
+        fail("E_SCHEMA", "old-row rule term evaluated outside an update rule");
       return clone(field(old, data));
     }
     if (kind === "Viewer") return { Id: this.context.viewer };
     if (kind === "Literal") return clone(data);
-    throw new EvalError("E_OPAQUE", `unsupported rule term ${kind}`);
+    fail("E_OPAQUE", `unsupported rule term ${kind}`);
   }
 
   private requiredEnv(name: string): Value {
     const value = this.env.get(name);
-    if (value === undefined) throw new EvalError("E_INPUT", `unknown variable ${name}`);
+    if (value === undefined) fail("E_INPUT", `unknown variable ${name}`);
     return value;
   }
 }
@@ -1354,4 +1356,17 @@ function queryCapped(certificate: any, trace: Trace, viewer: string): boolean {
     const laneLimited = trace.ranges.some((range) => site.lane_sites.includes(range.site) && range.stop !== "exhausted");
     return unionTooLarge || laneLimited;
   });
+}
+
+/** Identity is checked at the direct execution boundary, including prediction. */
+export function validateCertificate(schema: any, program: any, certificate: any): void {
+  if (!certificate) fail('E_TRACE_SUBSET', 'a bound certificate is required');
+  if (certificate.value_model_version !== CURRENT_VALUE_MODEL_VERSION)
+    fail('E_TRACE_SUBSET', 'value model version mismatch');
+  if (certificate.evaluator_version !== CURRENT_EVALUATOR)
+    fail('E_TRACE_SUBSET', 'evaluator version mismatch');
+  if (certificate.schema_hash !== sha256(canonicalSchemaJson(schema)))
+    fail('E_TRACE_SUBSET', 'schema hash mismatch');
+  if (certificate.plan_hash !== sha256(canonicalProgramJson(program)))
+    fail('E_TRACE_SUBSET', 'plan hash mismatch');
 }

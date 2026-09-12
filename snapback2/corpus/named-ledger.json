@@ -1244,25 +1244,25 @@
       {
         "meter": "output bytes",
         "value": 7750,
-        "source": "owed.groupId",
+        "source": "50 × owed.groupId (155 bytes each; 11 field-name/framing + Id value maximum 144)",
         "site": "programs.ledger.0"
       },
       {
         "meter": "output bytes",
         "value": 29950,
-        "source": "owed.id",
+        "source": "50 × owed.id (599 bytes each; 6 field-name/framing + owed declared identity 593)",
         "site": "programs.ledger.0"
       },
       {
         "meter": "output bytes",
         "value": 7700,
-        "source": "owed.userId",
+        "source": "50 × owed.userId (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": "programs.ledger.0"
       },
       {
         "meter": "output bytes",
         "value": 2050,
-        "source": "owed.value",
+        "source": "50 × owed.value (41 bytes each; 9 field-name/framing + Int value maximum 32)",
         "site": "programs.ledger.0"
       },
       {
@@ -1285,14 +1285,50 @@
       },
       {
         "meter": "closure bytes",
-        "value": 80886,
-        "source": "51 pooled owed first images with table/id envelopes",
+        "value": 0,
+        "source": "programs.ledger.0 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "programs.ledger.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7905,
+        "source": "51 × owed.groupId (155 bytes each; 11 field-name/framing + Id value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 30549,
+        "source": "51 × owed.id (599 bytes each; 6 field-name/framing + owed declared identity 593)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7854,
+        "source": "51 × owed.userId (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2091,
+        "source": "51 × owed.value (41 bytes each; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 510,
+        "source": "owed row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 31977,
+        "source": "51 × owed table/id envelope (627 bytes each)",
         "site": null
       },
       {
         "meter": "closure bytes",
         "value": 1152,
-        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       }
     ]

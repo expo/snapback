@@ -111,16 +111,29 @@ impl Engine {
         }
         // The bounded domain is materialized before any body runs, just like Stmt::For.
         let mut processed = 0;
+        let mut stop_sweep = false;
+        let mut stop_job = false;
         for (_, row) in &visited {
             runner.env.insert(binding.clone(), row.clone());
             processed += 1;
-            match runner.statements_at(body, &format!("{}:statement:{}", program.name, job.sweep + 1), "")? {
+            match runner.statements_at(
+                body,
+                &format!("{}:statement:{}", program.name, job.sweep + 1),
+                "",
+            )? {
                 Flow::Next | Flow::Continue => {}
-                Flow::Break | Flow::Return(..) => break,
+                Flow::Break => {
+                    stop_sweep = true;
+                    break;
+                }
+                Flow::Return(..) => {
+                    stop_job = true;
+                    break;
+                }
             }
         }
-        // Mutation control flow can finish this chunk early. Its cursor names only
-        // the processed prefix, so prefetched but unvisited rows are never skipped.
+        // A break ends this sweep; return ends the job. The receipt records only
+        // the processed prefix even though the scan prefetched a complete page.
         let page_finished = processed == visited.len();
         visited.truncate(processed);
         runner.check_final_constraints()?;
@@ -136,13 +149,15 @@ impl Engine {
         job.state = "running".into();
         job.last_error = None;
         job.cursor = visited.last().map(|(key, _)| key.clone()).or(job.cursor);
-        let exhausted = page_finished
-            && (visited.len() < take as usize
-                || job
-                    .cursor
-                    .as_ref()
-                    .zip(job.upper_key.as_ref())
-                    .is_some_and(|(a, b)| a == b));
+        let exhausted = stop_sweep
+            || stop_job
+            || (page_finished
+                && (visited.len() < take as usize
+                    || job
+                        .cursor
+                        .as_ref()
+                        .zip(job.upper_key.as_ref())
+                        .is_some_and(|(a, b)| a == b)));
         let progress = crate::jobs::ChunkRecord {
             sweep: job.sweep,
             chunk: job.chunks,
@@ -150,7 +165,11 @@ impl Engine {
             rows_visited: visited.len(),
         };
         if exhausted {
-            job.sweep += 1;
+            job.sweep = if stop_job {
+                job_certificate.sweeps.len()
+            } else {
+                job.sweep + 1
+            };
             job.cursor = None;
             job.upper_key = None;
             if job.sweep == job_certificate.sweeps.len() {

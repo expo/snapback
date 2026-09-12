@@ -10,7 +10,7 @@ const workspace = fileURLToPath(new URL("../../../", import.meta.url));
 const binary = resolve(workspace, "target/debug/snapback2");
 const packageRoot = resolve(workspace, "packages/snapback2");
 const env = { ...process.env,
-  SNAPBACK2_COMPILER: join(packageRoot, "dist/compiler.mjs"),
+  SNAPBACK2_NODE: process.execPath, SNAPBACK2_COMPILER: join(packageRoot, "dist/compiler.mjs"),
   SNAPBACK2_TEMPLATES: join(packageRoot, "templates"),
   SNAPBACK2_TEST_RUNNER: join(packageRoot, "dist/test-runner.mjs"),
 };

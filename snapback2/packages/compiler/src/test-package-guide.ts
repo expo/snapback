@@ -84,7 +84,7 @@ export function registerPackageGuideChecks(
       "the no-resubmission guarantee applies to mutations");
     assert(liveQuery.includes("`client.query()` retries retryable transport failures with backoff, up to three attempts."),
       "the three-attempt retry limit applies to imperative client.query(), not observe/useQuery");
-    assert(liveQuery.includes("One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes reconnect through SSE."),
+    assert(liveQuery.includes("One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes reconnect through SSE with fresh snapshots, never Last-Event-ID replay."),
       "the guide must distinguish observed retry lifecycles from imperative query attempts");
     assert(quarry.replace(/\s+/g, " ").includes("TypeScript is only seeds, tests, and effect I/O; otherwise use Quarry."),
       "the guide must direct backend authors to Quarry outside TypeScript's harness role");

@@ -56,6 +56,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
     ));
 
     let send = PreludeStep {
+        certificate: None,
         program: send_program(false),
         context: mutation_context(
             [
@@ -80,6 +81,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
     ));
 
     let first_delete = PreludeStep {
+        certificate: None,
         program: delete_message_program(),
         context: mutation_context([("id", id("message-00004"))], Vec::<String>::new()),
         expected_state: "predicted".to_owned(),
@@ -97,6 +99,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
     ));
 
     let second_delete = PreludeStep {
+        certificate: None,
         program: delete_message_program(),
         context: mutation_context([("id", id("message-00003"))], Vec::<String>::new()),
         expected_state: "predicted".to_owned(),
@@ -128,6 +131,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
         }],
     };
     let moved = ["message-00004", "message-00003"].map(|message_id| PreludeStep {
+        certificate: None,
         program: move_message.clone(),
         context: mutation_context([("id", id(message_id))], Vec::<String>::new()),
         expected_state: "predicted".to_owned(),
@@ -147,6 +151,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
     export_corpus_constraints::add_incomplete_constraint_cases(cases);
 
     let mention_send = PreludeStep {
+        certificate: None,
         program: send_program(false),
         context: mutation_context(
             [

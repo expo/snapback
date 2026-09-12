@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { registerApiShapeChecks } from "./api-shape-checks";
-import { runBoundSchemaChecks } from "./bound-schema-checks";
+import { runBareUpdateBinderChecks, runBoundSchemaChecks, runUpdateBinderCompatibilityChecks } from "./bound-schema-checks";
 import { registerPackageRegressionChecks } from "./package-regression-checks";
 import { lowerProject } from "./project";
 import { registerQuarryChecks } from "./quarry-checks";
@@ -44,7 +44,30 @@ const { generateUnicodeTables } = await import("../../evaluator/unicode-build.mj
 generateUnicodeTables();
 const { registerSearchFoundationChecks } = await import("./test-search-foundation");
 registerSearchFoundationChecks(test);
+test("compiler contract pins the evaluator value model", async () => {
+  const compiler = await import('./ir');
+  const evaluator = await import('../../evaluator/src/runner');
+  assert(compiler.IR_CONTRACT.valueModelVersion === evaluator.CURRENT_VALUE_MODEL_VERSION, 'compiler/evaluator value model skew');
+  let refused = false;
+  try { compiler.assertValueModelVersion('future-incompatible'); } catch (error) {
+    refused = String(error).includes('value model version future-incompatible != compiler');
+  }
+  assert(refused, 'compiler accepted an incompatible IR contract');
+});
+test("compiler canonical IR consumes the complete generated corpus", async () => {
+  const { canonicalProgramJson, canonicalSchemaJson } = await import('../../evaluator/src/certificate-identity');
+  const { sha256 } = await import('../../evaluator/src/hash');
+  const cases = JSON.parse(await readFile(new URL('../../../corpus/manifest.json', import.meta.url), 'utf8'));
+  for (const c of cases) {
+    assert(c.corpusVersion === 1, `${c.name}: unsupported corpus version`);
+    if (!c.certificate) continue;
+    assert(sha256(canonicalProgramJson(c.program)) === c.certificate.plan_hash, `${c.name}: compiler IR identity`);
+    assert(sha256(canonicalSchemaJson(c.schema)) === c.certificate.schema_hash, `${c.name}: compiler schema identity`);
+  }
+});
 test("bound Quarry schema preserves public catalog and refusal contracts", runBoundSchemaChecks);
+test("bare update binders refuse at their authored term with a field rewrite", runBareUpdateBinderChecks);
+test("update image fields, focal collisions and channel arguments retain their certified meanings", runUpdateBinderCompatibilityChecks);
 registerQuarryChecks(test, frontend);
 registerQuarryMoneyChecks(test, frontend);
 registerQuarryLanguageChecks(test, frontend);

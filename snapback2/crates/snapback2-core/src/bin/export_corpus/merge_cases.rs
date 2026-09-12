@@ -979,6 +979,7 @@ fn add_review_merge_cases(cases: &mut Vec<CorpusCase>) {
     let first = execute_seeded(&schema, &rows, &page, context.clone());
     assert!(first.next.is_some());
     let delete = |id_value: &str| PreludeStep {
+        certificate: None,
         program: Program {
             name: "remove".into(),
             kind: ProgramKind::Mutation,

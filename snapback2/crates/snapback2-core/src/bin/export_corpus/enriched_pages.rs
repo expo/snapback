@@ -541,6 +541,7 @@ fn add_conditional_page_cases(cases: &mut Vec<CorpusCase>) {
                     execution.receipt,
                     (0..3)
                         .map(|offset| PreludeStep {
+        certificate: None,
                             program: Program {
                                 name: "remove".into(),
                                 kind: ProgramKind::Mutation,

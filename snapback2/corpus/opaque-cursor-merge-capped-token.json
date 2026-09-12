@@ -370,19 +370,19 @@
       {
         "meter": "output bytes",
         "value": 76,
-        "source": "posts.at",
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 308,
-        "source": "posts.author",
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 300,
-        "source": "posts.id",
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": null
       },
       {
@@ -400,26 +400,26 @@
       {
         "meter": "closure bytes",
         "value": 228,
-        "source": "posts.at",
-        "site": null
+        "source": "6 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "opaque-cursor-merge-capped-token"
       },
       {
         "meter": "closure bytes",
         "value": 924,
-        "source": "posts.author",
-        "site": null
+        "source": "6 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "opaque-cursor-merge-capped-token"
       },
       {
         "meter": "closure bytes",
         "value": 900,
-        "source": "posts.id",
-        "site": null
+        "source": "6 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "opaque-cursor-merge-capped-token"
       },
       {
         "meter": "closure bytes",
         "value": 60,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": null
+        "site": "opaque-cursor-merge-capped-token"
       }
     ]
   },

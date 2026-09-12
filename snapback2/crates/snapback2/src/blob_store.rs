@@ -1,7 +1,7 @@
 //! Streaming blob custody for local Snapback 2 assets.
 
 use crate::protocol::Refusal;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -30,6 +30,7 @@ pub const SCRATCH_GLOBAL_OBJECTS: u32 = 32;
 thread_local! {
     static ENUMERATE_BEFORE_INSPECTION: RefCell<Option<Box<dyn FnMut(&fs::DirEntry) -> bool>>> =
         RefCell::new(None);
+    static SCRATCH_BEFORE_INSPECTION: RefCell<Option<Box<dyn FnMut()>>> = RefCell::new(None);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -74,7 +75,32 @@ pub struct FileBlobStore {
     blobs: PathBuf,
     active_puts: Arc<Mutex<BTreeSet<String>>>,
     enumerations: Arc<Mutex<BTreeMap<String, BlobEnumeration>>>,
-    publish_scratch: Arc<Mutex<BTreeMap<String, u64>>>,
+    publish_scratch: Arc<Mutex<PublishScratch>>,
+}
+
+#[derive(Debug, Default)]
+struct PublishScratch {
+    entries: HashMap<String, u64>,
+    bytes: u64,
+}
+impl PublishScratch {
+    fn remove(&mut self, name: &str) {
+        if let Some(bytes) = self.entries.remove(name) {
+            self.bytes -= bytes;
+        }
+    }
+    fn set(&mut self, name: &str, bytes: u64) {
+        let previous = self.entries.insert(name.to_owned(), bytes).unwrap_or(0);
+        self.bytes = self.bytes - previous + bytes;
+    }
+}
+fn lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, Refusal> {
+    mutex.lock().map_err(|_| {
+        asset_io(
+            "asset custody lock poisoned",
+            "restart the owner to recover asset custody",
+        )
+    })
 }
 
 #[derive(Clone, Debug)]
@@ -100,7 +126,10 @@ pub struct ScratchPermit {
 
 impl Drop for ScratchPermit {
     fn drop(&mut self) {
-        let mut scratch = self.scratch.lock().expect("scratch reservation lock");
+        let mut scratch = self
+            .scratch
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         scratch.bytes = scratch.bytes.saturating_sub(self.bytes);
         scratch.objects = scratch.objects.saturating_sub(self.objects);
     }
@@ -167,11 +196,11 @@ impl FileBlobStore {
 
     #[cfg(test)]
     fn publish_scratch_usage(&self) -> (u64, u32) {
-        let scratch = self.publish_scratch.lock().expect("publish scratch lock");
-        (
-            scratch.values().copied().fold(0_u64, u64::saturating_add),
-            scratch.len() as u32,
-        )
+        let scratch = self
+            .publish_scratch
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        (scratch.bytes, scratch.entries.len() as u32)
     }
 }
 
@@ -191,17 +220,20 @@ impl LocalStaging {
     pub fn register_upload(&self, id: String, custody: UploadCustody) {
         self.uploads
             .lock()
-            .expect("uploads lock")
+            .unwrap_or_else(|error| error.into_inner())
             .insert(id, custody);
     }
 
     pub fn cancel_upload(&self, id: &str) -> Result<bool, Refusal> {
-        let custody = self.uploads.lock().expect("uploads lock").get(id).cloned();
+        let custody = lock(&self.uploads)?.get(id).cloned();
         custody.map_or(Ok(true), |custody| custody.cancel())
     }
 
     pub fn finish_upload(&self, id: &str) {
-        self.uploads.lock().expect("uploads lock").remove(id);
+        self.uploads
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .remove(id);
     }
 
     #[cfg(test)]
@@ -288,6 +320,12 @@ impl LocalStaging {
     }
 
     pub fn scratch_usage(&self) -> Result<(u64, u32), Refusal> {
+        #[cfg(test)]
+        SCRATCH_BEFORE_INSPECTION.with(|hook| {
+            if let Some(hook) = hook.borrow_mut().as_mut() {
+                hook();
+            }
+        });
         let mut bytes = 0_u64;
         let mut objects = 0_u32;
         for entry in fs::read_dir(&self.staging).map_err(|error| {
@@ -321,8 +359,8 @@ impl LocalStaging {
     }
 
     fn reserve_scratch(&self, bytes: u64, objects: u32) -> Result<ScratchPermit, Refusal> {
-        let mut scratch = self.scratch.lock().expect("scratch reservation lock");
         let (physical_bytes, physical_objects) = self.scratch_usage()?;
+        let mut scratch = lock(&self.scratch)?;
         let next_bytes = physical_bytes
             .saturating_add(scratch.bytes)
             .saturating_add(bytes);
@@ -361,7 +399,7 @@ impl LocalStaging {
         if !self.reset_clear_pending.load(Ordering::SeqCst) {
             return Ok(true);
         }
-        let uploads = self.uploads.lock().expect("uploads lock");
+        let uploads = lock(&self.uploads)?;
         if !uploads.is_empty() {
             return Ok(false);
         }
@@ -418,18 +456,16 @@ impl BlobStore for FileBlobStore {
             TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
         );
         let temporary = self.blobs.join(&temporary_name);
-        self.active_puts
-            .lock()
-            .expect("active blob put lock")
-            .insert(temporary_name.clone());
+        lock(&self.active_puts)?.insert(temporary_name.clone());
+        let _active = ActivePut {
+            name: temporary_name.clone(),
+            active: self.active_puts.clone(),
+        };
         {
-            let mut scratch = self.publish_scratch.lock().expect("publish scratch lock");
-            let bytes = scratch.values().copied().fold(0_u64, u64::saturating_add);
-            if scratch.len() as u32 >= SCRATCH_GLOBAL_OBJECTS || bytes >= SCRATCH_GLOBAL_BYTES {
-                self.active_puts
-                    .lock()
-                    .expect("active blob put lock")
-                    .remove(&temporary_name);
+            let mut scratch = lock(&self.publish_scratch)?;
+            if scratch.entries.len() as u32 >= SCRATCH_GLOBAL_OBJECTS
+                || scratch.bytes >= SCRATCH_GLOBAL_BYTES
+            {
                 return Err(Refusal::new(
                     "E_ASSET_TOO_LARGE",
                     "input",
@@ -438,12 +474,8 @@ impl BlobStore for FileBlobStore {
                     "assets/storage",
                 ));
             }
-            scratch.insert(temporary_name.clone(), 0);
+            scratch.set(&temporary_name, 0);
         }
-        let _active = ActivePut {
-            name: temporary_name.clone(),
-            active: self.active_puts.clone(),
-        };
         let result: io::Result<u64> = (|| {
             let mut options = OpenOptions::new();
             options.write(true).create_new(true);
@@ -464,7 +496,7 @@ impl BlobStore for FileBlobStore {
             fs::remove_file(&temporary)?;
             self.publish_scratch
                 .lock()
-                .expect("publish scratch lock")
+                .map_err(|_| io::Error::other("publish scratch lock poisoned"))?
                 .remove(&temporary_name);
             File::open(&self.blobs)?.sync_all()?;
             Ok(bytes)
@@ -475,14 +507,8 @@ impl BlobStore for FileBlobStore {
                 if let Err(cleanup) = fs::remove_file(&temporary)
                     && cleanup.kind() != io::ErrorKind::NotFound
                 {
-                    if let Ok(metadata) = fs::metadata(&temporary)
-                        && let Some(bytes) = self
-                            .publish_scratch
-                            .lock()
-                            .expect("publish scratch lock")
-                            .get_mut(&temporary_name)
-                    {
-                        *bytes = metadata.len();
+                    if let Ok(metadata) = fs::metadata(&temporary) {
+                        lock(&self.publish_scratch)?.set(&temporary_name, metadata.len());
                     }
                     return Err(asset_io(
                         format!(
@@ -492,10 +518,7 @@ impl BlobStore for FileBlobStore {
                         "make .snapback/blobs writable and retry cleanup",
                     ));
                 }
-                self.publish_scratch
-                    .lock()
-                    .expect("publish scratch lock")
-                    .remove(&temporary_name);
+                lock(&self.publish_scratch)?.remove(&temporary_name);
                 Err(asset_io(
                     format!("cannot publish asset blob {key}: {error}"),
                     "make .snapback/blobs writable and retry the upload",
@@ -575,30 +598,27 @@ impl BlobStore for FileBlobStore {
                 TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
             )
         });
-        let mut enumerations = self.enumerations.lock().expect("blob enumerations lock");
-        if continuation.is_none() {
-            let entries = fs::read_dir(&self.blobs).map_err(|error| {
+        // Take custody of just this cursor: directory and visitor I/O never hold
+        // the shared cursor registry or block another enumeration.
+        let mut enumeration = if continuation.is_none() {
+            BlobEnumeration {
+                prefix: prefix.to_owned(),
+                entries: fs::read_dir(&self.blobs).map_err(|error| {
+                    asset_io(
+                        format!("cannot enumerate asset blobs: {error}"),
+                        "repair .snapback/blobs",
+                    )
+                })?,
+            }
+        } else {
+            lock(&self.enumerations)?.remove(&token).ok_or_else(|| {
                 asset_io(
-                    format!("cannot enumerate asset blobs: {error}"),
-                    "make .snapback/blobs readable by its owner",
+                    "asset blob enumeration continuation is no longer active",
+                    "restart reclamation without the stale continuation",
                 )
-            })?;
-            enumerations.insert(
-                token.clone(),
-                BlobEnumeration {
-                    prefix: prefix.to_owned(),
-                    entries,
-                },
-            );
-        }
-        let Some(enumeration) = enumerations.get_mut(&token) else {
-            return Err(asset_io(
-                "asset blob enumeration continuation is no longer active",
-                "restart reclamation without the stale continuation",
-            ));
+            })?
         };
         if enumeration.prefix != prefix {
-            enumerations.remove(&token);
             return Err(asset_io(
                 "asset blob enumeration continuation has a different prefix",
                 "restart reclamation with the intended prefix",
@@ -606,7 +626,6 @@ impl BlobStore for FileBlobStore {
         }
         for _ in 0..limit {
             let Some(entry) = enumeration.entries.next() else {
-                enumerations.remove(&token);
                 return Ok(None);
             };
             let entry = entry.map_err(|error| {
@@ -631,11 +650,7 @@ impl BlobStore for FileBlobStore {
             })?;
             let temporary = is_blob_temporary(&name);
             if temporary {
-                let active = self
-                    .active_puts
-                    .lock()
-                    .expect("active blob put lock")
-                    .contains(&name);
+                let active = lock(&self.active_puts)?.contains(&name);
                 if active {
                     continue;
                 }
@@ -669,16 +684,10 @@ impl BlobStore for FileBlobStore {
                 if age >= BLOB_TEMP_STALE_AFTER {
                     match fs::remove_file(&path) {
                         Ok(()) => {
-                            self.publish_scratch
-                                .lock()
-                                .expect("publish scratch lock")
-                                .remove(&name);
+                            lock(&self.publish_scratch)?.remove(&name);
                         }
                         Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                            self.publish_scratch
-                                .lock()
-                                .expect("publish scratch lock")
-                                .remove(&name);
+                            lock(&self.publish_scratch)?.remove(&name);
                         }
                         Err(error) => {
                             return Err(asset_io(
@@ -698,6 +707,7 @@ impl BlobStore for FileBlobStore {
                 visitor(&name)?;
             }
         }
+        lock(&self.enumerations)?.insert(token.clone(), enumeration);
         Ok(Some(token))
     }
 }
@@ -705,42 +715,44 @@ impl BlobStore for FileBlobStore {
 struct PublishScratchWriter<'a> {
     inner: &'a mut File,
     name: &'a str,
-    scratch: &'a Arc<Mutex<BTreeMap<String, u64>>>,
+    scratch: &'a Arc<Mutex<PublishScratch>>,
 }
 
 impl Write for PublishScratchWriter<'_> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         let requested = bytes.len() as u64;
         {
-            let mut scratch = self.scratch.lock().expect("publish scratch lock");
-            let total = scratch.values().copied().fold(0_u64, u64::saturating_add);
-            if requested > SCRATCH_GLOBAL_BYTES.saturating_sub(total) {
+            let mut scratch = self
+                .scratch
+                .lock()
+                .map_err(|_| io::Error::other("publish scratch lock poisoned"))?;
+            if requested > SCRATCH_GLOBAL_BYTES.saturating_sub(scratch.bytes) {
                 return Err(io::Error::new(
                     io::ErrorKind::FileTooLarge,
                     "asset publish scratch byte ceiling exceeded",
                 ));
             }
-            *scratch.get_mut(self.name).expect("active publish scratch") += requested;
+            let tracked = scratch
+                .entries
+                .get_mut(self.name)
+                .ok_or_else(|| io::Error::other("active publish scratch missing"))?;
+            *tracked += requested;
+            scratch.bytes += requested;
         }
-        match self.inner.write(bytes) {
-            Ok(written) => {
-                let unused = requested.saturating_sub(written as u64);
-                if unused > 0 {
-                    let mut scratch = self.scratch.lock().expect("publish scratch lock");
-                    let tracked = scratch.get_mut(self.name).expect("active publish scratch");
-                    *tracked = tracked.saturating_sub(unused);
-                }
-                Ok(written)
-            }
-            Err(error) => {
-                let mut scratch = self.scratch.lock().expect("publish scratch lock");
-                let tracked = scratch.get_mut(self.name).expect("active publish scratch");
-                *tracked = tracked.saturating_sub(requested);
-                Err(error)
+        let result = self.inner.write(bytes);
+        let unused = requested - result.as_ref().map_or(0, |written| *written as u64);
+        if unused > 0 {
+            let mut scratch = self
+                .scratch
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            if let Some(tracked) = scratch.entries.get_mut(self.name) {
+                *tracked -= unused;
+                scratch.bytes -= unused;
             }
         }
+        result
     }
-
     fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
     }
@@ -755,14 +767,14 @@ impl Drop for ActivePut {
     fn drop(&mut self) {
         self.active
             .lock()
-            .expect("active blob put lock")
+            .unwrap_or_else(|error| error.into_inner())
             .remove(&self.name);
     }
 }
 
 // @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation — disposal closes receiving bytes under the write lock; off-writer finalization retains custody until its file is removed.
 #[derive(Clone, Debug)]
-pub struct UploadCustody(Arc<Mutex<UploadBytes>>);
+pub struct UploadCustody(Arc<Mutex<UploadBytes>>, Arc<AtomicBool>);
 
 #[derive(Debug)]
 struct UploadBytes {
@@ -773,18 +785,21 @@ struct UploadBytes {
 
 impl UploadCustody {
     pub fn new(file: StagingFile) -> Self {
-        Self(Arc::new(Mutex::new(UploadBytes {
-            receiving: Some(file),
-            cancelled: false,
-            finished: false,
-        })))
+        Self(
+            Arc::new(Mutex::new(UploadBytes {
+                receiving: Some(file),
+                cancelled: false,
+                finished: false,
+            })),
+            Arc::new(AtomicBool::new(false)),
+        )
     }
 
     pub fn copy_from(&self, input: &mut dyn Read) -> io::Result<u64> {
         let mut total = 0;
         let mut buffer = [0_u8; 64 * 1024];
         loop {
-            if self.0.lock().expect("upload custody lock").cancelled {
+            if self.1.load(Ordering::Acquire) {
                 return Err(io::Error::new(
                     io::ErrorKind::Interrupted,
                     "upload was discarded",
@@ -793,7 +808,10 @@ impl UploadCustody {
             // Never hold custody while waiting on a paused socket. Disposal
             // can close and unlink the file; this read cannot write afterwards.
             let read = input.read(&mut buffer)?;
-            let mut bytes = self.0.lock().expect("upload custody lock");
+            let mut bytes = self
+                .0
+                .lock()
+                .map_err(|_| io::Error::other("upload custody lock poisoned"))?;
             if bytes.cancelled {
                 return Err(io::Error::new(
                     io::ErrorKind::Interrupted,
@@ -806,7 +824,7 @@ impl UploadCustody {
             bytes
                 .receiving
                 .as_mut()
-                .expect("receiving upload")
+                .ok_or_else(|| io::Error::other("upload is no longer receiving"))?
                 .file_mut()
                 .write_all(&buffer[..read])?;
             total += read as u64;
@@ -814,7 +832,7 @@ impl UploadCustody {
     }
 
     pub fn finalize(&self) -> Result<StagingFile, Refusal> {
-        let mut bytes = self.0.lock().expect("upload custody lock");
+        let mut bytes = lock(&self.0)?;
         if bytes.cancelled {
             return Err(Refusal::new(
                 "E_ASSET_NOT_READY",
@@ -826,11 +844,15 @@ impl UploadCustody {
         }
         // The worker owns the file while finalization runs. Cancellation marks
         // intent but must retain quota until that worker closes/removes its bytes.
-        Ok(bytes.receiving.take().expect("receiving upload"))
+        bytes
+            .receiving
+            .take()
+            .ok_or_else(|| asset_io("upload is no longer receiving", "retry the upload"))
     }
 
     pub fn cancel(&self) -> Result<bool, Refusal> {
-        let mut bytes = self.0.lock().expect("upload custody lock");
+        self.1.store(true, Ordering::Release);
+        let mut bytes = lock(&self.0)?;
         bytes.cancelled = true;
         if let Some(file) = &mut bytes.receiving {
             file.discard()?;
@@ -841,7 +863,8 @@ impl UploadCustody {
     }
 
     pub fn finish(&self, finalizing: Option<StagingFile>) -> Result<(), Refusal> {
-        let mut bytes = self.0.lock().expect("upload custody lock");
+        self.1.store(true, Ordering::Release);
+        let mut bytes = lock(&self.0)?;
         // The worker has stopped using this file. Return custody before deletion:
         // a failed unlink must retain its path for disposal or the grace sweep.
         bytes.cancelled = true;
@@ -1099,343 +1122,5 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Cursor;
-    use std::sync::mpsc::{Receiver, Sender, channel};
-    use std::thread;
-
-    const REAL_KEY: &str = "s2id-0123456789abcdef0123456789abcdef-0000000000000001";
-    const PUT_KEY: &str = "s2id-0123456789abcdef0123456789abcdef-0000000000000002";
-
-    fn root() -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "snapback2-blob-store-{}-{}",
-            std::process::id(),
-            TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(path.join(".snapback")).unwrap();
-        path
-    }
-
-    fn enumerate_all(store: &dyn BlobStore, prefix: &str) -> Vec<String> {
-        let mut keys = Vec::new();
-        let mut continuation = None;
-        loop {
-            continuation = store
-                .enumerate_page(prefix, continuation.as_deref(), 8, &mut |key| {
-                    keys.push(key.to_owned());
-                    Ok(())
-                })
-                .unwrap();
-            if continuation.is_none() {
-                return keys;
-            }
-        }
-    }
-
-    #[test]
-    fn put_get_range_and_delete_are_streaming() {
-        let root = root();
-        let store = FileBlobStore::open(&root).unwrap();
-        let key = REAL_KEY;
-        assert_eq!(store.put(key, &mut &b"abcdef"[..]).unwrap(), 6);
-        assert_eq!(
-            store.put(key, &mut &b"replacement"[..]).unwrap_err().code,
-            "E_OWNER_ASSET_IO"
-        );
-        let mut read = store
-            .get(key, Some(ByteRange { start: 2, end: 4 }))
-            .unwrap();
-        let mut bytes = Vec::new();
-        read.stream.read_to_end(&mut bytes).unwrap();
-        assert_eq!(bytes, b"cde");
-        assert_eq!((read.length, read.total), (3, 6));
-        store.delete(key).unwrap();
-        assert!(store.get(key, None).is_err());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn enumerate_skips_publish_temporary_and_returns_real_blob() {
-        let root = root();
-        let store = FileBlobStore::open(&root).unwrap();
-        store.put(REAL_KEY, &mut &b"real"[..]).unwrap();
-        let temporary = root
-            .join(".snapback/blobs")
-            .join(format!(".{PUT_KEY}.put-1-2.tmp"));
-        fs::write(&temporary, b"in flight").unwrap();
-
-        let keys = enumerate_all(&store, "");
-        assert_eq!(keys, vec![REAL_KEY]);
-        assert!(temporary.is_file());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    struct PausingReader {
-        source: Cursor<&'static [u8]>,
-        started: Option<Sender<()>>,
-        resume: Receiver<()>,
-    }
-
-    impl Read for PausingReader {
-        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-            if let Some(started) = self.started.take() {
-                started.send(()).unwrap();
-                self.resume.recv().unwrap();
-            }
-            self.source.read(buffer)
-        }
-    }
-
-    #[test]
-    fn sweep_during_in_flight_put_keeps_the_active_temporary() {
-        let root = root();
-        let store = Arc::new(FileBlobStore::open(&root).unwrap());
-        store.put(REAL_KEY, &mut &b"real"[..]).unwrap();
-        let (started_tx, started_rx) = channel();
-        let (resume_tx, resume_rx) = channel();
-        let writer = {
-            let store = store.clone();
-            thread::spawn(move || {
-                let mut source = PausingReader {
-                    source: Cursor::new(b"published"),
-                    started: Some(started_tx),
-                    resume: resume_rx,
-                };
-                store.put(PUT_KEY, &mut source)
-            })
-        };
-        started_rx.recv().unwrap();
-        let temporary = fs::read_dir(root.join(".snapback/blobs"))
-            .unwrap()
-            .map(Result::unwrap)
-            .find(|entry| is_blob_temporary(entry.file_name().to_str().unwrap()))
-            .unwrap()
-            .path();
-
-        crate::asset_gc::enumerate_blob_page(store.as_ref(), None, 8).unwrap();
-        assert!(temporary.is_file());
-        resume_tx.send(()).unwrap();
-        assert_eq!(writer.join().unwrap().unwrap(), 9);
-        assert!(store.path_for_key(PUT_KEY).unwrap().is_file());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    #[cfg(unix)]
-    fn failed_publish_cleanup_remains_scratch_charged_until_sweep() {
-        let root = root();
-        let store = Arc::new(FileBlobStore::open(&root).unwrap());
-        let (started_tx, started_rx) = channel();
-        let (resume_tx, resume_rx) = channel();
-        let writer = {
-            let store = store.clone();
-            thread::spawn(move || {
-                let mut source = PausingReader {
-                    source: Cursor::new(b"published"),
-                    started: Some(started_tx),
-                    resume: resume_rx,
-                };
-                store.put(PUT_KEY, &mut source)
-            })
-        };
-        started_rx.recv().unwrap();
-        let directory = root.join(".snapback/blobs");
-        fs::set_permissions(&directory, fs::Permissions::from_mode(0o500)).unwrap();
-        resume_tx.send(()).unwrap();
-        assert_eq!(writer.join().unwrap().unwrap_err().code, "E_OWNER_ASSET_IO");
-        fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).unwrap();
-        assert_eq!(store.publish_scratch_usage(), (9, 1));
-        let temporary = fs::read_dir(&directory)
-            .unwrap()
-            .map(Result::unwrap)
-            .find(|entry| is_blob_temporary(entry.file_name().to_str().unwrap()))
-            .unwrap()
-            .path();
-        let old = SystemTime::now()
-            .checked_sub(BLOB_TEMP_STALE_AFTER + Duration::from_secs(1))
-            .unwrap();
-        File::options()
-            .write(true)
-            .open(&temporary)
-            .unwrap()
-            .set_times(fs::FileTimes::new().set_modified(old))
-            .unwrap();
-        crate::asset_gc::enumerate_blob_page(store.as_ref(), None, 8).unwrap();
-        assert_eq!(store.publish_scratch_usage(), (0, 0));
-        assert!(!temporary.exists());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn enumerate_tolerates_put_completing_before_temporary_inspection() {
-        let root = root();
-        let store = Arc::new(FileBlobStore::open(&root).unwrap());
-        store.put(REAL_KEY, &mut &b"real"[..]).unwrap();
-        let (started_tx, started_rx) = channel();
-        let (resume_tx, resume_rx) = channel();
-        let (completed_tx, completed_rx) = channel();
-        let writer = {
-            let store = store.clone();
-            thread::spawn(move || {
-                let mut source = PausingReader {
-                    source: Cursor::new(b"published"),
-                    started: Some(started_tx),
-                    resume: resume_rx,
-                };
-                let result = store.put(PUT_KEY, &mut source);
-                completed_tx.send(()).unwrap();
-                result
-            })
-        };
-        started_rx.recv().unwrap();
-        let temporary = fs::read_dir(root.join(".snapback/blobs"))
-            .unwrap()
-            .map(Result::unwrap)
-            .find(|entry| is_blob_temporary(entry.file_name().to_str().unwrap()))
-            .unwrap()
-            .path();
-
-        ENUMERATE_BEFORE_INSPECTION.with(|hook| {
-            *hook.borrow_mut() = Some(Box::new(move |entry| {
-                if entry.path() != temporary {
-                    return false;
-                }
-                resume_tx.send(()).unwrap();
-                completed_rx.recv().unwrap();
-                true
-            }));
-        });
-        let keys = enumerate_all(store.as_ref(), REAL_KEY);
-
-        assert_eq!(writer.join().unwrap().unwrap(), 9);
-        assert_eq!(keys, vec![REAL_KEY]);
-        assert_eq!(
-            fs::read(store.path_for_key(REAL_KEY).unwrap()).unwrap(),
-            b"real"
-        );
-        assert_eq!(
-            fs::read(store.path_for_key(PUT_KEY).unwrap()).unwrap(),
-            b"published"
-        );
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn periodic_sweep_removes_stale_untracked_publish_temporary() {
-        let root = root();
-        let store = FileBlobStore::open(&root).unwrap();
-        store.put(REAL_KEY, &mut &b"real"[..]).unwrap();
-        let temporary = root
-            .join(".snapback/blobs")
-            .join(format!(".{PUT_KEY}.put-1-2.tmp"));
-        fs::write(&temporary, b"crashed").unwrap();
-        let old = SystemTime::now()
-            .checked_sub(BLOB_TEMP_STALE_AFTER + Duration::from_secs(1))
-            .unwrap();
-        File::options()
-            .write(true)
-            .open(&temporary)
-            .unwrap()
-            .set_times(fs::FileTimes::new().set_modified(old))
-            .unwrap();
-
-        crate::asset_gc::enumerate_blob_page(&store, None, 8).unwrap();
-        assert!(!temporary.exists());
-        assert!(store.path_for_key(REAL_KEY).unwrap().is_file());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn traversal_is_refused_as_typed_owner_io() {
-        let root = root();
-        let store = FileBlobStore::open(&root).unwrap();
-        let refusal = store.put("../store.sqlite", &mut &b"x"[..]).unwrap_err();
-        assert_eq!(refusal.code, "E_OWNER_ASSET_IO");
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn startup_sweeps_only_type_checked_crash_temporaries() {
-        let root = root();
-        let blobs = root.join(".snapback/blobs");
-        let staging = root.join(".snapback/staging");
-        fs::create_dir_all(&blobs).unwrap();
-        fs::create_dir_all(&staging).unwrap();
-        let put = blobs.join(".s2id-dead.put-1-2.tmp");
-        let upload = staging.join("upload-dead-1.stage");
-        let strip = staging.join(".asset-strip-1-2.tmp");
-        let helper = staging.join(".rung-dead.stage.snapback2-media-1-2.tmp");
-        let unknown = staging.join("author-file.txt");
-        for path in [&put, &upload, &strip, &helper, &unknown] {
-            fs::write(path, b"stale").unwrap();
-        }
-        FileBlobStore::open(&root).unwrap();
-        LocalStaging::open(&root).unwrap();
-        for path in [&put, &upload, &strip, &helper] {
-            assert!(!path.exists(), "{} survived startup sweep", path.display());
-        }
-        assert!(unknown.is_file());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn reset_clear_waits_for_registered_finalizing_upload_custody() {
-        let root = root();
-        let staging = LocalStaging::open(&root).unwrap();
-        let receiving = staging.create().unwrap();
-        let custody = UploadCustody::new(receiving);
-        staging.register_upload("upload-1".to_owned(), custody.clone());
-        let finalizing = custody.finalize().unwrap();
-        let finalizing_path = finalizing.path.clone();
-        let marker = root.join(".snapback/staging/reset-order-probe.stage");
-        fs::write(&marker, b"present before reset").unwrap();
-
-        assert!(!staging.clear_after_reset().unwrap());
-        assert!(finalizing_path.is_file());
-        assert!(marker.is_file());
-
-        custody.finish(Some(finalizing)).unwrap();
-        staging.finish_upload("upload-1");
-        assert!(staging.resume_reset_clear().unwrap());
-        assert!(!finalizing_path.exists());
-        assert!(!marker.exists());
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    #[cfg(unix)]
-    fn scratch_reservations_include_concurrent_work_and_failed_unlinks() {
-        let root = root();
-        let staging = LocalStaging::open(&root).unwrap();
-        let mut reserved = staging
-            .create_reserved("source", SCRATCH_GLOBAL_BYTES, 1)
-            .unwrap();
-        assert_eq!(
-            staging.create_reserved("source", 1, 1).unwrap_err().code,
-            "E_ASSET_TOO_LARGE"
-        );
-        reserved.discard().unwrap();
-
-        let mut retained = staging.create_for_upload(1).unwrap();
-        retained.file_mut().write_all(b"x").unwrap();
-        let retained_path = retained.path().to_owned();
-        let directory = root.join(".snapback/staging");
-        fs::set_permissions(&directory, fs::Permissions::from_mode(0o500)).unwrap();
-        assert_eq!(retained.discard().unwrap_err().code, "E_OWNER_ASSET_IO");
-        drop(retained);
-        fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).unwrap();
-        assert_eq!(staging.scratch_usage().unwrap(), (1, 1));
-        assert_eq!(
-            staging
-                .create_reserved("source", SCRATCH_GLOBAL_BYTES, 1)
-                .unwrap_err()
-                .code,
-            "E_ASSET_TOO_LARGE"
-        );
-        fs::remove_file(retained_path).unwrap();
-        assert_eq!(staging.scratch_usage().unwrap(), (0, 0));
-        fs::remove_dir_all(root).unwrap();
-    }
-}
+#[path = "blob_store_tests.rs"]
+mod tests;

@@ -9,7 +9,7 @@ import { bindQuarryProgram, type BoundValueFacts } from "./quarry/bound";
 import { QuarryError } from "./quarry/diagnostics";
 import { lowerBoundQuarryProgram } from "./quarry/direct";
 import { prepareQuarry, type QuarryInput } from "./quarry/index";
-import { assert, operation, type Test } from "./quarry-check-helpers";
+import { assert, compileInline, operation, type Test } from "./quarry-check-helpers";
 
 const schema = `table rows:
   seenAt: time ?
@@ -21,6 +21,41 @@ table others:
 `;
 
 export function registerQuarryDirectValidationChecks(test: Test, frontend: string): void {
+  test("exists requires complete ordinary keys at the Quarry site", () => {
+    for (const unique of ["unique", "by"]) {
+      const schema = `table memberships:
+  conversation: text <=20
+  principal: principal
+  ${unique} byConversationPrincipal: conversation, principal
+  unique byPrincipal: principal
+  public
+
+table messages:
+  conversation: text <=20
+  read <- exists memberships[.conversation, viewer]
+`;
+      const compile = (source: string, op = "query probe():\n  return null\n") => compileInline([
+        { fileName: "snapback/schema.q", source }, { fileName: "snapback/ops.q", source: op },
+      ]);
+      for (const suffix of ["", " by byConversationPrincipal"]) {
+        const partial = compile(schema.replace("[.conversation, viewer]", `[.conversation]${suffix}`));
+        assert(!partial.ok && partial.diagnostics.some(d => d.code.startsWith("E_QUARRY_") && d.site.includes("schema.q:10:")),
+          `prefix rule exists escaped Quarry: ${JSON.stringify(partial)}`);
+      }
+      const complete = compile(schema);
+      assert(complete.ok, `complete ${unique} rule key failed: ${JSON.stringify(complete)}`);
+      const prepared = prepare(schema, "query probe():\n  return null\n");
+      const checkedSchema = bindQuarrySchema(prepared.documents, prepared.catalog);
+      const checked = rustCheck([lowerBoundQuarryProgram(bindQuarryProgram(program(prepared, "probe"),
+        prepared.catalog, prepared.documents))], "synthetic", checkedSchema)[0]!;
+      assert(!checked.error && checked.certificate, `complete exists did not certify: ${JSON.stringify(checked)}`);
+      const one = compile(schema.replace("[.conversation, viewer]", "[viewer] by byPrincipal"));
+      assert(one.ok, `one-column unique exists failed: ${JSON.stringify(one)}`);
+      const partialPoint = compile(schema, "query probe():\n  return exists memberships['room'] by byConversationPrincipal\n");
+      assert(!partialPoint.ok, "program exists accepted an explicit prefix key");
+    }
+  });
+
   test("direct Quarry validates nominal operators and narrows one-hop optional members", async () => {
     const operations = `query valid(id: rows, maybe: rows ?, maybeCount: int ?, upTo: time, amount: money USD, rate: decimal 4):
   row = rows[id]! else MISSING

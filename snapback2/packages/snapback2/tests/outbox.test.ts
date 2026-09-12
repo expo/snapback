@@ -1410,3 +1410,33 @@ test("compaction crash rollback preserves entries, aliases, and freshness on all
     } finally { follower?.close(); await store.close?.(); await rm(root, { recursive: true, force: true }); }
   }
 });
+
+
+test("refresh retains the same epoch's held rows and queued intents on every carrier", async () => {
+  for (const carrier of await carriers()) {
+    await seededStore(carrier.factory());
+    const owner = fakeOwner({ meEpoch: 7, seed: true });
+    let persisted = "old-token";
+    const client = createClient({ url: "http://refresh.test", tokenStore: { load: () => persisted, save: token => { persisted = token ?? ""; } },
+      offline: { store: carrier.factory() }, fetch: async (input, init) => {
+        if (new URL(String(input)).pathname === "/api/mutation") throw new TypeError("write transport unavailable");
+        if (new URL(String(input)).pathname === "/api/auth/refresh") return jsonResponse({ token: "new-token", viewer: "dev:alice", kind: "user", authEpoch: 7 });
+        return owner.fetch(input, init);
+      } });
+    try {
+      await client.ready;
+      await client.query(api.messages.inbox as any, { c: null });
+      await client.mutation(api.messages.send as any, post("survives rotation"));
+      const before = await client.outbox.entries();
+      assert.equal(before.length, 1);
+      const refreshed = await client.auth.refresh();
+      assert.equal(refreshed.authEpoch, 7);
+      assert.equal(persisted, "new-token");
+      assert.deepEqual(await client.outbox.entries(), before);
+      await client.offline();
+      const held = await client.query(api.messages.inbox as any, { c: null });
+      assert.notEqual(held.state, "refused");
+      assert.equal(owner.executions.length, 0);
+    } finally { await client.close(); await carrier.cleanup(); }
+  }
+});

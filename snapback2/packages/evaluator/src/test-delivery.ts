@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ClientStore } from './store';
+import { FixtureStore as ClientStore } from './test-certificate';
 import { evaluateCase, compareExpected } from './evaluator';
 const fixture = JSON.parse(readFileSync(new URL('../../../corpus/deliver-insert-cap3.json', import.meta.url), 'utf8'));
 const member = { Exists: { table: 'memberships', index: 'byConversationPrincipal', key: [{ Literal: { Id: 'c1' } }, { Input: 'Viewer' }], provenance: 'Viewer', site: 'member' } };

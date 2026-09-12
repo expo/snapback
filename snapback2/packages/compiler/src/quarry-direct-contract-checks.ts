@@ -1,5 +1,6 @@
+import { CertifiedTestStore as ClientStore } from "./quarry-check-helpers";
 import { deepStrictEqual } from "node:assert/strict";
-import { ClientStore, type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
+import { type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
 import type { Program } from "./ir";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";

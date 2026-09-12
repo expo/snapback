@@ -142,12 +142,17 @@ that table.
 by who may issue each part: `rows` — "I hold these" — is client-issuable;
 `absences` and *complete* `ranges` — "no row exists there / this range is
 whole" — and `verdicts` — "this principal may see this" — are authority-only.
-An absence is also bound to the schema hash under which authority observed it;
-a predecessor absence is not authority after a successor. Receipt-only
+Absences and verdicts are also bound to the receipt schema hash under which
+authority observed them; neither crosses a successor, even if an inner verdict
+is relabeled. Current scoped rule hashes already include the complete schema. Receipt-only
 maintained prediction may apply a delta only when the exact target row is held
 or a same-schema authority-issued `byId` absence proves its deterministic id
 starts at zero; otherwise the whole local mutation rolls back as
 `Partial(["missing-authority"])`.
+The TypeScript twin validates value-model/evaluator versions and canonical
+schema/program identity at direct execution, including prediction; a missing
+certificate refuses before statements. Corpus preludes carry Rust-issued
+certificates as well. Authority-only rule probes do not execute programs.
 The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
 *asserted*, not merely true by construction: `assert_bounds` checks
 `receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
@@ -301,8 +306,13 @@ existing calibrated heap model, not a whole-process allocator bound.
 Runtime owns the policy-hash cache for its certified schema generation; reuse
 cannot cross a successor or accept caller-supplied hashes. Independent trace
 and receipt membership indexes preserve each collection's first disclosed row
-image and rollback behavior. Heap entries address retained rows by index,
-avoiding transient copies without changing ordering or evidence. Certificate,
+image and rollback behavior. Heap entries address retained rows by index.
+Overlapping evaluated lane bounds share one reference-counted body per intrinsic
+id across lane evidence and the returned page; at most `take + lanes + 2` unique
+bodies survive. Hidden candidates are dropped immediately. Per-lane examined
+and visible identity lists still scale with examined work because they are
+required trace evidence. Ordinary scans borrow their halo and derive returned
+ids from the visible identity list rather than cloning another row body. Certificate,
 trace, receipt, authority, result and opaque-cursor semantics remain unchanged.
 The integrated core bytes match the tested candidate; first full curves and
 byte-exact output comparisons are retained in the feed evidence record.
@@ -835,6 +845,7 @@ impl Runtime {
     pub fn ensure_persona(&mut self, name: &str, now: i64) -> Result<Principal, IdentityError>;          // stable dev alias; no session side effect
     pub fn persona(&mut self, name: &str, now: i64) -> Result<Session, IdentityError>;                   // fresh finite session for `dev:<name>`
     pub fn authenticate(&self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;        // E_AUTH_SESSION
+    pub fn refresh_session(&mut self, token: &str, now: i64) -> Result<Session, IdentityError>;            // rotates credential, retains principal/epoch
     pub fn logout(&mut self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;          // exact live session, else E_AUTH_SESSION
     pub fn expire_sessions(&mut self, now: i64) -> Result<Vec<SessionAuthority>, IdentityError>;         // delete and return every epoch whose exclusive bound has arrived
     pub fn next_session_expiry(&self) -> Result<Option<i64>, IdentityError>;                              // owner polling deadline
@@ -867,7 +878,17 @@ strictly-increasing, never-reused epoch in that store. A session is valid on
 expired rows are deleted so clock rollback cannot revive them. Logout verifies
 and deletes one exact live epoch; a missing, expired, or already-revoked bearer
 is `E_AUTH_SESSION`, not a successful no-op. Multiple sessions for one
-principal are independent.
+principal are independent. Sessions expire after 24 hours. Explicit refresh atomically
+replaces the digest and renews that deadline, retaining the principal and epoch;
+the prior token immediately fails. Admitted streams and offline custody keep that
+epoch. This reduces a stolen unrefreshed credential's window from thirty days to
+one; an attacker holding a valid credential can also refresh it, so rotation is
+not theft detection. A lost refresh response requires password login again.
+
+A signup email UNIQUE conflict at the credential insert becomes `EmailTaken`,
+including a race after the early existence check; other storage/constraint
+failures remain `Store`. The current exclusive store owner already serializes
+ordinary HTTP signup; this mapping also protects the lower-level insert boundary.
 
 This is a pre-promotion store-format break. `Store::open` accepts only the
 canonical digest-only session schema and refuses an older plaintext-token or
@@ -1330,7 +1351,12 @@ twin/held-state and local cursor contract is LLP 1012 §"Indexed held search".
   lane.
 - The shared corpus (`snapback2/corpus/manifest.json`) is regenerated whenever serialization or
   certification changes; the Rust engine and TypeScript evaluator must agree
-  on every case.
+  on every executable case. The existing blocking test entrypoint also runs
+  `export_corpus --check`, comparing every case and the manifest to generator
+  bytes, then rebuilds and executes the embedded runner. All consumers assert
+  corpus version 1; server-only certification refusals are counted separately,
+  never handed to the twin runner. Compiler checks cover canonical corpus IR
+  and pin the shared value-model contract at import time.
   It preserves the original semantic inventory while removing authored
   `input_visibility`, and covers old/next updates, `Created`, final-exists,
   intrinsic row ids, maintained writes, text constraints, rule-memo

@@ -697,7 +697,7 @@ fn clear_search_indexes(
 /// Rows one successor batch reads at a time.
 pub(crate) const ROW_BATCH: usize = 128;
 
-fn for_row_batches(
+pub(crate) fn for_row_batches(
     c: &Connection,
     table: &str,
     mut apply: impl FnMut(Value) -> Result<(), RuntimeError>,

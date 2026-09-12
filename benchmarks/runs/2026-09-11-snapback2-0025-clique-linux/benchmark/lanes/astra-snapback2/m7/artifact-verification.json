@@ -1,0 +1,20 @@
+{
+  "coverage": {
+    "pass": true,
+    "required": [
+      "m7-a01",
+      "m7-a03",
+      "m7-a04",
+      "m7-a06",
+      "m7-a07",
+      "m7-a09"
+    ]
+  },
+  "hermes": {
+    "path": "m7/artifacts/ios-final/_expo/static/js/ios/entry-930313f89c288d9cafda06b6546c9816.hbc",
+    "bytes": 3964791,
+    "sha256": "a03fa7c391475bfc76b8e92a2676294d9c6736b29a61af4213462f5762ae03ae",
+    "magic": "c61fbc03c103191f"
+  },
+  "suiteSha256": "39df9853bf9ba13627805766122dd87a6cb475914efa68015c3af26eefdfc99a"
+}
