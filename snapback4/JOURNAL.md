@@ -668,3 +668,12 @@ bundle exported cleanly on the lane's npm install.
   `E_PREDICT`, `E_TYPE` and the `N_NEVER_COMPLETE` note too.
 - Published `snapback4@0.0.4`. The lane keeps its exact pin (0.0.2); the
   loop bar and the next runs take the latest.
+
+## 2026-09-12 — the loop bar runs beside the Clique lane
+
+`loopbar/run.mjs --n 3 --version 0.0.4` started at 14:31 UTC on this
+machine while the Clique lane runs (18 cores, 128 GB; both wall clocks are
+recorded as measured, with the parallelism noted here and in the records).
+Three fresh Astra sessions at medium, serial, each on the published
+0.0.4, each verified independently after it stops. Results land in
+`metrics/loopbar.jsonl`; the lanes are under `~/loopbar-sb4-2026-09-12/`.

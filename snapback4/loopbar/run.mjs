@@ -35,7 +35,13 @@ for (let run = 1; run <= n; run++) {
   const fd = [];
   child.stdout.on("data", (d) => fd.push(d));
   child.stderr.on("data", (d) => fd.push(d));
+  // A stuck agent ends the run at the safety limit; the bar is 1,200 s.
+  const limitMs = Number(args.limit ?? 2_700) * 1000;
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); }, limitMs);
   const code = await new Promise((r) => child.on("exit", r));
+  clearTimeout(timer);
+  out.timedOut = timedOut;
   writeFileSync(log, Buffer.concat(fd));
   out.exitCode = code;
   out.wallSeconds = +((Date.now() - t0) / 1000).toFixed(0);
