@@ -16,5 +16,6 @@ scope is [`NOT-DOING.md`](./NOT-DOING.md); the chronology is
 | | |
 |---|---|
 | `crates/snapback4` | the binary: `--version` and `doctor` today; owner, wire and verbs from week 2 |
-| `packages/snapback4` | the client: the contract (`src/contract.ts`) today; mock client, hooks, replica from week 1–3 |
+| `packages/snapback4` | the client: the contract, the labelled MOCK client, the React hooks; the replica from week 3 |
+| `apps/chat` | the chat reference app against the card, on the MOCK client; its `snapback/schema.q` is the desired dialect |
 | `scripts/test.sh` | everything blocking, under 60 s |

@@ -74,3 +74,44 @@ Not measured: `expo-sqlite` on a device or simulator (floor 3 uses native
 SQLite through Node as its stand-in; the Expo witness lane should confirm
 the constant in week 4); a real network; a mid-range phone. These are
 recorded as gaps, not estimated.
+
+## 2026-09-12 — simulator skeleton; checkpoint `1700c1c755`
+
+- `crates/snapback4-sim` landed in `1700c1c755` with the floors and the
+  corpus. Zero dependencies. Nine tests pass in the workspace: two on the
+  seeded generator, two on the disk model, four on the replicated-counter
+  witness, one on the binary. The witness runs 20 seeds × 16 kills under
+  rough faults (20% drop, 10% duplicate, delays 1–40 ms, 15% fsync failure)
+  holding at-most-once and acked-is-durable after every event, then heals
+  and converges with every minted op landed exactly once; same seed gives
+  the same trace digest; a partition heals.
+- What the skeleton does not do yet: host the real server (week 2). Of LLP
+  3000 §6's seven invariants, the witness carries 3, 4, 6 and 7 in
+  miniature; 1, 2 and 5 wait for the real client and the card.
+- Decision recorded in LLP 3000 §7: the simulator is Rust; how it hosts the
+  client is decided at week 3 with the byte measurement.
+
+## 2026-09-12 — the chat app against the card, on a mock
+
+- `packages/snapback4/src/mock.ts` (141 lines, labelled MOCK everywhere) and
+  `src/react.tsx` (105 lines: provider, `useQuery`, `usePage`, `useMutation`,
+  `useLink`, `useViewer`) sit on the card. `apps/chat` is the reference app
+  on that mock: `Thread.tsx` is 26 lines, `Composer.tsx` 22, `Inbox.tsx` 14;
+  the only words the screens read are `data`, `complete`, `fresh`, `since`,
+  `next`, `pending`, `denied`, `loading`, and the write's three states.
+  There is no `shared/thread.ts`, no bindings, no recovery code.
+- `apps/chat/snapback/schema.q` is the Snapback 2 chat schema with `sync`
+  lines added per table — `sync public last 2000 by byHandle`, `sync to
+  memberships[.id]`, `sync to memberships[.conversationId] last 500 by
+  byConvTime` — and a `maintain` delivered into the partition as a value.
+  Nothing compiles it until week 2; it is the desired dialect, written first.
+- Toolchain proof: Vite 8.3.0 (rolldown 1.2, oxc minify) builds the app in
+  297 ms: 229,171 bytes raw, 71,080 gzip-9, of which the SDK and app are a
+  few kilobytes and React 19 the rest. The online-tier budget (LLP 3000 §3)
+  is measured on the SDK alone once it is real; this number is the toolchain
+  working, not a client size.
+- The blocking suite now typechecks the package and the app beside
+  `cargo test`; 0.9 s wall on this machine.
+- Card amendment (lead): `since` is the wall-clock time of the newest server
+  state a stale read reflects, so a screen can say "as of 3:12". Three type
+  guards (`isReady`, `isLoading`, `isDenied`) join `contract.ts`.

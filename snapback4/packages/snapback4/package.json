@@ -3,14 +3,23 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Snapback 4 client: the contract first (LLP 3000 §2), the mechanism after.",
+  "description": "Snapback 4 client: the contract first (LLP 3000 \u00a72), the mechanism after.",
   "exports": {
-    "./contract": "./src/contract.ts"
+    "./contract": "./src/contract.ts",
+    "./mock": "./src/mock.ts",
+    "./react": "./src/react.tsx"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "typescript": "5.9.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
   }
 }

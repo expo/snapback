@@ -21,7 +21,9 @@ export interface Refusal {
 
 /**
  * A read. `complete` is false beyond a sync horizon or at an online-only site.
- * `fresh` is transport truth: the value reflects the server as of `since`.
+ * `fresh` is transport truth: the value reflects the server now. When it does
+ * not, `since` is the wall-clock time (ms) of the newest server state it does
+ * reflect, so a screen can say "as of three minutes ago".
  */
 export type Read<T> =
   | { readonly data: T; readonly complete: boolean; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null }
@@ -70,4 +72,14 @@ export interface Client {
   onLink(notify: (link: Link) => void): () => void;
   viewer(): Principal | null;
   close(): Promise<void>;
+}
+
+export function isReady<T>(read: Read<T>): read is { readonly data: T; readonly complete: boolean; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null } {
+  return "data" in read;
+}
+export function isLoading<T>(read: Read<T>): read is { readonly loading: true } {
+  return "loading" in read;
+}
+export function isDenied<T>(read: Read<T>): read is { readonly denied: Refusal } {
+  return "denied" in read;
 }

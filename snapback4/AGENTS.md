@@ -13,7 +13,8 @@ cargo build                          # the binary; no JS engine, no bootstrap, n
 scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
 ./target/debug/snapback4 --version   # 0.0.1
 ./target/debug/snapback4 doctor      # says honestly what does not exist yet
-bun run --cwd packages/snapback4 typecheck   # the contract typechecks
+bun run --cwd packages/snapback4 typecheck   # the contract, the mock client and the hooks typecheck
+(cd apps/chat && bun run dev)               # the chat app on the MOCK client (Vite 8 / rolldown); `bun run build` measures its bytes
 ```
 
 What exists, by week (LLP 3000 §5):
