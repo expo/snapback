@@ -51,3 +51,18 @@ No material findings.
 **Review limits and adjudication, verbatim:** Did not run tests, builds, or the pinned gzip five-root measurement (reported 89,843 / 90,000, not reproduced). Prior complementary-max finding: under LLP 1001 §10 as written (result vs retained rows as separate serialized products; heap separate; no combined Execution envelope), certificate.rs max(retention, search_closure) cannot undercount either product when search_closure is a valid receipt floor — max is at least that floor. The added constructed 500-follow control still has search_closure winning (receipt ~718–800k of 1,349,429; output ~967k of 967,932), so it does not exercise a retention-wins path; that path would still be ≥ the receipt estimate rather than dropping heads. Unconfirmed, not filed: integer truncation of max_calls/source.take only at saturating u64 overflow, not at the 500-follow shape (analyzer multiplies by source.take then divides it back); enqueue structuredClone(prepared.entry) omitting a store-assigned order — submitMutation only consumes intent/ids, and this packet does not include prepareEntry’s order assignment; a constructed result descriptor with a consumed asset id that fails AssetRecord equality would skip owner redaction (legal queries return typed fields/aliases, which the result walk does redact). Digest final-emission eligibility remains an explicit unclaimed gap. live-query.md still shows a first-50 membership merge in the Unicode section; fanout.md is the complete 1,000-chat form. onceExhausted whole-row suppression at the offline twin is the existing viewed-row-absent rule, now shared with bytes/carrier; owner Row-provenance exhaustion matches Get/full-row projections. Reported Chromium 13 / owner 122 / web 209 / hub 1,000+125 / closure 212 were not independently reproduced.
 
 Integrator: the earlier accounting finding is withdrawn by its reviewer under the separate serialized-product contracts. Subsequent template/diagnostic repairs and main integration still require a scoped delta review; this verdict does not cover unwritten changes.
+
+## Round 3
+
+Candidate: `cee80bc1d056f3a23087ceb338da41cc156776de`; delta from `ade40815509be3bb5ab873de3d2c02bc5182f6b0`.
+Packet SHA-256: `8ff7ab20db6723e9e8341b53da7c9427f91f2206b25eee25c050c7141a82b408`.
+Fresh mutually blind packet-only review; same requested family/model/effort as above.
+Session: `01a093e4-1629-7602-9c34-1c82e61bfc83`; process exited 0.
+
+**Verdict: READY**
+
+No material findings.
+
+**Limits, verbatim:** Delta-only review of the supplied packet (candidate cee80bc1 vs prior READY at ade40815). No tools, tests, builds, peer reviews, or files outside this packet. Unconfirmed, not raised: whether opaque_cursor plus a non-empty result_pages site can label merge page: without a proved client cursor binding (code checks plans.len()==1, uniform, take>1, opaque_cursor, result site match, and pool ownership; it does not check result_page cursor Some). Unconfirmed: assetBlob/ByteCache admit after the live row drops the asset id; templates keep the captured ImageAsset and viewing instance, which the packet’s transition tests cover. Digest final-emission remains the recorded unfulfilled parent gap. Runtime 89843/90000 and failed 1% byte comparison are inherited. Did not re-judge main’s landed CLI/schedule/mutation-target work.
+
+Integrator: this resolves the reviewed source findings. The actual full test script passes at the candidate; the inherited historical byte comparisons remain failed. Later imported main changes retain their own provenance. A separate small review covers the two manually reconciled guide pages. No digest or fresh-wave success is inferred.

@@ -55,3 +55,25 @@ The digest final-emission eligibility gap remains explicitly unfulfilled and was
 Limitations: packet-only static review. I did not run commands, tests, builds, browser checks, or independently reproduce reported validation and measurements. I did not inspect credentials or peer reviews and remained mutually blind.
 
 Integrator: the prior admission cleanup finding is resolved by this reviewer. The new fixture author-rule regression is assigned for correction with author/other-principal and paired-head lifecycle controls. Its repair and subsequent template/diagnostic changes still require a scoped delta review.
+
+## Round 3
+
+Candidate: `cee80bc1d056f3a23087ceb338da41cc156776de`; delta from `ade40815509be3bb5ab873de3d2c02bc5182f6b0`.
+Packet SHA-256: `b9bdfdd5b052600fe11a1c7c6a82c9513e7144f0e849ad11ba737ac33ee12b91`.
+Fresh mutually blind packet-only review; same requested family/model/effort as above.
+Session: `01a093e4-15ea-7272-8202-ed6673ba8e57`; process exited 0.
+
+Verdict: READY
+
+No material finding remains in the scoped delta.
+
+The prior author-CRUD regression is repaired at [schema.q:13](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/packages/compiler/fixtures/quarry-fanout-guide/snapback/schema.q:13), with controls covering author edit/removal, foreign refusal, stable heads on edit, and paired deletion.
+
+The merge diagnostic is now restricted by returned-page provenance and pool ownership at [closure.rs:92](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/crates/snapback2-core/src/certificate/search/closure.rs:92). The React and Expo templates retain only the opened asset and message identity, scoped to the account and conversation, while preserving the keyed mounted view after publication disappears: [React Thread.tsx:15](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/packages/snapback2/templates/chat/react/src/Thread.tsx:15), [Expo Thread.tsx:11](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/packages/snapback2/templates/chat/expo/src/screens/Thread.tsx:11). The enqueue path returns its prepared admitted identity without a vulnerable post-commit reread at [outbox.ts:443](/Users/ccheever/projects/snapback-1023-20260912/panel/workspace/snapback2/packages/snapback2/src/store/outbox.ts:443); durable FIFO order remains carrier-owned.
+
+Unconfirmed hypotheses: none.
+
+This is readiness for the supplied delta only. Digest final-emission eligibility remains explicitly unfulfilled, the historical 1% comparison still fails, the 80,000-byte target remains unmet, and production qualification/publication remains pending.
+
+Limitations: frozen-packet static review only. I did not browse, run commands, builds, tests, or benchmarks; edit files; inspect credentials; access remote machines; or read peer reviews. Reported validation and measurements were not independently reproduced.
+Integrator: this resolves the reviewed source findings. The actual full test script passes at the candidate; the inherited historical byte comparisons remain failed. Later imported main changes retain their own provenance. A separate small review covers the two manually reconciled guide pages. No digest or fresh-wave success is inferred.

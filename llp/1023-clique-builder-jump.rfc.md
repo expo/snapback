@@ -5,7 +5,7 @@
 **Systems:** Snapback 2 query publication and freshness, certified read envelopes, durable browser mutations, packaged guide and React/Expo examples; Clique benchmark interpretation
 **Author:** Grok 4.6, for Charlie Cheever
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (Codex / GPT-6 Astra: reconcile implemented source, scoped qualification and measured simplification; retain Accepted status, unmet digest requirement and publication/benchmark limits)
+**Revised:** 2026-09-12 (Codex / GPT-6 Astra: final source review and full-suite evidence; inherited byte refusals; separately selected fresh instrument; retain unmet digest requirement and publication/benchmark limits)
 **Related:** LLP 1000, LLP 1001, LLP 1010, LLP 1012, LLP 1018.003, LLP 1018.004, LLP 1018.007.000, LLP 1018.008.007.002, LLP 1019, LLP 1020; [residual assessment](./1018.008.009-residual-ergonomic-gaps.research.md); [query plan](./1023.000-one-query-story.plan.md), [scale plan](./1023.001-hub-scale-certified-reads.plan.md), [write plan](./1023.002-web-writes-that-survive-the-browser.plan.md)
 
 ## Summary
@@ -49,6 +49,14 @@ source outcomes. Neither is an exact-HEAD gate.
 | [Acquisition plan §9](./1018.008.007.002-bounded-bulk-acquisition.plan.md#9-implementation-and-measured-outcome), `9f93f3e1ba` and `4e22e80462` | Batching and foreground admission repairs already landed | Single controls do not close the original single-context offline-flush report, browser navigation, or the acquisition objective |
 | [Hub report](../issues/20260911-snapback2-hub-scale-certified-query-envelopes.md) | Several authored shapes refused and builders reduced/chunked them | Refusal sizes are bounds for those schemas, not universal lane limits; the report conflates required fixture coverage with the builder's chosen single-query shape |
 
+The later `e4a85d7671` update completes the separate 0.0.24 Astra record:
+fresh Opus 5 grading reports 101 passes and 18 not-run across its JSON and
+M8 trace, fresh M7 finishes with a documented retry deviation, and the
+experience score is 78/100. The grader also reproduces a major rapid-edit
+application defect. Native proof, holdout, calibration and custody limits
+remain. This corrects the initial checkpoint's incomplete grading state;
+it is neither a result for this program nor evidence of a controlled score drop.
+
 The earlier honestly stale complete-zero control remains valid behavior. The
 later reproduced defect was unheld data published with a partial receipt.
 Neither `seq === 0`, `source === "twin"`, numeric zero nor `live === false`
@@ -84,8 +92,8 @@ Current 1000+ implementation records and packaged guide cards govern facts.
 The complete local runtime ceiling is 90,000 gzip bytes, target 80,000.
 The initial [Insights record](../issues/closed/20260911-snapback2-insights-partial-twin-zero.md)
 measured **89,999** with the pinned toolchain. The dedicated simplification
-subsequently measured **89,986 → 89,843** on its fixed source baseline; later
-merged changes require their combined measurement. Headroom remains narrow.
+subsequently measured **89,986 → 89,843** on its fixed source baseline;
+the combined `cee80bc1d` measurement confirms 89,843. Headroom remains narrow.
 Fund added runtime bytes through deletion/simplification and measure the
 combined result with the existing five roots. Package/guide growth limits
 remain separate. Moving bytes between roots does not fund a feature.
@@ -173,6 +181,17 @@ Astra and Grok builds and independent grading. Preserve failures and environment
 incidents. Earlier diaries help choose probes but are not prompts for cold
 builders. Existing publication requirements still apply.
 
+**Fresh-wave selection, before launch:** use upstream `e4a85d7671eec82e44f4f8163b9fa4e73a73b01b`,
+instrument **0.3.7-m8**, fixture **0.2.2-m8**, manifest SHA-256
+`94e8456333788acae69816809658d9ed441637903a6732176819d60f3bfadf48`.
+The earlier `f40559f` packet is retained unchanged. Its starter group included
+Erin while its all-read choreography opened only Alice/Bob/Carol; upstream
+corrected that contradiction separately. The scale log, assertion set and
+applicability are unchanged. No running instrument is edited or earlier score
+reinterpreted. This wave has a different instrument identity from earlier
+scores and cannot establish a causal score change. Cold builders receive only
+the normal task, public instrument and installed package, without these findings.
+
 | Outcome | Objective evidence | Product observation |
 | --- | --- | --- |
 | Reads | No unheld total published as data; fresh load/refresh matches owner at controlled state/time; once behavior correct online and offline | No extra client or polling loop to repair Insights or live media |
@@ -188,15 +207,12 @@ needs reassessment; score improvement with wrong data fails the program.
 ## Remaining decisions
 
 Exact final-time digest eligibility remains unmet, including deletion,
-membership and expiry changes after accumulation. The owner once-alias and
-sequence repair passes the strict Chromium matrix; the stock React/Expo
-consumers still need to preserve their opened view through the nullable join.
-Grok independently withdrew the closure concern; Sol found a missing author
-update/delete rule in the integrated hub fixture. Correct both consumer
-regressions and the affected diagnostic/assertion failures before delivery.
-Final package qualification, publication and a fresh unchanged Clique wave
-remain separate work; no score target, forced refusal or enlarged ceiling
-substitutes for them.
+membership and expiry changes after accumulation. The bounded scale lane
+records that gap; it does not satisfy the original complete-digest outcome.
+The other source corrections pass the complete suite, and both independent
+code reviewers return READY on `cee80bc1d`. Final package qualification,
+publication and the separately frozen fresh Clique wave remain distinct work;
+no score target, forced refusal or enlarged ceiling substitutes for them.
 
 [Review and dispositions](./reviews/1023-clique-builder-jump.gpt.md).
 
@@ -229,7 +245,11 @@ The three source lanes were integrated with main's concurrent hardening at
 `a41a132f82`; the later main merge `89b705dbb2` adds the global-search pager
 and recipe, compact heads for all 1,000 follows, and phased schedules.
 Main `3994fc112e` adds CLI recovery, explicit schedule phase, mutation-target
-flow and the already-published 0.0.27 release. This candidate uses 0.0.28.
+flow and the already-published 0.0.27 release. Main `4a4249f7cc` subsequently
+adds Quarry first-use guidance and reserves 0.0.28 for a separate release.
+This program therefore uses **0.0.29**. The guide merge retains both the full
+hub forms and the typed global-pager operations; the latter remain an interim
+composition with a request count proportional to membership.
 Guide integration preserves the public global pager and its measured cost,
 while teaching the distinct grouped-search form for Clique.
 Integration preserves the full-media 500-follow fixture, ten-row grouped
@@ -249,9 +269,9 @@ Metafile contributions are uncompressed emitted bytes, not additive gzip
 savings. The largest baseline contributions were the range store (28,141),
 evaluator runner (27,987), offline runtime (23,641), Unicode data (17,186), and
 value runtime (13,006). `client.ts` does not participate in the fixed five roots;
-public-entry sizes remain separate. The latest integrated guide build is
-**98,073 / 98,304 bytes** after prose compaction; the integrator owns final combined runtime and
-package measurements after remaining repairs.
+public-entry sizes remain separate. The `cee80bc1d` guide was
+**98,073 / 98,304 bytes**; after integrating main's Quarry guidance and restoring
+the complete typed pager operations it builds at **98,178 / 98,304 bytes**.
 
 The timed Insights consumer passes in **3.29 seconds** against the integrated
 owner's current authentication rules. Its controlled UTC rollover stays inside
@@ -280,16 +300,22 @@ eligibility. This requirement remains unmet and unclaimed.
 
 Strict Chromium qualification passes all 13 controls on `ade4081550`,
 including principal-specific consumed aliases, next-sequence publication,
-mounted allowance, other-principal access and cold persisted denial. Grok's
-round-2 code review is READY; Sol requires restoring hub fixture author CRUD.
-The full integrated suite exposed two stock-template mounted-view failures,
-three outbox return-shape assertions and four cost/guide assertions; each has
-an assigned repair. Darwin staging passed for that source, but concurrent
-main subsequently published 0.0.27. Final 0.0.28 qualification and publication
-remain pending. The prepared
+mounted allowance, other-principal access and cold persisted denial. The
+stock React/Expo templates now retain the opened descriptor and message ID
+through nullable publication without retaining the full row. Restored hub
+author rules have author/foreign edit and paired post/head deletion controls.
+The outbox tests distinguish prepared admission bytes from the carrier's FIFO
+order. The final full suite below passes; earlier failures remain recorded.
+Both [Sol](./reviews/1023-clique-builder-jump.code-sol.md) and
+[Grok](./reviews/1023-clique-builder-jump.code-grok.md) return READY in round 3.
+
+Darwin 0.0.28 staging passed on `cee80bc1d` in 165.43 seconds, with production
+Hermes/media and the installed todo/chat consumers. That is retained evidence,
+not the release artifact: a concurrent release reserved that version. Final
+0.0.29 platform qualification and publication remain pending. The prepared
 fresh diagnostic packet on EPYC has not launched (estimated run: 7–12 hours),
-so there is no fresh independently graded M1–M8 claim. Passing source checks or
-an earlier native stage does not establish that result.
+so there is no fresh independently graded M1–M8 claim. Passing source checks
+or an earlier native stage does not establish that result.
 
 
 ### Final combined qualification and measurement — 2026-09-12
