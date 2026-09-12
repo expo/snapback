@@ -22,7 +22,7 @@
     },
     "packages/snapback2": {
       "name": "snapback2",
-      "version": "0.0.27",
+      "version": "0.0.28",
       "bin": {
         "snapback2": "bin/snapback2.mjs",
       },
@@ -49,8 +49,8 @@
         "ws": "8.18.3",
       },
       "optionalDependencies": {
-        "snapback2-darwin-arm64": "0.0.27",
-        "snapback2-linux-x64": "0.0.27",
+        "snapback2-darwin-arm64": "0.0.28",
+        "snapback2-linux-x64": "0.0.28",
       },
       "peerDependencies": {
         "expo": ">=54",
