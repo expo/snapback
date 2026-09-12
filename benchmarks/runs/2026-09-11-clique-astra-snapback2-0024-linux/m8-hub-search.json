@@ -1,0 +1,10 @@
+{
+  "pass": true,
+  "started": 1789173890.298,
+  "ended": 1789173905.986,
+  "seconds": 11.46169066,
+  "rows": 40,
+  "queryRequests": 1157,
+  "errors": [],
+  "note": "Actual exported web client, 1,000-conversation hub, authorized per-chat merge and continuation; supplementary non-scored proof"
+}

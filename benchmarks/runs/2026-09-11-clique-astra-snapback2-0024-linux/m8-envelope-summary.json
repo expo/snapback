@@ -1,0 +1,70 @@
+{
+  "checkpointP95": {
+    "10pct": {
+      "busy-page1": 49.9164069999988,
+      "busy-page50": 49.37117099999887,
+      "following500": 61.120764999999665,
+      "following5": 52.18065999999999,
+      "global-search": 7.183672999999544,
+      "insights": 7.383922999999413,
+      "trending": 47.28187000000071,
+      "celebrity-following": 53.88286999999946
+    },
+    "50pct": {
+      "busy-page1": 48.07905899999605,
+      "busy-page50": 48.063625999995566,
+      "following500": 64.09615699999995,
+      "following5": 55.52835999999661,
+      "global-search": 4.8694220000033965,
+      "insights": 2.719518000005337,
+      "trending": 48.12181299999793,
+      "celebrity-following": 55.0139979999949
+    },
+    "final": {
+      "busy-page1": 47.94545100000687,
+      "busy-page50": 48.36862600000313,
+      "following500": 58.008671999996295,
+      "following5": 55.2139840000018,
+      "global-search": 4.826524000003701,
+      "insights": 2.5174819999956526,
+      "trending": 48.01310200000444,
+      "celebrity-following": 55.274695000000065
+    }
+  },
+  "curves": {
+    "global-search": {
+      "p95": [
+        7.183672999999544,
+        4.8694220000033965,
+        4.826524000003701
+      ],
+      "fullRatio": 0.6718741234468784,
+      "fullPass": true,
+      "midLine": 6.136051222223614,
+      "midPass": true
+    },
+    "insights": {
+      "p95": [
+        7.383922999999413,
+        2.719518000005337,
+        2.5174819999956526
+      ],
+      "fullRatio": 0.340940987601828,
+      "fullPass": true,
+      "midLine": 5.221060333331075,
+      "midPass": true
+    },
+    "trending": {
+      "p95": [
+        47.28187000000071,
+        48.12181299999793,
+        48.01310200000444
+      ],
+      "fullRatio": 1.015465378167228,
+      "fullPass": true,
+      "midLine": 47.606862000002366,
+      "midPass": false
+    }
+  },
+  "note": "Literal published mid-curve rule, no noise tolerance or post-hoc replacement."
+}

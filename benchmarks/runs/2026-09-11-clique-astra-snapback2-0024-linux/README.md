@@ -125,6 +125,51 @@ Exact hashes of these completed observations:
 - M6 verification: `99e246da934631acf936cc00f82d6c120ddff43492af5aca480a2eb3ca8169ba`
 - M8 first refusal: `8b0fe29eaf44ed799dce154c99125c3b6c2bca41a59054138227c5ffe2627202`
 
+### Completed scale and later regressions — 2026-09-12 at01:28 UTC
+
+The [complete M8 clock](./m8-scale-completed.clock.jsonl) retains both
+attempts: the first failed after8,144 actions; the second resumed and
+completed159,100 more, ending1789173075. The total is167,244 actions, not
+a clean first-attempt replay. Initial start to final end was3,671s,
+including the recovery gap. The [final verification](./m8-scale-verification-final.json)
+reports exact manifest and named-content agreement. As with M6, this is
+builder-produced operator-state evidence, not independent grading. Later
+source was applied after this invariant snapshot for supplementary probes.
+
+The literal midpoint timing rule is red for
+[M6 search](./m6-envelope-summary.json) and
+[M8 Trending](./m8-envelope-summary.json), missing their interpolation lines
+by0.194367ms and0.514951ms respectively. Both final/initial ratio checks
+passed. Preserve those exact verdicts; submillisecond differences on a shared
+host do not establish meaningful or asymptotic performance regressions.
+
+Supplementary actual Expo-web measurements at their recorded revisions:
+
+- [Hub search](./m8-hub-search.json):1,000 conversations,40 distinct results
+  across two pages,1,157 query requests,11.462s. An initial timeout preceded
+  this passing retry and remains in the remote evidence and supervisor copy.
+- [Cold synchronization](./m8-cold-sync-final.json):100 conversations and a
+  fresh IndexedDB,54.894s to the reported caught-up gate. Maximum sampled
+  JavaScript heap over the whole probe was705,741,792 bytes; that sample
+  occurred **after** the sync timer, during settlement. Retained heap after
+  forced GC was169,431,472 bytes. This is not native-device evidence.
+
+Later receipt/reaction batching, delivery-sequence, retained-history,
+readiness and browser connectivity fixes changed the app. Do not present
+those earlier costs as measurements of the eventual final source without
+requalification. Final M3 regression suite/choreography reports passing;
+final M5/M8 verification and the builder handoff are still pending. An
+intermittent reconnect timeout has both passing retries and earlier failures.
+No supervisor app edits or coaching have been supplied.
+
+The optional native `snapback2 test --json` returned **blocked**: certify
+passed57 operations, while other categories lacked native journeys/seed.
+It is distinct from the required external acceptance suites. Its internal
+`dev --foreground --port0` invocation exposed neither a port option nor an
+owner PID to the builder. The builder disclosed this lane-port/PID audit gap;
+cleanup is tool-documented, not independently witnessed. Preserve this
+limitation rather than claiming complete test or process custody.
+
 ## Concurrent-run custody incident
 
 At21:50 UTC, fetching main revealed another supervisor's

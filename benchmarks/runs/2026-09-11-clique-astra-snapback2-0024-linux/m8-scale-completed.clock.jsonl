@@ -1,0 +1,6 @@
+{"event":"start","epoch":1789169404,"files":["instrument/fixtures/starter-m1.log","instrument/fixtures/starter-m2.log","instrument/fixtures/starter-m3.log","instrument/fixtures/scale.log"],"url":"http://127.0.0.1:53103"}
+{"event":"end","epoch":1789169623,"started":1789169404,"pass":false,"error":"Error: {\"state\":\"rejected\",\"code\":\"E_CONSTRAINT\",\"family\":\"schema\",\"message\":\"memberships cap 100 reached for group (principal) = {\\\"Array\\\":[{\\\"Id\\\":\\\"user:aubCjq_B0cUi0HTSdT1PDg\\\"}]}\",\"guide\":\"schema/runtime\",\"rewrite\":\"fix the rejected mutation input and retry\"}","actionsThisInvocation":8144}
+{"event":"start","epoch":1789170041,"files":["instrument/fixtures/starter-m1.log","instrument/fixtures/starter-m2.log","instrument/fixtures/starter-m3.log","instrument/fixtures/scale.log"],"url":"http://127.0.0.1:53103"}
+{"event":"checkpoint","checkpoint":"10%","epoch":1789170366.274,"excludedProbeMs":14189}
+{"event":"checkpoint","checkpoint":"50%","epoch":1789171517.61,"excludedProbeMs":38688}
+{"event":"end","epoch":1789173075,"started":1789170041,"pass":true,"excludedProbeMs":52877,"actionsThisInvocation":159100}

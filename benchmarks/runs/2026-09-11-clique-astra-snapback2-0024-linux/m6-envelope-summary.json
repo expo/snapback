@@ -1,0 +1,39 @@
+{
+  "checkpointP95": {
+    "10pct": {
+      "busy-page1": 47.47040299999935,
+      "busy-page50": 47.95819399999982,
+      "following500": 65.08484399999907,
+      "following5": 54.626303999999436,
+      "global-search": 4.236477000000377
+    },
+    "50pct": {
+      "busy-page1": 47.635119999999006,
+      "busy-page50": 48.37393599999996,
+      "following500": 56.777037000003475,
+      "following5": 55.09599800000069,
+      "global-search": 4.406692000000476
+    },
+    "final": {
+      "busy-page1": 47.67976700000145,
+      "busy-page50": 48.2872170000046,
+      "following500": 66.27273300000525,
+      "following5": 54.343110000001616,
+      "global-search": 4.182135999995808
+    }
+  },
+  "curves": {
+    "global-search": {
+      "p95": [
+        4.236477000000377,
+        4.406692000000476,
+        4.182135999995808
+      ],
+      "fullRatio": 0.987173068565092,
+      "fullPass": true,
+      "midLine": 4.212325444442791,
+      "midPass": false
+    }
+  },
+  "note": "Literal published mid-curve rule, no noise tolerance or post-hoc replacement."
+}
