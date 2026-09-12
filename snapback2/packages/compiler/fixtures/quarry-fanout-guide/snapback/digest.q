@@ -24,6 +24,27 @@ job queueDigestPeriod(period: time, periodEnd: time):
         status: 'pending',
         retryAt: now,
       }
+  chunk candidate in digestPeriodTargets[period] first 25 by byPeriod:
+    prior = digests[candidate.target, period] by byTargetPeriod
+    run = digestRuns[candidate.target, period] by byTargetPeriod
+    if prior = null and run = null:
+      periodVersion = digestPeriodVersions[period]
+      recipientVersion = digestRecipientVersions[candidate.target]
+      recipientPeriodVersion = digestRecipientPeriodVersions[candidate.target, period]
+      insert digestRuns {
+        target: candidate.target,
+        period,
+        periodEnd,
+        attempt: 0,
+        periodRevision: periodVersion,
+        recipientRevision: recipientVersion,
+        recipientPeriodRevision: recipientPeriodVersion,
+        newPostsInFollowing: 0,
+        unreadMessages: 0,
+        unreadChats: 0,
+        status: 'pending',
+        retryAt: now,
+      }
 
 -- Each retry is a fresh job with fresh sweep cursors. A job cannot rewind a
 -- completed sweep, so the row timer is the existing continuation seam.
@@ -41,7 +62,7 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
       message = messages[contribution.messageId]
       if membership != null and membership.principal = target and membership.conversationId = contribution.conversationId and message != null and message.period = period and message.authorId = contribution.sender:
         mark = readMarks[contribution.conversationId, target] by byConversationActor
-        deadline = contribution.expiresAt ?? now + 1
+        deadline = message.expiresAt ?? now + 1
         readCutoff = mark.readAt ?? contribution.sentAt - 1
         if deadline > now and readCutoff < contribution.sentAt:
           if run.lastUnreadConversation = null or run.lastUnreadConversation != contribution.conversationId:
@@ -52,12 +73,12 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
             }
           else:
             update digestRuns[run] { unreadMessages: .unreadMessages + 1 }
-          if contribution.expiresAt != null:
+          if message.expiresAt != null:
             if run.earliestExpiry = null:
-              update digestRuns[run] { earliestExpiry: contribution.expiresAt }
+              update digestRuns[run] { earliestExpiry: message.expiresAt }
             else:
-              if contribution.expiresAt < run.earliestExpiry:
-                update digestRuns[run] { earliestExpiry: contribution.expiresAt }
+              if message.expiresAt < run.earliestExpiry:
+                update digestRuns[run] { earliestExpiry: message.expiresAt }
   chunk pending in digestRuns[runId] first 1 by byId:
     if pending.status = 'pending' and pending.attempt = attempt:
       periodVersion = digestPeriodVersions[period]
@@ -76,7 +97,7 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
           unreadChats: 0,
           lastUnreadConversation: null,
           earliestExpiry: null,
-          retryAt: now + 1000,
+          retryAt: now + 10000,
         }
       else:
         newFollowers = newFollowerPeriodCounts[target, true, period]

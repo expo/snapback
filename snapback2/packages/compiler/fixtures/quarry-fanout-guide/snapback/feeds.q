@@ -45,11 +45,11 @@ mutation setFollowing(followed: principal, following: bool):
   if following:
     if edge = null:
       insert follows { follower: viewer, followed, period, digestEligible: true }
+      insert digestRecipientChanges { target: viewer }
   else:
     if edge != null:
       delete follows[edge]
-  insert digestRecipientChanges { target: viewer }
-  insert digestRecipientChanges { target: followed }
+      insert digestRecipientChanges { target: viewer }
   return null
 
 query searchScopes(c: cursor ?):

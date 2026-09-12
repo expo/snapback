@@ -42,9 +42,9 @@ mutation send(conversationId: conversations, body: text <=2000, expiresAt: time 
   row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, period, expiresAt, at: now }
   for member in memberships[conversationId] first 50 by byConversationPrincipalRole:
     if member.principal != viewer:
-      target = digestTargets[member.principal] by byTarget
+      target = digestPeriodTargets[member.principal, period] by byTargetPeriod
       if target = null:
-        insert digestTargets { target: member.principal }
+        insert digestPeriodTargets { target: member.principal, period }
       insert periodUnread {
         messageId: row.id,
         sender: viewer,
@@ -76,8 +76,6 @@ mutation markRead(conversationId: conversations):
 
 mutation expireDigestMessage(messageId: messages):
   message = messages[messageId] ! else NOT_FOUND
-  if message.period != null:
-    insert digestPeriodChanges { period: message.period }
   delete messages[message]
   return null
 

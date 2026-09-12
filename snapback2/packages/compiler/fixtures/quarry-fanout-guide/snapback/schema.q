@@ -116,6 +116,17 @@ table digestTargets:
   update <- deny
   delete <- deny
 
+table digestPeriodTargets:
+  target: principal
+  period: time
+  unique byTargetPeriod: target, period
+  by byPeriod: period, id
+  immutable target, period
+  read <- allow
+  insert <- allow
+  update <- deny
+  delete <- deny
+
 table digestRuns:
   target: principal
   period: time
@@ -228,7 +239,7 @@ table messages:
   at: time
   by byConvTime: conversationId, at, id
   by bySearch: conversationId, wordPrefixes(body), at, id
-  immutable conversationId, authorId
+  immutable conversationId, authorId, period, expiresAt, deleted, at
   deliver to memberships[.conversationId] as deliveries with receipts
   retain delivered-history
   read <- exists memberships[.conversationId, viewer]

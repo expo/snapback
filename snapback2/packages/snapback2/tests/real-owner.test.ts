@@ -488,13 +488,13 @@ const data = {
       quoteId: n === 0 ? null : "message-0000", at: Math.floor(n / 3), period: n === 0 ? 1 : null, expiresAt: null,
     })).concat(Array.from({ length: 999 }, (_, n) => ({ id: "digest-message-"+key(n),
       conversationId: "chat-"+key(n), authorId: "dev:author", body: "digest "+key(n),
-      quoteId: null, at: 1, period: 1, expiresAt: n < 900 ? 2 : null,
+      quoteId: null, at: 1, period: 1, expiresAt: n >= 1 && n <= 900 ? 2 : null,
     }))),
     periodUnread: Array.from({ length: 1000 }, (_, n) => ({
       id: "period-unread-"+key(n), messageId: n === 999 ? "message-0000" : "digest-message-"+key(n),
       sender: "dev:author", recipient: "dev:u0001", conversationId: "chat-"+key(n),
       membershipId: "chat-"+key(n), period: 1, sentAt: n === 999 ? 0 : 1,
-      expiresAt: n < 900 ? 2 : null,
+      expiresAt: n >= 1 && n <= 900 ? 2 : null,
     })),
     reactions: [...Array.from({ length: 125 }, (_, n) => ({ id: "reaction-"+key(n),
       messageId: "message-"+key(n), actor: "dev:u0001", emoji: "👍" })),
@@ -575,7 +575,7 @@ query postPair(postId: posts):
     let clockOffset = 0;
     for (const rows of Object.values(setupData.rows) as any[][]) for (const row of rows) {
       if (row.period === 1) row.period = targetPeriod;
-      if (row.expiresAt === 2) row.expiresAt = targetPeriod + 60000 - 1;
+      if (row.expiresAt === 2) row.expiresAt = targetPeriod + 65000;
     }
     const setupPlan = (Object.entries(setupData.rows) as Array<[string, any[]]>).flatMap(([table, rows]) =>
       table === "messages" ? [
@@ -761,23 +761,42 @@ query postPair(postId: posts):
     assert.ok(revoked.state === "partial" || revoked.data.every((group: any) => group.conversation?.id !== "chat-0999"));
     await Promise.all([client.close(), author.close()]);
 
-    // Crossing the exact boundary is the only kick. Nine hundred message
-    // expirations are already due, so the owner's 64-timer turns overlap the
-    // job and cannot be mistaken for a completeness barrier.
+    // Crossing the exact boundary is the only job kick. The expiry deadline
+    // is advanced only after this attempt has accumulated rows, so the
+    // owner's 64-timer turns overlap it and cannot act as a completeness
+    // barrier.
     const acrossBoundary = Math.max(0, targetPeriod + 60001 - (Date.now() + clockOffset));
     await control("/control/clock", { advanceMs: acrossBoundary }); clockOffset += acrossBoundary;
     const digestArgs = { target: "dev:u0001", source: "dev:follow0499", period: targetPeriod };
     const runningDeadline = Date.now() + 15000;
     let targetJob: any = null;
+    let observedJobs: any[] = [];
+    const scalar = (value: any) => value?.Int ?? value?.Id ?? value;
     while (targetJob === null || targetJob.chunks < 2 || targetJob.state === "queued") {
       const jobs = await control("/control/jobs");
+      observedJobs = jobs.jobs;
       targetJob = jobs.jobs.find((row: any) => row.name === "digest.digestUser" &&
-        row.args.target === "dev:u0001" && row.args.period === targetPeriod && row.args.attempt === 0) ?? null;
-      assert.ok(Date.now() < runningDeadline, "target digest reaches an accumulated chunk");
+        scalar(row.args.target) === "dev:u0001" && scalar(row.args.period) === targetPeriod && scalar(row.args.attempt) === 0) ?? null;
+      assert.ok(Date.now() < runningDeadline, "target digest reaches an accumulated chunk: " +
+        JSON.stringify(observedJobs.map((row: any) => ({ name: row.name, args: row.args, state: row.state, chunks: row.chunks })).slice(0, 12)));
     }
     const partial = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
     assert.equal(partial.data.emitted, null, "late changes happen before final emission");
     assert.ok(partial.data.run.newPostsInFollowing > 0, "the first attempt has cached followed-post contributions");
+
+    const expireAdvance = Math.max(0, targetPeriod + 65001 - (Date.now() + clockOffset));
+    await control("/control/clock", { advanceMs: expireAdvance }); clockOffset += expireAdvance;
+
+    const unreadDeadline = Date.now() + 15000;
+    do {
+      const jobs = await control("/control/jobs");
+      targetJob = jobs.jobs.find((row: any) => row.name === "digest.digestUser" &&
+        scalar(row.args.target) === "dev:u0001" && scalar(row.args.period) === targetPeriod && scalar(row.args.attempt) === 0) ?? targetJob;
+      if (targetJob.chunks >= 11) break;
+      assert.ok(Date.now() < unreadDeadline, "target digest reaches the first unread chunk");
+    } while (true);
+    const lateLeave = await control("/control/execute", { op: "messages.leave", args: { conversationId: "chat-0000" } }, "u0001");
+    assert.equal(lateLeave.state, "committed", "a real-viewer membership revocation follows unread accumulation");
 
     // Same-target traffic in the next period uses a distinct revision key and
     // cannot postpone this closed period. The source deletion is an ordinary
@@ -789,7 +808,19 @@ query postPair(postId: posts):
     }
     const removed = await control("/control/execute", { op: "feeds.removePost", args: { postId: "post-0499" } }, "follow0499");
     assert.equal(removed.state, "committed", JSON.stringify(removed));
+    const resetDeadline = Date.now() + 15000;
+    let invalidated: any;
+    do {
+      invalidated = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
+      if (invalidated.data.emitted === null && invalidated.data.run.attempt >= 1) break;
+      assert.ok(Date.now() < resetDeadline, "the stale attempt records a fresh retry before restart");
+    } while (true);
     await hub.stop(); await hub.start(false);
+    // The development clock offset is session-local. Restore a time after the
+    // persisted expiry and retry deadlines before the owner can enqueue the
+    // pending attempt.
+    const restoreClock = Math.max(0, targetPeriod + 80000 - Date.now());
+    await control("/control/clock", { advanceMs: restoreClock }); clockOffset = restoreClock;
 
     const doneDeadline = Date.now() + 20000;
     let exact: any;
@@ -802,12 +833,12 @@ query postPair(postId: posts):
     assert.deepEqual(exact.data.emitted, {
       id: exact.data.emitted.id,
       target: "dev:u0001", period: targetPeriod, newFollowers: 1,
-      newPostsInFollowing: 499, unreadMessages: 99, unreadChats: 99,
+      newPostsInFollowing: 499, unreadMessages: 98, unreadChats: 98,
     });
     assert.deepEqual(exact.data.logged, {
       id: exact.data.logged.id,
       target: "dev:u0001", period: targetPeriod, periodEnd: targetPeriod + 60000,
-      newFollowers: 1, newPostsInFollowing: 499, unreadMessages: 99, unreadChats: 99,
+      newFollowers: 1, newPostsInFollowing: 499, unreadMessages: 98, unreadChats: 98,
     });
     assert.equal(exact.data.sourceCount, 0);
     assert.equal(exact.data.run.status, "done");
@@ -815,7 +846,7 @@ query postPair(postId: posts):
 
     const jobs = await control("/control/jobs");
     const targetJobs = jobs.jobs.filter((row: any) => row.name === "digest.digestUser" &&
-      row.args.target === "dev:u0001" && row.args.period === targetPeriod);
+      scalar(row.args.target) === "dev:u0001" && scalar(row.args.period) === targetPeriod);
     let emits = 0;
     for (const row of targetJobs) {
       const detail = await control("/control/job/" + row.id);
@@ -823,15 +854,15 @@ query postPair(postId: posts):
     }
     assert.equal(emits, 1, "retry and restart have one logical effect emission");
     const zero = await control("/control/execute", { op: "fixtureSetup.digestState",
-      args: { target: "dev:follow0000", source: "dev:u0001", period: targetPeriod } });
+      args: { target: "dev:follow0499", source: "dev:u0001", period: targetPeriod } });
     assert.equal(zero.data.run.status, "done");
     assert.equal(zero.data.emitted, null, "zero activity settles without a digest or effect");
 
     await hub.stop(); await hub.start(false);
     const replay = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
     assert.deepEqual(replay.data.emitted, exact.data.emitted, "restart cannot duplicate the target/period receipt");
-    const sent = await control("/control/outbox?state=sent&limit=200");
-    assert.equal(sent.rows.filter((row: any) => row.effect === "push.digest").length >= 1, true);
+    const outbox = await control("/control/outbox?limit=200");
+    assert.equal(outbox.rows.filter((row: any) => row.effect === "push.digest").length, 1);
     t.diagnostic("scheduled digest: 500 follows + 1000 memberships, 900 expiries over 64-timer turns, late real-author deletion, same-target later-period traffic, restart retry, one logged effect");
   } finally {
     stop?.(); await Promise.all([client.close(), author.close()]);
