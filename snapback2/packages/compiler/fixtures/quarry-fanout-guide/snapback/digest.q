@@ -63,8 +63,8 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
       if membership != null and membership.principal = target and membership.conversationId = contribution.conversationId and message != null and message.deleted != true and message.period = period and message.authorId = contribution.sender:
         mark = readMarks[contribution.conversationId, target] by byConversationActor
         deadline = message.expiresAt ?? now + 1
-        readCutoff = mark.readAt ?? contribution.sentAt - 1
-        if deadline > now and readCutoff < contribution.sentAt:
+        alreadyRead = mark != null and mark.membershipId = contribution.membershipId and mark.readThrough >= contribution.sequence
+        if deadline > now and not alreadyRead:
           if run.lastUnreadConversation = null or run.lastUnreadConversation != contribution.conversationId:
             update digestRuns[run] {
               unreadMessages: .unreadMessages + 1,

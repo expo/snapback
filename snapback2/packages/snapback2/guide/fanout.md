@@ -128,5 +128,5 @@ See `guide pagination` for source changes and offline continuation.
 ## Scheduled totals
 
 Copy `dist/guide/recipes/exact-hub-digest/`. Server periods, 50-row attempts,
-final membership/source/expiry checks and a current 500-follow recount make
+final membership/source/expiry/commit-order checks and a 500-follow recount make
 the unique log/effect exact. Zero is silent; later-period messages do not retry.

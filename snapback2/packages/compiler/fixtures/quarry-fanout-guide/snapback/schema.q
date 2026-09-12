@@ -182,6 +182,8 @@ table profiles:
 
 
 table conversations:
+  -- Monotonic send sequence, not live cardinality. Imports initialize this at
+  -- least to the largest persisted messages.sequence in the conversation.
   messageCount: int
   title: text <=120
   description: text <=200 ?
@@ -237,6 +239,7 @@ table memberships:
 table messages:
   period: time ?
   digestEligible: bool ?
+  sequence: int
   conversationId: conversations
   authorId: principal
   pollOptions: [text 1..50] <=4 ?
@@ -252,7 +255,7 @@ table messages:
   at: time
   by byConvTime: conversationId, at, id
   by bySearch: conversationId, wordPrefixes(body), at, id
-  immutable conversationId, authorId, period, expiresAt, deleted, at
+  immutable conversationId, authorId, period, sequence, expiresAt, deleted, at
   deliver to memberships[.conversationId] as deliveries with receipts
   retain delivered-history
   read <- exists memberships[.conversationId, viewer]
@@ -270,13 +273,14 @@ table periodUnread:
   conversationId: conversations
   membershipId: memberships
   period: time
+  sequence: int
   sentAt: time
   expiresAt: time ?
   unique byMessageRecipient: messageId, recipient
   by byMessageSender: messageId, sender, recipient
   by byRecipientPeriodConversation: recipient, period, conversationId, id
   cap 50 by messageId
-  immutable messageId, sender, recipient, conversationId, membershipId, period, sentAt, expiresAt
+  immutable messageId, sender, recipient, conversationId, membershipId, period, sequence, sentAt, expiresAt
   read <- .recipient = viewer or .sender = viewer
   insert <- exists memberships[.conversationId, viewer]
   delete <- allow
@@ -298,8 +302,11 @@ table reactions:
 table readMarks:
   conversationId: conversations
   actor: principal
+  membershipId: memberships
+  readThrough: int
   readAt: time
   unique byConversationActor: conversationId, actor
+  immutable conversationId, actor
   read <- exists memberships[.conversationId, viewer]
   insert <- .actor = viewer and exists memberships[.conversationId, viewer]
   update <- .actor = viewer and exists memberships[.conversationId, viewer]
