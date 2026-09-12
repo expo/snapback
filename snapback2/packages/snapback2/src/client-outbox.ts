@@ -271,8 +271,8 @@ export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
 async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
   throwIfAborted(options.signal);
-  const finish = async (reason?: DrainResult["reason"]): Promise<DrainResult> =>
-    ({ stopped: reason !== undefined, ...(reason ? { reason } : {}), remaining: runtime.principal === undefined ? 0 : (await runtime.outbox.status()).remaining });
+  const finish = (reason?: DrainResult["reason"]): Promise<DrainResult> => runtime.outbox.write(async () =>
+    ({ stopped: reason !== undefined, ...(reason ? { reason } : {}), remaining: runtime.principal === undefined ? 0 : (await runtime.outbox.status()).remaining }));
   if (runtime.principal === undefined) return finish();
   for (;;) {
     if (runtime.following) return finish("pending");
@@ -289,40 +289,71 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
       if (entries.length && bytes + size + 1 > 1_048_576) break;
       entries.push(entry); encoded.push(value); bytes += size + 1;
     }
-    const revision = runtime.coverageRevision;
-    let results: Array<MutationResult<unknown> & { intent?: string }> = [], failure: unknown;
+    const revision = runtime.coverageRevision, generation = runtime.outbox.generation;
+    const current = () => revision === runtime.coverageRevision && generation === runtime.outbox.generation && !runtime.following;
+    let completed = 0, durable = 0, resultBytes = 0, pending: OutboxEntry[] = [], failure: unknown;
+    const flush = async () => {
+      if (pending.length && !(await settleResults(options, pending, revision))) return false;
+      durable = completed; pending = []; resultBytes = 0;
+      return current();
+    };
     try {
-      const raw = await options.json("/api/mutation", { method: "POST",
-        body: entries.length === 1 ? encoded[0] : `{"batch":[${encoded.join(",")}]}` });
-      if (entries.length === 1) results = [wireReplayResponse(raw)];
-      else {
-        const response = wireObject(raw, "replay batch response");
-        if (!Array.isArray(response.results) || response.results.length > entries.length || typeof response.more !== "boolean"
-          || (response.error === undefined ? (!response.results.length || response.more !== (response.results.length < entries.length))
-            : response.more || response.results.length === entries.length)) throw wireShape("invalid replay batch prefix");
-        results = response.results.map(wireReplayResponse);
-        if (response.error !== undefined) {
-          const refusal = wireRefusal(response.error, "replay batch refusal");
-          failure = new RefusalError(refusal, refusal.retryable === true);
+      // @ref LLP 1018.008.007.002#5-batch-acknowledgement-admission-and-replay —
+      // A time-limited reply continues only the original offer. Revalidate the
+      // current FIFO and each remaining grant without holding a lock over I/O.
+      while (completed < entries.length) {
+        if (completed && !(await runtime.outbox.write(async () => {
+          const queued = await runtime.store.outbox.replayBatch?.() ?? [];
+          const offered = encoded.slice(durable);
+          if (queued.length < offered.length || offered.some((value, index) => JSON.stringify(replayEnvelope(queued[index])) !== value)) return false;
+          for (const entry of queued.slice(completed - durable, offered.length)) if (!(await runtime.outbox.canReplay(entry))) return false;
+          return true;
+        }))) break;
+        throwIfAborted(options.signal);
+        if (!current()) return finish("authority");
+        const remaining = entries.length - completed;
+        let results: Array<MutationResult<unknown> & { intent?: string }> = [];
+        try {
+          const raw = await options.json("/api/mutation", { method: "POST",
+            body: remaining === 1 ? encoded[completed] : `{"batch":[${encoded.slice(completed).join(",")}]}` });
+          if (remaining === 1) results = [wireReplayResponse(raw)];
+          else {
+            const response = wireObject(raw, "replay batch response");
+            if (!Array.isArray(response.results) || response.results.length > remaining || typeof response.more !== "boolean"
+              || (response.error === undefined ? (!response.results.length || response.more !== (response.results.length < remaining))
+                : response.more || response.results.length === remaining)) throw wireShape("invalid replay batch prefix");
+            results = response.results.map(wireReplayResponse);
+            if (response.error !== undefined) {
+              const refusal = wireRefusal(response.error, "replay batch refusal");
+              failure = new RefusalError(refusal, refusal.retryable === true);
+            }
+          }
+          if (results.some((result, index) => result.state === "queued"
+            || (remaining > 1 || result.intent !== undefined) && result.intent !== entries[completed + index].intent))
+            throw wireShape("replay terminal does not match its FIFO intent");
+        } catch (error) { failure = error; results = []; }
+        throwIfAborted(options.signal);
+        // Transport may already have sealed the partition for this refusal.
+        // Preserve the session diagnostic instead of replacing it with a cut.
+        if (isRefusalError(failure) && isTerminalSession(failure.envelope)) throw failure;
+        if (!current()) return finish("authority");
+        for (const result of results) {
+          pending.push(runtime.outbox.settle(entries[completed++], result.state as "committed" | "rejected", result));
+          if (entries.length > 1) resultBytes += new TextEncoder().encode(JSON.stringify(result)).byteLength + 1;
+          // Like the owner, stop after the complete terminal that crosses the
+          // byte target. A later carrier failure leaves only this durable prefix.
+          if (resultBytes >= 1_048_576 && !(await flush())) return finish("authority");
         }
+        if (failure !== undefined) break;
       }
-      if (results.some((result, index) => result.state === "queued"
-        || (entries.length > 1 || result.intent !== undefined) && result.intent !== entries[index].intent))
-        throw wireShape("replay terminal does not match its FIFO intent");
-    } catch (error) { failure = error; results = []; }
-    throwIfAborted(options.signal);
-    if (revision !== runtime.coverageRevision) return finish("authority");
-    if (results.length) {
-      const settled = results.map((result, index) => runtime.outbox.settle(entries[index], result.state as "committed" | "rejected", result));
-      try {
-        if (!(await settleResults(options, settled, revision))) return finish("authority");
-      } catch (error) {
-        if (isRefusalError(error) && error.retryable) return finish("transport");
-        throw error;
-      }
+      throwIfAborted(options.signal);
+      if (!current() || !(await flush())) return finish("authority");
+    } catch (error) {
+      if (isRefusalError(error) && error.retryable) return finish("transport");
+      throw error;
     }
     if (failure === undefined) continue;
-    const entry = entries[results.length];
+    const entry = entries[completed];
     if (isRefusalError(failure) && failure.retryable) return finish("transport");
     if (isRefusalError(failure) && failure.envelope.family === "offline") {
       if (!(await settleEntries(options, [runtime.outbox.settle(entry,

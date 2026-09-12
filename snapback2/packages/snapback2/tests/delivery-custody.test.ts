@@ -492,7 +492,7 @@ test('lost batch reply retries identical envelopes and a bounded terminal prefix
     if (request.batch) return { results:request.batch.slice(0,2).map((e:any) => ({ ...emptyAckResult(), intent:e.replay.intent })), more:true };
     return { ...emptyAckResult(), intent:request.replay.intent };
   } });
-  assert.equal(done.stopped, false); assert.equal(c.writes() - before, 2);
+  assert.equal(done.stopped, false); assert.equal(c.writes() - before, 1);
   assert.deepEqual(requests[1], requests[0]); assert.equal(requests[2].replay.intent, entries[2].intent);
   assert.equal((await r.outbox.queued()).length, 0); await r.close();
 });
@@ -569,13 +569,16 @@ test('operation removal disables batching while original stored-terminal retries
 });
 
 test('one sufficient later tail settles a batch while actual unseen receipt effects remain in custody', async () => {
-  const { r } = await pendingPages(2); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  const { r } = await pendingPages(3); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
   await r.store.commit({watermark:{op,args:{c:null},watermark:null,updatedAt:1}});
   const entries = await r.outbox.queued(); let tails = 0;
   const done = await drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async(path:any,init:any)=>{
-    if(path==='/api/mutation') return {results:JSON.parse(init.body).batch.map((e:any,index:number)=>({
-      ...emptyAckResult(),seq:3+index,intent:e.replay.intent,effects:[{table:'deliveriesReceipts',id:`unseen-${index}`}],
-    })),more:false};
+    if(path==='/api/mutation') {
+      const request=JSON.parse(init.body), e=request.batch?.[0]??request;
+      const index=entries.findIndex(entry=>entry.intent===e.replay.intent);
+      const result={...emptyAckResult(),seq:3+index,intent:e.replay.intent,effects:[{table:'deliveriesReceipts',id:`unseen-${index}`}]};
+      return request.batch?{results:[result],more:true}:result;
+    }
     tails++; const page=deliveryPage(0,50);page.seq=8;return page;
   }});
   assert.equal(done.stopped,false);assert.equal(tails,1);
@@ -584,4 +587,139 @@ test('one sufficient later tail settles a batch while actual unseen receipt effe
     assert.equal(held.response.effects.length,1,'terminal custody keeps actual unobserved receipt effects');
   }
   await r.close();
+});
+
+for (const later of ['malformed','lost','refused'] as const) test(`a ${later} later replay fragment preserves the validated prefix`, async () => {
+  const { r }=await pendingPages(); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  const entries=await r.outbox.queued();let calls=0;
+  const run=drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async()=>{
+    if(++calls===1)return {results:[{...emptyAckResult(),intent:entries[0].intent}],more:true};
+    if(later==='lost')throw new RefusalError({code:'E_TRANSPORT',family:'transport',message:'lost fragment'},true);
+    if(later==='malformed')return {results:[{...emptyAckResult(),intent:'wrong-intent'}],more:true};
+    return {results:[{...emptyAckResult(),intent:entries[1].intent}],more:false,error:{code:'E_INPUT',family:'input',message:'unspent head'}};
+  }});
+  if(later==='lost')assert.equal((await run).reason,'transport');
+  else await assert.rejects(run,later==='malformed'?/FIFO intent/:/unspent head/);
+  const remaining=entries.slice(later==='refused'?2:1);
+  assert.deepEqual((await r.outbox.queued()).map(e=>e.intent),remaining.map(e=>e.intent));
+  for(const entry of remaining)assert.equal((await r.store.outbox.get(entry.intent)).refusal?.code,later==='refused'?'E_INPUT':undefined);
+  await r.close();
+});
+
+for(const change of ['entry','program','fence'] as const)test(`replay fragments revalidate ${change} before sending the offered suffix`,async(t)=>{
+  if(change==='fence')t.mock.timers.enable({apis:['Date'],now:Date.now()});
+  const {r}=await pendingPages();await r.outbox.adopt(grant());await r.outbox.admitAcknowledgements();
+  const entries=await r.outbox.queued(), requests:any[]=[];
+  const done=await drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async(_path:any,init:any)=>{
+    const request=JSON.parse(init.body);requests.push(request);
+    if(requests.length===1){
+      if(change==='entry')await r.store.outbox.put({...entries[1],args:{events:[]}});
+      else if(change==='program'){
+        const removed=structuredClone(program);delete removed.programs[ackOp];
+        await r.store.commit({programs:{[generation]:removed},bounds:{}});
+      }else t.mock.timers.tick(8*86400000);
+      return {results:[{...emptyAckResult(),intent:entries[0].intent}],more:true};
+    }
+    assert.equal(request.batch,undefined,'changed eligibility flushes before ordinary selection');
+    return {...emptyAckResult(),intent:request.replay.intent};
+  }});
+  if(change==='fence'){
+    assert.equal(done.reason,'fence');assert.equal(requests.length,1);
+    assert.deepEqual((await r.outbox.queued()).map(e=>e.intent),entries.slice(1).map(e=>e.intent));
+  }else{
+    assert.equal(done.stopped,false);assert.equal(requests.length,3);
+    if(change==='entry')assert.deepEqual(requests[1].args,{events:[]});
+  }
+  await r.close();
+});
+
+for(const cut of ['abort','authority','trust','follower'] as const)test(`a ${cut} cut after a fragment preserves exact cold retry custody`,async()=>{
+  const {c,r}=await pendingPages();await r.outbox.adopt(grant());await r.outbox.admitAcknowledgements();
+  const entries=await r.outbox.queued(), controller=new AbortController();let calls=0;
+  const run=drainOutbox({runtime:r,signal:controller.signal,shape:m=>new Error(m),failure:e=>e,json:async()=>{
+    assert.equal(++calls,1);
+    if(cut==='abort')controller.abort(new Error('cut fragment'));
+    else if(cut==='authority')r.coverageRevision++;
+    else if(cut==='trust')r.outbox.resetTrust();
+    else Object.defineProperty(r,'following',{value:true,configurable:true});
+    return {results:[{...emptyAckResult(),intent:entries[0].intent}],more:true};
+  }});
+  if(cut==='abort')await assert.rejects(run,/cut fragment/);else assert.equal((await run).reason,'authority');
+  assert.deepEqual(await r.outbox.queued(),entries);await r.close();const cold=await open(c);
+  assert.deepEqual(await cold.outbox.queued(),entries);await cold.close();
+});
+
+test('a failed combined terminal write leaves all fragments queued for identical cold retry',async()=>{
+  const {c,r}=await pendingPages();await r.outbox.adopt(grant());await r.outbox.admitAcknowledgements();
+  const entries=await r.outbox.queued(), sent:any[]=[];
+  const json=async(_path:any,init:any)=>{
+    const request=JSON.parse(init.body);sent.push(request);
+    const result={...emptyAckResult(),intent:(request.batch?.[0]??request).replay.intent};
+    return request.batch?{results:[result],more:true}:result;
+  };
+  c.fail(true);await assert.rejects(drainOutbox({runtime:r,json,shape:m=>new Error(m),failure:e=>e}),/durable write failed/);
+  c.fail(false);assert.deepEqual(await r.outbox.queued(),entries);await r.close();const cold=await open(c);
+  const done=await drainOutbox({runtime:cold,json,shape:m=>new Error(m),failure:e=>e});
+  assert.equal(done.stopped,false);assert.deepEqual(sent.slice(0,3),sent.slice(3));await cold.close();
+});
+
+test('foreground work appended during a replay offer keeps its FIFO position after every original fragment',async()=>{
+  const {r}=await pendingPages();await r.outbox.adopt(grant());await r.outbox.admitAcknowledgements();
+  await r.store.commit({bounds:{...await r.store.outbox.bounds(),'messages.send':0}});
+  const entries=await r.outbox.queued(), seen:string[]=[];let product:any;
+  const done=await drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async(_path:any,init:any)=>{
+    const request=JSON.parse(init.body), head=request.batch?.[0]??request;seen.push(head.replay.intent);
+    if(seen.length===1)product=await r.outbox.enqueue({op:'messages.send',args:{body:'foreground'},issuedSeq:2});
+    const result={...emptyAckResult(),intent:head.replay.intent};
+    return request.batch?{results:[result],more:true}:result;
+  }});
+  assert.equal(done.stopped,false);assert.deepEqual(seen,[...entries.map(e=>e.intent),product.intent]);await r.close();
+});
+
+test('large replay fragments flush at the byte target with at most one complete-terminal overshoot',async()=>{
+  const {c,r}=await pendingPages();await r.outbox.adopt(grant());await r.outbox.admitAcknowledgements();
+  const before=c.writes();let calls=0;
+  const done=await drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async(_path:any,init:any)=>{
+    const request=JSON.parse(init.body), head=request.batch?.[0]??request;
+    assert.equal(c.writes()-before,calls<2?0:1);
+    calls++;const result={...emptyAckResult(),intent:head.replay.intent,data:'x'.repeat(600000)};
+    return request.batch?{results:[result],more:true}:result;
+  }});
+  assert.equal(done.stopped,false);assert.equal(c.writes()-before,2);assert.equal(calls,3);await r.close();
+});
+
+for(const cut of ['abort','trust','account'] as const)test(`a ${cut} cut during continuation trust revalidation cannot publish accumulated fragments`,async()=>{
+  const {c,r}=await pendingPages();await r.outbox.adopt(grant());await r.outbox.admitAcknowledgements();
+  const entries=await r.outbox.queued(), before=structuredClone(c.saved()), paused=Promise.withResolvers<void>(), release=Promise.withResolvers<void>();
+  const controller=new AbortController(), canReplay=r.outbox.canReplay.bind(r.outbox);let calls=0, sent=0;
+  r.outbox.canReplay=async(entry:any)=>{
+    if(++calls===entries.length+1){paused.resolve();await release.promise;}
+    return canReplay(entry);
+  };
+  const run=drainOutbox({runtime:r,signal:controller.signal,shape:m=>new Error(m),failure:e=>e,json:async()=>{
+    assert.equal(++sent,1);return {results:[{...emptyAckResult(),intent:entries[0].intent}],more:true};
+  }});
+  await paused.promise;
+  let change:Promise<void>|undefined;
+  if(cut==='abort')controller.abort(new Error('cancel trust read'));
+  else if(cut==='trust')r.outbox.resetTrust();
+  else {change=r.open('bob',true);await new Promise(resolve=>setImmediate(resolve));}
+  release.resolve();
+  if(cut==='abort')await assert.rejects(run,/cancel trust read/);else assert.equal((await run).reason,'authority');
+  await change;
+  if(cut==='account')assert.equal((await r.outbox.queued()).length,0);
+  else {assert.deepEqual(await r.outbox.queued(),entries);assert.deepEqual(c.saved(),before);}
+  await r.close();
+});
+
+test('ordinary replay does not traverse result data for fragment accounting',async()=>{
+  const c=carrier(),r=await open(c);await r.outbox.adopt(grant());
+  await r.store.commit({bounds:{...await r.store.outbox.bounds(),'messages.send':0}});
+  await r.outbox.enqueue({op:'messages.send',args:{body:'ordinary'},issuedSeq:2});
+  let reads=0, commits=0;const commit=r.commitMany.bind(r);
+  r.commitMany=async(...args:any[])=>{assert.equal(reads,0,'no result serialization before the existing commit boundary');commits++;return commit(...args);};
+  const done=await drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async()=>({
+    state:'committed',seq:3,data:{toJSON(){reads++;return {answer:42};}},
+  })});
+  assert.equal(done.stopped,false);assert.equal(commits,1);assert(reads>0);await r.close();
 });
