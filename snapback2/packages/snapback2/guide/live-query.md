@@ -2,9 +2,9 @@
 
 `useQuery(api.messages.inbox, {})`: `data | undefined`, `status`
 (`loading | ready | unavailable`), `reason`, `items`, `next` (cursor/null),
-`partial` (history). Once metadata resolves, missing/null declared cursors
+`partial` (history). After metadata resolves, absent/null declared cursors
 share identity; item/history callbacks get `null`.
-Preparation failure refuses; observe again to retry. Unrelated `c: null` stays data.
+Preparation failure refuses; re-observe to retry. Other `c: null` stays data.
 `client.observe`: `getSnapshot()`/`subscribe(notify)`; `{ live: false }` reads once.
 
 `useMutation(op)`: `{ run, inFlight, last, can }`. `run(args)` and
@@ -14,19 +14,18 @@ Preparation failure refuses; observe again to retry. Unrelated `c: null` stays d
 code, `rule: CODE` and its authored `site`, live and replayed; authored
 `conflict` stays a rule rejection. `client.query` resolves failures as `refused`.
 Transport/body loss: `transport/E_TRANSPORT`, `retryable: true`.
-Cancellation, including during body reads: `client/E_ABORTED`. Malformed JSON and invalid
-wire data: `op/E_WIRE_SHAPE`. Closed: `owner/E_CLIENT_CLOSED`; unexpected local
-failure: `client/E_CLIENT`. These are non-retryable. Mutation calls without durable admission
-never resubmit automatically; a lost/invalid response may follow a commit.
+Cancellation, including body reads: `client/E_ABORTED`. Invalid JSON/wire data:
+`op/E_WIRE_SHAPE`. Closed: `owner/E_CLIENT_CLOSED`; unexpected local failure:
+`client/E_CLIENT`. These are non-retryable. Mutation calls without durable admission
+never resubmit automatically; lost/invalid responses may follow a commit.
 `client.query()` retries retryable transport failures with backoff, up to three attempts.
 One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes
 reconnect through SSE with fresh snapshots, never Last-Event-ID replay.
-Identical operation plus canonical arguments share one logical subscription,
-including across hooks. A client admits at most 256 distinct live shapes; child
-257 refuses with `E_OWNER_BUSY`, `site: client.subscribe`, and leaves the 256
-existing children live. For list screens, subscribe once to a list/composite
-query that carries row receipts and reactions. Do not mount one query per row
-or add a polling reconciliation loop for ordinary live delivery.
+Same op/canonical args share one subscription across hooks.
+Each client allows 256 live shapes; child 257 refuses `E_OWNER_BUSY`,
+`site: client.subscribe`, preserving existing children. Use one list/composite
+query with row receipts/reactions; avoid per-row queries and polling
+reconciliation for ordinary live delivery.
 Queued writes replay after `online()` (`guide offline`). `last` clears on
 account/op change. `ResultOf<Op>`/`ArgsOf<Op>`: `snapback2/client`.
 

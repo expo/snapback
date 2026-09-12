@@ -94,7 +94,7 @@ keep replay/dismissal rules.
 Acknowledgements price 50 × (N+1) membership candidates, point reads and receipt
 updates; one membership page is live.
 Unreadable content, missing receipts/originals or departed membership refuse
-with a trace. Missing/unreadable submitted events remain no-ops. Departed recipients
+with a trace; missing/unreadable submitted events are no-ops. Departed recipients
 stay false; unavailable local authority stays partial. Only acknowledgement
-sets true and its first commit seq, independently per principal across devices.
-It never renews the fence or removes product writes. Seen/read stays authored.
+sets true and the first commit seq, per principal across devices.
+It never renews the fence or removes product writes. Author seen/read.
