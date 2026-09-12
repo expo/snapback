@@ -739,12 +739,17 @@ fn predicate_is_evaluated_at_fire_time_and_false_settles_silently() {
 }
 
 #[test]
-fn period_timer_installs_at_now_plus_duration_rearms_anchored_and_fires_once_for_missed_periods() {
+fn period_timer_installs_on_a_whole_duration_boundary_and_fires_once_for_missed_periods() {
     let mut rt = runtime(vec![period_schedule("daily", "admin.sweep", MINUTE)]);
     seed(&mut rt, vec![row("a", None, true)]);
     let installed = timers(&rt);
     assert_eq!(installed.len(), 1);
     let start = installed[0].period_start.unwrap();
+    assert_eq!(
+        start.rem_euclid(MINUTE),
+        0,
+        "period starts are epoch aligned"
+    );
     assert_eq!(installed[0].at, start + MINUTE);
     assert!(installed[0].row_id.is_none());
     assert!(rt.fire_due_at(64, start + MINUTE - 1).unwrap().is_empty());
@@ -1134,7 +1139,7 @@ fn reconcile_drops_and_repopulates_a_schedule_whose_trigger_changed() {
             period[0].period_start,
             period[0].at
         ),
-        (None, Some(1_000), 1_000 + MINUTE)
+        (None, Some(0), MINUTE)
     );
     // Back to the row trigger: the period row is dropped and the rows repopulate under the
     // new generation, with the same occurrence ids they had before.
@@ -1151,13 +1156,13 @@ fn reconcile_drops_and_repopulates_a_schedule_whose_trigger_changed() {
 }
 
 // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — install and reset
-// anchor a period to the clock the caller passes, which the owner samples from its dev clock.
+// align a period on the clock the caller passes, which the owner samples from its dev clock.
 #[test]
-fn successor_and_reset_anchor_period_timers_to_the_supplied_clock_not_wall_time() {
+fn successor_and_reset_align_period_timers_on_the_supplied_clock_not_wall_time() {
     let mut rt = runtime(vec![]);
     seed(&mut rt, vec![row("a", Some(5), true)]);
     // 2100-01-01: no wall clock this test runs under is near it, so a wall anchor would show.
-    let advanced = 4_102_444_800_000_i64;
+    let advanced = 4_102_444_812_345_i64;
     rt.apply_successor_at(
         generation(vec![period_schedule("daily", "admin.sweep", MINUTE)]),
         advanced,
@@ -1167,24 +1172,177 @@ fn successor_and_reset_anchor_period_timers_to_the_supplied_clock_not_wall_time(
     assert_eq!(installed.len(), 1, "{installed:?}");
     assert_eq!(
         (installed[0].period_start, installed[0].at),
-        (Some(advanced), advanced + MINUTE)
+        (Some(4_102_444_800_000), 4_102_444_860_000)
     );
     assert!(
-        rt.fire_due_at(64, advanced + MINUTE - 1)
-            .unwrap()
-            .is_empty(),
+        rt.fire_due_at(64, installed[0].at - 1).unwrap().is_empty(),
         "the period is not already due under the advanced clock"
     );
-    let later = advanced + 7 * MINUTE;
+    let later = advanced + 7 * MINUTE + 23_456;
     rt.reset_and_seed_at(&[("items".into(), row("z", Some(9), true))], later)
         .unwrap();
     let after = timers(&rt);
     assert_eq!(after.len(), 1, "{after:?}");
     assert_eq!(
         (after[0].period_start, after[0].at),
-        (Some(later), later + MINUTE),
-        "reset re-arms the period from the supplied clock"
+        (Some(4_102_445_220_000), 4_102_445_280_000),
+        "reset re-arms at the next whole boundary on the supplied clock"
     );
+}
+
+fn period_store_path(label: &str) -> std::path::PathBuf {
+    let path = std::env::temp_dir().join(format!(
+        "period-offset-{label}-{}.sqlite",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&path);
+    path
+}
+
+fn rewrite_period_timer(path: &std::path::Path, start: i64) {
+    let connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute(
+            "UPDATE _timers SET period_start=?1,at=?2 WHERE schedule='daily'",
+            rusqlite::params![start, start + MINUTE],
+        )
+        .unwrap();
+}
+
+fn legacy_period_store(label: &str) -> (std::path::PathBuf, Generation, i64) {
+    let generation = generation(vec![period_schedule("daily", "admin.sweep", MINUTE)]);
+    let path = period_store_path(label);
+    let mut rt = Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
+    seed(&mut rt, vec![row("a", None, true)]);
+    let legacy_start = timers(&rt)[0].period_start.unwrap() + 42_000;
+    drop(rt);
+    // This is the durable shape of both an unfired legacy install and a fired legacy timer
+    // after its occurrence ledger ages out: migration deliberately cannot distinguish them.
+    rewrite_period_timer(&path, legacy_start);
+    (path, generation, legacy_start)
+}
+
+fn assert_legacy_reopen(label: &str, skipped: u64) {
+    let (path, generation, persisted_start) = legacy_period_store(label);
+    let mut reopened = Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
+    let transition = timers(&reopened)[0].clone();
+    let aligned_end = persisted_start.div_euclid(MINUTE) * MINUTE + MINUTE;
+    assert_eq!(
+        (transition.period_start, transition.at),
+        (Some(persisted_start), aligned_end),
+        "the persisted unprocessed boundary starts one short transition period"
+    );
+
+    let fired_at = aligned_end + i64::try_from(skipped).unwrap() * MINUTE;
+    let fired = reopened.fire_due_at(64, fired_at).unwrap();
+    assert_eq!(fired.len(), 1);
+    let expected_start = if skipped == 0 {
+        persisted_start
+    } else {
+        fired_at - MINUTE
+    };
+    assert_eq!(
+        (
+            fired[0].firing.period_start,
+            fired[0].firing.scheduled_at,
+            fired[0].firing.skipped
+        ),
+        (Some(expected_start), fired_at, skipped),
+        "a missed transition fires only the latest complete aligned interval"
+    );
+    assert_eq!(
+        fired[0].firing.occurrence,
+        serde_json::json!(["daily", expected_start])
+    );
+    assert_eq!(schedule_commits(&reopened).len(), 1);
+    assert_eq!(
+        (timers(&reopened)[0].period_start, timers(&reopened)[0].at),
+        (Some(fired_at), fired_at + MINUTE)
+    );
+    drop(reopened);
+
+    let reopened_again = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
+    assert_eq!(
+        (
+            timers(&reopened_again)[0].period_start,
+            timers(&reopened_again)[0].at
+        ),
+        (Some(fired_at), fired_at + MINUTE),
+        "the aligned re-arm survives another reopen"
+    );
+    assert_eq!(schedule_commits(&reopened_again).len(), 1);
+    drop(reopened_again);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn a_legacy_offset_period_without_retained_history_preserves_its_boundary_on_reopen() {
+    assert_legacy_reopen("short", 0);
+}
+
+#[test]
+fn a_legacy_offset_period_skips_to_the_latest_aligned_interval_on_reopen() {
+    assert_legacy_reopen("one-skip", 1);
+    assert_legacy_reopen("multiple-skips", 3);
+}
+
+#[test]
+fn same_name_row_history_cannot_change_a_new_legacy_period_boundary() {
+    let path = period_store_path("row-history");
+    let row_generation = generation(vec![row_schedule("daily", "admin.purge", false)]);
+    let mut rt = Runtime::open(Store::open(&path).unwrap(), row_generation).unwrap();
+    seed(&mut rt, vec![row("a", Some(50), true)]);
+    assert_eq!(rt.fire_due_at(64, 50).unwrap().len(), 1);
+
+    let period_generation = generation(vec![period_schedule("daily", "admin.sweep", MINUTE)]);
+    rt.apply_successor_at(period_generation.clone(), 102_000)
+        .unwrap();
+    drop(rt);
+    rewrite_period_timer(&path, 102_000);
+
+    let reopened = Runtime::open(Store::open(&path).unwrap(), period_generation).unwrap();
+    assert_eq!(
+        (timers(&reopened)[0].period_start, timers(&reopened)[0].at),
+        (Some(102_000), 120_000),
+        "same-name history cannot change the persisted unprocessed boundary"
+    );
+    assert_eq!(schedule_commits(&reopened).len(), 1);
+    drop(reopened);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn pruned_removed_period_history_cannot_change_a_readded_legacy_period_boundary() {
+    let path = period_store_path("readded-history");
+    let period_generation = generation(vec![period_schedule("daily", "admin.sweep", MINUTE)]);
+    let mut rt = Runtime::open(Store::open(&path).unwrap(), period_generation.clone()).unwrap();
+    seed(&mut rt, vec![row("a", None, true)]);
+    let old_end = timers(&rt)[0].at;
+    assert_eq!(rt.fire_due_at(64, old_end).unwrap().len(), 1);
+
+    rt.apply_successor_at(generation(vec![]), old_end + 1)
+        .unwrap();
+    let readded_start = old_end + 42_000;
+    rt.apply_successor_at(period_generation.clone(), readded_start)
+        .unwrap();
+    drop(rt);
+    rewrite_period_timer(&path, readded_start);
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection
+        .execute("DELETE FROM _commits WHERE kind='schedule'", [])
+        .unwrap();
+    drop(connection);
+
+    let reopened = Runtime::open(Store::open(&path).unwrap(), period_generation).unwrap();
+    let aligned_start = readded_start.div_euclid(MINUTE) * MINUTE;
+    assert_eq!(
+        (timers(&reopened)[0].period_start, timers(&reopened)[0].at),
+        (Some(readded_start), aligned_start + MINUTE),
+        "pruned history cannot change the persisted unprocessed boundary"
+    );
+    assert!(schedule_commits(&reopened).is_empty());
+    drop(reopened);
+    std::fs::remove_file(path).unwrap();
 }
 
 #[test]

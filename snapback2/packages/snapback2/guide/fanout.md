@@ -11,9 +11,8 @@ no synchronous per-write fan-out over an uncappable population.
 
 ## Following
 
-All 500 follows plus self participate; equal prefixes deduplicate. Smaller
-discovery omits people; smaller message pages preserve reachability through
-opaque continuation.
+All 500 follows plus self participate; equal prefixes deduplicate. Reducing
+discovery omits people; reducing pages preserves continuation.
 
 ```q
 query followingFeed(c: cursor ?):
@@ -22,6 +21,9 @@ query followingFeed(c: cursor ?):
     [f.followed] for f in follows[viewer] first 500 by byFollower
   return page { post: ., author: profiles[.author] { id, displayName, handle, avatar } }
 ```
+
+For 1,000 follows, merge compact immutable post heads and point-read each
+post. Publish/remove post and head atomically; edits retain the head.
 
 ## Search grouped by chat
 
@@ -64,6 +66,12 @@ query searchChat(conversationId: conversations, term: text <=128, messageCursor:
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
   return messages[conversationId, term] after messageCursor last 20 by bySearch
 ```
+
+For global message-time order, copy the packaged
+`guide/recipes/global-message-search.ts`. It binds scope/message queries to
+`snapback2/global-search-pager`, captures the term, and retains branded cursors
+and per-scope issues. Recreate on term/membership changes; never mount 1,000
+live shapes. Its scope/message snapshots exclude concurrent changes.
 
 ## Rich history
 

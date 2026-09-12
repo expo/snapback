@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { assert, compileInline, diagnosticsText, withProject, type Test } from "./quarry-check-helpers";
+import { createGlobalSearchPager } from "../../snapback2/src/global-search-pager";
 
 export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
   const schema = readFileSync(resolve(frontend, "fixtures/quarry-fanout/snapback/schema.q"), "utf8");
@@ -277,18 +278,124 @@ table deliveries:
     });
   });
 
-  // @ref LLP 1017.000#32-d2 — the guide's worked shapes are compiled fixtures:
-  // the 500-lane merge and the digest chunk job certify on the real checker.
-  test("the fanout guide's complete feed, grouped search and rich history are the compiled fixture and certify", async () => {
+  // @ref LLP 1017.000#32-d2 — the guide's worked shapes are compiled fixtures.
+  test("the fanout guide hub queries and jobs are the compiled fixture and certify", async () => {
     const page = readFileSync(resolve(frontend, "../snapback2/guide/fanout.md"), "utf8");
     const fixtureFeeds = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/feeds.q"), "utf8");
+    const fixtureDigest = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/digest.q"), "utf8");
     const fixtureMessages = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/messages.q"), "utf8");
     const snippets = [...page.matchAll(/```q\n([\s\S]*?)\n```/g)].map((match) => match[1]!);
     assert(snippets.some((snippet) => fixtureFeeds.includes(snippet)), "guide feed recipe diverged from its fixture");
-    assert(snippets.every((snippet) => fixtureFeeds.includes(snippet) || fixtureMessages.includes(snippet)), "guide recipe diverged from its executed fixture");
+    assert(snippets.every((snippet) => fixtureFeeds.includes(snippet) || fixtureMessages.includes(snippet) || fixtureDigest.includes(snippet)), "guide recipe diverged from its executed fixture");
     const lowered = await lowerProject(resolve(frontend, "fixtures/quarry-fanout-guide"));
     assert(lowered.ok, `guide fanout fixture did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
     assert(checked.every((r) => !r.error), `guide fanout fixture refused: ${JSON.stringify(checked.flatMap((r) => r.error ? [r.error] : []))}`);
+    const byName = new Map(checked.map((result) => [result.program, result.certificate]));
+    assert(byName.has("feeds.followingFeed") && byName.has("feeds.followingHeads")
+      && byName.has("messages.searchGroups") && byName.has("messages.searchChat") && byName.has("messages.richThread") && byName.has("feeds.conversationMessageSearch")
+      && byName.has("feeds.searchScopes") && byName.has("digest.digestPass")
+      && byName.has("digest.directoryBackfill"), `guide fanout programs missing: ${JSON.stringify([...byName.keys()])}`);
+  });
+
+  test("the shipped global search pager covers 1000 scopes with ordered refill and duplicate suppression", async () => {
+    type Scope = { id: string };
+    type Row = { id: string; at: number };
+    const scopes = Array.from({ length: 1000 }, (_, index) => ({ id: `c${index}` }));
+    const touched = new Set<string>();
+    let active = 0, maximumActive = 0;
+    const pager = createGlobalSearchPager<Scope, Row>({
+      concurrency: 13,
+      loadScopes: async after => {
+        const offset = after === null ? 0 : Number(after.slice(1));
+        const data = scopes.slice(offset, offset + 100);
+        if (offset > 0) data.unshift(scopes[offset - 1]!); // changing page boundaries must not duplicate a lane.
+        const next = offset + 100 < scopes.length ? `s${offset + 100}` : null;
+        return { state: next ? "capped" : "complete", data, next };
+      },
+      loadMessages: async (scope, after) => {
+        touched.add(scope.id); active++; maximumActive = Math.max(maximumActive, active);
+        await Promise.resolve(); active--;
+        const index = Number(scope.id.slice(1));
+        if (index >= 998 && after === null) return { state: "capped", data: [{ id: "shared", at: 2000 }], next: `m${index}` };
+        if (index === 999 && after !== null) return { state: "complete", data: [{ id: "tail-999", at: 1500 }], next: null };
+        if (index === 998 && after !== null) return { state: "complete", data: [{ id: "tail-998", at: 1499 }], next: null };
+        return { state: "complete", data: [{ id: `m${index}`, at: index }], next: null };
+      },
+      scopeId: scope => scope.id,
+      messageId: row => row.id,
+      compare: (left, right) => left.at - right.at || left.id.localeCompare(right.id),
+    });
+    const rows: Row[] = [];
+    const firstTwo = await Promise.all([pager.next(), pager.next()]);
+    for (const page of firstTwo) {
+      assert(page.state === "capped" && page.issues.length === 0, `concurrent pager call lost serialization: ${JSON.stringify(page)}`);
+      rows.push(...page.items);
+    }
+    for (let pages = 0; pages < 58; pages++) {
+      const page = await pager.next();
+      assert(page.state === (page.hasMore ? "capped" : "complete") && page.issues.length === 0,
+        `global pager lost complete/capped state: ${JSON.stringify(page)}`);
+      rows.push(...page.items);
+      if (!page.hasMore) break;
+    }
+    const ordered = [...rows].sort((a, b) => b.at - a.at || b.id.localeCompare(a.id));
+    assert(touched.size === 1000 && maximumActive <= 13, `pager did not bound all 1000 scopes: ${touched.size}/${maximumActive}`);
+    assert(rows.length === 1001 && new Set(rows.map(row => row.id)).size === rows.length,
+      `pager lost refill or duplicate suppression: ${rows.length}`);
+    assert(JSON.stringify(rows) === JSON.stringify(ordered), "pager lost global (at,id) order");
+    assert(rows.at(-1)?.id === "m0", "pager stopped before the last authorized scope");
+  });
+
+  test("the shipped global search pager rejects repeated cursors and never retains an invalid head", async () => {
+    let calls = 0;
+    const pager = createGlobalSearchPager<{ id: string }, { id: string; at: number }>({
+      loadScopes: async () => ({ state: "complete", data: [{ id: "one" }], next: null }),
+      loadMessages: async () => ++calls === 1
+        ? { state: "capped", data: [{ id: "first", at: 2 }], next: "same" }
+        : { state: "capped", data: [{ id: "invalid", at: 1 }], next: "same" },
+      scopeId: scope => scope.id,
+      messageId: row => row.id,
+      compare: (left, right) => left.at - right.at,
+    });
+    const first = await pager.next();
+    const again = await pager.next();
+    assert(first.state === "partial" && JSON.stringify(first.items.map(row => row.id)) === '["first"]'
+      && first.issues[0]?.receipt.reason === "search cursor repeated", `repeated cursor was consumed: ${JSON.stringify(first)}`);
+    assert(again.state === "partial" && again.items.length === 0, `invalid head leaked after cursor refusal: ${JSON.stringify(again)}`);
+
+    let missingNext = 0;
+    const capped = createGlobalSearchPager<{ id: string }, { id: string; at: number }>({
+      loadScopes: async () => ({ state: "complete", data: [{ id: "one" }], next: null }),
+      loadMessages: async () => ++missingNext === 1
+        ? { state: "capped", data: [{ id: "invalid", at: 2 }], next: null }
+        : { state: "complete", data: [{ id: "valid", at: 1 }], next: null },
+      scopeId: scope => scope.id, messageId: row => row.id, compare: (left, right) => left.at - right.at,
+    });
+    const invalid = await capped.next(), valid = await capped.next();
+    assert(invalid.state === "partial" && invalid.items.length === 0, `capped head without next leaked: ${JSON.stringify(invalid)}`);
+    assert(valid.state === "complete" && valid.items[0]?.id === "valid", `retry retained capped invalid head: ${JSON.stringify(valid)}`);
+  });
+
+  test("the shipped global search pager exposes the weakest unusable partition and retries it", async () => {
+    const attempts = new Map<string, number>();
+    const pager = createGlobalSearchPager<{ id: string }, { id: string; at: number }>({
+      loadScopes: async () => ({ state: "complete", data: [{ id: "held" }, { id: "refused" }, { id: "ready" }], next: null }),
+      loadMessages: async scope => {
+        const attempt = (attempts.get(scope.id) ?? 0) + 1; attempts.set(scope.id, attempt);
+        if (attempt === 1 && scope.id === "held") return { state: "held", data: [], next: null };
+        if (attempt === 1 && scope.id === "refused") return { state: "refused", reason: "transport" };
+        return { state: "complete", data: [{ id: scope.id, at: scope.id === "ready" ? 3 : 1 }], next: null };
+      },
+      scopeId: scope => scope.id,
+      messageId: row => row.id,
+      compare: (left, right) => left.at - right.at || left.id.localeCompare(right.id),
+    });
+    const blocked = await pager.next();
+    assert(blocked.state === "refused" && blocked.items.length === 0 && blocked.issues.length === 2,
+      `pager hid a weaker partition: ${JSON.stringify(blocked)}`);
+    const retried = await pager.next();
+    assert(retried.state === "complete" && JSON.stringify(retried.items.map(row => row.id)) === '["ready","refused","held"]',
+      `pager did not retry only unusable heads: ${JSON.stringify(retried)}`);
   });
 }

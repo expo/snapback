@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-12 (24-hour session renewal preserves same-epoch custody; unheld aggregate presentation and checked totals custody; bounded transport/carrier acquisition; earlier chronology in LLP 1022)
+**Revised:** 2026-09-12 (24-hour session renewal preserves same-epoch custody; hub-scale global-search pager; unheld aggregate presentation and checked totals custody; bounded transport/carrier acquisition; earlier chronology in LLP 1022)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), LLP 1022 (implementation, measurement, and review history), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -730,6 +730,14 @@ discovery enumerates the source rule's authorization scopes without extra
 application filters or side effects. It may enumerate that source directory
 locally without fabricating membership rows/verdicts. Ordinary scope arguments
 still filter; arbitrary merges keep normal replay.
+
+The 1,000-chat guide form does not widen that eligibility. It pages every
+current membership, executes the ordinary certified one-row search in each
+scope, and uses `snapback2/global-search-pager` for the descending union. The
+pager bounds one-shot concurrency, refills only the winning scope, suppresses
+duplicate ids, refuses silent directory truncation, and exposes the weakest
+unusable receipt before advancing. Its calls are separately authorized
+snapshots; local held/partial results never become global complete authority.
 
 `held` means exact over locally readable held rows in the requested scope when
 local enumeration is whole but server coverage is not. Directory overflow,

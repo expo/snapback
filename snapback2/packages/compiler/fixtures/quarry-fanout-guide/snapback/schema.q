@@ -11,6 +11,17 @@ table posts:
   public
   insert <- .author = viewer
 
+table postHeads:
+  post: posts
+  author: principal
+  at: time
+  unique byPost: post
+  by byAuthorTime: author, at, id
+  immutable post, author, at
+  public
+  insert <- .author = viewer
+  delete <- .author = viewer
+
 table follows:
   follower: principal
   followed: principal
@@ -156,3 +167,9 @@ table readMarks:
   insert <- .actor = viewer and exists memberships[.conversationId, viewer]
   update <- .actor = viewer and exists memberships[.conversationId, viewer]
   delete <- deny
+
+table directory:
+  handle: text <=20
+  normalized: text <=50 ?
+  public
+  update <- allow

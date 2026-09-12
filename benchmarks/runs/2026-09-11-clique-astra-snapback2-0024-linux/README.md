@@ -1,14 +1,14 @@
 # Clique: Astra medium on published Snapback 2, Linux
 
-Status: **builder complete; independent grading running**. The builder ran
+Status: **builder and independent grading complete; fresh M7 running**. The builder ran
 2026-09-11 at21:36:51 through2026-09-12 at01:37:35 UTC on expo-build-1000,
 exit0,14,444s harness wall. PID2598100, Codex thread
 `01a09266-ee00-7701-bd60-d118acbb9fc0`, foreground harness session52200.
 All three0.0.24 packages were registry-visible with exact staged hashes and
 both native registry-only consumer suites passed19/19 before launch.
-No independent benchmark grade exists yet. Builder-reported checkpoints
-below remain provisional. This document records one run, not a new benchmark
-protocol.
+The independent grade below qualifies the builder-reported checkpoints;
+M7 and the absolute-rubric experience score are still pending. This document
+records one run, not a new benchmark protocol.
 
 ## Builder handoff and grading
 
@@ -54,8 +54,72 @@ foreground harness session18355. Preflight verified0.0.24, real Chromium,
 all assigned ports clear,239.64GiB available memory and381.63GiB free disk;
 load was8.07/9.28/6.62. The launch explicitly cleared both public backend
 URL variables and inherited harness note/port overrides. No builder
-narrative or supervisor findings were supplied to the grader. M7 and the
-scorer have not started.
+narrative or supervisor findings were supplied to the grader.
+
+### Completed independent grade — 2026-09-12 at02:57:40 UTC
+
+The grader exited0 after4,761s. Its [report](./grading/grader-report.json)
+passes the frozen schema under AJV2020, and its [sanitized trace](./grading/trace.md)
+records the independent probes, all three M4 choreography attempts,
+deviations and process shutdown. The [grading archive](./astra-snapback2-grading-public.tgz)
+adds receipts, screenshots, prompts and phase metadata; SHA-256:
+`0def75f1ee04fd716b49c8b0904c57be8f150dfc0042a4d5ebc1bdfbfca65f6b`.
+Raw grader transcripts and working probe data remain private on the host.
+
+**101 assertions pass;18 are not-run**, comprising9 native-simulator
+assertions and9 M7 assertions (this grade precedes M7). No coverage mapping
+was judged dishonest. The frozen report schema permits only M1–M7 assertion
+keys, so its JSON contains85 passes/16 not-run; M8's16 passes/2 not-run are
+fully retained in the trace and report notes, and counted in O1. The frozen
+schema was not changed to make this fit. The reviewer accepted the documented
+UI compatibility patch and independently checked the thinner suite mappings.
+
+Passing the checklist did not establish a bug-free app. The grader found
+one **major app defect**: editing about300ms after sending can address the
+optimistic `draft-…` ID, lose the edit and sometimes create a duplicate
+message. It reproduced in6/6 fast attempts; a paired slow case passed4/4
+with a2s pause. Three minor findings concern a1-of-3 video-delivery flake,
+raw backend error strings in the UI and an error banner surviving a later
+successful action. One cosmetic finding is an outsider's receipt-mark call
+returning committed as a verified no-op; it was not an existence oracle.
+These are findings about this built artifact, not automatic attribution of
+every app bug to the Snapback runtime.
+
+| Independent outcome dimension | Grade | Meaning and limitation |
+| --- | ---: | --- |
+| O1 checklist | 72 | Pre-M7 snapshot;18 checks unavailable/not attempted |
+| O2 defects | 58 | Includes the major rapid-edit defect |
+| O3 holdouts | null | No committed holdout set; improvised probes cannot replace it |
+| O4 native offline proof | 30 | Missing Apple simulator evidence, **not** a demonstration that native offline is broken |
+| O5 scale band | 30 | Literal midpoint rule misses by0.19/0.51ms; no demonstrated meaningful slowdown follows from that alone |
+
+No weighted outcome total or efficiency score is valid: O3 is null, the
+grader is uncalibrated, and the run has the custody limitations below. The
+later Astra experience score is a separate, unweighted rubric. Preserve the
+grade's actual findings and the distinction between unavailable evidence and
+observed defects.
+
+### Fresh M7 — started2026-09-12 at03:02:42 UTC
+
+Fresh `gpt-6-astra`/medium, PID2738331, foreground harness session36841.
+Preflight verified the same0.0.24 package/browser, clear assigned ports,
+load0.88/1.08/1.36,241.46GiB available memory and364.73GiB free disk. Both
+public backend URL overrides were cleared again. The original generic
+renderer/launcher are unchanged, with one wave and one backend confirmed.
+
+The actor archived the inherited store, started a fresh backend (PID2743065,
+port53100), seeded all three starter segments, and exported per-persona
+pre-M7 snapshots **before changing source**. It records that an existing
+message-count structure includes tombstones; M7 must implement the required
+visible-message count semantics and polls while preserving the starter data.
+No supervisor coaching or grader findings were supplied to this fresh actor.
+All179 files in the retained source snapshot matched the live app before
+M7 launched. Earlier local extraction/audit accidentally saw empty directories
+while transfers were still completing; the actual populated179-file source
+and42-file handoff were subsequently extracted, counted and audited. The
+only assignment-like credential candidates were the documented `your-password`
+placeholder and HTML `current-password` autocomplete value. The archives
+themselves and their hashes are unchanged.
 
 The package is the qualified source snapshot
 `5f115db401a41954f10dc3737e5b03872470a4eb`, published from the20:54 release

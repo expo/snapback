@@ -1,0 +1,45 @@
+# complete battery red: swift-client
+
+**Status:** Open
+**Reopened by battery run:** `local.20260912T024408Z.7d09e3124e2e`
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `4b2b32e6865b17e725068e3b75d18f5b3d281461`
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, CI
+**Date:** 2026-09-05
+**Battery gate:** `swift-client`
+**Failure signature:** `sha256:fce58abdd868857a55df575bbe6627410150b15bf455ffe388ce06f3e42b2745`
+**First observed run:** `local.20260905T112905Z.e32b5b7d5d32`
+**Last observed run:** `local.20260912T024408Z.7d09e3124e2e`
+**Last processed run:** `local.20260912T024408Z.7d09e3124e2e`
+**Detected at revision:** `e32b5b7d5d32cb4dc1735e4598fbdb86639d362f`
+**Last observed revision:** `7d09e3124e2ea43e4e53d5f26460b04f6aa4bf82`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
+**Related:** LLP 0189 D-1, LLP 0175 D2.3
+
+## Summary
+
+The scheduled complete canonical battery reported `swift-client` as a root
+failure (exit 1). This ticket is keyed by gate plus the normalized
+root-failure signature and remains idempotent while open. Dependent `BLOCKED`
+results do not create tickets.
+
+## Standing claim cross-references
+
+- None.
+
+These are the standing published claims whose recorded LLP 0189 D-4 scope
+derives `swift-client` as claim-relevant for this battery revision.
+
+## Reproduce and repair
+
+```sh
+swift test --package-path clients/swift/SnapbackClient
+```
+
+Fix forward, rerun the complete battery, and let the next determinate pass close
+this signature. Four consecutive red observations require author escalation.

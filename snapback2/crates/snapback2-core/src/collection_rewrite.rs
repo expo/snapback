@@ -206,7 +206,7 @@ impl ByteShape {
         );
         if name.contains("merge ") {
             format!(
-                "structural repair: use a smaller lane bound, a smaller page, two reads (they are two snapshots), or a maintained feed; {repair}; a smaller lane bound narrows the population; a smaller page preserves reachability only with valid continuation that the client follows"
+                "structural repair: preserve a hub population with compact merge heads or certified per-scope heads plus the shipped global pager (guide fanout); otherwise use a smaller page with continuation, two reads (they are two snapshots), or a maintained feed; {repair}; a smaller lane bound narrows the population; a smaller page preserves reachability only with valid continuation that the client follows"
             )
         } else {
             repair

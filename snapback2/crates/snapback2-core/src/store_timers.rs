@@ -85,6 +85,53 @@ fn empty_reset(conn: &Connection) -> Result<bool, RuntimeError> {
     )?)
 }
 
+fn period_containing(now: i64, duration_ms: i64) -> (i64, i64) {
+    debug_assert!(duration_ms > 0);
+    let duration = i128::from(duration_ms);
+    let start = i128::from(now).div_euclid(duration) * duration;
+    let end = start + duration;
+    let clamp = |value: i128| value.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64;
+    (clamp(start), clamp(end))
+}
+
+fn align_existing_period(
+    conn: &Connection,
+    schedule: &Schedule,
+    duration_ms: i64,
+    generation: &str,
+) -> Result<(), RuntimeError> {
+    let id = format!("t_{}", digest(&(&schedule.name, "period")));
+    let Some(mut timer) = get(conn, &id)? else {
+        return Ok(());
+    };
+    let prior_start = timer
+        .period_start
+        .unwrap_or_else(|| timer.at.saturating_sub(duration_ms));
+    let (floor, next) = period_containing(prior_start, duration_ms);
+    // Already-aligned timers are the ordinary path. Avoid searching retained firing history on
+    // every owner restart, and repair only a malformed end or stale generation if necessary.
+    if prior_start == floor {
+        if timer.at != next || timer.period_start != Some(floor) || timer.generation != generation {
+            timer.at = next;
+            timer.period_start = Some(floor);
+            timer.generation = generation.to_owned();
+            save(conn, &timer)?;
+        }
+        return Ok(());
+    }
+    // An old install-offset timer's persisted start is its next unprocessed boundary whether or
+    // not retained history can prove a prior firing. Preserve it for one bounded transition to
+    // the next whole boundary; the following re-arm is aligned.
+    let (start, end) = (prior_start, next);
+    if timer.at != end || timer.period_start != Some(start) || timer.generation != generation {
+        timer.at = end;
+        timer.period_start = Some(start);
+        timer.generation = generation.to_owned();
+        save(conn, &timer)?;
+    }
+    Ok(())
+}
+
 // @ref LLP 1021#6-the-adjacent-traps — an explicit empty reset stays dormant through restart and successors until a row exists.
 pub(crate) fn resume_after_empty(conn: &Connection, now: i64) -> Result<(), RuntimeError> {
     if empty_reset(conn)?
@@ -127,6 +174,12 @@ pub(crate) fn reconcile(
             .iter()
             .any(|s| s.name == schedule.name && s.trigger == schedule.trigger)
         {
+            if let Trigger::Every { duration_ms } = schedule.trigger {
+                // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock —
+                // legacy install-offset timers converge to whole-duration boundaries on reopen;
+                // one bounded transition preserves their persisted unprocessed start.
+                align_existing_period(conn, schedule, duration_ms, &next.hash())?;
+            }
             conn.execute(
                 "UPDATE _timers SET generation=?2 WHERE schedule=?1",
                 params![schedule.name, next.hash()],
@@ -147,17 +200,20 @@ pub(crate) fn reconcile(
                     params![schedule.name, next.hash()],
                 )?;
             }
-            Trigger::Every { duration_ms } => save(
-                conn,
-                &Timer {
-                    id: format!("t_{}", digest(&(&schedule.name, "period"))),
-                    schedule: schedule.name.clone(),
-                    row_id: None,
-                    at: now.saturating_add(*duration_ms),
-                    period_start: Some(now),
-                    generation: next.hash(),
-                },
-            )?,
+            Trigger::Every { duration_ms } => {
+                let (period_start, at) = period_containing(now, *duration_ms);
+                save(
+                    conn,
+                    &Timer {
+                        id: format!("t_{}", digest(&(&schedule.name, "period"))),
+                        schedule: schedule.name.clone(),
+                        row_id: None,
+                        at,
+                        period_start: Some(period_start),
+                        generation: next.hash(),
+                    },
+                )?
+            }
         }
     }
     Ok(())

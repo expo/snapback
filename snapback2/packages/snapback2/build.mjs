@@ -97,6 +97,7 @@ await build({ entryPoints: [resolve(here,'src/image-runtime.ts')], outdir: dist,
 const armBuilds = [{
   entryPoints: {
     index: resolve(here, "src/index.ts"),
+    "global-search-pager": resolve(here, "src/global-search-pager.ts"),
     react: resolve(here, "src/react.tsx"),
     "react-core": resolve(here, "src/react-core.tsx"),
     expo: resolve(here, "src/expo.ts"),
@@ -185,6 +186,7 @@ const declarationProgram = ts.createProgram({
     resolve(here, "src/expo/witness.ts"),
     resolve(here, "src/assets.ts"),
     resolve(here, "src/client.ts"),
+    resolve(here, "src/global-search-pager.ts"),
     resolve(here, "src/react-native.tsx"),
     resolve(here, "src/offline-protocol.ts"),
     resolve(here, "src/react.tsx"),
@@ -386,7 +388,7 @@ async function buildClientArms(arms, imagePlugin) {
 
 async function runClientBundleSelfTest() {
   const directory = dist;
-  const entries = ["index", "react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "witness-test", "expo/witness"];
+  const entries = ["index", "global-search-pager", "react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "witness-test", "expo/witness"];
   const graphEntries = new Set(["client", "client-runtime", "internal", ...entries]);
   const bundles = await Promise.all((await readdir(directory, { recursive: true }))
     .filter(file => file.endsWith(".mjs")).sort().map(async file => {

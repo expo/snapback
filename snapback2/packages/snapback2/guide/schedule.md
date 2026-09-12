@@ -16,9 +16,12 @@ schedule expireMessage on messages at .expiresAt: delete .
 schedule dailyDigest every 24h: digestSweep()
 ```
 
-An `every` binding may pass `.periodStart` or `.periodEnd`, both `time`, to
-the target. These are the logical boundaries of the scheduled occurrence,
-even when the owner fires it late; they are not ambient `now`.
+An `every` binding may pass `.periodStart` or `.periodEnd` (`time`) to its
+target. They are logical occurrence boundaries after a late fire, not ambient
+`now`. Boundaries are whole-duration Unix-epoch multiples on the owner's clock.
+Midperiod install/reset arms the next boundary. On reopen, a legacy offset timer
+keeps its stored start to that boundary, with no history lookup. If a full period
+overdue, catch-up selects the latest whole interval.
 
 ```q
 job periodDigestSweep(cutoff: time):

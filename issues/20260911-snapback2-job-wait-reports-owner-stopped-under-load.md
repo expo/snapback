@@ -31,3 +31,16 @@ Keep recoverable wait failures distinct from a stopped owner, and preserve the
 job ID/status so users can recover without restarting a healthy owner. Verify
 that retrying observation cannot enqueue the job again, and that a truly stopped
 owner still produces the appropriate actionable diagnostic.
+
+## Note — 2026-09-11
+
+`snapback2 verbs_jobs wait() spins without backoff` was resolved on 2026-09-12
+(20 ms between backlog pages, strict sequence progress, malformed pages stop;
+`issues/closed/20260912-snapback2-verbs-jobs-wait-spin.md`). A hot poll loop is
+a plausible contributor to `EAGAIN` under load, so the reproduction above should
+be retried on a package at or after that fix before attributing the failure.
+The classification defect stands on its own regardless: a transient connection
+error during receipt polling must not be reported as `E_OWNER_NOT_RUNNING` with a
+`run snapback2 dev` rewrite while the owner is alive and the job finishes. The
+0.0.25 scorer named this false diagnostic explicitly (diagnostics 84,
+"reduced trust").

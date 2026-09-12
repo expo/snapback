@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """Small run-local helpers for foreground custody and raw Codex retention."""
 
+from __future__ import annotations
+
+import fcntl
 import hashlib
 import json
 import os
 import signal
 import shutil
+import socket
 import subprocess
+import tempfile
+from contextlib import contextmanager
+from errno import EACCES, EADDRINUSE
 from pathlib import Path
 
 
@@ -14,6 +21,8 @@ LINUX_PATH_PREFIX = "/home/ccheever/.cargo/bin:/home/ccheever/.bun/bin:/home/cch
 # @ref LLP 1002#templates-are-products — a public client URL names one
 # project's owner and must not leak from the shell launching another lane.
 CLIENT_URL_ENVIRONMENT_VARIABLES = ("EXPO_PUBLIC_SNAPBACK_URL", "VITE_SNAPBACK_URL")
+RUN_LOCK_FD_ENV = "CLIQUE_RUN_ROOT_LOCK_FD"
+RUN_LOCK_ID_ENV = "CLIQUE_RUN_ROOT_LOCK_ID"
 
 
 class ProcessInterrupted(Exception):
@@ -59,7 +68,75 @@ def run_env() -> dict[str, str]:
     env.pop("CI", None)
     for variable in CLIENT_URL_ENVIRONMENT_VARIABLES:
         env.pop(variable, None)
+    env.pop(RUN_LOCK_FD_ENV, None)
+    env.pop(RUN_LOCK_ID_ENV, None)
     return env
+
+
+def run_root_id(root: Path) -> str:
+    return hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:20]
+
+
+def run_root_lock_path(root: Path) -> Path:
+    return Path(tempfile.gettempdir()) / f"clique-linux-runner-{run_root_id(root)}.lock"
+
+
+@contextmanager
+def exclusive_run_root(root: Path):
+    """Hold one nonblocking custody lock across preparation or an actor run."""
+    expected_id = run_root_id(root)
+    inherited_fd = os.environ.get(RUN_LOCK_FD_ENV)
+    if inherited_fd is not None:
+        if os.environ.get(RUN_LOCK_ID_ENV) != expected_id:
+            raise SystemExit("inherited Clique run-root lock does not match this packet")
+        try:
+            fd = int(inherited_fd)
+            os.fstat(fd)
+        except (ValueError, OSError) as error:
+            raise SystemExit("inherited Clique run-root lock is invalid") from error
+        os.set_inheritable(fd, False)
+        yield fd
+        return
+
+    lock_path = run_root_lock_path(root)
+    fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise SystemExit(f"Clique run root is already in use: {root}") from error
+        yield fd
+    finally:
+        os.close(fd)
+
+
+def inherited_lock_env(root: Path, fd: int) -> dict[str, str]:
+    """Return an environment that hands this held lock to an exec'd wrapper."""
+    os.set_inheritable(fd, True)
+    env = dict(os.environ)
+    env[RUN_LOCK_FD_ENV] = str(fd)
+    env[RUN_LOCK_ID_ENV] = run_root_id(root)
+    return env
+
+
+def occupied_ports(port_start: int, port_count: int) -> list[int]:
+    """Return assigned TCP ports that cannot be bound on IPv4 or IPv6."""
+    occupied = []
+    for port in range(port_start, port_start + port_count):
+        for family, address in ((socket.AF_INET, ("0.0.0.0", port)), (socket.AF_INET6, ("::", port))):
+            probe = socket.socket(family, socket.SOCK_STREAM)
+            try:
+                if family == socket.AF_INET6:
+                    probe.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                probe.bind(address)
+            except OSError as error:
+                if error.errno in (EADDRINUSE, EACCES):
+                    occupied.append(port)
+                    break
+                raise
+            finally:
+                probe.close()
+    return occupied
 
 
 def rollout_snapshot() -> set[str]:

@@ -4,3 +4,7 @@ job digestPass(period: int):
     account = digests[f.follower, period] by byTargetPeriod
     if account != null:
       update digests[account] { newPostsInFollowing: account.newPostsInFollowing + n }
+
+job directoryBackfill():
+  chunk entry in directory first 25 by byId:
+    update directory[entry] { normalized: entry.handle }
