@@ -1136,6 +1136,29 @@ mod tests {
     }
 
     #[test]
+    fn pipelined_requests_wait_for_response_without_blocking_other_connections() {
+        use std::io::Write;
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let address = server.server_addr().to_ip().unwrap();
+        let mut pipeline = std::net::TcpStream::connect(address).unwrap();
+        pipeline.write_all(b"GET /first HTTP/1.1\r\nHost: localhost\r\n\r\nGET /second HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+        let first = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        assert_eq!(first.url(), "/first");
+        // An open raw/SSE response holds only its own connection's admission.
+        let response = first.into_writer();
+        assert!(server.recv_timeout(Duration::from_millis(100)).unwrap().is_none());
+        let mut other = std::net::TcpStream::connect(address).unwrap();
+        other.write_all(b"GET /other HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+        let unrelated = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        assert_eq!(unrelated.url(), "/other");
+        unrelated.respond(tiny_http::Response::empty(200)).unwrap();
+        drop(response);
+        let second = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        assert_eq!(second.url(), "/second");
+        second.respond(tiny_http::Response::empty(200)).unwrap();
+    }
+
+    #[test]
     fn shed_connection_does_not_allocate_or_drain_declared_body() {
         use std::io::BufRead;
         let server = BoundServer::bind(0).unwrap();

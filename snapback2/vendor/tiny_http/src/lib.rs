@@ -323,17 +323,14 @@ impl Server {
                         let mut client = Some(client);
                         tasks_pool.spawn(Box::new(move || {
                             if let Some(client) = client.take() {
-                                // Synchronization is needed for HTTPS requests to avoid a deadlock
-                                if client.secure() {
-                                    let (sender, receiver) = mpsc::channel();
-                                    for rq in client {
-                                        messages.push(rq.with_notify_sender(sender.clone()).into());
-                                        receiver.recv().unwrap();
-                                    }
-                                } else {
-                                    for rq in client {
-                                        messages.push(rq.into());
-                                    }
+                                // Admit one request per connection until its response closes.
+                                // Besides TLS synchronization this bounds the shared request
+                                // queue by MAX_THREADS and prevents pipelined responses from
+                                // blocking an application dispatcher behind an open SSE body.
+                                let (sender, receiver) = mpsc::channel();
+                                for rq in client {
+                                    messages.push(rq.with_notify_sender(sender.clone()).into());
+                                    if receiver.recv().is_err() { break; }
                                 }
                             }
                         }));

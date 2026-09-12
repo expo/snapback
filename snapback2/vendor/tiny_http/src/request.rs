@@ -115,7 +115,7 @@ impl<R: Write> Write for NotifyOnDrop<R> {
 }
 impl<R> Drop for NotifyOnDrop<R> {
     fn drop(&mut self) {
-        self.sender.send(()).unwrap();
+        let _ = self.sender.send(());
     }
 }
 
@@ -464,7 +464,7 @@ impl Request {
     {
         let res = self.respond_impl(response);
         if let Some(sender) = self.notify_when_responded.take() {
-            sender.send(()).unwrap();
+            let _ = sender.send(());
         }
         res
     }
@@ -522,7 +522,7 @@ impl Drop for Request {
             let response = Response::empty(500);
             let _ = self.respond_impl(response); // ignoring any potential error
             if let Some(sender) = self.notify_when_responded.take() {
-                sender.send(()).unwrap();
+                let _ = sender.send(());
             }
         }
     }

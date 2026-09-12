@@ -118,3 +118,7 @@ dual licensed as above, without any additional terms or conditions.
 [license_img]: https://img.shields.io/crates/l/tiny_http.svg "License"
 [ci_badge]: https://github.com/tiny-http/tiny-http/actions/workflows/ci.yaml/badge.svg "CI Status"
 [ci_link]: https://github.com/tiny-http/tiny-http/actions/workflows/ci.yaml "Workflow Link"
+
+The parser admits one request per connection until its response closes, including
+plain HTTP. This bounds queued requests by parser capacity and prevents pipelined
+responses behind a long-lived stream from blocking the application dispatcher.

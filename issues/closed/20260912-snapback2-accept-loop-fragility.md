@@ -34,3 +34,5 @@ owner instead of just itself:
 ## Resolution (2026-09-12)
 
 Byte-safe classification removes the pre-spawn decode panic. Both application worker spawning and the HTTP dependency pool now use fallible Builder spawning and shed the affected connection. The bounded parser pool reserves capacity before spawning; accepted-stream clone failures are local and listener errors retry. Dropping an unconsumed body closes its read half before cleanup, without allocating or draining a declared Content-Length. Injected spawn failure, next-connection progress, huge unread body, and socket-flood regressions pass. The narrow tiny_http fork records these changes in its README.
+
+Independent review also found unbounded bodyless pipelining and response ordering that could block the dispatcher behind SSE. Admission is now serialized per connection through the response-completion notification, preserving keep-alive while bounding queued requests by parser capacity. A regression holds an open response, proves the pipelined child is not admitted, serves an unrelated connection, then admits the child after response close.
