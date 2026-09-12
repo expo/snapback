@@ -14,6 +14,8 @@ mod connected;
 #[cfg(not(feature = "hermes"))]
 mod clock_delivery;
 #[cfg(not(feature = "hermes"))]
+mod digest;
+#[cfg(not(feature = "hermes"))]
 mod effects;
 #[cfg(not(feature = "hermes"))]
 mod offline;
