@@ -639,7 +639,7 @@ test("two clients and cold carrier reopen preserve rows; an enum replay with a l
   }
 });
 
-test("positional reads compile after a regroup, report it in log/status, and absent/hidden receipts do not invent completeness", { timeout: 60000 }, async t => {
+test("positional reads compile after a regroup, report it in log/status, and distinguish public coverage from hidden or unheld groups", { timeout: 60000 }, async t => {
   const { directory, source } = await fixture();
   const previousUrl = process.env.SNAPBACK_URL;
   let owner: RealOwnerHarness | undefined;
@@ -650,6 +650,7 @@ test("positional reads compile after a regroup, report it in log/status, and abs
   const resumeReset = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
   const resumeQuery = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
   let predecessor: string | undefined;
+  const queryReceipts = new Map<string, any>();
   const gatedJson = async (response: Response, gate: typeof onlineQuery) => {
     const value = await response.clone().json();
     if (gate.armed) { gate.armed = false; gate.entered.resolve(value); await gate.release.promise; }
@@ -664,7 +665,11 @@ test("positional reads compile after a regroup, report it in log/status, and abs
           onlineLive.armed = false; onlineLive.entered.resolve(delivery); await onlineLive.release.promise;
         }
       });
-      if (path === "/api/query" && onlineQuery.armed) return gatedJson(response, onlineQuery);
+      if (path === "/api/query") {
+        const envelope = await response.clone().json();
+        if (envelope.receipt) queryReceipts.set(JSON.parse(String(init?.body)).op, envelope);
+        if (onlineQuery.armed) return gatedJson(response, onlineQuery);
+      }
       if (path === "/api/resume" && onlineReset.armed) return gatedJson(response, onlineReset);
       return response;
     };
@@ -743,15 +748,31 @@ test("positional reads compile after a regroup, report it in log/status, and abs
     assert.equal((await resuming.query(api.ops.count, { who: "dev:bob" })).data, 1);
     await resumeSub.until((event: any) => event.live === true && event.state === "complete" && event.data === 0, 8_000);
 
-    for (const [name, who] of [["count", "dev:alice"], ["hidden", "dev:alice"]]) {
+    const unheld = await online.offlineRuntime.evaluate("ops.count", { who: "dev:never-held" });
+    assert.equal(unheld?.state, "partial", "a different unqueried successor group has no coverage");
+    assert.equal(unheld?.reason, "never-held");
+    for (const [name, who] of [["hidden", "dev:alice"], ["count", "dev:alice"]]) {
       const server: any = await online.query(api.ops[name], { who });
       assert.equal(server.data, 0, `${name}: server typed zero: ${JSON.stringify(server)}`);
       await online.online();
       const replay = await online.offlineRuntime.evaluate(`ops.${name}`, { who });
-      t.diagnostic(`${name}: ${JSON.stringify({ server: server.state, replay })}`);
+      const envelope = queryReceipts.get(`ops.${name}`);
+      t.diagnostic(`${name}: ${JSON.stringify({ generation: envelope.generation, receipt: envelope.receipt, server: server.state, replay })}`);
       assert.equal(server.state, "complete", `${name}: the server's typed zero is complete`);
-      assert.equal(replay?.state, "partial", `${name}: receipt-only evaluation cannot mint zero authority`);
-      assert.equal(replay?.reason, "never-held", `${name}: the group was never held, so no false completeness: ${JSON.stringify(replay)}`);
+      assert.equal(envelope.generation, online.offlineRuntime.programGeneration, "coverage belongs to the adopted successor");
+      if (name === "count") {
+        const range = envelope.receipt.ranges.find((range: any) => range.table === "counts");
+        assert.ok(range, "the public Count read carries its independent group coverage");
+        assert.deepEqual({ index: range.index, prefix: range.prefix, rows: range.rowIds, stop: range.stop, absence: range.absence },
+          { index: "byRecipient", prefix: [{ Scalar: who }], rows: [], stop: "Exhausted", absence: true });
+        for (const bound of ["after", "before", "gt", "gte", "lt", "lte"]) assert.equal(range[bound], null);
+        assert.equal(replay?.state, "complete", "the exhausted public successor group covers its zero");
+        assert.equal(replay?.data, 0);
+      } else {
+        assert.deepEqual(envelope.receipt, { ranges: [], absences: [], verdicts: [] }, "hidden zero exposes no absence authority");
+        assert.equal(replay?.state, "partial", "hidden receipt-only evaluation cannot mint zero authority");
+        assert.equal(replay?.reason, "never-held");
+      }
     }
     assert.equal(onlineEvents.some(event => event.state === "refused" && /E_SCHEMA|E_OFFLINE_STATE/.test(event.code ?? "")), false);
     assert.equal(resumeEvents.some(event => event.state === "refused" && /E_SCHEMA|E_OFFLINE_STATE/.test(event.code ?? "")), false);
