@@ -5,6 +5,7 @@ import { QuotedReply } from './QuotedReply';
 import { ReceiptTicks, ReceiptState } from './ReceiptTicks';
 import { renderLinkifiedText } from './linkify';
 import { palette, radii, spacing, typeScale } from './tokens';
+import { webSourceUriProps } from './webSemantics';
 
 export interface MessageBubbleReactionSummary {
   emoji: string;
@@ -76,6 +77,7 @@ function mediaBlock(props: MessageBubbleProps): React.JSX.Element | null {
         accessibilityLabel={viewOnceOpened ? 'View-once photo, already opened' : 'View-once photo'}
         accessibilityRole="button"
         accessibilityValue={{ text: viewOnceOpened ? 'opened' : 'unopened' }}
+        aria-valuetext={viewOnceOpened ? 'opened' : 'unopened'}
         disabled={!!viewOnceOpened}
         onPress={onPressMedia}
         style={styles.viewOnce}
@@ -95,12 +97,17 @@ function mediaBlock(props: MessageBubbleProps): React.JSX.Element | null {
     <Pressable
       accessibilityLabel={mediaKind === 'video' ? 'Video message' : 'Photo message'}
       accessibilityRole="imagebutton"
+      {...webSourceUriProps(mediaUri)}
       onPress={onPressMedia}
       style={styles.media}
       testID="sm-convo-media"
     >
       {mediaUri ? (
-        <Image source={{ uri: mediaUri }} style={styles.mediaImage} />
+        <Image
+          {...webSourceUriProps(mediaUri)}
+          source={{ uri: mediaUri }}
+          style={styles.mediaImage}
+        />
       ) : (
         <View style={[styles.mediaImage, styles.mediaPlaceholder]} />
       )}
@@ -209,6 +216,7 @@ export function MessageBubble(props: MessageBubbleProps): React.JSX.Element {
                 accessibilityLabel={`${r.emoji} ${r.count}${r.mine ? ', including you' : ''}`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: !!r.mine }}
+                aria-pressed={!!r.mine}
                 key={r.emoji}
                 onPress={onPressReactionChip ? () => onPressReactionChip(r.emoji) : undefined}
                 style={[styles.reactionChip, r.mine ? styles.reactionChipMine : null]}

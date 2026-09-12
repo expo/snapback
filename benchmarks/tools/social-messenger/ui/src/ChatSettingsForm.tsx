@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar } from './Avatar';
 import { chatAccentList, ChatAccent, palette, radii, spacing, typeScale } from './tokens';
+import { webSourceUriProps } from './webSemantics';
 
 export type DisappearingSetting = 'off' | '24h' | '7d';
 
@@ -138,6 +139,8 @@ export function ChatSettingsForm({
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 accessibilityValue={{ text: accent.value }}
+                aria-pressed={selected}
+                aria-valuetext={accent.value}
                 key={accent.name}
                 onPress={() => onSelectAccentColor(accent)}
                 style={[
@@ -165,6 +168,7 @@ export function ChatSettingsForm({
         >
           {backgroundUri ? (
             <Image
+              {...webSourceUriProps(backgroundUri)}
               source={{ uri: backgroundUri }}
               style={styles.backgroundThumb}
               testID="sm-chatsettings-background-preview"
@@ -193,6 +197,8 @@ export function ChatSettingsForm({
                   accessibilityRole="button"
                   accessibilityState={{ selected, disabled: !canEdit }}
                   accessibilityValue={{ text: value }}
+                  aria-pressed={selected}
+                  aria-valuetext={value}
                   disabled={!canEdit}
                   key={value}
                   onPress={() => onSelectDisappearing(value)}
@@ -227,6 +233,7 @@ export function ChatSettingsForm({
             <View
               accessibilityLabel={`Member ${member.name}`}
               accessibilityValue={{ text: `${member.id}:${member.admin ? 'admin' : 'member'}` }}
+              aria-valuetext={`${member.id}:${member.admin ? 'admin' : 'member'}`}
               key={member.id}
               style={styles.memberRow}
               testID="sm-chatsettings-member"
@@ -285,6 +292,7 @@ export function ChatSettingsForm({
                   accessibilityLabel={`Add ${member.name}`}
                   accessibilityRole="button"
                   accessibilityValue={{ text: member.id }}
+                  aria-valuetext={member.id}
                   key={member.id}
                   onPress={() => onAddMember(member.id)}
                   style={styles.addMember}

@@ -1,12 +1,23 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { palette, radii, spacing, typeScale } from './tokens';
+import { webSourceUriProps } from './webSemantics';
 
-export interface ComposerAttachment {
-  /** Local preview URI of the picked fixture asset. */
+export interface ComposerImageAttachment {
+  kind: 'image';
+  /** Local URI of the picked image asset. */
   uri: string;
-  kind: 'image' | 'video';
 }
+
+export interface ComposerVideoAttachment {
+  kind: 'video';
+  /** Local URI of the picked video asset submitted by the lane. */
+  uri: string;
+  /** Required still-image preview URI; the kit never passes video bytes to `Image`. */
+  posterUri: string;
+}
+
+export type ComposerAttachment = ComposerImageAttachment | ComposerVideoAttachment;
 
 export interface ComposerProps {
   /**
@@ -64,37 +75,43 @@ export function Composer({
     <View style={styles.container}>
       {attachments && attachments.length > 0 ? (
         <View style={styles.attachments}>
-          {attachments.map((att, index) => (
-            <View
-              accessibilityLabel={`${att.kind} attachment ${index + 1}`}
-              accessibilityValue={{ text: att.kind }}
-              key={`${att.uri}-${index}`}
-              style={styles.attachment}
-              testID="sm-compose-attachment"
-            >
-              <Image
-                source={{ uri: att.uri }}
-                style={styles.attachmentImage}
-                testID="sm-compose-attachment-media"
-              />
-              {att.kind === 'video' ? (
-                <View pointerEvents="none" style={styles.attachmentOverlay}>
-                  <Text style={styles.attachmentPlay}>▶</Text>
-                </View>
-              ) : null}
-              {onRemoveAttachment ? (
-                <Pressable
-                  accessibilityLabel="Remove attachment"
-                  accessibilityRole="button"
-                  onPress={() => onRemoveAttachment(index)}
-                  style={styles.attachmentRemove}
-                  testID="sm-compose-attachment-remove"
-                >
-                  <Text style={styles.attachmentRemoveText}>✕</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ))}
+          {attachments.map((att, index) => {
+            const previewUri = att.kind === 'video' ? att.posterUri : att.uri;
+            return (
+              <View
+                accessibilityLabel={`${att.kind} attachment ${index + 1}`}
+                accessibilityValue={{ text: att.kind }}
+                aria-valuetext={att.kind}
+                {...webSourceUriProps(previewUri)}
+                key={`${att.uri}-${index}`}
+                style={styles.attachment}
+                testID="sm-compose-attachment"
+              >
+                <Image
+                  {...webSourceUriProps(previewUri)}
+                  source={{ uri: previewUri }}
+                  style={styles.attachmentImage}
+                  testID="sm-compose-attachment-media"
+                />
+                {att.kind === 'video' ? (
+                  <View pointerEvents="none" style={styles.attachmentOverlay}>
+                    <Text style={styles.attachmentPlay}>▶</Text>
+                  </View>
+                ) : null}
+                {onRemoveAttachment ? (
+                  <Pressable
+                    accessibilityLabel="Remove attachment"
+                    accessibilityRole="button"
+                    onPress={() => onRemoveAttachment(index)}
+                    style={styles.attachmentRemove}
+                    testID="sm-compose-attachment-remove"
+                  >
+                    <Text style={styles.attachmentRemoveText}>✕</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
       ) : null}
       <View style={styles.inputRow}>

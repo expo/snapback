@@ -45,11 +45,12 @@ const ATTEMPTED_STATUSES = new Set([
   "aborted",
 ]);
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
-const CURRENT_CHOREOGRAPHY_VERSION = "0.3.7-m8";
+const CURRENT_CHOREOGRAPHY_VERSION = "0.3.8-m8";
 const RETAINED_INSTRUMENT_PINS = new Set([
   "social-messenger@0.3.3-m8",
   "social-messenger@0.3.4-m8",
   "social-messenger@0.3.6-m8",
+  "social-messenger@0.3.7-m8",
 ]);
 const RECEIPT_SCHEMA = JSON.parse(readFileSync(
   new URL("./choreography/receipts.schema.json", import.meta.url),
