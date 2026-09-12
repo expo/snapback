@@ -45,19 +45,25 @@ fn request(
     headers: &[(&str, &str)],
     body: Json,
 ) -> Result<HttpResponse, Refusal> {
-    let mut stream = TcpStream::connect(("127.0.0.1", port)).map_err(|error| {
-        Refusal::owner(
-            "E_OWNER_NOT_RUNNING",
-            format!("cannot connect to owner on port {port}: {error}"),
-            "run snapback2 dev",
-        )
-    })?;
-    stream
-        .set_read_timeout(read_timeout(path, &body))
-        .map_err(io_refusal)?;
+    let timeout = read_timeout(path, &body);
+    request_with_timeout(port, method, path, headers, body, timeout)
+}
+
+fn request_with_timeout(
+    port: u16,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: Json,
+    timeout: Option<Duration>,
+) -> Result<HttpResponse, Refusal> {
+    let mut stream = TcpStream::connect(("127.0.0.1", port))
+        .map_err(|error| connect_refusal(port, error).with_site(path))?;
+    let io = |error| io_refusal(error).with_site(path);
+    stream.set_read_timeout(timeout).map_err(io)?;
     stream
         .set_write_timeout(Some(Duration::from_secs(5)))
-        .map_err(io_refusal)?;
+        .map_err(io)?;
     let bytes = if method == "GET" && body == json!({}) {
         Vec::new()
     } else {
@@ -73,16 +79,16 @@ fn request(
         "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n",
         bytes.len()
     )
-    .map_err(io_refusal)?;
+    .map_err(io)?;
     for (name, value) in headers {
-        write!(stream, "{name}: {value}\r\n").map_err(io_refusal)?;
+        write!(stream, "{name}: {value}\r\n").map_err(io)?;
     }
-    stream.write_all(b"\r\n").map_err(io_refusal)?;
-    stream.write_all(&bytes).map_err(io_refusal)?;
-    stream.flush().map_err(io_refusal)?;
+    stream.write_all(b"\r\n").map_err(io)?;
+    stream.write_all(&bytes).map_err(io)?;
+    stream.flush().map_err(io)?;
     let _ = stream.shutdown(Shutdown::Write);
     let mut response = Vec::new();
-    stream.read_to_end(&mut response).map_err(io_refusal)?;
+    stream.read_to_end(&mut response).map_err(io)?;
     parse_response(&response)
 }
 
@@ -242,17 +248,90 @@ fn chunk_length_refusal() -> Refusal {
     )
 }
 
+// @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — a failed observation does not establish owner absence or undo a submitted job.
+fn connect_refusal(port: u16, error: std::io::Error) -> Refusal {
+    if error.kind() == std::io::ErrorKind::ConnectionRefused {
+        Refusal::owner(
+            "E_OWNER_NOT_RUNNING",
+            format!("cannot connect to owner on port {port}: {error}"),
+            "run snapback2 dev",
+        )
+    } else {
+        io_refusal(error)
+    }
+}
+
 fn io_refusal(error: std::io::Error) -> Refusal {
-    Refusal::owner(
-        "E_OWNER_NOT_RUNNING",
+    Refusal::new(
+        "E_OWNER_TRANSPORT",
+        "owner",
         format!("owner connection failed: {error}"),
-        "run snapback2 dev",
+        "retry read-only observation; inspect the outcome before repeating a write",
+        "operator",
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_accepted_connection_stalled_by_the_peer_is_not_an_absent_owner() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (release, blocked) = std::sync::mpsc::channel();
+        let owner = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = String::new();
+            stream.read_to_string(&mut request).unwrap();
+            // Hold the accepted connection open without a reply until the client
+            // has hit SO_RCVTIMEO: WouldBlock/EAGAIN on Unix, TimedOut elsewhere.
+            blocked.recv_timeout(Duration::from_secs(2)).unwrap();
+            assert!(request.starts_with("GET /control/job/job_pressure?after=100 "));
+        });
+        let error = request_with_timeout(
+            port,
+            "GET",
+            "/control/job/job_pressure?after=100",
+            &[],
+            json!({}),
+            Some(Duration::from_millis(10)),
+        )
+        .unwrap_err();
+        release.send(()).unwrap();
+        owner.join().unwrap();
+        assert_eq!(error.code, "E_OWNER_TRANSPORT", "{error:?}");
+        assert_eq!(
+            error.site.as_deref(),
+            Some("/control/job/job_pressure?after=100")
+        );
+        assert!(!error.rewrite.unwrap().contains("dev"));
+    }
+
+    #[test]
+    fn only_refused_connect_establishes_no_listening_owner() {
+        use std::io::{Error, ErrorKind};
+        for kind in [
+            ErrorKind::WouldBlock,
+            ErrorKind::TimedOut,
+            ErrorKind::Interrupted,
+            ErrorKind::ConnectionReset,
+            ErrorKind::ConnectionAborted,
+            ErrorKind::BrokenPipe,
+        ] {
+            assert_eq!(
+                connect_refusal(1234, Error::from(kind)).code,
+                "E_OWNER_TRANSPORT"
+            );
+            assert_eq!(io_refusal(Error::from(kind)).code, "E_OWNER_TRANSPORT");
+        }
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let error = request(port, "GET", "/control/status", &[], json!({})).unwrap_err();
+        assert_eq!(error.code, "E_OWNER_NOT_RUNNING");
+        assert_eq!(error.rewrite.as_deref(), Some("run snapback2 dev"));
+    }
 
     fn response(body: &[u8]) -> Vec<u8> {
         let mut response = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n".to_vec();

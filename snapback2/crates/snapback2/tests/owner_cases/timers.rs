@@ -989,3 +989,67 @@ fn effects_settle_with_defaulted_arguments_covers_the_tick_advanced_turn() {
     stop_owner(port, &secret, &mut owner, "defaulted settle complete");
     fs::remove_dir_all(root).unwrap();
 }
+
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the
+// packaged UTC row-clock form persists its anchor, catches up, and deduplicates replay.
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn configured_utc_row_digest_survives_restart_and_catches_up_without_duplicate_emission() {
+    let root = temp_root();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/compiler/fixtures/quarry-schedules/snapback");
+    copy_tree(&fixture, &root.join("snapback"));
+    // Keep the exact row-clock recipe and isolate it from the fixture's two
+    // independent periodic examples, whose application settings are unrelated.
+    for (file, declaration) in [
+        ("admin.q", "schedule dailyDigest every 24h: digestSweep()"),
+        ("digest-recipes.q", "schedule recipeDigest every 2m: periodDigestSweep(.periodEnd)"),
+    ] {
+        let path = root.join("snapback").join(file);
+        fs::write(&path, fs::read_to_string(&path).unwrap().replace(declaration, "")).unwrap();
+    }
+    fs::write(root.join("snapback/seed.ts"), r#"import { seed } from "snapback2";
+export default seed({ personas: ["alice", "bob"], rows: { profiles: [
+  { id: "alice", principal: "dev:alice", handle: "alice", newFollowers: 1, unreadMessages: 0 },
+  { id: "bob", principal: "dev:bob", handle: "bob", newFollowers: 0, unreadMessages: 0 },
+] } });
+"#).unwrap();
+    let compiler = compiler(&root);
+    let (mut owner, mut port, mut secret) = restart_owner(&root, &compiler);
+    let arm = cli(&root, &compiler, &["run", "admin.armDailyDigest", "{\"utcHour\":8}", "--as", "system"]);
+    assert_eq!(arm.0, 0, "{arm:?}");
+    let clock = |port, secret: &str| {
+        let rows = control(port, secret, "POST", "/control/data", json!({ "table": "digestClocks", "as": "system" }));
+        rows["data"][0]["nextAt"].as_i64().unwrap()
+    };
+    let cutoff = clock(port, &secret);
+    assert_eq!(cutoff.rem_euclid(DAY), 8 * HOUR);
+    assert!(cutoff > owner_now(port, &secret));
+    let duplicate_arm = cli(&root, &compiler, &["run", "admin.armDailyDigest", "{\"utcHour\":9}", "--as", "system"]);
+    assert_eq!(duplicate_arm.0, 1, "{duplicate_arm:?}");
+    assert_eq!(clock(port, &secret), cutoff, "initialization must not move a persisted clock");
+    stop_owner(port, &secret, &mut owner, "UTC row clock restart");
+    (owner, port, secret) = restart_owner(&root, &compiler);
+    assert_eq!(clock(port, &secret), cutoff, "restart changed the configured anchor");
+    // Advance instead of sleeping for days. Four missed daily cutoffs finish in
+    // serial jobs; the fifth deadline must remain at the original UTC phase.
+    let now = owner_now(port, &secret);
+    control(port, &secret, "POST", "/control/clock", json!({ "advanceMs": cutoff + 3 * DAY + 1_000 - now }));
+    wait_for(Duration::from_secs(6), || (clock(port, &secret) == cutoff + 4 * DAY).then_some(()));
+    let receipts = control(port, &secret, "POST", "/control/data", json!({ "table": "dailyDigestReceipts", "as": "system" }));
+    let rows = receipts["data"].as_array().unwrap();
+    assert_eq!(rows.len(), 4, "{receipts}");
+    for period in 0..4 {
+        assert!(rows.iter().any(|row| row["principal"] == "dev:alice" && row["cutoff"] == cutoff + period * DAY), "{receipts}");
+    }
+    let before = control(port, &secret, "GET", "/control/status", json!({}));
+    assert_eq!(before["effects"]["queued"], 4, "{before}");
+    let args = json!({ "clockId": "daily", "cutoff": cutoff }).to_string();
+    let replay = cli(&root, &compiler, &["run", "admin.utcDigestSweep", &args, "--as", "system", "--wait"]);
+    assert_eq!(replay.0, 0, "{replay:?}");
+    assert_eq!(clock(port, &secret), cutoff + 4 * DAY, "stale job advanced the clock");
+    let after = control(port, &secret, "GET", "/control/status", json!({}));
+    assert_eq!(after["effects"]["queued"], 4, "replay duplicated effect: {after}");
+    stop_owner(port, &secret, &mut owner, "UTC row clock witness complete");
+    fs::remove_dir_all(root).unwrap();
+}

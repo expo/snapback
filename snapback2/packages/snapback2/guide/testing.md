@@ -1,7 +1,12 @@
 # Testing: `test`
 
-The static seed is one system commit before derived checks and journeys:
-maintained targets need no empty seed arrays.
+Run `snapback2 test --port 53200` on a host assigning that port. `--port N`
+binds the isolated owner there or fails with `E_OWNER_PORT_TAKEN`, without
+fallback. Omit it (or use `--port 0`) for OS selection. Receipts, including
+`--json`, record `owner: { pid, port }` beside `commands` after startup;
+the supervisor stops and reaps that PID.
+
+The static seed commits once before checks and journeys; omit maintained targets.
 
 ```ts
     profiles: [
@@ -10,18 +15,17 @@ maintained targets need no empty seed arrays.
     ],
 ```
 
-Seed ids such as `profile-alice` are application ids; `dev:alice` is a
-Principal. Seeds omit identity credentials and assets, which require uploads.
-The chat fixture keeps `charlie` without a profile to test profile creation.
+`profile-alice` is an application id; `dev:alice` is a Principal. Seeds omit
+credentials and assets (upload those). Chat leaves `charlie` without a profile
+to test creation.
 
 `fixture("fixtures/photo.jpg")` from `snapback2/test` reads bytes relative to
 the authored test file, even after compilation; commit media under `tests/fixtures/`.
 
-Write journeys with `journey(name, async ({ as, tick, effects, url }) => …)`. The test
-verb starts a fresh isolated owner, runs all six derived check families, runs
-every journey through the headless wire client, removes the test store, and
-writes `.snapback/receipts/<timestamp>.json`. Zero checks cannot pass. Use
-`snapback2 test --blocked "reason"` for an honest blocked receipt.
+Write `journey(name, async ({ as, tick, effects, url }) => …)`. `test` runs six
+derived check families and every headless wire journey on a fresh owner,
+removes its store, and writes `.snapback/receipts/<timestamp>.json`.
+Zero checks cannot pass. `snapback2 test --blocked "reason"` writes a blocked receipt.
 
 Select: `snapback2 test --journey "todos round trip"`.
 Use `--journey=--help` or `--journey=-h` for literal names. Duplicates run; selection records `scope.journey`, and skips unrelated journeys and
@@ -81,14 +85,12 @@ skips the check with `scope.journey`.
 
 Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.
-They bind revocation delivery, active-generation policy, and immutable grant
-incarnation to the served loop rather than treating lower-level unit coverage
-as the acceptance result. Projected policy probes require IR-proved carrier
+They prove revocation delivery, active-generation policy, and immutable grant
+incarnation through the served loop. Projected policy probes require IR-proved carrier
 fields plus complete protected rows; mixed scalar/array/nested projections block.
-Guards must be independent of the denied table: only literals, arguments, viewer and
-self-readable membership existence with stable keys are proved. Unproved terminal control
-flow blocks, including merges anywhere in expressions; `detail.candidates` names
-each rejected query and its reason.
+Guards admit only literals, arguments, viewer and self-readable membership
+existence with stable keys, independent of the denied table. Unproved control
+flow, including merges in expressions, blocks; `detail.candidates` explains each rejection.
 
 Canonical proof carriers:
 
@@ -103,25 +105,22 @@ second same-scope admin, spare nonmember, and room below the cap.
 Journeys share the owner; isolate disposable writes from later inboxes and await
 client closes.
 
-Derived checks use a small seed.
-Rules compare every stored row for every seed persona, within a 16,384-probe
-budget; oversized tables block with the counts and a smaller-seed rewrite.
+Use a small seed. Rules compare every stored row for every seed persona within
+16,384 probes; oversized tables block with counts and a smaller-seed rewrite.
 Empty generated logs/receipts block too: seed content in a group with recipients.
 Invalidation witnesses certificate-intersection groups and possible
 concrete-disjoint silence. Whole-index queries whose every mutation write must
 overlap report silence inapplicable; do not invent an unrelated operation.
 The receipt names groups and physical attempts. SSE silence ends at a fresh
 subscription frame after the write on the same ordered stream. Mutation
-search uses the first two scopes and six personas; if no committing witness is
-found within the limit, the check blocks. Replay still covers every generic
-mutation independently. Put operation-specific behavior and larger scenarios
-in authored journeys, and keep useful admitted and excluded personas and scopes
-near the start of the seed.
+search uses the first two scopes and six personas; no committing witness blocks.
+Replay covers every generic mutation independently. Author journeys for larger
+scenarios and operation-specific behavior; put useful admitted and excluded
+personas and scopes near the seed's start.
 
-`dev --stop` admits no new effect claims and joins the runner for at most the
-budget + 1 s; only if the thread is still running does it log
-`outbox.engine: detached` with the running ids. Detachment does not prove
-execution stopped; the next boot marks those rows `sent_unknown`.
+`dev --stop` halts new effect claims and joins for budget + 1 s. A surviving
+thread logs `outbox.engine: detached` with running ids, not proof of stopping;
+next boot marks those rows `sent_unknown`.
 
-`reset` reports seed row and persona counts; `reset --empty` skips the seed
-and stays empty after restart. Sessions survive either form (`guide operator`).
+`reset` reports seed row/persona counts; `reset --empty` stays empty across
+restart. Both preserve sessions (`guide operator`).

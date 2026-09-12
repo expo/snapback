@@ -158,3 +158,19 @@ maintain newFollowerPeriodCounts: count follows by followed, digestEligible, per
 
 maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
   read <- allow
+
+table digestClocks:
+  nextAt: time ?
+  read <- deny
+  insert <- deny
+  update <- deny
+  delete <- deny
+
+table dailyDigestReceipts:
+  principal: principal
+  cutoff: time
+  unique byPrincipalCutoff: principal, cutoff
+  read <- deny
+  insert <- deny
+  update <- deny
+  delete <- deny

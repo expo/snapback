@@ -2,7 +2,8 @@
 // @ref LLP 1002#1-decisions — the binary owns compilation through one worker.
 
 mod lowering;
-mod toolchain;
+pub(crate) mod toolchain;
+use toolchain::compiler_rewrite;
 pub use toolchain::node_path;
 
 use crate::protocol::{Refusal, certification_family_guide};
@@ -172,21 +173,21 @@ impl CompilerWorker {
                     "cannot start compiler worker at {}: {error}",
                     path.display()
                 ),
-                "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+                toolchain::node_rewrite(),
             )
         })?;
         let input = child.stdin.take().ok_or_else(|| {
             Refusal::owner(
                 "E_OWNER_NO_COMPILER",
                 "compiler worker has no stdin",
-                "set SNAPBACK2_COMPILER to a working bundled compiler.mjs",
+                compiler_rewrite(),
             )
         })?;
         let output = child.stdout.take().ok_or_else(|| {
             Refusal::owner(
                 "E_OWNER_NO_COMPILER",
                 "compiler worker has no stdout",
-                "set SNAPBACK2_COMPILER to a working bundled compiler.mjs",
+                compiler_rewrite(),
             )
         })?;
         let (output_tx, output_rx) = mpsc::channel();
@@ -607,7 +608,7 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
                 Refusal::owner(
                     "E_OWNER_NO_COMPILER",
                     format!("cannot locate the snapback2 binary: {error}"),
-                    "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+                    compiler_rewrite(),
                 )
             })?
             .with_file_name("compiler.mjs")
@@ -616,7 +617,7 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
         Refusal::owner(
             "E_OWNER_NO_COMPILER",
             format!("compiler worker not found at {}", candidate.display()),
-            "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+            compiler_rewrite(),
         )
     })?;
     if !candidate.is_file() {
@@ -626,7 +627,7 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
                 "compiler worker path is not a file: {}",
                 candidate.display()
             ),
-            "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+            compiler_rewrite(),
         ));
     }
     Ok(candidate)

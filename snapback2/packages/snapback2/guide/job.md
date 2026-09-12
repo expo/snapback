@@ -5,6 +5,13 @@ See `guide successor` for fill and narrowing repairs.
 `--wait` polls to completion; `--json` prints chunks and the final receipt.
 `POST /control/job` rejects `wait: true`: waiting belongs to the CLI.
 
+Transport pressure retries the same observation three times with backoff.
+Persistent `E_OWNER_TRANSPORT` retains `job`, `lastObservedState` and
+`lastObservedSeq`; use its project-qualified `trace` recovery command.
+For `E_OWNER_NOT_RUNNING`, start the owner, then trace the existing job.
+Malformed pages also stop with trace recovery. Repeating `run --wait`
+enqueues another job.
+
 `chunk` walks current rows through the upper key captured at sweep start.
 Later inserts between cursor and bound are visited; inserts beyond it are
 excluded; deleted rows are skipped. Cursor, writes and emitted effects commit

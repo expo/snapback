@@ -8,7 +8,7 @@ use crate::client;
 use crate::owner::{self, OwnerInfo};
 use crate::project::{self, CompiledProject, CompilerWorker, SeedData, locate_root};
 use crate::protocol::Refusal;
-use crate::receipt::{CheckReceipt, TestReceipt};
+use crate::receipt::{CheckReceipt, TestOwnerReceipt, TestReceipt};
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
@@ -47,7 +47,7 @@ use self::test_policy::check_rules;
 #[cfg(test)]
 use self::test_policy::rule_id_sets_match;
 
-pub(crate) const VALUE_FLAGS: &[&str] = &["--blocked", "--project", "--journey"];
+pub(crate) const VALUE_FLAGS: &[&str] = &["--blocked", "--project", "--journey", "--port"];
 
 pub fn run(args: &[String]) -> ExitCode {
     if args.iter().enumerate().any(|(index, arg)| {
@@ -69,6 +69,10 @@ pub fn run(args: &[String]) -> ExitCode {
     if options.positionals().len() != 1 {
         return usage();
     }
+    let port: u16 = match options.value("--port").unwrap_or("0").parse() {
+        Ok(port) => port,
+        Err(_) => return usage(),
+    };
     let json_output = options.has("--json");
     let root = match locate_root(options.value("--project").map(Path::new)) {
         Ok(root) => root,
@@ -153,7 +157,8 @@ pub fn run(args: &[String]) -> ExitCode {
         ));
     }
 
-    let mut isolated = match IsolatedOwner::start(&root, stamp) {
+    let owner_command = format!("snapback2 dev --foreground --port {port}");
+    let mut isolated = match IsolatedOwner::start(&root, stamp, port) {
         Ok(owner) => owner,
         Err(error) => {
             checks.push(CheckReceipt::fail(
@@ -165,28 +170,24 @@ pub fn run(args: &[String]) -> ExitCode {
             return finish_selected(
                 &root,
                 stamp,
-                TestReceipt::new(
-                    compiled.generation.hash(),
-                    vec!["snapback2 dev --foreground".to_owned()],
-                    checks,
-                ),
+                TestReceipt::new(compiled.generation.hash(), vec![owner_command], checks),
                 json_output,
             );
         }
     };
-    let commands = vec![
-        "snapback2 dev --foreground --port 0".to_owned(),
-        "seed".to_owned(),
-        if let Some(name) = selected_journey {
-            format!("snapback2 test --journey='{}'", name.replace('\'', "'\\''"))
-        } else if journeys_only {
-            "snapback2 test --journeys-only".to_owned()
-        } else if derived_only {
-            "snapback2 test --derived-only".to_owned()
-        } else {
-            "snapback2 test".to_owned()
-        },
-    ];
+    let mut test_command = if let Some(name) = selected_journey {
+        format!("snapback2 test --journey='{}'", name.replace('\'', "'\\''"))
+    } else if journeys_only {
+        "snapback2 test --journeys-only".to_owned()
+    } else if derived_only {
+        "snapback2 test --derived-only".to_owned()
+    } else {
+        "snapback2 test".to_owned()
+    };
+    if options.value("--port").is_some() {
+        test_command.push_str(&format!(" --port {port}"));
+    }
+    let commands = vec![owner_command, "seed".to_owned(), test_command];
 
     if !journeys_only {
         checks.push(check_rules(&isolated.info, &compiled, &seed));
@@ -210,6 +211,10 @@ pub fn run(args: &[String]) -> ExitCode {
         checks.push(effects);
     }
     let mut receipt = TestReceipt::new(compiled.generation.hash(), commands, checks);
+    receipt.owner = Some(TestOwnerReceipt {
+        pid: isolated.info.pid,
+        port: isolated.info.port,
+    });
     if !compiled.generation.schema().schedules.is_empty() {
         let status = client::control(&isolated.info, "GET", "/control/status", json!({}))
             .ok()
@@ -291,7 +296,7 @@ impl Drop for OwnerCleanup {
 }
 
 impl IsolatedOwner {
-    fn start(root: &Path, stamp: u128) -> Result<Self, Refusal> {
+    fn start(root: &Path, stamp: u128, port: u16) -> Result<Self, Refusal> {
         Self::start_with(
             root,
             stamp,
@@ -308,6 +313,8 @@ impl IsolatedOwner {
                         "--test-owner",
                         "--json",
                     ])
+                    .arg("--port")
+                    .arg(port.to_string())
                     .stdin(Stdio::null())
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
@@ -1338,7 +1345,7 @@ fn elapsed_ms(started: Instant) -> u64 {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: snapback2 test [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]"
+        "usage: snapback2 test [--project dir] [--port N] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]"
     );
     ExitCode::from(2)
 }

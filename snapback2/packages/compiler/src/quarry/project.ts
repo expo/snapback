@@ -106,7 +106,8 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
     ok: true,
     project: { schema: project.schema, programs: project.programs, effects: loweredEffects.effects },
     sources: Object.fromEntries(Object.entries(project.sources).map(([site, source]) => [site, withText(source)])),
-    apiDts: generateBoundApiDts(project.clientPrograms, prepared.prepared.documents, prepared.prepared.catalog),
+    apiDts: generateBoundApiDts(project.clientPrograms, prepared.prepared.documents,
+      prepared.prepared.catalog, project.programs),
     quarry: inspection,
     ms: elapsed(input.started),
   };

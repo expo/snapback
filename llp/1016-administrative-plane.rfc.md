@@ -23,7 +23,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-11 (period schedules align to whole-duration epoch boundaries; legacy install-offset timers reconcile on restart; real-owner restart effect-count proof); 2026-09-11 (implementation residual close-out: diagnostic rewrites, empty ad hoc input, refusal lock release, compiled schedule identity, manifest operator view, and catalog/ref anchors); 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-11 (configured UTC row-clock recipe; transient job-wait observation classification and recovery); 2026-09-11 (period schedules align to whole-duration epoch boundaries; legacy install-offset timers reconcile on restart; real-owner restart effect-count proof); 2026-09-11 (implementation residual close-out: diagnostic rewrites, empty ad hoc input, refusal lock release, compiled schedule identity, manifest operator view, and catalog/ref anchors); 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -460,15 +460,32 @@ schedule dailyDigest every 24h: digestSweep(.periodEnd)
   timer fires it on the next background turn; a journey inserts a row with
   `expiresAt: now + 1h`, advances the clock, and asserts the purge; the
   `test` receipt gains `schedules: { fired, late, rejected }`.
-- **The two customers.** The `chat` template's disappearing messages become
-  a `schedule … at .expiresAt` whose target writes the `expired` log rows
-  LLP 1012 §3 describes; the client-side trigger is deleted. The
-  benchmark's M8 digest is
-  `schedule dailyDigest every 24h: digestSweep(.periodEnd)`
-  where `digestSweep` is a job with one sweep over `profiles by byId` that
-  emits one effect per user with a non-zero count — "driven by the schedule
-  alone", restart-idempotent by occurrence, authorized because the sweep
-  runs as the owner and discloses nothing but its declared writes.
+- **The two customers.** The chat template's row expiry deletes the source
+  and emits native removed events through LLP 1019 delivery custody. The
+  two-minute grading digest uses `every 2m` and `.periodEnd`. The brief's
+  production **08:00 UTC** digest uses the persisted row-clock recipe below:
+  `every 24h` is 00:00 UTC and cannot express that phase.
+- **Configured UTC hour (2026-09-11 ticket resolution).** Keep the grammar;
+  the first `guide schedule` read teaches `armDailyDigest(utcHour)` and
+  `utcDigestSweep(clockId, cutoff)`, compiled in `quarry-schedules`. Initialize
+  the system-only singleton once to
+  `now - ((now - utcHour * 3600000) mod 86400000) + 86400000`; hours are 0–23.
+  The deadline survives restart. Its row timer passes the persisted cutoff
+  to a durable job. Each recipient's unique receipt, digest/log and effect
+  commit together; after every recipient and cleanup chunk finishes, the
+  final clock chunk advances by one day only when `nextAt = cutoff`.
+  Catch-up processes missed days serially. Inspect stalled work: resume a
+  parked job; cancellation is terminal, so explicitly run `utcDigestSweep`
+  again with the same clock id and original cutoff. Do not reset the clock. Logical emission is
+  deduplicated; provider delivery still uses effect idempotency. The guide's
+  small scheduling fixture uses sample profile counters, not a claim to the
+  full M8 population/counting contract: production source buckets and final
+  eligibility use the same UTC offset and `[cutoff - duration, cutoff)`.
+  No phase, cron, calendar or local-zone syntax is added, so no NOT-DOING
+  trade is taken. The real-owner regression
+  `configured_utc_row_digest_survives_restart_and_catches_up_without_duplicate_emission`
+  exercises this exact compiled recipe with a nonzero phase, restart, four
+  missed days, zero-activity exclusion and stale replay.
 
 ### D6 — The operator seat, ad hoc programs, and rehearsal
 
@@ -518,6 +535,14 @@ schedule dailyDigest every 24h: digestSweep(.periodEnd)
   refused, 2 usage. No streaming route; polling is enough for a CLI.
   (Implemented 2026-09-05, J1b: the per-chunk lines end with the job's
   final envelope, which is its receipt; the guide and the verb usage say so.)
+  Transport failures are `E_OWNER_TRANSPORT`; only a refused connection
+  establishes no listening owner (`E_OWNER_NOT_RUNNING`). Polling retries the
+  same GET and cursor three times, waiting 100/200/400 ms; a valid page resets
+  that budget. The enqueue POST is never retried. Exhaustion, owner absence,
+  or a malformed page retains `job`, `lastObservedState`, and `lastObservedSeq`
+  with a project-qualified `trace` rewrite; owner absence first starts `dev`.
+  Recovery observes the existing job, never suggests another `run --wait`.
+  Pages retain the 20 ms backoff and strictly increasing sequence requirement.
 - **`--cancel <job>` and `--resume <job>`** are operator actions on a run
   and live under `run` as `deploy --token create/revoke` lives under
   `deploy` (LLP 1015 D6): the verb table stays at fifteen.
@@ -761,6 +786,7 @@ a site, a rewrite, and a page.
 | `E_JOB_ARGS` | job | enqueue with arguments that do not type | the job's signature, `job name(arg: type, …):`, as an author writes it |
 | `E_JOB_SHAPE` | job | a job body that is not only `chunk` blocks: a plain statement, a non-literal `first`, a cursor, range, or merge on the sweep, a prefix that is neither literal nor argument (J1b fix round 1); a chunk that names a binding another statement made — bindings never cross a block (closing round) | a job is one or more `chunk` blocks and nothing else; a chunk reads what it needs itself; site is `job:statement:N` on the envelope too, the job name for an empty body |
 | `E_JOB_STATE` | job | `--cancel` on a done or cancelled job, `--resume` on a job that is not parked (J1b fix round 1) | names the state; `run <job>` again |
+| `E_OWNER_TRANSPORT` | owner | connect/read/write transport failure other than refused connect; site is the request path; guide is `operator`, or `job` while waiting | retry observation; inspect write outcome before resubmission; exhausted job polls retain the id/state/sequence and a project-qualified `trace` command |
 | `E_SCHEDULE_COLUMN` | schedule | `at` names a column that is not `time ?` | declare `col: time ?` |
 | `E_SCHEDULE_TARGET` | schedule | the target is not a mutation or job of this project, its args do not match, or two schedules use the same name | the target's signature; for the duplicate path, give each schedule a unique name |
 | `E_SCHEDULE_DURATION` | schedule | `every` below one minute or not `Nm\|Nh\|Nd` | the form |

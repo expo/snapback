@@ -93,7 +93,7 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
 --dry-run rehearses on a discarded snapshot. Read snapback2 guide job."
         }
         "test" => {
-            "usage: snapback2 test [--project dir] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --journey selects an exact authored name,\nruns every matching registration, and records scope.journey. Registration drift\nfails before a focused body runs. Use --journey=--help for a literal option name.\nIt does not infer affected coverage. Use plain test for the full suite. Read snapback2 guide testing."
+            "usage: snapback2 test [--project dir] [--port N] [--blocked reason] [--journeys-only|--derived-only|--journey name] [--json]\n\nProve the project and write a receipt. --port N binds the test owner there or refuses;\nomit it for an OS-selected port. The receipt records owner.pid and owner.port.\n--journey selects an exact authored name,\nruns every matching registration, and records scope.journey. Registration drift\nfails before a focused body runs. Use --journey=--help for a literal option name.\nIt does not infer affected coverage. Use plain test for the full suite. Read snapback2 guide testing."
         }
         "why" => {
             "usage: snapback2 why <query> [args-json] --as <persona|system> [--project dir] [--json]\n\nExplain query rows, rules, and bounds through the owner."

@@ -22,6 +22,19 @@ query followingFeed(c: cursor ?):
 For 1,000 follows, merge immutable post heads, then point-read posts.
 Publish/remove post and head atomically; edits retain the head.
 
+```q
+table postHeads:
+  post: posts
+  author: principal
+  at: time
+  unique byPost: post
+  by byAuthorTime: author, at, id
+  immutable post, author, at
+  public
+  insert <- .author = viewer
+  delete <- .author = viewer
+```
+
 ## Search grouped by chat
 
 Page every membership, including empty matches. Groups follow membership
@@ -62,10 +75,15 @@ query searchChat(conversationId: conversations, term: text <=128, messageCursor:
   return messages[conversationId, term] after messageCursor last 20 by bySearch
 ```
 
-For global time order, copy `guide/recipes/global-message-search.ts`.
-The bound `snapback2/global-search-pager` captures term, cursors and issues.
-Recreate on term/membership changes; never mount 1,000 live shapes.
-Scope/message snapshots exclude concurrent changes.
+For global time order, copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts`:
+opaque cursors, `(at,id)` scalar order, pages/issues. Recreate on term/membership
+changes. Current-member reads have separate snapshots; never mount 1,000 live shapes.
+
+This interim N-way merge costs scope pages + one head per chat + refills.
+Frozen Clique hub: 1,000 chats, 100,015 messages; `busy` matches only the final
+slice. First 20: **1,030 HTTP queries, 669/616 ms localhost** (EPYC,
+0.0.25, concurrency 16); absent term: 1,010/576 ms. Later pages refill.
+Work grows with memberships; one-lane search remains open (LLP 1024).
 
 ## Rich history
 

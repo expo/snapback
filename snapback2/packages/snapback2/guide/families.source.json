@@ -86,6 +86,14 @@
     "guide": "operator"
   },
   {
+    "family": "owner",
+    "code": "E_OWNER_TRANSPORT",
+    "site": "owner request path",
+    "wrong": "A connection failed after job enqueue.",
+    "right": "snapback2 trace job_id --project app --json",
+    "guide": "job"
+  },
+  {
     "family": "bound",
     "code": "E_UNBOUND_SCAN",
     "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery all():\n  return posts[]\n```",

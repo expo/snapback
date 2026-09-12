@@ -2,6 +2,124 @@
 use super::*;
 
 #[test]
+fn selected_port_runs_the_full_suite_and_receipts_the_bound_owner() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let journey = project.path.join("snapback/tests/todos.test.ts");
+    fs::write(
+        &journey,
+        format!(
+            "{}\njourney('selected owner port', async ({{ url }}) => {{\n  if (url !== 'http://127.0.0.1:{port}') throw new Error('wrong owner: ' + url);\n}});\n",
+            fs::read_to_string(&journey).unwrap(),
+        ),
+    ).unwrap();
+    // Finish compilation while the selected port is reserved, then release it
+    // immediately before launching the proof verb.
+    assert!(project.run(&["check", "--json"]).status.success());
+    drop(listener);
+    let output = project.run(&["test", "--port", &port.to_string(), "--json"]);
+    let receipt = json_stdout(&output);
+    assert!(output.status.success(), "{receipt}");
+    assert_eq!(receipt["verdict"], "pass");
+    assert_eq!(receipt["owner"]["port"], port);
+    let pid = receipt["owner"]["pid"].as_u64().unwrap();
+    assert!(pid > 0 && pid != u64::from(std::process::id()));
+    assert_eq!(
+        receipt["commands"][0],
+        format!("snapback2 dev --foreground --port {port}")
+    );
+    assert_eq!(
+        receipt["commands"][2],
+        format!("snapback2 test --port {port}")
+    );
+    for name in [
+        "certify",
+        "rules",
+        "bounds",
+        "invalidation",
+        "replay",
+        "todos round trip",
+        "selected owner port",
+    ] {
+        assert_eq!(check(&receipt, name)["verdict"], "pass", "{receipt}");
+    }
+    assert_eq!(project.latest_receipt(), receipt);
+    assert!(receipt["owner"].get("secret").is_none());
+    #[cfg(unix)]
+    {
+        assert_eq!(
+            unsafe { libc::kill(i32::try_from(pid).unwrap(), 0) },
+            -1,
+            "owner {pid} survived"
+        );
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(libc::ESRCH)
+        );
+    }
+}
+
+#[test]
+fn occupied_test_port_preserves_the_dev_refusal_without_fallback() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let output = project.run(&["test", &format!("--port={port}"), "--json"]);
+    let receipt = json_stdout(&output);
+    assert_eq!(output.status.code(), Some(1), "{receipt}");
+    assert_eq!(receipt["verdict"], "fail");
+    assert_eq!(
+        check(&receipt, "owner")["detail"]["code"],
+        "E_OWNER_PORT_TAKEN"
+    );
+    assert!(
+        check(&receipt, "owner")["detail"]["message"]
+            .as_str()
+            .unwrap()
+            .contains(&format!("127.0.0.1:{port}"))
+    );
+    assert_eq!(
+        receipt["commands"],
+        serde_json::json!([format!("snapback2 dev --foreground --port {port}")])
+    );
+    assert!(receipt.get("owner").is_none());
+    assert!(
+        receipt["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|check| check["kind"] != "journey")
+    );
+    assert_eq!(project.latest_receipt(), receipt);
+    assert!(
+        fs::read_dir(project.path.join(".snapback"))
+            .unwrap()
+            .filter_map(Result::ok)
+            .all(|entry| !entry.file_name().to_string_lossy().starts_with("test-"))
+    );
+}
+
+#[test]
+fn invalid_test_ports_fail_usage_before_starting_an_owner() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    for value in ["", "-1", "65536", "53200-53219", "not-a-port"] {
+        let output = project.run(&["test", &format!("--port={value}"), "--json"]);
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "port {value}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stderr).contains("[--port N]"));
+    }
+    assert!(!project.path.join(".snapback/receipts").exists());
+}
+
+#[test]
 fn generated_rules_block_when_seeded_content_has_no_recipients() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());

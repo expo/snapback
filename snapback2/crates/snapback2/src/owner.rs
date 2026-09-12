@@ -407,6 +407,8 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
         }
     };
     let mut command = Command::new(executable);
+    let original_invocation = serde_json::to_string(&std::env::args().skip(1).collect::<Vec<_>>())
+        .expect("process arguments serialize as JSON strings");
     command
         .arg("dev")
         .arg("--project")
@@ -417,6 +419,10 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(stderr))
+        .env(
+            crate::project::toolchain::ORIGINAL_INVOCATION_ENV,
+            original_invocation,
+        )
         .current_dir(&root);
     if let Some(path) = &options.apply_migration {
         command.arg("--apply-migration").arg(path);

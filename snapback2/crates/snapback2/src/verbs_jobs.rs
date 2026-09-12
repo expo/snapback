@@ -195,10 +195,10 @@ pub fn run(args: &[String]) -> ExitCode {
     };
     match result {
         Ok(r) if r.status < 400 && options.has("--wait") => {
-            let Some(id) = r.body["id"].as_str() else {
+            if r.body["id"].as_str().is_none() {
                 return print_response(r.status, r.body, json_output);
-            };
-            wait(&attached, id, json_output)
+            }
+            wait(&attached, &r.body, json_output)
         }
         result => response(result, json_output),
     }
@@ -238,49 +238,106 @@ fn operator_required() -> Refusal {
     .with_site("run")
 }
 // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — polling drains committed chunks; a parked job exits with its refusal.
-fn wait(attached: &owner::OwnerInfo, id: &str, json_output: bool) -> ExitCode {
+fn wait(attached: &owner::OwnerInfo, initial: &Json, json_output: bool) -> ExitCode {
+    let id = initial["id"].as_str().unwrap();
+    let result = wait_receipt(
+        initial,
+        |after| {
+            client::control(
+                attached,
+                "GET",
+                &format!("/control/job/{id}?after={after}"),
+                json!({}),
+            )
+        },
+        |chunk, commit| {
+            if json_output {
+                println!("{}", json!({"job":id,"chunk":chunk,"commit":commit}));
+            } else {
+                println!(
+                    "{id} chunk {chunk} · seq {} · {}",
+                    commit["seq"], commit["writes"]
+                );
+            }
+        },
+        thread::sleep,
+    )
+    .map_err(|error| observation_recovery(error, attached, id));
+    match result {
+        Ok(r) if r.status < 400 && r.body["state"] == "cancelled" => {
+            print_response(r.status, r.body, json_output);
+            ExitCode::from(1)
+        }
+        result => response(result, json_output),
+    }
+}
+
+// Only this observer retries. The enqueue POST above is never replayed.
+fn wait_receipt(
+    initial: &Json,
+    mut poll: impl FnMut(u64) -> Result<client::HttpResponse, Refusal>,
+    mut progress: impl FnMut(u64, &Json),
+    mut pause: impl FnMut(Duration),
+) -> Result<client::HttpResponse, Refusal> {
+    let id = initial["id"].as_str().unwrap();
+    let mut last_state = initial["state"].clone();
     let mut after = 0;
     let mut chunk = 0;
+    let mut failures = 0;
     loop {
-        let r = match client::control(
-            attached,
-            "GET",
-            &format!("/control/job/{id}?after={after}"),
-            json!({}),
-        ) {
+        let r = match poll(after) {
             Ok(r) if r.status < 400 => r,
-            other => return response(other, json_output),
+            Err(e) if e.code == "E_OWNER_TRANSPORT" && failures < 3 => {
+                pause(Duration::from_millis(100 << failures));
+                failures += 1;
+                continue;
+            }
+            Err(e) => return Err(observation_context(e, id, &last_state, after)),
+            other => return other,
         };
+        failures = 0;
         if let Err(error) = advance_page(&r.body, after) {
-            return response(Err(error), json_output);
+            return Err(observation_context(error, id, &last_state, after));
         }
+        last_state = r.body["state"].clone();
         if let Some(commits) = r.body["commits"].as_array() {
             for commit in commits {
                 after = commit["seq"].as_u64().unwrap_or(after);
                 chunk += 1;
-                if json_output {
-                    println!("{}", json!({"job":id,"chunk":chunk,"commit":commit}));
-                } else {
-                    println!("{id} chunk {chunk} · seq {after} · {}", commit["writes"]);
-                }
+                progress(chunk, commit);
             }
         }
         if r.body["hasMoreCommits"] == true {
-            thread::sleep(Duration::from_millis(20));
+            pause(Duration::from_millis(20));
             continue;
         }
         match r.body["state"].as_str() {
-            Some("done") => {
-                print_response(200, r.body, json_output);
-                return ExitCode::SUCCESS;
-            }
-            Some("parked" | "cancelled") => {
-                print_response(200, r.body, json_output);
-                return ExitCode::from(1);
-            }
-            _ => thread::sleep(Duration::from_millis(20)),
+            Some("done" | "parked" | "cancelled") => return Ok(r),
+            _ => pause(Duration::from_millis(20)),
         }
     }
+}
+
+fn observation_context(error: Refusal, id: &str, state: &Json, after: u64) -> Refusal {
+    error
+        .with_detail("job", json!(id))
+        .with_detail("lastObservedState", state.clone())
+        .with_detail("lastObservedSeq", json!(after))
+}
+
+fn observation_recovery(mut error: Refusal, attached: &owner::OwnerInfo, id: &str) -> Refusal {
+    let quote = |text: &str| format!("'{}'", text.replace('\'', "'\\''"));
+    let project = quote(&attached.project.to_string_lossy());
+    let trace = format!("snapback2 trace {} --project {project} --json", quote(id));
+    error.rewrite = Some(if error.code == "E_OWNER_NOT_RUNNING" {
+        format!(
+            "run snapback2 dev --project {project}, then {trace}; observe this job without enqueueing it again"
+        )
+    } else {
+        format!("retry {trace}; observation does not enqueue another job")
+    });
+    error.guide = "job".into();
+    error
 }
 
 // Validate the whole page before printing it or advancing its cursor.
@@ -290,7 +347,7 @@ fn advance_page(page: &Json, mut after: u64) -> Result<(), Refusal> {
         Refusal::owner(
             "E_OWNER_PROTOCOL",
             "job commit page did not advance its sequence",
-            "retry trace <job_id> or run --wait after restarting the owner",
+            "retry snapback2 trace <job_id>; observation does not enqueue another job",
         )
     };
     for commit in page["commits"].as_array().into_iter().flatten() {
@@ -325,4 +382,165 @@ fn job_commit_pages_require_strict_progress() {
         .is_ok()
     );
     assert!(advance_page(&json!({"state":"done","commits":[]}), 4).is_ok());
+}
+
+#[cfg(test)]
+mod wait_tests {
+    use super::*;
+
+    fn transient() -> Refusal {
+        Refusal::new(
+            "E_OWNER_TRANSPORT",
+            "owner",
+            "Resource temporarily unavailable",
+            "inspect",
+            "operator",
+        )
+    }
+
+    fn page(state: &str, seq: u64) -> client::HttpResponse {
+        client::HttpResponse {
+            status: 200,
+            body: json!({"id":"job_pressure", "state":state,
+                "hasMoreCommits":state != "done", "commits":[{"seq":seq,"writes":1}]}),
+        }
+    }
+
+    #[test]
+    fn sustained_progress_with_transport_failures_keeps_the_observation_cursor() {
+        let mut calls = 0;
+        let mut printed = Vec::new();
+        let mut delays = Vec::new();
+        let result = wait_receipt(
+            &json!({"id":"job_pressure","state":"queued"}),
+            |after| {
+                calls += 1;
+                // One pressure failure between every committed page. Successful
+                // pages reset the retry budget; failed polls must keep their cursor.
+                assert_eq!(after, (calls / 2) as u64);
+                if calls % 2 == 0 {
+                    return Err(transient());
+                }
+                let seq = (calls / 2 + 1) as u64;
+                Ok(page(if seq == 128 { "done" } else { "running" }, seq))
+            },
+            |chunk, commit| printed.push((chunk, commit["seq"].as_u64().unwrap())),
+            |delay| delays.push(delay),
+        )
+        .unwrap();
+        assert_eq!(result.body["state"], "done");
+        assert_eq!(calls, 255);
+        assert_eq!(printed, (1..=128).map(|seq| (seq, seq)).collect::<Vec<_>>());
+        assert_eq!(delays.len(), 254);
+        assert_eq!(
+            delays
+                .iter()
+                .filter(|d| **d == Duration::from_millis(20))
+                .count(),
+            127
+        );
+        assert_eq!(
+            delays
+                .iter()
+                .filter(|d| **d == Duration::from_millis(100))
+                .count(),
+            127
+        );
+    }
+
+    #[test]
+    fn exhausted_observation_preserves_job_and_status_even_before_the_first_page() {
+        for reached_page in [false, true] {
+            let mut calls = 0;
+            let mut delays = Vec::new();
+            let error = wait_receipt(
+                &json!({"id":"job_pressure","state":"queued"}),
+                |after| {
+                    calls += 1;
+                    if reached_page && calls == 1 {
+                        return Ok(page("running", 42));
+                    }
+                    assert_eq!(after, if reached_page { 42 } else { 0 });
+                    Err(transient())
+                },
+                |_, _| {},
+                |delay| delays.push(delay),
+            )
+            .unwrap_err();
+            assert_eq!(calls, if reached_page { 5 } else { 4 });
+            assert_eq!(error.code, "E_OWNER_TRANSPORT");
+            assert_eq!(error.detail["job"], "job_pressure");
+            assert_eq!(
+                error.detail["lastObservedState"],
+                if reached_page { "running" } else { "queued" }
+            );
+            assert_eq!(
+                error.detail["lastObservedSeq"],
+                if reached_page { 42 } else { 0 }
+            );
+            assert!(delays.ends_with(&[100, 200, 400].map(Duration::from_millis)));
+        }
+    }
+
+    #[test]
+    fn stopped_owner_and_malformed_pages_stop_with_observation_only_recovery() {
+        let attached = owner::OwnerInfo {
+            pid: std::process::id(),
+            port: 1234,
+            url: String::new(),
+            secret: String::new(),
+            generation: String::new(),
+            started_at: 0,
+            mode: "dev".into(),
+            project: "/tmp/job wait's project".into(),
+        };
+        for code in [
+            "E_OWNER_NOT_RUNNING",
+            "E_OWNER_PROTOCOL",
+            "E_OWNER_TRANSPORT",
+        ] {
+            let error = observation_recovery(
+                Refusal::owner(code, "lost observation", "restart and rerun"),
+                &attached,
+                "job_pressure",
+            );
+            let rewrite = error.rewrite.unwrap();
+            assert!(
+                rewrite.contains(
+                    "snapback2 trace 'job_pressure' --project '/tmp/job wait'\\''s project' --json"
+                ),
+                "{rewrite}"
+            );
+            assert_eq!(
+                rewrite.contains("snapback2 dev"),
+                code == "E_OWNER_NOT_RUNNING"
+            );
+            assert!(!rewrite.contains("snapback2 run"));
+            assert_eq!(error.guide, "job");
+        }
+        for malformed in [false, true] {
+            let error = wait_receipt(
+                &json!({"id":"job_pressure","state":"queued"}),
+                |_| {
+                    if malformed {
+                        Ok(client::HttpResponse {
+                            status: 200,
+                            body: json!({"state":"running","hasMoreCommits":true,"commits":[]}),
+                        })
+                    } else {
+                        Err(Refusal::owner(
+                            "E_OWNER_NOT_RUNNING",
+                            "connection refused",
+                            "run snapback2 dev",
+                        ))
+                    }
+                },
+                |_, _| panic!("no valid progress"),
+                |_| panic!("definite refusal/protocol failure must not retry"),
+            )
+            .unwrap_err();
+            assert_eq!(error.detail["job"], "job_pressure");
+            assert_eq!(error.detail["lastObservedState"], "queued");
+        }
+    }
 }

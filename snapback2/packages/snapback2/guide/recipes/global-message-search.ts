@@ -9,7 +9,16 @@ import { createGlobalSearchPager } from "snapback2/global-search-pager";
 type Scope = ResultOf<typeof api.feeds.searchScopes>[number];
 type Message = ResultOf<typeof api.feeds.conversationMessageSearch>[number];
 
-/** Create a fresh search when `term` or the viewer's memberships change. */
+/**
+ * Interim client N-way merge; create afresh on term/membership changes.
+ * Each term walks all scope pages, then one head per chat, then refills.
+ * Frozen Clique hub (1,000 memberships): first 20 `busy` matches cost 1,030
+ * HTTP queries (10 scope pages + 1,000 heads + 20 refills), 669/616 ms on
+ * localhost EPYC with 0.0.25; absent term costs 1,010 queries / 576 ms.
+ * Later pages add refill requests. maxScopes bounds the directory, not total
+ * requests across empty capped pages, retries, or duplicate rows.
+ * LLP 1024 records the one-lane capability gap and write-side price.
+ */
 export function createGlobalMessageSearch(client: SnapbackClient, term: string) {
   const capturedTerm = term;
   return createGlobalSearchPager<Scope, Message, Cursor>({

@@ -52,10 +52,19 @@ impl CheckReceipt {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TestOwnerReceipt {
+    pub pid: u32,
+    pub port: u16,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TestReceipt {
     pub binary: BinaryReceipt,
     pub generation: String,
     pub commands: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<TestOwnerReceipt>,
     pub checks: Vec<CheckReceipt>,
     pub arms: Vec<String>,
     pub verdict: String,
@@ -87,6 +96,7 @@ impl TestReceipt {
             binary: binary_receipt(),
             generation,
             commands,
+            owner: None,
             checks,
             arms: vec!["headless".to_owned()],
             verdict: verdict.to_owned(),
@@ -100,6 +110,7 @@ impl TestReceipt {
             binary: binary_receipt(),
             generation: String::new(),
             commands: vec![format!("snapback2 test --blocked {reason:?}")],
+            owner: None,
             checks: vec![CheckReceipt::blocked(
                 "explicit",
                 "derived",

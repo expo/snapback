@@ -4,6 +4,7 @@
 import {
   consumerSmoke,
   hostConsumerArtifacts,
+  platformPackageReadme,
   stagePlatformDependencies,
   verifyPlatformDependencies,
 } from "./consumer-smoke.mjs";
@@ -811,6 +812,7 @@ function prepare(version, name, stateDirectory, requestedPlatforms = []) {
   mkdirSync(resolve(platformStage, "bin"), { recursive: true });
   copyFileSync(bin, resolve(platformStage, "bin/snapback2"));
   copyFileSync(mediaBin, resolve(platformStage, "bin/snapback2-media"));
+  writeFileSync(resolve(platformStage, "README.md"), platformPackageReadme(name));
   writeFileSync(resolve(platformStage, "package.json"), `${JSON.stringify({
     name,
     version,
@@ -818,7 +820,7 @@ function prepare(version, name, stateDirectory, requestedPlatforms = []) {
     license: "MIT",
     os: [process.platform],
     cpu: [process.arch],
-    files: ["bin"],
+    files: ["bin", "README.md"],
     repository: { type: "git", url: "git+https://github.com/expo/snapback.git", directory: "snapback2" },
   }, null, 2)}\n`);
 
