@@ -181,16 +181,19 @@ Astra and Grok builds and independent grading. Preserve failures and environment
 incidents. Earlier diaries help choose probes but are not prompts for cold
 builders. Existing publication requirements still apply.
 
-**Fresh-wave selection, before launch:** use upstream `e4a85d7671eec82e44f4f8163b9fa4e73a73b01b`,
-instrument **0.3.7-m8**, fixture **0.2.2-m8**, manifest SHA-256
-`94e8456333788acae69816809658d9ed441637903a6732176819d60f3bfadf48`.
-The earlier `f40559f` packet is retained unchanged. Its starter group included
-Erin while its all-read choreography opened only Alice/Bob/Carol; upstream
-corrected that contradiction separately. The scale log, assertion set and
-applicability are unchanged. No running instrument is edited or earlier score
-reinterpreted. This wave has a different instrument identity from earlier
-scores and cannot establish a causal score change. Cold builders receive only
-the normal task, public instrument and installed package, without these findings.
+**Fresh-wave selection, before launch:** use upstream `b323d61f60b5d167708ca6ebe6434b1d5a79c899`,
+instrument **0.3.8-m8**, fixture **0.2.2-m8**, manifest SHA-256
+`3d449efbafb178cdc923bd2e69c01e692afbe2a2daf625ba7cb281255c5a5df4`.
+The earlier `f40559f` and `e4a85d7` packets remain unchanged. Upstream 0.3.7
+corrected the starter group that included Erin while its all-read choreography
+opened only Alice/Bob/Carol. Before any run launched, upstream 0.3.8 then
+preserved the UI kit's existing semantics on React Native Web and required
+video posters; its observer reads that carrier. The scale log, brief, assertion
+set and applicability are unchanged. This final selection incorporates both
+separate instrument repairs without editing a running instrument or
+reinterpreting earlier scores. Its identity differs from earlier scores and
+cannot establish a causal score change. Cold builders receive only the normal
+task, public instrument and installed package, without these findings.
 
 | Outcome | Objective evidence | Product observation |
 | --- | --- | --- |
