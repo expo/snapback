@@ -71,11 +71,11 @@ query conversationMessageSearch(conversation: conversations, term: text <=128, c
   return messages[conversation, term] after c last 1 by bySearch
 ```
 
-Copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts`.
-It binds both queries, the captured term, branded cursors, `(at,id)` Unicode
-scalar order, pages, and issues. Recreate after term/membership changes;
-never mount 1,000 live shapes. `snapback2 new chat` supplies writes/revocation.
-Reads use current membership; scope/message snapshots exclude concurrent changes.
+Copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts` for
+both queries, captured term, branded cursors, `(at,id)` Unicode scalar order,
+pages and issues. Recreate after term/membership changes; never mount 1,000 live
+shapes. The chat template includes writes/revocation. Reads use current
+membership; scope/message snapshots exclude concurrent changes.
 
 ## Rich rows and jobs
 
