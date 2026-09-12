@@ -14,7 +14,7 @@ import { api,
   browserTokenStore,
   type AuthTokenStore } from "../dist/client.mjs";
 import { RefusalError } from "../dist/client-observed-test.mjs";
-import { SnapbackProvider, useAuth, useQuery, type UseAuthResult } from "../dist/react.mjs";
+import { SnapbackProvider, useAuth, useQuery, useViewer, type UseAuthResult } from "../dist/react.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -1239,17 +1239,27 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
     },
     fetch: async (input, init) => {
       if (pathOf(input) === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
+      if (pathOf(input) === "/api/manifest") return json({ generation: "test", programGeneration: "test", ops: {}, channels: {}, auth: {} });
       opens += 1;
       assert.equal(bearer(init), "Bearer expired-token");
       return hangingSse({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
     },
   });
   await expiredClient.ready;
+  let displayedViewer: unknown, viewerRenderer!: TestRenderer.ReactTestRenderer;
+  function ViewerProbe() { displayedViewer = useViewer(); return null; }
+  await act(async () => { viewerRenderer = TestRenderer.create(React.createElement(SnapbackProvider,
+    { client: expiredClient }, React.createElement(ViewerProbe))); });
   const subscription = subscribe(expiredClient, api.messages.thread, {}, (event) => delivered.resolve(event));
   const terminal = subscription.until(() => true);
   await waitFor(() => opens === 1, "expired stream open");
   await flush();
   assert.equal(expiredClient.snapshot.token, "expired-token");
+  assert.equal(expiredClient.snapshot.auth.state, "hydrating");
+  assert.equal(expiredClient.snapshot.auth.viewer ?? expiredClient.snapshot.auth.restoringViewer, "principal-a",
+    "expiry retains the known viewer until durable token clearing completes");
+  await act(async () => { await flush(); });
+  assert.equal(displayedViewer, "principal-a", "useViewer retains the restoring identity during expiry");
   expiryClear.resolve();
   assert.deepEqual(await delivered.promise, {
     state: "refused",
@@ -1259,6 +1269,9 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
   await assert.rejects(terminal, isCode("E_AUTH_SESSION"));
   assert.equal(stored, null);
   assert.equal(expiredClient.snapshot.token, undefined);
+  await act(async () => { await flush(); });
+  assert.equal(displayedViewer, undefined, "useViewer clears after terminal expiry");
+  await act(async () => { viewerRenderer.unmount(); });
   await new Promise<void>((resolve) => setTimeout(resolve, 300));
   assert.equal(opens, 1, "terminal expiry must not reconnect the old bearer");
   subscription.close();

@@ -638,7 +638,6 @@ export class OfflineRuntime {
       if (this.partition === undefined) return;
       const partition = this.partition;
       this.coverageRevision += 1;
-      this.partition = undefined;
       this.facts = undefined;
       this.superseded = undefined;
       this.supersessionOrder = 0;
@@ -646,6 +645,7 @@ export class OfflineRuntime {
       this.sessionEpoch = undefined;
       this.bytes.bind(undefined);
       await this.store.wipe(partition);
+      this.partition = undefined;
       this.outbox.notify();
     }));
   }

@@ -255,3 +255,27 @@ test('aborting an in-flight resume preserves AbortError without publishing a del
     assert.equal((await client.query(api.messages.inbox as any,{ c: null })).state,'complete');
   } finally { await client.close(); await rm(root,{ recursive: true,force: true }); }
 });
+
+test("a failed logout wipe retains the predecessor for deletion before another account opens", async () => {
+  const root = await tempRoot(), factory = fileRangeStore(root), store = factory();
+  const runtime = new OfflineRuntime({ store: () => store });
+  const wipe = store.wipe.bind(store), attempted: string[] = [];
+  store.wipe = async principal => {
+    attempted.push(principal);
+    if (attempted.length === 1) throw new Error("carrier delete failed");
+    await wipe(principal);
+  };
+  try {
+    await runtime.open("alice", true);
+    await store.commit({ deliveries: [{ op: "one", args: {}, state: "complete", data: { $row: { table: "messages", id: "private" } }, next: null,
+      seq: 1, rows: [{ table: "messages", id: "private", row: { id: "private", body: "secret" } }], receipt: emptyReceipt() }] });
+    await assert.rejects(runtime.wipe(), /carrier delete failed/);
+    assert.equal(runtime.principal, "alice", "the failed deletion still owns its partition identity");
+    await runtime.open("bob", true);
+    assert.deepEqual(attempted, ["alice", "alice"]);
+    assert.equal(runtime.principal, "bob");
+    const reopened = factory();
+    try { await reopened.open("alice"); assert.equal((await reopened.coverage()).rows.length, 0); }
+    finally { await reopened.close?.(); }
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
+});

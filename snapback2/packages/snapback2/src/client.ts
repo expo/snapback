@@ -1293,7 +1293,7 @@ class Client implements SnapbackClient {
       this.follower.stop();
       this.inbox.stop();
       this.abortSync(options.signal);
-      if (!options.fromAuth) this.authState.reset({ state: "hydrating" });
+      if (!options.fromAuth) this.authState.reset({ state: "hydrating", restoringViewer: this.currentPrincipal });
       const fence = this.operationFence;
       const authGeneration = this.authGeneration + 1;
       this.closeTransports(options.origin);

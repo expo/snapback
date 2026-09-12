@@ -43,8 +43,8 @@ Declared history uses its own cursors; `itemsFrom` identifies the active
 source. See `guide pagination` for ordering and handover.
 
 `defineItems(query, { table, select, order, create, update, remove })` binds
-items; composites name `rows`. `select` returns an original row or null; omit it
-for typed row sources (identity). Wrappers still need it; `table` stays explicit.
+items. Declare it outside render; composites name `rows`. `select` returns
+an original row or null; omit for row sources. Wrappers need it; name `table`.
 Actions: `target: mutationTarget(op, "messages")`.
 Items: `key`, `data`, `draft`, `predicted`, FIFO `pending`.
 `withHistory(items, { items: threadItems, args: q => q })` adds fallback:

@@ -279,6 +279,30 @@ test("two React queries read one client-owned snapshot and release it by refcoun
   await client.close();
 });
 
+test("module-scoped item declarations retain the query across parent rerenders", async () => {
+  const owner = fakeOwner({ seed: true }), { counts, fetch } = counting(owner);
+  const client = createClient({ url: "http://stable-items.test", persona: "alice", fetch });
+  await client.ready;
+  const items = defineItems(api.messages.thread as any, { table: "messages", select: (value: any) => value.message });
+  let snapshot: any, renders = 0;
+  function Child() {
+    renders += 1;
+    snapshot = useQuery(api.messages.thread, { conversationId: "conversation-1", c: null }, { items });
+    return null;
+  }
+  const tree = () => React.createElement(SnapbackProvider, { client }, React.createElement(Child));
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => { renderer = TestRenderer.create(tree()); await new Promise(resolve => setTimeout(resolve, 30)); });
+  const initial = snapshot;
+  assert.equal(counts.subscribes, 1);
+  for (let n = 0; n < 5; n++) await act(async () => { renderer!.update(tree()); });
+  assert.ok(renders >= 6);
+  assert.strictEqual(snapshot, initial, "stable declaration retains the published item view");
+  assert.equal(counts.subscribes, 1, "parent rerenders do not reopen a logical subscription");
+  await act(async () => { renderer!.unmount(); });
+  await client.close();
+});
+
 test("a delayed predecessor follower failure cannot stop its successor route", async () => {
   const predecessor = Promise.withResolvers<void>(), successor = Promise.withResolvers<void>();
   let route = "none", stops = 0, failures = 0;
