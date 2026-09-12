@@ -94,14 +94,31 @@ test("a range the prefix decides false is hoisted: delivered history is never co
   // Mallory left c1 under `delivered-history` and still holds its messages;
   // her local read of the thread is decided by one row, not by walking the
   // history against the ceiling (the meter's-cut review, M4).
+  // The mechanism is exercised on an online-only table (a synced table's
+  // rows are the partition and need no rule on the device): the same
+  // schema with `messages` unsynced.
   const store = await seeded();
+  const schema = { ...backend.schema, tables: { ...backend.schema.tables, messages: { ...backend.schema.tables.messages, sync: null } } };
   const scan = { Return: { Scan: { table: "messages", index: "byConvTime", prefix: [{ Scalar: { Literal: { Id: "c1" } } }], take: { Literal: 5 }, order: "Desc", after: null, before: null, range: null, opaque_cursor: false, site: "t:1", provenance: "Shape", merge_site: null } } };
   const program = { name: "peek", kind: "Query", args: {}, body: [scan] };
   const low = { examined: 3, ruleProbes: 3, steps: 1_000_000, rowsWritten: 1024 };
-  const read = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:mallory", {}), "query", low).run(program));
+  const read = await store.read((tx) => new Interpreter(tx, schema, ctx("dev:mallory", {}), "query", low).run(program));
   assert.deepEqual(read.data, []);
-  assert.equal(read.complete, true, "one hidden row decides the range at the cost of an empty one");
-  const member = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:bob", {}), "query", low).run(program));
+  assert.equal(read.complete, false, "an online-only table is never complete on the device; the range itself cost nothing");
+  const member = await store.read((tx) => new Interpreter(tx, schema, ctx("dev:bob", {}), "query", low).run(program));
   assert.equal(member.data.length, 3, "a member's read is cut by the low ceiling, typed");
   assert.equal(member.complete, false);
+});
+
+test("delivered history stays readable on the device after a leave", async () => {
+  // Mallory left c1 under `retain delivered-history`: the server refuses
+  // her, the device keeps what it was given and lets her read it through a
+  // query that does not `require` membership. (`thread` still refuses: the
+  // author's own require runs on both hosts.)
+  const store = await seeded();
+  const scan = { Return: { Scan: { table: "messages", index: "byConvTime", prefix: [{ Scalar: { Literal: { Id: "c1" } } }], take: { Literal: 5 }, order: "Desc", after: null, before: null, range: null, opaque_cursor: false, site: "t:1", provenance: "Shape", merge_site: null } } };
+  const history = { name: "history", kind: "Query", args: {}, body: [scan] };
+  const read = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:mallory", {}), "query").run(history));
+  assert.equal(read.data.length, 5, "the retained rows are hers to read");
+  assert.equal(read.complete, false, "a page of 5 over 120 rows with no cursor is not complete");
 });

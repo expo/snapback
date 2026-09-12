@@ -331,6 +331,14 @@ time-ordered 128-bit form.
   change however many recipients; the per-recipient fan-out that cost
   Snapback 2 its 5.2 GB is not reproduced.
 
+- **2026-09-12 — the device does not re-judge its partition (lead, after
+  the Clique lane's M3).** A synced table's rows reach a device under the
+  read rule and leave it on revocation, so the device runs no read rule on
+  them; what `retain delivered-history` keeps after a leave is readable
+  there through a query without a membership `require`, while the server
+  refuses that query. The device's read-rule hoist applies to online-only
+  tables alone.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
@@ -339,7 +347,7 @@ carries the chronology. Week four, 2026-09-12:
 | Piece | What runs | Landed |
 | --- | --- | --- |
 | `crates/snapback4-core` | the value model and IR (Snapback 2's serialized forms); the schema with `sync` and the leave policy; one order-preserving key encoding; the two-table SQLite store; rule evaluation with `decided_true`/uniform hoisting; the runtime meter with capped reads and aborted writes; the interpreter (points, scans with opaque cursors, merges, walks, writes with unique/cap/immutable/after-insert constraints, maintained aggregates); the partition log (audience inversion, joins expanded when streamed, scope tombstones, snapshot, merged stream); at-most-once mutations by client-minted id, replayed before the current generation judges a resend; generations on adopt; the day-two classifier; the plain-JSON wire forms; after the two blind reviews: tagged partitions, the audience bound to the read rule's probe index, whole commits per page, same-commit grants withdrawn, completeness as a class, meter marks; then the log keyed by group (1.15× the rows at scale). Corpus: 172 pass, 0 fail, 121 skipped by named reason | `b7449cdaac`, `1ff36fe04d`, the reviews landing |
-| `crates/snapback4-lang` | the Quarry lexer and parser (ported), the catalog with generated maintain targets, schema binding (rules, probes, constraints, sync with the principal resolved, inherited audiences), program lowering to the IR with typed scope, diagnostics with rewrites and did-you-mean names, the `N_NEVER_COMPLETE` note, the TypeScript emitter | `b7449cdaac`, the note landing |
+| `crates/snapback4-lang` | the Quarry lexer and parser (ported), the catalog with generated maintain targets, schema binding (rules, probes, constraints, sync with the principal resolved, inherited audiences), program lowering to the IR with typed scope, diagnostics with rewrites and did-you-mean names, the `N_NEVER_COMPLETE` and `N_NO_CURSOR` notes, the TypeScript emitter | `b7449cdaac`, the note landing |
 | `loopbar/` | the loop-bar brief (reduced Clique M1–M3, four-part proof) and the serial runner with independent verification → `metrics/loopbar.jsonl` | the note landing |
 | `crates/snapback4` | `init`, `check [--cost]`, `dev` (serve + watch + adopt with the day-two class), `run`, `test [--fixture]` (meters beside ceilings), `why`, `guide`, `data`, `doctor`, `deploy`, `rollback`, `serve` (a release, tokens only); the HTTP wire (`/q`, `/m`, `/sync`, `/changes`, `/schema`, `/seed`, `/auth/*`) | `b7449cdaac`, then H0 |
 | `crates/snapback4-core/src/identity.rs` | guests and password accounts (argon2id), bearer sessions by digest, logout | `c3f983744a` |

@@ -206,7 +206,11 @@ The horizon `last N by index` bounds what a device acquires per group;
 older rows are online-only, and a device's read past them says
 `complete: false`. Joining a group delivers its rows; leaving it delivers
 one scope tombstone, and the table's `retain` says what the device keeps.
-A table without `sync` is online-only: its queries run on the server.
+What it keeps under `delivered-history` it can still read locally through
+a query without a membership `require` (the server refuses the same query
+once the membership is gone, so a "history" query answers on the device
+and is empty online). A table without `sync` is online-only: its queries
+run on the server.
 
 ## 4. The client
 
@@ -308,7 +312,8 @@ flips the link.
 - **`snapback4 run <op> '<json args>' --as alice [--json]`** runs one
   operation against the local store and prints the result and the meter.
 - **`snapback4 test [--fixture dir] [--as persona]`** loads a fixture
-  (one `<table>.jsonl` per table), runs every query as each persona with
+  (one `<table>.jsonl` per table) into a fresh store in memory (without a
+  fixture, the project's dev store), runs every query as each persona with
   arguments derived from the data (a reference is the table's first row,
   a principal the persona, a text the shortest that fits), prints the
   meters beside the ceilings and the arguments it used, and names any

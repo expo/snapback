@@ -538,9 +538,16 @@ export class Interpreter {
     }
   }
 
-  /** The read rule for one row, with probes over the replica. */
+  /** Whether the viewer may read a held row. A synced table's rows are
+   * the partition: the server delivered each under the read rule and
+   * withdrew what it revoked, so what the device holds it may read — and
+   * what `retain delivered-history` kept after a leave stays readable here
+   * even though the server now refuses it. Only an online-only table's
+   * rows (none, unless predicted) meet the rule on the device. */
   async readable(table: string, row: Row): Promise<boolean> {
-    const rule = (this.schema.tables[table] as unknown as { rules: { read: unknown } }).rules.read;
+    const definition = this.schema.tables[table];
+    if (definition?.sync) return true;
+    const rule = (definition as unknown as { rules: { read: unknown } }).rules.read;
     return this.rule(rule, undefined, row, false);
   }
 

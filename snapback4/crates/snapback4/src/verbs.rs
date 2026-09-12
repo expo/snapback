@@ -436,11 +436,23 @@ pub fn why(options: &Options) -> i32 {
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
     let bound = compile_or_exit(&project, options.json);
-    let mut engine = match project.open_engine(&bound) {
-        Ok(engine) => engine,
-        Err(error) => {
-            eprintln!("cannot open the store: {error}");
-            return 2;
+    // A fixture runs against a fresh store in memory, so every run reads
+    // the fixture and nothing else; without one, the project's dev store.
+    let mut engine = if options.flags.contains_key("fixture") {
+        match snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
+            Ok(engine) => engine,
+            Err(error) => {
+                eprintln!("cannot open a store: {error}");
+                return 2;
+            }
+        }
+    } else {
+        match project.open_engine(&bound) {
+            Ok(engine) => engine,
+            Err(error) => {
+                eprintln!("cannot open the store: {error}");
+                return 2;
+            }
         }
     };
     if let Some(fixture) = options.flags.get("fixture") {

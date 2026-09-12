@@ -717,3 +717,23 @@ Three fresh Astra sessions at medium, serial, each on the published
   case and gives `observe`'s shape (an agent-error in run 2 guessed it).
   Run 2 fails the bar on loops; run 3 follows on 0.0.4, then a second set
   of three on 0.0.6, which carries every fix the first set found.
+- **Loop bar, run 3 (0.0.4):** green in 567 s, the same two attributed
+  loops as run 2. Set A on 0.0.4: three greens at 433, 572 and 567 s
+  (every run well inside 1,200 s), the bar met by one of three on the
+  loop count, and both counted defects fixed in 0.0.5 and 0.0.6. Set B on
+  0.0.6 (three more, `~/loopbar-sb4-2026-09-12-b/`) started at 14:48 UTC.
+  Docs gaps the set named: `observe`'s shape (now in the README) and the
+  fixture test accumulating rows across runs in the dev store — `test
+  --fixture` now runs against a fresh store in memory.
+- **The Clique lane at M3: delivered history was unreadable.** Under
+  `retain delivered-history` the device kept a left conversation's
+  messages but hid every one of them, because the device re-evaluated the
+  read rule (`exists memberships[..]`) that the server had already applied
+  when it delivered them. Decided: a synced table's rows are the partition,
+  delivered under the rule and withdrawn on revocation, so the device does
+  not run the read rule on them at all; what `delivered-history` keeps is
+  readable through a query without a membership `require` (the server
+  refuses the same query once the membership is gone). The device's hoist
+  stays for online-only tables. The README says how to write a history
+  query. The lane also met the IndexedDB abort a second time (fixed in
+  0.0.4; it keeps 0.0.2). Published `snapback4@0.0.7`.
