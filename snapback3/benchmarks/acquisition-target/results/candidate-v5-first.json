@@ -1,0 +1,57 @@
+{
+  "status": "diagnostic-pass-excluded",
+  "qualificationMember": false,
+  "reason": "Correctness passed, but a later review found a close/reopen barrier defect. V6 fixed that defect and was later excluded for separate lifecycle P1s; final qualification requires v8 or later.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-15-candidate-v5-first",
+  "primaryElapsedMs": 3096.5083759999998,
+  "firstUsefulInboxMs": 433.450439453125,
+  "firstUsefulHistoryMs": 3030.25048828125,
+  "network": {
+    "acquireResponses": 14,
+    "acquireEncodedBytes": 252616,
+    "acquireDecodedBytes": 3254581,
+    "responsePageCounts": [
+      2,
+      32,
+      32,
+      32,
+      9,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      4
+    ]
+  },
+  "correctness": {
+    "messages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "seq": 1,
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "properSubsetSearch": true,
+    "negativeSearchZero": true,
+    "strictPhysicalReopenFullAudit": true
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v5/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "21fa90a9dc13765cc8e0b9ddedacdd4221831be4fe6b60daf9678d2fa17cd47f",
+    "packageSourceSha256": "15372c210573502f1bfd4a880164326ce7d3d6b8190663e5e84984e55bdfc5b9",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "sourceFilesManifestSha256": "d1bc059dacfc58e09d19d62b51845b72231627b331e42366077421d484cfead7",
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "packagedWorkerOverrideRemoved": true
+  },
+  "rawSha256": {
+    "summary.json": "a8a7cbc6a5d01cb4f2d7af60e33751ebd380959bfa9fddb6dc3c70939c4a05d5",
+    "metadata.json": "15732c2192ca6dc2b59e7f6cf84d20267f2918bb89ce958bd09748701360350f",
+    "run-01/result.json": "575c3ea7580ac630c1dba9f9befa933e895594d9f729cd49f9764cedf0a9dbc6",
+    "cleanup-receipt.json": "15826edaca9d92739ecf250b58b2e0cb0f64f575bb38ca875f597b1ad21c7326",
+    "worker-cleanup-receipt.json": "9349769beaac4917879e568253eb085780e5472cbe1505d429da2f1ea5ea3bbc"
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "status": "qualification-scaling-control-pass",
+  "qualificationMember": true,
+  "reason": "The exact v8 package passes the declared 100k scaling correctness and strict physical-reopen control; this timing is not judged against the 3-second 10k target.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-23-100k-final-v8",
+  "dataset": {
+    "persona": "u0001",
+    "principalId": "dev:u0001",
+    "projectionManifestSha256": "4c6744810dd3421f11c7e76f6e656d0fc32dcbaf54078a67d59b38cd73c023d2",
+    "conversations": 1000,
+    "uniqueConversations": 1000,
+    "messages": 100000,
+    "uniqueMessages": 100000,
+    "pages": 1069,
+    "chains": 1001,
+    "completeFinalPages": 1001,
+    "incompleteIntermediatePages": 68,
+    "seq": 1,
+    "messageFields": [
+      "conversationId",
+      "edited",
+      "id",
+      "replyTo",
+      "senderId",
+      "serverTimestamp",
+      "text",
+      "tombstone"
+    ],
+    "idsSha256": "bc5bc9ebf4e85d8594f1361bf3d61ae60ff01cdf96987c3a2441341970edfcfd",
+    "canonicalRowsSha256": "e9e96a61efc9a4a19fb1830807f64cb20cbceedaf2a79976b41f9a9a816997f9",
+    "digestScope": "Both digests bind message rows. Conversation full fields are not hashed.",
+    "conversationIdSet": {
+      "count": 1000,
+      "observedPrimarySha256": "07038ccd17600db5bacc883ca919baee56a4b036e4f8dea7e221e539b214012a",
+      "observedReopenSha256": "07038ccd17600db5bacc883ca919baee56a4b036e4f8dea7e221e539b214012a",
+      "primaryAndReopenIdentical": true,
+      "independentExpectedSetDigest": null,
+      "limit": "The fixed projection manifest independently establishes the 1,000-conversation count, but does not publish every conversation ID."
+    }
+  },
+  "primaryElapsedMs": 23825.290094,
+  "firstUsefulInboxMs": 432.64892578125,
+  "firstUsefulHistoryMs": 23757.64892578125,
+  "acquisitionCompletedPageMarkMs": 23497.599999904633,
+  "auditElapsedMs": 1535.8000001907349,
+  "network": {
+    "allRequests": 123,
+    "allEncodedBytes": 4244056,
+    "acquireResponses": 117,
+    "acquireEncodedBytes": 2306331,
+    "acquireDecodedBytes": 31346162,
+    "responsePages": 1069,
+    "responseContinuations": 5652
+  },
+  "memoryBeforeAudit": {
+    "browserHeapUsedBytes": 285493460,
+    "browserHeapTotalBytes": 335380480,
+    "embedderHeapUsedBytes": 11321344,
+    "backingStorageBytes": 5714127,
+    "rss": null,
+    "rssReason": "OS process RSS was not instrumented for this run."
+  },
+  "privateStorageAfterRun": {
+    "indexedDbLevelDbPathBytes": 47596591,
+    "meaning": "Filesystem size of files whose path is under the private Chromium profile Default/IndexedDB directory after the physical-reopen run; not logical contents or an in-timer write-byte measure. LevelDB lifecycle and compaction were not measured."
+  },
+  "physicalReopen": {
+    "elapsedMs": 8278.852766,
+    "firstOfflineUseElapsedMs": 5832,
+    "fullAuditElapsedMs": 1579,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "conversations": 1000,
+    "messages": 100000,
+    "pages": 1069,
+    "chains": 1001,
+    "seq": 1,
+    "idsSha256": "bc5bc9ebf4e85d8594f1361bf3d61ae60ff01cdf96987c3a2441341970edfcfd",
+    "canonicalRowsSha256": "e9e96a61efc9a4a19fb1830807f64cb20cbceedaf2a79976b41f9a9a816997f9"
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v8/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562",
+    "packageSourceSha256": "70eb6314b7d61fa1527bf86c3ac3919f25cc2073a32ede5b15f55ab9084b2d9f",
+    "packageReportSha256": "eb780dee4df26b3ca72ee9652b2f04f127f17baafd435df2218455284b6d3da4",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "sourceFilesManifestSha256": "5a03c78be80116d39c012ea660c3469a020ad6603250bf4f19589a1a46a21ecd",
+    "clientTsSha256": "de9f1441744b2774d475ad47263ead06b0cf77789d16dcd783d89fd9d0940ad2",
+    "storageTsSha256": "f6c37ba1044464424ec49d1e5c0606a8d027c39605a1216aeee7dc3d8578700c",
+    "typesTsSha256": "d934bf6db72b46cfd8a4bd276bbed6229bd8074ef20334e22a5c86d61214e5a1",
+    "acquisitionTsSha256": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+    "acquisitionClientTestSha256": "b1ad6a59841e25bc4e515e38996ff4c487969e2a255de6e9162d593834073039",
+    "packagedWorkerOverrideRemoved": true,
+    "oracleControllerSha256": "b7d027efa9e4ca1555227ebaf7b55ff2861b381f5af5b95412a96486b108160f",
+    "oracleAppAcquireSha256": "77860eaf899f9cdfc06239d3151c3f96d1114fe72643687b53e699ec2a1cddd1",
+    "oracleAppBundleSha256": "fa7838b3dd45b6af31bfbaf7e9ab12cad885f5d415b16ed5fdaf8b71b5d4977b"
+  },
+  "rawSha256": {
+    "summary.json": "822e652c566fc3568f055ffab8bec169f476b6f36bfe60bcae102e23064b04c2",
+    "metadata.json": "6a46cdcce3ab6fd1c1b50bc8ad7e90a6b18e43008df2c789d82572cf41208f7c",
+    "run-01/result.json": "dcdd9ed880d3b287a78536dd166c6a71e47afd746790139f977e487d960e0b7a",
+    "cleanup-receipt.json": "6db843df190e6e6bd910bc4ec2c55c21d94fb37edabc63bc042a16419b2fa5f6",
+    "worker-cleanup-receipt.json": "53477547ce32a42af9af102eb4ac3b3478712ee73364d3d285707bde49eb5e63"
+  },
+  "cleanup": {
+    "owner": {
+      "pid": 2117861,
+      "startTick": "160699615",
+      "cleaned": true
+    },
+    "worker": {
+      "pid": 2118042,
+      "startTick": "160699911",
+      "cleaned": true
+    },
+    "port": 54924,
+    "portFree": true
+  }
+}

@@ -7,7 +7,7 @@
 live data, offline behavior, performance, developer tools, deployment and operations
 **Author:** Codex / GPT-6 Astra, at Charlie Cheever's request
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (first slice, focused Clique evidence, and acquisition speed plan)
+**Revised:** 2026-09-12 (first slice, focused Clique evidence, and qualified SDK acquisition)
 **Related:** LLP 2000.000 (second opinion: keep the core, flip two substrates), LLP 3000 (Snapback 4, the sibling candidate that builds it), LLP 0000, LLP 0329, LLP 1000, LLP 1014, LLP 1018,
 LLP 1018.008, LLP 1018.008.008, LLP 1018.008.009, LLP 1020, LLP 1023
 
@@ -752,9 +752,18 @@ whole product or a comparison win.
 
 Charlie identified acquisition time as a primary concern during the focused
 run and asked what could make it fast. The response is a concrete optimization
-program, with the measured endpoint kept fixed. This section describes planned
-experiments and acceptance criteria; the fixed benchmark package does not yet
-implement the proposed bulk path, and no measured fast result is claimed.
+program, with the measured endpoint kept fixed. The SDK-owned bulk path now
+exists in the working implementation. Final candidate v8 completed ten alternating
+pairs with a **2.807-second median**, versus **6.875 seconds** for the fixed serial
+baseline under the same harness. All full-message-row audits and physical
+offline reopens passed; one candidate run exceeded three seconds (range
+2.461–3.046). This meets the declared median target with about 59% less elapsed
+time. The first inbox appeared at a median of 435ms. Its full 100k control passed
+in 23.825 seconds; the shaped 10k control passed in 5.421 seconds. These larger
+and network costs remain above three seconds. Earlier candidates and their
+review defects remain in the record; they do not qualify the final source.
+The original benchmark package stays fixed, and no per-run latency guarantee
+or comparison win over Snapback2 or Snapback4 is established.
 
 ### Target and measurement contract
 
@@ -764,7 +773,8 @@ local owner. Every repetition must complete correctly; report slower individual
 runs explicitly rather than treating the median as a per-run guarantee.
 The endpoint includes the exact authorized dataset, required query evidence,
 durable admission, required index construction and the first offline history
-and search query. The clock starts before loading the client and its automated
+query and substring search of its acquired page. This does not qualify a
+full-dataset cross-chat search index. The clock starts before loading the client and its automated
 authentication using the fixed fixture's existing auth route; fixture preparation
 and human typing are outside it. Any receipt obligations of the declared
 workflow must also be complete. Report authentication, first-use and inner
@@ -790,6 +800,11 @@ runs per variant), preserving every failure and cutoff. Report medians and
 ranges without calling ten samples a population p95. Keep profiling hooks out
 of the ordinary cohort. Offline physical reopen and foreground writes are
 correctness controls alongside the timing, not optional later checks.
+Here cold means a fresh browser profile, storage and navigation; the local
+owner is already ready and server/OS caches are not flushed. The primary timer
+forces the SDK offline while leaving browser instrumentation connected. A
+separate physical reopen disables the browser network and requires the cached
+application shell plus the full content audit. Keep these boundaries explicit.
 
 ### Why the current path is expensive
 
@@ -874,7 +889,159 @@ cost, or hide required work after the completion signal. A worker/WASM move is
 an experiment only if the measured residual warrants it; moving the same work
 off the main thread may improve responsiveness without improving completion.
 
-The immediate next work is the compact-path diagnostic and SDK acquisition /
-retention design, using the frozen Clique evidence as the baseline. The current
-benchmark finishes on its original package. Implementation and its performance
-claims belong to a subsequent source-bound run, with the results added here.
+### Compact browser diagnostic
+
+The [lossless-row diagnostic](../snapback3/benchmarks/acquisition-floor/README.md)
+retained all 100 conversations and 10,000 message objects returned by the
+fixed package's authorized public queries. The payload was 1,916,522 JSON bytes
+and 93,198 bytes with ordinary gzip. Three fresh-browser repetitions took
+1,358.3, 1,231.2 and 1,413.6 milliseconds from before navigation through transfer,
+decoding, eleven grouped IndexedDB transactions, history and simple token-search
+indexes, a same-page database connection reopen, and the first local queries.
+The median was 1,358.3 milliseconds. A subsequent full-row readback digest
+matched the original SDK rows in every repetition; that audit is outside the
+primary timer.
+
+This establishes feasibility for those browser costs, not a product result.
+Authentication and authorized extraction happened during untimed preparation.
+The fixture-only endpoint omits runtime authorization, query evidence, SDK
+indexing and publication, resume, foreground writes and UI rendering. The
+transactions requested relaxed durability; their completion does not prove
+OS-crash durability. A separate browser-reopen control used the earlier tuple
+payload and loaded its control page online before disabling the network. It
+does not qualify reopening the actual application shell while offline. Earlier
+tuple cohorts, timing-boundary corrections and harness failures remain in the
+record. The complete candidate must restore these omitted obligations.
+
+### First candidate design
+
+The selected public shape is `client.acquire({ id, revision, root, expand })`,
+with `pages(op, args)` declaring a paginated query and an optional `expand`
+deriving further page chains from the complete root result. Applications declare
+the dataset once; the SDK owns traversal, cancellation, durable continuation,
+resume and completion. Registration captures the identifier, revision, an
+immutable root with deeply owned arguments, and the expansion function reference.
+Later mutation of a caller's declaration cannot redirect an existing handle or
+its cancellation to another dataset. A stable revision identifies application
+derivation code that cannot itself be hashed; capturing a function does not
+freeze mutable values in its closure. Root and derived declarations are checked
+again on resume. These internal reads do not become additional live screen
+subscriptions.
+
+The finite `POST /api/acquire` path advances ordinary authorized queries. A
+request contains at most 64 runnable declarations; each owner turn performs at
+most 32 executions, yielding between complete pages after a soft 20ms or 1MiB
+budget. A 15MiB hard response limit protects the worker frame. A legal first
+page may exceed a soft budget. Every page and the final response must have the
+same real commit sequence and program generation. Continuations include their
+complete runnable declaration. Neither an ended transport batch nor a capped
+page without a next cursor proves dataset completion. Gzip is negotiated on
+the ordinary HTTP response. The first candidate keeps full existing delivery
+envelopes; shared wire dictionaries remain a measurement-driven follow-up.
+The earlier 16-execution limit ended six consecutive empty-room turns in each
+v3 diagnostic while measured HTTP wall time remained below 20ms and payloads
+were below 81KiB. Raising that count to 32 retains the work and byte limits;
+the v5 and v6 measured cohorts and early/middle/late foreground controls
+include this limit. Later candidate measurements remain source-bound.
+
+IndexedDB version 2 adds separate acquisition metadata, content-addressed row
+versions and per-query evidence. A bounded response's data and continuation
+advance atomically. Acquired facts enter an evaluator pool only when every
+required page is coherent at one real sequence. Conditional revalidation first
+executes the authorized query and may then return an unchanged validator;
+validators bind the original query, authority, contents, evidence and cursor.
+This can retain unchanged physical rows across commits without granting old
+evidence a new sequence by assumption.
+
+An uninterrupted fresh traversal can already supply that common-sequence proof.
+The SDK may omit the extra conditional pass only when the exact reachable page
+set was newly delivered in full at one real expected sequence, with its captured
+authority epoch still current. This permission exists only in memory; it is
+never restored from a progress record. Resumed prefixes, unchanged replies and
+invalidated work retain conditional normalization. Time-dependent and connected
+queries cannot declare a durable acquired dataset. Atomic persistence and the
+final authority check still precede ready publication.
+
+A known newer commit or generic invalidation immediately suspends eligibility
+of acquired evidence. A durable floor prevents an immediate offline process
+reopen from reviving it. Reconfirmation restores eligibility; the previous
+history need not be physically erased for an ordinary unrelated write. Denial,
+account and generation changes remain authority boundaries, including when
+positive persistence fails. No IndexedDB transaction or SQLite read snapshot
+spans a network wait. The existing operation journal continues to own original
+write identities and settlement. A denied dataset withdraws its own checkpoint
+without deleting unrelated datasets. Failed authority withdrawals seal current
+RAM state and attempt a conditional durable session removal. That removal
+matches token, principal and auth epoch atomically, so a late failure after
+closing a client cannot erase a newer account session. Cancellation also binds
+the stored dataset's identifier, declaration hash, principal, auth epoch,
+generation and schema hash. Its failure cleanup uses that same checkpoint guard,
+so a successor declaration is preserved. Storage notifications must use the full
+conditional-clear predicate: a refused clear cannot broadcast an authority
+change and withdraw a subscribed successor's live data. Clients sharing the same
+storage adapter instance also share a persistence queue: initialization waits
+for admitted withdrawal and conditional cleanup as one job. A close followed
+immediately by offline reopen cannot slip into the failed-write/fallback gap.
+Distinct adapter instances retain the adapter notification contract. If storage
+refuses every write, the client cannot guarantee durable erasure; it must not
+republish the withdrawn data in memory. Query resources remember when their
+data came from an acquired pool so withdrawing that pool also withdraws an
+already displayed acquired result. Ordinary directly confirmed stale display
+behavior remains governed by its existing resource contract.
+
+Retained row versions are checked against their actual canonical contents and
+table/row identities before reuse. Validation caches hold deeply owned immutable
+values, rather than trusting a mutable caller's claimed hash. Acquisition page
+results are lists; typed declarations exclude other result shapes, and runtime
+admission refuses composite records instead of flattening them into a different
+type for `expand`. Repeated walks reuse a decoded envelope only when the resource
+and every referenced row are module-owned immutable objects, the frozen manifest
+identity/schema/generation match, and every row-key binding still names the
+same row object. Missing or replaced bindings cannot inherit the cached proof.
+Mutable adapter inputs are owned at the boundary. This removes repeated full
+protocol decoding; it does not remove the remaining row-key checks, whole-corpus
+adapter loads or per-dataset map construction. Old retained versions still lack
+automatic collection, and finite HTTP gzip remains synchronous. Those are
+explicit scaling and latency follow-ups.
+
+The acquisition handle exposes a completion promise for its current cycle.
+Transient failures suspend that cycle and reconnect resumes it, including when
+the server sequence has not changed. Cancellation rejects pending awaiters;
+explicit resume after cancellation or a terminal error creates a new cycle.
+Repeated resume while active joins the existing work. Deferred automatic
+restarts check that the handle is still acquiring both before scheduling and
+after client readiness; cancellation during a pending withdrawal cannot be
+overwritten by that captured restart. Sealing is permanent for the old handle.
+These lifecycle transitions remain SDK responsibilities rather than application
+retry loops.
+
+The wider performance work remains open. V8's shaped 50ms, 10Mbit-down,
+5Mbit-up 10k run took 5.421 seconds. Its 2.191MB of encoded responses included
+about 1.94MB of application code and manifests, versus about 253KB of acquisition
+responses. Startup transfer is therefore a concrete next target on that network.
+The 100k result remains far above three seconds. Heap samples at completion are
+not peak or post-GC retained heap, and a browser database directory's physical
+size is not logical data size or write volume. Whole-corpus loads, repeated map
+construction, old-version collection and server index amplification remain
+unresolved. The planned 1k scaling case is unmeasured in this run.
+
+### Qualification outcome
+
+Retain this implementation at the declared scope. The
+[final acquisition record](../snapback3/benchmarks/acquisition-target/README.md)
+binds candidate v8 to package
+`6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562`.
+All ten candidate and ten matched serial trials passed exact full-message
+content and offline-reopen checks. Physical offline reopen, including the full
+audit, took a candidate median of 1.477 seconds and is outside the primary
+acquisition timer. All nine real IndexedDB groups and five foreground/recovery
+controls passed, including early/middle/late sends, a lost successful commit
+reply with unchanged operation identity, and an interrupted durable prefix.
+The 83 focused SDK tests passed with 338 assertions, affected owner/HTTP checks
+passed, and both independent review families accepted the final repair delta.
+
+The [coordinator result audit](../snapback3/benchmarks/acquisition-target/coordinator-audit.json)
+recomputes the reported cohort statistics and checks its content bindings.
+This qualifies the implemented path, not a new outside-builder run or the whole
+Clique product. The original package, every failed or excluded candidate, and
+the unresolved scaling/storage issue remain preserved.

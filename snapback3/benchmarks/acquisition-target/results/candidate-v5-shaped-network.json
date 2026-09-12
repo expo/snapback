@@ -1,0 +1,65 @@
+{
+  "status": "diagnostic-pass-excluded",
+  "qualificationMember": false,
+  "reason": "This shaped-network run is bound to v5. Later SDK defects exclude v5 and v6; final source binding requires v8 or later.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-17-v5-shaped-50ms-10down-5up",
+  "condition": {
+    "method": "Chrome CDP Network.emulateNetworkConditions",
+    "offline": false,
+    "latencyMs": 50,
+    "downloadBytesPerSecond": 1250000,
+    "downloadMbitPerSecond": 10,
+    "uploadBytesPerSecond": 625000,
+    "uploadMbitPerSecond": 5,
+    "connectionType": "wifi"
+  },
+  "primaryElapsedMs": 5475.563534,
+  "firstUsefulInboxMs": 2287.0908203125,
+  "firstUsefulHistoryMs": 5407.690673828125,
+  "acquisitionCompletedPageMarkMs": 5119.299999952316,
+  "network": {
+    "allRequests": 20,
+    "allEncodedBytes": 2187707,
+    "appBundleEncodedBytes": 1388948,
+    "manifestEncodedBytes": 544162,
+    "authEncodedBytes": 503,
+    "acquireResponses": 14,
+    "acquireEncodedBytes": 252668,
+    "acquireDecodedBytes": 3254732,
+    "acquireSummedResponseWallMs": 1022.7519997861236
+  },
+  "heapBeforeAudit": {
+    "usedBytes": 68533772,
+    "totalBytes": 112611328,
+    "embedderHeapUsedBytes": 11237800,
+    "backingStorageBytes": 2128441
+  },
+  "correctness": {
+    "messages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "seq": 1,
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "properSubsetSearch": true,
+    "negativeSearchZero": true,
+    "physicalReopenStatus": 200,
+    "physicalReopenFromServiceWorker": true,
+    "physicalReopenFullAudit": true
+  },
+  "inputs": {
+    "packageArchiveSha256": "21fa90a9dc13765cc8e0b9ddedacdd4221831be4fe6b60daf9678d2fa17cd47f",
+    "packageSourceSha256": "15372c210573502f1bfd4a880164326ce7d3d6b8190663e5e84984e55bdfc5b9",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "packagedWorkerOverrideRemoved": true
+  },
+  "rawSha256": {
+    "summary.json": "9907d68923af4d397b56b04fe36e5a5b00b5cd2daec20aab443e27316d9b5d23",
+    "metadata.json": "043296dbfa96ae87793cf58cb4628767a59b4c78b5130f22c007e3ce71b8d0b4",
+    "run-01/result.json": "b4d1673b5cd7ed1ef8ddf99e354d013b89454a69bd830163ae1cbb0e6bb42faf",
+    "cleanup-receipt.json": "db80ed95f77c6160a45234ce1a3a929a0f705af7367f90480794c76c650c14b7",
+    "worker-cleanup-receipt.json": "3147e757959163d5cc149a50db13c5c5914847369a4501c96b4793d393faee0f"
+  },
+  "limitations": "This browser-level model adds fixed latency and throughput caps. It does not model WAN routes, loss, jitter, server contention, or a remote owner, and it is not compared with the 3-second loopback target."
+}

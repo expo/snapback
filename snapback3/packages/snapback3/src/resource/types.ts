@@ -52,6 +52,23 @@ export interface QueryResource<T> extends Readable<ResourceSnapshot<T>> {
   refresh(): Promise<ResourceSnapshot<T>>;
 }
 
+export interface AcquisitionSnapshot {
+  readonly id: string;
+  readonly status: 'acquiring' | 'ready' | 'cancelled' | 'error' | 'sealed';
+  readonly pages: number;
+  readonly chains: number;
+  readonly seq?: number;
+  readonly error?: SnapbackError;
+}
+
+export interface Acquisition extends Readable<AcquisitionSnapshot> {
+  /** Completion of the current acquisition cycle. Transient outages keep this
+   * promise pending; cancel or a terminal error settles it and resume starts a new cycle. */
+  readonly completed: Promise<AcquisitionSnapshot>;
+  cancel(): void;
+  resume(): Promise<AcquisitionSnapshot>;
+}
+
 export interface MutationReceipt<T = unknown> {
   state: 'committed' | 'rejected' | 'conflict';
   intent: string;
@@ -107,6 +124,60 @@ export interface StoredResource {
   envelope: Omit<DeliveryEnvelopeV1, 'rows'>;
 }
 
+export interface AcquisitionDeclaration {
+  key: string;
+  op: string;
+  args: Args;
+  cursor: string;
+  follow: boolean;
+  validator?: string;
+}
+
+export interface StoredAcquisitionResource {
+  acquisitionId: string;
+  /** The ordinary query identity. Several pages share one chain identity. */
+  key: string;
+  chainKey: string;
+  op: string;
+  args: Args;
+  rowVersionKeys: string[];
+  envelope: Omit<DeliveryEnvelopeV1, 'rows'>;
+}
+
+export interface StoredAcquisitionRow {
+  versionKey: string;
+  /** The sequence where these exact bytes were delivered, not a later validation. */
+  seq: number;
+  row: DeliveryRow;
+}
+
+export interface StoredAcquisition {
+  id: string;
+  declarationHash: string;
+  principal: string;
+  authEpoch: number;
+  generation: string;
+  schemaHash: string;
+  status: 'acquiring' | 'ready' | 'cancelled';
+  phase: 'traverse' | 'validate';
+  seq?: number;
+  rootKeys: string[];
+  derivedDeclarations: AcquisitionDeclaration[];
+  pending: AcquisitionDeclaration[];
+  resourceKeys: string[];
+  pages: number;
+}
+
+export interface AcquisitionPatch {
+  acquisition: StoredAcquisition;
+  rows: StoredAcquisitionRow[];
+  resources: StoredAcquisitionResource[];
+}
+
+export type AcquisitionCheckpointIdentity = Pick<StoredAcquisition,
+  'id' | 'declarationHash' | 'principal' | 'authEpoch' | 'generation' | 'schemaHash'>;
+export type AcquisitionCancellation = AcquisitionCheckpointIdentity & { token: string };
+
 export interface FrameHeader {
   seq: number;
   generation: string;
@@ -121,20 +192,38 @@ export interface FramePatch extends FrameHeader {
 }
 
 export interface StoredState {
-  version: 1;
+  version: 1 | 2;
   session: Session | null;
   manifest: Manifest | null;
   frame: FramePatch | null;
   operations: StoredOperation[];
+  /** Missing in v1 stores. Loading treats it as an empty collection. */
+  acquisitions?: StoredAcquisition[];
+  acquisitionRows?: StoredAcquisitionRow[];
+  acquisitionResources?: StoredAcquisitionResource[];
+  acquisitionFloor?: number;
+  acquisitionsInvalidated?: boolean;
 }
 
 export interface StoragePatch {
   /** Origin marker for notifications; never persisted as application data. */
   source?: string;
   session?: Session | null;
+  /** Fail-closed cleanup that applies only while this exact old authority is
+   * still durable, so a delayed failure cannot erase a newer signed-in account. */
+  clearSession?: { token: string; principal: string; authEpoch: number; acquisition?: AcquisitionCheckpointIdentity };
   manifest?: Manifest;
   frame?: FramePatch | null;
   operations?: StoredOperation[];
+  acquisition?: AcquisitionPatch;
+  /** Cancel only the exact dataset declaration and authority that requested it. */
+  cancelAcquisition?: AcquisitionCancellation;
+  /** Authority changes erase acquisition metadata and bytes in the same write. */
+  clearAcquisitions?: true;
+  /** Retain physical rows/resources while withdrawing every ready checkpoint. */
+  invalidateAcquisitions?: true;
+  acquisitionFloor?: number;
+  acquisitionsInvalidated?: boolean;
 }
 
 /** Updates are atomic. A frame merges only with the same sequence and authority;

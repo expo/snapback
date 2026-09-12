@@ -1,0 +1,100 @@
+{
+  "status": "diagnostic-pass",
+  "qualificationMember": false,
+  "reason": "Admission diagnostic for the exact v8 package; the binding performance cohort is recorded separately.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-22-candidate-v8-first",
+  "primaryElapsedMs": 2794.3383670000003,
+  "firstUsefulInboxMs": 437.062744140625,
+  "firstUsefulHistoryMs": 2730.2626953125,
+  "acquisitionCompletedPageMarkMs": 2465.2999999523163,
+  "network": {
+    "allRequests": 19,
+    "allEncodedBytes": 2189582,
+    "acquireResponses": 13,
+    "acquireEncodedBytes": 251714,
+    "acquireDecodedBytes": 3254295,
+    "responsePages": 151,
+    "responseContinuations": 79
+  },
+  "heapBeforeAudit": {
+    "usedBytes": 66776908,
+    "totalBytes": 113397760,
+    "embedderHeapUsedBytes": 11316912,
+    "backingStorageBytes": 2109767
+  },
+  "correctness": {
+    "conversations": 100,
+    "uniqueConversations": 100,
+    "messages": 10000,
+    "uniqueMessages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "completeFinalPages": 101,
+    "incompleteIntermediatePages": 50,
+    "seq": 1,
+    "messageFields": [
+      "conversationId",
+      "edited",
+      "id",
+      "replyTo",
+      "senderId",
+      "serverTimestamp",
+      "text",
+      "tombstone"
+    ],
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "digestScope": "Both digests bind message rows. Conversation full fields are not hashed.",
+    "conversationIdSet": {
+      "expected": "g0001 through g0100",
+      "count": 100,
+      "sha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+    }
+  },
+  "physicalReopen": {
+    "elapsedMs": 1475.1474799999996,
+    "firstOfflineUseElapsedMs": 730.2000000476837,
+    "fullAuditElapsedMs": 191.29999995231628,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "fullAuditMatchesPrimary": true
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v8/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562",
+    "packageSourceSha256": "70eb6314b7d61fa1527bf86c3ac3919f25cc2073a32ede5b15f55ab9084b2d9f",
+    "packageReportSha256": "eb780dee4df26b3ca72ee9652b2f04f127f17baafd435df2218455284b6d3da4",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "sourceFilesManifestSha256": "5a03c78be80116d39c012ea660c3469a020ad6603250bf4f19589a1a46a21ecd",
+    "clientTsSha256": "de9f1441744b2774d475ad47263ead06b0cf77789d16dcd783d89fd9d0940ad2",
+    "storageTsSha256": "f6c37ba1044464424ec49d1e5c0606a8d027c39605a1216aeee7dc3d8578700c",
+    "typesTsSha256": "d934bf6db72b46cfd8a4bd276bbed6229bd8074ef20334e22a5c86d61214e5a1",
+    "acquisitionTsSha256": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+    "acquisitionClientTestSha256": "b1ad6a59841e25bc4e515e38996ff4c487969e2a255de6e9162d593834073039",
+    "packagedWorkerOverrideRemoved": true,
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "appAcquireSha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+    "appBundleSha256": "10da8b6fb481316df596e35014fb0b538273cf669a5da340827badf98eea359f"
+  },
+  "rawSha256": {
+    "summary.json": "54b61592b23f8a2918c16ea5ab5d28fc8a0e9d2507a18304ee3b4d8802413251",
+    "metadata.json": "fb4984cf5f08aae1f9dc79e6da53aeae1cf678f508ec47e6dd1542d9a179f5f2",
+    "run-01/result.json": "2c222a9e610bb1cc70019510bfdf11821a68b93e6f9f78b7cca5000568885f30",
+    "cleanup-receipt.json": "d918a06b6c66a66a00f8591d7abd4c4c6b783a7153760e6fc18c72eca69a7da8",
+    "worker-cleanup-receipt.json": "5d7f1096f90fe394c4f4db0e5cecc039706f4f501cf61598e82ba562b79de7c4"
+  },
+  "cleanup": {
+    "owner": {
+      "pid": 2105190,
+      "startTick": "160668422",
+      "cleaned": true
+    },
+    "worker": {
+      "pid": 2105285,
+      "startTick": "160668719",
+      "cleaned": true
+    },
+    "port": 54924,
+    "portFree": true
+  }
+}

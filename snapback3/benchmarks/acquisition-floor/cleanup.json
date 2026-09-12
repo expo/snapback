@@ -1,0 +1,21 @@
+{
+  "host": "expose-builder-pixel",
+  "remoteDirectory": "/home/ccheever/snapback3-acquisition-20260912/floor",
+  "completedEpochMs": 1789238134297,
+  "ports": {
+    "54920": "free",
+    "54921": "free"
+  },
+  "ownedProcesses": [
+    { "role": "snapback3-node-owner", "pid": 1817561, "startTicks": "159644613", "sameProcessPresentAfterCleanup": false },
+    { "role": "snapback3-rust-worker", "pid": 1817608, "startTicks": "159644898", "sameProcessPresentAfterCleanup": false },
+    { "role": "compact-endpoint-controller", "pid": 1817553, "startTicks": "159644584", "sameProcessPresentAfterNaturalControllerExit": false },
+    { "role": "physical-reopen-controller", "pid": 1823252, "startTicks": "159667345", "sameProcessPresentAfterNaturalControllerExit": false },
+    { "role": "physical-reopen-chromium", "pid": 1823264, "startTicks": "159667375", "sameProcessPresentAfterCleanup": false },
+    { "role": "lossless-snapback3-node-owner", "pid": 1832136, "startTicks": "159704196", "sameProcessPresentAfterCleanup": false },
+    { "role": "lossless-snapback3-rust-worker", "pid": 1832149, "startTicks": "159704484", "sameProcessPresentAfterCleanup": false },
+    { "role": "lossless-compact-endpoint-controller", "pid": 1832122, "startTicks": "159704167", "sameProcessPresentAfterNaturalControllerExit": false }
+  ],
+  "otherPortsOrProcessesTouched": false,
+  "localCommonroom4383Touched": false
+}

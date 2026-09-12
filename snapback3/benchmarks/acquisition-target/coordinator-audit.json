@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-09-12T21:31:40.922234+00:00",
+  "candidate": "v8",
+  "packageSha256": "6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562",
+  "scope": "Coordinator recomputed public per-trial statistics and checked all 20 reported primary/reopen exact counts, fields, message ID/full-row digests, conversation ID sets, and PID/start-tick cleanup records. Checked reported larger/shaped controls and unchanged reviewed source hashes. This does not claim rerunning the browsers or independently rehashing every private raw payload.",
+  "inputs": {
+    "candidate-v8-pairs-final.json": "414c3c8aba7b17be557e1f14fab484ce9bf47f6a7304ddc662d86e88966cb9c1",
+    "candidate-v8-100k.json": "83d74c17f9ebb24baa75cd59d663b4658cfb21b071f1b571740cffd276f7c153",
+    "candidate-v8-shaped-network.json": "79f2a5a5455cc69b0dec073bcbb961f76a64a1e263d83ef8554fab5c6cc2b34d"
+  },
+  "statistics": {
+    "candidate": {
+      "trials": 10,
+      "medianMs": 2806.6802059999995,
+      "minMs": 2461.1387699999996,
+      "maxMs": 3045.7183040000004,
+      "over3000": 1,
+      "modes": [
+        "public-sdk-acquire"
+      ],
+      "valuesInPlanOrder": [
+        2461.1387699999996,
+        3045.7183040000004,
+        2964.8576720000005,
+        2710.5655730000003,
+        2835.501534,
+        2772.3676530000002,
+        2820.1936359999995,
+        2568.6051100000004,
+        2843.2843930000004,
+        2793.1667759999996
+      ]
+    },
+    "baseline": {
+      "trials": 10,
+      "medianMs": 6875.145976,
+      "minMs": 6446.442599999999,
+      "maxMs": 7625.848593,
+      "over3000": 10,
+      "modes": [
+        "verbatim-retained-serial-walker"
+      ],
+      "valuesInPlanOrder": [
+        6446.442599999999,
+        6748.392614,
+        6733.399689,
+        7052.828313,
+        6704.700375999999,
+        6997.745557,
+        7625.848593,
+        7155.512143,
+        7026.532175,
+        6752.546395
+      ]
+    }
+  },
+  "elapsedReductionPercent": 59.176427441720406,
+  "firstInboxMedianMs": 435.026611328125,
+  "physicalReopenMedianMs": 1477.0920115,
+  "large100kMs": 23825.290094,
+  "shaped10kMs": 5420.685579,
+  "sourceQualification": "All declared 10k timing and content conditions pass, with nine IndexedDB groups, five foreground/recovery controls, 83 SDK tests, and both final source delta review approvals. Scope is the declared ready-owner EPYC browser workflow, not a full-product or cross-Snapback comparison.",
+  "controlAudit": {
+    "realIndexedDbGroups": 9,
+    "foregroundRecoveryScenarios": 5,
+    "allAssertionsPassed": true,
+    "originalTriggerPageDenominator": 151,
+    "postSendAuditPages": 152,
+    "lostReplyRetainedOriginalIntentExactlyOnce": true,
+    "prefixResumedWithValidationAndTraversal": true,
+    "inputs": {
+      "v8-storage-result.json": "652516a34adc376f15890ce51b5929c08908a7e194d2710817154d128ae6e78b",
+      "v8-foreground-result.json": "54aca96c26fa89eecc8a5290ba066aa40857f26b77a720bfaee6c44d4ff8733a",
+      "v8-foreground-summary.json": "1ebbf8be31e1bc34d0672e5ea820117c5255dd3a376644213ca79fda5a696477"
+    },
+    "scope": "Assertions over the published execution records, not a second browser execution. The preserved historical fractionOfFinalPages field actually divides by the original 151 pages; post-send completion has 152."
+  }
+}

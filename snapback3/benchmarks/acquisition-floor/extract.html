@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Snapback3 acquisition floor input extraction</title>
+<script type="module">
+import { createClient, createMemoryStorage } from '/floor-client.mjs';
+
+const client = createClient({ url: location.origin, live: false, storage: createMemoryStorage() });
+window.floorExtract = { status: 'starting' };
+
+async function fresh(op, args) {
+  const resource = client.watch(op, args);
+  let snapshot = await resource.refresh();
+  if (!snapshot.fresh || !Array.isArray(snapshot.data)) {
+    snapshot = await new Promise((resolve, reject) => {
+      let unsubscribe = () => {};
+      const timer = setTimeout(() => {
+        unsubscribe();
+        reject(new Error(`timed out waiting for a fresh public SDK page for ${op}`));
+      }, 15_000);
+      const check = () => {
+        const current = resource.getSnapshot();
+        if (current.fresh && Array.isArray(current.data)) {
+          clearTimeout(timer);
+          unsubscribe();
+          resolve(current);
+        } else if (current.status === 'denied' || current.status === 'error') {
+          clearTimeout(timer);
+          unsubscribe();
+          reject(current.error ?? new Error(current.status));
+        }
+      };
+      unsubscribe = resource.subscribe(check);
+      check();
+    });
+  }
+  if (!snapshot.fresh || !Array.isArray(snapshot.data)) {
+    throw new Error(`unavailable public SDK page for ${op}`);
+  }
+  return snapshot;
+}
+
+try {
+  await client.ready;
+  await client.auth.persona('u0500');
+  const conversations = [];
+  const messages = [];
+  const pages = [];
+  let c = null;
+  do {
+    const snapshot = await fresh('conversations.inbox', { c });
+    conversations.push(...snapshot.data);
+    pages.push({ op: 'conversations.inbox', count: snapshot.data.length, sdkComplete: snapshot.complete });
+    c = snapshot.next ?? null;
+  } while (c);
+  for (const conversation of conversations) {
+    c = null;
+    do {
+      const snapshot = await fresh('messages.page', { conversationId: conversation.id, c });
+      messages.push(...snapshot.data);
+      pages.push({ op: 'messages.page', conversationId: conversation.id, count: snapshot.data.length, sdkComplete: snapshot.complete });
+      c = snapshot.next ?? null;
+    } while (c);
+  }
+  window.floorExtract = {
+    status: 'complete',
+    conversations,
+    messages,
+    pages,
+    principal: 'u0500'
+  };
+} catch (error) {
+  window.floorExtract = { status: 'failed', error: String(error) };
+} finally {
+  client.close();
+}
+</script>

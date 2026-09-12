@@ -1,0 +1,176 @@
+{
+  "asOf": "2026-09-12T21:24:00Z",
+  "finalQualification": "v8-evidence-pass",
+  "variants": [
+    {
+      "id": "v1",
+      "status": "diagnostic-excluded",
+      "packageSha256": "a4afc5ef32cc86a718f783c7de4bbdb2c5c71d65d7fec21a072ccce1cc50d8a8",
+      "primaryMs": [
+        3594.774
+      ],
+      "reason": "Above target; its broad GET cache also invalidates strict shell-only reopen qualification.",
+      "public": "candidate-v1.json"
+    },
+    {
+      "id": "v2",
+      "status": "diagnostic-excluded",
+      "packageSha256": "89667a4ce89a23d3a9ed7423b2779e028d3d6f4d99340b6798d0d4453aec57a8",
+      "primaryMs": [
+        3001.086,
+        3317.92,
+        3072.469
+      ],
+      "reason": "All three fresh diagnostics exceeded the target.",
+      "public": "candidate-v2.json"
+    },
+    {
+      "id": "v3",
+      "status": "diagnostic-excluded",
+      "packageSha256": "aa5253e0ce1eb1a663abfd4f95a78381a5cb8fa206672ccd2a8bd2428594539d",
+      "primaryMs": [
+        2616.558,
+        2822.713,
+        2896.354,
+        3099.0691880000004
+      ],
+      "reason": "Independent review found SDK safety defects; the fourth value is a separately labeled corrected-harness preflight.",
+      "public": [
+        "candidate-v3-diagnostic.json",
+        "candidate-v3-harness-preflight.json"
+      ]
+    },
+    {
+      "id": "v4",
+      "status": "diagnostic-excluded",
+      "packageSha256": "233237fccc3fb98fce48aab77c1c4beccba261a75952baf61299ea6383ec70fa",
+      "packageSourceSha256": "2368dfca2407c3c3368efdea6eff07527a679ff52b34f61992ee117aea3c8eed",
+      "primaryMs": [
+        2824.4938400000005
+      ],
+      "reason": "A later review found an acquired-authority path; this run also predates the explicit worker-override guard.",
+      "public": "candidate-v4-first.json"
+    },
+    {
+      "id": "v5",
+      "status": "diagnostic-excluded",
+      "packageSha256": "21fa90a9dc13765cc8e0b9ddedacdd4221831be4fe6b60daf9678d2fa17cd47f",
+      "packageSourceSha256": "15372c210573502f1bfd4a880164326ce7d3d6b8190663e5e84984e55bdfc5b9",
+      "firstPrimaryMs": 3096.5083759999998,
+      "pairCandidateMedianMs": 2865.4478735000002,
+      "pairCandidateRangeMs": [
+        2672.979601,
+        3085.442492
+      ],
+      "pairCandidateAbove3000": 2,
+      "pairCandidatePasses": 10,
+      "pairBaselineMedianMs": 6949.321201500001,
+      "pairBaselinePasses": 10,
+      "reason": "A later review found a custom-adapter close/reopen barrier defect fixed in v6; v6 was subsequently excluded for separate lifecycle P1s.",
+      "public": [
+        "candidate-v5-first.json",
+        "candidate-v5-pairs-diagnostic.json",
+        "candidate-v5-100k-oracle.json",
+        "candidate-v5-shaped-network.json"
+      ]
+    },
+    {
+      "id": "v6",
+      "status": "diagnostic-excluded",
+      "packageSha256": "fcc08d11c34a7619c4c62a31512b71138978bd862c5bf6fb8b4c64dc460b3d3b",
+      "packageSourceSha256": "f2df8a3252437d9de36807d1c2444642441cb128f070c23b4078ac295108e25a",
+      "firstPrimaryMs": 3107.43629,
+      "pairCandidatePrimaryMs": [
+        2494.3261079999997,
+        3086.1379329999995,
+        2870.3774479999997,
+        3101.856417,
+        2862.17461,
+        2793.455826,
+        3117.52852,
+        2833.8983000000003,
+        2861.3605420000004,
+        2875.471847
+      ],
+      "pairCandidateMedianMs": 2866.2760289999997,
+      "pairCandidateRangeMs": [
+        2494.3261079999997,
+        3117.52852
+      ],
+      "pairCandidateAbove3000": 3,
+      "pairCandidatePasses": 10,
+      "pairBaselineMedianMs": 7072.5475865,
+      "pairBaselineRangeMs": [
+        6922.572480999999,
+        7190.155877
+      ],
+      "pairBaselinePasses": 10,
+      "oracle100kPrimaryMs": 22944.238807,
+      "shaped10kPrimaryMs": 5302.539348,
+      "reason": "The performance time goal was observed and every harness correctness check passed, but final-v6 review found three SDK lifecycle P1 defects. V6 is preserved evidence and excluded; v8 or later must be requalified.",
+      "public": [
+        "candidate-v6-first.json",
+        "candidate-v6-pairs-final.json",
+        "candidate-v6-100k.json",
+        "candidate-v6-shaped-network.json"
+      ]
+    },
+    {
+      "id": "v7",
+      "status": "diagnostic-excluded",
+      "packageSha256": "8cce9c949efe48e489ca638e7601d0d2ce250822357296f8abccfad2224e7489",
+      "packageSourceSha256": "46c06798781f6719940577cae2b5f42140e1085dc31e7069dbc8370c3794e658",
+      "firstPrimaryMs": 2870.8923069999996,
+      "fullPairCohortRun": false,
+      "realIdbGroupsPassed": 9,
+      "reason": "The caller-mutable declaration could redirect cancellation to a sibling dataset, and guarded memory clears could emit a false authority notification that withdrew successor live state. The full pair cohort and foreground controls were deliberately not run; both defects are repaired in v8.",
+      "public": [
+        "candidate-v7-first.json",
+        "v7-package-attempt-1-failure.json"
+      ]
+    },
+    {
+      "id": "v8",
+      "status": "qualification-evidence-pass",
+      "packageSha256": "6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562",
+      "packageSourceSha256": "70eb6314b7d61fa1527bf86c3ac3919f25cc2073a32ede5b15f55ab9084b2d9f",
+      "firstPrimaryMs": 2794.3383670000003,
+      "pairCandidatePrimaryMs": [
+        2461.1387699999996,
+        3045.7183040000004,
+        2964.8576720000005,
+        2710.5655730000003,
+        2835.501534,
+        2772.3676530000002,
+        2820.1936359999995,
+        2568.6051100000004,
+        2843.2843930000004,
+        2793.1667759999996
+      ],
+      "pairCandidateMedianMs": 2806.6802059999995,
+      "pairCandidateRangeMs": [
+        2461.1387699999996,
+        3045.7183040000004
+      ],
+      "pairCandidateAbove3000": 1,
+      "pairCandidatePasses": 10,
+      "pairBaselineMedianMs": 6875.145976,
+      "pairBaselineRangeMs": [
+        6446.442599999999,
+        7625.848593
+      ],
+      "pairBaselinePasses": 10,
+      "oracle100kPrimaryMs": 23825.290094,
+      "shaped10kPrimaryMs": 5420.685579,
+      "realIndexedDbGroupsPassed": 9,
+      "foregroundScenariosPassed": 5,
+      "reason": "Exact v8 passed both source reviews, 83 combined tests/338 assertions, all external controls, all 20 pair trials, the median performance criterion, 100k scaling control, and shaped-network control.",
+      "public": [
+        "candidate-v8-first.json",
+        "candidate-v8-pairs-final.json",
+        "candidate-v8-100k.json",
+        "candidate-v8-shaped-network.json"
+      ]
+    }
+  ]
+}

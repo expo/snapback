@@ -1,0 +1,21 @@
+{
+  "createdAt": "2026-09-12T19:23:55.922317+00:00",
+  "baseCommit": "2ea99ca6c7d4f060b0c940d88e8e797e15f202e9",
+  "files": {
+    "snapback3/packages/snapback3/src/client.ts": "d933517cb96671264964e7ac433deb5c193eef53f911f47b57c1c28ab4883615",
+    "snapback3/packages/snapback3/src/resource/acquisition.ts": "d9184a764a4edbe435a0ce1912409cd3d4335a4a30f2bae4d31bb3d787398d59",
+    "snapback3/packages/snapback3/src/resource/storage.ts": "cd673983349aeb73bd296f9ed0d6821eb45298280bb453a9856655038d1a6724",
+    "snapback3/packages/snapback3/src/resource/types.ts": "5de0bffd40e075925ff2fa43f692f6762e86ab978354278e2125ad5453c0435d",
+    "snapback3/packages/snapback3/src/resource/facts.ts": "443b83d2b025a7b6b5a718554aec98d67f69ea8bad1a1be9c085b946e50e55f2",
+    "snapback3/packages/snapback3/src/resource/protocol.ts": "452a25fadf5d67090e6ecbeb6474b54a64e201eff5c4449886d08f65f69f152a",
+    "snapback3/packages/snapback3/src/resource/signal.ts": "459f2fe1bd8b2075e93fee4e19fa6fe5d1cfc94787da3c1707e0c7e902f04812",
+    "snapback3/packages/snapback3/src/resource/row-values.ts": "c27cb8f44114f1e12414a945eb22e3e3c626033172f57644471c53e6ce18772e",
+    "snapback3/tests/acquisition-client.test.ts": "49e6c5bd135767e459c5584af097543230e6d1115d5bc7756470945a377ca622",
+    "snapback3/tests/resource-client.test.ts": "eea6ff4c60de22ad9d32bc86acf5cc8cdd6c7c0059ff430f993ad90bbe017a36",
+    "snapback3/tests/manifest-custody.test.ts": "b5224137ccbf53c4f181502004f49973be9601c83a2155a9df95369346b0a6aa",
+    "snapback3/crates/snapback3-worker/src/protocol.rs": "9307fa74ad3436fdd7e6f543e0b5deaf89ec65ef4ad61f92d3af2ea75102f022",
+    "snapback3/packages/snapback3/src/node/http.ts": "16e29bd5cd5818278b376d171f3c71601c8ec7378239d1b219980fb2d6cfc195",
+    "snapback3/guide.md": "535640216181c2f401b70195933a0ece830b71023f1a8449a3360acedb2fab7e",
+    "llp/2000-snapback3.rfc.md": "3d012671a62786c18968b4f548d04d304fd70922bc0eaf4cfa3ce5ebf69e9ba2"
+  }
+}

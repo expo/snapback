@@ -58,3 +58,31 @@ foreground sends and cleanup. Treat index representation as a measured
 follow-up with equivalent lookup/write/deletion/authorization requirements.
 Do not trade away the declared dataset, receipts or correctness to improve a
 timing. No SDK or storage repair was applied during this benchmark.
+
+## Acquisition implementation follow-up
+
+After the pinned-package benchmark, the implementation added public SDK-owned
+acquisition, bounded grouped authorized reads, gzip, grouped durable progress,
+content-addressed retained rows, and coherent revalidation. The source-bound
+[acquisition experiment](../benchmarks/acquisition-target/README.md) preserves
+all candidates and distinguishes the matched serial comparator from the older
+33-second measurement. Final candidate v8's ten-pair median was 2.807 seconds,
+versus 6.875 seconds for the matched serial walker. One individual candidate run
+exceeded three seconds (range 2.461–3.046). Every trial passed exact content and
+physical offline reopen. Its 100k full-row/offline-reopen control completed in
+23.825 seconds. Nine real IndexedDB groups, five foreground/recovery controls,
+83 SDK tests and both final independent review verdicts passed.
+These are new-package results and do not change the frozen benchmark outcome.
+
+This issue remains open for the measured server-index representation, which
+this acquisition work does not change, and for remaining client scaling costs:
+whole-corpus IndexedDB loads, per-dataset row-map reconstruction, old row-version
+collection, and wider network/host latency headroom. Completion samples are not
+peak or retained-heap measurements; keep those distinctions in follow-up work.
+V8's shaped 50ms, 10Mbit-down, 5Mbit-up case took 5.421 seconds. Application
+code and manifests contributed about 1.94MB of its 2.191MB encoded responses;
+the acquisition responses contributed about 253KB. Startup transfer is a
+measured next target. Physical IndexedDB directory sizes also varied across
+candidate runs; these are filesystem snapshots affected by database lifecycle
+and compaction, not an attribution of logical size or write amplification to
+an SDK change.

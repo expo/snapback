@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-09-12T19:59:50.704484+00:00",
+  "baseCommit": "2ea99ca6c7d4f060b0c940d88e8e797e15f202e9",
+  "files": {
+    "snapback3/packages/snapback3/src/client.ts": "8bb66126a9ca03c3c9492e83b0fb6dbfff74eb14f4a08400ba2c85848f9c7223",
+    "snapback3/packages/snapback3/src/resource/acquisition.ts": "99fd5a3d50d28241637df65333d4d80116bdea2ca0c0a402d8624c6d137b1f1b",
+    "snapback3/packages/snapback3/src/resource/storage.ts": "cf1869bbe3eae7c2afdd67d9d245fb35b192e3d2368c725dfcdb93b92b52f90a",
+    "snapback3/packages/snapback3/src/resource/types.ts": "6899cbdcfb4fb0a4dfb056a3da74ed2ea87155a7ec827b9b1bde6e078a97c46c",
+    "snapback3/packages/snapback3/src/resource/facts.ts": "443b83d2b025a7b6b5a718554aec98d67f69ea8bad1a1be9c085b946e50e55f2",
+    "snapback3/packages/snapback3/src/resource/protocol.ts": "96c6708a8147c6ab59335412feaad868ab0d62ce3c3c5c2877684a7da997217f",
+    "snapback3/packages/snapback3/src/resource/signal.ts": "459f2fe1bd8b2075e93fee4e19fa6fe5d1cfc94787da3c1707e0c7e902f04812",
+    "snapback3/packages/snapback3/src/resource/row-values.ts": "c27cb8f44114f1e12414a945eb22e3e3c626033172f57644471c53e6ce18772e",
+    "snapback3/tests/acquisition-client.test.ts": "36d24d5deca5533d34979ddb203c6c69c5e62f340a1675c308dc0cbf99e5d01f",
+    "snapback3/tests/resource-client.test.ts": "eea6ff4c60de22ad9d32bc86acf5cc8cdd6c7c0059ff430f993ad90bbe017a36",
+    "snapback3/tests/manifest-custody.test.ts": "b5224137ccbf53c4f181502004f49973be9601c83a2155a9df95369346b0a6aa",
+    "snapback3/crates/snapback3-worker/src/protocol.rs": "3a5f354bca9d84767667520e02719c263a0e3dd7b34155a4a852a0989dd84340",
+    "snapback3/packages/snapback3/src/node/http.ts": "16e29bd5cd5818278b376d171f3c71601c8ec7378239d1b219980fb2d6cfc195",
+    "snapback3/guide.md": "37363b763cbe203cb1432d10ceae213784c6668a5cb06f2111c69107ad5cbd0c",
+    "llp/2000-snapback3.rfc.md": "91c11fb239baa32b845db6408d8cdd2199d715bac16860c2db5fc88e144c8226",
+    "snapback3/scripts/test-acquisition-storage.mjs": "f9c0533d52429debcc7df6e7b6a647ad98fa2f1e4b9f16f797a90628b8ddddf0"
+  },
+  "deltaFrom": "sdk-r3 frozen v3 inputs",
+  "testsReported": "68 affected SDK tests and TypeScript/build check pass; 4 owner protocol tests pass; no v4 browser qualification yet"
+}

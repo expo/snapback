@@ -1,0 +1,11 @@
+{
+  "created": "2026-09-12T19:15:00Z",
+  "head": "2ea99ca6c7d4f060b0c940d88e8e797e15f202e9",
+  "files": {
+    "snapback3/packages/snapback3/src/client.ts": "606ac2b8292d36f7037e7f0579d2d6950cb58ca0cd2085521d0d5d9956b34c5d",
+    "snapback3/packages/snapback3/src/resource/acquisition.ts": "d75eb8d25d64b70fc406460adc531f15beadbca75293ef09a6476564d14b8ab6",
+    "snapback3/packages/snapback3/src/resource/storage.ts": "86f9ec2118ac193fb1afd0f1115c422da30807be0c01610492e29132e9007ee5",
+    "snapback3/packages/snapback3/src/resource/types.ts": "d66976c2d2f49fe462017851fac9c33ed6611c87550dbd4c89b2b0f279afd290",
+    "snapback3/tests/acquisition-client.test.ts": "4c33ea5c0e5de5d0055546a2534c9b89422371c7424bcf95a076c9e7435b581a"
+  }
+}

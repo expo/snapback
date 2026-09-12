@@ -1,0 +1,11 @@
+{
+  "attempt": 1,
+  "phase": "package",
+  "candidate": "v7",
+  "source": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v7-source",
+  "failedBeforeBuild": true,
+  "error": "spawn cargo ENOENT",
+  "cause": "The first SSH command PATH omitted /home/ccheever/.cargo/bin.",
+  "mutation": "scripts/pack.mjs removed its temporary .pack directory in finally; no named v7 package was published.",
+  "next": "Retry once with the explicit cargo and Node bin directories in PATH."
+}

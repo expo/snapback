@@ -1,0 +1,12 @@
+{
+  "createdAt": "2026-09-12T19:12:30.910270+00:00",
+  "files": {
+    "snapback3/packages/snapback3/src/client.ts": "6377765494e22379de3c8027d319704d6f4e73b15f7c47fce5873f48741fd4e0",
+    "snapback3/packages/snapback3/src/resource/acquisition.ts": "5c2078f082a1b444b9fe0cc944ca46f1802dc61a1dbcbcc69943704bd756482a",
+    "snapback3/packages/snapback3/src/resource/storage.ts": "cd673983349aeb73bd296f9ed0d6821eb45298280bb453a9856655038d1a6724",
+    "snapback3/packages/snapback3/src/resource/types.ts": "89dc64e140966795ec8fdaad9f2d25e1668573f0b73696d2586be5ff9de53217",
+    "snapback3/packages/snapback3/src/resource/facts.ts": "9bc099e1dd4c4640416a49125aa2df8507ac5235334cdaa02611ff5a6550510e",
+    "snapback3/packages/snapback3/src/resource/protocol.ts": "452a25fadf5d67090e6ecbeb6474b54a64e201eff5c4449886d08f65f69f152a"
+  },
+  "promptSha256": "f85053fcf4cf6d77740fd032fc1140f51c80ef73a91adacecc0e1a541a729af5"
+}

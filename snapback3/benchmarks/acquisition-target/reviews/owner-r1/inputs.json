@@ -1,0 +1,10 @@
+{
+  "created": "2026-09-12T18:50:07.219855+00:00",
+  "files": {
+    "snapback3/crates/snapback3-worker/src/protocol.rs": "a19ba8d5115a50e8da25982b399a3e57aedb2b722a3910ba0c73dc10baf49224",
+    "snapback3/packages/snapback3/src/node/http.ts": "16e29bd5cd5818278b376d171f3c71601c8ec7378239d1b219980fb2d6cfc195",
+    "snapback3/packages/snapback3/src/node/worker.ts": "cf43a5f2f9d335740d37df373ed379d08ec7da3a294b10dc690ac8c6e7eceea5",
+    "snapback3/crates/snapback3-core/src/offline.rs": "47743590c8ec792a1cc07045db0fc244c6a98c245f4b7265d9a620e72e933ab3"
+  },
+  "promptSha256": "40b3044a9ff861bc00f8f99a57efc89a4da908092784ad29d0bd0ab4b328ed89"
+}

@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-09-12T20:52:13Z",
+  "host": "ccheever@100.65.137.99",
+  "ownedPorts": {
+    "54924": "no listener",
+    "54925": "no listener"
+  },
+  "mostRecentOwnedPidsAlive": {
+    "candidateV6FirstOwner2030895": false,
+    "candidateV6FirstWorker2031088": false,
+    "candidateV6100kOwner2046464": false,
+    "candidateV6100kWorker2046478": false,
+    "candidateV6ShapedOwner2048925": false,
+    "candidateV6ShapedWorker2048939": false
+  },
+  "pairCohort": {
+    "trials": 20,
+    "ownerCleanupReceiptsMatched": 20,
+    "workerCleanupReceiptsMatched": 20,
+    "rawSummaryResultAndCleanupHashesReverifiedAgainstRemote": true,
+    "publicCompactRecord": "candidate-v6-pairs-final.json"
+  },
+  "localCommonroomPort4383Touched": false,
+  "cleanupMethod": "The controller killed only exact owned PID/start-tick matches. This final read-only probe found no owned-port listener and no listed recent owned PID."
+}

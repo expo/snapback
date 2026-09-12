@@ -1,0 +1,97 @@
+{
+  "candidate": "v6",
+  "frozenAt": "2026-09-12T20:31:17.934256+00:00",
+  "baseReview": "final-v4",
+  "files": [
+    {
+      "path": "snapback3/packages/snapback3/src/client.ts",
+      "sha256": "05e6374c9575d6099a67e4926e2f830a7e19c7d788937e780af1b27f5cdccaab",
+      "bytes": 84244
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/resource/acquisition.ts",
+      "sha256": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+      "bytes": 14228
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/resource/storage.ts",
+      "sha256": "cf1869bbe3eae7c2afdd67d9d245fb35b192e3d2368c725dfcdb93b92b52f90a",
+      "bytes": 15876
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/resource/types.ts",
+      "sha256": "6899cbdcfb4fb0a4dfb056a3da74ed2ea87155a7ec827b9b1bde6e078a97c46c",
+      "bytes": 6764
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/resource/facts.ts",
+      "sha256": "443b83d2b025a7b6b5a718554aec98d67f69ea8bad1a1be9c085b946e50e55f2",
+      "bytes": 10107
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/resource/protocol.ts",
+      "sha256": "96c6708a8147c6ab59335412feaad868ab0d62ce3c3c5c2877684a7da997217f",
+      "bytes": 25560
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/resource/signal.ts",
+      "sha256": "459f2fe1bd8b2075e93fee4e19fa6fe5d1cfc94787da3c1707e0c7e902f04812",
+      "bytes": 2585
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/resource/row-values.ts",
+      "sha256": "c27cb8f44114f1e12414a945eb22e3e3c626033172f57644471c53e6ce18772e",
+      "bytes": 1820
+    },
+    {
+      "path": "snapback3/packages/snapback3/src/node/http.ts",
+      "sha256": "16e29bd5cd5818278b376d171f3c71601c8ec7378239d1b219980fb2d6cfc195",
+      "bytes": 22748
+    },
+    {
+      "path": "snapback3/crates/snapback3-worker/src/protocol.rs",
+      "sha256": "3a5f354bca9d84767667520e02719c263a0e3dd7b34155a4a852a0989dd84340",
+      "bytes": 33543
+    },
+    {
+      "path": "snapback3/tests/acquisition-client.test.ts",
+      "sha256": "3670f0f41d7a706bc1a9caaa01fb7ded50576dde497c21ac7bb45146f1ac979a",
+      "bytes": 50440
+    },
+    {
+      "path": "snapback3/tests/resource-client.test.ts",
+      "sha256": "eea6ff4c60de22ad9d32bc86acf5cc8cdd6c7c0059ff430f993ad90bbe017a36",
+      "bytes": 42460
+    },
+    {
+      "path": "snapback3/tests/manifest-custody.test.ts",
+      "sha256": "b5224137ccbf53c4f181502004f49973be9601c83a2155a9df95369346b0a6aa",
+      "bytes": 1653
+    },
+    {
+      "path": "snapback3/tests/acquisition-envelope-cache.test.ts",
+      "sha256": "18cf5b2ad20f2cc4879fae5f030e4a399b7e84a9a0f097c67fe37a9915325096",
+      "bytes": 7046
+    },
+    {
+      "path": "snapback3/scripts/test-acquisition-storage.mjs",
+      "sha256": "214b6208aa53e5539b7ac0fcb6befcf6cbc41bbb48a6e1f1b91a5d3549aad960",
+      "bytes": 17104
+    },
+    {
+      "path": "snapback3/guide.md",
+      "sha256": "60e20e0cfa8a4820509251091ad715e566021d8a460bd28c959e398900ab56e5",
+      "bytes": 10592
+    },
+    {
+      "path": "llp/2000-snapback3.rfc.md",
+      "sha256": "39029642455df547724b4a8d493057bbc6fd60e1651a8dfc5aadbe26bba17c83",
+      "bytes": 66487
+    }
+  ],
+  "implementationValidation": {
+    "clientBeforeEnvelopeCache": "73 tests passed,287 assertions,TScheck",
+    "designAfterCache": "75 focused tests passed,293 assertions,node build.mjs --check",
+    "qualification": "final combined tests and performance underway;not reviewer evidence"
+  }
+}

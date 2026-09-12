@@ -1,0 +1,90 @@
+{
+  "status": "diagnostic-pass-excluded",
+  "qualificationMember": false,
+  "reason": "This v5 run establishes the exact u0001 public-SDK oracle and scaling evidence. Later SDK defects exclude v5 and v6; final source binding requires v8 or later.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-16-100k-oracle-v5",
+  "dataset": {
+    "persona": "u0001",
+    "principalId": "dev:u0001",
+    "projectionManifestSha256": "4c6744810dd3421f11c7e76f6e656d0fc32dcbaf54078a67d59b38cd73c023d2",
+    "conversations": 1000,
+    "messages": 100000,
+    "pages": 1069,
+    "chains": 1001,
+    "completeFinalPages": 1001,
+    "incompleteIntermediatePages": 68,
+    "seq": 1,
+    "messageFields": [
+      "conversationId",
+      "edited",
+      "id",
+      "replyTo",
+      "senderId",
+      "serverTimestamp",
+      "text",
+      "tombstone"
+    ],
+    "idsSha256": "bc5bc9ebf4e85d8594f1361bf3d61ae60ff01cdf96987c3a2441341970edfcfd",
+    "canonicalRowsSha256": "e9e96a61efc9a4a19fb1830807f64cb20cbceedaf2a79976b41f9a9a816997f9"
+  },
+  "primaryElapsedMs": 21970.169638,
+  "firstUsefulInboxMs": 432.25537109375,
+  "firstUsefulHistoryMs": 21892.85546875,
+  "acquisitionCompletedPageMarkMs": 21628.800000190735,
+  "network": {
+    "allRequests": 102,
+    "acquireResponses": 96,
+    "acquireEncodedBytes": 2274859,
+    "acquireDecodedBytes": 31207041,
+    "acquireSummedResponseWallMs": 4301.017000805587,
+    "responsePages": 1069
+  },
+  "memoryBeforeAudit": {
+    "browserHeapUsedBytes": 281127628,
+    "browserHeapTotalBytes": 333336576,
+    "embedderHeapUsedBytes": 11150344,
+    "backingStorageBytes": 5711300,
+    "rss": null,
+    "rssReason": "OS process RSS was not instrumented for this run."
+  },
+  "privateStorageAfterRun": {
+    "indexedDbDirectoryBytes": 47093357,
+    "meaning": "Filesystem size of the private Chromium profile's Default/IndexedDB directory after the completed physical-reopen run; not an in-timer write-byte measure."
+  },
+  "physicalReopen": {
+    "elapsedMs": 8308.480930999998,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "conversations": 1000,
+    "messages": 100000,
+    "pages": 1069,
+    "chains": 1001,
+    "seq": 1,
+    "idsSha256": "bc5bc9ebf4e85d8594f1361bf3d61ae60ff01cdf96987c3a2441341970edfcfd",
+    "canonicalRowsSha256": "e9e96a61efc9a4a19fb1830807f64cb20cbceedaf2a79976b41f9a9a816997f9"
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v5/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "21fa90a9dc13765cc8e0b9ddedacdd4221831be4fe6b60daf9678d2fa17cd47f",
+    "packageSourceSha256": "15372c210573502f1bfd4a880164326ce7d3d6b8190663e5e84984e55bdfc5b9",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "oracleAppAcquireSha256": "77860eaf899f9cdfc06239d3151c3f96d1114fe72643687b53e699ec2a1cddd1",
+    "oracleControllerSha256": "b7d027efa9e4ca1555227ebaf7b55ff2861b381f5af5b95412a96486b108160f",
+    "packagedWorkerOverrideRemoved": true
+  },
+  "rawSha256": {
+    "summary.json": "4818f1c06c819dca628c3614d9395bfa220cb366df188c946cfeb574a53a9b02",
+    "metadata.json": "d27f65cdd9b7a6c2e30869d3e28824691c6228f6feab20c8973c28a4e64fa561",
+    "run-01/result.json": "8fcc5d95652be3bfdbdc4317433f811a0b3f1eba6f2084311d33c12da68d7526",
+    "cleanup-receipt.json": "919f9ca2376f91f4c4ece07d09c18749cc99252e8557e320ec5d9667b055e285",
+    "worker-cleanup-receipt.json": "363ba245e3629c856a44bcc1d9be7e602b93c1da329aba8381181d9e2e6466d5"
+  },
+  "failedAttempts": [
+    {
+      "remote": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-14-100k-oracle-v3",
+      "reason": "Acquisition completed, but UI selection timed out because g0001 is not on u0001's first inbox page; the failed controller version did not yet checkpoint inner acquisition evidence.",
+      "cleanupVerified": true
+    }
+  ],
+  "outputRetrieval": "Use the public summary and listed hashes for review. Retrieve the exact remote raw directory by rsync if deeper audit is needed; keep its browser profile and IndexedDB private."
+}

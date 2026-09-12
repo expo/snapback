@@ -1,0 +1,107 @@
+{
+  "status": "diagnostic-pass-excluded",
+  "qualificationMember": false,
+  "reason": "V7 passed its measured performance and harness checks, but the caller-mutable declaration could redirect cancellation to a sibling dataset and guarded memory clears could emit a false authority notification that withdrew successor live state. V7 is preserved diagnostic evidence; both defects are repaired in v8.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-21-candidate-v7-first",
+  "primaryElapsedMs": 2870.8923069999996,
+  "firstUsefulInboxMs": 414.46044921875,
+  "firstUsefulHistoryMs": 2764.660400390625,
+  "acquisitionCompletedPageMarkMs": 2505.2000000476837,
+  "network": {
+    "allRequests": 20,
+    "allEncodedBytes": 2190322,
+    "acquireResponses": 14,
+    "acquireEncodedBytes": 252652,
+    "acquireDecodedBytes": 3254732,
+    "responsePages": 151,
+    "responseContinuations": 80
+  },
+  "heapBeforeAudit": {
+    "usedBytes": 56370984,
+    "totalBytes": 122310656,
+    "embedderHeapUsedBytes": 8332704,
+    "backingStorageBytes": 2077823
+  },
+  "correctness": {
+    "conversations": 100,
+    "uniqueConversations": 100,
+    "messages": 10000,
+    "uniqueMessages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "completeFinalPages": 101,
+    "incompleteIntermediatePages": 50,
+    "seq": 1,
+    "messageFields": [
+      "conversationId",
+      "edited",
+      "id",
+      "replyTo",
+      "senderId",
+      "serverTimestamp",
+      "text",
+      "tombstone"
+    ],
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "digestScope": "Both digests bind message rows. Conversation full fields are not hashed.",
+    "conversationIdSet": {
+      "expected": "g0001 through g0100",
+      "count": 100,
+      "sha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+    }
+  },
+  "physicalReopen": {
+    "elapsedMs": 1478.969271,
+    "firstOfflineUseElapsedMs": 725,
+    "fullAuditElapsedMs": 184,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "fullAuditMatchesPrimary": true
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v7/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "8cce9c949efe48e489ca638e7601d0d2ce250822357296f8abccfad2224e7489",
+    "packageSourceSha256": "46c06798781f6719940577cae2b5f42140e1085dc31e7069dbc8370c3794e658",
+    "packageReportSha256": "90d91b1312f1977c032f935b80159d9c03e1e838b26eb98c66ceee383e5c98a4",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "sourceFilesManifestSha256": "f943add3db0d809c9bfaa13b3e2711469fb582ac9d4e39204b3d6ce1d6dcb3c0",
+    "clientTsSha256": "314d95a3d210eeda6e6055977fb0cc9c91d96a139f2c0cf6845c6772d82e44fb",
+    "storageTsSha256": "b53c8fabb5521a5ceb072d3f6c38b1bdd7dfedaab0f7c727f2a0764f23b6de20",
+    "typesTsSha256": "d934bf6db72b46cfd8a4bd276bbed6229bd8074ef20334e22a5c86d61214e5a1",
+    "acquisitionTsSha256": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+    "idbControlScriptSha256": "6a3160cd78091849994009a390605c1040dbe4203c6620e41ec8550478996e3c",
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "appAcquireSha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+    "appBundleSha256": "a9a0fba49c9bfb8773fe9d545202490a7a8c7feee758a13a84129f2bd0ec2756",
+    "packagedWorkerOverrideRemoved": true
+  },
+  "rawSha256": {
+    "summary.json": "6e4076860e77e0ac8e0af09ad91d52db8f7eddef7af0a0c165fb79739b22d6a5",
+    "metadata.json": "2571bf8a9e98b5e41b0084138c2d32bc0b9c51867e83c7a02fb494f95d073e0d",
+    "run-01/result.json": "5ce66206ec266d4a4e733d3cba5d737693d192082d342ce77dfb98ae3e90d729",
+    "cleanup-receipt.json": "cb0bc337d0ca691d93d952c31c265fcbf14b8d74f1727149fafb1eaf9aa7f022",
+    "worker-cleanup-receipt.json": "9dc083191aa3b55045bac1a7a5cbfec9c0e59b2b0ffeee852c36443c5c516396"
+  },
+  "cleanup": {
+    "owner": {
+      "pid": 2091261,
+      "startTick": "160623526",
+      "cleaned": true
+    },
+    "worker": {
+      "pid": 2091301,
+      "startTick": "160623819",
+      "cleaned": true
+    },
+    "port": 54924,
+    "portFree": true
+  },
+  "relatedControl": {
+    "realIdbGroupsPassed": 9,
+    "realIdbGroupsFailed": 0,
+    "foregroundControlsRun": false,
+    "foregroundReason": "Root stopped v7 after the input-ownership defect; final foreground controls await v8."
+  },
+  "preservedBuildFailure": "v7-package-attempt-1-failure.json"
+}

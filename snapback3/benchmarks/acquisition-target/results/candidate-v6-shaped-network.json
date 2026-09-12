@@ -1,0 +1,116 @@
+{
+  "status": "diagnostic-pass-excluded",
+  "qualificationMember": false,
+  "reason": "This shaped-network run is bound to exact v6. Subsequent final-v6 review found three SDK lifecycle P1 defects, so it is preserved diagnostic evidence and not final qualification.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-20-shaped-final-v6",
+  "condition": {
+    "method": "Chrome CDP Network.emulateNetworkConditions",
+    "offline": false,
+    "latencyMs": 50,
+    "downloadBytesPerSecond": 1250000,
+    "downloadMbitPerSecond": 10,
+    "uploadBytesPerSecond": 625000,
+    "uploadMbitPerSecond": 5,
+    "connectionType": "wifi"
+  },
+  "primaryElapsedMs": 5302.539348,
+  "firstUsefulInboxMs": 2337.06005859375,
+  "firstUsefulHistoryMs": 5232.06005859375,
+  "acquisitionCompletedPageMarkMs": 4957.799999952316,
+  "network": {
+    "allRequests": 19,
+    "allEncodedBytes": 2188127,
+    "appBundleEncodedBytes": 1390169,
+    "manifestEncodedBytes": 544162,
+    "authEncodedBytes": 503,
+    "acquireResponses": 13,
+    "acquireEncodedBytes": 251867,
+    "acquireDecodedBytes": 3254295,
+    "responsePages": 151,
+    "responseContinuations": 79
+  },
+  "heapBeforeAudit": {
+    "usedBytes": 68736124,
+    "totalBytes": 112611328,
+    "embedderHeapUsedBytes": 11267176,
+    "backingStorageBytes": 2129663
+  },
+  "correctness": {
+    "conversations": 100,
+    "uniqueConversations": 100,
+    "messages": 10000,
+    "uniqueMessages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "completeFinalPages": 101,
+    "incompleteIntermediatePages": 50,
+    "seq": 1,
+    "messageFields": [
+      "conversationId",
+      "edited",
+      "id",
+      "replyTo",
+      "senderId",
+      "serverTimestamp",
+      "text",
+      "tombstone"
+    ],
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "digestScope": "Both digests bind message rows. Conversation full fields are not hashed.",
+    "conversationIdSet": {
+      "expected": "g0001 through g0100",
+      "count": 100,
+      "sha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+    },
+    "properSubsetSearch": true,
+    "negativeSearchZero": true
+  },
+  "physicalReopen": {
+    "elapsedMs": 1448.807617999999,
+    "firstOfflineUseElapsedMs": 706,
+    "fullAuditElapsedMs": 182.90000009536743,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "fullAuditMatchesPrimary": true
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v6/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "fcc08d11c34a7619c4c62a31512b71138978bd862c5bf6fb8b4c64dc460b3d3b",
+    "packageSourceSha256": "f2df8a3252437d9de36807d1c2444642441cb128f070c23b4078ac295108e25a",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "packageJsonSha256": "b7cdf33f91591e8b5e57eace358e1e73c907f8288bff8e72148a693a0242eb59",
+    "source": {
+      "clientTsSha256": "05e6374c9575d6099a67e4926e2f830a7e19c7d788937e780af1b27f5cdccaab",
+      "acquisitionTsSha256": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+      "acquisitionClientTestSha256": "3670f0f41d7a706bc1a9caaa01fb7ded50576dde497c21ac7bb45146f1ac979a",
+      "envelopeCacheTestSha256": "18cf5b2ad20f2cc4879fae5f030e4a399b7e84a9a0f097c67fe37a9915325096",
+      "sourceFilesManifestSha256": "7f99ef5a5c5d0a2dbaf5aa816b12a4610056c62bda9301bf888f343b8145608d"
+    },
+    "packagedWorkerOverrideRemoved": true,
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "appAcquireSha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7"
+  },
+  "rawSha256": {
+    "summary.json": "1ed2bd1842a5e3a17f1441c164e9adb92a1910e2fbd4adc6519bffb2e0bd5d44",
+    "metadata.json": "b16e7a2a2350661e0248eb4432412cfee64be4685f23b7eb19b256beca73cede",
+    "run-01/result.json": "e46c8c0bedd97d921c4ef6e02872e9c3858a87e660e160d6038b3272abdd3cb5",
+    "cleanup-receipt.json": "54d1d2b3b2367711fb962ecaab5eb3768f7af33781851f7f2916b121ea9dfe4c",
+    "worker-cleanup-receipt.json": "676fb901213b37910acfc64d845e304deaa95852e0b9e4d56bb20c3c9f0d6e4a"
+  },
+  "cleanup": {
+    "owner": {
+      "pid": 2048925,
+      "startTick": "160459290",
+      "cleaned": true
+    },
+    "worker": {
+      "pid": 2048939,
+      "startTick": "160459583",
+      "cleaned": true
+    },
+    "port": 54924,
+    "portFree": true
+  },
+  "limitations": "This browser-level model adds fixed latency and throughput caps. It does not model WAN routes, loss, jitter, server contention, or a remote owner, and it is not compared with the 3-second loopback target."
+}

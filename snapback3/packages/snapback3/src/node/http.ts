@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { gzipSync } from "node:zlib";
 import { OwnerError, type WorkerTransport } from "./worker.js";
 import { PasswordAttempts } from "./auth-limit.js";
 
@@ -26,6 +27,11 @@ export interface HttpOptions {
 }
 
 interface ResourceQuery { key: string; op: string; args: Record<string, unknown> }
+interface AcquisitionChain extends ResourceQuery {
+  cursor: string;
+  follow: boolean;
+  validator?: string;
+}
 interface LiveStream {
   response: ServerResponse;
   token: string;
@@ -201,12 +207,15 @@ export function createOwnerServer(options: HttpOptions) {
       json(response, 200, await options.worker.request("status", { token: bearer(request), intent }));
       return;
     }
-    if (["/api/query", "/api/read", "/api/mutation"].includes(path) && request.method === "POST") {
+    if (["/api/query", "/api/read", "/api/acquire", "/api/mutation"].includes(path) && request.method === "POST") {
       const token = bearer(request);
       const body = await readJson(request);
       if (path === "/api/read") {
         const queries = resourceQueries(body);
         json(response, 200, await options.worker.request("read", { token, queries }));
+      } else if (path === "/api/acquire") {
+        const acquisition = acquisitionRequest(body);
+        negotiatedJson(request, response, 200, await options.worker.request("acquire", { token, ...acquisition }));
       } else {
         const mutation = path === "/api/mutation";
         keys(body, mutation ? ["op", "args", "intent", "planHash", "schemaHash"] : ["op", "args"]);
@@ -288,6 +297,44 @@ function resourceQueries(body: Record<string, unknown>): ResourceQuery[] {
     return { key, op: operation(query.op), args: object(query.args ?? {}, "args") };
   });
 }
+function acquisitionRequest(body: Record<string, unknown>): { expectedSeq?: number; chains: AcquisitionChain[] } {
+  keys(body, ["expectedSeq", "chains"]);
+  let expectedSeq: number | undefined;
+  if (body.expectedSeq !== undefined) {
+    if (!Number.isSafeInteger(body.expectedSeq) || (body.expectedSeq as number) < 0 || Object.is(body.expectedSeq, -0)) {
+      throw new OwnerError("S3_INPUT", "expectedSeq must be a nonnegative safe integer.");
+    }
+    expectedSeq = body.expectedSeq as number;
+  }
+  if (!Array.isArray(body.chains) || body.chains.length === 0 || body.chains.length > 64) {
+    throw new OwnerError("S3_INPUT", "chains must be an array containing between 1 and 64 declarations.");
+  }
+  const seen = new Set<string>();
+  const chains = body.chains.map(value => {
+    const chain = object(value, "acquisition chain");
+    keys(chain, ["key", "op", "args", "cursor", "follow", "validator"]);
+    const key = text(chain.key, "acquisition key", 512);
+    if (seen.has(key)) throw new OwnerError("S3_INPUT", "Acquisition chain keys must be unique within a request.");
+    seen.add(key);
+    const args = object(chain.args, "args");
+    const cursor = text(chain.cursor, "cursor", 256);
+    if (!Object.hasOwn(args, cursor) || (args[cursor] !== null && typeof args[cursor] !== "string")) {
+      throw new OwnerError("S3_INPUT", `args.${cursor} must be null or a cursor string.`);
+    }
+    const follow = chain.follow === undefined ? true : chain.follow;
+    if (typeof follow !== "boolean") throw new OwnerError("S3_INPUT", "follow must be a boolean when present.");
+    let validator: string | undefined;
+    if (chain.validator !== undefined) {
+      if (typeof chain.validator !== "string" || !/^[0-9a-f]{64}$/.test(chain.validator)) {
+        throw new OwnerError("S3_INPUT", "validator must be a lowercase SHA-256 digest.");
+      }
+      if (follow) throw new OwnerError("S3_INPUT", "validator requires follow:false.");
+      validator = chain.validator;
+    }
+    return { key, op: operation(chain.op), args, cursor, follow, ...(validator === undefined ? {} : { validator }) };
+  });
+  return { ...(expectedSeq === undefined ? {} : { expectedSeq }), chains };
+}
 function asOwnerError(error: unknown): OwnerError {
   return error instanceof OwnerError ? error : new OwnerError("S3_INTERNAL", "The server could not complete this request.");
 }
@@ -296,7 +343,8 @@ function statusFor(code: string): number {
   if (code === "S3_FORBIDDEN") return 403;
   if (code === "S3_NOT_FOUND") return 404;
   if (code === "S3_CONTENT_TYPE") return 415;
-  if (code === "S3_INPUT_TOO_LARGE") return 413;
+  if (code === "S3_INPUT_TOO_LARGE" || code === "S3_ACQUISITION_OVERSIZE") return 413;
+  if (code === "S3_SEQUENCE_CHANGED" || code === "S3_GENERATION_CHANGED") return 409;
   if (code === "S3_OWNER_BUSY" || code === "S3_AUTH_RATE_LIMIT") return 429;
   if (code.startsWith("S3_WORKER") || code === "S3_OWNER_CLOSED") return 503;
   if (code === "S3_INTERNAL") return 500;
@@ -305,6 +353,39 @@ function statusFor(code: string): number {
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   response.end(JSON.stringify(value));
+}
+
+function negotiatedJson(request: IncomingMessage, response: ServerResponse, status: number, value: unknown): void {
+  const raw = Buffer.from(JSON.stringify(value));
+  const encoded = raw.length >= 1024 && acceptsGzip(request.headers["accept-encoding"])
+    ? gzipSync(raw)
+    : raw;
+  const compressed = encoded !== raw;
+  const vary = response.getHeader("Vary");
+  response.setHeader("Vary", vary ? `${String(vary)}, Accept-Encoding` : "Accept-Encoding");
+  response.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Content-Length": encoded.length,
+    ...(compressed ? { "Content-Encoding": "gzip" } : {}),
+  });
+  response.end(encoded);
+}
+
+function acceptsGzip(header: string | undefined): boolean {
+  if (!header) return false;
+  let wildcard: boolean | undefined;
+  for (const item of header.split(",")) {
+    const [name, ...parameters] = item.trim().toLowerCase().split(";");
+    const qualityParameter = parameters.find(parameter => /^q\s*=/.test(parameter.trim()));
+    const quality = qualityParameter
+      ? /^q\s*=\s*(0(?:\.\d+)?|1(?:\.0+)?)$/.exec(qualityParameter.trim())?.[1]
+      : undefined;
+    const accepted = qualityParameter === undefined || (quality !== undefined && Number(quality) > 0);
+    if (name === "gzip") return accepted;
+    if (name === "*") wildcard = accepted;
+  }
+  return wildcard ?? false;
 }
 
 function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {

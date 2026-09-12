@@ -203,7 +203,10 @@ export function decodeDeliveryMessage(json: unknown): DeliveryMessage {
     digest(json.validator, "$.validator");
     return json as unknown as DeliveryUnchanged;
   }
-  return decodeDeliveryEnvelope(json);
+  // Acquisition retains these envelopes beyond the request turn. Establish
+  // immutable ownership while decoding so callers do not traverse and size
+  // the same multi-page payload a second time.
+  return ownDeliveryEnvelope(json);
 }
 
 export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {

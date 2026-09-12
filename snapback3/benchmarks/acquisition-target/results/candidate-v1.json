@@ -1,0 +1,149 @@
+{
+  "status": "diagnostic-unqualified",
+  "date": "2026-09-12",
+  "host": "EPYC linux-x64",
+  "candidate": {
+    "baseCommit": "2ea99ca6c7d4f060b0c940d88e8e797e15f202e9",
+    "sourceSha256": "12d8ad19244e569c8e316012517e03cf65ebc5281112bf0c16901c021ce26047",
+    "sourceFileManifestSha256": "3f026006970e68790772a5b5680ff09842aa3a2be1ee58d5f7418b12c9bcf526",
+    "nativeSha256": "68eac7daea5d0df84a80211974d23e9d7f4734be504e2cb64827e5b6ba0ad53e",
+    "packageSha256": "a4afc5ef32cc86a718f783c7de4bbdb2c5c71d65d7fec21a072ccce1cc50d8a8",
+    "packageBytes": 4614276,
+    "appFileManifestSha256": "b3b444d34d924033dfd2c930d8045ff66c2807f060fa6c0641656dfae088f08f",
+    "appBundleSha256": "30e692a81f96f172c94c11b7062a1a556d1d6ade7d000c4d8e828c19497d63f2",
+    "compiledProjectSha256": "a0f2972d79f536ca569c0203b3d044e52a59eb0f25fab74577d75b5b7b560063",
+    "schemaSha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017",
+    "appAcquireSha256": "df7b93b721121317c0418ae1192ea8ecea31766b0d5b2156bb9bbc018933d1d1",
+    "uiSourceFileManifestSha256": "d1cd643023fff39213717bafbf9b6301444058b191b470f8b86ac7edcf0704a0"
+  },
+  "ordinary": {
+    "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-03-candidate-v1/summary.json",
+    "rawArtifacts": {
+      "summarySha256": "f08f77cc8480101757d9dc3e56ebf23a55dc102dbad2bf722583eb1f0f98eb88",
+      "metadataSha256": "23547137a9a7c1da51627f82ebb8d913b7f50624b5048477d1f640f61418d4c7",
+      "resultSha256": "294ccf9fb3a95eea0e0fb25591af60b2a46e6910e022c8dd2b35405def0018d7",
+      "cleanupSha256": "4d4a5f9a0e10d2fd0e460304756381d812709dd49a6efcd81aec173d3873242b",
+      "ownerCustodySha256": "f37e8ab34ed28dd295c6d9594940665d072e0522cb71313e48084c715bca67d9",
+      "chromiumCustodySha256": "884696771794af2fdda0cce5690c6e7d741238a5df8040f9c1f817e5fba61f9a"
+    },
+    "primaryElapsedMs": 3594.774141,
+    "stoppedForTarget": true,
+    "phasesMs": {
+      "pageLoadToHook": 243.1,
+      "hookToClientReady": 56.6,
+      "fixturePersonaAuth": 73.9,
+      "reactPaintAfterAuth": 3.2,
+      "acquisitionCompleted": 2868.0,
+      "firstOfflineSdkHistoryAndSearch": 12.3,
+      "reactSelectionSearchRenderAndController": 337.274141
+    },
+    "acquisition": { "status": "ready", "pages": 151, "chains": 101, "seq": 1 },
+    "network": {
+      "requestsAll": 35,
+      "encodedBytesAll": 2246175,
+      "acquireRequests": 29,
+      "acquireEncodedBytes": 321932,
+      "acquireDecodedBytes": 3497241,
+      "acquireContinuations": 775
+    },
+    "heapBeforeAudit": { "usedBytes": 71627648, "totalBytes": 114573312 },
+    "postTimerAudit": {
+      "elapsedMs": 340.5,
+      "conversations": 100,
+      "messages": 10000,
+      "pages": 151,
+      "chains": 101,
+      "intermediateIncompletePages": 50,
+      "completeFinalPages": 101,
+      "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+      "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2"
+    },
+    "offlineReopen": {
+      "elapsedMs": 1140.98666,
+      "mainResponseFromServiceWorker": true,
+      "status": 200,
+      "sdkInnerMs": 704.6,
+      "historyRows": 200,
+      "searchRows": 200,
+      "limitation": "This first ordinary diagnostic queried only the first acquired page after physical reopen. Its service worker also cached every successful GET, including API responses, so it is not a strict shell-only offline boot control."
+    },
+    "networkBoundary": "client.setOnline(false) forced SDK offline reads, but browser network remained enabled. Actual network-offline behavior was tested only in the physical reopen control.",
+    "custodyLimitation": "The owner and Chromium PID files lack start ticks because of a controller /proc parser error corrected before the profiled run. Cleanup completed and ports were verified free, but this attempt makes no exact PID/start-tick custody claim."
+  },
+  "profiled": {
+    "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-04-candidate-v1-profile/summary.json",
+    "rawArtifacts": {
+      "summarySha256": "2ef462ab5884e3570864cfa90f2c1c65695212957304f922f3cedf432e098278",
+      "metadataSha256": "275d13a6e73708699420552dbe9819f274672a0dd0bb73526c963e08359071d0",
+      "resultSha256": "154e3eeb0e6ede75e22d30ef2bdc6bdcdb00b2c47e5990336f23b8c2a24748da",
+      "cleanupSha256": "792c1b8bc7167cee69c72455d8f89e6b5a6df3ad071fdbe39fc36a46bdee1e61",
+      "ownerCustodySha256": "1ba5ccebc281c81c65443d13e5ff3b74f7714f8ca7ff430c81c543a2e13446ec",
+      "chromiumCustodySha256": "d02014366dc1a2bb8e112e0f29c169ad2263a697ef854c027fda4c50722c6969"
+    },
+    "rawCpuProfile": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-04-candidate-v1-profile/run-01/cpu-profile.json",
+    "rawCpuProfileSha256": "98abba1ec607ae7af055c63c5a4cd8ce9df868bddc52453ba2f2a81b3602a060",
+    "mappedProfile": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-04-candidate-v1-profile/run-01/top-self-time-functions.json",
+    "mappedProfileSha256": "91988e7e6aca79d20a8d7fce4f22b634af3c2faab578d402b153c25352fd8fe8",
+    "controllerSha256": "a013080973aa00950c0928797cc6d25cd69e0db6008d3459d647be74a2645e1d",
+    "primaryElapsedMs": 3642.860929,
+    "acquisitionElapsedMs": 2827.5,
+    "acquire": {
+      "traverse": { "requests": 16, "requestChains": 319, "responsePages": 151, "continuations": 218, "wallMs": 457.466, "encodedBytes": 255875, "decodedBytes": 3270007 },
+      "validation": { "requests": 13, "requestChains": 708, "responsePages": 151, "continuations": 557, "wallMs": 222.83, "encodedBytes": 66136, "decodedBytes": 228440 }
+    },
+    "storage": { "writesAllPrimary": 40, "wallMsAllPrimary": 904.5, "writesAfterAcquisitionStart": 33, "wallMsAfterAcquisitionStartApprox": 855.0, "maxWriteMs": 97.0 },
+    "sampledSelfTimeMs": {
+      "engineIdle": 1385.407,
+      "sdkHashUtf8": 411.058,
+      "sdkEvaluatorValueIndex": 233.567,
+      "sdkProtocolValidation": 149.478,
+      "sdkPersistenceJavaScript": 148.557,
+      "sdkSourceUnmapped": 484.751,
+      "sdkClientResourceOrchestration": 15.071,
+      "garbageCollector": 144.378,
+      "nativeProgramUnattributed": 266.654,
+      "reactCoreRendering": 127.874,
+      "otherFramework": 219.212,
+      "authoredApp": 7.478
+    },
+    "offlineReopen": {
+      "elapsedMs": 1491.528055,
+      "mainResponseFromServiceWorker": true,
+      "status": 200,
+      "fullAuditMs": 227.9,
+      "messages": 10000,
+      "pages": 151,
+      "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+      "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+      "limitation": "The full audit passed, but the v1 service worker cached every successful GET, including API responses. This is not a strict shell-only offline boot control and must be rerun with the corrected allowlisted shell."
+    }
+  },
+  "preservedFailures": [
+    {
+      "remote": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-00-install-permission",
+      "cause": "Copied retained app files were mode 0444; npm install failed EACCES before build. The copied target alone was made owner-writable."
+    },
+    {
+      "remote": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-01-candidate-v1",
+      "cause": "Controller used a historical bin path; owner exited before navigation."
+    },
+    {
+      "remote": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-02-candidate-v1",
+      "cause": "Harness asserted persona input u0500 as the principal ID; fixture auth correctly returned dev:u0500. Failure occurred immediately after auth."
+    }
+  ],
+  "remoteEvidenceManifest": {
+    "path": "/home/ccheever/snapback3-acquisition-20260912/target/results/candidate-v1-evidence.sha256",
+    "sha256": "100a4dc8ee1ab028804c1d91ceae0800f5ebc74f0a729b5be94c425523c2e6de"
+  },
+  "interpretation": "The ordinary candidate-v1 result is 594.8 ms over the target. The profiled run indicates that only about 680 ms of the 2.83 s acquisition was spent in the 29 serial loopback /api/acquire turns, while post-acquisition-start IndexedDB writes consumed about 855 ms of wall time. Sampling further attributes substantial browser work to row hashing and UTF-8, value/index evaluation, protocol validation, persistence JavaScript and unmapped SDK code. This is a diagnostic attribution, not an additive critical-path accounting: categories and awaited wall intervals can overlap, mappings from the minified Metro bundle are qualified inferences, and profiling perturbs the run.",
+  "qualificationOmissions": [
+    "Candidate v1 predates pending reviewer safety fixes and is unqualified.",
+    "Only one ordinary successful diagnostic was run because it exceeded 3 seconds.",
+    "The profiled result is not an ordinary cohort member.",
+    "No fixed-package alternating baseline pairs were run.",
+    "The v1 service worker used a generic successful-GET cache. Both v1 reopen observations are excluded from strict shell-only offline-boot qualification.",
+    "No send, authority-race, generation-reset, lost-reply, persistence-failure, reconnect, 100k, or network-shaped controls were run.",
+    "No median, p95, production, or comparative capability claim is made."
+  ]
+}

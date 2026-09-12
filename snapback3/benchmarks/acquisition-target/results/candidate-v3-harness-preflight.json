@@ -1,0 +1,87 @@
+{
+  "status": "diagnostic-only",
+  "candidate": "v3",
+  "qualificationMember": false,
+  "reason": "This bounded run validates the corrected final-cohort harness against v3. Independent review had already excluded v3 for SDK safety defects.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-12-v3-harness-preflight",
+  "primaryElapsedMs": 3099.0691880000004,
+  "timerBoundary": "Before browser navigation through app/SDK load, fixture persona auth, acquisition completion, first SDK-forced-offline history, and the React acquired-page busy search/render. Owner/fixture readiness is before the clock; browser network remains enabled.",
+  "acquisitionMode": "public-sdk-acquire",
+  "firstUsefulDom": {
+    "meaning": "A nonzero viewport DOM box with visible CSS, followed by an animation frame; not a compositor paint measure.",
+    "inboxFromOuterStartMs": 455.671142578125,
+    "inboxVisibleRows": 50,
+    "historyFromOuterStartMs": 3029.47119140625,
+    "historyVisibleRows": 200
+  },
+  "network": {
+    "requests": 23,
+    "encodedBytes": 2189221,
+    "acquireResponses": 17,
+    "acquireEncodedBytes": 256783,
+    "acquireDecodedBytes": 3270444,
+    "acquireSummedWallMs": 542.1539996750653
+  },
+  "heapBeforeAudit": {
+    "usedSize": 67527332,
+    "totalSize": 113524736,
+    "embedderHeapUsedSize": 11323840,
+    "backingStorageSize": 2121746
+  },
+  "searchControl": {
+    "scope": "first acquired messages.page only",
+    "properSubsetTerm": "00001",
+    "expectedIds": ["mg0001-00001"],
+    "observedIds": ["mg0001-00001"],
+    "negativeRendered": 0,
+    "busyRestoredRows": 200
+  },
+  "audit": {
+    "elapsedMs": 277.59999990463257,
+    "conversations": 100,
+    "messages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "completePages": 101,
+    "incompletePages": 50,
+    "completeFinalPages": 101,
+    "seq": 1,
+    "messageFields": ["conversationId", "edited", "id", "replyTo", "senderId", "serverTimestamp", "text", "tombstone"],
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2"
+  },
+  "physicalReopen": {
+    "elapsedMs": 1291.7473889999992,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "shellCacheName": "snapback3-acquisition-target-3e0573de9d57073bc1e4ab27",
+    "auditMessages": 10000,
+    "auditPages": 151,
+    "auditChains": 101,
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2"
+  },
+  "inputs": {
+    "candidateSourceSha256": "13667c50beda3c9a5a89177eb634a879cc25c6343b07a4bcce93f6c450297590",
+    "packageArchiveSha256": "aa5253e0ce1eb1a663abfd4f95a78381a5cb8fa206672ccd2a8bd2428594539d",
+    "acquireHarnessSha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+    "retainedWalkerSha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4",
+    "controllerSha256": "2f37a10e46463e98b5801170744249824f9b0c8b08a958efe688be7199880389",
+    "appClientSha256": "85d46218c7624043ad592df92c90abf1923df2bf6674379c42cec32d434098d6",
+    "schemaSha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017",
+    "distIndexSha256": "f5b20f4fad62475ca5673a1cb685f595d84035cdfa5393ddfe07af12881aee07",
+    "serviceWorkerSha256": "c4727378cb4311cf388bd22ed79395957e43086cc1f837ee23305a7df8729b6e"
+  },
+  "rawSha256": {
+    "summary.json": "1dd40c46d5addfb9f7b8a0307bad4fa20253a07931c21f1fe0f15c64656517ca",
+    "metadata.json": "9515e6f5a1a7ae4a2fb0130cc2f3ca73e9e8ffa23e6b48204d07a22638c423ae",
+    "run-01/result.json": "f9947f9e9b4fc6560df0d016484c830668e91e8d3d926a808938ee1e8908998b",
+    "cleanup-receipt.json": "e6c61be33c0f3729a21c1081e48319ddb5740c4a6015d1bdcdc01d74cdb5b763"
+  },
+  "custody": {
+    "owner": {"pid": 1957373, "startTick": "160158834", "cleaned": true},
+    "chromium": {"pid": 1957565, "startTick": "160159174"},
+    "reopenedChromium": {"pid": 1957715, "startTick": "160159581"},
+    "ports54924And54925FreeAfter": true
+  }
+}
