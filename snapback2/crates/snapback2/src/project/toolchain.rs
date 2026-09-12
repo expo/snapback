@@ -12,7 +12,7 @@ fn pinned_node(value: Option<OsString>) -> Result<PathBuf, Refusal> {
         Refusal::owner(
             "E_OWNER_NO_COMPILER",
             "no absolute Node executable was pinned by the launcher",
-            "run the npm snapback2 launcher, or set SNAPBACK2_NODE to your trusted absolute Node executable",
+            super::compiler_rewrite(),
         )
     };
     let path = value.map(PathBuf::from).ok_or_else(refused)?;

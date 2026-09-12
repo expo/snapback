@@ -9,6 +9,17 @@ const platformPackageNames = ['snapback2-darwin-arm64', 'snapback2-linux-x64'];
 
 function isPlatformPackage(name) { return platformPackageNames.includes(name); }
 
+export function platformPackageReadme(name) {
+  return `# ${name}
+
+This package contains Snapback 2 native binaries for ${name.replace('snapback2-', '')}.
+
+Do not execute \`bin/snapback2\` directly for \`check\` or \`dev\`. Run
+\`npx snapback2 check\` or \`npx snapback2 dev\`; the public wrapper supplies
+the bundled compiler worker and the rest of the package runtime.
+`;
+}
+
 export function hostConsumerArtifacts(artifacts, platform = process.platform, arch = process.arch) {
   const hostName = `snapback2-${platform}-${arch}`;
   const shim = artifacts.filter(artifact => artifact.name === 'snapback2');
@@ -122,7 +133,19 @@ export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } 
     const installed = execute('install tarballs', npm, [...installArgs, ...artifacts.map(a => a.tarball), 'react@19.1.1', 'react-dom@19.1.1', 'vite@7.1.4', '@types/react@19.1.12', '@types/react-dom@19.1.9', 'react-test-renderer@19.1.1'], directory);
     if (installed.status === 0) {
       const cli = resolve(directory, 'node_modules/snapback2/bin/snapback2.mjs');
+      const platformName = `snapback2-${process.platform}-${process.arch}`;
+      const rawCli = resolve(directory, 'node_modules', platformName, 'bin/snapback2');
+      const readme = readFileSync(resolve(directory, 'node_modules', platformName, 'README.md'), 'utf8');
+      const readmeOk = readme.includes('Do not execute `bin/snapback2` directly')
+        && readme.includes('npx snapback2 check') && readme.includes('npx snapback2 dev');
+      steps.push({ name: 'platform README guidance', seconds: 0, ok: readmeOk });
+      if (!readmeOk) failures.push(`${platformName} README does not route check/dev through the public wrapper`);
       const invoke = (name, args, cwd, accept) => execute(name, process.execPath, [cli, ...args], cwd, accept);
+      const rawGuidance = (result, command) => {
+        const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+        return result.status === 1 && output.includes('E_OWNER_NO_COMPILER')
+          && output.includes(`run npx snapback2 ${command}`);
+      };
       invoke('doctor', ['doctor', '--json'], directory);
       invoke('guide auth', ['guide', 'auth'], directory);
       execute('public client and React exports', process.execPath, ['--input-type=module', '-e',
@@ -131,6 +154,19 @@ export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } 
         const project = resolve(directory, template);
         mkdirSync(project);
         invoke(`${template} init`, ['init', '.', '--template', template, '--client', 'react', '--json'], project);
+        if (template === 'todos') {
+          const compiler = resolve(directory, 'node_modules/snapback2/dist/compiler.mjs');
+          execute('raw binary check missing-compiler guidance', rawCli, ['check'], project,
+            result => rawGuidance(result, 'check'));
+          execute('raw binary check missing-node guidance', rawCli, ['check'], project,
+            result => rawGuidance(result, 'check'),
+            { ...env, SNAPBACK2_COMPILER: compiler });
+          execute('raw binary dev missing-compiler guidance', rawCli, ['dev', '--foreground'], project,
+            result => rawGuidance(result, 'dev --foreground'));
+          execute('raw binary dev missing-node guidance', rawCli, ['dev', '--foreground'], project,
+            result => rawGuidance(result, 'dev --foreground'),
+            { ...env, SNAPBACK2_COMPILER: compiler });
+        }
         invoke(`${template} check`, ['check', '--json'], project);
         execute(`${template} React bundle`, process.execPath, [resolve(directory, 'node_modules/vite/bin/vite.js'), 'build'], project);
         let attemptedDev = false;
@@ -185,7 +221,8 @@ export function packDevelopmentConsumer(root, binary) {
     copyFileSync(binary, resolve(platform, 'bin/snapback2'));
     const media = resolve(dirname(binary), 'snapback2-media');
     if (existsSync(media)) copyFileSync(media, resolve(platform, 'bin/snapback2-media'));
-    writeFileSync(resolve(platform, 'package.json'), JSON.stringify({ name, version: pkg.version, files: ['bin'], os: [process.platform], cpu: [process.arch] }));
+    writeFileSync(resolve(platform, 'README.md'), platformPackageReadme(name));
+    writeFileSync(resolve(platform, 'package.json'), JSON.stringify({ name, version: pkg.version, files: ['bin', 'README.md'], os: [process.platform], cpu: [process.arch] }));
     stagePlatformDependencies(shim, [{ name, version: pkg.version }]);
     const artifacts = [platform, shim].map(path => {
       const result = spawnSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', directory, path], { encoding: 'utf8', env: cleanEnvironment(), timeout: 30_000 });

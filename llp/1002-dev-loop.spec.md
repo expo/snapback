@@ -368,6 +368,9 @@ set. The worker lazily loads that heavy compiler chunk for `compile`, `seed`,
 and `journeys`. A missing closure leaf becomes stable `E_OWNER_NO_COMPILER`
 guidance; it is not disguised as an operation refusal. The blocking compiler
 and isolated-package tests execute every advertised lowering operation.
+When a platform package's native binary is invoked without the shim,
+`E_OWNER_NO_COMPILER` rewrites the same invocation through `npx snapback2`;
+the platform README directs `check` and `dev` through that public wrapper.
 
 `ProjectJson` is LLP 1001 §4's serde shape, with `programs[].name` qualified
 (`todos.list`) and `schema.effects` listing the effect names. The compiler's

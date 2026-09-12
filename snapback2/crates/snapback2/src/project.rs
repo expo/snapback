@@ -607,7 +607,7 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
                 Refusal::owner(
                     "E_OWNER_NO_COMPILER",
                     format!("cannot locate the snapback2 binary: {error}"),
-                    "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+                    compiler_rewrite(),
                 )
             })?
             .with_file_name("compiler.mjs")
@@ -616,7 +616,7 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
         Refusal::owner(
             "E_OWNER_NO_COMPILER",
             format!("compiler worker not found at {}", candidate.display()),
-            "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+            compiler_rewrite(),
         )
     })?;
     if !candidate.is_file() {
@@ -626,10 +626,24 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
                 "compiler worker path is not a file: {}",
                 candidate.display()
             ),
-            "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+            compiler_rewrite(),
         ));
     }
     Ok(candidate)
+}
+
+fn compiler_rewrite() -> String {
+    let command = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "check".to_owned());
+    let foreground = if command == "dev" && std::env::args().any(|arg| arg == "--foreground") {
+        " --foreground"
+    } else {
+        ""
+    };
+    format!(
+        "run npx snapback2 {command}{foreground}; or set SNAPBACK2_COMPILER=/absolute/path/to/node_modules/snapback2/dist/compiler.mjs"
+    )
 }
 
 pub fn write_build_cache(root: &Path, compiled: &CompiledProject) -> Result<(), Refusal> {
