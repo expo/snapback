@@ -52,6 +52,13 @@ export function lex(file: string, source: string): { tokens: Token[]; diagnostic
       }
       if (char === "-" && raw[offset + 1] === "-") break;
       const site = { file, line, col: offset + 1 };
+      if (char === "#" || char === "/" && raw[offset + 1] === "/") {
+        diagnostics.push({ ...site, code: "E_QUARRY_SYNTAX",
+          message: "Quarry comments start with --",
+          rewrite: `--${raw.slice(offset + (char === "#" ? 1 : 2))}`,
+          guide: "quarry/grammar" });
+        break;
+      }
       const pair = raw.slice(offset, offset + 2);
       if (TWO_CHARACTER.has(pair)) {
         tokens.push({ ...site, kind: "symbol", value: pair });

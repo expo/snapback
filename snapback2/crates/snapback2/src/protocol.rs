@@ -139,8 +139,12 @@ impl Refusal {
 
     pub fn from_runtime(error: &RuntimeError) -> Self {
         if let RuntimeError::Require { code, site } = error {
-            let mut refusal = Self::new(code, "rule", error.to_string(),
-                "satisfy the program requirement before retrying", "rule/runtime");
+            let rewrite = if code == "NOT_FOUND" {
+                "require the row with `row = table[key] ! else NOT_FOUND`; when absence is allowed, read `row = table[key] by index` then guard `if row != null: delete table[row]`"
+            } else {
+                "satisfy the program requirement before retrying"
+            };
+            let mut refusal = Self::new(code, "rule", error.to_string(), rewrite, "rule/runtime");
             refusal.rule = Some(code.clone());
             refusal.site = site.clone();
             return refusal;
@@ -624,6 +628,18 @@ fn runtime_requirement_message_does_not_embed_its_application_code() {
     });
     assert_eq!(refusal.code, "MEMBERSHIP_REQUIRED");
     assert_eq!(refusal.message, "program requirement failed");
+}
+
+#[cfg(test)]
+#[test]
+fn missing_point_refusal_names_required_and_optional_delete_forms() {
+    let refusal = Refusal::from_runtime(&RuntimeError::Require {
+        code: "NOT_FOUND".to_owned(),
+        site: None,
+    });
+    let rewrite = refusal.rewrite.as_deref().unwrap();
+    assert!(rewrite.contains("! else NOT_FOUND"));
+    assert!(rewrite.contains("if row != null: delete table[row]"));
 }
 
 pub(crate) fn successor_site(mut refusal: Refusal, next: &crate::project::CompiledProject, previous: Option<&crate::project::CompiledProject>) -> Refusal {

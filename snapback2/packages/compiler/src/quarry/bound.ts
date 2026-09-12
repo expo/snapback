@@ -573,6 +573,11 @@ class ExpressionBinder {
     if (op !== "Mul") [left, right] = contextualPair(left, right, expression.site);
     const leftType = left.facts.type;
     const rightType = right.facts.type;
+    if (op === "Add" && (leftType.kind === "text" || rightType.kind === "text")) {
+      typeError(expression.site,
+        `text concatenation is not supported; got ${typeName(leftType)} + ${typeName(rightType)}`,
+        "return separate text fields (for example { left, right }) or expose separate typed queries");
+    }
     if (leftType.kind === "time" || rightType.kind === "time") {
       const difference = op === "Sub" && leftType.kind === "time" && rightType.kind === "time";
       const offset = (op === "Add" || op === "Sub") && leftType.kind === "time" && rightType.kind === "int"

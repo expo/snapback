@@ -10,15 +10,22 @@ Keys evaluate once and supply omitted upsert key columns. A row/patch may repeat
 a key column only with its key expression; otherwise `E_QUARRY_TYPE` names the
 field to remove. Upsert cannot spell `id`: by-id uses the key; alternate-key
 keeps a hit's id or mints one.
-Insert yields its row. A bound or returned update/upsert reads its result once
-right after writing: a snapshot, or absence when its read rule denies the
-caller (including self-revocation). `! else CODE` requires that view and
-rolls back on refusal. Ignored update/upsert adds no result read. Delete yields
-no value. A body's final write is an implicit return; never in a proc.
-An update is priced for search re-derivation only when its patch names a column
-a derived index reads; the engine rebuilds postings only when those values differ,
-and other patches keep them at no cost. An upsert supplies a whole row, so it is
-priced as an insert's derivation even when the stored row keeps its postings.
+Insert yields its row. A returned update/upsert reads its result once after
+writing; `! else CODE` requires that view and rolls back on refusal. Ignored
+writes add no result read. Delete yields no value. A final write is an implicit
+return, except in a proc. Search re-derivation is priced only when an update
+patch names an indexed source column; upsert carries insert derivation cost.
+
+Optional cleanup must read and guard before deleting; a direct delete of a
+missing point refuses `E_REQUIRE:NOT_FOUND`:
+
+```q
+mutation clearDigest(digest: text <=64):
+  row = messages[digest] by byDigest
+  if row != null:
+    delete messages[row]
+  return null
+```
 
 See `guide quarry` for related topics.
 
@@ -36,13 +43,9 @@ Use `update messages[messageId] { body } if .body = baseBody` to edit only the
 body the caller read. The chat template's `messages.edit` is a complete example.
 
 The key evaluates once; the patch evaluates only after the condition passes.
-A false condition or absent/unreadable target returns a rejected mutation with
-`reason: "conflict"`, `code: "E_CONFLICT"`, and `current` (the readable current row
-or `null`). The owner rolls back the whole mutation before freshly authorizing
-that row. Review the current value before submitting a new edit.
+A false condition or absent/unreadable target returns `E_CONFLICT` with the
+readable current row or `null`; review it before submitting a new edit.
 `expectedGeneration` on the mutation wire separately fences the operation and
 schema using the manifest's `programGeneration`; it is not a row version.
-SDK calls pin it automatically, including uploaded arguments. A stale call
-returns `E_GENERATION_CHANGED` without automatic retry: inspect the current
-operation before a fresh call. Identical durable retries return their original
-terminal result first. Never rewrite an already queued envelope.
+SDK calls pin it automatically. `E_GENERATION_CHANGED` requires inspecting the
+current operation before a fresh call. Never rewrite a queued envelope.

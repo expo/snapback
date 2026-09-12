@@ -196,7 +196,12 @@ fn narrow(e: &Expr, env: &mut Env, truth: bool) {
     }
 }
 fn error(site: &str, message: &str) -> CheckError {
-    CheckError{site:Some(site.into()),code:"E_ARGS_TYPE".into(),message:message.into(),rewrite:"equality-bind wordPrefixes with one declared present bounded text expression and its exact inferred maximum; keep addresses and suffixes scalar".into()}
+    CheckError {
+        site: Some(site.into()),
+        code: "E_ARGS_TYPE".into(),
+        message: message.into(),
+        rewrite: "declare `term: text <=N`, scope table references, and `c: cursor ?`; equality-bind wordPrefixes with those typed arguments and scalar suffixes; for dynamic scopes use `searchScopes` + one typed scoped-search operation + the installed global-search pager".into(),
+    }
 }
 
 #[derive(Clone, Default)]

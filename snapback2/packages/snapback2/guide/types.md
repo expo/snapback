@@ -19,8 +19,9 @@ or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
 refuse. A cursor position takes the token, never an Id literal.
 
 
-A bounded list example: `tags: [text <=32] <=8` stores at most eight strings,
-each at most 32 characters. `tags: [text <=32] <=8 ?` also permits absence;
-use `tags ?? []` before iterating. `[]` is present and suppresses fallback.
+A bounded list stores scalars only: `tags: [text <=32] <=8` or an operation
+argument such as `terms: [text <=128] <=20`. Object/row arrays refuse; call one
+typed operation per object, or pass independently processed scalar arrays.
+Add `?` for absence and use `tags ?? []` before iterating.
 
 See `guide quarry` for related topics.
