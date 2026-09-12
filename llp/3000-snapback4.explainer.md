@@ -344,15 +344,16 @@ carries the chronology. Week four, 2026-09-12:
 | `crates/snapback4-core/src/identity.rs` | guests and password accounts (argon2id), bearer sessions by digest, logout | `c3f983744a` |
 | `llp/reviews/3000-*.md`, `crates/snapback4-sim/tests/reviews.rs` | decision 4's two blind reviews (partition inversion, gpt; the meter's cut, grok), each finding reproduced as a test against the fix | the reviews landing |
 | `packages/snapback4/src/replica/*`, `local.ts`, `auth.ts` | the key encoding (held to Rust's vectors), the store in memory and on IndexedDB, opaque cursors, the interpreter on the device with the meter and predictions, the replica following the stream, the local-first client on the card (re-bootstrapping on a new generation), sign-in helpers, a SQLite store for `node:sqlite` and `expo-sqlite`; the device hoists as the server does; bytes: online 3,218 B gzip, local-first 14,846 B (anchors: Convex React 21,713 B, PowerSync web 3,697,919 B) | `c5db8c1585`, `c3f983744a`, `1ff36fe04d` |
-| `witness/idb.mjs` | the Chromium/IndexedDB witness on the local-first client | `c5db8c1585` |
+| `witness/idb.mjs`, `witness/scale.mjs`, `witness/expo.mjs` | the Chromium/IndexedDB witness; cold sync at scale (20,480 events: 3.3 s, 26 MB heap); the Expo Go simulator witness on SQLite (303 rows in 209 ms) | `c5db8c1585`, `72af994205`, the Expo landing |
+| `apps/chat-expo` | the chat app on React Native: SQLite store, secure-store session, the same client and generated api | the Expo landing |
+| `packages/snapback4-darwin-arm64`, `packages/snapback4/bin` | the binary as an optional dependency of the client package; `npx snapback4` | the Expo landing |
 | `crates/snapback4-sim` | seeded scheduler, virtual clock, faulty network and disks, kill/restart, trace digest; the real engine as a host; a replica device with a durable outbox and predictions that survive a re-bootstrap; the chat world under faults with §6's invariants 1, 2, 3, 5, 6 per event and 4, 7 at quiescence; the five day-two scenarios with a partitioned device and queued writes | `1700c1c755`, `b7449cdaac`, `1ff36fe04d` |
 | `packages/snapback4` | the card (`contract.ts`), the online-tier client (`client.ts`), the React hooks, the labelled mock; `snapback4@0.0.1` on npm (week one's client only; republish pending) | `39af0c81a6`, this landing |
 | `apps/chat` | the reference app on the real client and the generated `api.ts`; `snapback/schema.q` with `sync` lines, `invite`, `leave`, `send`, `edit`, `unsend`, `thread`, `inbox` | this landing |
 | `fixtures/`, `floors/`, `corpus/`, `scripts/`, `metrics/` | as week one | `1700c1c755`, `224fb1d24e`, `6bc29eab02` |
 
 Not started: effects execution, jobs at runtime, word search, assets, the
-Expo app (the SQLite store is written), the loop bar and the Clique hub
-run.
+loop bar and the Clique hub run.
 
 ## How to orient
 
