@@ -1,0 +1,38 @@
+**Reviewer family:** Grok
+**Provider / runtime:** Grok CLI; requested grok-4.6, xhigh; reported model-usage key grok-4.6-build
+**Date:** 2026-09-12
+**Redacted:** no; repository source only
+**Method:** Independent frozen-source packet review. No Sol review or findings were supplied.
+
+# LLP 1023 implementation review — Grok
+
+## Round 1
+
+Candidate: `952682fc159d13abd0cdb625c43ead19b0dc1504`; base: `a41a132f8200ea20c5cb80300b4a4837d31389d8`.
+Packet SHA-256: `a5d73760cca4b6f8bfa741d50de8da0b4c96ea2b62f82ebbb9b2ee0cec0ad972`.
+CLI exited successfully and returned structured output in one model turn.
+Session: `01a09395-bdb9-7910-84eb-4d8bfc94d054`.
+Two earlier CLI attempts returned no completed review (one exhausted its turn
+limit; one returned progress text only). They are not counted as reviews.
+Their raw output remains in the run's `code-review/` scratch directory.
+
+**Verdict: MATERIAL**
+
+### high — snapback2/crates/snapback2-core/src/certificate.rs:486
+
+**Trigger:** A uniform merge (page priced as take rows in RetentionEstimator) plus retained constructed values or output larger than the pooled receipt estimate — e.g. for-loop `{ post: entry, note: arg }` with a wide `text` argument on a 500-follow merge of narrow posts. The other side of the same max() is a fat receipt pool that replaces, rather than adds, those constructed/output bytes.
+
+**Rationale:** The uniform-merge split is complementary: retention now holds the returned page and constructed values, while search/closure.rs holds receipt heads, lookahead, discovery, and metadata. certificate.rs still picks max(retention, search_closure) and can later replace that with output.retained_bytes. max() was sound when retention already included L+N+2+discovery; after the split, whichever estimate wins drops the other, so a certificate can admit a program whose actual receipt-plus-result exceeds max_closure_bytes. wide_shaped_merge and the receipt-length check only cover the wide-row side where the pool dominates.
+
+**Correction requested:** Do not replace complementary estimates. For uniform-merge programs keep search_closure as the receipt floor and saturating-add retention/output bytes that are not already in that pool (subtract the overlap of take page rows, or conservatively add constructed/value_bytes only). Keep a bound test where constructed/arg copies exceed (L+2+discovery)*row_width so retention would previously win and undercount heads.
+
+**Review limits:** Did not run tests, builds, or the pinned gzip five-root measurement (reported 89,986 / 90,000, not reproduced). MergeSite.uniform is classified in certificate/merge.rs, which was not in the packet; following_twenty / wide_shaped_merge imply it is set for the 500-follow fixture. Digest remains an explicit unclaimed gap and was not treated as missing completion. Unconfirmed: integer truncation of max_calls/lanes in closure.rs if those are not divisible; enqueue returning structuredClone(prepared.entry) omitting store-assigned fields such as order; AssetImage session fallback not re-qualified on Chromium in this packet. live-query.md still shows a first-50 membership merge for word-prefix search; fanout.md is the complete 1,000-chat form.
+
+## Integrator disposition in progress
+
+The proposed wide-argument case is being executed against the separate receipt,
+output and heap contracts. The first concrete two-page run stays within each
+individual bound; their sum exceeds the closure bound, which is not documented
+as a combined output-plus-receipt limit. Additional refusal controls and the
+reviewer's independent adjudication remain pending. No accounting change or
+reviewer acceptance is inferred from this preliminary result.
