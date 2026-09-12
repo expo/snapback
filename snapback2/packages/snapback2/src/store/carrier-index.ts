@@ -13,7 +13,7 @@ import type { PersistedRangeState, Receipt, ReceiptRange, StoredAnswer, StoredRo
 import type { ChangedRecords } from './swap-journal.js';
 import { rangeMeaningKey, type RangeMeaning, type KeyImage, type ExtentCondition } from './extent-facts.js';
 import { rowKey } from './row-values.js';
-import type { SuccessEffects } from './success-compaction.js';
+import { successEffects, type SuccessEffects } from './success-compaction.js';
 type HeldRange = { owner: string; range: ReceiptRange; key: string };
 export class CarrierIndex {
   readonly assets: RowAssets;
@@ -109,17 +109,15 @@ export class CarrierIndex {
     }) };
     return copy;
   }
-  matching(range: ReceiptRange, op: string): Iterable<HeldRange> { return this.matchingKey(this.rangeKey(range, op)); }
   *matchingKey(key: string): Iterable<HeldRange> {
     for (const [owner,ranges] of this.ranges.get(key) ?? []) for (const range of ranges) yield { owner,range,key };
   }
   maskTargets(key: string): Iterable<string> { return this.masked.get(key) ?? []; }
   private setMask(key: string): void {
     const old = this.masks.get(key), mask = this.state.extentNegative[key];
-    if (old) { const set = this.masked.get(old)!; set.delete(key); if (!set.size) this.masked.delete(old); this.masks.delete(key); }
-    if (mask?.active && mask.cause) {
-      const set = this.masked.get(mask.cause) ?? new Set(); set.add(key); this.masked.set(mask.cause,set); this.masks.set(key,mask.cause);
-    }
+    if (old) this.member(this.masked,old,key,-1);
+    if (mask?.active && mask.cause) { this.member(this.masked,mask.cause,key,1); this.masks.set(key,mask.cause); }
+    else this.masks.delete(key);
   }
   private positive(proof: FactProof, seq: number, delta: number): void {
     const image = factImageId(proof); if (!image) return;
@@ -193,9 +191,7 @@ export class CarrierIndex {
     return intents;
   }
   private setSuccess(intent: string): void {
-    const entry = this.state.outbox[intent];
-    const next = entry?.state === 'committed' && Array.isArray((entry.response as any)?.effects)
-      ? entry.effects ?? (entry.response as any).effects as SuccessEffects : undefined;
+    const next = successEffects(this.state.outbox[intent]);
     for (const [effects, delta] of [[this.effects.get(intent), -1], [next, 1]] as const)
       for (const row of effects ?? []) this.member(this.successes, rowKey(row), intent, delta);
     if (next) this.effects.set(intent, next); else this.effects.delete(intent);
