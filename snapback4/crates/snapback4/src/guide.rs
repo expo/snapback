@@ -110,8 +110,10 @@ t[.col, viewer]` or `.col = viewer` can be synced (guide sync)."#,
 `sync to t[.a, .b] [last N by index]`    each row reaches every principal with a
                                          row in t whose a, b match
 
-The read rule must contain the matching disjunct (`exists t[.a, .b, viewer]`
-or `.col = viewer`), so a device never holds a row it may not read. The
+The read rule must be exactly the audience (`exists t[.a, .b, viewer]` or
+`.col = viewer`; a second disjunct or an extra conjunct is refused with the
+rewrite), so a device never holds a row it may not read and never misses
+one it may. The
 target table needs an index over (a, b, principal) and one leading with
 (principal, a, b). The horizon keeps the newest N rows per group on the
 device; older rows are online-only, and a read past them is `complete:

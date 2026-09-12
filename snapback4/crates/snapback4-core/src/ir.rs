@@ -455,6 +455,94 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
     }
 }
 
+/// Every page scan in a program body, including merge lanes and their
+/// sources: what the compiler's completeness note looks at.
+pub fn scans(program: &Program) -> Vec<&Scan> {
+    let mut out = Vec::new();
+    stmts_scans(&program.body, &mut out);
+    out
+}
+
+fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr_scans(value, out),
+            Stmt::If { condition, then_body, else_body } => {
+                expr_scans(condition, out);
+                stmts_scans(then_body, out);
+                stmts_scans(else_body, out);
+            }
+            Stmt::For { domain, body, .. } => {
+                match domain {
+                    LoopDomain::Page(scan) => {
+                        expr_scans_of_scan(scan, out);
+                        out.push(scan);
+                    }
+                    LoopDomain::DerivedArray { value, .. } => expr_scans(value, out),
+                    LoopDomain::Recurse(recurse) => expr_scans(&recurse.seed, out),
+                    LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
+                }
+                stmts_scans(body, out);
+            }
+            Stmt::Require { condition, .. } => expr_scans(condition, out),
+            Stmt::Check { condition, .. } => expr_scans(condition, out),
+            Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expr_scans(row, out),
+            Stmt::Update { key, patch, .. } => {
+                expr_scans(key, out);
+                expr_scans(patch, out);
+            }
+            Stmt::Upsert { key, row, .. } => {
+                expr_scans(key, out);
+                expr_scans(row, out);
+            }
+            Stmt::Delete { key, .. } => expr_scans(key, out),
+            Stmt::Break | Stmt::Continue => {}
+        }
+    }
+}
+
+fn expr_scans_of_scan<'a>(scan: &'a Scan, out: &mut Vec<&'a Scan>) {
+    for key in &scan.prefix {
+        if let Some(expr) = key.scalar() {
+            expr_scans(expr, out);
+        }
+    }
+    if let Some(after) = &scan.after {
+        expr_scans(after, out);
+    }
+}
+
+fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>) {
+    match expr {
+        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}
+        Expr::Field { base, .. } => expr_scans(base, out),
+        Expr::Array(items) => items.iter().for_each(|item| expr_scans(item, out)),
+        Expr::Object(fields) => fields.values().for_each(|item| expr_scans(item, out)),
+        Expr::Binary { left, right, .. } => {
+            expr_scans(left, out);
+            expr_scans(right, out);
+        }
+        Expr::Unary { value, .. } => expr_scans(value, out),
+        Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_scans(item, out)),
+        Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(|item| expr_scans(item, out)),
+        Expr::Scan(scan) => {
+            expr_scans_of_scan(scan, out);
+            out.push(scan);
+        }
+        Expr::Merge(merge) => {
+            for lane in &merge.lanes {
+                stmts_scans(&lane.setup, out);
+                if let Some(source) = &lane.source {
+                    expr_scans_of_scan(source, out);
+                    out.push(source);
+                }
+                expr_scans_of_scan(&lane.scan, out);
+                out.push(&lane.scan);
+            }
+        }
+    }
+}
+
 /// Every table a program writes, by statement kind.
 pub fn write_tables(program: &Program) -> Vec<(String, &'static str)> {
     let mut out = Vec::new();
