@@ -68,18 +68,14 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         let shared = shared.clone();
         std::thread::spawn(move || maintain(shared));
     }
-    let mut workers = Vec::new();
-    for _ in 0..4 {
-        let server = server.clone();
+    // One thread per request, not a pool: every connected device keeps a
+    // long poll open (`/changes?wait=25`), so a pool of N stalls every other
+    // request once N devices are connected — the (N+1)th client saw
+    // `/schema` wait 14 s behind four polls. The engine serializes behind
+    // its own lock; a waiting poll holds nothing but its thread.
+    for request in server.incoming_requests() {
         let shared = shared.clone();
-        workers.push(std::thread::spawn(move || {
-            for request in server.incoming_requests() {
-                handle(request, &shared);
-            }
-        }));
-    }
-    for worker in workers {
-        let _ = worker.join();
+        std::thread::spawn(move || handle(request, &shared));
     }
     Ok(())
 }

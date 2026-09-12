@@ -1025,3 +1025,21 @@ the brief, and each carried from Snapback 2 where Snapback 2 had it right.
   console; missed boundaries fire once, not once per period. Recorded
   in NOT-DOING's Moves.
 - `snapback4@0.1.0`: the first release that carries the whole brief.
+
+## 2026-09-12 — from the full-brief lane's M1: the four workers; 0.1.1
+
+Thirty-nine minutes into the full-brief run the lane recorded a
+`snapback4-defect`: the backend accepted TCP but `/schema` "timed out"
+once two clients were writing profiles (`evidence/backend-hang.txt`: the
+answer came after 2.0 s, past the lane's own budget). Reproduced here in
+one line: four `GET /changes?wait=15` long polls, then `/schema` waits
+14.5 s. The wire had a pool of four worker threads, and every connected
+device keeps one long poll open, so the fifth request of any kind —
+another device's bootstrap, a write, a probe — waited for a poll to time
+out. This is the same shape as the struck run's d-04 ("live updates
+intermittently past the harness's 10 s budget"), which the grader read
+as host load. Fix: one thread per request, no pool; a waiting poll holds
+nothing but its thread, and the engine serializes behind its own lock as
+before. Twelve polls open, `/schema` and a query answer in milliseconds.
+Published `snapback4@0.1.1`; the lane stays on its 0.1.0 pin and the
+record reads the defect against main.
