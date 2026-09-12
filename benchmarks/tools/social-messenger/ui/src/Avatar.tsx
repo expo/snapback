@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { palette } from './tokens';
+import { webSourceUriProps } from './webSemantics';
 
 export interface AvatarProps {
   /** Image URI. When absent, initials derived from `label` render instead. */
@@ -40,7 +41,11 @@ export function Avatar({
     return (
       <Image
         accessibilityLabel={`Avatar for ${label}`}
-        {...(identity ? { accessibilityValue: { text: identity } } : {})}
+        {...(identity ? {
+          'aria-valuetext': identity,
+          accessibilityValue: { text: identity },
+        } : {})}
+        {...webSourceUriProps(uri)}
         source={{ uri }}
         style={[styles.image, frame]}
         testID={testID}
@@ -50,7 +55,10 @@ export function Avatar({
   return (
     <View
       accessibilityLabel={`Avatar for ${label}`}
-      {...(identity ? { accessibilityValue: { text: identity } } : {})}
+      {...(identity ? {
+        'aria-valuetext': identity,
+        accessibilityValue: { text: identity },
+      } : {})}
       style={[styles.fallback, frame, { backgroundColor: color }]}
       testID={testID}
     >

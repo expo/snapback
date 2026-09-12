@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { palette, radii, spacing, typeScale } from './tokens';
+import { webSourceUriProps } from './webSemantics';
 
 export interface ComposerAttachment {
   /** Local preview URI of the picked fixture asset. */
@@ -68,11 +69,14 @@ export function Composer({
             <View
               accessibilityLabel={`${att.kind} attachment ${index + 1}`}
               accessibilityValue={{ text: att.kind }}
+              aria-valuetext={att.kind}
+              {...webSourceUriProps(att.uri)}
               key={`${att.uri}-${index}`}
               style={styles.attachment}
               testID="sm-compose-attachment"
             >
               <Image
+                {...webSourceUriProps(att.uri)}
                 source={{ uri: att.uri }}
                 style={styles.attachmentImage}
                 testID="sm-compose-attachment-media"

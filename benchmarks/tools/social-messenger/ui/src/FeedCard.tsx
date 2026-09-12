@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from './Avatar';
 import { renderLinkifiedText } from './linkify';
 import { palette, radii, spacing, typeScale } from './tokens';
+import { webSourceUriProps } from './webSemantics';
 
 export interface FeedCardProps {
   authorName: string;
@@ -55,12 +56,18 @@ function mediaBlock(props: FeedCardProps): React.JSX.Element | null {
         accessibilityLabel="Video"
         accessibilityRole="imagebutton"
         accessibilityValue={{ text: 'video' }}
+        aria-valuetext="video"
+        {...webSourceUriProps(videoPosterUri)}
         onPress={onPressMedia}
         style={styles.media}
         testID="sm-feed-media"
       >
         {videoPosterUri ? (
-          <Image source={{ uri: videoPosterUri }} style={styles.video} />
+          <Image
+            {...webSourceUriProps(videoPosterUri)}
+            source={{ uri: videoPosterUri }}
+            style={styles.video}
+          />
         ) : (
           <View style={[styles.video, styles.videoPlaceholder]} />
         )}
@@ -77,12 +84,15 @@ function mediaBlock(props: FeedCardProps): React.JSX.Element | null {
         accessibilityLabel={`${imageUris.length} ${imageUris.length === 1 ? 'image' : 'images'}`}
         accessibilityRole="imagebutton"
         accessibilityValue={{ text: 'image' }}
+        aria-valuetext="image"
+        {...webSourceUriProps(imageUris[0])}
         onPress={onPressMedia}
         style={[styles.media, styles.imageGrid]}
         testID="sm-feed-media"
       >
         {imageUris.map((uri, i) => (
           <Image
+            {...webSourceUriProps(uri)}
             key={`${uri}-${i}`}
             source={{ uri }}
             style={[styles.image, twoUp ? styles.imageHalf : styles.imageFull]}
@@ -119,6 +129,7 @@ function Action({
       accessibilityLabel={`${label} (${count})`}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      aria-pressed={active}
       hitSlop={spacing.sm}
       onPress={onPress}
       style={styles.action}
@@ -169,6 +180,7 @@ export function FeedCard(props: FeedCardProps): React.JSX.Element {
       {repostedByName ? (
         <Text
           accessibilityValue={repostedByIdentity ? { text: repostedByIdentity } : undefined}
+          aria-valuetext={repostedByIdentity}
           style={styles.repostAttribution}
           testID="sm-feed-repost-attribution"
         >
