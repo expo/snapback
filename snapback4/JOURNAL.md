@@ -704,3 +704,6 @@ Three fresh Astra sessions at medium, serial, each on the published
   fixture test and the acceptance script pass under independent
   verification. The bar is met by this run (≤ 1,200 s, ≤ 1 loop); runs 2
   and 3 follow on the same pin.
+- The reference web app now keeps a guest session of its own when the URL
+  names no persona (`?as=bob` stays the development door), and offers
+  sign-out: the shape a fresh agent should copy.
