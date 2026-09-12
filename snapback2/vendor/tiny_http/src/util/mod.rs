@@ -62,3 +62,5 @@ mod test {
         assert_eq!(result[2].1, 2.0);
     }
 }
+
+pub(crate) use self::refined_tcp_stream::ReadAbort;

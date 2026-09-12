@@ -545,6 +545,12 @@ fn handle(
             },
             200,
         ),
+        ("POST", "/api/auth/refresh") => call_json(
+            request,
+            &context,
+            Action::Refresh { token: bearer_token },
+            200,
+        ),
         ("POST", "/api/auth/logout") => call_json(
             request,
             &context,
@@ -1123,7 +1129,45 @@ mod tests {
         std::io::BufReader::new(&sockets[0])
             .read_line(&mut response)
             .unwrap();
-        assert!(response.is_empty() || response.contains(" 408 "), "{response}");
+        assert!(
+            response.is_empty() || response.contains(" 408 "),
+            "{response}"
+        );
+    }
+
+    #[test]
+    fn shed_connection_does_not_allocate_or_drain_declared_body() {
+        use std::io::BufRead;
+        let server = BoundServer::bind(0).unwrap();
+        let mut socket = std::net::TcpStream::connect(("127.0.0.1", server.port)).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .unwrap();
+        write!(
+            socket,
+            "POST /api/query HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n",
+            usize::MAX
+        )
+        .unwrap();
+        let request = server
+            .server
+            .recv_timeout(Duration::from_secs(1))
+            .unwrap()
+            .unwrap();
+        let started = std::time::Instant::now();
+        let root = std::env::temp_dir().join(format!("snapback-body-shed-{}", std::process::id()));
+        spawn_connection(
+            &root,
+            move || drop(request),
+            |_task| Err(std::io::Error::other("injected spawn exhaustion")),
+        );
+        assert!(started.elapsed() < Duration::from_secs(1));
+        let mut response = String::new();
+        std::io::BufReader::new(socket)
+            .read_line(&mut response)
+            .unwrap();
+        assert!(response.contains(" 500 "), "{response}");
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

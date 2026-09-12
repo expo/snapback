@@ -40,10 +40,9 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     let before_refresh = bearer_request(port, "GET", "/api/auth/me", &second_token, json!({}));
     let refreshed = bearer_request(port, "POST", "/api/auth/refresh", &second_token, json!({}));
     assert_eq!(refreshed.status, 200, "{}", refreshed.body);
-    assert_eq!(
-        refreshed.body["principal"],
-        before_refresh.body["principal"]
-    );
+    assert_eq!(before_refresh.status, 200, "{}", before_refresh.body);
+    assert_eq!(refreshed.body["viewer"], before_refresh.body["viewer"]);
+    assert_eq!(refreshed.body["kind"], before_refresh.body["kind"]);
     assert_eq!(
         refreshed.body["authEpoch"],
         before_refresh.body["authEpoch"]

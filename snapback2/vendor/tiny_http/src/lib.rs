@@ -312,7 +312,7 @@ impl Server {
                             Some(ref _ssl) => unreachable!(),
                         };
 
-                        Ok(ClientConnection::new(write_closable, read_closable))
+                        match ClientConnection::new(write_closable, read_closable) { Ok(client) => Ok(client), Err(_) => continue }
                     }
                     Err(e) => Err(e),
                 };
@@ -341,8 +341,8 @@ impl Server {
 
                     Err(e) => {
                         log::error!("Error accepting new client: {}", e);
-                        inside_messages.push(e.into());
-                        break;
+                        thread::sleep(std::time::Duration::from_millis(10));
+                        continue;
                     }
                 }
             }

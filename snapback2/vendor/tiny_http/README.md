@@ -5,7 +5,9 @@ the request line and each header to 16 KiB, all headers to 64 KiB, and responds
 Connection workers use fallible bounded spawning (128 readers, bounded pending
 queue); socket cloning also fails by shedding one connection. Reads/writes have
 five-second idle timeouts. Discarding a declared body uses 8 KiB scratch rather
-than allocating Content-Length bytes.
+than allocating Content-Length bytes. Responding to/dropping an unread body
+closes its read half before cleanup, so shedding never drains attacker bytes
+on the accept thread. Consumed bodies retain ordinary keep-alive.
 Regression coverage lives in the existing Snapback 2 owner tests.
 
 # tiny-http

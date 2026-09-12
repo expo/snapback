@@ -16,7 +16,8 @@ use crate::Request;
 /// and return Request objects.
 pub struct ClientConnection {
     // address of the client
-    remote_addr: IoResult<Option<SocketAddr>>,
+    remote_addr: Option<SocketAddr>,
+    read_abort: crate::util::ReadAbort,
 
     // sequence of Readers to the stream, so that the data is not read in
     //  the wrong order
@@ -52,21 +53,23 @@ impl ClientConnection {
     pub fn new(
         write_socket: RefinedTcpStream,
         mut read_socket: RefinedTcpStream,
-    ) -> ClientConnection {
-        let remote_addr = read_socket.peer_addr();
+    ) -> IoResult<ClientConnection> {
+        let remote_addr = read_socket.peer_addr()?;
+        let read_abort = read_socket.abort_handle()?;
         let secure = read_socket.secure();
 
         let mut source = SequentialReaderBuilder::new(BufReader::with_capacity(1024, read_socket));
         let first_header = source.next().unwrap();
 
-        ClientConnection {
+        Ok(ClientConnection {
             source,
+            read_abort,
             sink: SequentialWriterBuilder::new(BufWriter::with_capacity(1024, write_socket)),
             remote_addr,
             next_header_source: first_header,
             no_more_requests: false,
             secure,
-        }
+        })
     }
 
     /// true if the connection is HTTPS
@@ -156,13 +159,13 @@ impl ClientConnection {
         std::mem::swap(&mut self.next_header_source, &mut data_source);
 
         // building the next reader
-        let request = crate::request::new_request(
+        let mut request = crate::request::new_request(
             self.secure,
             method,
             path,
             version.clone(),
             headers,
-            *self.remote_addr.as_ref().unwrap(),
+            self.remote_addr,
             data_source,
             writer,
         )
@@ -176,6 +179,7 @@ impl ClientConnection {
             }
         })?;
 
+        request.read_abort = Some(self.read_abort.clone());
         // return the request
         Ok(request)
     }

@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 
 use std::sync::mpsc::Sender;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 use crate::util::{EqualReader, FusedReader};
 use crate::{HTTPVersion, Header, Method, Response, StatusCode};
@@ -48,6 +49,8 @@ use chunked_transfer::Decoder;
 ///
 /// If you want to build fake requests to test your server, use [`TestRequest`](crate::test::TestRequest).
 pub struct Request {
+    pub(crate) read_abort: Option<crate::util::ReadAbort>,
+    body_done: Arc<AtomicBool>,
     // where to read the body from
     data_reader: Option<Box<dyn Read + Send + 'static>>,
 
@@ -74,6 +77,22 @@ pub struct Request {
 
     // If Some, a message must be sent after responding
     notify_when_responded: Option<Sender<()>>,
+}
+
+struct BodyReader {
+    inner: Box<dyn Read + Send>,
+    remaining: Option<usize>,
+    done: Arc<AtomicBool>,
+}
+impl Read for BodyReader {
+    fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
+        let count = self.inner.read(bytes)?;
+        if !bytes.is_empty() {
+            if let Some(remaining) = &mut self.remaining { *remaining = remaining.saturating_sub(count); }
+            if count == 0 || self.remaining == Some(0) { self.done.store(true, Ordering::Relaxed); }
+        }
+        Ok(count)
+    }
 }
 
 struct NotifyOnDrop<R> {
@@ -226,7 +245,11 @@ where
         Box::new(io::empty()) as Box<dyn Read + Send + 'static>
     };
 
+    let body_done = Arc::new(AtomicBool::new(content_length == Some(0) || (content_length.is_none() && transfer_encoding.is_none() && !connection_upgrade)));
+    let reader = Box::new(BodyReader { inner: reader, remaining: content_length, done: body_done.clone() });
     Ok(Request {
+        read_abort: None,
+        body_done,
         data_reader: Some(reader),
         response_writer: Some(Box::new(writer) as Box<dyn Write + Send + 'static>),
         remote_addr,
@@ -242,6 +265,12 @@ where
 }
 
 impl Request {
+    fn close_unread_body(&self) {
+        if self.data_reader.is_some() && !self.body_done.load(Ordering::Relaxed) {
+            if let Some(abort) = &self.read_abort { abort.close(); }
+        }
+    }
+
     /// Returns true if the request was made through HTTPS.
     #[inline]
     pub fn secure(&self) -> bool {
@@ -444,6 +473,7 @@ impl Request {
     where
         R: Read,
     {
+        self.close_unread_body();
         let mut writer = self.extract_writer_impl();
 
         let do_not_send_body = self.method == Method::Head;
@@ -487,6 +517,7 @@ impl fmt::Debug for Request {
 
 impl Drop for Request {
     fn drop(&mut self) {
+        self.close_unread_body();
         if self.response_writer.is_some() {
             let response = Response::empty(500);
             let _ = self.respond_impl(response); // ignoring any potential error

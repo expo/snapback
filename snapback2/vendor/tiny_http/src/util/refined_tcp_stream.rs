@@ -82,6 +82,14 @@ impl Write for Stream {
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct ReadAbort(std::sync::Arc<std::sync::Mutex<Stream>>);
+impl ReadAbort {
+    pub(crate) fn close(&self) {
+        self.0.lock().unwrap_or_else(|error| error.into_inner()).shutdown(Shutdown::Read).ok();
+    }
+}
+
 pub struct RefinedTcpStream {
     stream: Stream,
     close_read: bool,
@@ -110,6 +118,10 @@ impl RefinedTcpStream {
         };
 
         Ok((read, write))
+    }
+
+    pub(crate) fn abort_handle(&self) -> IoResult<ReadAbort> {
+        Ok(ReadAbort(std::sync::Arc::new(std::sync::Mutex::new(self.stream.try_clone()?))))
     }
 
     /// Returns true if this struct wraps around a secure connection.
