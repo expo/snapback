@@ -22,10 +22,9 @@ never resubmit automatically; lost/invalid responses may follow a commit.
 One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes
 reconnect through SSE with fresh snapshots, never Last-Event-ID replay.
 Same op/canonical args share one subscription across hooks.
-Each client allows 256 live shapes; child 257 refuses `E_OWNER_BUSY`,
-`site: client.subscribe`, preserving existing children. Use one list/composite
-query with row receipts/reactions; avoid per-row queries and polling
-reconciliation for ordinary live delivery.
+Each client allows 256 live shapes; child 257 refuses `E_OWNER_BUSY` at
+`client.subscribe`, preserving existing children. Lists use one composite
+with receipts/reactions; no per-row queries or reconciliation polling.
 Queued writes replay after `online()` (`guide offline`). `last` clears on
 account/op change. `ResultOf<Op>`/`ArgsOf<Op>`: `snapback2/client`.
 
@@ -58,8 +57,8 @@ Opt-in: `receipt` (`state`, `source`, `seq`, `next`), `freshness`, `local`,
 
 ## Load and refresh
 
-Insights uses the provider's `useSnapbackClient()`; `paint` updates the screen.
-A request counter fences overlapping/UTC-rollover answers. No hook refresh API:
+Use the provider's `useSnapbackClient()`. `paint` updates the screen; request
+and account changes discard obsolete answers:
 
 ```js
 await client.ready;
@@ -87,16 +86,14 @@ function close() { request++; off(); }
 await refresh();
 ```
 
-Pull-to-refresh calls `refresh()`; unmount calls `close()`. `cancel()` ends
-UI interest, not transport or durable work. Render `refused` as an error,
-`live: false` as held/offline, and absent data as unavailable.
-Auth confirmation precedes a connected cold read; query still reports held/refused on failure.
+Pull calls `refresh()`; unmount calls `close()`. `cancel()` ends UI interest
+only. Render `refused` as error, `live: false` as held/offline, absent data as
+unavailable. Cold connected reads confirm auth; failures stay held/refused.
 
 ## Channels
 
 `channel name(args):` declares typed latest state.
-For recent activity, heartbeats are a workaround: lag is the heartbeat interval plus the expiry; disconnects are seen late.
-Do not gate delivery on heartbeats; use durable receipts.
+Heartbeats lag by their interval plus expiry. Use durable receipts for delivery.
 
 ```q
 channel typing(conversationId: conversations):

@@ -1,9 +1,8 @@
 # Fan-out and complete reads
 
-A mutation's `for` must cover a capped prefix completely
-(`E_STRUCTURAL_FANOUT`). Its number comes from your loop, argument or schema,
-not a platform limit. A `cap` refuses excess rows and prices every write by
-that cap. Never cap followers just to certify a loop.
+Mutation `for` covers a capped prefix (`E_STRUCTURAL_FANOUT`). The loop,
+argument or schema sets its bound. `cap` refuses excess rows and prices each
+write by that cap. Do not cap followers merely to certify a loop.
 
 Use `merge` for following feeds, `cap` for genuinely limited group membership,
 and a job's `chunk` for a complete pass over an uncapped population. There is
@@ -12,9 +11,9 @@ no synchronous per-write fan-out over an uncappable population.
 
 ## Following
 
-All 500 follows plus self participate; equal runtime prefixes deduplicate.
-A smaller discovery bound omits people. Changing the message page size preserves
-reachability only when its opaque continuation is followed.
+All 500 follows plus self participate; equal prefixes deduplicate. Smaller
+discovery omits people; smaller message pages preserve reachability through
+opaque continuation.
 
 ```q
 query followingFeed(c: cursor ?):
@@ -26,10 +25,9 @@ query followingFeed(c: cursor ?):
 
 ## Search grouped by chat
 
-Page memberships, including those with no matches. This reaches a match in the
-last of 1,000 memberships without maintaining 1,000 live subscriptions or
-merging messages on the client. Groups follow membership index order; this is
-not a global message-time ranking.
+Page all memberships, including empty matches. This reaches the last of
+1,000 chats with bounded subscriptions. Groups follow membership index order,
+without a global message-time ranking or client merge.
 
 ```q
 query searchGroups(term: text <=128, membershipCursor: cursor ?):
@@ -41,9 +39,8 @@ query searchGroups(term: text <=128, membershipCursor: cursor ?):
   }
 ```
 
-The outer page's `next` continues memberships. Keep it even when every
-`matches` list is empty. This executable consumer yields the original
-snapshots; it creates no aggregate receipt or shared snapshot.
+Outer `next` continues memberships even when all `matches` are empty. Each
+yield retains its own snapshot and receipt:
 
 ```js
 async function* groupedSearch(client, term) {
@@ -59,9 +56,8 @@ async function* groupedSearch(client, term) {
 }
 ```
 
-Render nonempty groups from each yielded page. Expanding a group uses a separate
-message cursor, starting at null; the preview's cursor is not the membership
-cursor. Reset both when changing the term. Current membership rules still apply.
+Render nonempty groups. Expansion uses a separate message cursor starting at
+null. Reset both cursors on term changes; current membership rules apply.
 
 ```q
 query searchChat(conversationId: conversations, term: text <=128, messageCursor: cursor ?):
@@ -71,9 +67,8 @@ query searchChat(conversationId: conversations, term: text <=128, messageCursor:
 
 ## Rich history
 
-A small page can keep every enrichment and reach busy history. Use the binding
-below with `observePages` or `usePage`; `loadMore()` follows valid links and
-rebuilds a changed boundary. Independent pages retain their own snapshots.
+Keep enrichments in small pages. `observePages`/`usePage` and `loadMore()`
+follow valid links and rebuild changed boundaries; pages keep separate snapshots.
 
 ```q
 query richThread(conversationId: conversations, c: cursor ?):
@@ -96,16 +91,13 @@ const history = client.observePages(api.messages.richThread,
   { conversationId }, { items: richItems });
 ```
 
-These field widths and page sizes are a tested schema envelope, not universal
-limits. Reactions and receipts require their complete per-message population
-to fit the declared bounds; the fixture caps reactions and chat membership at 50.
-See `guide pagination` for source changes and offline continuation.
+These sizes qualify this schema only. Complete per-message reactions/receipts
+must fit: the fixture caps reactions and membership at 50. See `guide pagination`
+for source changes and offline continuation.
 
 ## Scheduled totals
 
-Jobs process the whole population in resumable chunks; see `guide job`.
-A chunk can accumulate contributions, but a cached total alone cannot prove
-final authorization or expiry. System jobs bypass viewer rules and chunks
-observe different snapshots. Before emitting per-user totals, validate current
-eligibility in that transaction or preserve it through every contributing
-mutation. Never describe a partial sum as the completed digest.
+Jobs walk the population in resumable chunks (`guide job`). System jobs
+bypass viewer rules; chunks see different snapshots. Cached totals cannot
+prove final authorization/expiry: validate eligibility when emitting, or
+preserve it through every contributing mutation. A partial sum is not a digest.
