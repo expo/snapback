@@ -29,12 +29,41 @@ const STARTER_M3_PATH = new URL(
   import.meta.url,
 );
 const starterM3 = await readFile(STARTER_M3_PATH, "utf8");
+const starterGroupCreate = starterM3
+  .split("\n")
+  .find((line) => line.includes(' group-create g-starter ') && line.includes(' "Weekend Plans" '));
+const starterGroupCreateMatch = starterGroupCreate?.match(
+  /^\S+ (\S+) group-create g-starter (\S+) /u,
+);
+assert.ok(starterGroupCreateMatch, "starter M3 must create the Weekend Plans group");
 const starterAddedMembers = new Set(
   starterM3
     .split("\n")
     .filter((line) => line.includes(" member-add "))
     .map((line) => line.match(/ member-add \S+ (\S+) /u)?.[1])
     .filter(Boolean),
+);
+const starterGroupMembers = new Set([
+  starterGroupCreateMatch[1],
+  starterGroupCreateMatch[2],
+  ...starterM3
+    .split("\n")
+    .map((line) => line.match(/ member-add g-starter (\S+) /u)?.[1])
+    .filter(Boolean),
+]);
+assert.deepEqual(
+  [...starterGroupMembers].sort(),
+  ["alice", "bob", "carol"],
+  "Weekend Plans membership must match the clients driven by the aggregate-receipt assertion",
+);
+const nonMemberGroupSenders = starterM3
+  .split("\n")
+  .map((line) => line.match(/^\S+ (\S+) send \S+ g-starter /u)?.[1])
+  .filter((actor) => actor && !starterGroupMembers.has(actor));
+assert.deepEqual(
+  nonMemberGroupSenders,
+  [],
+  "Weekend Plans starter messages must be authored by group members",
 );
 assert.equal(
   starterAddedMembers.has(DEFAULT_ADDED_MEMBER_HANDLE),
@@ -593,7 +622,7 @@ try {
     setupIdentity,
     `${JSON.stringify({
       schemaVersion: "social-messenger.setup-identity.v1",
-      instrumentPin: "social-messenger@0.3.6-m8",
+      instrumentPin: "social-messenger@0.3.7-m8",
       backend: { kind: "external", version: "choreography-calibration.v1" },
       runtime: {
         qualifiedBinary: { claimed: false, reason: "calibration HTTP app has no Snapback binary" },
@@ -602,7 +631,7 @@ try {
       packageClosure: {
         mode: "workspace",
         prepack: "not-applicable",
-        artifacts: [{ name: "choreography-calibration", version: "0.3.6-m8", sha256: null }],
+        artifacts: [{ name: "choreography-calibration", version: "0.3.7-m8", sha256: null }],
       },
       toolchain: {
         node: { path: process.execPath, version: process.version },
@@ -863,7 +892,7 @@ try {
     },
   };
   const currentTypingReceipt = {
-    version: "0.3.6-m8",
+    version: "0.3.7-m8",
     runId: "00000000-0000-4000-8000-000000000010",
     recordedAt: "2026-08-25T00:00:00.000Z",
     type: "assertion",

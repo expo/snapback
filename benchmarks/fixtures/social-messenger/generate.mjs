@@ -7,7 +7,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const GENERATOR_VERSION = "0.2.1-m8";
+const GENERATOR_VERSION = "0.2.2-m8";
 const SEED = 20260808;
 const EPOCH_MS = Date.parse("2026-01-01T00:00:00Z");
 const SCALE_ACTION_COUNT = 167157;
@@ -202,7 +202,9 @@ function starterSegments() {
   m3.push(action(clock, "alice", "dm-create", "d-alice-bob", "bob"));
   m3.push(action(clock, "alice", "group-create", "g-starter", "bob", quote("Weekend Plans"), quote("Coffee, a walk, and dinner.")));
   m3.push(action(clock, "alice", "member-add", "g-starter", "carol", "mm-g-starter-carol"));
-  m3.push(action(clock, "alice", "member-add", "g-starter", "erin", "mm-g-starter-erin"));
+  // Retain the removed membership event's timestamp hole so unchanged starter
+  // messages preserve their frozen documentary coordinates.
+  clock();
 
   const dmMessages = [
     ["alice", "sm0001", "Coffee after work?", null],
@@ -221,12 +223,12 @@ function starterSegments() {
   const groupMessages = [
     ["alice", "sm0007", "Saturday plan: coffee, lake, then noodles.", null],
     ["carol", "sm0008", "Coffee is a definite yes.", "sm0007"],
-    ["erin", "sm0009", "I can meet everyone at ten.", null],
+    ["carol", "sm0009", "I can meet everyone at ten.", null],
     ["bob", "sm0010", "The west trail is dry now.", null],
     ["alice", "sm0011", "West trail it is.", "sm0010"],
     ["carol", "sm0012", "I will bring snacks.", null],
-    ["erin", "sm0013", "Should I book dinner?", null],
-    ["bob", "sm0014", "Please do, for four.", "sm0013"],
+    ["carol", "sm0013", "Should I book dinner?", null],
+    ["bob", "sm0014", "Please do, for three.", "sm0013"],
     ["alice", "sm0015", "Locked in. See you Saturday.", null]
   ];
   for (const [actorId, messageId, text, quotedId] of groupMessages) {
@@ -235,7 +237,7 @@ function starterSegments() {
     m3.push(action(clock, actorId, "send", ...args));
   }
 
-  if (m1.length !== 16 || m2.length !== 52 || m3.length !== 19) {
+  if (m1.length !== 16 || m2.length !== 52 || m3.length !== 18) {
     throw new Error(`starter action count drift: ${m1.length}/${m2.length}/${m3.length}`);
   }
   return { m1, m2, m3 };

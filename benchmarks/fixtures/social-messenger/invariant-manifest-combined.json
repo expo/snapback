@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "0.2.1-m8",
+  "schemaVersion": "0.2.2-m8",
   "generatedBy": {
     "generator": "generate.mjs",
-    "generatorVersion": "0.2.1-m8",
-    "generatorSourceSha256": "544e0bff5d92ec9ea3eaeb253165f9cbbf59e7ac009c17ee111ee198f2dfc3d4",
+    "generatorVersion": "0.2.2-m8",
+    "generatorSourceSha256": "6792549ff341fe15de94d004000e2f6d8dafc4429656d99675fd5d7380974c63",
     "prng": "mulberry32",
     "seed": 20260808,
     "timestampEpoch": "2026-01-01T00:00:00Z",
@@ -30,10 +30,10 @@
     "starter-m3.log": {
       "name": "starter-m3.log",
       "committed": true,
-      "sha256": "b3d3d922cd6e7a8cec252ff24d2d9beb3fcf490f882fd375703f4ae93eb32690",
-      "byteCount": 1497,
-      "lineCount": 19,
-      "actionCount": 19
+      "sha256": "8ccf67728c225b44739c681a1a26020b13b31387c32264b4a208505863832f7b",
+      "byteCount": 1429,
+      "lineCount": 18,
+      "actionCount": 18
     },
     "sample-50.log": {
       "name": "sample-50.log",
@@ -69,7 +69,7 @@
       "conversations": 1002,
       "dms": 901,
       "groups": 101,
-      "memberships": 2054,
+      "memberships": 2053,
       "messages": 100015,
       "textMessages": 99105,
       "mediaMessages": 910,
@@ -1093,7 +1093,7 @@
       "bob": 2,
       "carol": 1,
       "dave": 0,
-      "erin": 1,
+      "erin": 0,
       "frank": 0,
       "grace": 0,
       "henry": 0,
@@ -3103,7 +3103,7 @@
       "d0900": 100
     },
     "perGroupMemberCounts": {
-      "g-starter": 4,
+      "g-starter": 3,
       "g0001": 50,
       "g0002": 2,
       "g0003": 2,
@@ -3550,8 +3550,7 @@
         "members": [
           "alice",
           "bob",
-          "carol",
-          "erin"
+          "carol"
         ],
         "messageCount": 9
       },
@@ -3668,7 +3667,7 @@
           "conversations": 1002,
           "dms": 901,
           "groups": 101,
-          "memberships": 2054,
+          "memberships": 2053,
           "messages": 10015,
           "textMessages": 10014,
           "mediaMessages": 1,
@@ -4692,7 +4691,7 @@
           "bob": 2,
           "carol": 1,
           "dave": 0,
-          "erin": 1,
+          "erin": 0,
           "frank": 0,
           "grace": 0,
           "henry": 0,
@@ -6702,7 +6701,7 @@
           "d0900": 10
         },
         "perGroupMemberCounts": {
-          "g-starter": 4,
+          "g-starter": 3,
           "g0001": 50,
           "g0002": 2,
           "g0003": 2,
@@ -7100,8 +7099,7 @@
             "members": [
               "alice",
               "bob",
-              "carol",
-              "erin"
+              "carol"
             ],
             "messageCount": 9
           },
@@ -7218,7 +7216,7 @@
           "conversations": 1002,
           "dms": 901,
           "groups": 101,
-          "memberships": 2054,
+          "memberships": 2053,
           "messages": 50015,
           "textMessages": 50010,
           "mediaMessages": 5,
@@ -8242,7 +8240,7 @@
           "bob": 2,
           "carol": 1,
           "dave": 0,
-          "erin": 1,
+          "erin": 0,
           "frank": 0,
           "grace": 0,
           "henry": 0,
@@ -10252,7 +10250,7 @@
           "d0900": 50
         },
         "perGroupMemberCounts": {
-          "g-starter": 4,
+          "g-starter": 3,
           "g0001": 50,
           "g0002": 2,
           "g0003": 2,
@@ -10650,8 +10648,7 @@
             "members": [
               "alice",
               "bob",
-              "carol",
-              "erin"
+              "carol"
             ],
             "messageCount": 9
           },
