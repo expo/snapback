@@ -1291,6 +1291,14 @@ export default seed({ personas: ['alice', 'bob'], rows: {
   events: [{ id: 'hidden', who: 'dev:bob', kind: 'posts', day: 0 }]
 } });`);
     owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    // Cross UTC midnight inside a fresh session. A whole-day jump also expires
+    // the bearer and correctly makes that refresh obsolete after auth fencing.
+    const clockInfo = JSON.parse(await readFile(join(owner.root!, ".snapback/owner.json"), "utf8"));
+    const dayMs = 86400000;
+    const alignClock = await fetch(`${owner.url}/control/clock`, { method: "POST", headers: {
+      "content-type": "application/json", "x-snapback-control": clockInfo.secret,
+    }, body: JSON.stringify({ advanceMs: (dayMs - Date.now() % dayMs - 60000 + dayMs) % dayMs }) });
+    assert.equal(alignClock.status, 200, await alignClock.text());
     const traced: typeof fetch = async (input, init) => {
       if (transportDown && new URL(String(input)).pathname === "/api/query") throw new TypeError("controlled transport loss");
       const response = await fetch(input, init);
@@ -1341,7 +1349,8 @@ export default seed({ personas: ['alice', 'bob'], rows: {
     const info = JSON.parse(await readFile(join(owner.root!, ".snapback/owner.json"), "utf8"));
     const clock = await fetch(`${owner.url}/control/clock`, { method: "POST", headers: {
       "content-type": "application/json", "x-snapback-control": info.secret,
-    }, body: JSON.stringify({ advanceMs: 86400000 }) });
+    }, body: JSON.stringify({ advanceMs: dayMs - oldEnvelope.readTime % dayMs + 1000 }) });
+    const clockState = await clock.clone().json();
     assert.equal(clock.status, 200, await clock.text());
     const newer = await screen.refresh();
     assert.equal(newer.state, "complete", JSON.stringify(newer));
@@ -1388,10 +1397,18 @@ export default seed({ personas: ['alice', 'bob'], rows: {
     const generationGate = { arrived: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
     delayed = generationGate;
     const oldProgram = screen.refresh(); await generationGate.arrived.promise;
+    await client.offline();
     await owner.stop();
     const schemaPath = join(owner.root!, "snapback/schema.q");
     await writeFile(schemaPath, (await readFile(schemaPath, "utf8")).replace("  name: text <=40", "  name: text <=40\n  note: text <=40 ?"));
     await owner.start(false);
+    // The dev control clock is process-local. Restore its offset before any
+    // bearer request: moving time behind session creation correctly refuses auth.
+    const restarted = JSON.parse(await readFile(join(owner.root!, ".snapback/owner.json"), "utf8"));
+    const restoreClock = await fetch(`${owner.url}/control/clock`, { method: "POST", headers: {
+      "content-type": "application/json", "x-snapback-control": restarted.secret,
+    }, body: JSON.stringify({ advanceMs: clockState.offsetMs }) });
+    assert.equal(restoreClock.status, 200, await restoreClock.text());
     await client.online();
     await screen.refresh();
     assert.equal(paints.at(-1).data?.viewer?.note, null, JSON.stringify(paints.slice(-3)));

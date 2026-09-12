@@ -88,8 +88,11 @@ combined result with the existing five roots. Package/guide growth limits
 remain separate. Moving bytes between roots does not fund a feature.
 The integrator records the baseline and each merged delta. A net-growing
 runtime repair includes its behavior-preserving byte funding in the same
-reviewed change; there is no arbitrary deletion quota or unrelated cleanup
-phase. No lane can spend headroom independently of the combined result.
+reviewed change. On 2026-09-12 the author additionally commissioned a dedicated,
+metafile-driven simplification lane toward 80,000 bytes. No lane can spend
+headroom independently of the combined result. The suggested 99,999 allocation
+is a fallback to assess after that measured attempt; it has not replaced the
+90,000 ceiling.
 
 ## Program decisions
 
@@ -138,6 +141,7 @@ does not mean the server has changed.
 | 2 | Query lane: preserve the Insights repair; resolve timed freshness and live once publication | One-client examples and before/after evidence for each remaining defect |
 | 2 | Scale lane: compile and execute the required shapes; repair the highest-cost term or ship the complete existing composition | A cold consumer can reach required data using the shipped recipe; semantic and cost assertions both pass |
 | 2 | Web lane: run deterministic custody/lifecycle cuts and the exact offline-vote replay | Same-account reopen preserves admitted identity and exactly one effect; terminal/refusal is observable |
+| 2 | Byte lane: use the existing esbuild metafile to select structural consolidation in the measured runtime | Before/after five-root sizes and affected behavior checks; report any remaining gap to 80,000 honestly |
 | 3 | Integrator: combine SDK changes, measure byte/loop costs, update governing LLPs and guide | Existing affected checks pass; every scope limit remains explicit |
 | 4 | Existing publication/benchmark owner | Qualified package consumer evidence, then a fresh Clique wave using unchanged frozen inputs |
 
@@ -206,3 +210,31 @@ cap. `rules/RULES.md` applies its 59-link budget here. Archive the current link
 for [implemented LLP 1021](./1021-effects-in-the-loop.rfc.md); its document and
 implementation evidence remain in place. This funds the existing 1023 draft
 links becoming tracked without removing active work.
+
+
+## Integration evidence in progress — 2026-09-12
+
+The three source lanes are integrated with main's concurrent hardening at
+`a41a132f82`. The combined pinned runtime before the dedicated simplification
+is **89,986 gzip bytes**; the packaged guide is **98,252 / 98,304 bytes**.
+Metafile contributions are uncompressed emitted bytes, not additive gzip
+savings. The largest are the range store (28,141), evaluator runner (27,987),
+offline runtime (23,641), Unicode data (17,186), and value runtime (13,006).
+`client.ts` does not participate in the fixed five roots; its public-bundle
+size remains a separate concern. Required code must not move outside the roots
+to manufacture funding.
+
+The timed Insights consumer now passes against the integrated owner's current
+authentication rules. Its controlled UTC rollover stays inside a fresh bearer
+session; after owner restart it restores the process-local development clock
+before reconnecting. The earlier whole-day jump expired the bearer, and the
+first restart moved time behind session creation. Those refusals were correct;
+the repair changes the test clock, not auth or refresh semantics. One consumer
+run covers equal-sequence day changes, delayed/overlapping results, successor
+adoption, cancellation, account change, and warm/cold offline absence.
+
+Full-media following, grouped hub search, and rich thread pagination execute
+within existing bounds. The scheduled digest's final-emission eligibility
+remains unmet and unclaimed. The query and web lanes still own their remaining
+browser and code-review findings. Passing source checks and a staged Darwin
+package do not establish publication or the fresh Clique result.
