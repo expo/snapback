@@ -1036,7 +1036,7 @@ impl Runtime {
     }
 
     /// Reset at the caller's clock sample: a reset store is a fresh install, and its period
-    /// timers are anchored to `now` — the owner's dev clock, never bare wall time.
+    /// timers align to whole-duration boundaries on the owner's dev clock.
     pub fn reset_and_seed_at(
         &mut self,
         rows: &[(String, Value)],
@@ -1074,7 +1074,7 @@ impl Runtime {
     }
 
     // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a period timer a
-    // successor installs is anchored to the caller's clock sample, the clock the writer fires
+    // successor installs is aligned from the caller's clock sample, the clock the writer fires
     // against; wall time under an advanced dev clock would arm it already due with a large skip.
     pub fn apply_successor_at(
         &mut self,
@@ -1310,9 +1310,9 @@ fn persist_generation(
     Ok(())
 }
 
-/// `now` is the clock a newly installed period timer is anchored to: the owner passes its own
-/// (dev-clock) sample through `apply_successor_at`; a fresh open uses wall time, which is the
-/// owner's clock at process start.
+/// `now` is the clock used to choose a newly installed timer's whole-duration boundaries: the
+/// owner passes its own (dev-clock) sample through `apply_successor_at`; a fresh open uses wall
+/// time, which is the owner's clock at process start.
 /// Every installation path records each custody log's audience bound (LLP
 /// 1019 §4) and returns it for the successor report.
 fn persist_generation_transaction(

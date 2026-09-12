@@ -23,7 +23,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-11 (implementation residual close-out: diagnostic rewrites, empty ad hoc input, refusal lock release, compiled schedule identity, manifest operator view, and catalog/ref anchors); 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-11 (period schedules align to whole-duration epoch boundaries; legacy install-offset timers reconcile on restart; real-owner restart effect-count proof); 2026-09-11 (implementation residual close-out: diagnostic rewrites, empty ad hoc input, refusal lock release, compiled schedule identity, manifest operator view, and catalog/ref anchors); 2026-09-06 (single live-generation admission per ad hoc run/enqueue, preserving clock ordering); 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -405,10 +405,9 @@ schedule dailyDigest every 24h: digestSweep(.periodEnd)
   `.periodEnd` to a job pins its logical cutoff in the durable job arguments
   across chunks, queue delay and restart. It does not pin the job's reads or
   authorization to a historical snapshot: each chunk still reads current
-  state under D2. If application source buckets are epoch-aligned while the
-  schedule was installed mid-period, first floor the logical end by the
-  configured duration, then subtract one duration to choose the completed
-  source bucket. Do not subtract directly from an install-phase-anchored end.
+  state under D2. Period boundaries are whole-duration multiples since the
+  Unix epoch on the owner's clock, so source buckets using the same duration
+  can use the logical boundaries directly.
 - **The timer index.** `_timers (id, schedule, row_id NULL, at, period_start
   NULL, generation)`, indexed on `at`, is maintained by the engine as an
   index is: a row insert with a present `at` enqueues, an update to a
@@ -419,7 +418,12 @@ schedule dailyDigest every 24h: digestSweep(.periodEnd)
   transaction, exactly as a new index is populated (LLP 1001 §4); removing
   the declaration drops its timers; changing its target rebinds them under
   the new generation. An `every` schedule owns one system row in `_timers`
-  created at install with `at = install time + duration`.
+  created at install with `period_start = floor(now / duration) * duration`
+  and `at = period_start + duration`. Reopening a legacy install-offset row
+  treats its persisted `period_start` as the next unprocessed boundary and
+  preserves it for one bounded transition to the next whole boundary, without
+  consulting retained firing history. If that transition is missed by at least
+  one duration, ordinary catch-up selects the latest complete whole interval.
 - **Firing.** On a background turn (D3) the writer takes due timers,
   oldest first, at most 64 per turn, and for each runs **one transaction**:
   execute the target as `system` (a mutation runs to completion inside it;
@@ -1385,8 +1389,11 @@ private `engine_writes`; the field is on `Certificate` and reads `["_jobs"]`
 for jobs). Succession populates a new row schedule from existing rows, drops a
 removed one, and rebinds a changed target under the new generation
 (`store_timers::reconcile` inside `persist_generation_transaction`); a period
-timer is created at install with `at = now + duration`, `period_start = now`;
-reset re-arms period timers and the seed re-arms row timers. **Firing:**
+timer is created at install on the next whole-duration epoch boundary, with
+`period_start` at the preceding boundary; a legacy install-offset row preserves
+its persisted start through one bounded transition on open, independent of
+retained firing history, while reset re-arms period timers and the seed re-arms
+row timers. **Firing:**
 `Runtime::fire_due_at(limit, now)` takes due timers oldest first (the store
 caps at 64) and `Engine::fire_timer` runs one transaction: a `SAVEPOINT`
 around the target (a mutation runs as the owner with the row's current values;
@@ -1600,13 +1607,24 @@ Muse, both LAND WITH FIXES with no blocking defect). What changed:
   `released_at`), and `/control/reset`. Before, a successor that added an
   `every` schedule after a clock advance armed it from wall time — already
   due with a large `skipped`. Proof: core
-  `tests/timers.rs::successor_and_reset_anchor_period_timers_to_the_supplied_clock_not_wall_time`
-  (anchor at 2100-01-01, not due, reset re-arms from the later sample) and,
+  `tests/timers.rs::successor_and_reset_align_period_timers_on_the_supplied_clock_not_wall_time`
+  (alignment under a 2100 dev-clock sample, not due, reset re-arms from the later sample) and,
   through the real binary, the tail of
   `owner_cases/timers.rs::schedules_fire_on_the_dev_clock…` (clock four
   days ahead; a `weeklyDigest every 48h` applied through `/control/apply`
-  lands at owner-now + 48 h; `/control/reset` re-arms `dailyDigest` at
-  owner-now + 24 h).
+  lands on the next 48 h boundary; `/control/reset` re-arms `dailyDigest`
+  on the next 24 h boundary).
+- **Whole-period alignment and restart, 2026-09-11.** Period installation
+  floors the owner's clock to a duration multiple since the Unix epoch and
+  arms the following boundary. Reconciliation preserves every legacy offset
+  row's persisted `period_start` as its next unprocessed boundary for one
+  bounded transition, independent of whether firing history remains. When one
+  or more full periods were missed, firing selects the latest complete aligned
+  interval; normal re-arm is aligned. Core proofs:
+  `tests/timers.rs::a_legacy_offset_period_without_retained_history_preserves_its_boundary_on_reopen`
+  and `a_legacy_offset_period_skips_to_the_latest_aligned_interval_on_reopen`;
+  real owner/effect proof:
+  `owner_cases/timers.rs::one_minute_digest_aligns_and_emits_exactly_once_after_owner_restart`.
 - **Schedule targets are system programs.** The compiler removes every
   schedule target from the client operation map beside jobs and bindings
   (`project.ts`; `purgeMessage` leaves the chat template's `api.d.ts`), and
