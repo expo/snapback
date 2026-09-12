@@ -1,0 +1,211 @@
+{
+  "at": "2026-09-12",
+  "publicVersion": "0.0.29",
+  "binary": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/snapback2-darwin-arm64/bin/snapback2",
+  "binarySha256": "e0e3dae8793317662cd5cb07c51747b1da01553a84c84cb8879da3fafc8a34d8",
+  "compiler": "/Users/ccheever/projects/snapback-worktrees/clique-shapes/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.29/shim/dist/compiler.mjs",
+  "node": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+  "ceilings": {
+    "closure_bytes": 4194304,
+    "examined": 10240,
+    "heap_bytes": 8388608,
+    "index_entries": 10240,
+    "output_bytes": 1048576,
+    "rule_probes": 10240,
+    "steps": 1000000,
+    "write_rows": 2048
+  },
+  "variants": {
+    "baseline": {
+      "ok": false,
+      "programs": {
+        "digest-recipes.periodDigestSweep": {
+          "admitted": false,
+          "cost": {
+            "max_closure_bytes": 8691704,
+            "max_examined": 4514,
+            "max_heap_bytes": 9922698,
+            "max_index_entries": 4514,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 117835
+          },
+          "errors": [
+            {
+              "code": "E_BOUND",
+              "message": "heap bytes 9922698 exceeds ceiling 8388608; product: search closure scratch = 6151978 + digest-recipes.periodDigestSweep.9 take 1000 (+2 reserve) \u00d7 1 calls on memberships (calls from digest-recipes.periodDigestSweep.0 take 1) \u00d7 5 \u00d7 32 = 160320 + digestScratch Update writes (calls from digest-recipes.periodDigestSweep.0 take 1 \u00d7 snapback/digest-recipes.q:65:9 bounded loop 1000) \u00d7 32 = 160000 + expr"
+            },
+            {
+              "code": "E_BOUND",
+              "message": "closure bytes 8691704 exceeds ceiling 4194304; product: maintained-address closure: whole row pool and actual issuing metadata [public count absence evidence = 2539726 bytes + digest-recipes.periodDigestSweep.10 \u00d7 1000 point reads: separately serialized keys, references and envelopes = 1109000 bytes + 1000 pooled periodUnreadByMembershipPeriod first images with table/id envelopes \u00d7 (periodUnreadBy"
+            }
+          ]
+        },
+        "digest-recipes.clearRecipeUnread": {
+          "admitted": false,
+          "cost": {
+            "max_closure_bytes": 0,
+            "max_examined": 1,
+            "max_heap_bytes": 704,
+            "max_index_entries": 1,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 22
+          },
+          "errors": [
+            {
+              "code": "E_CHECK_IR_UNSUPPORTED",
+              "message": "program cannot be certified because project certification failed"
+            }
+          ]
+        },
+        "digest-recipes.queueRecipeUnread": {
+          "admitted": false,
+          "cost": {
+            "max_closure_bytes": 0,
+            "max_examined": 102,
+            "max_heap_bytes": 18048,
+            "max_index_entries": 102,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 564
+          },
+          "errors": [
+            {
+              "code": "E_CHECK_IR_UNSUPPORTED",
+              "message": "program cannot be certified because project certification failed"
+            }
+          ]
+        }
+      },
+      "sources": {
+        "admin.q": "db6d9bf25dd2ee1223a8eb9ca572b8c1a90c92d152687c3546d0d5bf16888eba",
+        "digest-recipes.q": "369c5c7255a71918a29cc5e883aa9eebcb148280918f3e2f0c0016d6327ef13e",
+        "message-recipes.q": "7f52adb1bc2aced5b85072d40312c741d3bfa64eaba1fd824c2b6869e678077a",
+        "push.ts": "a18644d37f66794bc286f3df33f6098658e62b40fdf5c5db2d162ad456dfaa89",
+        "schema.q": "8c6e6b3f41baa7c70857653608a97f9129384a3ae5ab33fb10dd370b59ea8b9d"
+      }
+    },
+    "recipient-maintain": {
+      "ok": true,
+      "programs": {
+        "digest-recipes.clearRecipeUnread": {
+          "admitted": true,
+          "cost": {
+            "max_closure_bytes": 9169,
+            "max_examined": 3,
+            "max_heap_bytes": 9801,
+            "max_index_entries": 3,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 99
+          },
+          "errors": []
+        },
+        "digest-recipes.periodDigestSweep": {
+          "admitted": true,
+          "cost": {
+            "max_closure_bytes": 1848418,
+            "max_examined": 1514,
+            "max_heap_bytes": 2733253,
+            "max_index_entries": 1514,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 27894
+          },
+          "errors": []
+        },
+        "digest-recipes.queueRecipeUnread": {
+          "admitted": true,
+          "cost": {
+            "max_closure_bytes": 8353,
+            "max_examined": 103,
+            "max_heap_bytes": 25689,
+            "max_index_entries": 103,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 621
+          },
+          "errors": []
+        }
+      },
+      "sources": {
+        "admin.q": "db6d9bf25dd2ee1223a8eb9ca572b8c1a90c92d152687c3546d0d5bf16888eba",
+        "digest-recipes.q": "b32951df910019ce2741df070916de047180f1d14ca741dffc2b18ab8a96bb28",
+        "message-recipes.q": "7f52adb1bc2aced5b85072d40312c741d3bfa64eaba1fd824c2b6869e678077a",
+        "push.ts": "a18644d37f66794bc286f3df33f6098658e62b40fdf5c5db2d162ad456dfaa89",
+        "schema.q": "4232545de6c9aa2ce34a2dbd55d4409c57273b50331009f063bee387ccf4c4fe"
+      }
+    },
+    "owner-only-maintain": {
+      "ok": false,
+      "programs": {
+        "digest-recipes.periodDigestSweep": {
+          "admitted": false,
+          "cost": {
+            "max_closure_bytes": 8691704,
+            "max_examined": 4514,
+            "max_heap_bytes": 9922698,
+            "max_index_entries": 4514,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 117835
+          },
+          "errors": [
+            {
+              "code": "E_BOUND",
+              "message": "heap bytes 9922698 exceeds ceiling 8388608; product: search closure scratch = 6151978 + digest-recipes.periodDigestSweep.9 take 1000 (+2 reserve) \u00d7 1 calls on memberships (calls from digest-recipes.periodDigestSweep.0 take 1) \u00d7 5 \u00d7 32 = 160320 + digestScratch Update writes (calls from digest-recipes.periodDigestSweep.0 take 1 \u00d7 snapback/digest-recipes.q:65:9 bounded loop 1000) \u00d7 32 = 160000 + expr"
+            },
+            {
+              "code": "E_BOUND",
+              "message": "closure bytes 8691704 exceeds ceiling 4194304; product: maintained-address closure: whole row pool and actual issuing metadata [public count absence evidence = 2539726 bytes + digest-recipes.periodDigestSweep.10 \u00d7 1000 point reads: separately serialized keys, references and envelopes = 1109000 bytes + 1000 pooled periodUnreadByMembershipPeriod first images with table/id envelopes \u00d7 (periodUnreadBy"
+            }
+          ]
+        },
+        "digest-recipes.clearRecipeUnread": {
+          "admitted": false,
+          "cost": {
+            "max_closure_bytes": 0,
+            "max_examined": 1,
+            "max_heap_bytes": 704,
+            "max_index_entries": 1,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 22
+          },
+          "errors": [
+            {
+              "code": "E_CHECK_IR_UNSUPPORTED",
+              "message": "program cannot be certified because project certification failed"
+            }
+          ]
+        },
+        "digest-recipes.queueRecipeUnread": {
+          "admitted": false,
+          "cost": {
+            "max_closure_bytes": 0,
+            "max_examined": 102,
+            "max_heap_bytes": 18048,
+            "max_index_entries": 102,
+            "max_output_bytes": 6,
+            "max_rule_probes": 0,
+            "max_steps": 564
+          },
+          "errors": [
+            {
+              "code": "E_CHECK_IR_UNSUPPORTED",
+              "message": "program cannot be certified because project certification failed"
+            }
+          ]
+        }
+      },
+      "sources": {
+        "admin.q": "db6d9bf25dd2ee1223a8eb9ca572b8c1a90c92d152687c3546d0d5bf16888eba",
+        "digest-recipes.q": "369c5c7255a71918a29cc5e883aa9eebcb148280918f3e2f0c0016d6327ef13e",
+        "message-recipes.q": "7f52adb1bc2aced5b85072d40312c741d3bfa64eaba1fd824c2b6869e678077a",
+        "push.ts": "a18644d37f66794bc286f3df33f6098658e62b40fdf5c5db2d162ad456dfaa89",
+        "schema.q": "2c06a03b8c39544766d98d95db97b713835676d424e34279bdaf1596b90cccad"
+      }
+    }
+  }
+}
