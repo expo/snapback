@@ -34,19 +34,12 @@ export function rangeSchemaIdentity(schema: any): string {
   return owned ? owned.rangeHash ??= sha256(canonicalJson(schema)) : sha256(canonicalJson(schema));
 }
 
-const I53_MAX = 9_007_199_254_740_991;
-const I53_MIN = -I53_MAX;
-
 export function canonicalValue(value: Value): string {
   if (value === "Null") return '"Null"';
   const kind = kindOf(value);
   const data = (value as any)[kind];
-  if (kind === "Bool" || kind === "Int") return `{"${kind}":${JSON.stringify(data)}}`;
-  if (kind === "String" || kind === "Id") return `{"${kind}":${JSON.stringify(data)}}`;
-  if (kind === "Bytes") {
-    if (!canonicalBytes(data)) fail("E_INPUT", "Bytes is not canonical lowercase base16");
-    return `{"Bytes":${JSON.stringify(data)}}`;
-  }
+  if (kind === "Bytes" && !canonicalBytes(data)) fail("E_INPUT", "Bytes is not canonical lowercase base16");
+  if (kind === "Bool" || kind === "Int" || kind === "String" || kind === "Id" || kind === "Bytes") return `{"${kind}":${JSON.stringify(data)}}`;
   if (kind === "Array") return `{"Array":${canonicalValues(data)}}`;
   const entries = Object.keys(data)
     .sort(compareCodepoints)
@@ -128,17 +121,19 @@ export function int(value: number): Value {
 }
 
 export function safeNumber(value: number): number {
-  if (!Number.isSafeInteger(value) || value < I53_MIN || value > I53_MAX)
+  if (!Number.isSafeInteger(value))
     fail("E_OVERFLOW", `${value} is outside the i53 value model`);
   return value;
 }
 
 export function totalCompare(left: Value, right: Value): number {
-  const order = ["Null", "Bool", "Int", "String", "Id", "Bytes", "Row", "Array", "Map"];
   const leftKind = kindOf(left);
   const rightKind = kindOf(right);
-  const tag = order.indexOf(leftKind) - order.indexOf(rightKind);
-  if (tag !== 0) return Math.sign(tag);
+  if (leftKind !== rightKind) {
+    const order = ["Null", "Bool", "Int", "String", "Id", "Bytes", "Row", "Array", "Map"];
+    const tag = order.indexOf(leftKind) - order.indexOf(rightKind);
+    if (tag !== 0) return Math.sign(tag);
+  }
   if (leftKind === "Null") return 0;
   const leftData = (left as any)[leftKind];
   const rightData = (right as any)[rightKind];

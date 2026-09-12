@@ -67,6 +67,8 @@ A regression is a P0 with a name on it.
   build time, alongside the existing package build. No new gate, registry,
   runtime generator, or Unicode dependency is authorized by this exception. **[review]**
 - **Snapback 2 LLPs are numbered 1000 and up**; `llp-create` must be told. **[review]**
+- **Snapback 4 LLPs are numbered 3000 and up** (`snapback4/`, LLP 3000); it adopts these budgets
+  and loop shape as its own and keeps its scope in `snapback4/NOT-DOING.md`. **[review]**
 
 ## Shared machines
 

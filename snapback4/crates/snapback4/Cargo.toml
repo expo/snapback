@@ -1,0 +1,11 @@
+[package]
+name = "snapback4"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Snapback 4: the binary (owner, wire, verbs). Nothing runs yet beyond --version."
+
+[[bin]]
+name = "snapback4"
+path = "src/main.rs"

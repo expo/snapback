@@ -190,8 +190,9 @@ pub(super) fn lookup_indexed(
          LIMIT 1",
         predicates.join(" AND ")
     );
-    let data: Option<String> = connection
-        .query_row(&sql, params_from_iter(parameters.iter()), |row| row.get(0))
+    let mut statement = connection.prepare_cached(&sql)?;
+    let data: Option<String> = statement
+        .query_row(params_from_iter(parameters.iter()), |row| row.get(0))
         .optional()?;
     data.map(|data| {
         serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
@@ -241,7 +242,7 @@ pub(super) fn prepare_scan_indexed<'a>(
     range: Option<&EvaluatedRange>,
     order: Order,
     limit: usize,
-) -> Result<rusqlite::Statement<'a>, RuntimeError> {
+) -> Result<rusqlite::CachedStatement<'a>, RuntimeError> {
     let (sql, parameters) = scan_query(
         table_name,
         index_name,
@@ -256,7 +257,7 @@ pub(super) fn prepare_scan_indexed<'a>(
         None,
         intrinsic_id_order(table, index),
     )?;
-    let mut statement = connection.prepare(&sql)?;
+    let mut statement = connection.prepare_cached(&sql)?;
     bind_scan(&mut statement, &parameters)?;
     Ok(statement)
 }

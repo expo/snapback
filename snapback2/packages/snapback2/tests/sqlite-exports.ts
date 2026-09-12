@@ -5,7 +5,7 @@ export { runSqliteDriverConformance } from "../src/store/sqlite-driver.conforman
 export { sqliteState, fixtureAsset } from "./sqlite-state.js";
 export { NativeAssetFiles, fileBackend, attachAssetFiles, partitionDirectory } from "../src/react-native/files.js";
 export { ByteCache } from "../src/store/byte-cache.js";
-export { PersistentRangeStore } from "../src/store/range-store.js";
+export { PersistentRangeStore, emptyState } from "../src/store/range-store.js";
 // Incremental carrier qualification shares the exact production admission and identity implementations.
 export { tagReceipt, tagWireRow } from '../src/offline-protocol.js';
 export { canonicalProgramJson } from '../../evaluator/src/certificate-identity.js';
@@ -28,3 +28,4 @@ export { commitQuery } from '../src/client-query.js';
 export { DrainSubscription } from '../src/drain.js';
 export { itemInputs } from '../src/query-frame.js';
 export { RowImage } from '../../evaluator/src/row-image.js';
+export { CarrierIndex } from '../src/store/carrier-index.js';

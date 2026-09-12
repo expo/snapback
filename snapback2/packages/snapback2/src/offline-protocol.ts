@@ -180,7 +180,7 @@ export function decodeDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
   json.rows.forEach((row: unknown, index: number) => {
     object(row, `$.rows[${index}]`, ["table", "id", "row"]);
     string(row.table, `$.rows[${index}].table`);
-    string(row.id, `$.rows[${index}].id`); scalarText(row.id);
+    string(row.id, `$.rows[${index}].id`);
     object(row.row, `$.rows[${index}].row`, [], [], true);
     wire(row.row, `$.rows[${index}].row`);
     if (row.row.id !== row.id) fail(`$.rows[${index}].id`, "does not match the row id");
@@ -370,7 +370,7 @@ function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority
     array(range.rowIds, `${path}.rowIds`);
     const rowIds = new Set<string>();
     range.rowIds.forEach((id: unknown, at: number) => {
-      string(id, `${path}.rowIds[${at}]`); scalarText(id);
+      string(id, `${path}.rowIds[${at}]`);
       if (rowIds.has(id)) fail(`${path}.rowIds[${at}]`, "duplicates a row id");
       rowIds.add(id);
       if (!pool.has(poolKey(range.table, id))) fail(`${path}.rowIds[${at}]`, "references a missing same-table pooled row");
@@ -439,7 +439,6 @@ function indexColumns(schema: any, table: string, index: string): string[] {
 function validateReferences(value: unknown, pool: Set<string>, path: string): void {
   const ref = asRowRef(value);
   if (ref) {
-    scalarText(ref.id); scalarText(ref.table);
     if (!pool.has(poolKey(ref.table, ref.id))) fail(path, "references a missing pooled row");
     return;
   }

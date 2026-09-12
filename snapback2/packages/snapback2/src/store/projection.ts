@@ -39,7 +39,7 @@ export class ProjectionCache {
     const delta: ProjectionDelta = { rows: { put: [], remove: [] }, answers: { put: [], remove: [] },
       outbox: { put: [], remove: [] }, meta: { put: [], remove: [] } };
     const put = (name: keyof StateProjection, key: string, value: unknown) => {
-      const text = JSON.stringify(name === 'rows' ? imageRecord(value as { row: unknown }) : value);
+      const text = JSON.stringify(name === 'rows' && value !== undefined ? imageRecord(value as { row: unknown }) : value);
       if (text === undefined) {
         if (this.keys[name].has(key)) delta[name].remove.push(key);
         return;
@@ -53,11 +53,7 @@ export class ProjectionCache {
     };
     for (const name of ["rows", "answers", "outbox"] as const) {
       if (changed && !changed.get('*')?.has(name)) {
-        for (const key of changed.get(name) ?? []) {
-          const value = state[name][key];
-          if (value === undefined) { if (this.keys[name].has(key)) delta[name].remove.push(key); }
-          else put(name, key, value);
-        }
+        for (const key of changed.get(name) ?? []) put(name, key, state[name][key]);
         continue;
       }
       compare(name, Object.entries(state[name] ?? {}).map(([key, value]) => ({ key, value })));

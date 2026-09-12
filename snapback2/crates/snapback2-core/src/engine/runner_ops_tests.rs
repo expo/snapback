@@ -695,6 +695,42 @@ mod index_replacement {
     }
 
     #[test]
+    fn repeated_unique_declarations_keep_each_trace_and_refresh_after_a_row_write() {
+        let mut engine = fixture();
+        let execution = execute(
+            &mut engine,
+            vec![
+                update(object([("label", Value::String("temporary".into()))])),
+                update(object([("score", Value::Int(1))])),
+            ],
+        );
+        assert_eq!(execution.trace.writes.get("indexed"), Some(&2));
+        let checks = &execution.trace.constraint_inputs;
+        assert_eq!(checks.len(), 6);
+        for (offset, examined_ids) in [(0, vec![]), (3, vec!["a".to_owned()])] {
+            let expected = ConstraintTrace {
+                table: "indexed".into(),
+                check: "Unique(byLabel)".into(),
+                index: "byLabel".into(),
+                prefix: vec![Value::String("temporary".into())],
+                examined_ids,
+            };
+            assert_eq!(checks[offset], expected);
+            assert_eq!(checks[offset + 2], expected);
+            assert_eq!(checks[offset + 1].check, "Unique(byId)");
+            assert_eq!(checks[offset + 1].examined_ids, vec!["a".to_owned()]);
+        }
+        assert_matches_rebuild(&mut engine);
+        let rows = engine.rows("indexed").unwrap();
+        let refusal = try_execute(
+            &mut engine,
+            vec![update(object([("label", Value::String("other".into()))]))],
+        );
+        assert!(matches!(refusal, Err(RuntimeError::Constraint(message)) if message.contains("indexed.byLabel")));
+        assert_eq!(engine.rows("indexed").unwrap(), rows);
+    }
+
+    #[test]
     fn unchanged_keys_keep_physical_entries_and_logical_touches() {
         let mut engine = fixture();
         let before = plain_entries(&engine);

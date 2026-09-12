@@ -176,3 +176,29 @@ the reproduced pre-custody stall at the tested scope. Broader foreground latency
 first-inbox responsiveness, shutdown reliability and the **2–3-second full
 acquisition goal** remain open. All earlier failed controls and their source
 identities are retained in the acquisition record.
+
+## Acquisition continuation — 2026-09-12
+
+The current-browser harness now uses an ordinary finite bearer session for the
+same `dev:alice` fixture principal. The stopped fixture receives ordinary owner
+adoption and a core `Runtime::persona` session before the clock; all application
+rows and receipt counts must remain identical. The token stays out of bundles
+and evidence. This does not qualify production `serve` or real-account signup.
+The obsolete persona-header CORS refusal and other failed setup attempts remain
+retained separately from timings.
+
+Full 10,008-message samples pass content, acknowledgement, first offline-query,
+physical-reopen and owner-stop checks at **27.629 seconds** for the current
+baseline, **25.283 seconds** with native preimage/statement/probe reuse, and
+**24.847 seconds** with the combined carrier changes. These are individual
+diagnostics, not a matched qualification cohort. Combined durable content takes
+15.482 seconds and first mounted inbox 1.082 seconds. The combined timing uses
+the 90,004-byte client before the final equivalent serialization cleanup;
+canonical final runtime size is 89,996 bytes within the unchanged ceiling.
+
+The fresh baseline CPU profile points to carrier updates, serialization,
+journal access, identity synchronization and row indexing as remaining work;
+its nested elapsed costs overlap. The **less-than-three-second full endpoint**,
+qualified timing cohort and broader controls remain open. Source hashes,
+retained failures and detailed results are in `acquisitionContinuation20260912`
+in the existing acquisition record.

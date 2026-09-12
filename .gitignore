@@ -96,3 +96,6 @@ tests/fixtures/*/target/
 /snapback2/dist/
 /snapback2/.hermes/
 /snapback2/packages/*/dist/
+/snapback4/target/
+/snapback4/dist/
+/snapback4/packages/*/dist/

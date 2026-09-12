@@ -19,18 +19,14 @@ export class CoverageSpans {
   }
   change(start: Value[] | null, end: Value[] | null, delta: 1 | -1, last?: Value[] | null): void {
     if (start && end && this.events.compare(start, end) >= 0) return;
-    this.event(start, delta); if (end) this.event(end, -delta);
+    this.count(this.events, start, delta); if (end) this.count(this.events, end, -delta);
     if (last !== undefined) {
       this.count(this.rows, last, delta);
       if (!end) this.count(this.ends, this.events.compare(start, last) > 0 ? start : last, delta);
     }
   }
-  private count(tree: Ordered<Value[] | null, number>, key: Value[] | null, delta: number): void {
+  private count<A>(tree: Ordered<Value[] | null, number, A>, key: Value[] | null, delta: number): void {
     const count = (tree.get(key) ?? 0) + delta;
     if (count) tree.set(key, count); else tree.delete(key);
-  }
-  private event(key: Value[] | null, delta: number): void {
-    const value = (this.events.get(key) ?? 0) + delta;
-    if (value) this.events.set(key, value); else this.events.delete(key);
   }
 }

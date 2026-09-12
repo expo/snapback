@@ -477,9 +477,9 @@ query before(boundary: time):
     let applied = wait_for(Duration::from_secs(6), || {
         let value = status(port, &secret);
         let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
-        manifest.body["ops"]
-            .get("messages.hotAdded")
-            .is_some()
+        // These are separate owner turns: seeing the operation in the later
+        // manifest does not make an earlier applying status ready.
+        (value["status"] == "ready" && manifest.body["ops"].get("messages.hotAdded").is_some())
             .then_some(value)
     });
     assert_eq!(applied["status"], "ready");

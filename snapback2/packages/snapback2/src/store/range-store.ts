@@ -3,7 +3,7 @@ import { applyDeliveryAcknowledgements, applyOutboxSwap, DeliveryAcknowledgement
   acknowledgementWithoutTail, acknowledgementForReplay, AcknowledgementTailRequired } from "../delivery-acknowledgements.js";
 import { admittedMutationTargets } from '../mutation-targets.js';
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
-import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
+import { RowImage, ImageKeys, immutable, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
 import { CarrierIndex } from "./carrier-index.js";
 import { queryClock } from '../held-program.js';
 import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransaction, negativeProof, proofSlots,
@@ -480,6 +480,10 @@ export class PersistentRangeStore implements RangeStore {
     },
     compactedThrough: () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
+    // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work —
+    // Freeze each COW-owned version once; public ledger reads still detach.
+    itemEntries: () => this.read(() => { this.ensureUnsealed();
+      return outboxOrder(this.state.outbox).map(entry => Object.isFrozen(entry) ? entry : immutable(entry)); }),
     queued: () => this.readOutbox(state => outboxOrder(state.outbox, true)),
     queuedInfo: () => this.readOutbox(state => outboxOrder(state.outbox, true)
       .map(({ intent, state, grant, createdAt, reason, refusal }) => ({ intent, state, grant, createdAt, reason, refusal }))),
@@ -738,7 +742,8 @@ export class PersistentRangeStore implements RangeStore {
         const removed = this.applySwap(journal.draft, normalized, delta);
         if (ackEntries?.some((entry, index) => !acknowledgementWithoutTail(journal.draft, entry, ackQueued![index]))) throw new AcknowledgementTailRequired();
         const compactedAliases = compactSuccesses(journal.draft, this.referenceIndex && !journal.changed.get('*')?.has('answers')
-          ? key => new Set([...(this.referenceIndex!.proofOwners.get(key) ?? []), ...(journal.changed.get('answers') ?? [])]) : undefined);
+          ? key => new Set([...(this.referenceIndex!.proofOwners.get(key) ?? []), ...(journal.changed.get('answers') ?? [])]) : undefined,
+          priorIndex?.successCandidates(journal.draft, journal.changed));
         const removedAcks = applyDeliveryAcknowledgements(journal.draft, normalized, this.partition!, acknowledgements, journal.changed);
         const combinedInbox = compactedAliases.length ? { ...inbox, remove: [...(inbox?.remove ?? []), ...compactedAliases] } : inbox;
         this.updates.prepare(journal.changed);
@@ -753,7 +758,7 @@ export class PersistentRangeStore implements RangeStore {
         else acknowledgements.update(this.state.deliveryAcks, journal.changed.get('deliveryAcks') ?? []);
       } catch { this.acknowledgementIndex = undefined; } // Committed state is never rolled back for a derived index.
       this.updates.publish(this.state, journal.changed);
-      if (['answers', 'programs', 'onceColumns', 'rows', 'viewed'].some(k => journal.changed.get('*')?.has(k))) this.referenceIndex = undefined;
+      if (['answers', 'programs', 'onceColumns', 'rows', 'viewed', 'outbox'].some(k => journal.changed.get('*')?.has(k))) this.referenceIndex = undefined;
       else { try { this.referenceIndex?.update(this.state, journal.changed, normalized.schema); }
         catch (error) { this.referenceIndex = undefined; throw error; } }
 

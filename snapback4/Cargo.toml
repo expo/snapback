@@ -1,0 +1,23 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = ["crates/snapback4"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+license = "MIT"
+
+# The ordinary loop: incremental release builds so an edit re-links, not rebuilds.
+[profile.release]
+incremental = true
+
+# The shipped bytes. Small, stripped, one codegen unit.
+[profile.production]
+inherits = "release"
+incremental = false
+lto = "fat"
+codegen-units = 1
+opt-level = "z"
+panic = "abort"
+strip = true

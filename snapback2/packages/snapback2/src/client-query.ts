@@ -78,7 +78,7 @@ export async function commitQuery<Result>(options: {
   const published = batch ? items.slice(0, committed) : items;
   const pages = published.map(item => wireQuery<Result>(item.accepted.result));
   if (runtime && published.length && !superseded && revision === runtime.coverageRevision) {
-    const ledger = { entries: await runtime.itemEntries(), compactedThrough: await runtime.compactedThrough() };
+    const ledger = { entries: await runtime.itemEntries(true), compactedThrough: await runtime.compactedThrough() };
     for (const [index, item] of published.entries()) {
       pages[index] = await runtime.withQueryItems(op, item.args, item.accepted, pages[index], ledger);
     }
