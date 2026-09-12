@@ -814,3 +814,8 @@ Three fresh Astra sessions at medium, serial, each on the published
   reads a program's own refusal on a derived argument as information;
   `--reverify <lane>` records a second look beside the first.
 - Published `snapback4@0.0.12`.
+- **A shape dropped `pending`** (the Clique lane at M6): a shaped history
+  built new objects from a predicted row's fields and lost the card's
+  word, so a screen on a shape could not say "Sending…". On the device an
+  object built from a pending row's fields is pending; tested. Published
+  `snapback4@0.0.13`.

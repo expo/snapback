@@ -144,6 +144,8 @@ export class Interpreter {
   private beyondHorizon = false;
   /** The program's page had more rows and no cursor to continue on. */
   private pageOverflow = false;
+  /** A field of a pending row was read while building an object. */
+  private pendingTouched = false;
   private page: { table: string; index: string; order: "Asc" | "Desc"; prefixLen: number; next: unknown[] | null } | null = null;
   private pageDepth = 0;
   private created = new Set<string>();
@@ -299,9 +301,19 @@ export class Interpreter {
         case "NewId": return this.ctx.newIds.shift() ?? this.ctx.mint();
         default: return this.ctx.now;
       }
-      case "Field": { const b = body as { base: unknown; name: string }; const base = await this.expr(b.base); if (base === null || base === undefined) return null; if (typeof base !== "object") throw new Refused({ code: "E_FIELD", family: "input", message: `no field ${b.name}` }); return (base as Record<string, unknown>)[b.name] ?? null; }
+      case "Field": { const b = body as { base: unknown; name: string }; const base = await this.expr(b.base); if (base === null || base === undefined) return null; if (typeof base !== "object") throw new Refused({ code: "E_FIELD", family: "input", message: `no field ${b.name}` }); if ((base as Record<string, unknown>).pending === true) this.pendingTouched = true; return (base as Record<string, unknown>)[b.name] ?? null; }
       case "Array": { const out = []; for (const item of body as unknown[]) out.push(await this.expr(item)); return out; }
-      case "Object": { const out: Record<string, unknown> = {}; for (const [k, v] of Object.entries(body as Record<string, unknown>)) out[k] = await this.expr(v); return out; }
+      case "Object": {
+        // A shape over a pending row is pending: the card's word survives
+        // the field selection, so a screen shows "Sending…" on shaped rows too.
+        const outer = this.pendingTouched;
+        this.pendingTouched = false;
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(body as Record<string, unknown>)) out[k] = await this.expr(v);
+        if (this.pendingTouched && !("pending" in out)) out.pending = true;
+        this.pendingTouched = outer || this.pendingTouched;
+        return out;
+      }
       case "Binary": {
         const b = body as { op: string; left: unknown; right: unknown };
         const left = await this.expr(b.left);
