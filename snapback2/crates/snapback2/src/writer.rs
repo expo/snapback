@@ -868,7 +868,10 @@ impl State {
                 Ok(asset_record(&id, &facts))
             }
             Action::AssetUploadFailed { id } => {
-                self.staging.finish_upload(&id);
+                // Keep failed unlink custody until sweep physically closes it.
+                if matches!(self.staging.cancel_upload(&id), Ok(true)) {
+                    self.staging.finish_upload(&id);
+                }
                 self.runtime_mut()
                     .mark_asset_failed(&id)
                     .map_err(|error| Refusal::from_runtime(&error))?;

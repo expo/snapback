@@ -353,7 +353,8 @@ impl<'a> Walk<'a> {
     fn visit(&mut self, header: &BoxHeader, depth: u32, parent: &[u8; 4]) -> WalkResult<()> {
         let payload_len = header.end - header.payload_start;
         match &header.kind {
-            b"moov" => {
+            b"moov" | b"mdia" | b"minf" | b"dinf" | b"edts" | b"mvex" | b"moof" | b"traf"
+            | b"stbl" => {
                 self.walk_children(header.payload_start, header.end, depth + 1, &header.kind)
             }
             b"trak" if parent == b"moov" && depth == 1 => self.visit_track(header, depth + 1),
@@ -410,7 +411,7 @@ impl<'a> Walk<'a> {
                 self.record_free_if_nonzero(header)?;
                 Ok(())
             }
-            [0xA9, b'x', b'y', b'z'] | b"loci" if parent == b"udta" => {
+            [0xA9, b'x', b'y', b'z'] | b"loci" => {
                 self.record_blank(header);
                 Ok(())
             }
@@ -536,19 +537,36 @@ impl<'a> Walk<'a> {
                 self.ceilings.max_box_depth
             )));
         }
-        let mut location_key_indices = Vec::new();
+        let mut location_key_indices = std::collections::HashSet::new();
+        let mut saw_keys = false;
         let mut ilst = None;
         let mut at = start;
         while at < end {
             let header = self.header(at, end, false)?;
             match &header.kind {
                 b"keys" => {
+                    if saw_keys {
+                        return Err(asset_type_refusal("duplicate meta keys table"));
+                    }
+                    saw_keys = true;
                     location_key_indices =
                         self.location_key_indices(header.payload_start, header.end)?;
                 }
-                b"ilst" => ilst = Some((header.payload_start, header.end)),
-                b"free" => self.record_free_if_nonzero(&header)?,
-                _ => {}
+                b"ilst" => {
+                    if ilst.is_some() {
+                        return Err(asset_type_refusal("duplicate meta ilst table"));
+                    }
+                    ilst = Some((header.payload_start, header.end));
+                }
+                b"hdlr" => {
+                    self.handler_type(&header)?;
+                }
+                b"free" | b"uuid" => self.visit(&header, depth, b"meta")?,
+                _ => {
+                    return Err(asset_type_refusal(
+                        "unclassified meta child; cannot prove it location-free",
+                    ));
+                }
             }
             at = header.end;
         }
@@ -574,13 +592,17 @@ impl<'a> Walk<'a> {
         Ok(())
     }
 
-    fn location_key_indices(&mut self, start: u64, end: u64) -> WalkResult<Vec<u32>> {
+    fn location_key_indices(
+        &mut self,
+        start: u64,
+        end: u64,
+    ) -> WalkResult<std::collections::HashSet<u32>> {
         if start.checked_add(8).is_none_or(|needed| needed > end) {
             return Err(asset_type_refusal("keys box smaller than its header"));
         }
         let prefix = self.read_exact_at::<8>(start)?;
         let count = u32::from_be_bytes(prefix[4..8].try_into().unwrap());
-        let mut indices = Vec::new();
+        let mut indices = std::collections::HashSet::new();
         let mut at = start + 8;
         for index in 1..=count {
             self.step()?;
@@ -596,7 +618,7 @@ impl<'a> Walk<'a> {
                 return Err(asset_type_refusal("keys entry declares a lying size"));
             }
             if self.region_contains_location(at + 8, entry_end)? {
-                indices.push(index);
+                indices.insert(index);
             }
             at = entry_end;
         }

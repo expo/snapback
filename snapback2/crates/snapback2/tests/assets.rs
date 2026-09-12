@@ -473,6 +473,41 @@ fn asset_server_upload_delivery_carrier_revoke_and_reset_round_trip() {
         wire_without_length(port, "POST", "/api/upload", &[("X-Snapback-As", "alice")]);
     assert_eq!(missing_length.status, 422);
     assert_eq!(missing_length.json()["code"], "E_ASSET_TYPE");
+    let png = image_bytes("png", 4, 2);
+    for oversized in [false, true] {
+        let mut payload = png.clone();
+        if oversized {
+            payload.resize(5_000_001, 0);
+        }
+        let mut socket = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(20)))
+            .unwrap();
+        write!(socket, "POST /api/upload HTTP/1.1\r\nHost: localhost\r\nX-Snapback-As: alice\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n").unwrap();
+        for chunk in payload.chunks(65536) {
+            write!(socket, "{:x}\r\n", chunk.len()).unwrap();
+            socket.write_all(chunk).unwrap();
+            socket.write_all(b"\r\n").unwrap();
+        }
+        socket.write_all(b"0\r\n\r\n").unwrap();
+        let chunked = read_response(socket);
+        if oversized {
+            assert_eq!(chunked.status, 422);
+            assert_eq!(chunked.json()["code"], "E_ASSET_TOO_LARGE");
+        } else {
+            assert_eq!(chunked.status, 200, "{:?}", chunked.json());
+            assert_eq!(chunked.json()["width"], 4);
+            assert_eq!(chunked.json()["height"], 2);
+            let discarded = json_request(
+                port,
+                "POST",
+                "/api/uploads/discard",
+                &[("X-Snapback-As", "alice")],
+                json!({"id": chunked.json()["id"]}),
+            );
+            assert_eq!(discarded.status, 200);
+        }
+    }
 
     for invalid in [
         b"<svg xmlns='http://www.w3.org/2000/svg'/>".as_slice(),

@@ -21,13 +21,12 @@ See `guide quarry` for related topics.
 Pass a browser `File` or Expo `{ uri, fileSize, mimeType }` as a generated
 image/video mutation argument. `client.upload(file, { kind: "image" })`
 returns a record for the explicit two-step form; see `guide operator` for
-abandoned upload cleanup. Each asset is owned by one row cell. Reusing its id
+cleanup. Raw uploads accept `Content-Length` or bounded chunked bodies;
+over-bound bytes refuse `E_ASSET_TOO_LARGE`. Each asset belongs to one row cell. Reusing its id
 in another cell refuses `E_ASSET_IN_USE`; upload a fresh copy for that cell.
 
-Images are decoded, oriented and re-encoded; metadata and original PNG bytes
-are not preserved. Compare normalized pixels when testing PNG fidelity.
-Videos are validated and served without image re-encoding; do not infer
-image byte preservation from a video check.
+Images are decoded, oriented and re-encoded; compare normalized pixels for PNG
+fidelity. Videos are validated and location metadata stripped without re-encoding.
 
 ## Open once
 

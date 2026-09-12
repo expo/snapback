@@ -42,7 +42,11 @@ struct MediaJobCounts {
 
 impl MediaJobs {
     pub(crate) fn active_asset_ids(&self) -> std::collections::BTreeSet<String> {
-        let state = self.0.state.lock().expect("media job lock");
+        let state = self
+            .0
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         state
             .rungs
             .iter()
@@ -55,44 +59,73 @@ impl MediaJobs {
             .collect()
     }
 
-    fn once(&self, id: &str, principal: &str) -> OncePermit {
+    fn once(&self, id: &str, principal: &str) -> Result<OncePermit, Refusal> {
         let key = (id.to_owned(), principal.to_owned());
-        let mut state = self.0.state.lock().expect("media job lock");
+        let mut state = self
+            .0
+            .state
+            .lock()
+            .map_err(|_| asset_file_io(io::Error::other("media job lock poisoned")))?;
         while !state.once.insert(key.clone()) {
-            state = self.0.changed.wait(state).expect("media job lock");
+            state = self
+                .0
+                .changed
+                .wait(state)
+                .map_err(|_| asset_file_io(io::Error::other("media job lock poisoned")))?;
         }
-        OncePermit {
+        Ok(OncePermit {
             jobs: self.clone(),
             key,
-        }
+        })
     }
 
-    fn helper(&self) -> HelperPermit {
-        let mut state = self.0.state.lock().expect("media job lock");
+    fn helper(&self) -> Result<HelperPermit, Refusal> {
+        let mut state = self
+            .0
+            .state
+            .lock()
+            .map_err(|_| asset_file_io(io::Error::other("media job lock poisoned")))?;
         while state.helpers >= MAX_MEDIA_HELPERS {
-            state = self.0.changed.wait(state).expect("media job lock");
+            state = self
+                .0
+                .changed
+                .wait(state)
+                .map_err(|_| asset_file_io(io::Error::other("media job lock poisoned")))?;
         }
         state.helpers += 1;
-        HelperPermit(self.clone())
+        Ok(HelperPermit(self.clone()))
     }
 
-    fn rung(&self, key: &str) -> Option<RungPermit> {
-        let mut state = self.0.state.lock().expect("media job lock");
+    fn rung(&self, key: &str) -> Result<Option<RungPermit>, Refusal> {
+        let mut state = self
+            .0
+            .state
+            .lock()
+            .map_err(|_| asset_file_io(io::Error::other("media job lock poisoned")))?;
         if state.rungs.insert(key.to_owned()) {
-            Some(RungPermit {
+            Ok(Some(RungPermit {
                 jobs: self.clone(),
                 key: key.to_owned(),
-            })
+            }))
         } else {
-            None
+            Ok(None)
         }
     }
 
-    fn wait_for_rung(&self, key: &str) {
-        let mut state = self.0.state.lock().expect("media job lock");
+    fn wait_for_rung(&self, key: &str) -> Result<(), Refusal> {
+        let mut state = self
+            .0
+            .state
+            .lock()
+            .map_err(|_| asset_file_io(io::Error::other("media job lock poisoned")))?;
         while state.rungs.contains(key) {
-            state = self.0.changed.wait(state).expect("media job lock");
+            state = self
+                .0
+                .changed
+                .wait(state)
+                .map_err(|_| asset_file_io(io::Error::other("media job lock poisoned")))?;
         }
+        Ok(())
     }
 }
 
@@ -100,8 +133,13 @@ struct HelperPermit(MediaJobs);
 
 impl Drop for HelperPermit {
     fn drop(&mut self) {
-        let mut state = self.0.0.state.lock().expect("media job lock");
-        state.helpers -= 1;
+        let mut state = self
+            .0
+            .0
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        state.helpers = state.helpers.saturating_sub(1);
         self.0.0.changed.notify_all();
     }
 }
@@ -113,7 +151,12 @@ struct RungPermit {
 
 impl Drop for RungPermit {
     fn drop(&mut self) {
-        let mut state = self.jobs.0.state.lock().expect("media job lock");
+        let mut state = self
+            .jobs
+            .0
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         state.rungs.remove(&self.key);
         self.jobs.0.changed.notify_all();
     }
@@ -126,7 +169,12 @@ struct OncePermit {
 
 impl Drop for OncePermit {
     fn drop(&mut self) {
-        let mut state = self.jobs.0.state.lock().expect("media job lock");
+        let mut state = self
+            .jobs
+            .0
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         state.once.remove(&self.key);
         self.jobs.0.changed.notify_all();
     }
@@ -148,7 +196,10 @@ impl UploadLedgerGuard {
 
 impl Drop for UploadLedgerGuard {
     fn drop(&mut self) {
-        if self.finish_bytes().is_ok() && !self.settled {
+        if let Err(error) = self.finish_bytes() {
+            eprintln!("asset staging cleanup failed: {}", error.message);
+        }
+        if !self.settled {
             let _ = self.handle.call(Action::AssetUploadFailed {
                 id: self.id.clone(),
             });
@@ -159,7 +210,7 @@ impl Drop for UploadLedgerGuard {
 // @ref LLP 1006#5-upload-one-post — admission checks declared length before
 // streaming one request into local staging and finalizing outside the writer.
 pub fn handle_upload(mut request: Request, context: &Context, identity: Identity) {
-    let content_length = match required_content_length(&request) {
+    let declared_length = match upload_content_length(&request) {
         Ok(length) => length,
         Err(error) => {
             respond_refusal(request, 422, error, &context.mode);
@@ -167,7 +218,7 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
         }
     };
     let authorization = match context.handle.call(Action::AssetUploadAuthorize {
-        bytes: content_length,
+        bytes: declared_length.unwrap_or(0),
         identity: identity.clone(),
     }) {
         Ok(value) => value,
@@ -177,15 +228,17 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
             return;
         }
     };
-    let mut staging = match context.staging.create_for_upload(content_length) {
+    let reserved_length =
+        declared_length.unwrap_or_else(|| authorization["maxBytes"].as_u64().unwrap_or(0));
+    let mut staging = match context.staging.create_for_upload(reserved_length) {
         Ok(staging) => staging,
         Err(error) => {
             respond_refusal(request, 500, error, &context.mode);
             return;
         }
     };
-    let prefix_bytes = content_length.min(DETECTION_PREFIX_BYTES);
-    let copied = match io::copy(
+    let prefix_bytes = reserved_length.min(DETECTION_PREFIX_BYTES);
+    let mut copied = match io::copy(
         &mut request.as_reader().take(prefix_bytes),
         staging.file_mut(),
     ) {
@@ -200,12 +253,12 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
             return;
         }
     };
-    if copied != prefix_bytes {
+    if declared_length.is_some() && copied != prefix_bytes {
         respond_refusal(
             request,
             422,
             asset_type(format!(
-                "Content-Length declared {content_length} bytes but the detection prefix supplied {copied}"
+                "upload length {declared_length:?} disagrees with the detection prefix supplied {copied}"
             )),
             &context.mode,
         );
@@ -239,12 +292,12 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
         );
         return;
     }
-    if content_length > kind_max {
+    if declared_length.unwrap_or(copied) > kind_max {
         respond_refusal(
             request,
             422,
             too_large(format!(
-                "the detected {} upload has {content_length} bytes, over the generation's {kind_max} byte bound",
+                "the detected {} upload exceeds the generation's {kind_max} byte bound",
                 detected.kind
             )),
             &context.mode,
@@ -252,6 +305,35 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
         return;
     }
 
+    // Unknown-length bodies reserve physical scratch first and enter the ledger
+    // with their exact size after bounded streaming; no whole-body buffer.
+    if declared_length.is_none() {
+        match io::copy(
+            &mut request.as_reader().take(kind_max - copied + 1),
+            staging.file_mut(),
+        ) {
+            Ok(rest) => copied += rest,
+            Err(error) => {
+                respond_refusal(
+                    request,
+                    422,
+                    asset_type(format!("cannot stream upload: {error}")),
+                    &context.mode,
+                );
+                return;
+            }
+        }
+        if copied > kind_max {
+            respond_refusal(
+                request,
+                422,
+                too_large("chunked upload exceeds the detected kind's byte bound"),
+                &context.mode,
+            );
+            return;
+        }
+    }
+    let content_length = declared_length.unwrap_or(copied);
     let custody = UploadCustody::new(staging);
     let begun = match context.handle.call(Action::AssetUploadBegin {
         kind: detected.kind,
@@ -555,7 +637,7 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
     } else {
         200
     };
-    add_cors(&mut headers, &context.mode);
+    add_cors(&request, &mut headers, &context.mode);
     decorate_asset_response_headers(request.url(), &mut headers);
     let length = match usize::try_from(blob.length) {
         Ok(length) => length,
@@ -587,7 +669,13 @@ fn deliver_once(
     let principal = initial["principal"]
         .as_str()
         .expect("authorized once principal");
-    let _permit = context.media_jobs.once(id, principal);
+    let _permit = match context.media_jobs.once(id, principal) {
+        Ok(permit) => permit,
+        Err(error) => {
+            respond_once_refusal(request, error, &context.mode);
+            return;
+        }
+    };
     // The preceding delivery or a mutation may have completed while we waited.
     let prepared = context
         .handle
@@ -633,25 +721,28 @@ pub(crate) fn write_once_body(
     blob: crate::blob_store::BlobRead,
     delivery: &serde_json::Value,
     mode: &str,
-) -> (bool, impl FnOnce()) {
+) -> (bool, Box<dyn FnOnce()>) {
     use std::io::Write;
+    let Ok(length) = usize::try_from(blob.length) else {
+        respond_asset_refusal(
+            request,
+            500,
+            asset_type("asset response length exceeds this platform"),
+            mode,
+        );
+        return (false, Box::new(|| {}));
+    };
     let mut headers = delivery_headers(
         delivery["type"].as_str().unwrap_or("image/jpeg"),
         "private, no-store",
         None,
     );
-    add_cors(&mut headers, mode);
+    add_cors(&request, &mut headers, mode);
     decorate_asset_response_headers(request.url(), &mut headers);
     let version = request.http_version().clone();
     let request_headers = request.headers().to_vec();
-    let response = Response::new(
-        StatusCode(200),
-        headers,
-        blob.stream,
-        Some(blob.length as usize),
-        None,
-    )
-    .with_chunked_threshold(usize::MAX);
+    let response = Response::new(StatusCode(200), headers, blob.stream, Some(length), None)
+        .with_chunked_threshold(usize::MAX);
     let mut writer = CompletionWriter {
         inner: BodyWriter {
             inner: request.into_writer(),
@@ -670,7 +761,7 @@ pub(crate) fn write_once_body(
     // A held body byte also needs a claim before finish publishes it (even a one-byte body).
     (
         writer.inner.written > 0 || (complete && writer.inner.in_body && writer.tail.is_some()),
-        move || {
+        Box::new(move || {
             // Publish the completion byte only after the durable owner transaction.
             // Dropping this closure on a failed commit leaves a truncated response.
             if complete && let Some(tail) = writer.tail {
@@ -679,7 +770,7 @@ pub(crate) fn write_once_body(
                     .write_all(&[tail])
                     .and_then(|_| writer.inner.flush());
             }
-        },
+        }),
     )
 }
 
@@ -807,7 +898,7 @@ fn finalize_asset(
                     MEDIA_HELPER_OUTPUT_BYTES.saturating_mul(2),
                     2,
                 )?;
-                let _helper = media_jobs.helper();
+                let _helper = media_jobs.helper()?;
                 let result = media_helper::normalize_heic(path, normalized.path());
                 let result = match result {
                     Ok(result) => result,
@@ -936,8 +1027,8 @@ fn ensure_rung_with(
         if let Ok(media_type) = sniff_image_type(store, key) {
             return Ok(media_type);
         }
-        let Some(_flight) = media_jobs.rung(key) else {
-            media_jobs.wait_for_rung(key);
+        let Some(_flight) = media_jobs.rung(key)? else {
+            media_jobs.wait_for_rung(key)?;
             continue;
         };
         if let Ok(media_type) = sniff_image_type(store, key) {
@@ -969,7 +1060,7 @@ fn render_rung(
 ) -> Result<String, Refusal> {
     // The helper permit precedes every source/output allocation, so queued
     // rung requests own no scratch while waiting for one of the two workers.
-    let _helper = media_jobs.helper();
+    let _helper = media_jobs.helper()?;
     let blob = store.get(source_id, None)?;
     if blob.length == 0 || blob.length > source_max {
         return Err(too_large(format!(
@@ -1099,7 +1190,7 @@ fn delivery_headers(content_type: &str, cache: &str, etag: Option<&str>) -> Vec<
 }
 
 fn respond_empty(request: Request, status: u16, mut headers: Vec<tiny_http::Header>, mode: &str) {
-    add_cors(&mut headers, mode);
+    add_cors(&request, &mut headers, mode);
     decorate_asset_response_headers(request.url(), &mut headers);
     let mut response = Response::empty(StatusCode(status));
     for header in headers {
@@ -1114,7 +1205,7 @@ fn respond_asset_refusal(request: Request, status: u16, refusal: Refusal, mode: 
         header_value("Content-Type", "application/json"),
         header_value("Referrer-Policy", "no-referrer"),
     ];
-    add_cors(&mut headers, mode);
+    add_cors(&request, &mut headers, mode);
     decorate_asset_response_headers(request.url(), &mut headers);
     let response = Response::from_string(body)
         .with_status_code(StatusCode(status))
@@ -1126,17 +1217,31 @@ fn respond_asset_refusal(request: Request, status: u16, refusal: Refusal, mode: 
     let _ = request.respond(response);
 }
 
-fn add_cors(headers: &mut Vec<tiny_http::Header>, mode: &str) {
-    if mode == "dev" {
-        headers.push(header_value("Access-Control-Allow-Origin", "*"));
+fn add_cors(request: &Request, headers: &mut Vec<tiny_http::Header>, mode: &str) {
+    if let Some(origin) = crate::serve::cors_origin(request, mode) {
+        headers.push(header_value("Access-Control-Allow-Origin", &origin));
+        headers.push(header_value("Vary", "Origin"));
     }
 }
 
-fn required_content_length(request: &Request) -> Result<u64, Refusal> {
-    header(request, "Content-Length")
-        .and_then(|value| value.parse::<u64>().ok())
-        .filter(|value| *value > 0)
-        .ok_or_else(|| asset_type("Content-Length is required and must be a positive integer"))
+fn upload_content_length(request: &Request) -> Result<Option<u64>, Refusal> {
+    if let Some(length) = header(request, "Content-Length") {
+        return length
+            .parse::<u64>()
+            .ok()
+            .filter(|length| *length > 0)
+            .map(Some)
+            .ok_or_else(|| asset_type("Content-Length must be a positive integer"));
+    }
+    if header(request, "Transfer-Encoding")
+        .is_some_and(|encoding| encoding.eq_ignore_ascii_case("chunked"))
+    {
+        Ok(None)
+    } else {
+        Err(asset_type(
+            "upload requires Content-Length or chunked transfer encoding",
+        ))
+    }
 }
 
 fn upload_refusal_status(refusal: &Refusal) -> u16 {
@@ -1188,270 +1293,20 @@ fn asset_file_io(error: io::Error) -> Refusal {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+#[path = "asset_http_tests.rs"]
+mod tests;
 
-    #[test]
-    fn media_flights_expose_their_asset_ids_until_their_permits_drop() {
-        let jobs = MediaJobs::default();
-        let rung = jobs
-            .rung("s2id-asset-one.w256")
-            .expect("first rung owns its flight");
-        let once = jobs.once("s2id-asset-two", "alice");
-        assert_eq!(
-            jobs.active_asset_ids(),
-            std::collections::BTreeSet::from([
-                "s2id-asset-one".to_owned(),
-                "s2id-asset-two".to_owned(),
-            ])
-        );
-        drop(rung);
-        assert_eq!(
-            jobs.active_asset_ids(),
-            std::collections::BTreeSet::from(["s2id-asset-two".to_owned()])
-        );
-        drop(once);
-        assert!(jobs.active_asset_ids().is_empty());
-    }
-    use crate::blob_store::BlobRead;
-    use std::collections::BTreeMap;
-    use std::io::Cursor;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::time::Duration;
-
-    #[test]
-    fn completion_writer_counts_one_and_two_byte_bodies_before_finishing() {
-        use std::io::{Read, Write};
-        for body in [b"x".as_slice(), b"xy".as_slice()] {
-            let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
-            let address = server.server_addr().to_ip().unwrap();
-            let client = std::thread::spawn(move || {
-                let mut socket = std::net::TcpStream::connect(address).unwrap();
-                socket
-                    .set_read_timeout(Some(Duration::from_secs(5)))
-                    .unwrap();
-                socket
-                    .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-                    .unwrap();
-                let mut bytes = Vec::new();
-                socket.read_to_end(&mut bytes).unwrap();
-                bytes
-            });
-            let delivery = serde_json::json!({"type":"image/png"});
-            let (consumed, finish) = write_once_body(
-                server.recv().unwrap(),
-                BlobRead {
-                    stream: Box::new(Cursor::new(body.to_vec())),
-                    length: body.len() as u64,
-                    total: body.len() as u64,
-                    range: None,
-                },
-                &delivery,
-                "dev",
-            );
-            assert!(
-                consumed,
-                "{}-byte body must claim before publishing its tail",
-                body.len()
-            );
-            finish();
-            let response = client.join().unwrap();
-            let start = response.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
-            assert_eq!(&response[start..], body);
-        }
-    }
-
-    #[test]
-    fn once_read_failure_with_only_a_held_body_byte_does_not_consume() {
-        use std::io::{Read, Write};
-        struct FailedRead;
-        impl Read for FailedRead {
-            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
-                Err(io::Error::other("blob failed after its first byte"))
-            }
-        }
-        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
-        let address = server.server_addr().to_ip().unwrap();
-        let client = std::thread::spawn(move || {
-            let mut socket = std::net::TcpStream::connect(address).unwrap();
-            socket
-                .set_read_timeout(Some(Duration::from_secs(5)))
-                .unwrap();
-            socket
-                .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-                .unwrap();
-            let mut bytes = Vec::new();
-            socket.read_to_end(&mut bytes).unwrap();
-            bytes
-        });
-        let delivery = serde_json::json!({"type":"image/png"});
-        let (consumed, finish) = write_once_body(
-            server.recv().unwrap(),
-            BlobRead {
-                stream: Box::new(Cursor::new(b"x".to_vec()).chain(FailedRead)),
-                length: 2,
-                total: 2,
-                range: None,
-            },
-            &delivery,
-            "dev",
-        );
-        assert!(
-            !consumed,
-            "no body byte moved and the held byte cannot be published"
-        );
-        finish();
-        let response = client.join().unwrap();
-        let start = response.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
-        assert!(response[start..].is_empty());
-    }
-
-    #[derive(Default)]
-    struct MemoryBlobStore(Mutex<BTreeMap<String, Vec<u8>>>);
-
-    impl BlobStore for MemoryBlobStore {
-        fn put(&self, key: &str, source: &mut dyn Read) -> Result<u64, Refusal> {
-            let mut bytes = Vec::new();
-            source.read_to_end(&mut bytes).map_err(asset_file_io)?;
-            let mut blobs = self.0.lock().unwrap();
-            if blobs.contains_key(key) {
-                return Err(asset_type("immutable key already exists"));
-            }
-            let length = bytes.len() as u64;
-            blobs.insert(key.to_owned(), bytes);
-            Ok(length)
-        }
-
-        fn get(&self, key: &str, range: Option<ByteRange>) -> Result<BlobRead, Refusal> {
-            let blobs = self.0.lock().unwrap();
-            let bytes = blobs.get(key).cloned().ok_or_else(asset_not_ready)?;
-            let total = bytes.len() as u64;
-            let (bytes, selected) = match range {
-                Some(range) => (
-                    bytes[range.start as usize..=range.end as usize].to_vec(),
-                    Some(range),
-                ),
-                None => (bytes, None),
-            };
-            Ok(BlobRead {
-                length: bytes.len() as u64,
-                total,
-                range: selected,
-                stream: Box::new(Cursor::new(bytes)),
-            })
-        }
-
-        fn delete(&self, key: &str) -> Result<(), Refusal> {
-            self.0.lock().unwrap().remove(key);
-            Ok(())
-        }
-
-        fn enumerate_page(
-            &self,
-            prefix: &str,
-            continuation: Option<&str>,
-            limit: usize,
-            visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
-        ) -> Result<Option<String>, Refusal> {
-            let mut keys = self
-                .0
-                .lock()
-                .unwrap()
-                .keys()
-                .filter(|key| {
-                    key.starts_with(prefix) && continuation.is_none_or(|after| key.as_str() > after)
-                })
-                .take(limit.saturating_add(1))
-                .cloned()
-                .collect::<Vec<_>>();
-            let next = (keys.len() > limit).then(|| keys[limit - 1].clone());
-            keys.truncate(limit);
-            for key in &keys {
-                visitor(&key)?;
-            }
-            Ok(next)
-        }
-    }
-
-    #[test]
-    fn ranges_are_exact_and_multi_or_malformed_are_unsatisfiable() {
-        assert!(matches!(parse_range(None, 10), RangeRequest::Full));
-        assert!(matches!(
-            parse_range(Some("bytes=2-5"), 10),
-            RangeRequest::Partial(ByteRange { start: 2, end: 5 })
-        ));
-        assert!(matches!(
-            parse_range(Some("bytes=-3"), 10),
-            RangeRequest::Partial(ByteRange { start: 7, end: 9 })
-        ));
-        for invalid in ["bytes=10-", "bytes=5-2", "items=0-1", "bytes=0-1,4-5"] {
-            assert!(matches!(
-                parse_range(Some(invalid), 10),
-                RangeRequest::Unsatisfiable
-            ));
-        }
-    }
-
-    #[test]
-    fn widths_snap_up_and_never_upscale() {
-        assert_eq!(snap_width(300, 4_000), 512);
-        assert_eq!(snap_width(8_000, 4_000), 4_000);
-        assert_eq!(snap_width(u32::MAX, 10_000), 10_000);
-    }
-
-    #[test]
-    fn concurrent_first_rung_requests_spawn_one_helper_and_all_succeed() {
-        const ID: &str = "s2id-0123456789abcdef0123456789abcdef-0000000000000001";
-        let key = format!("{ID}.w256");
-        let store = Arc::new(MemoryBlobStore::default());
-        store
-            .0
-            .lock()
-            .unwrap()
-            .insert(ID.to_owned(), b"source-bytes".to_vec());
-        let root = std::env::temp_dir().join(format!(
-            "snapback2-rung-flight-{}-{}",
-            std::process::id(),
-            crate::writer_util::unix_millis()
-        ));
-        fs::create_dir_all(root.join(".snapback")).unwrap();
-        let staging = Arc::new(LocalStaging::open(&root).unwrap());
-        let jobs = MediaJobs::default();
-        let spawns = Arc::new(AtomicUsize::new(0));
-        let threads = (0..16)
-            .map(|_| {
-                let store = store.clone();
-                let staging = staging.clone();
-                let jobs = jobs.clone();
-                let spawns = spawns.clone();
-                let key = key.clone();
-                std::thread::spawn(move || {
-                    ensure_rung_with(
-                        store.as_ref(),
-                        &staging,
-                        &jobs,
-                        ID,
-                        &key,
-                        256,
-                        12,
-                        &|_, output, width| {
-                            spawns.fetch_add(1, Ordering::SeqCst);
-                            std::thread::sleep(Duration::from_millis(50));
-                            fs::write(output, b"\xff\xd8\xffrendered!").map_err(asset_file_io)?;
-                            Ok(media_helper::RenderResult {
-                                format: media_helper::MediaFormat::Jpeg,
-                                width,
-                                height: 128,
-                            })
-                        },
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
-        for thread in threads {
-            assert_eq!(thread.join().unwrap().unwrap(), "image/jpeg");
-        }
-        assert_eq!(spawns.load(Ordering::SeqCst), 1);
-        fs::remove_dir_all(root).unwrap();
-    }
+#[cfg(test)]
+pub(crate) fn drop_failed_upload(
+    handle: crate::writer::OwnerHandle,
+    id: String,
+    custody: UploadCustody,
+) {
+    drop(UploadLedgerGuard {
+        handle,
+        id,
+        custody,
+        settled: false,
+        finalizing: None,
+    });
 }

@@ -922,8 +922,21 @@ mod tests {
                 .unwrap();
             let directory = root.join(".snapback/staging");
             std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o500)).unwrap();
-            let worker = std::thread::spawn(move || custody.finish(Some(finalizing)));
-            let failed = worker.join().unwrap();
+            let failed = custody.finish(Some(finalizing));
+            let (requests, incoming) = mpsc::channel();
+            let handle = OwnerHandle { tx: requests };
+            let upload_id = id.to_owned();
+            let worker = std::thread::spawn(move || {
+                crate::asset_http::drop_failed_upload(handle, upload_id, custody)
+            });
+            let request = incoming.recv().unwrap();
+            assert!(matches!(&request.action, Action::AssetUploadFailed { .. }));
+            request.reply.send(state.handle(request.action)).unwrap();
+            worker.join().unwrap();
+            assert_eq!(
+                state.runtime().store().asset(id).unwrap().unwrap().state,
+                snapback2_core::AssetState::Failed
+            );
             let charged = state
                 .runtime()
                 .asset_staging_usage(&actor)
