@@ -9505,7 +9505,11 @@
     ],
     "benchmark": {
       "retainedRoot": "ccheever@100.85.211.16:/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition",
-      "harness": "acquisition-sub3-bearer-20260912.mjs",
+      "harness": {
+        "path": "acquisition-sub3-bearer-20260912.mjs",
+        "sha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+        "bytes": 76042
+      },
       "workload": {
         "messages": 10008,
         "conversations": 100,
@@ -9517,31 +9521,253 @@
       },
       "samples": [
         {
-          "artifact": "evidence/sub3-20260912-bearer-baseline-01.json",
-          "variant": "current main owner/client/compiler",
-          "inboxMs": 1062.65,
-          "contentMs": 15477.35,
-          "ackMs": 27587.73,
-          "fullMs": 27629.13,
-          "reopenMs": 6605.93
+          "experiment": "sub3-20260912-bearer-baseline-01",
+          "variant": "current-main-bearer",
+          "measurementRole": "unprofiled current baseline full endpoint",
+          "instrumented": false,
+          "diagnosticOnly": false,
+          "cohortQualified": false,
+          "startedAt": "2026-09-12T09:21:51.861Z",
+          "finishedAt": "2026-09-12T09:22:37.677Z",
+          "phaseMs": {
+            "firstInbox": 1062.6472900000008,
+            "durableContent": 15477.351799000002,
+            "acknowledgementsSettled": 27587.732824,
+            "firstUseStarted": 27615.024657,
+            "firstOfflineHistory": 1.8999996185302734,
+            "firstOfflineSearch": 2.3000011444091797,
+            "fullEndpoint": 27629.125619,
+            "physicalReopen": 6605.925487,
+            "ownerStop": 155.18101500000193
+          },
+          "oracles": {
+            "primaryPass": true,
+            "contentPass": true,
+            "firstUsePass": true,
+            "firstUseHistoryState": "partial",
+            "firstUseHistoryConnection": "offline",
+            "firstUseSearchState": "held",
+            "firstUseSearchConnection": "offline",
+            "ackPostPass": true,
+            "acknowledgementsSettled": {
+              "stopped": false,
+              "remaining": 0
+            },
+            "fullRowHashPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "matchesOwnerMessages": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "reopenPass": true,
+            "reopenEqualMessages": true,
+            "reopenEqualThread": true,
+            "reopenEqualSearch": true
+          },
+          "shutdown": {
+            "status": 0,
+            "processGone": true,
+            "error": null
+          },
+          "applicationRowsUnchangedDuringSetup": true,
+          "sourceAndArtifactHashes": {
+            "ownerSha": "6131fe9b9ca9a328716ad4392775d6de62a4f0d1f0d7ad74f7525de59f8975f3",
+            "runtimeSha": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "47a134c76c2ea994f92a67172f334df1f17bc9c2eb51dea22472efbc6a2743c8",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de"
+          },
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-bearer-baseline-01.json",
+              "sha256": "eec6fb0f058d092f864c1d76312895ae73b8b8918a82e027b8655ab6395593e4",
+              "bytes": 41321
+            },
+            {
+              "path": "evidence/sub3-20260912-bearer-baseline-01-app.js",
+              "sha256": "47a134c76c2ea994f92a67172f334df1f17bc9c2eb51dea22472efbc6a2743c8",
+              "bytes": 657898
+            },
+            {
+              "path": "evidence/sub3-20260912-bearer-baseline-01-build-meta.json",
+              "sha256": "7ccdd97adec4ae83c49846149519d9f07d7679b2c7be5f6375bde78a7d06ea11",
+              "bytes": 1773
+            }
+          ],
+          "error": null,
+          "primaryError": null,
+          "failureKind": null
         },
         {
-          "artifact": "evidence/sub3-20260912-bearer-native-01.json",
-          "variant": "native8 owner; current main client/compiler",
-          "inboxMs": 1112.32,
-          "contentMs": 15504.51,
-          "ackMs": 25241.55,
-          "fullMs": 25283.28
+          "experiment": "sub3-20260912-bearer-native-01",
+          "variant": "native-8e32e6b-current-client",
+          "measurementRole": "unprofiled native-only full endpoint; single descriptive comparison",
+          "instrumented": false,
+          "diagnosticOnly": false,
+          "cohortQualified": false,
+          "startedAt": "2026-09-12T09:23:53.934Z",
+          "finishedAt": "2026-09-12T09:24:37.185Z",
+          "phaseMs": {
+            "firstInbox": 1112.3159080000005,
+            "durableContent": 15504.513750999999,
+            "acknowledgementsSettled": 25241.5533,
+            "firstUseStarted": 25269.719506999998,
+            "firstOfflineHistory": 1.8999996185302734,
+            "firstOfflineSearch": 2.200000762939453,
+            "fullEndpoint": 25283.280714,
+            "physicalReopen": 6561.609332,
+            "ownerStop": 287.0370600000024
+          },
+          "oracles": {
+            "primaryPass": true,
+            "contentPass": true,
+            "firstUsePass": true,
+            "firstUseHistoryState": "partial",
+            "firstUseHistoryConnection": "offline",
+            "firstUseSearchState": "held",
+            "firstUseSearchConnection": "offline",
+            "ackPostPass": true,
+            "acknowledgementsSettled": {
+              "stopped": false,
+              "remaining": 0
+            },
+            "fullRowHashPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "matchesOwnerMessages": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "reopenPass": true,
+            "reopenEqualMessages": true,
+            "reopenEqualThread": true,
+            "reopenEqualSearch": true
+          },
+          "shutdown": {
+            "status": 0,
+            "processGone": true,
+            "error": null
+          },
+          "applicationRowsUnchangedDuringSetup": true,
+          "sourceAndArtifactHashes": {
+            "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+            "runtimeSha": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "d1fda7a3c9fc31dc8eeb8e1861b620404cea9bfa280707f663acc6277902757c",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de"
+          },
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-bearer-native-01.json",
+              "sha256": "d1eb6177a9a9215ee30cfc58d7206c53595ac06ef3f8f3b0813815345dda72ef",
+              "bytes": 41320
+            },
+            {
+              "path": "evidence/sub3-20260912-bearer-native-01-app.js",
+              "sha256": "d1fda7a3c9fc31dc8eeb8e1861b620404cea9bfa280707f663acc6277902757c",
+              "bytes": 657898
+            },
+            {
+              "path": "evidence/sub3-20260912-bearer-native-01-build-meta.json",
+              "sha256": "7ccdd97adec4ae83c49846149519d9f07d7679b2c7be5f6375bde78a7d06ea11",
+              "bytes": 1773
+            }
+          ],
+          "error": null,
+          "primaryError": null,
+          "failureKind": null
         },
         {
-          "artifact": "evidence/sub3-20260912-bearer-combined0601-01.json",
-          "variant": "native8 owner;0601 client; current main compiler",
-          "inboxMs": 1082.22,
-          "contentMs": 15481.8,
-          "ackMs": 24803.23,
-          "fullMs": 24847.46,
-          "reopenMs": 6277.51,
-          "diagnostic": "Client90004 bytes before final equivalent encoding cleanup; not final compliant artifact timing"
+          "experiment": "sub3-20260912-bearer-combined0601-01",
+          "variant": "combined-native8-client0601-diagnostic-90004gzip",
+          "measurementRole": "combined candidate diagnostic; parent reported 90004 gzip bytes under an unchanged 90000 ceiling, therefore package budget not qualified",
+          "instrumented": false,
+          "diagnosticOnly": true,
+          "cohortQualified": false,
+          "startedAt": "2026-09-12T09:35:34.396Z",
+          "finishedAt": "2026-09-12T09:36:16.701Z",
+          "phaseMs": {
+            "firstInbox": 1082.2248170000003,
+            "durableContent": 15481.79794,
+            "acknowledgementsSettled": 24803.231917,
+            "firstUseStarted": 24832.891530999997,
+            "firstOfflineHistory": 1.8999996185302734,
+            "firstOfflineSearch": 2.3999996185302734,
+            "fullEndpoint": 24847.460822,
+            "physicalReopen": 6277.509410000002,
+            "ownerStop": 171.29455199999938
+          },
+          "oracles": {
+            "primaryPass": true,
+            "contentPass": true,
+            "firstUsePass": true,
+            "firstUseHistoryState": "partial",
+            "firstUseHistoryConnection": "offline",
+            "firstUseSearchState": "held",
+            "firstUseSearchConnection": "offline",
+            "ackPostPass": true,
+            "acknowledgementsSettled": {
+              "stopped": false,
+              "remaining": 0
+            },
+            "fullRowHashPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "matchesOwnerMessages": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "reopenPass": true,
+            "reopenEqualMessages": true,
+            "reopenEqualThread": true,
+            "reopenEqualSearch": true
+          },
+          "shutdown": {
+            "status": 0,
+            "processGone": true,
+            "error": null
+          },
+          "applicationRowsUnchangedDuringSetup": true,
+          "sourceAndArtifactHashes": {
+            "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+            "runtimeSha": "506c9d419d9beaea3b0f3213dd6b0718a82fedce4cd5241165fc7e4192791b65",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "bf837beaf420634753728f09d2ec5b49d9cce40342e04886c732c1f44a27eb1b",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de"
+          },
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-bearer-combined0601-01.json",
+              "sha256": "6228646a4380bb31a9107be3064553fc3cf9582b0d541303f1847af1a96d1db7",
+              "bytes": 41372
+            },
+            {
+              "path": "evidence/sub3-20260912-bearer-combined0601-01-app.js",
+              "sha256": "bf837beaf420634753728f09d2ec5b49d9cce40342e04886c732c1f44a27eb1b",
+              "bytes": 658546
+            },
+            {
+              "path": "evidence/sub3-20260912-bearer-combined0601-01-build-meta.json",
+              "sha256": "8ae25c58942c7ce8653c7aeaf4d38f1b6c167bd72ad425a754ffd717b8492e4b",
+              "bytes": 1787
+            }
+          ],
+          "error": null,
+          "primaryError": null,
+          "failureKind": null
         }
       ],
       "reportedControlsForAllThree": {
@@ -9556,18 +9782,239 @@
       },
       "profile": {
         "prefix": "evidence/sub3-20260912-bearer-profile-baseline-02",
-        "instrumentedFullMs": 28662,
+        "instrumentedFullMs": 28662.409899,
         "sampledMs": 28664,
         "idleMs": 9938,
         "gcMs": 1341,
-        "interpretation": "Inclusive carrier update, identity sync, row/index and network times overlap. Instrumented run is separate from primary samples."
+        "interpretation": "Inclusive carrier update, identity sync, row/index and network times overlap. Instrumented run is separate from primary samples.",
+        "artifacts": [
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02.json",
+            "sha256": "bf322be6a38e1c4188f9ffb4cd3030e9314d74887f7c41899598f042f2003adf",
+            "bytes": 223926
+          },
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02-app.js",
+            "sha256": "cb310109ad2620d2cff2d3cec3b23289df4402e543178b9f3348ea5ede86a1ab",
+            "bytes": 657930
+          },
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02-build-meta.json",
+            "sha256": "7ccdd97adec4ae83c49846149519d9f07d7679b2c7be5f6375bde78a7d06ea11",
+            "bytes": 1773
+          },
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02-cpu.cpuprofile",
+            "sha256": "fa226f472feed701a467c3f50c76a56e00a36d0626cd40492d10ba52f435abae",
+            "bytes": 898623
+          },
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02-app.js.map",
+            "sha256": "8ab9660c9ac1c997d81c1b3a686fc38a8d86951b1c328a0df92b6899d0748784",
+            "bytes": 2780488
+          },
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02-cpu-summary.json",
+            "sha256": "330455933a9c79295c7765c15aa1054e2030b28fa20f46121709d2ec3394e768",
+            "bytes": 16359
+          },
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02-source-hashes.json",
+            "sha256": "51c3522dbc58086fc9b4718feabc4a77f031e958cc50a771694127cbcf1b4331",
+            "bytes": 30806
+          },
+          {
+            "path": "evidence/sub3-20260912-bearer-profile-baseline-02-analysis.json",
+            "sha256": "23b157524a442be4e6faebc54c5e3a7e740e56bd2e29a87b566fa7785c201705",
+            "bytes": 5767
+          }
+        ]
       },
       "failedSetupAttempts": [
-        "baseline-01 missing sibling media helper; no timing",
-        "baseline-02 obsolete browser persona header refused by CORS;180-second timeout is setup failure; stop passed",
-        "startup-01 helper refused old generation; ordinary owner adoption fixes setup without changing application rows",
-        "profile-baseline-01 script path error before browser; retained separately"
-      ]
+        {
+          "experiment": "sub3-20260912-baseline-01",
+          "cause": "Missing sibling media helper: E_ASSET_NOT_READY before measurement",
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-baseline-01.json",
+              "sha256": "1d8eb94d00da7c66f3dd9b512e30853acd338de4f01804d07d0a5d858e9e7c4b",
+              "bytes": 2954
+            }
+          ],
+          "harnessSha256": "dcf0aa0e1be761f4d55c3a6e36382845c12018615b1c6b5b715ff94e7c9c4877",
+          "ownerSha": "6131fe9b9ca9a328716ad4392775d6de62a4f0d1f0d7ad74f7525de59f8975f3",
+          "runtimeSha": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "error": "Error: dev: {\"code\":\"E_ASSET_NOT_READY\",\"family\":\"input\",\"guide\":\"assets/helper\",\"message\":\"the media helper was not found at /home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/current-main/snapback2-media\",\"rewrite\":\"install the sibling snapback2-media helper with image codecs or set SNAPBACK2_MEDIA in tests\"}\n\n    at file:///home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-sub3-20260912.mjs:903:35",
+          "primaryError": null,
+          "failedAtMs": null,
+          "ownerStarted": false,
+          "stopStatus": 1,
+          "processGone": null
+        },
+        {
+          "experiment": "sub3-20260912-baseline-02",
+          "cause": "Frozen browser-persona harness rejected by current browser authority/CORS policy; inbox timeout",
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-baseline-02.json",
+              "sha256": "e48a5bc7b662869eb36ab11bfd7b15067391dbf7ba584319a8bae529b719ef3d",
+              "bytes": 4921
+            },
+            {
+              "path": "evidence/sub3-20260912-baseline-02-app.js",
+              "sha256": "e7a34d8086a3ea0c483b10d001a2ae28d517a3812c1f30ecf190d19f1dc853f0",
+              "bytes": 656879
+            },
+            {
+              "path": "evidence/sub3-20260912-baseline-02-build-meta.json",
+              "sha256": "7ccdd97adec4ae83c49846149519d9f07d7679b2c7be5f6375bde78a7d06ea11",
+              "bytes": 1773
+            }
+          ],
+          "harnessSha256": "dcf0aa0e1be761f4d55c3a6e36382845c12018615b1c6b5b715ff94e7c9c4877",
+          "ownerSha": "6131fe9b9ca9a328716ad4392775d6de62a4f0d1f0d7ad74f7525de59f8975f3",
+          "runtimeSha": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "error": "page.waitForSelector: Timeout 180000ms exceeded.\nCall log:\n  - waiting for locator('nav[aria-label=Inbox] li') to be visible\n\n    at /home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-sub3-20260912.mjs:920:22",
+          "primaryError": "TimeoutError: page.waitForFunction: Timeout 179793.001335ms exceeded.",
+          "failedAtMs": 180013.12245300002,
+          "ownerStarted": true,
+          "stopStatus": 0,
+          "processGone": true
+        },
+        {
+          "experiment": "sub3-20260912-startup-current-compiler",
+          "cause": "Expected diagnostic stop after observing browser auth E_TRANSPORT; not a timing sample",
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-startup-current-compiler.json",
+              "sha256": "66d56dee507b4520593de91c96a801b8f9a185f6f6d41c533a2dd93b5e6f6a28",
+              "bytes": 5617
+            },
+            {
+              "path": "evidence/sub3-20260912-startup-current-compiler-app.js",
+              "sha256": "ca73b1f4844f8a6a588c99c10ef55440b19df8a3cb65240923fe4fb435ebd744",
+              "bytes": 656879
+            },
+            {
+              "path": "evidence/sub3-20260912-startup-current-compiler-build-meta.json",
+              "sha256": "7ccdd97adec4ae83c49846149519d9f07d7679b2c7be5f6375bde78a7d06ea11",
+              "bytes": 1773
+            }
+          ],
+          "harnessSha256": "11e8b53654d9eea5439aed2532b6681054934f97bd676796d7ad12c2328ff6dd",
+          "ownerSha": "6131fe9b9ca9a328716ad4392775d6de62a4f0d1f0d7ad74f7525de59f8975f3",
+          "runtimeSha": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "error": "Error: startup diagnostic completed before timing\n    at file:///home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-sub3-startup-20260912.mjs:922:9",
+          "primaryError": null,
+          "failedAtMs": null,
+          "ownerStarted": true,
+          "stopStatus": 0,
+          "processGone": true
+        },
+        {
+          "experiment": "sub3-20260912-network-persona-01",
+          "cause": "CDP confirms HeaderDisallowedByPreflightResponse for x-snapback-as; expected diagnostic stop",
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-network-persona-01.json",
+              "sha256": "0bfc1d074643105fa0ba33a9ee3c8a028fb8a8c3f94236e0b0c0a93bb65e7379",
+              "bytes": 19297
+            },
+            {
+              "path": "evidence/sub3-20260912-network-persona-01-app.js",
+              "sha256": "1d0ec03dd91644724d37068bc3c72ea0c38f39f1228be6935a832ac888506124",
+              "bytes": 656879
+            },
+            {
+              "path": "evidence/sub3-20260912-network-persona-01-build-meta.json",
+              "sha256": "7ccdd97adec4ae83c49846149519d9f07d7679b2c7be5f6375bde78a7d06ea11",
+              "bytes": 1773
+            }
+          ],
+          "harnessSha256": "52db8222c1e283cac61dff9005eab1483dbba5868861a68231c2c2f0f5a91f2d",
+          "ownerSha": "6131fe9b9ca9a328716ad4392775d6de62a4f0d1f0d7ad74f7525de59f8975f3",
+          "runtimeSha": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "error": "Error: startup diagnostic completed before timing\n    at file:///home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-sub3-network-20260912.mjs:937:9",
+          "primaryError": null,
+          "failedAtMs": null,
+          "ownerStarted": true,
+          "stopStatus": 0,
+          "processGone": true
+        },
+        {
+          "experiment": "sub3-20260912-bearer-startup-01",
+          "cause": "Helper refused stale program_generation before session mint; ordinary owner adoption required",
+          "artifacts": [
+            {
+              "path": "evidence/sub3-20260912-bearer-startup-01.json",
+              "sha256": "042564548da557bee179de44b85aee4f656af9403099588caa5887e22404913e",
+              "bytes": 3144
+            }
+          ],
+          "harnessSha256": "3589879991cb48ede19427e56e91398b77e8e551fc90363c2b5429add43ab8ec",
+          "ownerSha": "6131fe9b9ca9a328716ad4392775d6de62a4f0d1f0d7ad74f7525de59f8975f3",
+          "runtimeSha": "2a67b2fbe8544d5e59f901483109ffc615216fb79e8dbc6ab6025cea6f545ce9",
+          "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+          "error": "Error: session fixture helper failed: Error: \"fixture program_generation differs; ordinary owner adoption must finish first\"\n\n    at file:///home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/acquisition-sub3-bearer-startup-20260912.mjs:927:36",
+          "primaryError": null,
+          "failedAtMs": null,
+          "ownerStarted": false,
+          "stopStatus": 1,
+          "processGone": null
+        },
+        {
+          "experiment": "sub3-20260912-bearer-profile-baseline-01",
+          "cause": "Profile-copy anchor typo prevented helper harness creation; subsequent Node script-not-found failed before any browser or owner run",
+          "artifacts": [
+            {
+              "path": "sub3-20260912/bearer-profile-baseline-01.log",
+              "sha256": "e24b7c89b98c81893456a490789cadc5f6b681f8c5883dcb3bc4f959f829f482",
+              "bytes": 819
+            }
+          ],
+          "ownerStarted": false
+        }
+      ],
+      "helper": {
+        "api": "snapback2_core::Runtime::persona",
+        "coreSourceCommit": "940a702c286933edc3e44ba1ef289f58d7d7a5e7",
+        "artifacts": [
+          {
+            "path": "sub3-20260912/session-helper/main.rs",
+            "sha256": "7b0817643def0993d7f8e1a6cdd4dcda49e33693be60f7a7047d8d3f79bc580c",
+            "bytes": 2035
+          },
+          {
+            "path": "sub3-20260912/session-helper/Cargo.toml",
+            "sha256": "5f184981907087051368d1a51a4fbeb98d1251072d90f00c652b4d2f0b038032",
+            "bytes": 216
+          },
+          {
+            "path": "sub3-20260912/session-helper/Cargo.lock",
+            "sha256": "45c9ff2d5e3e5cb154386383dd20793c636f984064a959ca48432d3b71f20bcc",
+            "bytes": 11806
+          },
+          {
+            "path": "sub3-20260912/session-helper/helper",
+            "sha256": "e178b2bd94cb9b1382e260a5511a250ac889b1dd3acf675d39c286d5d18dea2e",
+            "bytes": 8263312
+          },
+          {
+            "path": "sub3-20260912/session-helper/metadata.json",
+            "sha256": "08c318dd0dcafdcabde8f4a94aa6867437db4aee269727852411f4028880540a",
+            "bytes": 624
+          }
+        ]
+      },
+      "completeExport": {
+        "localPath": "/tmp/acquisition-20260912-samples.json",
+        "sha256": "86a04ef0bbe7e5f68abe382d90447d855bd7ae67ebfdb58eeca463c0cb9d27bd",
+        "bytes": 77049
+      }
     }
   }
 }
