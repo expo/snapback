@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -285,8 +285,22 @@ time-ordered 128-bit form.
 
 ## 8. Implementation map
 
-Nothing runs yet. This section replaces itself as code lands, as LLP 1000's
-did; the journal carries the chronology.
+This section replaces itself as code lands, as LLP 1000's did; the journal
+carries the chronology. Week one, 2026-09-12:
+
+| Piece | What runs | Landed |
+| --- | --- | --- |
+| `crates/snapback4` | `--version`, `doctor` (says what does not exist yet) | `961a3eb1c5` |
+| `crates/snapback4-sim` | seeded scheduler, virtual clock, faulty network, faulty disks, kill/restart, trace digest; the replicated-counter witness; nine tests | `1700c1c755` |
+| `packages/snapback4` | the card (`contract.ts`), the labelled mock client, the React hooks; published as `snapback4@0.0.1` with an installed-consumer proof | `39af0c81a6`, then the publish commit |
+| `apps/chat` | the reference app on the mock (Thread 26 lines, Composer 22, Inbox 14); `snapback/schema.q`, the desired dialect with `sync` lines, uncompiled | `39af0c81a6` |
+| `floors/` | the five floor scripts; numbers in the journal | `1700c1c755` |
+| `corpus/` | Snapback 2's 295 conformance cases and `ir-contract.json`; not yet read by anything | `1700c1c755` |
+| `scripts/` | `test.sh` (2.2 s), `measure.mjs` (loop numbers, budgets), `publish.mjs` | the publish commit |
+| `fixtures/` | the Clique hub fixture wrapper (a Codex lane, in flight) | — |
+
+Not started: everything in §5's weeks 2–4. No engine, no store, no wire, no
+partition log, no interpreter, no Expo client, no deployment.
 
 ## How to orient
 

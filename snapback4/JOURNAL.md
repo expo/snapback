@@ -115,3 +115,22 @@ recorded as gaps, not estimated.
 - Card amendment (lead): `since` is the wall-clock time of the newest server
   state a stale read reflects, so a screen can say "as of 3:12". Three type
   guards (`isReady`, `isLoading`, `isDenied`) join `contract.ts`.
+
+## 2026-09-12 — `snapback4@0.0.1` on npm; the loop measured
+
+- `scripts/publish.mjs`: build with `tsc` (ESM + declarations, `.ts`
+  imports rewritten), `npm pack`, then an installed-consumer proof in a
+  fresh directory — the tarball plus React and TypeScript from the registry,
+  a `.tsx` that typechecks against all three entry points, and a runtime
+  script that runs a query and an online and an offline write through the
+  mock — and only then `npm publish`. The dry run passed first; the real
+  publish followed: 5,833-byte tarball, 8 files, 3.1 s end to end
+  (`metrics/publish.jsonl`). This is the client package only; the platform
+  binary packages come with a binary that does something (week 2).
+- `scripts/measure.mjs --check` appends the loop's numbers to
+  `metrics/loop.jsonl` and fails on a missed budget. First record at
+  `39af0c81a6`: blocking suite 2.18 s (budget 60), incremental rebuild
+  0.11 s (budget 15), chat app 229,175 raw / 71,073 gzip bytes, production
+  binary 286,112 bytes.
+- The blocking suite now builds the package to `dist/` before the app
+  typechecks, so the app consumes the package exactly as a consumer would.

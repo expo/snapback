@@ -15,6 +15,8 @@ scripts/test.sh                      # everything blocking (60 s budget); report
 ./target/debug/snapback4 doctor      # says honestly what does not exist yet
 bun run --cwd packages/snapback4 typecheck   # the contract, the mock client and the hooks typecheck
 (cd apps/chat && bun run dev)               # the chat app on the MOCK client (Vite 8 / rolldown); `bun run build` measures its bytes
+node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; exits 1 on a missed budget
+node scripts/publish.mjs --dry-run   # build, pack, installed-consumer proof; drop --dry-run to publish snapback4@<version>
 ```
 
 What exists, by week (LLP 3000 §5):
@@ -34,3 +36,4 @@ Gotchas you cannot derive from the code:
 - The journal is append-only and dated; never rewrite an entry. LLP 3000 §7 carries decisions that must outlive it.
 - Nothing here depends on `snapback2/` at runtime. Copy source deliberately, split under 1,500 lines on the way in, and say so in the journal.
 - Named lane: `~/projects/snapback-sb4` on `sb4/*` branches. Never `git stash`; commit checkpoints.
+- `publish.mjs` ships the client package only until the binary does something; the platform binary packages arrive with week 2's owner. Bump `version` in `packages/snapback4/package.json` and `Cargo.toml` together.
