@@ -1,0 +1,302 @@
+{
+  "serverOnly": true,
+  "corpusVersion": 1,
+  "name": "fanout-refused-shape-redeclared",
+  "category": "fanout",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "group": {
+            "Optional": {
+              "Text": {
+                "max": 32
+              }
+            }
+          },
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byConversationRole": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byGroup": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 50
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "fanout-refused-shape-redeclared",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "page",
+          "value": {
+            "Scan": {
+              "site": "members.page",
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "prefix": [
+                {
+                  "Scalar": {
+                    "Literal": {
+                      "Id": "c1"
+                    }
+                  }
+                }
+              ],
+              "order": "Asc",
+              "take": {
+                "Literal": 50
+              },
+              "after": null,
+              "before": null,
+              "range": null,
+              "merge_site": null,
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "shaped",
+          "value": {
+            "Array": []
+          }
+        }
+      },
+      {
+        "For": {
+          "binding": "row",
+          "domain": {
+            "DerivedArray": {
+              "value": {
+                "Variable": "page"
+              },
+              "max": 50,
+              "bound_source": "page take 50"
+            }
+          },
+          "body": [
+            {
+              "Let": {
+                "name": "shaped",
+                "value": {
+                  "Array": []
+                }
+              }
+            },
+            {
+              "Push": {
+                "target": "shaped",
+                "value": {
+                  "Object": {
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "row"
+                        },
+                        "name": "id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "For": {
+          "binding": "m",
+          "domain": {
+            "DerivedArray": {
+              "value": {
+                "Variable": "shaped"
+              },
+              "max": 50,
+              "bound_source": "page take 50"
+            }
+          },
+          "body": [
+            {
+              "Insert": {
+                "table": "deliveries",
+                "row": {
+                  "Object": {
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "m"
+                        },
+                        "name": "id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": null,
+  "context": {
+    "viewer": "u0",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "errorReason": "`shaped` is not a single page scan",
+    "localResult": null,
+    "errorCode": "E_STRUCTURAL_FANOUT",
+    "localState": "certification-refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_STRUCTURAL_FANOUT\"}",
+    "digest": "bc23ccb5a4b3c5144cee3fe0fa005ba688138724e1df2e96a4d0d1b8adcb5597",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

@@ -1,0 +1,710 @@
+{
+  "corpusVersion": 1,
+  "name": "null-key-omitted",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "counts": {
+        "columns": {
+          "__proto__": {
+            "Optional": "Id"
+          },
+          "id": "Id",
+          "toString": {
+            "Optional": "Id"
+          },
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "__proto__"
+              },
+              {
+                "Column": "toString"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "assert the materialized Null group"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "events": {
+        "columns": {
+          "__proto__": {
+            "Optional": "Id"
+          },
+          "id": "Id",
+          "toString": {
+            "Optional": "Id"
+          }
+        },
+        "indexes": {
+          "byBucket": {
+            "components": [
+              {
+                "Column": "__proto__"
+              },
+              {
+                "Column": "toString"
+              }
+            ],
+            "unique": true
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "events",
+        "by": [
+          "__proto__",
+          "toString"
+        ],
+        "target": "counts",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "events.recordWithoutBucket",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Literal": {
+              "Row": {
+                "id": {
+                  "Id": "event-optional"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "exists": {
+              "Exists": {
+                "site": "null.exists",
+                "table": "events",
+                "index": "byBucket",
+                "key": [
+                  {
+                    "Literal": "Null"
+                  },
+                  {
+                    "Literal": "Null"
+                  }
+                ],
+                "provenance": "Const"
+              }
+            },
+            "group": {
+              "Get": {
+                "site": "null.count",
+                "table": "counts",
+                "index": "byGroup",
+                "key": [
+                  {
+                    "Literal": "Null"
+                  },
+                  {
+                    "Literal": "Null"
+                  }
+                ],
+                "provenance": "Const"
+              }
+            },
+            "row": {
+              "Get": {
+                "site": "null.row",
+                "table": "events",
+                "index": "byBucket",
+                "key": [
+                  {
+                    "Literal": "Null"
+                  },
+                  {
+                    "Literal": "Null"
+                  }
+                ],
+                "provenance": "Const"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "events.recordWithoutBucket",
+    "plan_hash": "4a03061f4c23d9b49d8cbe95cbd349c1ed9ddac9d4bfa86f7a12e911c79be349",
+    "schema_hash": "b575618045e11b0254835ec869b9de5d97b8bf651a195db24dfa9baababafa32",
+    "tables": {
+      "counts": {
+        "retain": "until-revoked"
+      },
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "counts.read": "5a376c0ed652bfa9a104b625739ca19f4977b407dfc2d18e10eec69332aed97b",
+      "events.insert": "84a2bdd5439eeb6094d29365246d61da4a42c2b3b5f6b016dd43b024a3def2e7",
+      "events.read": "84a2bdd5439eeb6094d29365246d61da4a42c2b3b5f6b016dd43b024a3def2e7"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "null.count",
+        "table": "counts",
+        "index": "byGroup",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "null.exists",
+        "table": "events",
+        "index": "byBucket",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "null.row",
+        "table": "events",
+        "index": "byBucket",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "events",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "counts": 1
+    },
+    "constraint_checks": [
+      "counts:Unique(byGroup)",
+      "counts:Unique(byId)",
+      "counts:public-count-absence",
+      "events:Unique(byBucket)",
+      "events:Unique(byId)"
+    ],
+    "max_examined": 3,
+    "max_index_entries": 3,
+    "max_rule_probes": 0,
+    "max_steps": 34,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 6380,
+    "max_heap_bytes": 7468,
+    "max_output_bytes": 1488,
+    "max_closure_bytes": 9818,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "counts.byGroup",
+      "counts.byId",
+      "events.byBucket"
+    ],
+    "disclosures": [],
+    "bound_product": "null.count point read on counts × 1 calls = 1 + null.exists point read on events × 1 calls = 1 + null.row point read on events × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "null.count point read on counts × 1 calls",
+        "site": "null.count"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "null.exists point read on events × 1 calls",
+        "site": "null.exists"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "null.row point read on events × 1 calls",
+        "site": "null.row"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "null.count point read on counts × 1 calls",
+        "site": "null.count"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "null.exists point read on events × 1 calls",
+        "site": "null.exists"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "null.row point read on events × 1 calls",
+        "site": "null.row"
+      },
+      {
+        "meter": "steps",
+        "value": 10,
+        "source": "expressions",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "events Insert writes",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "null.count point read on counts × 1 calls × 4",
+        "site": "null.count"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "null.exists point read on events × 1 calls × 4",
+        "site": "null.exists"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "null.row point read on events × 1 calls × 4",
+        "site": "null.row"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "public count absence evidence",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 6380,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 320,
+        "source": "expressions × 32",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "events Insert writes × 32",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "null.count point read on counts × 1 calls × 4 × 32",
+        "site": "null.count"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "null.exists point read on events × 1 calls × 4 × 32",
+        "site": "null.exists"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "null.row point read on events × 1 calls × 4 × 32",
+        "site": "null.row"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "public count absence evidence × 32",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 16,
+        "source": "scalar expression",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 157,
+        "source": "counts.__proto__ (157 bytes; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 599,
+        "source": "counts.id (599 bytes; 6 field-name/framing + counts declared identity 593)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 156,
+        "source": "counts.toString (156 bytes; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 157,
+        "source": "events.__proto__ (157 bytes; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 150,
+        "source": "events.id (150 bytes; 6 field-name/framing + events declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 156,
+        "source": "events.toString (156 bytes; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "events row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 36,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1421,
+        "source": "null.count × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "null.count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 972,
+        "source": "null.exists × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "null.exists"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 972,
+        "source": "null.row × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "null.row"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 157,
+        "source": "counts.__proto__ (157 bytes; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 599,
+        "source": "counts.id (599 bytes; 6 field-name/framing + counts declared identity 593)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 156,
+        "source": "counts.toString (156 bytes; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "counts.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 629,
+        "source": "counts table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 314,
+        "source": "2 × events.__proto__ (157 bytes each; 13 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 300,
+        "source": "2 × events.id (150 bytes each; 6 field-name/framing + events declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 312,
+        "source": "2 × events.toString (156 bytes each; 12 field-name/framing + max(Id value maximum 144, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "events row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 360,
+        "source": "2 × events table/id envelope (180 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3438,
+        "source": "public count absence evidence",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "events Insert",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "counts maintained applications",
+        "site": "schema.tables.counts"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "b575618045e11b0254835ec869b9de5d97b8bf651a195db24dfa9baababafa32",
+    "rows": [
+      {
+        "table": "counts",
+        "id": "[\"Null\",\"Null\"]",
+        "row": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "[\"Null\",\"Null\"]"
+            },
+            "toString": "Null",
+            "value": {
+              "Int": 0
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [
+      [
+        "events",
+        "byBucket",
+        [
+          "Null",
+          "Null"
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "exists": {
+          "Bool": true
+        },
+        "group": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "[\"Null\",\"Null\"]"
+            },
+            "toString": "Null",
+            "value": {
+              "Int": 1
+            }
+          }
+        },
+        "row": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "event-optional"
+            },
+            "toString": "Null"
+          }
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Row\":{\"exists\":{\"Bool\":true},\"group\":{\"Row\":{\"__proto__\":\"Null\",\"id\":{\"Id\":\"[\\\"Null\\\",\\\"Null\\\"]\"},\"toString\":\"Null\",\"value\":{\"Int\":1}}},\"row\":{\"Row\":{\"__proto__\":\"Null\",\"id\":{\"Id\":\"event-optional\"},\"toString\":\"Null\"}}}}",
+    "digest": "97a20c2334b246896e76ab000cc9689c50b7509a239274e6a4479293c5ffe1f9",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

@@ -1,0 +1,1483 @@
+{
+  "corpusVersion": 1,
+  "name": "maintain-numeric-after-write-present",
+  "category": "maintain",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "balances": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": {
+            "Money": {
+              "currency": "USD",
+              "scale": 2
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "owner"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byOwner"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "counts": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "owner"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byOwner"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "decimals": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": {
+            "Decimal": {
+              "scale": 3
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "owner"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byOwner"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "columns": {
+          "amount": {
+            "Money": {
+              "currency": "USD",
+              "scale": 2
+            }
+          },
+          "decimal": {
+            "Decimal": {
+              "scale": 3
+            }
+          },
+          "id": "Id",
+          "owner": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "ledger is public in Quarry"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "counts",
+        "readable": null
+      },
+      {
+        "kind": {
+          "Sum": {
+            "of": "amount"
+          }
+        },
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "balances",
+        "readable": null
+      },
+      {
+        "kind": {
+          "Sum": {
+            "of": "decimal"
+          }
+        },
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "decimals",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "maintain-numeric-after-write-present",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "beforeRow",
+          "value": {
+            "Get": {
+              "site": "before",
+              "table": "counts",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Input": "Viewer"
+                }
+              ],
+              "provenance": "Viewer"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "before",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "beforeRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "before",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "beforeRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Insert": {
+          "table": "ledger",
+          "row": {
+            "Object": {
+              "amount": {
+                "Literal": {
+                  "Int": 250
+                }
+              },
+              "decimal": {
+                "Literal": {
+                  "Int": 1125
+                }
+              },
+              "id": {
+                "Input": "NewId"
+              },
+              "owner": {
+                "Input": "Viewer"
+              },
+              "value": {
+                "Literal": {
+                  "Int": 9
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "countRow",
+          "value": {
+            "Get": {
+              "site": "count",
+              "table": "counts",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Input": "Viewer"
+                }
+              ],
+              "provenance": "Viewer"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "count",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "countRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "count",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "countRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Let": {
+          "name": "moneyRow",
+          "value": {
+            "Get": {
+              "site": "money",
+              "table": "balances",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Input": "Viewer"
+                }
+              ],
+              "provenance": "Viewer"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "money",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "moneyRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "money",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "moneyRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Let": {
+          "name": "decimalRow",
+          "value": {
+            "Get": {
+              "site": "decimal",
+              "table": "decimals",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Input": "Viewer"
+                }
+              ],
+              "provenance": "Viewer"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "decimal",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "decimalRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "decimal",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "decimalRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "after": {
+              "Variable": "count"
+            },
+            "before": {
+              "Variable": "before"
+            },
+            "decimal": {
+              "Variable": "decimal"
+            },
+            "money": {
+              "Variable": "money"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "maintain-numeric-after-write-present",
+    "plan_hash": "b2beb3ab883502b886218c12ae75cbc700ee8f629b894ed08d33e9062b65c6c2",
+    "schema_hash": "9356bc0256a2d76ddffc5267d77854e75e967982f08eb86778619b6336fdefe8",
+    "tables": {
+      "balances": {
+        "retain": "until-revoked"
+      },
+      "counts": {
+        "retain": "until-revoked"
+      },
+      "decimals": {
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "balances.read": "5d34c0093a4b06631e23ef23de7fb5a2eb1459543b7e43c13bc93bd8f81e863a",
+      "counts.read": "5d34c0093a4b06631e23ef23de7fb5a2eb1459543b7e43c13bc93bd8f81e863a",
+      "decimals.read": "5d34c0093a4b06631e23ef23de7fb5a2eb1459543b7e43c13bc93bd8f81e863a",
+      "ledger.insert": "6ad2ad8c60a67563a0cc408bde1051f2b982f09da62b8e72b9592858ca3a5baa"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "before",
+        "table": "counts",
+        "index": "byOwner",
+        "prefix_template": "Viewer",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "count",
+        "table": "counts",
+        "index": "byOwner",
+        "prefix_template": "Viewer",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "decimal",
+        "table": "decimals",
+        "index": "byOwner",
+        "prefix_template": "Viewer",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "money",
+        "table": "balances",
+        "index": "byOwner",
+        "prefix_template": "Viewer",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "ledger",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "ledger",
+          "kind": "create",
+          "source": {
+            "newId": 0
+          }
+        }
+      ],
+      "complete": true
+    },
+    "maintained_amplification": 3,
+    "maintained_writes": {
+      "balances": 1,
+      "counts": 1,
+      "decimals": 1
+    },
+    "constraint_checks": [
+      "balances:Unique(byId)",
+      "balances:Unique(byOwner)",
+      "counts:Unique(byId)",
+      "counts:Unique(byOwner)",
+      "decimals:Unique(byId)",
+      "decimals:Unique(byOwner)",
+      "ledger:Unique(byId)"
+    ],
+    "max_examined": 4,
+    "max_index_entries": 4,
+    "max_rule_probes": 0,
+    "max_steps": 82,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 7481,
+    "max_heap_bytes": 10105,
+    "max_output_bytes": 213,
+    "max_closure_bytes": 7481,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "balances.byOwner",
+      "counts.byOwner",
+      "decimals.byOwner"
+    ],
+    "disclosures": [],
+    "bound_product": "before point read on counts × 1 calls = 1 + count point read on counts × 1 calls = 1 + decimal point read on decimals × 1 calls = 1 + money point read on balances × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "before point read on counts × 1 calls",
+        "site": "before"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "count point read on counts × 1 calls",
+        "site": "count"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "decimal point read on decimals × 1 calls",
+        "site": "decimal"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "money point read on balances × 1 calls",
+        "site": "money"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "before point read on counts × 1 calls",
+        "site": "before"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "count point read on counts × 1 calls",
+        "site": "count"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "decimal point read on decimals × 1 calls",
+        "site": "decimal"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "money point read on balances × 1 calls",
+        "site": "money"
+      },
+      {
+        "meter": "steps",
+        "value": 6,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:14"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "ledger Insert writes",
+        "site": "maintain-numeric-after-write-present:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "before point read on counts × 1 calls × 4",
+        "site": "before"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "count point read on counts × 1 calls × 4",
+        "site": "count"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "decimal point read on decimals × 1 calls × 4",
+        "site": "decimal"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "money point read on balances × 1 calls × 4",
+        "site": "money"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:10"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:13"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:10:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:11"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:13:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:7:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:8"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:12"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-present:statement:9"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:10"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:10:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:11"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:12"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:13"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:13:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:14"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:7:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:8"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-present:statement:9"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 7481,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 192,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:14"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "ledger Insert writes × 32",
+        "site": "maintain-numeric-after-write-present:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "before point read on counts × 1 calls × 4 × 32",
+        "site": "before"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "count point read on counts × 1 calls × 4 × 32",
+        "site": "count"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "decimal point read on decimals × 1 calls × 4 × 32",
+        "site": "decimal"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "money point read on balances × 1 calls × 4 × 32",
+        "site": "money"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:10"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:13"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:10:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:11"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:13:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:7:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:8"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:12"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-present:statement:9"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:10"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:10:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:11"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:12"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:13"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:13:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:14"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:7:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:8"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-present:statement:9"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "count"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "count"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "decimals.value",
+        "site": "decimal"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "balances.value",
+        "site": "money"
+      },
+      {
+        "meter": "output bytes",
+        "value": 49,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 987,
+        "source": "before × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "before"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 987,
+        "source": "count × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 989,
+        "source": "decimal × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 989,
+        "source": "money × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "money"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "balances.id (309 bytes; 6 field-name/framing + balances declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 153,
+        "source": "balances.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "balances.value (41 bytes; 9 field-name/framing + Money { currency: \"USD\", scale: 2 } value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "balances row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "balances table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 618,
+        "source": "2 × counts.id (309 bytes each; 6 field-name/framing + counts declared identity 303)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 306,
+        "source": "2 × counts.owner (153 bytes each; 9 field-name/framing + Principal value maximum 144)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 82,
+        "source": "2 × counts.value (41 bytes each; 9 field-name/framing + Int value maximum 32)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 678,
+        "source": "2 × counts table/id envelope (339 bytes each)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "decimals.id (309 bytes; 6 field-name/framing + decimals declared identity 303)",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 153,
+        "source": "decimals.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "decimals.value (41 bytes; 9 field-name/framing + Decimal { scale: 3 } value maximum 32)",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "decimals row width: framing/shared encoding/growth adjustment",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "decimals table/id envelope",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "ledger Insert",
+        "site": "maintain-numeric-after-write-present:statement:4"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "balances maintained applications",
+        "site": "schema.tables.balances"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "counts maintained applications",
+        "site": "schema.tables.counts"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "decimals maintained applications",
+        "site": "schema.tables.decimals"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [
+      "new-entry"
+    ],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "9356bc0256a2d76ddffc5267d77854e75e967982f08eb86778619b6336fdefe8",
+    "rows": [
+      {
+        "table": "decimals",
+        "id": "[{\"Id\":\"u1\"}]",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "[{\"Id\":\"u1\"}]"
+            },
+            "owner": {
+              "Id": "u1"
+            },
+            "value": {
+              "Int": 1125
+            }
+          }
+        }
+      },
+      {
+        "table": "balances",
+        "id": "[{\"Id\":\"u1\"}]",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "[{\"Id\":\"u1\"}]"
+            },
+            "owner": {
+              "Id": "u1"
+            },
+            "value": {
+              "Int": 250
+            }
+          }
+        }
+      },
+      {
+        "table": "counts",
+        "id": "[{\"Id\":\"u1\"}]",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "[{\"Id\":\"u1\"}]"
+            },
+            "owner": {
+              "Id": "u1"
+            },
+            "value": {
+              "Int": 1
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [
+      [
+        "ledger",
+        "byId",
+        [
+          {
+            "Id": "new-entry"
+          }
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "after": {
+          "Int": 2
+        },
+        "before": {
+          "Int": 1
+        },
+        "decimal": {
+          "Int": 2250
+        },
+        "money": {
+          "Int": 500
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Row\":{\"after\":{\"Int\":2},\"before\":{\"Int\":1},\"decimal\":{\"Int\":2250},\"money\":{\"Int\":500}}}",
+    "digest": "61cc5006f79a5a16a236f837d32461389d9dbbe66920f98b0be8cd60b26500c3",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

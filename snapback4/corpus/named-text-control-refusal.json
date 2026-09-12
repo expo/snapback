@@ -1,0 +1,219 @@
+{
+  "corpusVersion": 1,
+  "name": "named-text-control-refusal",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "notes": {
+        "columns": {
+          "body": {
+            "Text": {
+              "max": 1
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {},
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "notes.insert-control",
+    "kind": "Mutation",
+    "args": {
+      "body": {
+        "Text": {
+          "max": 1
+        }
+      }
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "notes",
+          "row": {
+            "Object": {
+              "body": {
+                "Variable": "body"
+              },
+              "id": {
+                "Input": "NewId"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "notes.insert-control",
+    "plan_hash": "0f57f5f36327ea33b76d2cec30c1b22d35451fc228299fb045ace6a9eda0d995",
+    "schema_hash": "94cf796440e8c6bf79bb35c4cb77eae1272909f86e200248c8844405e598df6a",
+    "tables": {
+      "notes": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "notes.insert": "9088c274395539ee165c015dafec83eefc77fa3bab343e11e7509b5b81ea337f"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "notes",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "notes",
+          "kind": "create",
+          "source": {
+            "newId": 0
+          }
+        }
+      ],
+      "complete": true
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 9,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 288,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "notes Insert writes",
+        "site": "notes.insert-control:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "notes.insert-control:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "notes.insert-control:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "notes Insert writes × 32",
+        "site": "notes.insert-control:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "notes.insert-control:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "notes.insert-control:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "notes Insert",
+        "site": "notes.insert-control:statement:1"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "body": {
+        "String": "\u0001"
+      }
+    },
+    "now": 0,
+    "new_ids": [
+      "note-1"
+    ],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "94cf796440e8c6bf79bb35c4cb77eae1272909f86e200248c8844405e598df6a",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_INPUT",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_INPUT\"}",
+    "digest": "5ee5e4d7b111ebf8faeecb0490fe79766aeb97067ec8f13fafa649c346209d78",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

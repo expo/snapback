@@ -1,0 +1,647 @@
+{
+  "corpusVersion": 1,
+  "name": "opaque-cursor-merge-page-two",
+  "category": "cursor",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "follows": {
+        "columns": {
+          "at": "Int",
+          "followed": "Principal",
+          "follower": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byFollower": {
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "columns": {
+          "at": "Int",
+          "author": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byAt": {
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byAuthorAt": {
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "opaque-cursor-merge-page-two",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      }
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Merge": {
+            "site": "opaque-cursor-merge-page-two",
+            "lanes": [
+              {
+                "scan": {
+                  "site": "opaque-cursor-merge-page-two.a",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u1"
+                        }
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "opaque-cursor-merge-page-two",
+                  "provenance": "Arg"
+                },
+                "source": null,
+                "binding": ""
+              },
+              {
+                "scan": {
+                  "site": "opaque-cursor-merge-page-two.b",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u2"
+                        }
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "opaque-cursor-merge-page-two",
+                  "provenance": "Arg"
+                },
+                "source": null,
+                "binding": ""
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "opaque-cursor-merge-page-two",
+    "plan_hash": "e5ff08670ab0f83d2fa805c709a7aee1723caa75fa72dc22b27cb8a46cbcf80f",
+    "schema_hash": "69661948b010a9e79af9092c07ffb2a9530b0f215bfa9be046b6769b08c93941",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "posts.read": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "opaque-cursor-merge-page-two.a",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Arg",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      },
+      {
+        "site": "opaque-cursor-merge-page-two.b",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Arg",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "merge_sites": [
+      {
+        "site": "opaque-cursor-merge-page-two",
+        "lane_sites": [
+          "opaque-cursor-merge-page-two.a",
+          "opaque-cursor-merge-page-two.b"
+        ],
+        "take": 2,
+        "max_lanes": 2,
+        "uniform": true
+      }
+    ],
+    "result_pages": {
+      "0": {
+        "site": "opaque-cursor-merge-page-two",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": true
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 6,
+    "max_index_entries": 6,
+    "max_rule_probes": 0,
+    "max_steps": 96,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 12328,
+    "max_heap_bytes": 15400,
+    "max_output_bytes": 718,
+    "max_closure_bytes": 12328,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "posts.byAuthorAt"
+    ],
+    "disclosures": [],
+    "bound_product": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) = 6",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 6,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1)",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "index entries",
+        "value": 6,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1)",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "merge opaque-cursor-merge-page-two: heap work",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 30,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) × 5",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "expressions",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 12328,
+        "source": "search closure scratch",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "merge opaque-cursor-merge-page-two: heap work × 32",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 960,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) × 5 × 32",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "expressions × 32",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 76,
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 308,
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 300,
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "merge opaque-cursor-merge-page-two: emitted page: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1770,
+        "source": "opaque-cursor-merge-page-two.a × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "opaque-cursor-merge-page-two.a"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "opaque-cursor-merge-page-two.a × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "opaque-cursor-merge-page-two.a"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1770,
+        "source": "opaque-cursor-merge-page-two.b × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "opaque-cursor-merge-page-two.b"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "opaque-cursor-merge-page-two.b × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "opaque-cursor-merge-page-two.b"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 228,
+        "source": "6 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 924,
+        "source": "6 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 900,
+        "source": "6 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 60,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1074,
+        "source": "6 × posts table/id envelope (179 bytes each)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5602,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": {
+        "String": "WzEsInBvc3RzIiwiYnlBdXRob3JBdCIsIkFzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IkludCJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6Mn0seyJJZCI6ImIyIn1dXQ"
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "69661948b010a9e79af9092c07ffb2a9530b0f215bfa9be046b6769b08c93941",
+    "rows": [
+      {
+        "table": "posts",
+        "id": "a3",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 3
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a3"
+            }
+          }
+        }
+      },
+      {
+        "table": "posts",
+        "id": "b4",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 4
+            },
+            "author": {
+              "Id": "u2"
+            },
+            "id": {
+              "Id": "b4"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "opaque-cursor-merge-page-two.a",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "u1"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 2,
+        "after": {
+          "Array": [
+            {
+              "Int": 2
+            },
+            {
+              "Id": "b2"
+            }
+          ]
+        },
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
+        "row_ids": [
+          "a3"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_suffix": null
+      },
+      {
+        "site": "opaque-cursor-merge-page-two.b",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "u2"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 2,
+        "after": {
+          "Array": [
+            {
+              "Int": 2
+            },
+            {
+              "Id": "b2"
+            }
+          ]
+        },
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
+        "row_ids": [
+          "b4"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_suffix": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "at": {
+              "Int": 3
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a3"
+            }
+          }
+        },
+        {
+          "Row": {
+            "at": {
+              "Int": 4
+            },
+            "author": {
+              "Id": "u2"
+            },
+            "id": {
+              "Id": "b4"
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":3},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a3\"}}},{\"Row\":{\"at\":{\"Int\":4},\"author\":{\"Id\":\"u2\"},\"id\":{\"Id\":\"b4\"}}}]}",
+    "digest": "b7634d13de272620c31b990dcb7e5fd25cce252c89d19c523076a6e18cbce1ef",
+    "rangeStops": {
+      "opaque-cursor-merge-page-two.a": [
+        "exhausted"
+      ],
+      "opaque-cursor-merge-page-two.b": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

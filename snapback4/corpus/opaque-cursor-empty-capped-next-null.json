@@ -1,0 +1,418 @@
+{
+  "corpusVersion": 1,
+  "name": "opaque-cursor-empty-capped-next-null",
+  "category": "cursor",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "follows": {
+        "columns": {
+          "at": "Int",
+          "followed": "Principal",
+          "follower": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byFollower": {
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "columns": {
+          "at": "Int",
+          "author": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byAt": {
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byAuthorAt": {
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "author"
+              },
+              {
+                "Literal": {
+                  "Id": "u9"
+                }
+              }
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "opaque-cursor-empty-capped-next-null",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      }
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "opaque-cursor-empty-capped-next-null",
+            "table": "posts",
+            "index": "byAt",
+            "prefix": [],
+            "order": "Asc",
+            "take": {
+              "Literal": 2
+            },
+            "after": {
+              "Variable": "c"
+            },
+            "before": null,
+            "range": null,
+            "opaque_cursor": true,
+            "merge_site": null,
+            "provenance": "Arg"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "opaque-cursor-empty-capped-next-null",
+    "plan_hash": "6735bdfad0107a28af08fc430c179adc1225d4537a5290bf21dfb655a0f346fa",
+    "schema_hash": "baa5d41864f7d3d72b09dd74297766a955414a8262495ccf25c5c2cb50975c2b",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "posts.read": "5350e52bf03f7cfd637b1998b81c451a3a9a1a8f3356e6a47a3bc8be383c4a14"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "opaque-cursor-empty-capped-next-null",
+        "table": "posts",
+        "index": "byAt",
+        "prefix_template": "Arg",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "result_pages": {
+      "0": {
+        "site": "opaque-cursor-empty-capped-next-null",
+        "table": "posts",
+        "index": "byAt",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Int"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 10240,
+    "max_steps": 51203,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 1638496,
+    "max_output_bytes": 718,
+    "max_closure_bytes": 704,
+    "completeness": "Capped",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "posts.byAt"
+    ],
+    "disclosures": [],
+    "bound_product": "opaque-cursor-empty-capped-next-null take 2 (+2 reserve) × 1 calls on posts = 4",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 10236,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "examined entries",
+        "value": 4,
+        "source": "opaque-cursor-empty-capped-next-null take 2 (+2 reserve) × 1 calls on posts",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "index entries",
+        "value": 10236,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "index entries",
+        "value": 4,
+        "source": "opaque-cursor-empty-capped-next-null take 2 (+2 reserve) × 1 calls on posts",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "rule probes",
+        "value": 10240,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 51180,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "opaque-cursor-empty-capped-next-null take 2 (+2 reserve) × 1 calls on posts × 5",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "opaque-cursor-empty-capped-next-null:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "opaque-cursor-empty-capped-next-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1637760,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "opaque-cursor-empty-capped-next-null take 2 (+2 reserve) × 1 calls on posts × 5 × 32",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "opaque-cursor-empty-capped-next-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "opaque-cursor-empty-capped-next-null:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 76,
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 308,
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 300,
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "posts first 2 at opaque-cursor-empty-capped-next-null: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 76,
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 308,
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 300,
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "opaque-cursor-empty-capped-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-empty-capped-next-null"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": "Null"
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "baa5d41864f7d3d72b09dd74297766a955414a8262495ccf25c5c2cb50975c2b",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "opaque-cursor-empty-capped-next-null"
+    ],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "opaque-cursor-empty-capped-next-null": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

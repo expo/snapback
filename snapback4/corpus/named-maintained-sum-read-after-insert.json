@@ -1,0 +1,460 @@
+{
+  "corpusVersion": 1,
+  "name": "named-maintained-sum-read-after-insert",
+  "category": "maintain",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "balances": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen same-mutation maintain fixture"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "columns": {
+          "amount": "Int",
+          "id": "Id",
+          "owner": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen same-mutation maintain fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": {
+          "Sum": {
+            "of": "amount"
+          }
+        },
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "balances",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "ledger.insertAndReadBalance",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "ledger",
+          "row": {
+            "Literal": {
+              "Row": {
+                "amount": {
+                  "Int": 500
+                },
+                "id": {
+                  "Id": "entry-1"
+                },
+                "owner": {
+                  "Id": "dev:alice"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "balance",
+          "value": {
+            "Get": {
+              "site": "balances.afterInsert",
+              "table": "balances",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "dev:alice"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Field": {
+            "base": {
+              "Variable": "balance"
+            },
+            "name": "value"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "ledger.insertAndReadBalance",
+    "plan_hash": "b91a127a830e0586b8195525e1677584b4af71f425a846bc6ff875815dd8f6de",
+    "schema_hash": "94a53a19639b00490f60f54f76959bfbf3dc9f518938b92c353c27d67070f41b",
+    "tables": {
+      "balances": {
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "balances.read": "ded0b325f80779ee64a36b95dd57d53ccd2239507c9f92f374b3222bcdbc75f1",
+      "ledger.insert": "ad1ee2179bf47067255c0b64f4a245c917c293cd0b47cbddbf47dddbf2339ffe"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "balances.afterInsert",
+        "table": "balances",
+        "index": "byOwner",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "ledger",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "ledger",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "balances": 1
+    },
+    "constraint_checks": [
+      "balances:Unique(byId)",
+      "balances:Unique(byOwner)",
+      "ledger:Unique(byId)"
+    ],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 0,
+    "max_steps": 17,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 1960,
+    "max_heap_bytes": 2504,
+    "max_output_bytes": 41,
+    "max_closure_bytes": 1960,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "balances.byOwner"
+    ],
+    "disclosures": [],
+    "bound_product": "balances.afterInsert point read on balances × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "balances.afterInsert point read on balances × 1 calls",
+        "site": "balances.afterInsert"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "balances.afterInsert point read on balances × 1 calls",
+        "site": "balances.afterInsert"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "ledger Insert writes",
+        "site": "ledger.insertAndReadBalance:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "balances.afterInsert point read on balances × 1 calls × 4",
+        "site": "balances.afterInsert"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "ledger.insertAndReadBalance:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "ledger.insertAndReadBalance:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "ledger.insertAndReadBalance:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "ledger.insertAndReadBalance:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "ledger.insertAndReadBalance:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "ledger.insertAndReadBalance:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1960,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "ledger Insert writes × 32",
+        "site": "ledger.insertAndReadBalance:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "balances.afterInsert point read on balances × 1 calls × 4 × 32",
+        "site": "balances.afterInsert"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "ledger.insertAndReadBalance:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "ledger.insertAndReadBalance:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "ledger.insertAndReadBalance:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "ledger.insertAndReadBalance:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "ledger.insertAndReadBalance:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "ledger.insertAndReadBalance:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "balances.value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 989,
+        "source": "balances.afterInsert × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "balances.afterInsert"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "balances.id (309 bytes; 6 field-name/framing + balances declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 153,
+        "source": "balances.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "balances.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "balances row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "balances table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "ledger Insert",
+        "site": "ledger.insertAndReadBalance:statement:1"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "balances maintained applications",
+        "site": "schema.tables.balances"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "94a53a19639b00490f60f54f76959bfbf3dc9f518938b92c353c27d67070f41b",
+    "rows": [
+      {
+        "table": "balances",
+        "id": "[{\"Id\":\"dev:alice\"}]",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "[{\"Id\":\"dev:alice\"}]"
+            },
+            "owner": {
+              "Id": "dev:alice"
+            },
+            "value": {
+              "Int": -250
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [
+      [
+        "ledger",
+        "byId",
+        [
+          {
+            "Id": "entry-1"
+          }
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Int": 250
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Int\":250}",
+    "digest": "430b0746c1db11e6c3c6fd38f0ca9070b457613c35a21639f15377520cafe9cc",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -268,6 +268,20 @@ tier ships in slice one as the control for every local-first measurement;
 the native-module decision follows the week-1 measurement; the effects host
 is measured on the four reference effects before it is chosen; ids are a
 time-ordered 128-bit form.
+
+- **2026-09-12 — toolchain (author).** `tsc` for typechecking; `rolldown`
+  for bundles and the client byte measurement; `oxc` for transforms and
+  minification; esbuild only with a reason written in the journal first.
+  Snapback 2's measurements are pinned to esbuild 0.25.9 and are therefore
+  not byte-comparable with Snapback 4's; the competitor anchors in §3 are
+  measured with Snapback 4's own pinned toolchain.
+- **2026-09-12 — the simulator is Rust (lead).** `crates/snapback4-sim`
+  hosts the Rust server core from week 2. Whether it hosts the client
+  through a Rust client core or through an embedded JS engine running the
+  TypeScript client is decided with the week-3 byte measurement
+  (LLP 2000.000 §9); until then the client is exercised by the simulator's
+  witnesses only where its logic is shared with the server.
+- **2026-09-12 — the clock started** at the fence commit `961a3eb1c5`.
 
 ## 8. Implementation map
 

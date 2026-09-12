@@ -1,0 +1,520 @@
+{
+  "corpusVersion": 1,
+  "name": "count-backed-cap-refuses-at-max",
+  "category": "cap",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "membershipCounts": {
+        "columns": {
+          "id": "Id",
+          "principal": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "components": [
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "group": {
+            "Optional": {
+              "Text": {
+                "max": 32
+              }
+            }
+          },
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byConversationRole": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byGroup": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byPrincipalConversation": {
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "principal"
+              ],
+              "max": 3
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "memberships",
+        "by": [
+          "principal"
+        ],
+        "target": "membershipCounts",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "count-backed-cap-refuses-at-max",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "memberships",
+          "row": {
+            "Literal": {
+              "Row": {
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "m4"
+                },
+                "principal": {
+                  "Id": "alice"
+                },
+                "role": {
+                  "String": "member"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "count-backed-cap-refuses-at-max",
+    "plan_hash": "22a6876ece0332eedcc5504b0d38132cc7a6406aa9fa1378ab23e49cc3828c7f",
+    "schema_hash": "aea2feb96daae5824e9345667f2eebf1af91540e6bce3b4111c5d0ac62c2d4b1",
+    "tables": {
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "membershipCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "memberships.insert": "31967b0f2f1846479361dbc030c2f91b2cb8a7d6c80a4888c35f9a2c9f802d95"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "memberships",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "memberships",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "membershipCounts": 1
+    },
+    "constraint_checks": [
+      "membershipCounts:Cap([\"principal\"],3)",
+      "membershipCounts:Unique(byId)",
+      "membershipCounts:Unique(byPrincipal)",
+      "memberships:Cap([\"principal\"],3)",
+      "memberships:Unique(byId)"
+    ],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 0,
+    "max_steps": 12,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 384,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "membershipCounts.byId",
+      "memberships.byPrincipalConversation"
+    ],
+    "disclosures": [],
+    "bound_product": "1 calls × maintained cap 3 by principal on memberships via membershipCounts.byId (1 row per write) = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "1 calls × maintained cap 3 by principal on memberships via membershipCounts.byId (1 row per write)",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "1 calls × maintained cap 3 by principal on memberships via membershipCounts.byId (1 row per write)",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "1 calls × maintained cap 3 by principal on memberships via membershipCounts.byId (1 row per write) × 5",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "memberships Insert writes",
+        "site": "count-backed-cap-refuses-at-max:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "count-backed-cap-refuses-at-max:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "count-backed-cap-refuses-at-max:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "1 calls × maintained cap 3 by principal on memberships via membershipCounts.byId (1 row per write) × 5 × 32",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "memberships Insert writes × 32",
+        "site": "count-backed-cap-refuses-at-max:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "count-backed-cap-refuses-at-max:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "count-backed-cap-refuses-at-max:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "memberships Insert",
+        "site": "count-backed-cap-refuses-at-max:statement:1"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "membershipCounts maintained applications",
+        "site": "schema.tables.membershipCounts"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u0",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "aea2feb96daae5824e9345667f2eebf1af91540e6bce3b4111c5d0ac62c2d4b1",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m1"
+            },
+            "principal": {
+              "Id": "alice"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m2",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m2"
+            },
+            "principal": {
+              "Id": "alice"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m3",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m3"
+            },
+            "principal": {
+              "Id": "alice"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "membershipCounts",
+        "id": "[{\"Id\":\"alice\"}]",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "[{\"Id\":\"alice\"}]"
+            },
+            "principal": {
+              "Id": "alice"
+            },
+            "value": {
+              "Int": 3
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_CONSTRAINT",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_CONSTRAINT\"}",
+    "digest": "e1e7bb43a4702c4812836a881ca6813abebafb1f5f07a5b3264ca6f85175b24d",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}
