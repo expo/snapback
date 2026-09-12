@@ -621,3 +621,89 @@ the hub run's to catch, and the run record will say whether they did.
   and records `metrics/loopbar.jsonl` with `bar: true` when a run is green
   within 1,200 s with at most one `snapback4-defect` loop. It runs when
   the machine is quiet: after the Clique lane.
+
+## 2026-09-12 — what the Clique lane's first hour taught
+
+The lane read the README and every card in its first minutes and hit
+three things worth fixing at once (all on 0.0.2, which it keeps):
+
+- `read <- public 'reason'` was refused ("expected the end of the line");
+  only the table line `public 'reason'` parsed, while the rules card and
+  the README listed the reason on the rule. The parser now takes the
+  reason on the rule too (a `public` call with one string argument, bound
+  to the same `RuleExpr::Public`); the README says both spellings.
+- The wire's `/auth/*` shapes were not written down; the lane expected the
+  helper's `{ ok, session }` envelope on the wire and normalized. The
+  README now gives `{ session: {..} }` / `{ denied }`.
+- The choreography harness imports `../../lib/json-schema.mjs` from the
+  instrument's sibling `lib/`; the packet lacked it and the lane
+  relocated a copy (attributed to the environment). The packet now carries
+  `lib/` for the grader and M7 sessions.
+
+The lane also chose Node 25 from its login shell over the overlay's Node
+24 and switched to the absolute path — the launcher prepends it, codex's
+shell does not inherit that; recorded as environment. M1's iOS Hermes
+bundle exported cleanly on the lane's npm install.
+
+## 2026-09-12 — two more from the lane's second hour; 0.0.4
+
+- **A refused prediction surfaced as a page error.** On IndexedDB, a
+  mutation the device refuses while predicting (a `require`, a unique
+  clash) aborted the transaction on purpose, and the abort's rejection
+  reached the page unhandled ("pageerror aborted") beside the `failed`
+  write on the card. The lane attributed it to Snapback 4 and moved
+  profile writes to the online client. The store now owns that rejection;
+  `read` aborts on a thrown body too. A second one behind it: a client
+  closed while a sync was in flight tried a transaction on a closing
+  database. `Replica.close` now waits for the follow loop, and a sync
+  after close is a no-op. The Chromium witness records every page error
+  and requires none, with a stranger's refused send on IndexedDB in the
+  run.
+- **Killing the CLI wrapper did not stop the server.** `bin/snapback4.js`
+  used `spawnSync`; a SIGTERM to the wrapper left the binary on its port
+  ("Address already in use" on the lane's restart). The wrapper now
+  forwards SIGINT/SIGTERM/SIGHUP and exits as the binary does.
+- `snapback4 why E_UNIQUE` (the lane's guess) now names the real codes
+  and says a unique clash is `E_CONSTRAINT`; `why` explains `E_OFFLINE`,
+  `E_PREDICT`, `E_TYPE` and the `N_NEVER_COMPLETE` note too.
+- Published `snapback4@0.0.4`. The lane keeps its exact pin (0.0.2); the
+  loop bar and the next runs take the latest.
+
+## 2026-09-12 — the loop bar runs beside the Clique lane
+
+`loopbar/run.mjs --n 3 --version 0.0.4` started at 14:31 UTC on this
+machine while the Clique lane runs (18 cores, 128 GB; both wall clocks are
+recorded as measured, with the parallelism noted here and in the records).
+Three fresh Astra sessions at medium, serial, each on the published
+0.0.4, each verified independently after it stops. Results land in
+`metrics/loopbar.jsonl`; the lanes are under `~/loopbar-sb4-2026-09-12/`.
+- The Expo bytecode export works after a clean reinstall: the old
+  `hermes-compiler` was a leftover of the isolated-linker install, not a
+  version conflict. `expo export --platform ios` writes the `.hbc`; the
+  follow-up is closed.
+
+## 2026-09-12 — what the loop bar's first run found; 0.0.5
+
+- **`conversationId ?? 'dm1'` after an optional reference scanned nothing.**
+  The text literal on the right of `??` stayed a string when the left side
+  was an *optional* identity (`Ty::Optional(Ref)` is not `is_identity`),
+  so the key encoded as text and matched no id. Beside `=` and in a key
+  the literal was already an id; now it is after `??` too, through the
+  required type. Found by the loop bar's first agent within its first ten
+  minutes and attributed to Snapback 4, correctly.
+- **`snapback4 test` skipped queries with required arguments silently.**
+  It now derives arguments from the data and the persona (a reference is
+  the table's first row, a principal is the persona, a text is the shortest
+  that fits, an enum its first variant), prints the arguments it used on
+  each line, and names every query it still cannot run and why.
+- The online client's HTTP 400 refusals now reach the card as the refusal
+  (0.0.4 said "unreachable"). Published `snapback4@0.0.5`.
+- **Loop bar, run 1 (0.0.4):** green in 433 s wall (415 s by the agent's own
+  clock), one Snapback-attributed correction loop (the `??` defect above),
+  two docs gaps, two agent errors, two environment items; `check`, the
+  fixture test and the acceptance script pass under independent
+  verification. The bar is met by this run (≤ 1,200 s, ≤ 1 loop); runs 2
+  and 3 follow on the same pin.
+- The reference web app now keeps a guest session of its own when the URL
+  names no persona (`?as=bob` stays the development door), and offers
+  sign-out: the shape a fresh agent should copy.

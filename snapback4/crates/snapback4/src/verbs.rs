@@ -421,6 +421,11 @@ pub fn why(options: &Options) -> i32 {
         }
         return 0;
     }
+    if subject.starts_with("E_") || subject.starts_with("N_") {
+        // A guessed code: name the real ones.
+        eprintln!("{subject} is not a refusal code. A unique clash, a cap, an immutable column or a text format is E_CONSTRAINT; a program's own `require .. else CODE` codes are the program's. The codes: {}", crate::guide::CODES.join(", "));
+        return 1;
+    }
     eprintln!("nothing named {subject}: not a refusal code, an operation, or a table");
     1
 }
@@ -482,27 +487,80 @@ pub fn test(options: &Options) -> i32 {
     let mut failures = 0;
     println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "output B");
     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.output_bytes);
+    let mut skipped = Vec::new();
     for program in &bound.programs {
-        if program.program.kind != ProgramKind::Query || program.program.args.values().any(|a| !a.is_optional() && !matches!(a, ir::ArgType::Cursor)) {
+        if program.program.kind != ProgramKind::Query {
             continue;
         }
         for persona in &personas {
             let principal = if persona.contains(':') { persona.clone() } else { persona_principal(persona) };
+            // Arguments come from the data: a reference is the table's first
+            // row, a principal is the persona, a text is the shortest that
+            // fits. What cannot be derived is named, never skipped silently.
+            let mut args = BTreeMap::new();
+            let mut missing = Vec::new();
+            for (name, kind) in &program.program.args {
+                match sample_arg(&engine, kind, &principal) {
+                    Some(value) => {
+                        args.insert(name.clone(), value);
+                    }
+                    None => missing.push(format!("{name}: {}", arg_word(kind))),
+                }
+            }
+            if !missing.is_empty() {
+                skipped.push(format!("{} ({persona}): needs {}", program.program.name, missing.join(", ")));
+                continue;
+            }
+            let shown = if args.is_empty() { String::new() } else { format!(" {}", serde_json::to_string(&args.iter().map(|(k, v)| (k.clone(), wire::to_json(v))).collect::<serde_json::Map<_, _>>()).unwrap_or_default()) };
             let started = Instant::now();
-            match engine.query(&program.program.name, Context::new(principal, BTreeMap::new())) {
+            match engine.query(&program.program.name, Context::new(principal, args)) {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
-                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}  {state} in {:.1} ms", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
+                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
                 }
                 Err(refusal) => {
                     failures += 1;
-                    println!("      {:<28} denied {}: {}", format!("{} ({persona})", program.program.name), refusal.code, refusal.message);
+                    println!("      {:<28} denied {}: {}{shown}", format!("{} ({persona})", program.program.name), refusal.code, refusal.message);
                 }
             }
         }
     }
+    for line in &skipped {
+        println!("      not run: {line} — pass a fixture with a row of that table, or run it: snapback4 run <query> '{{..}}' --as <persona>");
+    }
     if failures > 0 { 1 } else { 0 }
+}
+
+/// A plausible argument for `test`, from the store and the persona.
+fn sample_arg(engine: &snapback4_core::Engine, kind: &ir::ArgType, principal: &str) -> Option<snapback4_core::Value> {
+    use snapback4_core::Value;
+    Some(match kind {
+        ir::ArgType::Optional(_) | ir::ArgType::Cursor => Value::Null,
+        ir::ArgType::Principal => Value::Id(principal.to_owned()),
+        ir::ArgType::Ref { table } => engine.store().rows(table).ok()?.into_iter().next()?.field("id").ok()?.clone(),
+        ir::ArgType::Text { min, format, .. } => Value::String(match format {
+            Some(snapback4_core::schema::TextFormat::Url) => "https://example.com/".to_owned(),
+            Some(snapback4_core::schema::TextFormat::Handle) => "a".repeat((*min).max(3) as usize),
+            None => "a".repeat((*min).max(1) as usize),
+        }),
+        ir::ArgType::Int => Value::Int(0),
+        ir::ArgType::Time => Value::Int(snapback4_core::now_ms()),
+        ir::ArgType::Bool => Value::Bool(false),
+        ir::ArgType::Enum { variants } => Value::String(variants.first()?.clone()),
+        _ => return None,
+    })
+}
+
+fn arg_word(kind: &ir::ArgType) -> String {
+    match kind {
+        ir::ArgType::Ref { table } => format!("a {table} id"),
+        ir::ArgType::Id => "an id".into(),
+        ir::ArgType::List { .. } => "a list".into(),
+        ir::ArgType::Json { .. } => "json".into(),
+        ir::ArgType::Bytes { .. } | ir::ArgType::Image { .. } | ir::ArgType::Video { .. } => "bytes".into(),
+        other => format!("{other:?}").to_lowercase(),
+    }
 }
 
 

@@ -122,7 +122,8 @@ mutation edit(messageId: messages, body: text <=4000):
   exist by the end of the mutation that inserted this one).
 - **Rules:** `read`, `insert`, `update`, `delete`, each `<-` one
   expression over the row (`.col`), `viewer`, and literals: `allow`,
-  `deny`, `public 'reason'`, `.col = viewer`, `.col != 'x'`,
+  `deny`, `public` (or the table line `public 'reason'`, which also
+  documents why), `.col = viewer`, `.col != 'x'`,
   `exists t[.a, viewer, 'literal']`, `created t[..]` (insert rules only:
   true when this mutation inserted the probed row), `and`, `or`, `not`.
   `update (old, next) <- old.x = next.x` names both images. An `exists`
@@ -301,8 +302,11 @@ flips the link.
 - **`snapback4 run <op> '<json args>' --as alice [--json]`** runs one
   operation against the local store and prints the result and the meter.
 - **`snapback4 test [--fixture dir] [--as persona]`** loads a fixture
-  (one `<table>.jsonl` per table), runs every query, and prints the
-  meters beside the ceilings.
+  (one `<table>.jsonl` per table), runs every query as each persona with
+  arguments derived from the data (a reference is the table's first row,
+  a principal the persona, a text the shortest that fits), prints the
+  meters beside the ceilings and the arguments it used, and names any
+  query it could not run.
 - **`snapback4 check [--cost] [--json]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's
@@ -320,8 +324,11 @@ seq, next }` or `{ denied }`; `POST /m/<op>` with `{ "id", "args",
 "failed", why }` (a client-minted `id` makes the write apply at most
 once); `GET /sync?from=W` streams the partition; `GET /changes?since=S`
 long-polls for commits; `GET /schema` is the compiled backend;
-`POST /auth/guest|signup|login|logout`. Authorization: `x-snapback-persona`
-(dev, same machine) or `Authorization: Bearer <token>`.
+`POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
+(`{ "email", "password" }`) answer `{ "session": { principal, kind, token,
+expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout` with the
+bearer token ends it. Authorization: `x-snapback-persona` (dev, same
+machine) or `Authorization: Bearer <token>`.
 
 ## 6. Release
 

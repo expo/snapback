@@ -263,6 +263,10 @@ class IndexedDbStore implements Store {
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error ?? new Error("aborted"));
     });
+    // A body that throws (a refused prediction) aborts the transaction on
+    // purpose; the abort must not surface a second time as an unhandled
+    // rejection in the page. The caller still sees the body's own error.
+    done.catch(() => {});
     const rows = transaction.objectStore("rows");
     const idx = transaction.objectStore("idx");
     const meta = transaction.objectStore("meta");
@@ -349,10 +353,15 @@ class IndexedDbStore implements Store {
   }
 
   async read<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> {
-    const { api, done } = this.tx("readonly");
-    const result = await body(api);
-    await done;
-    return result;
+    const { transaction, api, done } = this.tx("readonly");
+    try {
+      const result = await body(api);
+      await done;
+      return result;
+    } catch (error) {
+      try { transaction.abort(); } catch { /* already done */ }
+      throw error;
+    }
   }
 
   async write<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> {

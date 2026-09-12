@@ -214,6 +214,13 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             "false" => Ok(RuleExpr::Deny),
             other => Err(unknown(site, format!("`{other}` is not a rule; rules are allow, deny, public, exists, created, and comparisons over ., viewer and literals"), "read <- .ownerId = viewer")),
         },
+        Expr::Call { name, args, .. } if name == "public" => {
+            let reason = match args.first() {
+                Some(Expr::Literal { value: crate::ast::Literal::Str(reason), .. }) => reason.clone(),
+                _ => format!("{} is public", info.decl.name),
+            };
+            Ok(RuleExpr::Public { reason })
+        }
         Expr::Binary { op, left, right, .. } => match op.as_str() {
             "and" => Ok(RuleExpr::And(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
             "or" => Ok(RuleExpr::Or(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),

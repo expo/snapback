@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
-import type { Client } from "snapback4/contract";
-import { createLocalClient } from "snapback4/local";
-import { SnapbackProvider, useLink } from "snapback4/react";
+import { createLocalClient, type LocalClient } from "snapback4/local";
+import { SnapbackProvider, useClient, useLink, useViewer } from "snapback4/react";
 import { Inbox } from "./Inbox.tsx";
 import { Thread } from "./Thread.tsx";
 
 // The local-first tier: the device holds the viewer's partition in IndexedDB,
 // reads run locally, writes queue durably. `snapback4 dev` serves
-// snapback/schema.q at 127.0.0.1:4400; the persona comes from the URL
-// (?as=bob), default alice.
-const persona = new URLSearchParams(location.search).get("as") ?? "alice";
+// snapback/schema.q at 127.0.0.1:4400. A persona in the URL (?as=bob) is
+// the development door; without one the client keeps a guest session of
+// its own across reloads.
+const persona = new URLSearchParams(location.search).get("as");
 const url = import.meta.env.VITE_SNAPBACK_URL ?? "http://127.0.0.1:4400";
 
 export function App() {
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<LocalClient | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
-    let live: Client | null = null;
-    createLocalClient({ url, persona }).then((c) => { live = c; setClient(c); }, (e: Error) => setProblem(e.message));
+    let live: LocalClient | null = null;
+    createLocalClient(persona ? { url, persona } : { url, guest: true }).then((c) => { live = c; setClient(c); }, (e: Error) => setProblem(e.message));
     return () => { void live?.close(); };
   }, []);
   if (problem) return <p role="alert">Cannot reach {url}: {problem}. Run <code>snapback4 dev</code> in the app directory.</p>;
@@ -38,9 +38,12 @@ function Home() {
 
 function LinkBar() {
   const link = useLink();
+  const viewer = useViewer();
+  const client = useClient() as LocalClient;
   return <header>
     <strong>Snapback 4 chat</strong>
     <span role="status">{link === "online" ? "Online" : link === "offline" ? "Offline" : "Signed out"}</span>
-    <small className="note">as {persona} · {url} · local-first</small>
+    <small className="note">as {viewer ?? "nobody"} · {url} · local-first</small>
+    {persona ? null : <button type="button" onClick={() => { void client.signOut().then(() => location.reload()); }}>Sign out</button>}
   </header>;
 }

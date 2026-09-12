@@ -71,6 +71,7 @@ export class Replica {
    * applies as one transaction. Returns the tables that changed. */
   async syncOnce(): Promise<{ touched: Set<string>; ok: boolean }> {
     const touched = new Set<string>();
+    if (this.closed) return { touched, ok: false };
     let { watermark, generation } = await this.state();
     if (generation !== this.generation) {
       // A new generation re-derives the partition: drop rows, keep the outbox.
@@ -80,6 +81,7 @@ export class Replica {
     }
     for (let pages = 0; pages < 1_000; pages++) {
       const page = await this.transport.sync(watermark, PAGE);
+      if (this.closed) return { touched, ok: false };
       if ("denied" in page) return { touched, ok: false };
       if (page.watermark < watermark) return { touched, ok: false }; // never move backwards
       await this.apply(page, touched);
@@ -143,7 +145,14 @@ export class Replica {
     if (this.following) return;
     this.following = (async () => {
       while (!this.closed) {
-        const { ok } = await this.syncOnce();
+        let ok = false;
+        try {
+          ({ ok } = await this.syncOnce());
+        } catch {
+          // A store that closed under a sync, or a transport that threw:
+          // nothing escapes the loop; the next round decides.
+          if (this.closed) break;
+        }
         if (this.closed) break;
         if (!ok) await new Promise((r) => setTimeout(r, 1000));
         else await wait();
@@ -151,8 +160,11 @@ export class Replica {
     })();
   }
 
+  /** Stop following, let a sync in flight finish on the open store, then
+   * close it: nothing touches the store after this returns. */
   async close() {
     this.closed = true;
+    await this.following?.catch(() => {});
     await this.store.close();
   }
 }
