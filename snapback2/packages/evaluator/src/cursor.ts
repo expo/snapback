@@ -133,18 +133,12 @@ function normalizeDescriptor(value: any): any {
   if (!plainObject(value) || Object.keys(value).length !== 1) fail("cursor token is not the canonical tagged encoding");
   const name = Object.keys(value)[0]!;
   const data = value[name];
-  if (name === "Text" || name === "Bytes" || name === "Json") {
-    const key = name === "Json" ? "max_bytes" : "max";
-    if (!plainObject(data) || Object.keys(data).length !== 1 || !nonnegativeInteger(data[key])) fail("cursor token is not the canonical tagged encoding");
-    return { [name]: { [key]: data[key] } };
-  }
-  if (name === "Ref") {
-    if (!plainObject(data) || Object.keys(data).length !== 1 || typeof data.table !== "string") fail("cursor token is not the canonical tagged encoding");
-    return { Ref: { table: data.table } };
-  }
-  if (name === "Decimal") {
-    if (!plainObject(data) || Object.keys(data).length !== 1 || !nonnegativeInteger(data.scale)) fail("cursor token is not the canonical tagged encoding");
-    return { Decimal: { scale: data.scale } };
+  const field = name === "Text" || name === "Bytes" ? "max" : name === "Json" ? "max_bytes"
+    : name === "Ref" ? "table" : name === "Decimal" ? "scale" : undefined;
+  if (field !== undefined) {
+    if (!plainObject(data) || Object.keys(data).length !== 1
+      || (name === "Ref" ? typeof data[field] !== "string" : !nonnegativeInteger(data[field]))) fail("cursor token is not the canonical tagged encoding");
+    return { [name]: { [field]: data[field] } };
   }
   if (name === "Money") {
     if (!plainObject(data) || Object.keys(data).length !== 2 || typeof data.currency !== "string" || !nonnegativeInteger(data.scale)) fail("cursor token is not the canonical tagged encoding");

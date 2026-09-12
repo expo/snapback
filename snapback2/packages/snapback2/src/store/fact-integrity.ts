@@ -129,7 +129,7 @@ export class FactTransaction {
     return image;
   }
   private imageRefs(proof: FactProof, delta: number): void {
-    const image = this.image(proof); if (image) image.refs += delta;
+    const image = this.image(proof); if (image && delta) image.refs += delta;
   }
   private seed(key: string): Map<number, string> {
     let facts = this.seen.get(key);
@@ -222,8 +222,9 @@ export class FactTransaction {
   finish(before: Map<string, StoredAnswer | undefined>): void {
     for (const [owner, old] of before) {
       const next = this.state.answers[owner];
-      for (const [answer, delta] of [[old, -1], [next, 1]] as const) {
-        for (const proof of answerProofs(answer)) this.imageRefs(proof, delta);
+      // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — equal retained proofs still prepare images but do not dirty unchanged reference counts.
+      for (const [answer, other, delta] of [[old, next, -1], [next, old, 1]] as const) {
+        for (const proof of answerProofs(answer)) this.imageRefs(proof, answerProof(other, proof[0]) === proof[1] ? 0 : delta);
         for (const id of answer?.extentProofs ?? []) {
           this.state.factExtents[id].refs += delta; this.touchedExtents.add(id);
         }

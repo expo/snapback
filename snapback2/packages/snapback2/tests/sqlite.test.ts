@@ -20,6 +20,34 @@ import { sqliteFactory } from "./sqlite-fixture.ts";
 const temporary = () => mkdtemp(join(tmpdir(), "s2-sqlite-"));
 const noBytes = { put: [], remove: [] };
 
+test('equal retained image proofs preserve complete custody without rewriting image records', async (context) => {
+  const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json',import.meta.url),'utf8'));
+  context.mock.method(Date,'now',() => halo.last.readTime + 1000);
+  const database = new FakeIndexedDb();
+  const factory = indexedDbRangeStore({ indexedDB: database as any,locks: new FakeLocks() });
+  let runtime = new OfflineRuntime({ store: factory });
+  const records = () => structuredClone([...(database as any).databases.values()].map((db: any) => [...db.stores]));
+  const commit = async () => runtime.commit('clock.fixed',{},await runtime.accept('clock.fixed',{},structuredClone(halo.first)));
+  try {
+    await runtime.open(halo.first.authority.principal,true); await runtime.program(halo.program); await commit();
+    const expected = records(), query = await runtime.twin.evaluate('clock.fixed',{});
+    for (const failure of ['failNextPut','abortNextPut'] as const) {
+      database[failure] = true;
+      await assert.rejects(commit());
+      assert.deepEqual(records(),expected,'failed publication keeps every durable record');
+      database.writes.length = 0; await commit();
+      assert.deepEqual(records(),expected,'equal proof refresh preserves every durable record');
+      assert.equal(database.writes.filter(w => w.store === 'meta' && w.action === 'put'
+        && String(w.key).startsWith('["factImages",')).length,0,'retained image counts do not produce puts');
+      assert.deepEqual(await runtime.twin.evaluate('clock.fixed',{}),query);
+    }
+    await runtime.close(); runtime = new OfflineRuntime({ store: factory });
+    await runtime.open(halo.first.authority.principal,true); await commit();
+    assert.deepEqual(records(),expected,'cold key restoration preserves persisted values');
+    assert.deepEqual(await runtime.twin.evaluate('clock.fixed',{}),query);
+  } finally { await runtime.close(); }
+});
+
 test("SQLite driver conformance: BLOBs, JSON keys, rollback, late beforeCommit, and journal mode", async (t) => {
   const root = await temporary();
   try {

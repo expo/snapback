@@ -66,7 +66,7 @@ export class CarrierIndex {
   }
   imageKeys(id: string): ImageKeys | undefined {
     const image = this.state.factImages[id];
-    if (image?.keys) return image.keys = ImageKeys.restore(image.keys);
+    if (image?.keys) return ImageKeys.is(image.keys) ? image.keys : image.keys = ImageKeys.restore(image.keys);
   }
   keyImage(row: StoredRow, imageId: string): KeyImage | undefined {
     const schema = this.state.programs[this.state.facts?.generation ?? '']?.schema ?? this.schema;
