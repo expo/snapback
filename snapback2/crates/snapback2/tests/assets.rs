@@ -816,6 +816,36 @@ fn asset_server_upload_delivery_carrier_revoke_and_reset_round_trip() {
     );
     assert_eq!(public_kept["state"], "committed", "{public_kept}");
     let public_id = public_kept["data"]["photo"]["id"].as_str().unwrap();
+    for width in [
+        "%0d%0aSet-Cookie:%20injected=1",
+        "%80",
+        "%C3%A9",
+        "0",
+        "4294967296",
+    ] {
+        let response = wire(
+            port,
+            "GET",
+            &format!("/api/asset/{public_id}?s=x&w={width}"),
+            &[],
+            &[],
+        );
+        assert_eq!(response.status, 422, "{width}");
+        assert!(!response.headers.contains_key("set-cookie"));
+        assert!(!response.headers.contains_key("location"));
+    }
+    let width_redirect = wire(
+        port,
+        "GET",
+        &format!("/api/asset/{public_id}?s=x&w=256"),
+        &[],
+        &[],
+    );
+    assert_eq!(width_redirect.status, 302);
+    assert_eq!(
+        width_redirect.header("location"),
+        format!("/api/asset/{public_id}?w=256")
+    );
     let public = wire(port, "GET", &format!("/api/asset/{public_id}"), &[], &[]);
     assert_eq!(public.status, 200);
     assert_eq!(public.header("cache-control"), "public, immutable");

@@ -512,16 +512,39 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
         return;
     }
     let public = delivery["public"].as_bool().unwrap_or(false);
+    let requested_width = match query
+        .get("w")
+        .map(|raw| raw.parse::<u32>().ok().filter(|width| *width > 0))
+    {
+        None => None,
+        Some(Some(width)) => Some(width),
+        Some(None) => {
+            respond_asset_refusal(
+                request,
+                422,
+                asset_type("image width must be a positive integer"),
+                &context.mode,
+            );
+            return;
+        }
+    };
     if carrier.is_some() && public {
-        let location = query.get("w").map_or_else(
+        let location = requested_width.map_or_else(
             || format!("/api/asset/{id}"),
             |width| format!("/api/asset/{id}?w={width}"),
         );
+        let location = match crate::serve::checked_header_value("Location", &location) {
+            Ok(header) => header,
+            Err(error) => {
+                respond_asset_refusal(request, 500, error, &context.mode);
+                return;
+            }
+        };
         respond_empty(
             request,
             302,
             vec![
-                header_value("Location", &location),
+                location,
                 header_value("Cache-Control", "no-store"),
                 header_value("Referrer-Policy", "no-referrer"),
             ],
@@ -541,20 +564,8 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
     let mut key = id.to_owned();
     let mut content_type = source_type.to_owned();
     if kind == "image"
-        && let Some(raw_width) = query.get("w")
+        && let Some(requested) = requested_width
     {
-        let requested = match raw_width.parse::<u32>().ok().filter(|width| *width > 0) {
-            Some(width) => width,
-            None => {
-                respond_asset_refusal(
-                    request,
-                    422,
-                    asset_type("image width must be a positive integer"),
-                    &context.mode,
-                );
-                return;
-            }
-        };
         let rung = snap_width(requested, source_width);
         if rung < source_width {
             key = format!("{id}.w{rung}");
