@@ -256,4 +256,54 @@ assert.throws(() => validateIdentity('a'.repeat(136)),{ code: 'E_INPUT' });
   assert.equal(store.byId('balances',id200),null,'last sum deletion removes target');
   assert.equal(store.byId('counts',id200),null,'last count deletion removes target');
 }
+// @ref LLP 1012#6-reads-offline — readable group exhaustion proves a point result, not primary write authority.
+{
+  const index = (name: string) => ({ components: [{ Column: name }], unique: true });
+  const table = { columns: { id: 'Id', target: 'Principal', value: 'Int' },
+    indexes: { byId: index('id'), byTarget: index('target') },
+    rules: { read: 'Allow', insert: 'Deny', update: 'Deny', delete: 'Deny' }, constraints: [], retain: 'until-revoked' };
+  const schema: any = { tables: { counts: table }, maintains: [], channels: {}, schedules: [], effects: [], auth: { password: false, guests: false } };
+  const schema_hash = sha256(canonicalSchemaJson(schema)), key = { Id: 'alice' };
+  const program: any = { name: 'counts.point', kind: 'Query', args: {}, read_time_granularity_ms: null,
+    body: [{ Return: { Get: { site: 'count', table: 'counts', index: 'byTarget', key: [{ Literal: key }] } } }] };
+  const context: any = { viewer: 'alice', principal_kind: 'user', auth_epoch: 1, args: {}, now: 1, new_ids: [], read_time: null };
+  const range: any = { site: 'count', table: 'counts', index: 'byTarget', prefix: [{ Scalar: key }],
+    order: 'Asc', take: 1, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+    rule_hash: scopedRuleHash(schema,table.rules.read), row_ids: [], stop: 'Exhausted', absence: true, halo: null, n2_suffix: null };
+  const receipt = (ranges: any[], absences: any[] = []): any => ({ schema_hash, rows: [], ranges, absences, verdicts: [] });
+  const replay = (ranges: any[], absences: any[] = []) => new ClientStore(schema,receipt(ranges,absences)).reexecute(program,context);
+  const primary = ['counts','byId',[{ Id: canonicalValues([key]) }]];
+  assert.equal(replay([range],[primary]).state,'fresh','the owner proof pair covers the missing public group');
+  assert.equal(replay([range]).state,'fresh','readable group exhaustion does not need canonical-ID equivalence');
+  assert.equal(replay([],[primary]).state,'partial','primary absence alone does not prove a group empty');
+  for (const [name, change] of [
+    ['truncated', { stop: 'Limit' }], ['another key', { prefix: [{ Scalar: { Id: 'bob' } }] }],
+    ['another index', { index: 'byId' }], ['another rule', { rule_hash: 'f'.repeat(64) }],
+    ['evicted', { evicted_ids: ['lost'] }],
+    ...['after','before','gt','gte','lt','lte'].map(bound => [bound,{ prefix: [], [bound]: bound === 'after' || bound === 'before' ? { Array: [key] } : key }]),
+  ] as [string,any][]) assert.equal(replay([{ ...range,...change }]).state,'partial',name);
+  const store = new ClientStore(schema,receipt([range]));
+  assert.equal(store.hasAbsence('counts','byTarget',[key]),false,'read coverage adds no rule/mutation negative fact');
+  assert.equal(store.authorityAbsence('counts',canonicalValues([key])),false,'group exhaustion adds no primary write authority');
+  store.setReceipt('seed');
+  assert.equal(store.reexecute(program,context).state,'partial','removing the receipt removes its read coverage');
+  const restricted = structuredClone(schema); restricted.tables.counts.rules.read = { Eq: [{ Field: 'target' },'Viewer'] };
+  const restrictedReceipt = { ...receipt([{ ...range,rule_hash: scopedRuleHash(restricted,restricted.tables.counts.rules.read) }]),
+    schema_hash: sha256(canonicalSchemaJson(restricted)) };
+  assert.equal(new ClientStore(restricted,restrictedReceipt).reexecute(program,context).state,'partial','restricted empty range does not acquire absence authority');
+  const guarded = structuredClone(schema);
+  guarded.tables.counts.rules.insert = { Not: { Exists: { table: 'counts', index: 'byTarget', key: [{ Field: 'target' }] } } };
+  const guardedReceipt = { ...receipt([range],[['counts','byId',[{ Id: 'new-row' }]]]), schema_hash: sha256(canonicalSchemaJson(guarded)) };
+  const guardedStore = new ClientStore(guarded,guardedReceipt);
+  const inserted = { Row: { id: { Id: 'new-row' }, target: key, value: { Int: 1 } } };
+  const insert: any = { name: 'guarded.insert', kind: 'Mutation', args: {}, read_time_granularity_ms: null,
+    body: [{ Insert: { table: 'counts', row: { Literal: inserted } } }, { Return: { Literal: 'Null' } }] };
+  const blocked = guardedStore.applyMutation(insert,context);
+  assert.equal(blocked.state,'partial','readable group exhaustion cannot authorize a negative write rule');
+  assert(blocked.partialSites.length > 0,JSON.stringify(blocked));
+  assert.equal(guardedStore.byId('counts','new-row'),null,'unknown write authority leaves no inserted row');
+  const surviving = { table: 'counts', id: 'legacy', row: { Row: { id: { Id: 'legacy' }, target: key, value: { Int: 3 } } } };
+  const legacy = new ClientStore(schema,{ ...receipt([range],[primary]),rows: [surviving] }).reexecute(program,context);
+  assert.equal((wireJson(legacy.execution.result) as any).value,3,'noncanonical surviving group row wins over canonical primary absence');
+}
 console.log('maintained address: exact native held/delivery outputs, targeted Optional/List, absent authority, atomic images and current-schema cursors pass');

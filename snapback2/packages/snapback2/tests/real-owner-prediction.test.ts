@@ -241,3 +241,118 @@ mutation allocateRef(realms: [realmCounts] <=3):
     else process.env.SNAPBACK_URL = previousUrl;
   }
 });
+
+// @ref LLP 1012#6-reads-offline — consume public exhaustion without mixing an old computed answer with newer row images.
+test("a durable observed row and zero count survives receipt replay, owner changes and cold reopen", async () => {
+  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const { answerOffline } = await import("../dist/client-observed-test.mjs");
+  const { itemInputs } = await import("../dist/image-runtime.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-count-composite-"));
+  const fixture = join(directory, "source"), clients: any[] = [], stops: (() => void)[] = [];
+  let local: RealOwnerHarness | undefined;
+  const until = async (check: () => boolean, label: string) => {
+    const end = Date.now() + 5_000;
+    while (!check()) { assert(Date.now() < end, label); await new Promise(resolve => setTimeout(resolve, 10)); }
+  };
+  try {
+    await mkdir(fixture);
+    await writeFile(join(fixture, "schema.q"), `use identity
+table rows:
+  owner: principal
+  label: text <=40
+  public
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  delete <- .owner = viewer
+
+table votes:
+  target: rows
+  owner: principal
+  by byTarget: target
+  public
+  insert <- .owner = viewer
+  update <- deny
+  delete <- .owner = viewer
+
+maintain counts: count votes by target
+  read <- allow
+`);
+    await writeFile(join(fixture, "ops.q"), `query composite(target: rows):
+  return { row: rows[target], count: counts[target] }
+
+query row(target: rows):
+  return rows[target]
+
+mutation create(label: text <=40, positive: bool):
+  row = insert rows { owner: viewer, label }
+  if positive:
+    insert votes { owner: viewer, target: row.id }
+  return row.id
+
+mutation rename(target: rows, label: text <=40):
+  update rows[target] { label }
+  return null
+
+mutation remove(target: rows):
+  delete rows[target]
+  return null
+`);
+    local = await RealOwnerHarness.create({ forceOwned: true, fixture });
+    let token: string | null = null;
+    const tokenStore = { load: () => token, save: (value: string | null) => { token = value; } };
+    const plain = createClient({ url: local.url, tokenStore }); clients.push(plain);
+    await plain.auth.guest();
+    for (const count of [0, 1]) {
+      const made: any = await plain.mutation(api.ops.create, { label: `row ${count}`, positive: count === 1 });
+      assert.equal(made.state, "committed");
+      const target = made.data, refreshed: any[] = [];
+      let client: any = createClient({ url: local.url, tokenStore, offline: { store: fileRangeStore(join(directory, `client-${count}`)) },
+        offlineReadObserver: (_op: unknown, args: any, result: any) => {
+          if (args.target === target) refreshed.push(result);
+        } } as any);
+      clients.push(client); await client.ready; await client.auth.me();
+      const expected: any = await plain.query(api.ops.composite, { target });
+      assert.equal(expected.state, "complete"); assert.equal(expected.data.count, count);
+      const observed = client.observe(api.ops.composite, { target });
+      stops.push(observed.subscribe(() => {}));
+      await until(() => refreshed.length > 0, "the accepted owner receipt reaches local replay");
+      assert.equal(refreshed[0].state, "complete", "the row/count composite must be reconstructible after its receipt commits");
+      // Equal exact replay preserves live server provenance (client-observed.ts);
+      // the receipt-commit observer above proves the local result, not just the first frame.
+      await until(() => observed.getSnapshot().receipt?.state === "complete", "the observed publication remains complete after local replay");
+      assert.equal(observed.getSnapshot().receipt.state, "complete");
+      assert.deepEqual(observed.getSnapshot().data, expected.data);
+      const firstSequence = observed.getSnapshot().receipt.seq;
+      // An unrelated answer changes durable order while the owner sequence stays fixed.
+      await client.query(api.ops.row, { target: "unrelated-missing" });
+      await new Promise(resolve => setTimeout(resolve, 30));
+      assert.equal(observed.getSnapshot().receipt.seq, firstSequence);
+      assert.deepEqual(observed.getSnapshot().data, expected.data);
+      const label = `changed ${count}`;
+      assert.equal((await client.mutation(api.ops.rename, { target, label })).state, "committed");
+      await until(() => refreshed.some(result => result.seq > firstSequence && result.data?.row?.label === label), "new owner row is replayed with its count");
+      await until(() => observed.getSnapshot().data?.row?.label === label, "the observed client publishes the changed owner row");
+      assert.equal(observed.getSnapshot().data.count, count);
+      await client.offline(); client = await client.restart(); clients.push(client);
+      const cold: any = await client.query(api.ops.composite, { target });
+      assert.equal(cold.state, "complete"); assert.equal(cold.live, false);
+      assert.equal(cold.data.row.label, label); assert.equal(cold.data.count, count);
+      const coldObserved = client.observe(api.ops.composite, { target });
+      stops.push(coldObserved.subscribe(() => {}));
+      await until(() => coldObserved.getSnapshot().data?.row?.label === label, "cold observation replays the complete composite");
+      assert.equal((await client.mutation(api.ops.remove, { target })).state, "queued");
+      const overlay: any = await answerOffline(client.offlineRuntime, "ops.composite", { target }, (value: any) => value);
+      assert(itemInputs(overlay)?.entries?.some((entry: any) => entry.predicted), "the removal control has an actual queued overlay");
+      assert.equal(overlay.data?.row ?? null, null, "the held owner answer cannot revive the removed row");
+      await client.close();
+    }
+  } finally {
+    for (const stop of stops) stop();
+    for (const client of clients) await client.close();
+    await local?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

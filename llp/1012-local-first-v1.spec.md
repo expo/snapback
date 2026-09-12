@@ -466,6 +466,17 @@ overlays). Eviction and missing-rule-authority partials cannot use it. Mixed
 row/projection composites and timed queries still need their own exact rerun;
 the fallback adds no authority to the unheld target.
 
+A public (`read <- allow`) unique-key point can also be covered by a held,
+exhausted range whose typed scope contains that complete key. This is read
+coverage: it adds neither an alternate-index negative rule fact nor primary
+mutation authority, and does not infer a maintained row address. A public
+Count query's independently proved empty group range therefore lets an exact
+local rerun keep a row-plus-zero composite. Truncated, bounded, evicted,
+wrong-scope or wrong-rule evidence cannot discharge that point. Restricted
+read rules retain their existing authority requirements, and pooled-answer
+fallback guards above remain unchanged. The evaluator contrast controls and
+real-owner durable observation/cold-reopen regression qualify this boundary.
+
 **The twin is the client.** `useQuery(op, args)` with the backend
 unreachable runs the certified program through the twin
 (`snapback2-evaluator`) hydrated from the carrier's coherent snapshot and
