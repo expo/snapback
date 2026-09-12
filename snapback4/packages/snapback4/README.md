@@ -206,7 +206,11 @@ The horizon `last N by index` bounds what a device acquires per group;
 older rows are online-only, and a device's read past them says
 `complete: false`. Joining a group delivers its rows; leaving it delivers
 one scope tombstone, and the table's `retain` says what the device keeps.
-A table without `sync` is online-only: its queries run on the server.
+What it keeps under `delivered-history` it can still read locally through
+a query without a membership `require` (the server refuses the same query
+once the membership is gone, so a "history" query answers on the device
+and is empty online). A table without `sync` is online-only: its queries
+run on the server.
 
 ## 4. The client
 
@@ -296,8 +300,11 @@ flips the link.
 
 ## 5. Development
 
-- **`snapback4 dev [--port N] [--no-watch]`** serves `snapback/*.q` on
-  `127.0.0.1:4400`, recompiling and re-adopting on every save. Personas
+- **`snapback4 dev [--port N] [--no-watch] [--fresh]`** serves
+  `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on every
+  save; the store lives in `.snapback4/` and persists across runs, and
+  `--fresh` uses one in memory that dies with the process (acceptance
+  scripts start from nothing). Personas
   (`use personas ..`) sign requests from the same machine with the
   `x-snapback-persona: alice` header (the client's `persona: "alice"`),
   acting as `dev:alice`.
@@ -308,11 +315,14 @@ flips the link.
 - **`snapback4 run <op> '<json args>' --as alice [--json]`** runs one
   operation against the local store and prints the result and the meter.
 - **`snapback4 test [--fixture dir] [--as persona]`** loads a fixture
-  (one `<table>.jsonl` per table), runs every query as each persona with
+  (one `<table>.jsonl` per table) into a fresh store in memory (without a
+  fixture, the project's dev store), runs every query as each persona with
   arguments derived from the data (a reference is the table's first row,
   a principal the persona, a text the shortest that fits), prints the
   meters beside the ceilings and the arguments it used, and names any
-  query it could not run.
+  query it could not run. A query's own `require` refusing a derived
+  argument (the persona is not in that group) is reported, not counted
+  as a failure; run it with your arguments to see its meters.
 - **`snapback4 check [--cost] [--json]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's

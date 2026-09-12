@@ -56,7 +56,7 @@ for (let run = 1; run <= n; run++) {
   const sh = (cmd, a) => { const r = spawnSync(cmd, a, { cwd: lane, env, encoding: "utf8", timeout: 300_000 }); return { ok: r.status === 0, tail: `${r.stdout ?? ""}${r.stderr ?? ""}`.slice(-400) }; };
   out.verify = {
     check: sh("npx", ["snapback4", "check"]),
-    fixture: existsSync(join(lane, "fixtures")) ? sh("npx", ["snapback4", "test", "--fixture", "fixtures", "--as", "alice"]) : { ok: false, tail: "no fixtures/" },
+    fixture: existsSync(join(lane, "fixtures")) ? sh("npx", ["snapback4", "test", "--fixture", "fixtures"]) : { ok: false, tail: "no fixtures/" },
     acceptance: sh("npm", ["run", "acceptance"]),
   };
   out.green = !!out.agentSeconds && out.verify.check.ok && out.verify.fixture.ok && out.verify.acceptance.ok;

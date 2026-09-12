@@ -14,7 +14,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
 
   init [dir]                       start a project: snapback/schema.q
   check [--cost] [--json]          compile snapback/*.q; write snapback/generated/api.ts
-  dev [--port N] [--no-watch]      serve on 127.0.0.1:4400 and re-adopt on every save
+  dev [--port N] [--no-watch] [--fresh]  serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
   serve <dir> [--port N] [--bind H]   serve a release on 0.0.0.0:4400; tokens only, no personas
@@ -72,7 +72,7 @@ fn main() -> ExitCode {
                 return ExitCode::from(2);
             };
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
-            match serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch") }, "127.0.0.1") {
+            match serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") }, "127.0.0.1") {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("dev: {error}");

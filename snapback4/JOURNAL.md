@@ -717,3 +717,79 @@ Three fresh Astra sessions at medium, serial, each on the published
   case and gives `observe`'s shape (an agent-error in run 2 guessed it).
   Run 2 fails the bar on loops; run 3 follows on 0.0.4, then a second set
   of three on 0.0.6, which carries every fix the first set found.
+- **Loop bar, run 3 (0.0.4):** green in 567 s, the same two attributed
+  loops as run 2. Set A on 0.0.4: three greens at 433, 572 and 567 s
+  (every run well inside 1,200 s), the bar met by one of three on the
+  loop count, and both counted defects fixed in 0.0.5 and 0.0.6. Set B on
+  0.0.6 (three more, `~/loopbar-sb4-2026-09-12-b/`) started at 14:48 UTC.
+  Docs gaps the set named: `observe`'s shape (now in the README) and the
+  fixture test accumulating rows across runs in the dev store — `test
+  --fixture` now runs against a fresh store in memory.
+- **The Clique lane at M3: delivered history was unreadable.** Under
+  `retain delivered-history` the device kept a left conversation's
+  messages but hid every one of them, because the device re-evaluated the
+  read rule (`exists memberships[..]`) that the server had already applied
+  when it delivered them. Decided: a synced table's rows are the partition,
+  delivered under the rule and withdrawn on revocation, so the device does
+  not run the read rule on them at all; what `delivered-history` keeps is
+  readable through a query without a membership `require` (the server
+  refuses the same query once the membership is gone). The device's hoist
+  stays for online-only tables. The README says how to write a history
+  query. The lane also met the IndexedDB abort a second time (fixed in
+  0.0.4; it keeps 0.0.2). Published `snapback4@0.0.7`.
+
+## 2026-09-12 — two more from the runs; 0.0.8
+
+- **Two writes at once left one `pending` on a healthy link** (the Clique
+  lane at M3: "acknowledge and send return pending with no failed request
+  and do not flush"). A write queued while a flush was running waited for
+  the next link change: the flush read the outbox once. It now runs
+  another pass whenever a write arrived during the last one. The
+  end-to-end test sends two at once and sees two `sent`.
+- **A merged feed with a cursor answered `next: null` over more rows than
+  the page** (loop bar set B, run 1). Each lane read exactly `take` rows,
+  so a lane that alone filled the page could not show there was more. Each
+  lane now reads one row past the page, on the server and on the device;
+  the second page picks up where the first ended.
+- `crates/snapback4-sim/tests/loopbar.rs` carries the loop bar's three
+  attributed findings as tests (the merge continuation, the cursorless
+  page, `??` after an optional reference). Published `snapback4@0.0.8`.
+
+## 2026-09-12 — from the lane's M4 and set B; 0.0.9
+
+- **`check` accepted a synced table that the first sync refused.** The
+  lane's `reactions` synced to a conversation's members with no index
+  leading with `conversationId`; `check` passed, `/sync` failed
+  `E_SCHEMA` (a 503), and the client showed an empty partition with
+  `fresh: false` — silent on both sides. The validator now requires an
+  index leading with the audience columns when there is no horizon (the
+  rewrite names it); a refusal's status follows its retryability (500 for
+  what will not change, 503 for what may); and a device whose partition
+  the server refuses makes every read `denied` with that refusal, logged
+  once, until a sync succeeds. Test in `tests/reviews.rs`.
+- **`snapback4 dev --fresh`**: a store in memory that dies with the
+  process, for acceptance scripts that must start from nothing (set B's
+  agent found the dev store persisting between runs and moved its
+  acceptance into a disposable directory).
+- Published `snapback4@0.0.9`.
+- **A switch only worked as the last argument.** The flag parser gave
+  every `--flag` the next token as its value, so `dev --no-watch --fresh`
+  set `no-watch` to "--fresh" and never saw `fresh` — and 0.0.9's
+  `--fresh` proof above had passed only because the seeded row was not
+  the viewer's to see. Switches (`--no-watch`, `--fresh`, `--cost`,
+  `--allow-destructive`) take no value now, and no flag swallows a
+  following flag. Re-proven: a fresh instance shows nothing a previous
+  one seeded, in either argument order. Published `snapback4@0.0.10`.
+
+## 2026-09-12 — loop bar set B (0.0.6), and `test` on derived arguments; 0.0.11
+
+- **Set B on 0.0.6:** 499 s with three attributed loops (all the merge
+  continuation, fixed in 0.0.8); 765 s with none — the bar met; 420 s
+  with two (a `--fresh` promise read from a newer README than the pinned
+  package, and a pagination investigation the agent closed as correct).
+  My independent fixture check refused run 3's `thread` and `members` for
+  alice on a derived conversation she is not in — `test` now reports a
+  program's own `require` refusing a derived argument as information,
+  not a failure, and the runner checks the fixture with every persona.
+  One of three met the bar on 0.0.6 as on 0.0.4; set C on 0.0.8 runs.
+- Published `snapback4@0.0.11`.

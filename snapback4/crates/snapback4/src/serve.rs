@@ -30,7 +30,7 @@ pub struct Shared {
 /// How the server is run: `dev` on a project (personas, watch), or a
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
-    Dev { watch: bool },
+    Dev { watch: bool, fresh: bool },
     Release,
 }
 
@@ -44,7 +44,10 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     }
     let dev = matches!(mode, Mode::Dev { .. });
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
-    let engine = project.open_engine(&bound).map_err(|e| e.to_string())?;
+    // `--fresh`: a store in memory that dies with the process, for acceptance
+    // scripts that must start from nothing every time.
+    let fresh = matches!(mode, Mode::Dev { fresh: true, .. });
+    let engine = if fresh { snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|e| e.to_string())? } else { project.open_engine(&bound).map_err(|e| e.to_string())? };
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()) });
@@ -55,7 +58,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         Some(generated) => println!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
         None => println!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
     }
-    if let Mode::Dev { watch: true } = mode {
+    if let Mode::Dev { watch: true, .. } = mode {
         let shared = shared.clone();
         let project = Project { root: project.root.clone() };
         std::thread::spawn(move || watch_sources(project, shared));
@@ -309,7 +312,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         };
                         respond(request, 200, body);
                     }
-                    Err(error) => respond(request, 503, json!({ "state": "failed", "id": id, "why": refusal_json(&error.refusal()) })),
+                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal) })) }
                 }
             }
         }
@@ -335,7 +338,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     tables.dedup();
                     respond(request, 200, json!({ "seq": seq, "tables": tables, "generation": *shared.generation.lock().unwrap() }));
                 }
-                Err(error) => respond(request, 503, json!({ "denied": refusal_json(&error.refusal()) })),
+                Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
             }
         }
         (Method::Get, "/sync") => {
@@ -356,7 +359,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let events: Vec<Json> = events.iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
                         respond(request, 200, json!({ "snapshot": true, "events": events, "watermark": watermark, "more": false, "generation": *shared.generation.lock().unwrap() }));
                     }
-                    Err(error) => respond(request, 503, json!({ "denied": refusal_json(&error.refusal()) })),
+                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
             } else {
                 match engine.stream(&principal, from, limit) {
@@ -364,7 +367,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let events: Vec<Json> = page.events.iter().map(|e| json!({ "seq": e.seq, "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
                         respond(request, 200, json!({ "snapshot": false, "events": events, "watermark": page.watermark, "more": page.more, "generation": *shared.generation.lock().unwrap() }));
                     }
-                    Err(error) => respond(request, 503, json!({ "denied": refusal_json(&error.refusal()) })),
+                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
             }
         }

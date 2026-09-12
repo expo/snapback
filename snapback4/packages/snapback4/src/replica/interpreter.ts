@@ -468,7 +468,9 @@ export class Interpreter {
         if (lane.source) this.env.set(lane.binding as string, source);
         await this.statements((lane.setup as unknown[]) ?? [], merge.site as string);
         this.pageDepth++;
-        const rows = await this.scan(lane.scan as Record<string, unknown>);
+        // One row past the page per lane, so a lane that alone fills the
+        // page still shows there is more (as on the server).
+        const rows = await this.scan({ ...(lane.scan as Record<string, unknown>), take: { Literal: take + 1 } });
         this.pageDepth = depth;
         for (const row of rows as Row[]) {
           if (seen.has(row.id)) continue;
@@ -538,9 +540,16 @@ export class Interpreter {
     }
   }
 
-  /** The read rule for one row, with probes over the replica. */
+  /** Whether the viewer may read a held row. A synced table's rows are
+   * the partition: the server delivered each under the read rule and
+   * withdrew what it revoked, so what the device holds it may read — and
+   * what `retain delivered-history` kept after a leave stays readable here
+   * even though the server now refuses it. Only an online-only table's
+   * rows (none, unless predicted) meet the rule on the device. */
   async readable(table: string, row: Row): Promise<boolean> {
-    const rule = (this.schema.tables[table] as unknown as { rules: { read: unknown } }).rules.read;
+    const definition = this.schema.tables[table];
+    if (definition?.sync) return true;
+    const rule = (definition as unknown as { rules: { read: unknown } }).rules.read;
     return this.rule(rule, undefined, row, false);
   }
 

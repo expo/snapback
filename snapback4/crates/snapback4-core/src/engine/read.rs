@@ -297,7 +297,11 @@ impl Runner<'_> {
                 }
                 self.statements(&lane.setup, &merge.site)?;
                 self.page_depth += 1;
-                let rows = self.scan(&lane.scan)?;
+                // Each lane reads one row past the page, so a lane that alone
+                // fills the page still shows there is more to continue on.
+                let mut lane_scan = lane.scan.clone();
+                lane_scan.take = Bound::Literal(take as u32 + 1);
+                let rows = self.scan(&lane_scan)?;
                 self.page_depth = outer_depth;
                 for row in rows {
                     let id = row.field("id")?.as_str()?.to_owned();

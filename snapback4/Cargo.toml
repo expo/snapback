@@ -4,7 +4,7 @@ members = ["crates/*"]
 default-members = ["crates/snapback4"]
 
 [workspace.package]
-version = "0.0.6"
+version = "0.0.11"
 edition = "2024"
 license = "MIT"
 

@@ -105,6 +105,9 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
             .replace("insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent", "insert memberships { conversationId, principal, invitedBy: viewer, role: 'member', joinedAt: now } if absent"),
         "binds viewer to memberships.principal",
     );
+    // The Clique lane at M4: `check` accepted a synced table without an index
+    // to take a group's rows from; the first `/sync` then failed E_SCHEMA.
+    refused(CHAT.replace("  by byConvTime: conversationId, at, id\n  immutable conversationId, authorId", "  immutable conversationId, authorId").replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId]"), "leading with conversationId");
     // 5: an aggregate delivered wider than its source, at the core boundary.
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);

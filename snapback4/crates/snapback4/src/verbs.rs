@@ -27,8 +27,12 @@ pub fn parse(args: &[String]) -> Options {
         if arg == "--json" {
             json = true;
         } else if let Some(flag) = arg.strip_prefix("--") {
+            // A switch takes no value; any other flag takes the next token
+            // unless that token is itself a flag.
+            const SWITCHES: &[&str] = &["no-watch", "fresh", "cost", "allow-destructive"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
+                None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
                 None => (flag.to_owned(), iter.next().cloned().unwrap_or_default()),
             };
             flags.insert(name, value);
@@ -436,11 +440,23 @@ pub fn why(options: &Options) -> i32 {
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
     let bound = compile_or_exit(&project, options.json);
-    let mut engine = match project.open_engine(&bound) {
-        Ok(engine) => engine,
-        Err(error) => {
-            eprintln!("cannot open the store: {error}");
-            return 2;
+    // A fixture runs against a fresh store in memory, so every run reads
+    // the fixture and nothing else; without one, the project's dev store.
+    let mut engine = if options.flags.contains_key("fixture") {
+        match snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
+            Ok(engine) => engine,
+            Err(error) => {
+                eprintln!("cannot open a store: {error}");
+                return 2;
+            }
+        }
+    } else {
+        match project.open_engine(&bound) {
+            Ok(engine) => engine,
+            Err(error) => {
+                eprintln!("cannot open the store: {error}");
+                return 2;
+            }
         }
     };
     if let Some(fixture) = options.flags.get("fixture") {
@@ -513,11 +529,18 @@ pub fn test(options: &Options) -> i32 {
             }
             let shown = if args.is_empty() { String::new() } else { format!(" {}", serde_json::to_string(&args.iter().map(|(k, v)| (k.clone(), wire::to_json(v))).collect::<serde_json::Map<_, _>>()).unwrap_or_default()) };
             let started = Instant::now();
+            let derived = !args.is_empty();
             match engine.query(&program.program.name, Context::new(principal, args)) {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
                     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
+                }
+                Err(refusal) if refusal.family == "rule" && derived => {
+                    // A program's own `require` refusing a derived argument
+                    // is information, not a failure: the persona is not in
+                    // that group. Run it with yours to see the meters.
+                    println!("      {:<28} refused {} on derived arguments{shown} — run it with yours: snapback4 run {} '{{..}}' --as {persona}", format!("{} ({persona})", program.program.name), refusal.code, program.program.name);
                 }
                 Err(refusal) => {
                     failures += 1;
