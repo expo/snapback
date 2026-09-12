@@ -29,11 +29,51 @@ Local run records: `benchmarks/runs/2026-09-11-clique-astra-snapback2-0024-linux
 
 Also: `held_search` `E_ARGS_TYPE` and dynamic merge `E_QUARRY_SYNTAX` blocked the 1,000-lane search rewrite; keep those as diagnostic quality on this ticket or split if the envelope work does not need them.
 
-## Requested outcome and acceptance
+## Requested outcome and acceptance — corrected 2026-09-12
 
-Decide per row, and write the decision in the refusal **and** the guide:
+Implement [LLP 1023.001](../llp/1023.001-hub-scale-certified-reads.plan.md)
+without changing frozen instrument f40559f37722c79178be664a11f8a6485f1508fd.
+The earlier requested brief reduction is rejected. The named u0500 probe has
+500 follows and 100 conversations; u0001 actually has 100 groups plus 900 DMs.
+A 1,000-follow query, 50-row rich page, and 100-row backfill are builder-selected
+spellings, not exact required spellings.
 
-1. **Certify the brief envelope** (partitioned merge, cheaper examined/closure accounting, or a shipped page+merge-heads recipe that a cold builder finds on the first `E_BOUND`), **or**
-2. **Change the brief** so Clique no longer requires a single certified 1,000-lane / 50-row composite / 100-row backfill.
+Required: a 500-follow+self enriched feed; grouped search reaching all 1,000
+memberships; full author/quote/reaction/receipt history through valid smaller
+pages; complete server-driven digest across the population. Do not stop discovery
+at the first 100 or require an invented client merge. Independent pages carry
+independent snapshots and receipts. Final digest emission must exclude currently
+revoked, deleted and expired contributions, including changes after earlier
+chunks, and remain logical-once across restart. A documented gap leaves this
+ticket open.
 
-Acceptance: a cold published-package consumer can express the surviving envelope without inventing a client merge under the clock. At least the 1,000-follow merge and the 1,000-chat search must have a documented, compiling form. Close only with a check or guide snippet that would have saved both of tonight’s lanes.
+The historical refusal numbers above remain observations from the named apps,
+not universal platform ceilings. The 256 live-shape limit is subscription
+admission, distinct from certificate heap/output/closure limits.
+
+## Current-source investigation — 2026-09-12
+
+The rich message schema retained from the 0.0.25 app was copied into the existing
+quarry-fanout-guide fixture. Current-source probes, without ceiling changes:
+
+| Form | Current certificate outcome |
+| --- | --- |
+| 1,000-lane message search, last 20 | heap 20,407,874; closure 17,543,326: refused |
+| Rich 50 with author, quote, 50 reactions and 50 receipts | output 4,178,012: refused |
+| Membership page 10, one search preview per group | closure 344,839; heap 393,355: admitted |
+| Separate per-chat search page 20 | closure 245,232; heap 271,124: admitted |
+| Full rich page 5 | closure 417,345; heap 1,724,224: admitted |
+| Existing same-transaction digest enlarged to 1,000 memberships | heap 12,525,666; closure 13,748,664: refused |
+| Digest maintained key reduced to membershipId,periodStart | heap 9,922,666; closure 8,683,664: refused |
+
+The compact-key reduction preserves selection but is insufficient. Its public
+count absence reserve alone is 2,531,718 bytes. System visibility and persisted
+contributions cannot by themselves establish final eligibility. Existing
+periodUnread contributions require deletion/expiry maintenance as well as
+membership-incarnation checks.
+
+Executed consumer progress: all 1,000 memberships and a final-slice-only match,
+125 tied-time messages through distinct message cursors, full rich continuation,
+and warm/cold held search. Final live/revocation and feed-accounting qualification
+are recorded in the child plan as they complete. Publication and the full Clique
+wave remain separate work.

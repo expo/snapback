@@ -1,62 +1,111 @@
-# Fan-out
+# Fan-out and complete reads
 
-Fan-out is touching many rows because one row changed. The certifier refuses
-any mutation `for` loop whose population is not provably complete and bounded
-(`E_STRUCTURAL_FANOUT`). A number in that refusal is echoed from your own
-loop bound, argument maximum, or schema cap — it is never a platform maximum.
-There is no platform lane or fan-out constant: each shape below declares its
-own envelope and certifies against the read and write budgets (`guide bounds`).
+A mutation's `for` must cover a capped prefix completely
+(`E_STRUCTURAL_FANOUT`). Its number comes from your loop, argument or schema,
+not a platform limit. A `cap` refuses excess rows and prices every write by
+that cap. Never cap followers just to certify a loop.
 
-Pick the shape from the need:
+Use `merge` for following feeds, `cap` for genuinely limited group membership,
+and a job's `chunk` for a complete pass over an uncapped population. There is
+no synchronous per-write fan-out over an uncappable population.
+`check --cost` explains the actual row widths and repeated reads.
 
-| need | shape | bounded by | fresh |
-| --- | --- | --- | --- |
-| feed projection (rows from everyone the viewer follows) | `merge` lanes in a query | your declared lane bound | live |
-| per-group counter over a population you can cap (a conversation's members) | `cap N by group` + the covering mutation loop | the schema cap; every write to the capped table is priced by N | per write |
-| per-group counter over a population you must not cap (followers, likers) | `maintain` + a `chunk` job | the chunk size per step | at the period boundary |
-| whole-table pass, backfill, erasure | `chunk` in a `job` | the chunk size per step | when the job completes |
+## Following
 
-A `cap` is a schema constraint: it refuses the next row past N in each group
-and prices every write to that table by N. Cap a population only when the
-product means it (a conversation's members); never cap followers to make a
-loop certify.
-
-**Synchronous per-write fan-out over an uncappable population has no shape
-today.** A post cannot bump a counter on each of 900 followers inside the
-posting mutation. That is the design, not a missing cap: compute at read
-time (`merge`), or fold maintained counts in at digest time (`maintain` +
-`chunk`), below.
-
-## The feed: merge-on-read
-
-The lane bound is yours. This certifies at 500 lanes; a heavier row shape
-certifies at fewer, and `check` refuses with the real numbers when a budget
-is exceeded — the budget, not a lane constant, is the binding surface.
+All 500 follows plus self participate; equal runtime prefixes deduplicate.
+A smaller discovery bound omits people. Changing the message page size preserves
+reachability only when its opaque continuation is followed.
 
 ```q
 query followingFeed(c: cursor ?):
   page = merge posts after c last 20 by byAuthorTime:
     [viewer]
     [f.followed] for f in follows[viewer] first 500 by byFollower
-  return page { body: .body }
+  return page { post: ., author: profiles[.author] { id, displayName, handle, avatar } }
 ```
 
-## The digest counter: maintain + chunk job
+## Search grouped by chat
 
-`maintain periodPosts: count posts by author, period` keeps the per-author
-count at insert. The job walks `follows` in resumable chunks and folds the
-maintained count into each follower's digest row — nothing is written at
-post time, so a 900-follower author costs nothing extra. Run it from a
-`schedule` or on demand: `snapback2 run digestPass '{"period": 1}' --as system`.
+Page memberships, including those with no matches. This reaches a match in the
+last of 1,000 memberships without maintaining 1,000 live subscriptions or
+merging messages on the client. Groups follow membership index order; this is
+not a global message-time ranking.
 
 ```q
-job digestPass(period: int):
-  chunk f in follows first 50 by byId:
-    n = periodPosts[f.followed, period]
-    account = digests[f.follower, period] by byTargetPeriod
-    if account != null:
-      update digests[account] { newPostsInFollowing: account.newPostsInFollowing + n }
+query searchGroups(term: text <=128, membershipCursor: cursor ?):
+  page = memberships[viewer] after membershipCursor first 10 by byPrincipalConversation
+  return page {
+    membershipId: .id,
+    conversation: conversations[.conversationId],
+    matches: messages[.conversationId, term] last 1 by bySearch,
+  }
 ```
 
-See `guide job` for chunk semantics, `guide maintain` for aggregates,
-`guide merge` for lanes, and `guide bounds` for budgets and cap pricing.
+The outer page's `next` continues memberships. Keep it even when every
+`matches` list is empty. This executable consumer yields the original
+snapshots; it creates no aggregate receipt or shared snapshot.
+
+```js
+async function* groupedSearch(client, term) {
+  let membershipCursor = null;
+  do {
+    const page = await client.query(api.messages.searchGroups, { term, membershipCursor });
+    if (page.state !== "complete" && page.state !== "capped") {
+      throw new Error("Search continuation is unavailable");
+    }
+    yield page;
+    membershipCursor = page.next;
+  } while (membershipCursor !== null);
+}
+```
+
+Render nonempty groups from each yielded page. Expanding a group uses a separate
+message cursor, starting at null; the preview's cursor is not the membership
+cursor. Reset both when changing the term. Current membership rules still apply.
+
+```q
+query searchChat(conversationId: conversations, term: text <=128, messageCursor: cursor ?):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  return messages[conversationId, term] after messageCursor last 20 by bySearch
+```
+
+## Rich history
+
+A small page can keep every enrichment and reach busy history. Use the binding
+below with `observePages` or `usePage`; `loadMore()` follows valid links and
+rebuilds a changed boundary. Independent pages retain their own snapshots.
+
+```q
+query richThread(conversationId: conversations, c: cursor ?):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  page = messages[conversationId] after c last 5 by byConvTime
+  return page {
+    message: .,
+    author: profiles[.authorId],
+    quote: messages[.quoteId],
+    reactions: reactions[.id] first 50 by byMessage,
+    receipts: deliveriesReceipts[.id] first 50 by byRow { recipient, received },
+  }
+```
+
+```js
+const richItems = defineItems(api.messages.richThread, {
+  table: "messages", select: row => row.message,
+});
+const history = client.observePages(api.messages.richThread,
+  { conversationId }, { items: richItems });
+```
+
+These field widths and page sizes are a tested schema envelope, not universal
+limits. Reactions and receipts require their complete per-message population
+to fit the declared bounds; the fixture caps reactions and chat membership at 50.
+See `guide pagination` for source changes and offline continuation.
+
+## Scheduled totals
+
+Jobs process the whole population in resumable chunks; see `guide job`.
+A chunk can accumulate contributions, but a cached total alone cannot prove
+final authorization or expiry. System jobs bypass viewer rules and chunks
+observe different snapshots. Before emitting per-user totals, validate current
+eligibility in that transaction or preserve it through every contributing
+mutation. Never describe a partial sum as the completed digest.

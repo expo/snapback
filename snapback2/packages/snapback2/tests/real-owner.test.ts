@@ -440,3 +440,276 @@ test("the shipped composite pages online and after a cold offline reopen", async
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+
+// @ref LLP 1023.001#acceptance — the grouped consumer traverses the whole
+// membership population; it never treats an empty match slice as exhaustion.
+test("hub guide reaches final membership slice and rich history online and warm/cold offline", { timeout: 60000 }, async (t) => {
+  const { mkdtemp, readFile, rm, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join, resolve } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const { defineItems } = await import("../dist/client.mjs");
+  const fixture = resolve(import.meta.dirname, "../../compiler/fixtures/quarry-fanout-guide/snapback");
+  let setupData: any;
+  const batchSize = (table: string) => table === "messages" ? 1 : 20;
+  const fieldType = (table: string, name: string) => ({
+    id: "id", principal: "principal", creatorId: "principal", authorId: "principal",
+    author: "principal", actor: "principal", follower: "principal", followed: "principal",
+    conversationId: "conversations", messageId: "messages", quoteId: "messages ?",
+    at: "time", joinedAt: "time", messageCount: "int", period: "int", target: "principal", newPostsInFollowing: "int",
+    displayName: "text <=50", handle: "text <=20", bio: "text <=200", location: "text <=50",
+    title: "text <=120", kind: "enum('group', 'dm')", role: "enum('admin', 'member')",
+    body: table === "posts" ? "text <=500" : "text <=2000", emoji: "text <=40",
+  }[name]);
+  const hub = await RealOwnerHarness.create({ forceOwned: true, fixture, prepare: async root => {
+
+const key = (n: number) => String(n).padStart(4, "0");
+const people = ["u0001", "author", ...Array.from({ length: 500 }, (_, n) => "follow"+key(n))];
+const profiles = people.map((p, n) => ({ id: "profile-"+p, principal: "dev:"+p,
+  displayName: p, handle: "handle_"+key(n), bio: "A full author", location: "Here" }));
+const data = {
+  personas: people,
+  rows: {
+    profiles,
+    digests: [{ id: "digest-counter", target: "dev:u0001", period: 1, newPostsInFollowing: 0 }],
+    conversations: Array.from({ length: 1000 }, (_, n) => ({
+      id: "chat-"+key(n), title: "Chat "+key(n), kind: n < 100 ? "group" : "dm",
+      creatorId: "dev:u0001", messageCount: n === 999 ? 125 : 0,
+    })),
+    memberships: [
+      { id: "peer-seat", conversationId: "chat-0999", principal: "dev:author", role: "member", joinedAt: 0 },
+    ],
+    messages: Array.from({ length: 125 }, (_, n) => ({ id: "message-"+key(n),
+      conversationId: "chat-0999", authorId: "dev:author", body: "needle "+key(n),
+      quoteId: n === 0 ? null : "message-0000", at: Math.floor(n / 3),
+    })),
+    reactions: [...Array.from({ length: 125 }, (_, n) => ({ id: "reaction-"+key(n),
+      messageId: "message-"+key(n), actor: "dev:u0001", emoji: "👍" })),
+      ...["author", ...Array.from({ length: 48 }, (_, n) => "follow"+key(n))].map((name, n) => ({
+        id: "tail-reaction-"+key(n), messageId: "message-0124", actor: "dev:"+name, emoji: "👍",
+      }))],
+    follows: Array.from({ length: 500 }, (_, n) => ({ id: "follow-"+key(n),
+      follower: "dev:u0001", followed: "dev:follow"+key(n) })),
+    posts: [...Array.from({ length: 500 }, (_, n) => ({ id: "post-"+key(n),
+      author: "dev:follow"+key(n), body: "post "+key(n), period: 1, at: Math.floor(n / 3) })),
+      { id: "own-post", author: "dev:u0001", body: "my post", period: 1, at: 500 }],
+  },
+};
+
+    setupData = data;
+    const setup = Object.entries(data.rows).map(([table, rows]) => {
+      const keys = Object.keys(rows[0]);
+      const parameters = Array.from({ length: batchSize(table) }, (_, i) => keys.map(name =>
+        "v" + i + "_" + name + ": " + fieldType(table, name))).flat();
+      return "mutation " + table + "(n: int, " + parameters.join(", ") + "):\n" +
+        Array.from({ length: batchSize(table) }, (_, i) => "  if n > " + i + ":\n    insert " + table + " { " +
+          keys.map(name => name + ": v" + i + "_" + name).join(", ") + " }" +
+          (table === "conversations" ? "\n    insert memberships { conversationId: v" + i +
+            "_id, principal: v" + i + "_creatorId, role: 'admin', joinedAt: now }" : "")
+        ).join("\n") + "\n";
+    }).join("\n");
+    await writeFile(join(root, "snapback/fixtureSetup.q"), setup + `
+mutation erasePost(postId: posts):
+  delete posts[postId]
+  return null
+
+query digestState(target: principal, source: principal, period: int):
+  return { accumulated: digests[target, period], sourceCount: periodPosts[source, period] }
+`);
+    await writeFile(join(root, "snapback/seed.ts"),
+      'import { seed } from "snapback2";\nexport default seed(' + JSON.stringify({ personas: people, rows: {} }) + ');\n');
+  } });
+  const directory = await mkdtemp(join(tmpdir(), "snapback-hub-guide-"));
+  let offline = false;
+  const options = { url: hub.url, persona: "u0001", offline: { store: fileRangeStore(directory) },
+    fetch: async (input: any, init?: RequestInit) => {
+      assert.equal(offline, false, "held read attempted transport");
+      return fetch(input, init);
+    } };
+  let client: any = createClient(options);
+  const author: any = createClient({ url: hub.url, persona: "author" });
+  let pages: any, stop: (() => void) | undefined;
+  const waitFor = async (check: () => boolean, label: string) => {
+    const deadline = Date.now() + 10000;
+    while (!check()) {
+      assert.ok(Date.now() < deadline, label);
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  };
+  try {
+    const ownerInfo = JSON.parse(await readFile(join(hub.root!, ".snapback/owner.json"), "utf8"));
+    const setupPlan = (Object.entries(setupData.rows) as Array<[string, any[]]>).flatMap(([table, rows]) =>
+      table === "messages" ? [
+        [table, rows.slice(0, 120)],
+        ["memberships", Array.from({ length: 48 }, (_, n) => ({ id: "peer-"+String(n).padStart(4, "0"),
+          conversationId: "chat-0999", principal: "dev:follow"+String(n).padStart(4, "0"), role: "member", joinedAt: 0 }))],
+        [table, rows.slice(120)],
+      ] : [[table, rows]]) as Array<[string, any[]]>;
+    for (const [table, rows] of setupPlan) {
+      for (let start = 0; start < rows.length; start += batchSize(table)) {
+        const args: Record<string, unknown> = { n: Math.min(batchSize(table), rows.length-start) };
+        for (let i = 0; i < batchSize(table); i++) for (const [name, value] of Object.entries(rows[start+i] ?? rows[0])) {
+          args["v" + i + "_" + name] = value;
+        }
+        const response = await fetch(hub.url + "/control/execute", {
+          method: "POST", headers: { "content-type": "application/json", "X-Snapback-Control": ownerInfo.secret },
+          body: JSON.stringify({ op: "fixtureSetup." + table, args, as: "system" }),
+        });
+        const result: any = await response.json();
+        assert.ok(response.ok && result.state === "committed", table + ": " + JSON.stringify(result).slice(0, 2000));
+      }
+    }
+    await Promise.all([client.ready, author.ready]);
+    const feed = async () => {
+      const first = await client.query(api.feeds.followingFeed, { c: null });
+      assert.equal(first.state, "capped");
+      assert.equal(first.data[0].post.id, "own-post");
+      assert.equal(first.data[1].post.id, "post-0499", "the last discovered author participates");
+      const second = await client.query(api.feeds.followingFeed, { c: first.next });
+      const ids = [...first.data, ...second.data].map(row => row.post.id);
+      assert.deepEqual(ids, ["own-post", ...Array.from({ length: 39 }, (_, n) =>
+        "post-"+String(499-n).padStart(4, "0"))]);
+      for (const row of [...first.data, ...second.data]) {
+        assert.equal(row.author.displayName, row.post.author.slice(4));
+        assert.ok("images" in row.post && "clip" in row.post, "full post content remains in the shape");
+      }
+    };
+    await feed();
+    const guide = await readFile(resolve(import.meta.dirname, "../guide/fanout.md"), "utf8");
+    const consumer = /```js\n(async function\* groupedSearch[\s\S]*?)\n```/.exec(guide)![1];
+    const groupedSearch = new Function("api", "return (" + consumer + ")")(api);
+    const search = async () => {
+      let slices = 0;
+      const chats = [], snapshots = [];
+      for await (const result of groupedSearch(client, "needle")) {
+        assert.ok(result.state === "complete" || result.state === "capped", JSON.stringify(result));
+        snapshots.push(result);
+        for (const group of result.data) {
+          if (group.matches.length) chats.push(group.conversation.id);
+        }
+        slices++;
+      }
+      assert.equal(slices, 101, "nested capped preview permits one empty terminal membership page");
+      assert.deepEqual(chats, ["chat-0999"]);
+      assert.ok(snapshots.slice(0, 99).every(page => page.data.every((group: any) => group.matches.length === 0)));
+      assert.equal(new Set(snapshots.flatMap(page => page.data.map((group: any) => group.membershipId))).size, 1000);
+      return snapshots;
+    };
+    const memberships = await search();
+    const allMessages = async () => {
+      let messageCursor: string | null = null;
+      const ids: string[] = [];
+      do {
+        const result = await client.query(api.messages.searchChat, { conversationId: "chat-0999", term: "needle", messageCursor });
+        assert.ok(result.state === "complete" || result.state === "capped");
+        ids.push(...result.data.map((row: any) => row.id));
+        messageCursor = result.next;
+      } while (messageCursor !== null);
+      assert.deepEqual(ids, Array.from({ length: 125 }, (_, n) => "message-"+String(124-n).padStart(4, "0")));
+      assert.equal(new Set(ids).size, ids.length);
+    };
+    await allMessages();
+    const wrongCursor = await client.query(api.messages.searchChat, {
+      conversationId: "chat-0999", term: "needle", messageCursor: memberships[0].next,
+    });
+    assert.equal(wrongCursor.state, "refused");
+    assert.equal(wrongCursor.code, "E_INPUT", "membership and message continuations cannot be interchanged");
+    const binding = defineItems(api.messages.richThread, { table: "messages", select: (row: any) => row.message });
+    pages = client.observePages(api.messages.richThread, { conversationId: "chat-0999" }, { items: binding });
+    stop = pages.subscribe(() => {});
+    await waitFor(() => pages.getSnapshot().items.length === 5, "rich head");
+    for (let n = 1; n < 25; n++) {
+      pages.getSnapshot().loadMore();
+      await waitFor(() => pages.getSnapshot().items.length === Math.min(125, (n+1)*5), "rich continuation");
+    }
+    const full = pages.getSnapshot();
+    assert.equal(full.items.length, 125);
+    assert.equal(new Set(full.items.map((item: any) => item.data.id)).size, 125);
+    assert.equal("receipt" in full, false, "independent pages have no aggregate receipt");
+    for (const snapshot of full.pages) for (const row of snapshot.data) {
+      assert.equal(row.author.bio, "A full author");
+      assert.equal(row.reactions.length, row.message.id === "message-0124" ? 50 : 1);
+      assert.equal(row.receipts.length, row.message.id >= "message-0120" ? 50 : 2);
+      if (row.message.id !== "message-0000") assert.equal(row.quote.body, "needle 0000");
+    }
+    stop(); stop = undefined; pages = undefined;
+    await client.outbox.drain();
+    await client.offline(); offline = true;
+    await search(); await allMessages(); await feed();
+    client = await client.restart();
+    await search(); await allMessages(); await feed();
+    t.diagnostic("1000 memberships (100 groups+900 DMs), 99 empty slices, final-slice match, 125 tied-time messages; warm/cold held reads");
+    offline = false; await client.online();
+    const changed = await author.mutation(api.messages.edit, { messageId: "message-0124", body: "different" });
+    assert.equal(changed.state, "committed");
+    const live = client.observe(api.messages.searchChat, { conversationId: "chat-0999", term: "needle" });
+    const stopLive = live.subscribe(() => {});
+    await waitFor(() => live.getSnapshot().data?.[0]?.id === "message-0123", "edited search invalidation");
+    stopLive();
+    pages = client.observePages(api.messages.richThread, { conversationId: "chat-0999" }, { items: binding });
+    stop = pages.subscribe(() => {});
+    await waitFor(() => pages.getSnapshot().items.length === 5, "live rich head");
+    for (let n = 1; n < 3; n++) {
+      pages.getSnapshot().loadMore();
+      await waitFor(() => pages.getSnapshot().items.length === (n+1)*5, "live rich continuation");
+    }
+    const inserted = await author.mutation(api.messages.send, { conversationId: "chat-0999", body: "new needle" });
+    assert.equal(inserted.state, "committed");
+    await waitFor(() => pages.getSnapshot().items[0]?.data?.id === inserted.data.id, "insert rebuilds rich page boundaries");
+    assert.equal((await author.mutation(api.messages.remove, { messageId: "message-0120" })).state, "committed");
+    assert.equal((await author.mutation(api.messages.edit, { messageId: "message-0121", body: "edited boundary" })).state, "committed");
+    await waitFor(() => {
+      const items = pages.getSnapshot().items;
+      return !items.some((item: any) => item.data?.id === "message-0120") &&
+        items.some((item: any) => item.data?.id === "message-0121" && item.data.body === "edited boundary");
+    }, "edit/removal cross the rich boundary");
+    const rebuilt = pages.getSnapshot().items.map((item: any) => item.data.id);
+    assert.equal(new Set(rebuilt).size, rebuilt.length);
+    assert.deepEqual(rebuilt, [inserted.data.id, ...Array.from({ length: rebuilt.length }, (_, n) =>
+      124-n).filter(n => n !== 120).map(n => "message-"+String(n).padStart(4, "0"))].slice(0, rebuilt.length));
+    stop(); stop = undefined; pages = undefined;
+    assert.equal((await client.mutation(api.messages.leave, { conversationId: "chat-0999" })).state, "committed");
+    const denied = await client.query(api.messages.searchChat, { conversationId: "chat-0999", term: "needle" });
+    assert.equal(denied.state, "denied");
+    assert.match(denied.rule, /MEMBERSHIP_REQUIRED/);
+    const finalSlice = await client.query(api.messages.searchGroups, { term: "needle", membershipCursor: memberships[98].next });
+    assert.equal(finalSlice.data.length, 9);
+    assert.ok(finalSlice.data.every((group: any) => group.matches.length === 0));
+    await client.offline(); offline = true;
+    const revoked = await client.query(api.messages.searchGroups, { term: "needle", membershipCursor: memberships[98].next });
+    assert.ok(revoked.state === "partial" || revoked.data.every((group: any) => group.conversation?.id !== "chat-0999"));
+    await Promise.all([client.close(), author.close()]);
+    const control = async (path: string, body?: any) => {
+      const info = JSON.parse(await readFile(join(hub.root!, ".snapback/owner.json"), "utf8"));
+      const response = await fetch(hub.url + path, { method: body ? "POST" : "GET",
+        headers: { "content-type": "application/json", "X-Snapback-Control": info.secret },
+        ...(body ? { body: JSON.stringify({ ...body, as: "system" }) } : {}) });
+      const value: any = await response.json();
+      assert.ok(response.ok, JSON.stringify(value).slice(0, 1000));
+      return value;
+    };
+    // This old counter recipe is intentionally NOT advertised as a completed
+    // digest: accumulation lacks final source eligibility, even across restart.
+    const job = await control("/control/job", { op: "digest.digestPass", args: { period: 1 } });
+    const deadline = Date.now() + 5000;
+    while ((await control("/control/job/" + job.id)).state !== "done") {
+      assert.ok(Date.now() < deadline, "counter job completion");
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    const digestArgs = { target: "dev:u0001", source: "dev:follow0499", period: 1 };
+    const before = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
+    assert.equal(before.data.accumulated.newPostsInFollowing, 500);
+    assert.equal(before.data.sourceCount, 1);
+    assert.equal((await control("/control/execute", { op: "fixtureSetup.erasePost", args: { postId: "post-0499" } })).state, "committed");
+    await hub.stop(); await hub.start(false);
+    const stale = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
+    assert.equal(stale.data.sourceCount, 0);
+    assert.equal(stale.data.accumulated.newPostsInFollowing, 500, "cached contributions cannot establish final eligibility");
+    assert.equal((await control("/control/job/" + job.id)).state, "done");
+    t.diagnostic("digest GAP: clients closed; completed500-follow accumulation retains deleted contribution after owner restart");
+  } finally {
+    stop?.(); await Promise.all([client.close(), author.close()]);
+    await hub.close(); await rm(directory, { recursive: true, force: true });
+  }
+});
