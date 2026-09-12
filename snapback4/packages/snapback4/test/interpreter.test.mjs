@@ -89,3 +89,19 @@ test("a page at the horizon is not complete", async () => {
   for (let page = 0; read.next; page++) read = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:bob", { conversationId: "c1", c: read.next }), "query").run(programs.thread));
   assert.equal(read.complete, false, "the device holds exactly the horizon; older rows may exist on the server");
 });
+
+test("a range the prefix decides false is hoisted: delivered history is never counted", async () => {
+  // Mallory left c1 under `delivered-history` and still holds its messages;
+  // her local read of the thread is decided by one row, not by walking the
+  // history against the ceiling (the meter's-cut review, M4).
+  const store = await seeded();
+  const scan = { Return: { Scan: { table: "messages", index: "byConvTime", prefix: [{ Scalar: { Literal: { Id: "c1" } } }], take: { Literal: 5 }, order: "Desc", after: null, before: null, range: null, opaque_cursor: false, site: "t:1", provenance: "Shape", merge_site: null } } };
+  const program = { name: "peek", kind: "Query", args: {}, body: [scan] };
+  const low = { examined: 3, ruleProbes: 3, steps: 1_000_000, rowsWritten: 1024 };
+  const read = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:mallory", {}), "query", low).run(program));
+  assert.deepEqual(read.data, []);
+  assert.equal(read.complete, true, "one hidden row decides the range at the cost of an empty one");
+  const member = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:bob", {}), "query", low).run(program));
+  assert.equal(member.data.length, 3, "a member's read is cut by the low ceiling, typed");
+  assert.equal(member.complete, false);
+});

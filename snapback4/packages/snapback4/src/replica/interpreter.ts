@@ -59,6 +59,27 @@ const untagged = (v: unknown): unknown => {
   return v;
 };
 /** A tagged literal from the IR as a plain value. */
+/** Every `.field` a rule reads, on any probe key or comparison. */
+function ruleFields(rule: unknown, out: Set<string>) {
+  if (typeof rule !== "object" || rule === null) return;
+  const [kind, body] = Object.entries(rule as Record<string, unknown>)[0] as [string, unknown];
+  const term = (t: unknown) => { if (typeof t === "object" && t !== null && "Field" in t) out.add((t as { Field: string }).Field); };
+  switch (kind) {
+    case "Eq": case "Ne": (body as unknown[]).forEach(term); break;
+    case "And": case "Or": (body as unknown[]).forEach((r) => ruleFields(r, out)); break;
+    case "Not": ruleFields(body, out); break;
+    case "Exists": case "Created": (body as { key: unknown[] }).key.forEach(term); break;
+  }
+}
+
+/** Whether a rule term is pinned by a scan's prefix expression. */
+function pinnedTerm(term: unknown, expression: unknown): boolean {
+  if (expression === undefined) return false;
+  if (term === "Viewer") return typeof expression === "object" && expression !== null && (expression as { Input?: string }).Input === "Viewer";
+  if (typeof term === "object" && term !== null && "Literal" in term) return typeof expression === "object" && expression !== null && "Literal" in expression && canonicalJson((term as { Literal: unknown }).Literal) === canonicalJson((expression as { Literal: unknown }).Literal);
+  return false;
+}
+
 export function literal(v: unknown): unknown {
   if (v === "Null") return null;
   return untagged(v);
@@ -339,10 +360,15 @@ export class Interpreter {
     const table = this.schema.tables[read.table];
     if (!table) throw new Refused({ code: "E_SCHEMA", family: "schema", message: `unknown table ${read.table}` });
     if (!table.sync) this.beyondHorizon = true;
+    // Absent, hidden or visible: one examined row; the probes that decided
+    // a hidden row are rolled back, as on the server.
+    const mark = { probes: this.probes, capped: this.capped };
     const row = await this.tx.lookup(read.table, read.index, key);
-    if (!row) return null;
     if (!this.charge("examined")) return null;
-    return (await this.readable(read.table, row)) ? row : null;
+    if (!row) return null;
+    if (await this.readable(read.table, row)) return row;
+    this.probes = mark.probes; this.capped = mark.capped;
+    return null;
   }
 
   private async scan(scan: Record<string, unknown>): Promise<unknown[]> {
@@ -378,15 +404,30 @@ export class Interpreter {
     let hasMore = false;
     let cursor: Bounds = { ...bounds };
     const batch = take + 1;
+    const { uniform, decidedTrue } = this.visibility(table, index, scan.prefix as { Scalar?: unknown }[]);
+    let verdict: boolean | null = decidedTrue ? true : null;
+    const mark = { examined: this.examined, probes: this.probes, capped: this.capped };
     outer: for (;;) {
       const fetched = await this.tx.scan(table, index, prefix, cursor, dir, batch);
       if (fetched.length === 0) break;
       for (const { row, key } of fetched) {
         if (!this.charge("examined")) break outer;
-        if (await this.readable(table, row)) {
+        let allowed: boolean;
+        if (verdict !== null) allowed = verdict;
+        else {
+          allowed = await this.readable(table, row);
+          if (uniform) verdict = allowed;
+        }
+        if (this.capped) break outer;
+        if (allowed) {
           if (visible.length === take) { hasMore = true; break outer; }
           visible.push(row);
           lastKey = key;
+        } else if (uniform) {
+          // One hidden row hides the prefix: stop without reading it, at
+          // the cost of an empty range.
+          this.examined = mark.examined; this.probes = mark.probes; this.capped = mark.capped;
+          break outer;
         }
         cursor = { ...cursor, after: suffixOf(this.schema, table, index, row, prefix.length) };
       }
@@ -440,6 +481,59 @@ export class Interpreter {
     return page.map((c) => c.row);
   }
 
+  /** The server's `scan_visibility`, on the device: a read rule whose every
+   * field the prefix pins is decided once for the whole range (`uniform`);
+   * one the prefix proves is `decidedTrue` before any row is read. A
+   * uniform-false range halts after one row at the cost of an empty one,
+   * so the rows the viewer may no longer read (delivered history) are never
+   * counted. */
+  private visibility(table: string, index: string, prefix: { Scalar?: unknown }[]): { uniform: boolean; decidedTrue: boolean } {
+    const definition = this.schema.tables[table]!;
+    const rule = (definition as unknown as { rules: { read: unknown } }).rules.read;
+    const pinned = new Map<string, unknown>();
+    definition.indexes[index]!.components.forEach((component, n) => {
+      if ("Column" in component && n < prefix.length && prefix[n]!.Scalar !== undefined) pinned.set(component.Column, prefix[n]!.Scalar);
+    });
+    const decidedTrue = this.ruleTrue(rule, table, pinned);
+    const used = new Set<string>();
+    ruleFields(rule, used);
+    return { uniform: decidedTrue || [...used].every((field) => pinned.has(field)), decidedTrue };
+  }
+
+  private ruleTrue(rule: unknown, table: string, pinned: Map<string, unknown>): boolean {
+    if (rule === "Allow") return true;
+    if (typeof rule !== "object" || rule === null) return false;
+    const [kind, body] = Object.entries(rule as Record<string, unknown>)[0] as [string, unknown];
+    switch (kind) {
+      case "Public": return true;
+      case "Eq": {
+        const [a, b] = body as [unknown, unknown];
+        return [[a, b], [b, a]].some(([field, value]) => typeof field === "object" && field !== null && "Field" in field && pinnedTerm(value, pinned.get((field as { Field: string }).Field)));
+      }
+      case "Or": return (body as unknown[]).some((r) => this.ruleTrue(r, table, pinned));
+      case "And": return (body as unknown[]).length > 0 && (body as unknown[]).every((r) => this.ruleTrue(r, table, pinned));
+      case "Exists": {
+        // A self-probe on a total unique key whose every component is the
+        // row's own column or pinned to the probing value holds for every
+        // row the prefix selects.
+        const b = body as { table: string; index: string; key: unknown[] };
+        if (b.table !== table) return false;
+        const definition = this.schema.tables[table]!;
+        const index = definition.indexes[b.index];
+        if (!index || !index.unique || b.key.length === 0 || b.key.length !== index.components.length) return false;
+        return index.components.every((component, n) => {
+          if (!("Column" in component)) return false;
+          const type = definition.columns[component.Column];
+          if (typeof type === "object" && type !== null && "Optional" in type) return false;
+          const term = b.key[n];
+          if (typeof term === "object" && term !== null && "Field" in term) return (term as { Field: string }).Field === component.Column;
+          return pinnedTerm(term, pinned.get(component.Column));
+        });
+      }
+      default: return false;
+    }
+  }
+
   /** The read rule for one row, with probes over the replica. */
   async readable(table: string, row: Row): Promise<boolean> {
     const rule = (this.schema.tables[table] as unknown as { rules: { read: unknown } }).rules.read;
@@ -472,7 +566,7 @@ export class Interpreter {
       }
       case "Created": {
         const b = body as { table: string; index: string; key: unknown[] };
-        return this.created.has(`${b.table} ${b.index} ${canonicalJson(b.key.map(term))}`);
+        return this.created.has(`${b.table}\u0000${b.index}\u0000${canonicalJson(b.key.map(term))}`);
       }
       default: return false;
     }
@@ -525,7 +619,7 @@ export class Interpreter {
     if (await this.tx.get(table, row.id)) throw new Refused({ code: "E_CONSTRAINT", family: "constraint", message: `${table} already has a row with id ${row.id}` });
     await this.constraints(table, undefined, row, "insert");
     await this.put(table, { ...row, pending: true });
-    for (const [name, index] of Object.entries(this.schema.tables[table]!.indexes)) this.created.add(`${table} ${name} ${canonicalJson(index.components.map((c) => ("Column" in c ? row[c.Column] ?? null : null)))}`);
+    for (const [name, index] of Object.entries(this.schema.tables[table]!.indexes)) this.created.add(`${table}\u0000${name}\u0000${canonicalJson(index.components.map((c) => ("Column" in c ? row[c.Column] ?? null : null)))}`);
     return true;
   }
 

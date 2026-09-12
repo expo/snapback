@@ -674,6 +674,22 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     if !target.indexes.values().any(|index| index.unique && index.columns() == maintain.by) {
         issue(issues, format!("maintain target {} needs a unique index over {}", maintain.target, maintain.by.join(", ")));
     }
+    // A delivered aggregate reveals a count: every recipient must be able to
+    // read every contributing row, so the aggregate's audience is its
+    // source's audience, grouped by the audience columns.
+    if let Some(target_sync) = &target.sync
+        && !source.rules.read.is_uniformly_readable()
+    {
+        let sound = match (&target_sync.audience, source.sync.as_ref().map(|sync| &sync.audience)) {
+            (Audience::Public, Some(Audience::Public)) => true,
+            (Audience::Column(column), Some(Audience::Column(source_column))) => column == source_column && maintain.by.contains(column),
+            (Audience::Target { table, prefix, principal }, Some(Audience::Target { table: source_table, prefix: source_prefix, principal: source_principal })) => table == source_table && principal == source_principal && prefix == source_prefix && prefix.iter().all(|column| maintain.by.contains(column)),
+            _ => false,
+        };
+        if !sound {
+            issue(issues, format!("maintain target {} syncs to an audience its source {} does not deliver to; a device would hold a count over rows it may not read. Sync the source to the same audience and group by its columns, or make the source public", maintain.target, maintain.source));
+        }
+    }
 }
 
 /// Why a `sync` line cannot be honoured, as the term the author must change.
@@ -693,8 +709,11 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
             }
             let implied = RuleExpr::Eq(RuleTerm::Field(column.clone()), RuleTerm::Viewer);
             let implied_flipped = RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column.clone()));
-            if !table.rules.read.disjuncts().iter().any(|d| **d == implied || **d == implied_flipped) && !table.rules.read.is_uniformly_readable() {
-                issue(issues, format!("sync to .{column} is only sound when the read rule has the disjunct `.{column} = viewer`; it reads under `{}`", table.rules.read.quarry()));
+            // The rule is exactly the audience: a second disjunct would admit
+            // viewers the partition never delivers to; a conjunct would deliver
+            // rows the rule denies.
+            if !table.rules.read.is_uniformly_readable() && table.rules.read != implied && table.rules.read != implied_flipped {
+                issue(issues, format!("sync to .{column} is only sound when the read rule is exactly `.{column} = viewer`; it reads under `{}`", table.rules.read.quarry()));
             }
         }
         Audience::Target { table: target_name, prefix, principal } => {
@@ -705,36 +724,13 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
             if target.columns.get(principal) != Some(&ColumnType::Principal) {
                 issue(issues, format!("sync to {target_name} reads principals from {target_name}.{principal}, which is not a principal column"));
             }
-            let mut want = prefix.iter().map(|column| RuleTerm::Field(column.clone())).collect::<Vec<_>>();
-            want.push(RuleTerm::Viewer);
             for column in prefix {
                 if !table.columns.contains_key(column) {
                     issue(issues, format!("sync to {target_name}[.{column}] names an undeclared column of {table_name}"));
                 }
             }
-            // The audience index: the target's columns for the prefix, then the principal.
-            let Some(audience_columns) = target_prefix_columns(table_name, table, target, prefix, principal) else {
-                issue(issues, format!("sync to {target_name}[{}]: {target_name} has no column matching {} (same name and type, or one reference to the same table)", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "), prefix.iter().map(|c| format!("{table_name}.{c}")).collect::<Vec<_>>().join(", ")));
-                return;
-            };
-            let mut wanted_index = audience_columns.clone();
-            wanted_index.push(principal.clone());
-            if !target.indexes.values().any(|index| index.columns() == wanted_index) {
-                issue(issues, format!("sync to {target_name}[{}] needs an index on {target_name} over {}", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "), wanted_index.join(", ")));
-            }
-            let mut wanted_by_principal = vec![principal.clone()];
-            wanted_by_principal.extend(audience_columns.iter().cloned());
-            if !target.indexes.values().any(|index| index.columns().starts_with(&wanted_by_principal)) {
-                issue(issues, format!("sync to {target_name}[..] needs an index on {target_name} whose leading columns are {} so a device can find its groups", wanted_by_principal.join(", ")));
-            }
-            if !table.rules.read.is_uniformly_readable() {
-                let sound = table.rules.read.disjuncts().iter().any(|d| match d {
-                    RuleExpr::Exists { table: t, key, .. } => t == target_name && *key == want,
-                    _ => false,
-                });
-                if !sound {
-                    issue(issues, format!("sync to {target_name}[{}] is only sound when the read rule has the disjunct `exists {target_name}[{}]`; it reads under `{}`", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "), want.iter().map(|t| match t { RuleTerm::Field(f) => format!(".{f}"), _ => "viewer".into() }).collect::<Vec<_>>().join(", "), table.rules.read.quarry()));
-                }
+            if let Err(why) = audience_binding(schema, table_name, table, sync) {
+                issue(issues, why);
             }
         }
     }
@@ -778,6 +774,67 @@ pub fn target_prefix_columns(content_name: &str, content: &Table, target: &Table
         }
     }
     Some(out)
+}
+
+/// The proof behind `sync to target[.prefix] by .principal`: the read
+/// rule's probe of the target and the target index that probe uses. The
+/// partition log delivers by exactly this index; it never reconstructs the
+/// mapping from column names or types (a same-typed second reference would
+/// deliver one group under the authority of another).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AudienceBinding {
+    /// The unique target index `columns ++ [principal]`: a group's principals.
+    pub group_index: String,
+    /// The target's columns the content row's prefix maps to, in order.
+    pub columns: Vec<String>,
+    /// The target's principal column, at the probe's `viewer` position.
+    pub principal: String,
+    /// A target index leading with `principal ++ columns`: a principal's groups.
+    pub principal_index: String,
+}
+
+pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: &Sync) -> Result<AudienceBinding, String> {
+    let Audience::Target { table: target_name, prefix, principal } = &sync.audience else {
+        return Err(format!("{table_name} does not sync to a target table"));
+    };
+    let target = schema.table(target_name).ok_or_else(|| format!("sync to {target_name} names an unknown table"))?;
+    let spelled_prefix = prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ");
+    let mut want = prefix.iter().map(|column| RuleTerm::Field(column.clone())).collect::<Vec<_>>();
+    want.push(RuleTerm::Viewer);
+    let spelled_want = want.iter().map(|t| match t { RuleTerm::Field(f) => format!(".{f}"), _ => "viewer".into() }).collect::<Vec<_>>().join(", ");
+    let columns = if table.rules.read.is_uniformly_readable() {
+        // A public table may sync to any audience; the mapping is by name and type.
+        target_prefix_columns(table_name, table, target, prefix, principal).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}]: {target_name} has no column matching {} (same name and type, or one reference to the same table)", prefix.iter().map(|c| format!("{table_name}.{c}")).collect::<Vec<_>>().join(", ")))?
+    } else {
+        // The rule is exactly the probe the sync inverts: a second disjunct
+        // would admit viewers the partition never delivers to; a conjunct
+        // or a literal in the key would deliver rows the rule denies.
+        let exact = format!("sync to {target_name}[{spelled_prefix}] is only sound when the read rule is exactly `exists {target_name}[{spelled_want}]`; it reads under `{}`", table.rules.read.quarry());
+        let RuleExpr::Exists { table: probed, index, key, .. } = &table.rules.read else { return Err(exact) };
+        if probed != target_name || *key != want {
+            return Err(exact);
+        }
+        let index_def = target.index(index).ok_or_else(|| format!("the read rule probes unknown index {target_name}.{index}"))?;
+        let index_columns = index_def.columns();
+        if !index_def.is_plain() || index_columns.len() != want.len() {
+            return Err(format!("the read rule's probe uses {target_name}.{index}, which does not cover exactly `{spelled_want}`"));
+        }
+        let probe_principal = &index_columns[prefix.len()];
+        if probe_principal != principal {
+            return Err(format!("sync to {target_name}[{spelled_prefix}] by .{principal} reads recipients from {target_name}.{principal}, but the read rule binds viewer to {target_name}.{probe_principal}; say `by .{probe_principal}`"));
+        }
+        index_columns[..prefix.len()].to_vec()
+    };
+    let mut by_group = columns.clone();
+    by_group.push(principal.clone());
+    let (group_index, group_def) = target.indexes.iter().find(|(_, index)| index.columns() == by_group).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}] needs an index on {target_name} over {}", by_group.join(", ")))?;
+    if !group_def.unique {
+        return Err(format!("the audience index {target_name}.{group_index} must be unique: with two rows for one group and principal, deleting one would revoke a group the other still grants"));
+    }
+    let mut by_principal = vec![principal.clone()];
+    by_principal.extend(columns.iter().cloned());
+    let principal_index = target.indexes.iter().find(|(_, index)| index.columns().starts_with(&by_principal)).map(|(name, _)| name.clone()).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}] needs an index on {target_name} whose leading columns are {} so a device can find its groups", by_principal.join(", ")))?;
+    Ok(AudienceBinding { group_index: group_index.clone(), columns, principal: principal.clone(), principal_index })
 }
 
 /// The maintained target's row address for a source image: the `by` values.

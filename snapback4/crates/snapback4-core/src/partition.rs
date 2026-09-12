@@ -8,14 +8,22 @@
 
 use crate::engine::runner::Runner;
 use crate::error::{MeterKind, RuntimeError};
-use crate::schema::{Audience, Schema, Sync, Table, materialize_optional_fields, target_prefix_columns};
+use crate::schema::{Audience, AudienceBinding, Schema, Sync, Table, audience_binding, materialize_optional_fields};
 use crate::store::{Bounds, Dir, LogEvent, Tx};
 use crate::value::{Value, canonical_json};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// The partition every principal also holds.
+/// The partition every principal also holds. Principal partitions carry a
+/// tag (`p:<principal>`), so no principal's name can collide with it: a
+/// membership granted to a principal literally named `public` delivers to
+/// that principal alone.
 pub const PUBLIC: &str = "public";
+
+/// The partition name of one principal.
+pub fn partition_of(principal: &str) -> String {
+    format!("p:{principal}")
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Event {
@@ -67,19 +75,10 @@ pub fn group_of(sync: &Sync, row: &Value) -> Vec<Value> {
     }
 }
 
-/// The index of the target table that lists a group's principals, and the
-/// index that lists a principal's groups.
-fn target_indexes(schema: &Schema, content_name: &str, target_name: &str, prefix: &[String], principal: &str) -> Option<(String, Vec<String>, String)> {
-    let target = schema.table(target_name)?;
+/// The proved mapping behind a target audience: the read rule's probe index.
+fn binding(schema: &Schema, content_name: &str, sync: &Sync) -> Option<AudienceBinding> {
     let content = schema.table(content_name)?;
-    let columns = target_prefix_columns(content_name, content, target, prefix, principal)?;
-    let mut by_group = columns.clone();
-    by_group.push(principal.to_owned());
-    let group_index = target.indexes.iter().find(|(_, index)| index.columns() == by_group)?.0.clone();
-    let mut by_principal = vec![principal.to_owned()];
-    by_principal.extend(columns.iter().cloned());
-    let principal_index = target.indexes.iter().find(|(_, index)| index.columns().starts_with(&by_principal))?.0.clone();
-    Some((group_index, columns, principal_index))
+    audience_binding(schema, content_name, content, sync).ok()
 }
 
 /// The principals that hold `row` under `sync`, as partition names.
@@ -87,19 +86,19 @@ pub fn audience(tx: &Tx<'_>, schema: &Schema, content_name: &str, sync: &Sync, r
     Ok(match &sync.audience {
         Audience::Public => vec![PUBLIC.to_owned()],
         Audience::Column(column) => match row.field(column) {
-            Ok(Value::Id(principal)) => vec![principal.clone()],
+            Ok(Value::Id(principal)) => vec![partition_of(principal)],
             _ => Vec::new(),
         },
-        Audience::Target { table, prefix, principal } => {
-            let (group_index, _, _) = target_indexes(schema, content_name, table, prefix, principal).ok_or_else(|| RuntimeError::Schema(format!("sync to {table} has no audience index")))?;
+        Audience::Target { table, .. } => {
+            let bound = binding(schema, content_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {table} has no audience index")))?;
             let group = group_of(sync, row);
             if group.iter().any(|value| *value == Value::Null) {
                 return Ok(Vec::new());
             }
             let mut out = BTreeSet::new();
-            for (member, _) in tx.scan(table, &group_index, &group, &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
-                if let Ok(Value::Id(p)) = member.field(principal) {
-                    out.insert(p.clone());
+            for (member, _) in tx.scan(table, &bound.group_index, &group, &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
+                if let Ok(Value::Id(p)) = member.field(&bound.principal) {
+                    out.insert(partition_of(p));
                 }
             }
             out.into_iter().collect()
@@ -148,14 +147,13 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
     }
     let membership = |row: Option<&Value>, content_name: &str, sync: &Sync| -> Option<(String, Vec<Value>)> {
         let row = row?;
-        let Audience::Target { table: target, prefix, principal } = &sync.audience else { return None };
-        let (_, columns, _) = target_indexes(schema, content_name, target, prefix, principal)?;
-        let Ok(Value::Id(p)) = row.field(principal) else { return None };
-        let group: Vec<Value> = columns.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
+        let bound = binding(schema, content_name, sync)?;
+        let Ok(Value::Id(p)) = row.field(&bound.principal) else { return None };
+        let group: Vec<Value> = bound.columns.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
         if group.iter().any(|value| *value == Value::Null) {
             return None;
         }
-        Some((p.clone(), group))
+        Some((partition_of(p), group))
     };
     for (content_name, sync) in dependents {
         let was = membership(old, &content_name, &sync);
@@ -163,16 +161,20 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
         if was == is {
             continue;
         }
-        if let Some((principal, group)) = &was {
-            runner.events.push(Event { partition: principal.clone(), table: content_name.clone(), kind: EventKind::Scope, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
+        if let Some((partition, group)) = &was {
+            // A grant that ends inside the commit that made it was never an
+            // authority: the rows it would have carried are withdrawn before
+            // they are logged, so a temporary membership delivers nothing.
+            runner.events.retain(|event| !(event.partition == *partition && event.table == content_name && event.kind == EventKind::Put && event.data.as_ref().is_some_and(|row| group_of(&sync, row) == *group)));
+            runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Scope, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
         }
-        if let Some((principal, group)) = &is {
+        if let Some((partition, group)) = &is {
             let content = schema.table(&content_name).expect("synced table");
             let rows = group_rows(runner.tx, &content_name, content, &sync, group)?;
             runner.meter.charge(MeterKind::Examined, rows.len() as u64)?;
             for row in rows {
                 let id = row.field("id")?.as_str()?.to_owned();
-                runner.events.push(Event { partition: principal.clone(), table: content_name.clone(), kind: EventKind::Put, id, data: Some(row) });
+                runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Put, id, data: Some(row) });
             }
         }
     }
@@ -219,14 +221,14 @@ pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Eve
             Audience::Column(_) => {
                 for row in group_rows(tx, table_name, table, sync, &[Value::Id(principal.to_owned())])? {
                     let id = row.field("id")?.as_str()?.to_owned();
-                    events.push(Event { partition: principal.to_owned(), table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
+                    events.push(Event { partition: partition_of(principal), table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
                 }
             }
-            Audience::Target { table: target, prefix, principal: principal_column } => {
-                let (_, columns, principal_index) = target_indexes(schema, table_name, target, prefix, principal_column).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
+            Audience::Target { table: target, .. } => {
+                let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
                 let mut groups = BTreeSet::new();
-                for (member, _) in tx.scan(target, &principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
-                    let group: Vec<Value> = columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
+                for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
+                    let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
                     if !group.iter().any(|value| *value == Value::Null) {
                         groups.insert(canonical_json(&group));
                     }
@@ -235,7 +237,7 @@ pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Eve
                     let group: Vec<Value> = serde_json::from_str(&group).expect("canonical");
                     for row in group_rows(tx, table_name, table, sync, &group)? {
                         let id = row.field("id")?.as_str()?.to_owned();
-                        events.push(Event { partition: principal.to_owned(), table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
+                        events.push(Event { partition: partition_of(principal), table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
                     }
                 }
             }
@@ -244,9 +246,19 @@ pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Eve
     Ok(events)
 }
 
-/// Append a commit's events to the log.
+/// Append a commit's events to the log. A row's events within one commit
+/// coalesce to the last (a put then a delete logs the delete alone, so an
+/// image that did not survive the commit never crosses the wire); scopes
+/// keep their place.
 pub fn append(tx: &Tx<'_>, seq: u64, events: &[Event]) -> Result<(), RuntimeError> {
-    for (ord, event) in events.iter().enumerate() {
+    let mut last: BTreeMap<(&str, &str, &str), usize> = BTreeMap::new();
+    for (position, event) in events.iter().enumerate() {
+        if event.kind != EventKind::Scope {
+            last.insert((&event.partition, &event.table, &event.id), position);
+        }
+    }
+    let kept = events.iter().enumerate().filter(|(position, event)| event.kind == EventKind::Scope || last.get(&(event.partition.as_str(), event.table.as_str(), event.id.as_str())) == Some(position));
+    for (ord, (_, event)) in kept.enumerate() {
         let data = event.data.as_ref().map(canonical_json);
         tx.append_log(&event.partition, seq, ord as u32, &event.table, event.kind.word(), &event.id, data.as_deref())?;
     }
@@ -265,21 +277,29 @@ pub struct StreamPage {
 }
 
 pub fn stream(tx: &Tx<'_>, principal: &str, watermark: u64, limit: usize) -> Result<StreamPage, RuntimeError> {
-    let mut own = tx.read_log(principal, watermark, limit + 1)?;
+    let partition = partition_of(principal);
+    let mut own = tx.read_log(&partition, watermark, limit + 1)?;
     let mut public = tx.read_log(PUBLIC, watermark, limit + 1)?;
     own.append(&mut public);
     own.sort_by_key(|event| (event.seq, event.ord));
-    let more = own.len() > limit;
+    let overflow = own.len() > limit;
     own.truncate(limit);
-    // Never split one commit's events across pages: a page ends on a seq boundary.
-    if more {
+    // Never split one commit's events across pages: a page ends on a seq
+    // boundary, and a commit larger than the page is delivered whole (its
+    // scopes land with its puts, or a revocation would be skipped for good).
+    if overflow {
         let last_seq = own.last().map(|e| e.seq).unwrap_or(watermark);
-        let complete_seq = own.iter().rev().find(|e| e.seq < last_seq).map(|e| e.seq);
-        if let Some(complete) = complete_seq {
-            own.retain(|e| e.seq <= complete);
+        match own.iter().rev().find(|e| e.seq < last_seq).map(|e| e.seq) {
+            Some(complete) => own.retain(|e| e.seq <= complete),
+            None => {
+                own = tx.read_log_seq(&partition, last_seq)?;
+                own.append(&mut tx.read_log_seq(PUBLIC, last_seq)?);
+                own.sort_by_key(|event| (event.seq, event.ord));
+            }
         }
     }
     let next = own.last().map(|e| e.seq).unwrap_or(watermark);
+    let more = overflow && (!tx.read_log(&partition, next, 1)?.is_empty() || !tx.read_log(PUBLIC, next, 1)?.is_empty());
     Ok(StreamPage { events: own, watermark: next, more })
 }
 

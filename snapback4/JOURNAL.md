@@ -344,3 +344,134 @@ recorded as gaps, not estimated.
   (run, all, transaction, close); one test runs pages, counts and
   predictions on it.
 - Suite 36 s (all of `scripts/test.sh`).
+
+## 2026-09-12 — the two blind reviews, and the core after them
+
+LLP 3000 decision 4 reserved two blind reviews, one per model family, for
+the two disclosure-sensitive mechanisms. Both ran read-only on
+`ce597c58a06d`; both said NOT READY; both are recorded whole in
+`llp/reviews/3000-partition-inversion.gpt.md` (Codex, gpt-6-astra) and
+`llp/reviews/3000-meter-cut.grok.md` (Grok, grok-4.6). Every finding is
+reproduced as the reviewer's scenario in
+`crates/snapback4-sim/tests/reviews.rs` (eight tests) and, for the device,
+in `packages/snapback4/test/interpreter.test.mjs`. Dispositions:
+
+**Partition inversion (gpt).**
+1. *A principal named `public` turns private delivery public* — fixed:
+   principal partitions are tagged (`p:<principal>`), the public partition
+   is `public`, and no name collides.
+2. *Validation ignores the probe's index; the audience is reconstructed from
+   names and types* — fixed: `schema::audience_binding` proves the audience
+   from the read rule's probe. The rule must be exactly
+   `exists target[.prefix, viewer]`; the target index that probe uses is
+   the audience index; its column at the viewer position is the recipient
+   column (`by .other` is refused with the rewrite). `partition.rs`
+   delivers by that binding and nothing else.
+3. *An oversized commit advances the watermark past undelivered
+   revocations* — fixed: a commit larger than the page is delivered whole
+   (`Tx::read_log_seq`); `more` is recomputed from the returned watermark.
+4. *A membership inserted and deleted in one transaction delivers rows* —
+   fixed twice over: when a grant ends, the same commit's puts to that
+   principal for that group are withdrawn before the scope is logged; and
+   `partition::append` coalesces a row's events within a commit to the
+   last (a put then a delete logs the delete alone).
+5. *A synced aggregate can count unreadable source rows (core API)* —
+   fixed: `validate_maintain` requires a delivered aggregate's audience to
+   be its source's, grouped by the audience columns, unless the source is
+   public.
+6. *Horizons are acquisition limits, not maintained partition limits* —
+   accepted as the design and written into §7: the horizon bounds what a
+   snapshot or a bootstrap acquires; a device holds what was delivered;
+   a local read past the horizon says `complete: false`. Exact horizon
+   maintenance (evictions and back-fills) is in NOT-DOING.
+7. *Deleting one of several membership rows revokes a still-authorized
+   group* — fixed: the audience index must be unique.
+8. *A matching disjunct does not establish the complete audience* — fixed
+   by refusal: the read rule is exactly the sync's probe (or exactly
+   `.column = viewer`); a second disjunct or a conjunct is a diagnostic
+   with the rewrite. Union audiences (several `sync` lines per table) are
+   in NOT-DOING until an app needs them; `retain delivered-history` covers
+   the author who keeps their own rows.
+   The undetermined item — a snapshot page that did not clear the rows a
+   device held — is fixed in `replica.ts` (`apply` clears on a snapshot).
+
+**The meter's cut (grok).**
+- H1 *`complete` is "the meter did not cut", not Snapback 2's opaque
+  `Capped`* — fixed: `complete` is a class. A query with a scan whose read
+  rule the prefix does not decide is `complete: false` whatever the meter
+  found (`Runner::non_uniform`); a capped-class page's `next` continues
+  from its last visible row when the page is non-empty and is absent when
+  it is empty, so the presence of `next` says nothing about hidden rows.
+  Merges inherit the class from their lanes (M2).
+- H2, H3 *`metered` and `capped { meter, site }` on the wire* — fixed:
+  `/q` and `/m` carry `data`, `complete`, `seq`, `next` and the write
+  state; the meter's numbers stay in-process for `test`, `check --cost`,
+  `run` and `why`.
+- H4 *a miss charges index entries, a hidden hit charges examined rows and
+  probes* — fixed: one examined row whether absent, hidden or visible; the
+  probes that decided a hidden row are rolled back (`Meter::mark` /
+  `restore`, Snapback 2's `rollback_candidate`).
+- M1 *hoisted-false costs one row, empty costs none* — fixed: the
+  uniform-false verdict restores the meter to before the determining row.
+- M3 *`E_BOUND` names actual work* — fixed: the refusal names the ceiling,
+  never the count; a failed write carries no `metered`. The site stays
+  (it is the builder's rewrite target); that it names which scan crossed
+  the ceiling is the recorded residual.
+- M4 *the device does not hoist* — fixed: `interpreter.ts` carries
+  `visibility` (uniform, decided-true, the self-probe case), one verdict
+  per uniform range, and the same rollback; delivered history a viewer may
+  no longer read is decided by one row. The device's `complete` still
+  speaks of the horizon and the meter alone: a device holds only its
+  partition, so there is no hidden population to class (§7).
+- L1 *a cut probe still looks up* — fixed: no lookup, no verdict.
+- Not measured: timing (the review was timing-free by brief). No
+  count-over-scan primitive exists in Snapback 4's Quarry, so H1's class is
+  the only completeness word; a forged cursor on a capped-class scan
+  returns `complete: false` like any other page.
+
+Follow-up worth a diagnostic: `check` could say "this scan is never
+complete: the read rule is not decided by the prefix; scan by an index that
+leads with the rule's columns", as Snapback 2's structural facts did.
+
+The chat schema binds unchanged under the stricter validator. Bytes after
+the device hoist: online 3,218 B gzip, local-first 14,846 B gzip. The
+blocking suite: 0 failures.
+
+## 2026-09-12 — the Snapback 2 Clique 0.0.29 run report, read against Snapback 4
+
+The author's report on the Snapback 2 run (`benchmarks/runs/2026-09-12-
+snapback2-clique-0029/README.md`) names five structural problems. Where
+Snapback 4 stands on each, and what it owes:
+
+- *Client coordination reaches application code* (auth restoration, query
+  coverage, freshness, durable write admission, navigation). Here: one
+  client over the viewer's partition, so coverage is not the app's; the
+  card carries `fresh`/`since` and `pending`/`sent`/`failed`. Owed: the
+  client restores its own session (the token kept beside the replica, one
+  `createLocalClient` call from a cold start), so nothing but navigation
+  is the app's. Next.
+- *Cold sync expensive enough to feel broken* (62 s, 748 MB heap). Here:
+  the snapshot is bounded by the horizons and applied in pages of 2,000
+  events; 305 rows took 59 ms in Chromium. Owed: a witness at scale
+  (thousands of rows across many groups) with wall time and JS heap on the
+  line in `metrics/witness.jsonl`. Next.
+- *Storage amplification* (70% indexes; recipient delivery records). Here:
+  the partition log is one row per recipient per event with the row image
+  in each — the same shape of cost. Owed: measure `_log` against `r` on a
+  scale fixture (`snapback4 data` reports bytes per table), then keep one
+  image per commit and reference it from the per-partition rows, and
+  compact below every device's watermark. Measure first.
+- *Bounded-algorithm design for ordinary features.* Here: no word search
+  in slice one; day two is one verb and a classifier, with typed refusals
+  for what no longer fits; the meter names the site. Watched in the hub run.
+- *No byte headroom* (89,993 of 90,000). Here: budgets are anchored to a
+  competitor's measured number (Convex React 21,713 B gzip; the online tier
+  is 3,218 B, the local-first tier 14,846 B), so correctness work is not
+  a byte-integration problem.
+
+The localized ones — photo retry after a transient refusal (assets are not
+in slice one; when they come, `retryable` refusals retry in the client, not
+the app), misleading compiler advice (every diagnostic here carries its
+rewrite; the hub run judges them), vacuous tests and stale receipts (the
+fixture wrapper fails on any mismatch and the loop bar records N≥3) — are
+the hub run's to catch, and the run record will say whether they did.
