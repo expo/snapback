@@ -242,6 +242,19 @@ the diagnostic-only posture: wall times are not controlled comparative
 performance measurements. At discovery our builder reported M1 green and
 M2 in progress; its own defect attributions still require independent grading.
 
+At2026-09-12 01:57 UTC, an archive-to-live hash audit found that the sealed
+archive's `SNAPBACK2_VERSION` itself contains `0.0.25\n`: it captured that
+brief concurrent edit. The archive is therefore **not a wholly coherent
+pre-launch directory snapshot**, despite retaining the actual original
+preflight and prompt. Do not rewrite it or describe that version-file entry
+as0.0.24. Its original preflight still says0.0.24 and hashes to9d88cb704e3e…;
+the original rendered builder prompt still hashes to9ea73ca9c85a… and matches
+the live prompt. All eight generic Python scripts, all four templates and
+the original rendered prompt match the archive byte-for-byte. The live
+version file, app dependency and installed package were rechecked as0.0.24;
+the independent grader's fresh preflight also verified0.0.24. This limits
+the archive's custody claim, not evidence that the actor switched packages.
+
 ### Cross-lane browser traffic discovered at23:57 UTC
 
 Concurrent main commit `a07a851b0b195ede1572fccb1bdae57566e0a038`
