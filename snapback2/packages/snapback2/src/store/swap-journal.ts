@@ -35,7 +35,9 @@ export class SwapJournal<T extends object> {
       if (remove && !Object.hasOwn(current, key)) return;
       if (path.length >= 2 && !copied) {
         current = Array.isArray(current) ? current.slice() : { ...current };
-        copied = true; parent!(current);
+        // Assignments already unwrap children. Promote this owned copy through
+        // its existing proxy instead of recursively scanning it again in raw().
+        copied = true; parent!(proxy);
       }
       if (path.length < 2) {
         const keys = this.saved.get(current) ?? new Set<PropertyKey>(); this.saved.set(current, keys);

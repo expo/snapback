@@ -8,7 +8,7 @@ import { fileRangeStore } from "../dist/test.mjs";
 import { decodeDeliveryEnvelope, encodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { OutboxLedger } from '../dist/client-observed-test.mjs';
-import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, collectRefs, compactSuccesses, factAssertion, FactTransaction, FactIndex, HeldIndex, RowImage, ExtentIndex, extentContains } from "../dist/sqlite-test.mjs";
+import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, collectRefs, compactSuccesses, factAssertion, FactTransaction, FactIndex, HeldIndex, RowImage, ExtentIndex, extentContains, SwapJournal } from "../dist/sqlite-test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 
@@ -19,6 +19,42 @@ const delivery = (op: string, ids: string[], seq: number) => ({ op, args: {}, se
   state: "complete", data: ids.map(ref), rows: ids.map((id) => row(id)), receipt: receipt() });
 const entry = (intent: string) => ({ intent, grant: "g", offset: 0, count: 1, ids: [],
   op: "send", args: { body: "pending" }, issuedSeq: 1, state: "queued", createdAt: 1, updatedAt: 1 });
+
+test('journal promotion preserves nested snapshots, unwraps assigned proxy references and rolls back opaque roots', () => {
+  const state: any = { answers: {
+    one: { data: { items: [{ value: 1 }, { value: 2 }], stable: { held: true } }, refs: [{ table: 'messages', id: 'one' }] },
+  }, metadata: { count: 1 } };
+  const before = structuredClone(state), old = state.answers.one, oldItems = old.data.items;
+  const journal = new SwapJournal(state), draft = journal.draft;
+  draft.answers.one.data.items[0].value = 10;
+  draft.answers.one.data.items.push({ value: 3 });
+  delete draft.answers.one.data.items[1].value;
+  assert.deepEqual(old, before.answers.one, 'previously published nested objects stay unchanged');
+  assert.notStrictEqual(state.answers.one, old);
+  assert.notStrictEqual(state.answers.one.data.items, oldItems);
+  assert.strictEqual(state.answers.one.data.stable, old.data.stable, 'untouched children keep their identity');
+  assert.deepEqual(state.answers.one.data.items, [{ value: 10 }, {}, { value: 3 }]);
+
+  // Arbitrary assigned containers still go through recursive raw(): only the
+  // journal's own COW promotion is eligible for the existing direct unwrap.
+  draft.answers.two = { data: { borrowed: draft.answers.one.data, refs: [draft.answers.one.refs[0]] } };
+  assert.doesNotThrow(() => structuredClone(state), 'assigned nested proxies do not escape into persisted state');
+  draft.answers.two.data.borrowed.items[0].value = 20;
+  draft.answers.two.data.borrowed.items.length = 1;
+  assert.equal(state.answers.one.data.items[0].value, 10, 'editing an aliased branch creates its own copy');
+  assert.equal(state.answers.one.data.items.length, 3);
+  assert.deepEqual(state.answers.two.data.borrowed.items, [{ value: 20 }]);
+  assert.deepEqual([...journal.changed.get('answers')!], ['one', 'two']);
+
+  draft.metadata.toJSON = function () { return { count: this.count }; };
+  draft.metadata.count = 2;
+  assert(journal.changed.get('*')?.has('metadata'), 'toJSON still marks its whole metadata root');
+  assert.deepEqual(JSON.parse(JSON.stringify(state.metadata)), { count: 2 });
+  journal.rollback();
+  assert.deepEqual(state, before);
+  assert.strictEqual(state.answers.one, old, 'rollback restores the original record identity');
+  assert.strictEqual(state.answers.one.data.items, oldItems);
+});
 
 async function carriers() {
   const root = await mkdtemp(join(tmpdir(), "s2-store-review-"));

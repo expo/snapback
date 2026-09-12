@@ -14,7 +14,7 @@ const rowImageOwners = new WeakMap<object, {
   kind: 'Row' | 'Map';
   schema: string;
   table: string;
-  omitted: number[];
+  omitted: string[];
   keys: ImageKeys;
   digest?: string;
 }>();
@@ -50,10 +50,10 @@ export class ImageKeys {
 export class RowImage {
   declare readonly Row: Record<string, Value>;
   private constructor(schema: any, table: string, value: Value, identity: string, known?: ImageKeys) {
-    const entries = asObject(value), kind = isVariant(value,'Row') ? 'Row' : 'Map', omitted: number[] = [];
-    Object.keys(schema.tables[table].columns).sort(compareCodepoints).forEach((name, ordinal) => {
+    const entries = asObject(value), kind = isVariant(value,'Row') ? 'Row' : 'Map', omitted: string[] = [];
+    Object.keys(schema.tables[table].columns).sort(compareCodepoints).forEach(name => {
       if (kind === 'Row' && schema.tables[table].columns[name]?.Optional !== undefined && !Object.hasOwn(entries,name)) {
-        omitted.push(ordinal); Object.defineProperty(entries,name,{ value: 'Null',enumerable: true,writable: true,configurable: true });
+        omitted.push(name); Object.defineProperty(entries,name,{ value: 'Null',enumerable: true,writable: true,configurable: true });
       }
     });
     Object.defineProperty(this,kind,{ value: immutable(entries),enumerable: true });
@@ -70,7 +70,7 @@ export class RowImage {
     if (!RowImage.is(left)) return false;
     const a = rowImageOwners.get(left)!, b = rowImageOwners.get(right)!;
     return a.kind === b.kind && a.schema === b.schema && a.table === b.table
-      && a.omitted.length === b.omitted.length && a.omitted.every((ordinal,i) => ordinal === b.omitted[i])
+      && a.omitted.length === b.omitted.length && a.omitted.every((name,i) => name === b.omitted[i])
       && canonicalValue(left) === canonicalValue(right);
   }
   static prepare(schema: any, table: string, value: Value, identity = sha256(canonicalSchemaJson(schema)), known?: ImageKeys): RowImage {
@@ -106,8 +106,8 @@ export class RowImage {
   static wire(value: RowImage): Record<string, unknown> { return wireJson(RowImage.tagged(value)) as Record<string, unknown>; }
   static tagged(value: RowImage): Value {
     const state = rowImageOwners.get(value)!;
-    const entries = { ...asObject(value) }, names = Object.keys(entries).sort(compareCodepoints);
-    for (const ordinal of state.omitted) delete entries[names[ordinal]];
+    const entries = { ...asObject(value) };
+    for (const name of state.omitted) delete entries[name];
     return { [state.kind]: entries } as Value;
   }
 }

@@ -16371,6 +16371,81 @@
           "fixedHashesPass": true
         }
       }
+    },
+    "imageAndJournalExperiment": {
+      "base": "70f7c2e2948e3d0add9d1664c2796bce5cd2d1b2",
+      "status": "candidate; full unchanged endpoint comparison pending",
+      "changes": [
+        "Retain bounded omitted schema field names instead of ordinals, deleting repeated wire reconstruction sorting",
+        "Promote journal COW copy through existing proxy unwrap; retain recursive raw() for arbitrary assignments"
+      ],
+      "canonicalRuntime": {
+        "gzip": 89998,
+        "minified": 272182,
+        "node": "24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9,
+        "fiveRootsUnchanged": true
+      },
+      "validation": {
+        "package": {
+          "passed": 629,
+          "failed": 0,
+          "milliseconds": 7529.501292,
+          "artifact": {
+            "path": "/tmp/acquisition-image-cow-tests.log",
+            "bytes": 55569,
+            "sha256": "f59d5377c387c3d299ab9f8be3c9e98295adb7c03c2b48008e7fb8c68ef0d807"
+          }
+        },
+        "evaluator": {
+          "differentialPassed": 266,
+          "failed": 0,
+          "additional": "existing indexed/Unicode/Map/omission/ownership/reprepare/rollback controls",
+          "artifact": {
+            "path": "/tmp/acquisition-image-cow-evaluator.log",
+            "bytes": 3570,
+            "sha256": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f"
+          }
+        },
+        "build": {
+          "path": "/tmp/acquisition-image-cow-build.log",
+          "bytes": 277,
+          "sha256": "4212e002c75ed0c7a686723c107fd45bfdf98dedc53d5130aa4d2dcffc778d74"
+        }
+      },
+      "archive": {
+        "path": "/tmp/acquisition-20260912-candidate-image-cow-dist.tar.gz",
+        "bytes": 1400471,
+        "sha256": "d61ca6f06cbd8b185fd491c6132550b6f04fe22dfe2e573ca8ab84e2939b0577"
+      },
+      "rejectedLargerWireForms": {
+        "gzip": [
+          90041,
+          90031,
+          90009
+        ],
+        "reason": "All exceed unchanged90000 ceiling; direct conversion/shared helper removed"
+      },
+      "localSyntheticDiagnostic": {
+        "artifact": {
+          "path": "/tmp/acquisition-image-names-probe.json",
+          "bytes": 716,
+          "sha256": "25b39b40ef02e1430473fa132f1da51e819d2e6ad22be1df8a66af293a9870ac"
+        },
+        "shape": "20000 people rows, half omit handle, three canonical passes; eight alternating runs; fixture equality checks; concurrent local affected tests",
+        "scope": "isolated synthetic CPU observation only, not endpoint or qualification"
+      },
+      "rejectedValidationRelocation": {
+        "status": "not implemented",
+        "counterexample": "Sparse Json array currently refuses E_INPUT before normalization; JSON normalization converts the hole to null and admits it",
+        "otherConstraints": [
+          "Exact held schema/issuing IR can differ from manifest schema",
+          "Custom stores retain early validation",
+          "Strict ranges and typed absences retain validation",
+          "Per-frame refusal order remains unchanged"
+        ]
+      }
     }
   }
 }
