@@ -102,6 +102,27 @@ function cleanEnvironment() {
     !key.startsWith('SNAPBACK2_') && !['NODE_PATH', 'NODE_OPTIONS', 'DYLD_LIBRARY_PATH', 'DYLD_FRAMEWORK_PATH', 'SNAPBACK_URL', 'VITE_SNAPBACK_URL'].includes(key)));
 }
 
+function processAlive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+}
+
+function directChildren(pid) {
+  const path = `/proc/${pid}/task/${pid}/children`;
+  if (!existsSync(path)) return [];
+  return readFileSync(path, 'utf8').trim().split(/\s+/).filter(Boolean).map(Number);
+}
+
+function waitForExit(pids, timeoutMs = 5_000) {
+  const deadline = performance.now() + timeoutMs;
+  let live = pids.filter(processAlive);
+  while (live.length && performance.now() < deadline) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+    live = live.filter(processAlive);
+  }
+  return live;
+}
+
 // Only installed entry points run inside the temporary consumer. No workspace
 // module links or compiler/template overrides can make a broken tarball pass.
 export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } = {}) {
@@ -169,6 +190,8 @@ export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } 
           const checkWrapper = `npx snapback2 check --project ${quotedProject} --json`;
           const devArgs = ['dev', '--project', project, '--foreground', '--json'];
           const devWrapper = `npx snapback2 dev --project ${quotedProject} --foreground --json`;
+          const detachedArgs = ['dev', '--project', project, '--port', '0'];
+          const detachedWrapper = `npx snapback2 dev --project ${quotedProject} --port 0`;
           const compilerFallback = 'set SNAPBACK2_COMPILER=/absolute/path/to/node_modules/snapback2/dist/compiler.mjs';
           const nodeFallback = 'set SNAPBACK2_NODE=/absolute/path/to/trusted/node';
           execute('raw binary check missing-compiler guidance', rawCli, checkArgs, directory,
@@ -181,6 +204,38 @@ export function consumerSmoke(artifacts, { allowNoEngine = false, npm = 'npm' } 
           execute('raw binary dev missing-node guidance', rawCli, devArgs, directory,
             result => rawGuidance(result, 'no absolute Node executable', `run ${devWrapper}; or ${nodeFallback}`),
             { ...env, SNAPBACK2_COMPILER: compiler });
+          const detachedRefusal = execute('raw binary default detached dev guidance', rawCli, detachedArgs, directory,
+            result => rawGuidance(result, 'compiler worker not found', `run ${detachedWrapper}; or ${compilerFallback}`));
+          execute('raw binary default detached dev missing-node guidance', rawCli, detachedArgs, directory,
+            result => rawGuidance(result, 'no absolute Node executable', `run ${detachedWrapper}; or ${nodeFallback}`),
+            { ...env, SNAPBACK2_COMPILER: compiler });
+          if (detachedRefusal.status === 1) {
+            const recovered = invoke('raw binary default detached dev public-wrapper recovery', detachedArgs, directory,
+              result => result.status === 0 && result.stdout.includes('SNAPBACK_URL='));
+            if (recovered.status === 0) {
+              const ownerPath = resolve(project, '.snapback/owner.json');
+              let ownerPid;
+              let workerPids = [];
+              try {
+                ownerPid = JSON.parse(readFileSync(ownerPath, 'utf8')).pid;
+                workerPids = directChildren(ownerPid);
+              } catch (error) {
+                failures.push(`detached recovery owner PID: ${error.message}`);
+              }
+              const stopped = invoke('raw binary default detached dev recovery stop',
+                ['dev', '--project', project, '--stop', '--json'], directory);
+              if (stopped.status !== 0 && existsSync(ownerPath)) retainForRecovery = true;
+              if (stopped.status === 0 && Number.isInteger(ownerPid)) {
+                const live = waitForExit([ownerPid, ...workerPids]);
+                const clean = live.length === 0 && !existsSync(ownerPath);
+                steps.push({ name: 'raw binary default detached dev owner+worker cleanup', seconds: 0, ok: clean });
+                if (!clean) {
+                  retainForRecovery = true;
+                  failures.push(`detached recovery left owned PIDs ${live.join(', ') || ownerPid} or owner metadata`);
+                }
+              }
+            }
+          }
         }
         invoke(`${template} check`, ['check', ...publicProjectArgs, '--json'], publicCwd);
         execute(`${template} React bundle`, process.execPath, [resolve(directory, 'node_modules/vite/bin/vite.js'), 'build'], project);

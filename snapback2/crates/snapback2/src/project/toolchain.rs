@@ -3,6 +3,8 @@
 use crate::protocol::Refusal;
 use std::{ffi::OsString, path::PathBuf};
 
+pub(crate) const ORIGINAL_INVOCATION_ENV: &str = "SNAPBACK2_INTERNAL_ORIGINAL_INVOCATION";
+
 pub fn node_path() -> Result<PathBuf, Refusal> {
     pinned_node(std::env::var_os("SNAPBACK2_NODE"))
 }
@@ -66,15 +68,83 @@ mod tests {
     }
 
     #[test]
-    fn wrapper_rewrite_preserves_and_shell_quotes_the_invocation() {
+    fn wrapper_rewrite_preserves_check_and_explicit_foreground_invocations() {
         let invocation = wrapper_invocation(
-            ["check", "--project", "/tmp/quoted project's app", "--json"]
-                .map(str::to_owned)
-                .into_iter(),
+            ["check", "--project", "/tmp/quoted project's app", "--json"].map(str::to_owned),
         );
         assert_eq!(
             invocation,
             r#"npx snapback2 check --project '/tmp/quoted project'\''s app' --json"#
+        );
+        assert_eq!(
+            wrapper_invocation(
+                [
+                    "dev",
+                    "--foreground",
+                    "--project",
+                    "/tmp/app",
+                    "--port",
+                    "4321"
+                ]
+                .map(str::to_owned),
+            ),
+            "npx snapback2 dev --foreground --project /tmp/app --port 4321"
+        );
+    }
+
+    #[test]
+    fn detached_rewrite_uses_exact_parent_invocation() {
+        let child = [
+            "dev",
+            "--project",
+            "/tmp/a b",
+            "--foreground",
+            "--owner-child",
+            "--json",
+            "--apply-migration",
+            "/tmp/synthetic",
+            "--port",
+            "4321",
+            "--serve",
+        ]
+        .map(str::to_owned);
+        let parent = serde_json::to_string(&[
+            "dev",
+            "--project",
+            "/tmp/a b",
+            "--port",
+            "4321",
+            "--apply-migration",
+            "/tmp/plan's migration.json",
+            "--serve",
+        ])
+        .unwrap();
+        assert_eq!(
+            wrapper_invocation(recovery_args(child, Some(parent.into()))),
+            "npx snapback2 dev --project '/tmp/a b' --port 4321 --apply-migration '/tmp/plan'\\''s migration.json' --serve"
+        );
+    }
+
+    #[test]
+    fn internal_test_owner_rewrite_removes_only_internal_flags() {
+        let args = recovery_args(
+            [
+                "dev",
+                "--project",
+                "/tmp/test owner",
+                "--foreground",
+                "--owner-child",
+                "--test-owner",
+                "--json",
+                "--port",
+                "9876",
+            ]
+            .map(str::to_owned),
+            None,
+        );
+        assert_eq!(
+            wrapper_invocation(args),
+            "npx snapback2 dev --project '/tmp/test owner' --foreground --json --port 9876"
         );
     }
 }
@@ -90,15 +160,36 @@ pub(super) fn node_rewrite() -> String {
 }
 
 fn invocation_rewrite(fallback: &str) -> String {
+    let current = std::env::args().skip(1).collect::<Vec<_>>();
+    let preserved = std::env::var_os(ORIGINAL_INVOCATION_ENV);
     format!(
         "run {}; or {fallback}",
-        wrapper_invocation(std::env::args().skip(1))
+        wrapper_invocation(recovery_args(current, preserved))
     )
 }
 
-fn wrapper_invocation(args: impl Iterator<Item = String>) -> String {
-    let args = args
+fn recovery_args(
+    current: impl IntoIterator<Item = String>,
+    preserved: Option<OsString>,
+) -> Vec<String> {
+    let current = current.into_iter().collect::<Vec<_>>();
+    if current.iter().any(|arg| arg == "--owner-child")
+        && let Some(args) = preserved
+            .and_then(|value| value.into_string().ok())
+            .and_then(|value| serde_json::from_str::<Vec<String>>(&value).ok())
+        && !args.is_empty()
+    {
+        return args;
+    }
+    current
+        .into_iter()
         .filter(|arg| !matches!(arg.as_str(), "--owner-child" | "--test-owner"))
+        .collect()
+}
+
+fn wrapper_invocation(args: impl IntoIterator<Item = String>) -> String {
+    let args = args
+        .into_iter()
         .map(shell_quote)
         .collect::<Vec<_>>()
         .join(" ");

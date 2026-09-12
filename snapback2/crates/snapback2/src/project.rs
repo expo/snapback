@@ -2,7 +2,7 @@
 // @ref LLP 1002#1-decisions — the binary owns compilation through one worker.
 
 mod lowering;
-mod toolchain;
+pub(crate) mod toolchain;
 use toolchain::compiler_rewrite;
 pub use toolchain::node_path;
 
