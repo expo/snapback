@@ -1,0 +1,276 @@
+{
+  "pass": true,
+  "at": 1789177212972,
+  "results": [
+    {
+      "persona": "alice",
+      "conversationId": "0ef900e5-00ec-4b45-b097-ebffb3a75a9e",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "12dab7d0-d435-4b10-b30c-4002e792a9fb",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "4629e3fc-9ecf-4385-b99b-97b001a38e07",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "622ea7c7-c62f-4bc4-af86-330cd6193e6f",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "785104c5-bea3-43c4-b070-8d70093b463d",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "94a17881-fa1e-4ec6-a4eb-26f4c95f370e",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "9df64806-541a-4415-9498-2506bd9ac3f4",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "d-alice-bob",
+      "expected": 27,
+      "actual": 27
+    },
+    {
+      "persona": "alice",
+      "conversationId": "d540f76b-3539-4c47-9284-b577feaa687f",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "g-starter",
+      "expected": 9,
+      "actual": 9
+    },
+    {
+      "persona": "alice",
+      "conversationId": "m7-choreo-1789176783805",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "persona": "alice",
+      "conversationId": "m7-expiry-1789176713761",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "poll-suite-1789176684636",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "poll-suite-1789176768130",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "poll-suite-1789176877530",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "persona": "alice",
+      "conversationId": "poll-suite-1789176903462",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "alice",
+      "conversationId": "poll-suite-1789177071176",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "0ef900e5-00ec-4b45-b097-ebffb3a75a9e",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "12dab7d0-d435-4b10-b30c-4002e792a9fb",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "4629e3fc-9ecf-4385-b99b-97b001a38e07",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "622ea7c7-c62f-4bc4-af86-330cd6193e6f",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "785104c5-bea3-43c4-b070-8d70093b463d",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "94a17881-fa1e-4ec6-a4eb-26f4c95f370e",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "9df64806-541a-4415-9498-2506bd9ac3f4",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "d-alice-bob",
+      "expected": 27,
+      "actual": 27
+    },
+    {
+      "persona": "bob",
+      "conversationId": "d540f76b-3539-4c47-9284-b577feaa687f",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "g-starter",
+      "expected": 9,
+      "actual": 9
+    },
+    {
+      "persona": "bob",
+      "conversationId": "m7-choreo-1789176783805",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "persona": "bob",
+      "conversationId": "m7-expiry-1789176713761",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "poll-suite-1789176684636",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "poll-suite-1789176768130",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "poll-suite-1789176877530",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "persona": "bob",
+      "conversationId": "poll-suite-1789176903462",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "bob",
+      "conversationId": "poll-suite-1789177071176",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "0ef900e5-00ec-4b45-b097-ebffb3a75a9e",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "12dab7d0-d435-4b10-b30c-4002e792a9fb",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "4629e3fc-9ecf-4385-b99b-97b001a38e07",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "622ea7c7-c62f-4bc4-af86-330cd6193e6f",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "785104c5-bea3-43c4-b070-8d70093b463d",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "94a17881-fa1e-4ec6-a4eb-26f4c95f370e",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "9df64806-541a-4415-9498-2506bd9ac3f4",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "d540f76b-3539-4c47-9284-b577feaa687f",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "persona": "carol",
+      "conversationId": "g-starter",
+      "expected": 9,
+      "actual": 9
+    },
+    {
+      "persona": "carol",
+      "conversationId": "m7-choreo-1789176783805",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "persona": "erin",
+      "conversationId": "g-starter",
+      "expected": 9,
+      "actual": 9
+    }
+  ]
+}

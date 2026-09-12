@@ -5,5 +5,24 @@
   "frozenInstrumentSource": "/home/ccheever/clique-ri-20260911/instrument",
   "instrumentCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
   "priorLaneDataCopied": false,
-  "disclosure": "Independent 0.0.24 benchmark is concurrently using ports 53100-53119. N=1 diagnostic run; no comparative performance claim."
+  "disclosure": "Independent 0.0.24 benchmark is concurrently using ports 53100-53119. N=1 diagnostic run; no comparative performance claim.",
+  "status": "complete",
+  "completedAt": "2026-09-12T01:50:29.804554+00:00",
+  "publicationVersion": "0.0.25",
+  "builderExit": 0,
+  "graderExit": 0,
+  "m7Exit": 0,
+  "scorerExit": 0,
+  "experienceScore": 85,
+  "preM7IndependentAssertions": {
+    "pass": 101,
+    "notRun": 18,
+    "fail": 0
+  },
+  "m7": "builder-verified-green-not-independently-regraded",
+  "scaleReplayActions": 167157,
+  "isolationBreach": "discarded initial M1 signup/profile traffic reached port 53100",
+  "nativeExecution": "unavailable-linux",
+  "tokenBoundaryAdjudication": "unavailable",
+  "scorerRetry": "sandbox initialization failed; fresh inline-evidence retry completed"
 }
