@@ -38,7 +38,7 @@ import { validateJsonSchema } from "../../lib/json-schema.mjs";
 const MANIFEST_VERSION = "social-messenger-metering-manifest.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const MILESTONE = /^M[1-8]$/u;
-export const CURRENT_CHOREOGRAPHY_VERSION = "0.3.6-m8";
+export const CURRENT_CHOREOGRAPHY_VERSION = "0.3.7-m8";
 const R2_DRIVER_V1_TERMINAL_RULE = R2_CODEX_SETTLED_TERMINAL_RULE;
 const R2_DRIVER_V1_CLOCK_EVIDENCE =
   "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff";

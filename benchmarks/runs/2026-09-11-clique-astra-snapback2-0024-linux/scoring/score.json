@@ -1,0 +1,72 @@
+{
+  "scorer": {
+    "family": "astra",
+    "model": "gpt-6-astra",
+    "basis": "own lane's narrative files (Snapback 2 only)"
+  },
+  "backends": {
+    "snapback2": {
+      "overall": {
+        "score": 78,
+        "note": "All continuous milestones reached reported web green, and both full replays verified invariants. Integrated authorization, assets and offline infrastructure helped substantially; restrictive query bounds and complex authority reconciliation prevented a consistently direct build (final-report.md; essay.md)."
+      },
+      "setup_and_docs": {
+        "score": 85,
+        "note": "M1's scaffold, built-in password auth and generated types worked quickly; published guides supported the entire build. M6 session TTL details and M8 compaction recovery guidance remained incomplete (diary.md; essay.md)."
+      },
+      "data_modeling": {
+        "score": 74,
+        "note": "Unique constraints and maintained counts expressed the core model well. Quarry's limited expression vocabulary and certified bounds required narrower projections, compact counters and staged designs (diary.md M2–M3, M6, M8)."
+      },
+      "authorization": {
+        "score": 92,
+        "note": "Membership rules composed directly with delivery and assets. Removal/rejoin receipt checks, logout revocation and private-chat digest exclusions passed builder proofs; independent holdout grading remains unavailable (diary.md M3; run-log.md M6/M8; final-report.md)."
+      },
+      "queries_and_live": {
+        "score": 68,
+        "note": "Live feeds, expiring typing channels and indexed search were direct, but certification forced one-message enriched API pages and client merging for 1,000-chat search (diary.md M2–M6; final-report.md)."
+      },
+      "writes_and_transactions": {
+        "score": 89,
+        "note": "Idempotent set-state mutations, unique DMs, server-time windows and resumable replay worked; both 167,244-action replays verified invariants. Durable create bindings required pure inserts, constraining mutation structure (diary.md M3–M6; final-report.md)."
+      },
+      "offline_sync": {
+        "score": 78,
+        "note": "The SDK supplied retained reads and a durable FIFO outbox; M6/M8 web ordering and convergence passed. Compaction recovery needed an additional authoritative observer; native restart behavior remains unproven (diary.md M6/M8; essay.md; final-report.md)."
+      },
+      "media_assets": {
+        "score": 94,
+        "note": "Typed asset arguments avoided separate upload plumbing. Cell ownership and per-recipient consumption supported deletion and view-once refusal, with actual media verification; protected avatar rendering required a blob bridge (diary.md M1–M5; final-report.md)."
+      },
+      "background_work": {
+        "score": 78,
+        "note": "Presence-driven push, row timers and autonomous digest/restart proofs worked. Certified bounds required staged digest counters and jobs; the public scheduler lacked direct calendar dispatch, using installation-relative cadence after UTC boundaries (diary.md M5–M8; final-report.md)."
+      },
+      "client_integration": {
+        "score": 73,
+        "note": "Generated hooks, auth stores and Expo providers helped integration. Aggregate reads required an online client alongside durable messaging, observed queries lacked a direct refresh handle, and the scaffold lacked Router navigation (diary.md M1/M8; essay.md)."
+      },
+      "diagnostics_dev_loop": {
+        "score": 86,
+        "note": "Bounds and schema diagnostics identified limits and guided corrections; published guides and generated types supplied useful fixes. Supplemental testing certified 57 operations, while missing authored seeds and journeys blocked derived checks (run-log.md; final-report.md)."
+      },
+      "scale_and_limits": {
+        "score": 65,
+        "note": "Both replays verified invariants and final 3× ratios passed, but two strict midpoint rules failed. Supplementary hub search required 1,157 requests; cold sync took 55.869 seconds with approximately 637 MB peak heap (final-report.md; run-log.md)."
+      },
+      "operations": {
+        "score": 78,
+        "note": "Idempotent seeds, reviewed successor migrations, isolated replays and public inspection worked. A parked-job count lacked a usable public mapping; the internal test owner exposed neither PID nor port override. M7 evolution remains unobserved (final-report.md; diary.md M2)."
+      },
+      "verdict": "Snapback 2 fit Clique's authorization, media and durable messaging well, while query bounds and client synchronization required substantial additional design.",
+      "would_use_again_for": "I would use it again for messengers and collaborative apps needing durable offline writes and revocable media, with teams prepared to design around certified query bounds."
+    }
+  },
+  "notes": [
+    "The strongest benefits were integrated membership delivery, policy-controlled assets, the SDK-owned outbox and a real scheduled digest that survived restart (diary.md M3–M8; final-report.md).",
+    "The principal platform costs were constrained enriched reads, per-chat search merging, staged digest computation and incomplete refresh and calendar scheduling surfaces (essay.md; final-report.md).",
+    "The M2 run-log explicitly labels the 1,000-follow closure refusal snapback2-defect; its penalty is limited because the required 500-follow query compiled.",
+    "Agent-error, environment and ambiguous incident costs are excluded, including the mistaken membership cap, application custody regressions, Linux simulator absence and owner timeout (run-log.md).",
+    "The supplied evidence reports builder web greens and successful invariant replays, with two strict scale midpoint misses; native restart behavior, M7 evolution and external holdout correctness are not established (final-report.md; run-record.json)."
+  ]
+}

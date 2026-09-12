@@ -1,0 +1,58 @@
+{
+  "status": "valid",
+  "categories": 13,
+  "scoringBasis": "original continuous-builder narratives only; M7 and grading excluded",
+  "accounting": "raw-retained-not-joined; no milestone cap or priced cost claim",
+  "streams": [
+    {
+      "phase": "m7",
+      "path": "logs/astra-snapback2.m7.ndjson",
+      "threadId": "01a09391-39d4-7563-8b24-e749405fe899",
+      "completedItemTypes": {
+        "agent_message": 18,
+        "command_execution": 68
+      },
+      "completedTurnCount": 1,
+      "sumRawTurnUsage": {
+        "input_tokens": 8500711,
+        "cached_input_tokens": 8346368,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 41549,
+        "reasoning_output_tokens": 16018
+      }
+    },
+    {
+      "phase": "scorer-first-failed",
+      "path": "scores/astra/raw.out",
+      "threadId": "01a093ab-ad47-7011-aa3c-d55e185080c8",
+      "completedItemTypes": {
+        "agent_message": 3,
+        "mcp_tool_call": 2
+      },
+      "completedTurnCount": 1,
+      "sumRawTurnUsage": {
+        "input_tokens": 150179,
+        "cached_input_tokens": 116096,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1709,
+        "reasoning_output_tokens": 697
+      }
+    },
+    {
+      "phase": "scorer-inline-retry",
+      "path": "scores/astra-inline-retry/raw.out",
+      "threadId": "01a093b4-ebe7-7401-ab21-05fb8a8275ec",
+      "completedItemTypes": {
+        "agent_message": 1
+      },
+      "completedTurnCount": 1,
+      "sumRawTurnUsage": {
+        "input_tokens": 57696,
+        "cached_input_tokens": 12160,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5233,
+        "reasoning_output_tokens": 3963
+      }
+    }
+  ]
+}

@@ -19,7 +19,7 @@ import { createRequire } from "node:module";
 import { ObservationWriter } from "../metering/observations.mjs";
 import { loadSetupIdentity, verifySetupToolchain } from "./setup-identity.mjs";
 
-const VERSION = "0.3.6-m8";
+const VERSION = "0.3.7-m8";
 const TYPING_OBSERVATION_BOUNDARY_VERSION = "v2";
 const REQUIRE = createRequire(import.meta.url);
 const SETTLEMENT_WAITS = new AsyncLocalStorage();
@@ -2416,7 +2416,7 @@ async function m7(ctx) {
       "other-client poll tally",
     );
     // visibleMs stays click-to-tally; the selection wait below gates segment
-    // close but must not sit inside the metric window (0.3.6-m8 boundary).
+    // close but must not sit inside the metric window (0.3.7-m8 boundary).
     const visibleMs = rounded(performance.now() - started);
     const totalValue = Number(await semanticValue(testId(observerPage, "sm-poll-total")));
     if (!Number.isInteger(totalValue) || totalValue < changed.value) {

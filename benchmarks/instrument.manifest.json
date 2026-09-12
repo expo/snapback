@@ -1,21 +1,21 @@
 {
   "schemaVersion": "benchmark-instrument-snapshot.v1",
-  "instrumentPin": "social-messenger@0.3.6-m8",
+  "instrumentPin": "social-messenger@0.3.7-m8",
   "versions": {
     "schema": "0.3.0-m8",
     "ui": "0.3.2-m8",
-    "choreography": "0.3.6-m8"
+    "choreography": "0.3.7-m8"
   },
   "artifacts": {
     "brief": {
       "kind": "file",
       "path": "briefs/social-messenger.md",
-      "sha256": "8ce705938a756a1228d712c6bed31b6fe49cf7f03f58bd887d69f74ddfbc390a"
+      "sha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6"
     },
     "contract": {
       "kind": "file",
       "path": "tools/social-messenger/CONTRACT.md",
-      "sha256": "9c928479a447d1b418eefca761098daac9afa014c7d60ed189fc935ae49453ca"
+      "sha256": "1fc767c52d99e5e2215aa6e8b0be36905ee3808fc2a63eed7928b6927ac58d53"
     },
     "assertions": {
       "kind": "file",
@@ -30,12 +30,12 @@
     "fixtureReadme": {
       "kind": "file",
       "path": "fixtures/social-messenger/README.md",
-      "sha256": "031090ee834381aa2ac5b4fa879d65d772d3024e0453862ff7006058f83c3b30"
+      "sha256": "b3793a0bb8778f9e990a1c2b645d969f4886069eaff9fde1a548e7e946ee14d6"
     },
     "fixtureRoot": {
       "kind": "directory",
       "path": "fixtures/social-messenger",
-      "sha256": "c51e5fb3326a510f1df4f3af81157da279e66c252d6234445900fa9a04b715f5"
+      "sha256": "6174ba9fd6a68897d416bd29853f54286bb4350a31964ae158e8335e06104d5a"
     },
     "uiRoot": {
       "kind": "directory",
@@ -50,7 +50,7 @@
     "choreographyRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/choreography",
-      "sha256": "51fd9e98ec2c5d692db96382d8076a9b8506b5a44f00ffb838e8b37d3ffd143e"
+      "sha256": "c88fdf8d7c6099b1ace607ce688c184199491a349a020e94db4d8c3ba0fb6449"
     },
     "toolsLibRoot": {
       "kind": "directory",
@@ -60,7 +60,7 @@
     "choreographyVersion": {
       "kind": "file",
       "path": "tools/social-messenger/choreography/VERSION",
-      "sha256": "e96fe454597d11e241822dea892f5a1a6bda61104c3313fca513a739e39f8191"
+      "sha256": "d0282f9f79c387805588d80676fc96741875ef065f820baa6654d0c1743ae4c7"
     },
     "schemaVersion": {
       "kind": "file",
@@ -80,22 +80,22 @@
     "runRecordExtensionSchema": {
       "kind": "file",
       "path": "schema/social-messenger/run-record-extension.schema.json",
-      "sha256": "90e8a92164fa072a96f8b60df569f49bd1c8f44495b17e4c07f5b1b8e7ed380b"
+      "sha256": "ceaad673a6e8ce5ade2d197fe2029c71f883e448614aaa7e3416aa79df5d190b"
     },
     "recordValidator": {
       "kind": "file",
       "path": "tools/social-messenger/record-validator.mjs",
-      "sha256": "42dad2be900ce863d4714a95d7897efaf1e50336ecad7b2c803e0d1cb95f3899"
+      "sha256": "d25a451d7d2ea9e67e3b07e221e13472ec2a4753bac33a9a305478c2f44ec02d"
     },
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "91fabac8ee60611c8d5dc0bbe9f391d97b60a9e9161514cb8ac9085081159086"
+      "sha256": "1a692d40f7de8e15d4e1a2e3e651a152d81af61b0ca9f7abe8cb126268c64c07"
     },
     "observabilityRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/observability",
-      "sha256": "f0e463fc87acd6f236d8b3e52a17531ddfc52c0ad9161b807ab20e0e207bbeda"
+      "sha256": "a6dc1c969745a270e430a323a1e3c2769906bef01fa224cf230108f845ecfdee"
     }
   }
 }

@@ -176,7 +176,7 @@ The P2 choreography hardening also freezes these accessible-state semantics:
 
 ## Versioning
 
-The choreography subdirectory is `0.3.6-m8` and the UI kit is
+The choreography subdirectory is `0.3.7-m8` and the UI kit is
 `0.3.2-m8`. The coordinated `0.3.3-m8` instrument migration required
 suite-status and setup-identity linkage before
 startup and adds the hash-linked D0.6 run-record observations while retaining
@@ -193,7 +193,7 @@ not comparable or aggregatable with v2. It also separates required live DM
 delivery from conditional avatar identity, makes removed-member cutoff wait
 for an ordered progress witness, and assigns distinct actor/option vote pairs
 across all M7 retry attempts. Other P1 artifacts remain at their existing
-pre-freeze versions. Choreography `0.3.6-m8` carries those semantics plus the
+pre-freeze versions. Choreography `0.3.7-m8` carries those semantics plus the
 LLP 0317 N7 fixture repair and binds the complete executable evidence stack to
 the repaired frozen root; retained `0.3.4-m8` records stay historical.
 The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the

@@ -125,3 +125,10 @@ and type of the first refused post-terminal semantic action. Fields irrelevant
 to the boundary decision are omitted. This fixture remains the negative
 regression: semantic model/driver actions after the authoring terminal fail
 closed.
+
+`instrument-0.3.6.manifest.json` is the exact frozen instrument manifest from
+commit `f40559f37722c79178be664a11f8a6485f1508fd`. Its SHA-256 is
+`ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623`.
+The retained-identity regression pairs those bytes with the committed
+`0.3.6-m8` setup identity and a test-local hash-bound record base; it does not
+reconstruct or alter a historical run directory.

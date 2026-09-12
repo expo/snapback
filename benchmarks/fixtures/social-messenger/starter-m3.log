@@ -1,7 +1,6 @@
 2026-01-01T00:01:08Z alice dm-create d-alice-bob bob
 2026-01-01T00:01:09Z alice group-create g-starter bob "Weekend Plans" "Coffee, a walk, and dinner."
 2026-01-01T00:01:10Z alice member-add g-starter carol mm-g-starter-carol
-2026-01-01T00:01:11Z alice member-add g-starter erin mm-g-starter-erin
 2026-01-01T00:01:12Z alice send sm0001 d-alice-bob "Coffee after work?"
 2026-01-01T00:01:13Z bob send sm0002 d-alice-bob "Yes. Corner place?" quote=sm0001
 2026-01-01T00:01:14Z alice send sm0003 d-alice-bob "Exactly. Six thirty." quote=sm0002
@@ -10,10 +9,10 @@
 2026-01-01T00:01:17Z bob send sm0006 d-alice-bob "On my way." quote=sm0005
 2026-01-01T00:01:18Z alice send sm0007 g-starter "Saturday plan: coffee, lake, then noodles."
 2026-01-01T00:01:19Z carol send sm0008 g-starter "Coffee is a definite yes." quote=sm0007
-2026-01-01T00:01:20Z erin send sm0009 g-starter "I can meet everyone at ten."
+2026-01-01T00:01:20Z carol send sm0009 g-starter "I can meet everyone at ten."
 2026-01-01T00:01:21Z bob send sm0010 g-starter "The west trail is dry now."
 2026-01-01T00:01:22Z alice send sm0011 g-starter "West trail it is." quote=sm0010
 2026-01-01T00:01:23Z carol send sm0012 g-starter "I will bring snacks."
-2026-01-01T00:01:24Z erin send sm0013 g-starter "Should I book dinner?"
-2026-01-01T00:01:25Z bob send sm0014 g-starter "Please do, for four." quote=sm0013
+2026-01-01T00:01:24Z carol send sm0013 g-starter "Should I book dinner?"
+2026-01-01T00:01:25Z bob send sm0014 g-starter "Please do, for three." quote=sm0013
 2026-01-01T00:01:26Z alice send sm0015 g-starter "Locked in. See you Saturday."

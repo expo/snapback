@@ -1,13 +1,15 @@
 # Clique: Astra medium on published Snapback 2, Linux
 
-Status: **builder and independent grading complete; fresh M7 running**. The builder ran
+Status: **complete — published package, builder, independent grade, fresh M7 and experience score**.
+The builder ran
 2026-09-11 at21:36:51 through2026-09-12 at01:37:35 UTC on expo-build-1000,
 exit0,14,444s harness wall. PID2598100, Codex thread
 `01a09266-ee00-7701-bd60-d118acbb9fc0`, foreground harness session52200.
 All three0.0.24 packages were registry-visible with exact staged hashes and
 both native registry-only consumer suites passed19/19 before launch.
 The independent grade below qualifies the builder-reported checkpoints;
-M7 and the absolute-rubric experience score are still pending. This document
+The fresh M7 actor reports green, with a retry qualification below. Astra's
+separate experience score is **78/100**. This document
 records one run, not a new benchmark protocol.
 
 ## Builder handoff and grading
@@ -99,7 +101,7 @@ later Astra experience score is a separate, unweighted rubric. Preserve the
 grade's actual findings and the distinction between unavailable evidence and
 observed defects.
 
-### Fresh M7 — started2026-09-12 at03:02:42 UTC
+### Fresh M7 — completed 2026-09-12 at03:30:33 UTC
 
 Fresh `gpt-6-astra`/medium, PID2738331, foreground harness session36841.
 Preflight verified the same0.0.24 package/browser, clear assigned ports,
@@ -120,6 +122,113 @@ and42-file handoff were subsequently extracted, counted and audited. The
 only assignment-like credential candidates were the documented `your-password`
 placeholder and HTML `current-password` autocomplete value. The archives
 themselves and their hashes are unchanged.
+
+The actor exited0 after **1,671s harness wall** (1789182162–1789183833);
+its authored clock was1,654s. It implemented group polls with changeable,
+idempotent votes and offline replay, plus a visible-message counter updated
+atomically by message creation, unsend and expiry. Migration used an additive
+nullable column, a bounded backfill of two starter conversations, then a
+required-column successor. Both immediate and final snapshot comparisons
+passed for all eight personas and preserved the fifteen distinct starter
+messages. Their media/reaction fields were null/empty: this is neither
+populated media/reaction migration coverage nor migration-at-scale.
+
+The final M7 acceptance suite and sole-selected M7 choreography passed.
+The actor's final aggregate also reports the prior M1–M6/M8 suites passing,
+but **M2 needed two invocations**, with its first timeout retained. Earlier
+regression attempts also timed out. The actor allowed up to three unchanged
+invocations and cited the brief's timing rule; that rule actually governs
+grader timing checks, not this builder-side M2 pagination test. Preserve
+the actor's original report, but record this aggregation as a **run-specific
+method deviation**, not a clean first-pass M7 regression qualification.
+
+The first M7 choreography failed retained-selection observation despite
+correct server votes. An app-owned wrapper exposed actual selected/pending
+state through `aria-pressed`/`aria-busy`; intermediate and final unchanged-
+harness attempts passed. This is a concrete RN Web observation issue, not
+proof of the old self-test's nondeterminism cause or of lost votes. The
+frozen UI kit and harness were not edited during M7. Other corrections
+included a certified response bound, premature backfill invocation, omitted
+poll-option cleanup on unsend, and evidence bookkeeping; failures remain.
+
+The [M7 evidence archive](./astra-snapback2-m7-public.tgz) retains narratives,
+reports, migration procedure, snapshot manifest, acceptance attempts, failed
+and passing choreography, prompt, preflight and phase/native metadata.
+SHA-256: `43f70e75531f3f71b96ce9e1ac6223dcd7a8a266654e70272f718e1726b38e24`.
+The [post-M7 source](./astra-snapback2-post-m7-source.tgz) preserves the final
+app separately from the pre-M7 snapshot; SHA-256:
+`cd64376b2252bd95f147ec38a742ec6a166051460502061832d84215023619a4`.
+The transferred archives were hash-checked, extracted and counted:191 source
+files and188 public evidence files. Credential scans found no operational
+keys/tokens; source assignment candidates are a docs placeholder and local
+synthetic warm-start/digest test passwords. Stores and raw transcripts stay
+private on the host. The final root store is the preserved migrated starter
+plus one API-created poll demo; the exercised test store is separately
+retained. Exact owned servers were stopped and assigned ports were clear.
+
+### Absolute-rubric experience score — completed 2026-09-12 at03:44:23 UTC
+
+Fresh Astra/xhigh returned **78/100 overall**, a holistic judgement rather
+than a category average. The [exact score](./scoring/score.json) is based only
+on the original continuous builder's five narrative/record files and brief.
+It does **not** incorporate the independent grader or fresh M7 narratives;
+its statements that M7 is unobserved describe its evidence packet, not the
+final run's status. Builder incident attributions are not independent proof
+of backend innocence. The rubric is unchanged from the earlier run, but
+the custody limitations prevent a controlled comparative claim.
+
+| Experience category | Score |
+| --- | ---: |
+| Setup and docs | 85 |
+| Data modeling | 74 |
+| Authorization | 92 |
+| Queries and live updates | 68 |
+| Writes and transactions | 89 |
+| Offline sync | 78 |
+| Media assets | 94 |
+| Background work | 78 |
+| Client integration | 73 |
+| Diagnostics and dev loop | 86 |
+| Scale and limits | 65 |
+| Operations | 78 |
+
+The first scorer (PID2910619,1789183896–1789183968) could not read evidence:
+both read-tool attempts failed `bwrap: loopback: Failed RTM_NEWADDR: Operation
+not permitted`. It returned null scores rather than guessing. Its unchanged
+prompt, final refusal and metadata are retained. No host security setting
+was changed. A separate fresh retry retained the exact model, effort, rubric
+and read-only sandbox, supplying all six permitted files verbatim on stdin
+(173,524 evidence bytes), with per-file SHA-256 values. This uses the
+[documented non-interactive stdin prompt route](https://learn.chatgpt.com/docs/non-interactive-mode).
+The retry explicitly prohibited tools and made no optional source checks;
+its actual CLI stream contains one completed agent message and no tool items.
+All five supplied builder narratives match the pre-M7 public handoff
+byte-for-byte; the retry did not silently incorporate later source or reports.
+
+Retry PID2954469 ran1789184502–1789184663,161s,exit0; thread
+`01a093b4-ebe7-7401-ab21-05fb8a8275ec`. Validation confirms all13 categories
+are integer0–100, each note is at most40 words, and output is exactly the
+requested JSON fence. The [scoring archive](./astra-snapback2-scoring-public.tgz)
+retains both attempts' public artifacts, exact prompts, evidence manifest,
+wrappers, validation and raw-usage counters; SHA-256:
+`50eeff8ba32dbd2933d2c0a6d21dd0ff1217dbe5c0b9f7161b80f98aa9bc6f18`.
+Private native rollouts are retained and hash-linked by public manifests,
+not committed. [Usage metadata](./scoring/validation-and-usage.json) remains
+raw-retained-not-joined, with no milestone cap or priced efficiency claim.
+
+### Follow-up disposition
+
+The existing [editing lifecycle ticket](../../../issues/20260909-clique-refused-edit-leaves-edit-mode.md)
+now links the new rapid-edit/error-banner reproduction without pretending
+it is the same older copied fixture. The [M7 calibration ticket](../../../issues/20260829-social-messenger-m7-calibration-nondeterminism.md)
+adds the observed DOM semantics case without claiming its original cause
+is solved. The [M8 grader-schema ticket](../../../issues/20260908-social-messenger-grader-schema-rejects-m8-assertions.md)
+retains the schema/trace split rather than rewriting this frozen instrument.
+All three remain open. The separate
+[release-size cleanup](../../../issues/20260911-snapback2-package-growth-after-four-plans.md)
+also remains open; the author's one-time release allowance did not reset
+any normal size guard or runtime ceiling. No frozen app repair or rescore
+was performed after the actors finished.
 
 The package is the qualified source snapshot
 `5f115db401a41954f10dc3737e5b03872470a4eb`, published from the20:54 release

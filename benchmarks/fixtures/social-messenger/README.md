@@ -1,6 +1,6 @@
 # Social-messenger fixture pack
 
-Version: `0.2.1-m8`
+Version: `0.2.2-m8`
 
 Provenance: LLP 0201 D7 P1 — the canonical `social-messenger` benchmark's
 fixture-pack prerequisite.
@@ -20,7 +20,10 @@ mutation paths; the logs are not database imports.
 - `starter-m1.log`, `starter-m2.log`, and `starter-m3.log` are the committed
   milestone segments. M1 has only registrations and profiles; M2 adds the
   intentionally asymmetric follow graph and post corpus; M3 adds one DM, one
-  group, messages, and quoted replies.
+  group, messages, and quoted replies. The default `Weekend Plans` group is
+  Alice, Bob, and Carol, matching the three clients that drive its aggregate
+  receipt choreography. Erin remains a starter persona but is not a member of
+  that group; Dave remains available for the M3 add-member assertion.
 - `sample-50.log` is the committed M6 replay-adapter conformance sample. It has
   exactly 50 actions and exercises every verb at least once.
 - `invariant-manifest-starter.json` describes the exact state after all three

@@ -284,4 +284,16 @@ counted. This pin keeps the `0.3.5-m8` N7 and scale-fixture semantics, while
 moving the manifest, emitter, setup identity, receipts, meter, validator, and
 production driver together onto the repaired executable identity. Retained
 0.3.4 receipts remain historical and validate only under their own pin.
+
+## 0.3.7-m8 migration
+
+`0.3.7-m8` repairs the default M3 receipt precondition. `Weekend Plans` now
+contains Alice, Bob, and Carol, exactly the clients opened by
+`group-receipt-waits-for-slowest-member`; starter messages are authored by
+those members. Erin remains a starter persona, and Dave remains absent so the
+membership lifecycle assertion can add him. The self-test reads the committed
+starter log and refuses any membership or sender drift before a lane starts.
+Retained `0.3.6-m8` receipts and run snapshots remain historical under their
+original four-person fixture identity.
+
 `0.3.0-m8` added the M8 choreography surfaces.
