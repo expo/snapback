@@ -264,7 +264,8 @@ export function scalarForIndex(type: BoundType | undefined): ScalarType | undefi
 }
 export function scalarType(type: BoundType, site: Site): ScalarType {
   if (isScalar(type)) return type;
-  typeError(site, `bounded arrays require scalar items; got ${type.kind}`, "use scalar array elements");
+  typeError(site, `bounded arrays require scalar items; got ${type.kind}`,
+    "use [id] <=N (or another scalar item type), or call one typed operation per object");
 }
 export function isScalar(type: BoundType): type is ScalarType {
   return !["unknown", "null", "empty-list", "row", "page", "collection", "object", "numeric-literal"].includes(type.kind);

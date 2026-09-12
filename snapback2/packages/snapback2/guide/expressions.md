@@ -8,18 +8,21 @@ Objects allow shorthand: `{ id: conversationId, creatorMembershipId }`.
 `slice(text, start, end)` returns the half-open range of Unicode scalar
 positions. Literal endpoints narrow the result's text bound, so
 `slice(body, 0, 80)` fits a `text <=80` preview.
-`count(x)` is
-`x.length` for bounded lists and pages. Bindings and captured list fields keep their selected element count;
-a field named `length` stays that field. Other built-ins are `range`,
-`min`, `max`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`:
-it evaluates `a` then `b` once and returns the values in canonical scalar order.
+`count(text)` is not a length check; clamp a stored caption directly:
+
+```q
+mutation send(body: text <=500, digest: text <=64):
+  return insert messages { body, caption: slice(body, 0, 80), digest, author: viewer, at: now }
+```
+
+`count(x)` counts bounded lists/pages. Text concatenation is not supported;
+return separate fields such as `{ body, caption }`, or expose two typed queries.
+Other built-ins are `range`, `min`, `max`, and `share`. `sorted` is only
+`(lo, hi) = sorted(a, b)` and evaluates each value once.
 `! else CODE` requires presence; bare `!` refuses with that repair.
 `??` supplies a fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
-`!=` is `not (=)`. Ordered comparison refuses an optional operand;
-use `! else CODE`, `??`, or narrowing first. `if x != null:` narrows a bound
-name or one-hop row field in its then branch; `if x = null:` narrows the else.
-`x != null and R` narrows R and evaluates its reads only when reached;
-`require x != null else CODE` narrows the rest of its block.
+`!=` is `not (=)`. Ordered comparisons require present operands; narrow with
+`if x != null:`, require with `! else CODE`, or use `??` first.
 
 `walk table[seed] up .column depth N` follows at most N parent links.
 
@@ -27,9 +30,8 @@ name or one-hop row field in its then branch; `if x = null:` narrows the else.
 `wordPrefixes(field)` index and an ordinary bounded prefix read; there is no
 public `words()` value function. See `guide live-query` for indexing and editing.
 
-`now` is the read clock in queries, the commit clock in mutations; `commit`
-is the commit clock. `now` is pinned per request rather than redrawn;
-`new` allocates a fresh ID per evaluation.
+`now` is the query read clock and mutation commit clock; `commit` is the commit
+clock. Both are pinned per request. `new` allocates per evaluation.
 
 See `guide quarry` for related topics.
 

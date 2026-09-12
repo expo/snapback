@@ -62,8 +62,11 @@ query conversationMessageSearch(conversation: conversations, term: text <=128, c
 ```
 
 Copy `node_modules/snapback2/dist/guide/recipes/global-message-search.ts`:
-opaque cursors, `(at,id)` scalar order, pages/issues. Recreate on term/membership
-changes. Current-member reads have separate snapshots; never mount 1,000 live shapes.
+opaque cursors, `(at,id)` scalar order, pages/issues. Calls use generated typed
+arguments: `{ c?: Cursor }`, then `{ conversation, term, c?: Cursor }`; never
+batch objects in a Quarry array. Dynamic scopes use this pager, not authored
+dynamic merge lanes. Recreate on term/membership changes. Current-member reads
+have separate snapshots; never mount 1,000 live shapes.
 
 This interim client N-way merge costs scope pages + one head per chat + refills.
 Frozen Clique hub: 1,000 chats, 100,015 messages; `busy` matches only the final

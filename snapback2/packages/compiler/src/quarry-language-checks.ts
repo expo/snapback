@@ -3,7 +3,7 @@ import { deepStrictEqual, throws } from "node:assert";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-import { canonicalValue, sha256, type Context, type Value } from "../../evaluator/src/evaluator";
+import { canonicalValue, sha256, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import { canonicalSchemaJson } from "../../evaluator/src/certificate-identity";
 import { lowerProject } from "./project";
 import { parseDocument } from "./quarry/parser";
@@ -80,6 +80,94 @@ schedule hourly every 1h: cleanup()
       "schedule hourly every 1h: cleanup\n",
       "schedule hourly every 1h:\n  cleanup()\n",
     ]) assert(parseDocument("snapback/old.q", source).diagnostics.length > 0, `alternate form admitted: ${source}`);
+  });
+
+  test("first-pass grammar refusals name the lawful maintain, comment, text, array and index forms", () => {
+    for (const marker of ["#", "//"]) {
+      const diagnostics = parseDocument("snapback/comments.q", `${marker} explain the query\nquery ok():\n  return true\n`).diagnostics;
+      assert(diagnostics.length === 1 && diagnostics[0]!.rewrite.startsWith("-- explain"), JSON.stringify(diagnostics));
+    }
+    const publicMaintain = parseDocument("snapback/schema.q", "table rows:\n  owner: principal\n  public\nmaintain counts: count rows by owner\n  public\n").diagnostics;
+    assert(publicMaintain.some(item => item.rewrite === "read <- allow  -- maintain has no public property"), JSON.stringify(publicMaintain));
+
+    for (const [source, rewrite] of [
+      ["query length(body: text <=500):\n  return count(body)\n", "slice(text, 0, N)"],
+      ["query label(left: text <=20, right: text <=20):\n  return left + right\n", "{ left, right }"],
+      ["query batch():\n  return [{ id: 'one' }]\n", "use [id] <=N"],
+    ]) {
+      const result = compile(source);
+      assert(!result.ok && result.diagnostics.some(item => item.rewrite.includes(rewrite)), JSON.stringify(result));
+    }
+
+    const indexes = `table people:
+  name: text <=50
+  handle: text <=50
+  unique byName: name
+  unique byHandle: handle
+  public
+`;
+    const ambiguous = compile("query find(key: text <=50):\n  return people[key]\n", indexes);
+    assert(!ambiguous.ok && ambiguous.diagnostics.some(item => item.code === "E_QUARRY_AMBIGUOUS"
+      && item.rewrite.includes("by byName") && item.rewrite.includes("by byHandle")), JSON.stringify(ambiguous));
+  });
+
+  test("guarded point delete is a no-op when absent and deletes when present", async () => {
+    const declarations = `table cleanup:
+  token: text <=64
+  unique byToken: token
+  public
+  delete <- allow
+`;
+    await project(`mutation clear(token: text <=64):
+  row = cleanup[token] by byToken
+  if row != null:
+    delete cleanup[row]
+  return true
+`, (lowered, checked) => {
+      const clear = operation(lowered.project.programs, "probe.clear");
+      const certificate = checked.find(item => item.program === clear.name)!.certificate!;
+      const args = { token: { String: "digest" } };
+      const execute = (receipt: ClosureReceipt) => new ClientStore(lowered.project.schema, receipt, { program: clear })
+        .applyMutation(clear, { ...context, args }, false, certificate as any).execution;
+      const absent = execute({ ...empty, absences: [["cleanup", "byToken", [{ String: "digest" }]]] });
+      assert(absent.writes.length === 0, JSON.stringify(absent));
+      const present = execute({ ...empty, rows: [{ table: "cleanup", id: "cleanup-1",
+        row: row({ id: id("cleanup-1"), token: { String: "digest" } }) }] });
+      assert(present.writes.length === 1 && present.writes[0]!.table === "cleanup"
+        && present.writes[0]!.id === "cleanup-1" && present.writes[0]!.row === null, JSON.stringify(present));
+    }, declarations);
+  });
+
+  test("delete-only authority keeps direct by-id deletion distinct from an unreadable guard", async () => {
+    const declarations = `table cleanup:
+  token: text <=64
+  read <- deny
+  delete <- allow
+`;
+    await project(`mutation direct(rowId: cleanup):
+  delete cleanup[rowId]
+  return true
+
+mutation guarded(rowId: cleanup):
+  row = cleanup[rowId]
+  if row != null:
+    delete cleanup[row]
+  return true
+`, (lowered, checked) => {
+      const receipt: ClosureReceipt = { ...empty, rows: [{ table: "cleanup", id: "cleanup-1",
+        row: row({ id: id("cleanup-1"), token: { String: "digest" } }) }] };
+      const execute = (name: string) => {
+        const program = operation(lowered.project.programs, `probe.${name}`);
+        const certificate = checked.find(item => item.program === program.name)!.certificate!;
+        return new ClientStore(lowered.project.schema, receipt, { program })
+          .applyMutation(program, { ...context, args: { rowId: id("cleanup-1") } }, false, certificate as any).execution;
+      };
+      const direct = execute("direct");
+      assert(direct.writes.length === 1 && direct.writes[0]!.table === "cleanup"
+        && direct.writes[0]!.id === "cleanup-1" && direct.writes[0]!.row === null, JSON.stringify(direct));
+      const guarded = execute("guarded");
+      assert(guarded.writes.length === 0, `unreadable guard unexpectedly matched direct delete: ${JSON.stringify(guarded)}`);
+    }, declarations);
   });
 
   test("decimal literals infer exact descriptors; integer aliases and list defaults never rescale", async () => {

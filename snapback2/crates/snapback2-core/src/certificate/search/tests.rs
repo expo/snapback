@@ -123,9 +123,9 @@ fn held_assertions_and_derived_shape_are_independently_checked() {
             }),
         }
         assert!(
-            validate(&project.schema, &p)
-                .iter()
-                .any(|e| e.message.contains("held_search"))
+            validate(&project.schema, &p).iter().any(|e| e.message.contains("held_search")
+                && e.rewrite.contains("term: text <=N")
+                && e.rewrite.contains("global-search pager"))
         );
     }
     let people = project
