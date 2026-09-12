@@ -10015,6 +10015,666 @@
         "sha256": "86a04ef0bbe7e5f68abe382d90447d855bd7ae67ebfdb58eeca463c0cb9d27bd",
         "bytes": 77049
       }
+    },
+    "comparatorIncrement": {
+      "localSource": "da44c1f310",
+      "remoteSource": "5e9c622608cdf2b39c49de46a6ae1f78ab77b649",
+      "change": "Skip type-rank lookup for equal kinds after both existing validations; payload comparison unchanged.",
+      "verification": "Native differential266 cases plus index/order/ownership controls, corpus export293, built-node corpus266, package build and references pass; independent source review found no material findings.",
+      "canonicalBytes": {
+        "runtime": 89979,
+        "ceiling": 90000,
+        "client": 143208,
+        "react": 153176,
+        "expo": 156637,
+        "node": "v24.18.0",
+        "esbuild": "0.25.9",
+        "gzipLevel": 9
+      },
+      "measureCheck": "All latency steps pass; existing four byte-growth guards fail; no new accepted baseline.",
+      "sample": {
+        "artifact": {
+          "path": "evidence/sub3-20260912-bearer-combinedda44-01.json",
+          "sha256": "abe0950a0f48722d0c294049a645641f866648f95648336f5a4664fd136063df",
+          "bytes": 41374
+        },
+        "experiment": "sub3-20260912-bearer-combinedda44-01",
+        "variant": "combined-native8-clientda44-89979gzip",
+        "startedAt": "2026-09-12T09:50:09.696Z",
+        "finishedAt": "2026-09-12T09:50:52.173Z",
+        "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+        "runtimeSha": "506c9d419d9beaea3b0f3213dd6b0718a82fedce4cd5241165fc7e4192791b65",
+        "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+        "appSha": "04b19a7c3c0dc54d51b1322c7f653276d1f1493703036641c1ef2e7bc4ef196c",
+        "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+        "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+        "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+        "firstInboxMs": 1079.4732780000004,
+        "coldSyncedMs": 15079.550234999999,
+        "ackCompleteMs": 25124.134234,
+        "completeAcquisitionMs": 25164.825380000002,
+        "contentPass": true,
+        "ackPostPass": true,
+        "fullRowHashPass": true,
+        "primaryPass": true,
+        "ownerReceipts": {
+          "total": 10008,
+          "received": 10008,
+          "unreceived": 0
+        },
+        "stop": 0,
+        "firstUsePass": true,
+        "firstHistoryMs": 1.8999996185302734,
+        "firstSearchMs": 2.3000011444091797,
+        "reopenPass": true,
+        "reopenMs": 6010.9288430000015,
+        "stopDetail": {
+          "status": 0,
+          "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+          "stderr": "",
+          "elapsedMs": 237.28777000000264,
+          "error": null,
+          "ownerPid": 4090641,
+          "postStopProcess": null
+        },
+        "applicationRowsUnchangedDuringSetup": true
+      },
+      "qualification": "Single full workload sample passes all correctness/stop controls at25.165s; this does not show improvement over prior24.847s diagnostic or meet sub3. No matched cohort or publication qualification.",
+      "candidateModules": {
+        "dist/client-runtime.mjs": "506c9d419d9beaea3b0f3213dd6b0718a82fedce4cd5241165fc7e4192791b65",
+        "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+        "dist/image-runtime.mjs": "406704207ccdf13d5d657abb5b44983b789c64bc66b4a4a1d74560576ec247ca",
+        "dist/internal.mjs": "3b2e7238e75a3084a78933edbf9410b1e3948e47c4522b0e80b09f193fc7c1ac",
+        "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+        "dist/react.mjs": "6e9a814b241e529c79067be0c0c59555a6a18fd63b20057edf198fef333028ea"
+      },
+      "profile": {
+        "diagnosticInstrumented": true,
+        "profileSha256": "2170d2d8ba1adce5d6d9d6ae7940cdca7b8e24e4196b1712fe97fe67baeb3555",
+        "sourceMapSha256": "0e8914ed124c76b3b79978a57c9b7a3fba5b472f1a74fb79cdd1beda6f3c6ac7",
+        "durationMs": 24883.157,
+        "sampledMs": 24882.948,
+        "sampleCount": 23638,
+        "self": [
+          {
+            "source": "(idle)",
+            "ms": 9022.477
+          },
+          {
+            "source": "packages/snapback2/src/store/indexeddb.ts:287 replace",
+            "ms": 1264.8
+          },
+          {
+            "source": "packages/snapback2/src/store/canonical.ts:10 jsonState",
+            "ms": 927.246
+          },
+          {
+            "source": "(program)",
+            "ms": 903.801
+          },
+          {
+            "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+            "ms": 810.79
+          },
+          {
+            "source": "(garbage collector)",
+            "ms": 795.371
+          },
+          {
+            "source": "packages/evaluator/src/hash.ts:9 r",
+            "ms": 746.624
+          },
+          {
+            "source": "packages/evaluator/src/value-runtime.ts:129 totalCompare",
+            "ms": 679.357
+          },
+          {
+            "source": "packages/snapback2/src/store/swap-journal.ts:8 raw",
+            "ms": 438.474
+          },
+          {
+            "source": "packages/evaluator/src/posting-tree.ts:8 change",
+            "ms": 427.704
+          },
+          {
+            "source": "packages/snapback2/src/client-outbox-observed.ts:61 (anonymous)",
+            "ms": 321.678
+          },
+          {
+            "source": "packages/evaluator/src/value-runtime.ts:209 kindOf",
+            "ms": 314.825
+          },
+          {
+            "source": "packages/evaluator/src/hash.ts:1 sha256",
+            "ms": 277.413
+          },
+          {
+            "source": "packages/snapback2/src/store/swap-journal.ts:19 isolate",
+            "ms": 215.097
+          },
+          {
+            "source": "packages/evaluator/src/index-store.ts:128 (anonymous)",
+            "ms": 211.871
+          },
+          {
+            "source": "packages/snapback2/src/store/swap-journal.ts:56 get",
+            "ms": 208.179
+          },
+          {
+            "source": "packages/snapback2/src/store/metadata.ts:13 jsonValue",
+            "ms": 194.47
+          },
+          {
+            "source": "packages/evaluator/src/row-image.ts:107 tagged",
+            "ms": 185.002
+          },
+          {
+            "source": "fetch",
+            "ms": 182.108
+          },
+          {
+            "source": "packages/evaluator/src/slot-tree.ts:19 balance",
+            "ms": 176.923
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts:931 applyCoverage",
+            "ms": 175.541
+          },
+          {
+            "source": "packages/evaluator/src/row-image.ts:140 key",
+            "ms": 166.154
+          },
+          {
+            "source": "packages/evaluator/src/index-store.ts:200 putPrepared",
+            "ms": 159.697
+          },
+          {
+            "source": "packages/evaluator/src/row-image.ts:22 immutable",
+            "ms": 156.056
+          },
+          {
+            "source": "packages/snapback2/src/store/swap-journal.ts:30 wrap",
+            "ms": 144.119
+          },
+          {
+            "source": "packages/snapback2/src/store/fact-integrity.ts:146 check",
+            "ms": 139.225
+          },
+          {
+            "source": "packages/evaluator/src/value-runtime.ts:185 wireJson",
+            "ms": 132.872
+          },
+          {
+            "source": "packages/snapback2/src/store/fact-index.ts:20 change",
+            "ms": 118.667
+          },
+          {
+            "source": "packages/evaluator/src/value-runtime.ts:502 clone",
+            "ms": 113.001
+          },
+          {
+            "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/baseline-source/snapback2/packages/snapback2/templates/chat/react/src/App.tsx:28 (anonymous)",
+            "ms": 111.718
+          }
+        ],
+        "inclusive": [
+          {
+            "source": "(root)",
+            "ms": 24882.948
+          },
+          {
+            "source": "(idle)",
+            "ms": 9022.477
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts:711 (anonymous)",
+            "ms": 4998.356
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts:863 applySwap",
+            "ms": 3557.999
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts:931 applyCoverage",
+            "ms": 3520.738
+          },
+          {
+            "source": "packages/snapback2/src/twin-store.ts:122 syncIdentity",
+            "ms": 2549.024
+          },
+          {
+            "source": "packages/snapback2/src/twin-store.ts:212 row",
+            "ms": 1971.12
+          },
+          {
+            "source": "packages/evaluator/src/store.ts:169 put",
+            "ms": 1939.75
+          },
+          {
+            "source": "packages/snapback2/src/store/indexeddb.ts:287 replace",
+            "ms": 1775.532
+          },
+          {
+            "source": "packages/evaluator/src/index-store.ts:200 putPrepared",
+            "ms": 1739.257
+          },
+          {
+            "source": "packages/evaluator/src/posting-tree.ts:8 change",
+            "ms": 1570.916
+          },
+          {
+            "source": "packages/evaluator/src/posting-tree.ts:6 put",
+            "ms": 1443.943
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts:1462 read",
+            "ms": 1364.268
+          },
+          {
+            "source": "packages/snapback2/src/store/fact-integrity.ts:146 check",
+            "ms": 1256.815
+          },
+          {
+            "source": "packages/evaluator/src/hash.ts:1 sha256",
+            "ms": 1222.809
+          },
+          {
+            "source": "packages/snapback2/src/twin.ts:73 evaluate",
+            "ms": 1187.622
+          },
+          {
+            "source": "packages/evaluator/src/row-image.ts:135 imageCanonical",
+            "ms": 1178.544
+          },
+          {
+            "source": "packages/evaluator/src/store.ts:126 reexecute",
+            "ms": 1056.485
+          },
+          {
+            "source": "packages/evaluator/src/runner.ts:121 execute",
+            "ms": 1052.581
+          },
+          {
+            "source": "packages/evaluator/src/value-runtime.ts:129 totalCompare",
+            "ms": 1016.595
+          },
+          {
+            "source": "packages/evaluator/src/index-store.ts:128 (anonymous)",
+            "ms": 978.733
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts:513 (anonymous)",
+            "ms": 932.429
+          },
+          {
+            "source": "packages/snapback2/src/store/canonical.ts:10 jsonState",
+            "ms": 927.246
+          },
+          {
+            "source": "(program)",
+            "ms": 903.801
+          },
+          {
+            "source": "packages/evaluator/src/runner.ts:152 statements",
+            "ms": 820.905
+          },
+          {
+            "source": "(garbage collector)",
+            "ms": 795.371
+          },
+          {
+            "source": "packages/evaluator/src/hash.ts:47 byte",
+            "ms": 786.662
+          },
+          {
+            "source": "packages/evaluator/src/runner.ts:311 expr",
+            "ms": 786.613
+          },
+          {
+            "source": "packages/evaluator/src/hash.ts:9 r",
+            "ms": 764.707
+          },
+          {
+            "source": "packages/evaluator/src/hash.ts:72 utf8",
+            "ms": 764.671
+          }
+        ],
+        "moduleSelf": [
+          {
+            "source": "(idle)",
+            "ms": 9022.477
+          },
+          {
+            "source": "packages/evaluator/src/value-runtime.ts",
+            "ms": 1762.48
+          },
+          {
+            "source": "packages/evaluator/src/row-image.ts",
+            "ms": 1541.359
+          },
+          {
+            "source": "packages/evaluator/src/hash.ts",
+            "ms": 1293.837
+          },
+          {
+            "source": "packages/snapback2/src/store/indexeddb.ts",
+            "ms": 1274.418
+          },
+          {
+            "source": "packages/snapback2/src/store/swap-journal.ts",
+            "ms": 1236.202
+          },
+          {
+            "source": "packages/snapback2/src/store/canonical.ts",
+            "ms": 937.259
+          },
+          {
+            "source": "(program)",
+            "ms": 903.801
+          },
+          {
+            "source": "(garbage collector)",
+            "ms": 795.371
+          },
+          {
+            "source": "packages/evaluator/src/index-store.ts",
+            "ms": 652.75
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts",
+            "ms": 570.102
+          },
+          {
+            "source": "packages/evaluator/src/posting-tree.ts",
+            "ms": 480.891
+          },
+          {
+            "source": "packages/snapback2/src/store/fact-integrity.ts",
+            "ms": 364.807
+          },
+          {
+            "source": "packages/snapback2/src/client-outbox-observed.ts",
+            "ms": 325.34
+          },
+          {
+            "source": "packages/snapback2/src/store/metadata.ts",
+            "ms": 318.936
+          },
+          {
+            "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/portable-node_modules/react-dom/cjs/react-dom-client.production.js",
+            "ms": 232.346
+          },
+          {
+            "source": "packages/evaluator/src/unicode.ts",
+            "ms": 215.453
+          },
+          {
+            "source": "packages/evaluator/src/slot-tree.ts",
+            "ms": 205.901
+          },
+          {
+            "source": "packages/snapback2/src/offline-protocol.ts",
+            "ms": 195.498
+          },
+          {
+            "source": "fetch",
+            "ms": 182.108
+          },
+          {
+            "source": "packages/evaluator/src/runner.ts",
+            "ms": 160.195
+          },
+          {
+            "source": "packages/snapback2/src/store/carrier-index.ts",
+            "ms": 155.354
+          },
+          {
+            "source": "packages/snapback2/src/delivery-acknowledgements.ts",
+            "ms": 151.579
+          },
+          {
+            "source": "packages/snapback2/src/store/extent-index.ts",
+            "ms": 151.536
+          },
+          {
+            "source": "packages/snapback2/src/store/fact-index.ts",
+            "ms": 140.561
+          },
+          {
+            "source": "packages/snapback2/src/store/row-values.ts",
+            "ms": 132.207
+          },
+          {
+            "source": "packages/snapback2/src/store/projection.ts",
+            "ms": 126.945
+          },
+          {
+            "source": "packages/snapback2/src/twin-store.ts",
+            "ms": 117.211
+          },
+          {
+            "source": "../../home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/baseline-source/snapback2/packages/snapback2/templates/chat/react/src/App.tsx",
+            "ms": 115.989
+          },
+          {
+            "source": "packages/snapback2/src/store/asset-policy.ts",
+            "ms": 109.857
+          }
+        ],
+        "limits": "Sampled CPU attribution; inclusive values overlap and are not additive. No operation counts or new-row versus replacement classification.",
+        "sourceHashes": [
+          {
+            "source": "packages/snapback2/src/store/indexeddb.ts",
+            "sha256": "058e448bb34639e7a8c1af31bfa403dedd9563a970e3e2fe27d11b7cd3f6a223"
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts",
+            "sha256": "b5d45a688b00375846065b926f9f15c9aeccf71a7aa8c3cf12ac245e9f9089f7"
+          },
+          {
+            "source": "packages/evaluator/src/value-runtime.ts",
+            "sha256": "0f0f24909b068ea0dc28062830e82ca0c07f661e18adf027c4c13fae46603371"
+          },
+          {
+            "source": "packages/evaluator/src/index-store.ts",
+            "sha256": "d45a86969addb3f315412a8cff57a19d4de29bf81f017b7b17f2334ef7280609"
+          },
+          {
+            "source": "packages/evaluator/src/index-store.ts",
+            "sha256": "d45a86969addb3f315412a8cff57a19d4de29bf81f017b7b17f2334ef7280609"
+          },
+          {
+            "source": "packages/snapback2/src/store/canonical.ts",
+            "sha256": "1ac26e570a3225075c4a3e0dfe5de7c1f35d5588fafaeb6ddcef70636a5365bc"
+          },
+          {
+            "source": "packages/snapback2/src/store/swap-journal.ts",
+            "sha256": "a260c65e8ed22c2ddf0f52827e4528f215371f5d1f31cb6351cea4e6b66c0a3b"
+          },
+          {
+            "source": "packages/snapback2/src/store/range-store.ts",
+            "sha256": "3070abb94093432c21c84822c3dc11c5fbdbf58c117559753dfb5f4dd9512ef6"
+          }
+        ],
+        "network": {
+          "network": [
+            {
+              "path": "/api/auth/me",
+              "method": "GET",
+              "operations": [],
+              "requests": 1,
+              "completed": 1,
+              "failed": 0,
+              "sumDurationMs": 3.057,
+              "medianDurationMs": 3.057,
+              "encodedBytes": 378
+            },
+            {
+              "path": "/api/manifest",
+              "method": "GET",
+              "operations": [],
+              "requests": 4,
+              "completed": 4,
+              "failed": 0,
+              "sumDurationMs": 100.275,
+              "medianDurationMs": 26.03,
+              "encodedBytes": 40544
+            },
+            {
+              "path": "/api/program",
+              "method": "GET",
+              "operations": [],
+              "requests": 1,
+              "completed": 1,
+              "failed": 0,
+              "sumDurationMs": 59.798,
+              "medianDurationMs": 59.798,
+              "encodedBytes": 399732
+            },
+            {
+              "path": "/api/resume",
+              "method": "POST",
+              "operations": [],
+              "requests": 1,
+              "completed": 1,
+              "failed": 0,
+              "sumDurationMs": 16.082,
+              "medianDurationMs": 16.082,
+              "encodedBytes": 775
+            },
+            {
+              "path": "/api/query",
+              "method": "POST",
+              "operations": [
+                "groups.mine"
+              ],
+              "requests": 94,
+              "completed": 94,
+              "failed": 0,
+              "sumDurationMs": 526.943,
+              "medianDurationMs": 5.611,
+              "encodedBytes": 118358
+            },
+            {
+              "path": "/api/query",
+              "method": "POST",
+              "operations": [
+                "messages.inbox"
+              ],
+              "requests": 42,
+              "completed": 42,
+              "failed": 0,
+              "sumDurationMs": 1155.165,
+              "medianDurationMs": 26.561,
+              "encodedBytes": 12166265
+            },
+            {
+              "path": "/api/live",
+              "method": "POST",
+              "operations": [],
+              "requests": 1,
+              "completed": 1,
+              "failed": 1,
+              "sumDurationMs": 24177.618,
+              "medianDurationMs": 24177.618,
+              "encodedBytes": 0
+            },
+            {
+              "path": "/api/live/control",
+              "method": "POST",
+              "operations": [],
+              "requests": 3,
+              "completed": 3,
+              "failed": 1,
+              "sumDurationMs": 42.442,
+              "medianDurationMs": 14.094,
+              "encodedBytes": 672
+            },
+            {
+              "path": "/api/mutation",
+              "method": "POST",
+              "operations": [
+                "_delivery.deliveries.ack"
+              ],
+              "requests": 138,
+              "completed": 138,
+              "failed": 0,
+              "sumDurationMs": 7061.145,
+              "medianDurationMs": 50.492,
+              "encodedBytes": 680875
+            }
+          ],
+          "limitations": "Loading durations overlap CPU and other requests; response notification deltas are not reliable wire-stage subtraction. Live/control cancellation is the intentional owner cut. No headers or request contents retained here."
+        },
+        "analysisHelperSha256": "fa56b454f09f8f9adae1902582e3453b49822c06297b0f1ef6468eba93500534",
+        "retainedPrefix": "evidence/sub3-20260912-bearer-profile-combinedda44-01",
+        "interpretation": "Instrumented diagnostic only. CPU parent and child costs overlap. Network durations overlap CPU and each other and do not measure native execution time.",
+        "sample": {
+          "experiment": "sub3-20260912-bearer-profile-combinedda44-01",
+          "variant": "combined-native8-clientda44-cpu-diagnostic",
+          "instrumented": true,
+          "diagnosticOnly": true,
+          "cohortQualified": false,
+          "startedAt": "2026-09-12T09:52:03.999Z",
+          "finishedAt": "2026-09-12T09:52:46.262Z",
+          "phaseMs": {
+            "firstInbox": 1220.3571119999997,
+            "durableContent": 15647.192904,
+            "acknowledgementsSettled": 24839.612493,
+            "firstUseStarted": 24867.631383,
+            "firstOfflineHistory": 2.1000003814697266,
+            "firstOfflineSearch": 2.6000003814697266,
+            "fullEndpoint": 24880.749746999998,
+            "physicalReopen": 6063.767415000002,
+            "ownerStop": 167.09379199999967
+          },
+          "oracles": {
+            "primaryPass": true,
+            "contentPass": true,
+            "firstUsePass": true,
+            "historyState": "partial",
+            "historyConnection": "offline",
+            "searchState": "held",
+            "searchConnection": "offline",
+            "ackPostPass": true,
+            "ackSettlement": {
+              "stopped": false,
+              "remaining": 0
+            },
+            "fullRowHashPass": true,
+            "messageCount": 10008,
+            "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+            "matchesOwnerMessages": true,
+            "ownerReceipts": {
+              "total": 10008,
+              "received": 10008,
+              "unreceived": 0
+            },
+            "reopenPass": true,
+            "reopenEqualMessages": true,
+            "reopenEqualThread": true,
+            "reopenEqualSearch": true
+          },
+          "shutdown": {
+            "status": 0,
+            "processGone": true,
+            "error": null
+          },
+          "applicationRowsUnchangedDuringSetup": true,
+          "hashes": {
+            "ownerSha": "6ee1761590e46ec2ab592ffac2f5a5185139a12a99585342cec4109e25762ca3",
+            "runtimeSha": "506c9d419d9beaea3b0f3213dd6b0718a82fedce4cd5241165fc7e4192791b65",
+            "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "appSha": "595e9179c6cf812c41adacb3536e84ef2829524ee6b5c730f0bf05ce10107942",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "harnessSha256": "7e67509bd2a7fbee287645821003509b07e1e055b9d37c3448b5a518e1cfa531",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "resultSha256": "b9ad9f123b74f8d986f64738a68d1424b6a64f531a42e72ed120c4c81c8e84ca"
+          },
+          "error": null,
+          "primaryError": null
+        }
+      }
     }
   }
 }
