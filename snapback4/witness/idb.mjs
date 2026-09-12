@@ -13,7 +13,10 @@ const witness = await launch({ seed: [
   ...Array.from({ length: 300 }, (_, n) => ({ table: "messages", row: { id: `seed${String(n).padStart(4, "0")}`, conversationId: "c1", authorId: n % 2 ? "dev:alice" : "dev:bob", body: `seed ${n}`, at: 1_700_000_000_000 + n, editedAt: null, photo: null } })),
 ] });
 const { page, api } = witness;
-const out = { chromium: witness.chromium };
+const out = { chromium: witness.chromium, pageErrors: [] };
+// Nothing the client does may surface as an unhandled error in the page:
+// a refused prediction is `failed` on the card, not a pageerror.
+page.on("pageerror", (error) => out.pageErrors.push(String(error.message ?? error)));
 try {
   // First session: sync into IndexedDB, read locally, send while offline (a
   // blocked fetch), then leave the page with the write queued.
@@ -25,6 +28,10 @@ try {
     const thread = await client.query({ kind: "query", name: "thread" }, { conversationId: "c1" });
     const inbox = await client.query({ kind: "query", name: "inbox" }, {});
     const state = await client.replica.state();
+    // A refused prediction (a stranger's send) is `failed`, typed, with no page error.
+    const stranger = await window.createLocalClient({ url: api, persona: "mallory", waitSeconds: 1, fetch: (...args) => window.fetch(...args) });
+    const refused = await stranger.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "not a member" });
+    await stranger.close();
     // Go offline: every fetch fails from here.
     const realFetch = window.fetch;
     window.fetch = () => Promise.reject(new TypeError("offline"));
@@ -32,7 +39,7 @@ try {
     const local = await client.query({ kind: "query", name: "thread" }, { conversationId: "c1" });
     window.fetch = realFetch;
     await client.close();
-    return { syncMs: +synced.toFixed(1), threadRows: thread.data.length, threadComplete: thread.complete, next: !!thread.next, count: inbox.data[0].count, watermark: state.watermark, write: write.state, pendingLocally: local.data[0].pending === true, localFresh: local.fresh };
+    return { syncMs: +synced.toFixed(1), threadRows: thread.data.length, threadComplete: thread.complete, next: !!thread.next, count: inbox.data[0].count, watermark: state.watermark, write: write.state, pendingLocally: local.data[0].pending === true, localFresh: local.fresh, refused: refused.state === "failed" ? refused.why?.code : refused.state };
   }, api);
   Object.assign(out, { first });
   // Second session: a fresh page on the same origin opens the same
@@ -58,7 +65,7 @@ try {
     return { rowsInIdbBeforeOpen: rows, reopenMs: +reopened.toFixed(1), landed: thread.data[0]?.body === "queued while offline" && !thread.data[0].pending, watermark: state.watermark };
   }, api);
   Object.assign(out, { second });
-  out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && second.rowsInIdbBeforeOpen > 300 && second.landed && second.watermark > first.watermark;
+  out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && first.refused === "NOT_MEMBER" && second.rowsInIdbBeforeOpen > 300 && second.landed && second.watermark > first.watermark && out.pageErrors.length === 0;
 } finally {
   await witness.close();
 }

@@ -421,6 +421,11 @@ pub fn why(options: &Options) -> i32 {
         }
         return 0;
     }
+    if subject.starts_with("E_") || subject.starts_with("N_") {
+        // A guessed code: name the real ones.
+        eprintln!("{subject} is not a refusal code. A unique clash, a cap, an immutable column or a text format is E_CONSTRAINT; a program's own `require .. else CODE` codes are the program's. The codes: {}", crate::guide::CODES.join(", "));
+        return 1;
+    }
     eprintln!("nothing named {subject}: not a refusal code, an operation, or a table");
     1
 }

@@ -200,6 +200,10 @@ Operations in schema.q are called by name (`api.thread`); operations in
 }
 
 /// A refusal code, explained.
+/// Every refusal code `why` explains; a program's own `require` codes are
+/// the author's and are explained by the program.
+pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFLICT", "E_CONSTRAINT", "E_FANOUT", "E_BOUND", "E_OP", "E_STORE", "E_GENERATION", "E_OFFLINE", "E_PREDICT", "E_QUARRY_SYNTAX", "E_TYPE", "N_NEVER_COMPLETE"];
+
 pub fn explain_code(code: &str) -> Option<String> {
     let text = match code {
         "E_INPUT" => "family input — an argument or a row value does not fit its declared type. The message names the field; fix the value or the declaration.",
@@ -209,11 +213,15 @@ pub fn explain_code(code: &str) -> Option<String> {
         "E_CONFLICT" => "family constraint — `update .. if` found the row changed; the failed write carries the current row. Read it and retry with a fresh edit.",
         "E_CONSTRAINT" => "family constraint — a unique index, a cap, an immutable column, an append-only table, a text format or an after-insert postcondition refused the write. The message names which.",
         "E_FANOUT" => "family bound — a loop received more items than its declared bound.",
-        "E_BOUND" => "family bound — the meter cut a mutation: the message names the meter, the actual count, the ceiling and the site. Read a smaller page, add an index, or move the sweep into a job.",
+        "E_BOUND" => "family bound — the meter cut a mutation: the message names the meter, the ceiling and the site (never the count: it would measure rows the viewer may not read). Read a smaller page, add an index, or move the sweep into a job.",
         "E_OP" => "family op — no such operation, or a query called as a mutation.",
         "E_STORE" => "family store — SQLite failed; retryable.",
         "E_GENERATION" => "family generation — the schema changed under a queued write; the client re-sends under the new generation.",
         "E_QUARRY_SYNTAX" => "the parser could not read this line; the rewrite is a canonical spelling.",
+        "E_TYPE" => "family input — a Quarry expression has the wrong type for its position; the diagnostic names both types and a rewrite.",
+        "E_OFFLINE" => "family link — the client could not reach the server; retryable. A local-first read still answers from the device with `fresh: false` and `since`; a write waits as `pending` and lands when the link returns.",
+        "E_PREDICT" => "family input — the device could not predict this mutation locally (a read it needs is not on the device); the write is queued without local rows and the server judges it.",
+        "N_NEVER_COMPLETE" => "a note, not an error — a page whose read rule reads a column the scan does not pin is `complete: false` on the server whatever it finds; the note names the index that would decide it, or read the page on the device.",
         "E_QUARRY_TYPE" => "a value meets a declaration of another type; the message names both.",
         "E_QUARRY_UNKNOWN" => "a name is not declared; the rewrite suggests the nearest one.",
         "E_QUARRY_AMBIGUOUS" => "two indexes match a key; add `by index`.",

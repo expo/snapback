@@ -644,3 +644,27 @@ The lane also chose Node 25 from its login shell over the overlay's Node
 24 and switched to the absolute path — the launcher prepends it, codex's
 shell does not inherit that; recorded as environment. M1's iOS Hermes
 bundle exported cleanly on the lane's npm install.
+
+## 2026-09-12 — two more from the lane's second hour; 0.0.4
+
+- **A refused prediction surfaced as a page error.** On IndexedDB, a
+  mutation the device refuses while predicting (a `require`, a unique
+  clash) aborted the transaction on purpose, and the abort's rejection
+  reached the page unhandled ("pageerror aborted") beside the `failed`
+  write on the card. The lane attributed it to Snapback 4 and moved
+  profile writes to the online client. The store now owns that rejection;
+  `read` aborts on a thrown body too. A second one behind it: a client
+  closed while a sync was in flight tried a transaction on a closing
+  database. `Replica.close` now waits for the follow loop, and a sync
+  after close is a no-op. The Chromium witness records every page error
+  and requires none, with a stranger's refused send on IndexedDB in the
+  run.
+- **Killing the CLI wrapper did not stop the server.** `bin/snapback4.js`
+  used `spawnSync`; a SIGTERM to the wrapper left the binary on its port
+  ("Address already in use" on the lane's restart). The wrapper now
+  forwards SIGINT/SIGTERM/SIGHUP and exits as the binary does.
+- `snapback4 why E_UNIQUE` (the lane's guess) now names the real codes
+  and says a unique clash is `E_CONSTRAINT`; `why` explains `E_OFFLINE`,
+  `E_PREDICT`, `E_TYPE` and the `N_NEVER_COMPLETE` note too.
+- Published `snapback4@0.0.4`. The lane keeps its exact pin (0.0.2); the
+  loop bar and the next runs take the latest.
