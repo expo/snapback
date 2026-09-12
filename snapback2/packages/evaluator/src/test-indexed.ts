@@ -1313,7 +1313,7 @@ console.log('standalone typed endpoint, suffix, proof isolation, replacement and
 // Sparse authenticated images and materialized execution values have distinct, exact meanings.
 {
   const imageSchema = structuredClone(schema);
-  Object.assign(imageSchema.tables.messages.columns, { notes: { Json: { max_bytes: 4096 } },
+  Object.assign(imageSchema.tables.messages.columns, { notes: { Json: { max_bytes: 4096 } },'2': { Optional: 'Int' },'10': { Optional: 'Int' },
     photo: { Optional: { Image: { max: 1000000 } } },tags: { List: { max: 4,of: { Optional: { Text: { max: 20 } } } } },
     '\uE000': { Optional: { Text: { max: 20 } } },'\u{10000}': { Optional: { Text: { max: 20 } } } });
   // Actual asset spelling from frozen final26c9 asset-valid-video-list-insert; this new row/schema is a synthetic unit input.
@@ -1321,12 +1321,12 @@ console.log('standalone typed endpoint, suffix, proof isolation, replacement and
   Object.defineProperty(imageSchema.tables.messages.columns,'__proto__',{ value: { Optional: { Text: { max: 20 } } },enumerable: true });
   const input: any = { id: 'image',room: 'r',body: 'Cafe\u0301',at: 1,
     notes: { '\u{10000}': [null,{ Bytes: 'not a byte variant',nested: null }],'\uE000': { omittedInside: [] } },
-    tags: [null,'word'],photo: { id: asset,width: 1920,height: 1080 },'\u{10000}': null };
+    tags: [null,'word'],photo: { id: asset,width: 1920,height: 1080 },'2': null,'\u{10000}': null };
   const original = JSON.parse(JSON.stringify(input)), held = new ClientStore(imageSchema);
   const image = prepareWireRow(imageSchema,'messages',Object.freeze(input)); held.put('messages',image);
   assert.equal(held.byId('messages','image'),image,'unchanged execution borrows the same deeply owned image');
   assert.equal(Object.hasOwn(image.Row,'__proto__'),true); assert.equal(image.Row.__proto__,'Null');
-  assert.equal(image.Row.caption,'Null'); assert.equal(image.Row['\uE000'],'Null');
+  for (const name of ['caption','\uE000','10','2']) assert.equal(image.Row[name],'Null');
   assert.equal(imageCanonical(image),imageCanonical(original),'UTF-16 canonical image order and omission are unchanged');
   assert.deepEqual(JSON.parse(JSON.stringify(imageWire(image))),original,'nested JSON/map/list/media keys and nulls roundtrip exactly');
   assert.deepEqual([...assetIdsIn(image)],[asset]); assert.deepEqual([...assetIdsIn(original)],[asset]);

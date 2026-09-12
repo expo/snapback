@@ -16374,7 +16374,7 @@
     },
     "imageAndJournalExperiment": {
       "base": "70f7c2e2948e3d0add9d1664c2796bce5cd2d1b2",
-      "status": "candidate; full unchanged endpoint comparison pending",
+      "status": "retain small CPU deletions; one descriptive full-workload pair passes; sub-three-second goal and qualifying cohort remain open",
       "changes": [
         "Retain bounded omitted schema field names instead of ordinals, deleting repeated wire reconstruction sorting",
         "Promote journal COW copy through existing proxy unwrap; retain recursive raw() for arbitrary assignments"
@@ -16406,12 +16406,31 @@
             "path": "/tmp/acquisition-image-cow-evaluator.log",
             "bytes": 3570,
             "sha256": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f"
+          },
+          "finalNumericArtifact": {
+            "path": "/tmp/acquisition-image-cow-evaluator-final.log",
+            "bytes": 3570,
+            "sha256": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f"
           }
         },
         "build": {
           "path": "/tmp/acquisition-image-cow-build.log",
           "bytes": 277,
           "sha256": "4212e002c75ed0c7a686723c107fd45bfdf98dedc53d5130aa4d2dcffc778d74"
+        },
+        "refs": {
+          "path": "/tmp/acquisition-image-cow-ref-check.log",
+          "bytes": 80,
+          "sha256": "fc4691f6eda8893afc5842c17a0a19d17ecc6ba10de89bff68304275a059c9ec"
+        },
+        "caps": {
+          "result": "inherited Snapback1 oversize failure205vs204; affected Snapback2 source<=1500",
+          "artifact": {
+            "path": "/tmp/acquisition-image-cow-caps-final.log",
+            "bytes": 623,
+            "sha256": "df1e3d18e54388fae9aa9ebaae12ee92024c40a430b064a72317b0ee573bf4c5"
+          },
+          "firstAttempt": "Numeric fixture addition temporarily made test-indexed.ts1502 lines; folded parallel assertions/fixture fields into existing compact form, now1499; original failure log retained"
         }
       },
       "archive": {
@@ -16445,7 +16464,414 @@
           "Strict ranges and typed absences retain validation",
           "Per-frame refusal order remains unchanged"
         ]
-      }
+      },
+      "source": "4e545d525e3e6eb8bfce20536a26522f4dec50f2",
+      "pair": {
+        "artifact": {
+          "path": "/tmp/acquisition-20260912-image-cow-samples.json",
+          "bytes": 15198,
+          "sha256": "169cb23e4b702e36d5a0c4a75caa47d3dcfacd8f08ad3d85480f785f7eb6c11b"
+        },
+        "observation": {
+          "kind": "Sequential adjacent primary-harness observations; not a qualifying cohort",
+          "endpoint": "Navigation to durable 10008-message content, settled earned acknowledgements, first owner-cut offline history/search; full row hash and physical reopen verified afterward.",
+          "fixedInputs": {
+            "ownerSha256": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+            "mediaSha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+            "compilerCoreSha256": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+            "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+            "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+            "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+            "sessionHelperSourceSha256": "7b0817643def0993d7f8e1a6cdd4dcda49e33693be60f7a7047d8d3f79bc580c",
+            "sessionHelperBinarySha256": "e178b2bd94cb9b1382e260a5511a250ac889b1dd3acf675d39c286d5d18dea2e"
+          },
+          "authScope": "Ordinary finite dev bearer session for existing dev:alice fixture principal, prepared on stopped disposable copy before clock; no serve/live-account signup qualification.",
+          "unchangedScope": {
+            "messages": 10008,
+            "conversations": 100,
+            "memberships": 199,
+            "initialReceiptsTrue": 4450,
+            "initialReceiptsFalse": 5558,
+            "freshCommittedTerminals": 201,
+            "freshEmptyTerminals": 89,
+            "freshEffects": 5558
+          },
+          "instrumented": false,
+          "physicalPacking": false,
+          "networkCounts": "Not collected by original primary endpoint; no observer was added.",
+          "samples": [
+            {
+              "experiment": "sub3-20260912-bearer-image-cow-control-01",
+              "variant": "control-fragments90000-original-primary",
+              "startedAt": "2026-09-12T13:10:08.248Z",
+              "finishedAt": "2026-09-12T13:10:42.519Z",
+              "instrumented": false,
+              "firstInboxMs": 1103.3263150000002,
+              "coldSyncedMs": 15501.801151,
+              "ackCompleteMs": 16890.991569,
+              "completeAcquisitionMs": 16928.637181000002,
+              "primaryPass": true,
+              "contentPass": true,
+              "ackPostPass": true,
+              "fullRowHashPass": true,
+              "ownerReceipts": {
+                "total": 10008,
+                "received": 10008,
+                "unreceived": 0
+              },
+              "stop": 0,
+              "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+              "runtimeSha": "78742cf01a1516167eb5e4810eba25a36f16b77318161f42d01906eb4bdb0616",
+              "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "appSha": "36fcb6459d0c35eb793ebca873937bffc164d292f266c33970af6b169cd71c05",
+              "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+              "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+              "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+              "error": null,
+              "primaryError": null,
+              "runtimeGzipBytes": 90000,
+              "runtimeCeilingPass": true,
+              "publicationQualified": false,
+              "cohortQualified": false,
+              "resultSha256": "0133182ea7a9cac26f03d1840b1641bba0f0b4cd604591938a0ad07805bdd57e",
+              "moduleHashes": {
+                "dist/client-runtime.mjs": "78742cf01a1516167eb5e4810eba25a36f16b77318161f42d01906eb4bdb0616",
+                "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                "dist/react.mjs": "6e9a814b241e529c79067be0c0c59555a6a18fd63b20057edf198fef333028ea",
+                "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+                "dist/image-runtime.mjs": "90e10a6b501b420643bcd6335d7c8c2c9c8d4dcdc0085119823b9d15fba72dd8"
+              },
+              "firstUsePass": true,
+              "firstOfflineHistoryMs": 1.4000015258789062,
+              "firstOfflineSearchMs": 1.7999992370605469,
+              "reopenPass": true,
+              "reopenMs": 6099.587621999999,
+              "reopenIdentityPass": true,
+              "messageCount": 10008,
+              "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+              "fixtureRowsUnchangedDuringSetup": true,
+              "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+              "ownerPidGone": true,
+              "ownerStopMs": 291.80539399999543,
+              "freshTerminalCount": 201,
+              "freshTerminalHistogram": [
+                {
+                  "state": "committed",
+                  "effects": 0,
+                  "count": 89
+                },
+                {
+                  "state": "committed",
+                  "effects": 8,
+                  "count": 1
+                },
+                {
+                  "state": "committed",
+                  "effects": 50,
+                  "count": 111
+                }
+              ],
+              "freshActualEffects": 5558,
+              "exactAcknowledgementWorkloadPass": true,
+              "arm": "fragments-control",
+              "clientSource": "5060a547427238f874e8be71f16e87a26be381cf",
+              "clientArchiveSha256": "4ea0114ae0b000864f5a8db91216afed97be982596b9cc4983634ce9785455a8",
+              "startedLoad": [
+                0.07,
+                0.11,
+                0.15
+              ],
+              "finishedLoad": [
+                1.09,
+                0.37,
+                0.24
+              ],
+              "postflight": {
+                "load": [
+                  0.92626953125,
+                  0.365234375,
+                  0.24169921875
+                ],
+                "browserOwners": []
+              },
+              "pageErrorCount": 0,
+              "logicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "reopenLogicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "remoteResultPath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-image-cow-control-01.json"
+            },
+            {
+              "experiment": "sub3-20260912-bearer-image-cow-01",
+              "variant": "candidate-image-cow89998-original-primary",
+              "startedAt": "2026-09-12T13:11:27.962Z",
+              "finishedAt": "2026-09-12T13:12:01.685Z",
+              "instrumented": false,
+              "firstInboxMs": 1367.8505249999998,
+              "coldSyncedMs": 15285.392238,
+              "ackCompleteMs": 16499.358356,
+              "completeAcquisitionMs": 16544.790827,
+              "primaryPass": true,
+              "contentPass": true,
+              "ackPostPass": true,
+              "fullRowHashPass": true,
+              "ownerReceipts": {
+                "total": 10008,
+                "received": 10008,
+                "unreceived": 0
+              },
+              "stop": 0,
+              "ownerSha": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+              "runtimeSha": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+              "compilerSha": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+              "appSha": "29e141a2196aad0e2fd9539592802e0fb2f4f40ab5cf8716868d786221312e0e",
+              "harnessSha256": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+              "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+              "firstUseOracleSha256": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+              "error": null,
+              "primaryError": null,
+              "runtimeGzipBytes": 89998,
+              "runtimeCeilingPass": true,
+              "publicationQualified": false,
+              "cohortQualified": false,
+              "resultSha256": "20dd77def8c99158f739477fd119182efd6c2a5dedb9a75a7c37f8e4fea1f200",
+              "moduleHashes": {
+                "dist/client-runtime.mjs": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92",
+                "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                "dist/react.mjs": "6e9a814b241e529c79067be0c0c59555a6a18fd63b20057edf198fef333028ea",
+                "dist/react-core.mjs": "24bcaaf9a111b2cc1f021e0b6f28a87b663284e0445ac2bdb44c422a575a9763",
+                "dist/image-runtime.mjs": "cb1758e47d91e0cc5d8ff56d5c7848eafb042e5c7052460d1f99ca3d584ecd4e"
+              },
+              "firstUsePass": true,
+              "firstOfflineHistoryMs": 1.3999996185302734,
+              "firstOfflineSearchMs": 1.7000007629394531,
+              "reopenPass": true,
+              "reopenMs": 6073.747474,
+              "reopenIdentityPass": true,
+              "messageCount": 10008,
+              "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+              "fixtureRowsUnchangedDuringSetup": true,
+              "fixtureRowsSha256": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+              "ownerPidGone": true,
+              "ownerStopMs": 156.73118899999827,
+              "freshTerminalCount": 201,
+              "freshTerminalHistogram": [
+                {
+                  "state": "committed",
+                  "effects": 0,
+                  "count": 89
+                },
+                {
+                  "state": "committed",
+                  "effects": 8,
+                  "count": 1
+                },
+                {
+                  "state": "committed",
+                  "effects": 50,
+                  "count": 111
+                }
+              ],
+              "freshActualEffects": 5558,
+              "exactAcknowledgementWorkloadPass": true,
+              "arm": "image-cow",
+              "clientSource": "4e545d525e3e6eb8bfce20536a26522f4dec50f2",
+              "clientArchiveSha256": "d61ca6f06cbd8b185fd491c6132550b6f04fe22dfe2e573ca8ab84e2939b0577",
+              "startedLoad": [
+                0.63,
+                0.35,
+                0.24
+              ],
+              "finishedLoad": [
+                1.11,
+                0.51,
+                0.3
+              ],
+              "postflight": {
+                "load": [
+                  0.8671875,
+                  0.48583984375,
+                  0.2939453125
+                ],
+                "browserOwners": []
+              },
+              "pageErrorCount": 0,
+              "logicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "reopenLogicalCounts": {
+                "rows": 20216,
+                "answers": 203,
+                "outbox": 112,
+                "meta": 50912
+              },
+              "remoteResultPath": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/evidence/sub3-20260912-bearer-image-cow-01.json"
+            }
+          ],
+          "failures": [],
+          "adjacentDifferences": [
+            {
+              "control": "fragments-control",
+              "candidate": "image-cow",
+              "candidateMinusControlMs": {
+                "coldSyncedMs": -216.4089129999993,
+                "ackCompleteMs": -391.633213000001,
+                "completeAcquisitionMs": -383.84635400000116
+              }
+            }
+          ],
+          "candidateManifestSha256": "a1a6a9e5b08ec6b9ed3abb4b7087fe72e48bff68046bda4765032af92f62f870",
+          "candidateManifest": {
+            "base": "70f7c2e2948e3d0add9d1664c2796bce5cd2d1b2",
+            "source": "4e545d525e3e6eb8bfce20536a26522f4dec50f2",
+            "archive": {
+              "path": "/tmp/acquisition-20260912-candidate-image-cow-dist.tar.gz",
+              "bytes": 1400471,
+              "sha256": "d61ca6f06cbd8b185fd491c6132550b6f04fe22dfe2e573ca8ab84e2939b0577"
+            },
+            "runtime": {
+              "path": "/Users/ccheever/projects/snapback-worktrees/clique-feed-residual/snapback2/packages/snapback2/dist/client-runtime.mjs",
+              "bytes": 310916,
+              "sha256": "a5e5ac03be492f6d6ac4b81b9fb529b8a8a012ed7dee190448034cabab1e9e92"
+            },
+            "imageRuntime": {
+              "path": "/Users/ccheever/projects/snapback-worktrees/clique-feed-residual/snapback2/packages/snapback2/dist/image-runtime.mjs",
+              "bytes": 68127,
+              "sha256": "cb1758e47d91e0cc5d8ff56d5c7848eafb042e5c7052460d1f99ca3d584ecd4e"
+            },
+            "tests": {
+              "path": "/tmp/acquisition-image-cow-tests.log",
+              "bytes": 55569,
+              "sha256": "f59d5377c387c3d299ab9f8be3c9e98295adb7c03c2b48008e7fb8c68ef0d807"
+            },
+            "evaluator": {
+              "path": "/tmp/acquisition-image-cow-evaluator.log",
+              "bytes": 3570,
+              "sha256": "b4ba21929dbf6e0ce80b2ee6bc6a120538dd0b49c2aa1a8a8cc7e91fedc96d2f"
+            },
+            "build": {
+              "path": "/tmp/acquisition-image-cow-build.log",
+              "bytes": 277,
+              "sha256": "4212e002c75ed0c7a686723c107fd45bfdf98dedc53d5130aa4d2dcffc778d74"
+            },
+            "measurement": {
+              "path": "/tmp/acquisition-image-cow-bytes.log",
+              "bytes": 2044,
+              "sha256": "b7e167494549be99a196eac341ed39155576b9bb0e76933116225e0dedfbb471"
+            }
+          },
+          "preflightFiles": {
+            "sub3-20260912-image-cow-preflight.json": {
+              "sha256": "93a11efb4cfaf93e7871005201c76a33f0dccb41beeb5c139718414d93085f3f",
+              "contents": {
+                "at": "2026-09-12T13:06:36.919702+00:00",
+                "host": "expose-builder-pixel-a",
+                "load": [
+                  0.1123046875,
+                  0.14208984375,
+                  0.171875
+                ],
+                "cpus": 12,
+                "browserOwners": [],
+                "recordedHandles": [
+                  {
+                    "experiment": "sub3-20260912-bearer-fragments-01",
+                    "ownerPid": 13886,
+                    "pidPresent": false,
+                    "recordedStopStatus": 0
+                  },
+                  {
+                    "experiment": "sub3-20260912-bearer-aligned-query-four-01",
+                    "ownerPid": 15142,
+                    "pidPresent": false,
+                    "recordedStopStatus": 0
+                  },
+                  {
+                    "experiment": "sub3-20260912-bearer-fragments-02",
+                    "ownerPid": 17848,
+                    "pidPresent": false,
+                    "recordedStopStatus": 0
+                  },
+                  {
+                    "experiment": "sub3-20260912-bearer-aligned-query-four-02",
+                    "ownerPid": 19012,
+                    "pidPresent": false,
+                    "recordedStopStatus": 0
+                  }
+                ],
+                "hashes": {
+                  "harness": "ed748dca1db4853adeef89163ab0a9d65420ebe2eb93b590b915e6089b8c0131",
+                  "owner": "2d692ea6594775ef69143f85e41abd5b126b474987c0c69d5c29ccc6397453e2",
+                  "media": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+                  "compiler": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+                  "controlArchive": "4ea0114ae0b000864f5a8db91216afed97be982596b9cc4983634ce9785455a8",
+                  "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+                  "browser": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5"
+                },
+                "fixtureTableCounts": {
+                  "messages": 10008,
+                  "deliveries": 10008,
+                  "receipts": null,
+                  "memberships": 199,
+                  "conversations": 100
+                },
+                "controlSource": "5060a547427238f874e8be71f16e87a26be381cf",
+                "controlModuleHashes": {
+                  "dist/client-runtime.mjs": "78742cf01a1516167eb5e4810eba25a36f16b77318161f42d01906eb4bdb0616",
+                  "dist/client.mjs": "24a275a393a557b34685aeac36a65fe1417a29830a8ba87fdec04ca438200565",
+                  "dist/react.mjs": "6e9a814b241e529c79067be0c0c59555a6a18fd63b20057edf198fef333028ea",
+                  "dist/image-runtime.mjs": "90e10a6b501b420643bcd6335d7c8c2c9c8d4dcdc0085119823b9d15fba72dd8"
+                },
+                "candidateStatus": "Waiting for artifact and tests; neither comparison run launched"
+              }
+            },
+            "sub3-20260912-image-cow-preflight-receipts.json": {
+              "sha256": "3d6a0705083058f1b67f81c3d1b05d46fc359460bac8b417446ef0771906db77",
+              "contents": {
+                "receiptTable": "deliveriesReceipts",
+                "total": 10008,
+                "received": 4450,
+                "unreceived": 5558,
+                "note": "The preflight receipts:null field was a generic table-name lookup; actual receipt table is deliveriesReceipts."
+              }
+            },
+            "sub3-20260912-image-cow-launch-preflight.json": {
+              "sha256": "539e5abbb8cce04f0238e1e2e7ffc21845b3a57a0dbb74d49a2ac5e5f206cc58",
+              "contents": {
+                "load": [
+                  0.1435546875,
+                  0.12890625,
+                  0.162109375
+                ],
+                "cpus": 12,
+                "browserOwners": []
+              }
+            }
+          }
+        }
+      },
+      "review": {
+        "agent": "/root/review",
+        "verdict": "no material findings in final omission names and existing-proxy promotion",
+        "readOnlyAdditionalWitness": "729 absent/null/value combinations over numeric, Unicode and hostile keys; no source edits; exact wire/canonical/Map/equality/reprepare checks",
+        "followup": "Numeric2/10 omission vs explicit-null now included in existing evaluator fixture"
+      },
+      "scopeLimits": [
+        "One adjacent pair only; no statistical or publication qualification",
+        "Fixed TCP owner does not include subsequent native primary-lookup increment",
+        "No receipt work, first offline-use cost or physical correctness oracle omitted"
+      ]
     }
   }
 }
