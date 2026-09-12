@@ -837,3 +837,18 @@ Three fresh Astra sessions at medium, serial, each on the published
   needs the server to open, and says so. The end-to-end test restarts a
   SQLite-backed device with every fetch failing.
 - Published `snapback4@0.0.14`.
+
+## 2026-09-12 — from the lane's M8; 0.0.15
+
+- **A reference key was "ambiguous" with `byId`.** `upsert likesCount[postId]`
+  on a table with a unique key over a reference matched two indexes
+  (an id compares with a reference), and the rewrite named the wrong one.
+  When candidates differ only in that way, the index whose column types
+  are the key's own types is the one meant, and is chosen.
+- **`snapback4 data` beside a running `dev` raced its schema adoption on
+  the catalog** (`UNIQUE constraint failed: _catalog.name`) and the
+  adoption failed. `install` now takes the write lock first and re-reads
+  the catalog under it, and every store waits up to five seconds for a
+  lock instead of failing at once.
+- The README wrote `sum messages.x by ..`; the grammar is `sum <table> of
+  <column> by ..`. Published `snapback4@0.0.15`.

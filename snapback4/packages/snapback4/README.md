@@ -135,10 +135,11 @@ mutation edit(messageId: messages, body: text <=4000):
 
 ### Maintains
 
-`maintain counts: count messages by conversationId` (or `sum messages.x
-by ...`) keeps an aggregate table the engine writes: columns are the `by`
-columns and `value`, the id is the group's canonical key, programs read it
-by group (`counts[conversationId]`, `counts[.conversationId]` in a shape).
+`maintain counts: count messages by conversationId` (or `maintain totals:
+sum posts of score by authorId`) keeps an aggregate table the engine
+writes: columns are the `by` columns and `value`, the id is the group's
+canonical key, programs read it by group (`counts[conversationId]`,
+`counts[.conversationId]` in a shape).
 It takes its own `read` rule and inherits the source's `sync` when it
 groups by the audience columns.
 
