@@ -2,6 +2,7 @@
 
 Schema: `snapback/schema.q`. Programs/shapes: `snapback/<module>.q`.
 TypeScript is for seeds, tests and effects.
+`shape`, `fn`, `proc`, and `cursor` are reserved bindings.
 Use `snapback2 guide <keyword>` for a focused card. Quarry comments start with
 `--`; `#` and `//` refusals rewrite to that spelling.
 

@@ -221,7 +221,14 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     let quarry = normalize(include_str!("../../../packages/snapback2/guide/expressions.md"));
     assert!(quarry.contains("`wordPrefixes(field)` index"));
     assert!(quarry.contains("there is no public `words()` value function"));
-    assert!(quarry.contains("rather than redrawn"));
+    for needle in [
+        "`now` is the query read clock and mutation commit clock",
+        "`commit` is the commit clock",
+        "Both are pinned per request",
+        "`new` allocates per evaluation",
+    ] {
+        assert!(quarry.contains(needle), "expressions lacks {needle}: {quarry}");
+    }
     let search = normalize(include_str!("../../../packages/snapback2/guide/live-query.md"));
     assert!(search.contains("`by bySearch: conversationId, wordPrefixes(body), at, id`"));
     assert!(search.contains("query search(term: text <=128, c: cursor ?):"));
@@ -235,7 +242,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
             "unique",
             "declares a named unique ordering and its uniqueness constraint",
         ),
-        ("immutable", "forbids changes to those columns"),
+        ("immutable", "`immutable a, b` forbids changes"),
         ("public", "accepts an optional reason string"),
         ("merge", "combines distinct"),
         ("shape", "splices"),
@@ -446,9 +453,11 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     let project = Project::new();
     let quarry = project.run(&["guide", "quarry"]);
     assert!(quarry.status.success());
-    assert!(String::from_utf8_lossy(&quarry.stdout).contains("Quarry is the backend language"));
-    assert!(String::from_utf8_lossy(&quarry.stdout)
-        .contains("`check` compiles in memory; inspection goes in\n`.snapback/build/quarry/`, never `snapback/`"));
+    let quarry = String::from_utf8_lossy(&quarry.stdout).split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(quarry.contains("Quarry is the backend language"));
+    assert!(quarry.contains("`check` compiles in memory"));
+    assert!(quarry.contains("inspection goes in `.snapback/build/quarry/`"));
+    assert!(quarry.contains("`snapback/schema.q` holds"));
     for page in ["grammar"] {
         let output = project.run(&["guide", page]);
         assert!(output.status.success(), "{page}");
