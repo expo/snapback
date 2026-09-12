@@ -444,7 +444,7 @@ test("the shipped composite pages online and after a cold offline reopen", async
 
 // @ref LLP 1023.001#acceptance — the grouped consumer traverses the whole
 // membership population; it never treats an empty match slice as exhaustion.
-test("hub guide reaches final membership slice and rich history online and warm/cold offline", { timeout: 60000 }, async (t) => {
+test("hub guide reaches final membership slice, rich history, and exact scheduled digest", { timeout: 120000 }, async (t) => {
   const { mkdtemp, readFile, rm, writeFile } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join, resolve } = await import("node:path");
@@ -456,8 +456,10 @@ test("hub guide reaches final membership slice and rich history online and warm/
   const fieldType = (table: string, name: string) => ({
     id: "id", principal: "principal", creatorId: "principal", authorId: "principal",
     author: "principal", actor: "principal", follower: "principal", followed: "principal",
-    conversationId: "conversations", messageId: "messages", quoteId: "messages ?",
-    at: "time", joinedAt: "time", messageCount: "int", period: "int", target: "principal", newPostsInFollowing: "int",
+    sender: "principal", recipient: "principal", target: "principal",
+    conversationId: "conversations", messageId: "messages", membershipId: "memberships", quoteId: "messages ?",
+    at: "time", sentAt: "time", expiresAt: "time ?", joinedAt: "time", messageCount: "int",
+    period: table === "follows" || table === "messages" ? "time ?" : "time", digestEligible: "bool ?",
     displayName: "text <=50", handle: "text <=20", bio: "text <=200", location: "text <=50",
     title: "text <=120", kind: "enum('group', 'dm')", role: "enum('admin', 'member')",
     body: table === "posts" ? "text <=500" : "text <=2000", emoji: "text <=40",
@@ -472,17 +474,27 @@ const data = {
   personas: people,
   rows: {
     profiles,
-    digests: [{ id: "digest-counter", target: "dev:u0001", period: 1, newPostsInFollowing: 0 }],
+    digestTargets: [{ id: "0000-digest-target", target: "dev:u0001" }],
     conversations: Array.from({ length: 1000 }, (_, n) => ({
       id: "chat-"+key(n), title: "Chat "+key(n), kind: n < 100 ? "group" : "dm",
       creatorId: "dev:u0001", messageCount: n === 999 ? 125 : 0,
     })),
     memberships: [
       { id: "peer-seat", conversationId: "chat-0999", principal: "dev:author", role: "member", joinedAt: 0 },
+      { id: "peer-seat-2", conversationId: "chat-0998", principal: "dev:author", role: "member", joinedAt: 0 },
     ],
     messages: Array.from({ length: 125 }, (_, n) => ({ id: "message-"+key(n),
       conversationId: "chat-0999", authorId: "dev:author", body: "needle "+key(n),
-      quoteId: n === 0 ? null : "message-0000", at: Math.floor(n / 3),
+      quoteId: n === 0 ? null : "message-0000", at: Math.floor(n / 3), period: n === 0 ? 1 : null, expiresAt: null,
+    })).concat(Array.from({ length: 999 }, (_, n) => ({ id: "digest-message-"+key(n),
+      conversationId: "chat-"+key(n), authorId: "dev:author", body: "digest "+key(n),
+      quoteId: null, at: 1, period: 1, expiresAt: n >= 1 && n <= 900 ? 2 : null,
+    }))),
+    periodUnread: Array.from({ length: 1000 }, (_, n) => ({
+      id: "period-unread-"+key(n), messageId: n === 999 ? "message-0000" : "digest-message-"+key(n),
+      sender: "dev:author", recipient: "dev:u0001", conversationId: "chat-"+key(n),
+      membershipId: "chat-"+key(n), period: 1, sentAt: n === 999 ? 0 : 1,
+      expiresAt: n >= 1 && n <= 900 ? 2 : null,
     })),
     reactions: [...Array.from({ length: 125 }, (_, n) => ({ id: "reaction-"+key(n),
       messageId: "message-"+key(n), actor: "dev:u0001", emoji: "👍" })),
@@ -490,7 +502,9 @@ const data = {
         id: "tail-reaction-"+key(n), messageId: "message-0124", actor: "dev:"+name, emoji: "👍",
       }))],
     follows: Array.from({ length: 500 }, (_, n) => ({ id: "follow-"+key(n),
-      follower: "dev:u0001", followed: "dev:follow"+key(n) })),
+      follower: "dev:u0001", followed: "dev:follow"+key(n), period: null, digestEligible: false })).concat([
+        { id: "new-follower", follower: "dev:author", followed: "dev:u0001", period: 1, digestEligible: true },
+      ]),
     posts: [...Array.from({ length: 500 }, (_, n) => ({ id: "post-"+key(n),
       author: "dev:follow"+key(n), body: "post "+key(n), period: 1, at: Math.floor(n / 3) })),
       { id: "own-post", author: "dev:u0001", body: "my post", period: 1, at: 500 }],
@@ -506,16 +520,20 @@ const data = {
         Array.from({ length: batchSize(table) }, (_, i) => "  if n > " + i + ":\n    insert " + table + " { " +
           keys.map(name => name + ": v" + i + "_" + name).join(", ") + " }" +
           (table === "conversations" ? "\n    insert memberships { conversationId: v" + i +
-            "_id, principal: v" + i + "_creatorId, role: 'admin', joinedAt: now }" : "")
+            "_id, id: v" + i + "_id, principal: v" + i + "_creatorId, role: 'admin', joinedAt: now }" : "")
         ).join("\n") + "\n";
     }).join("\n");
     await writeFile(join(root, "snapback/fixtureSetup.q"), setup + `
-mutation erasePost(postId: posts):
-  delete posts[postId]
-  return null
-
-query digestState(target: principal, source: principal, period: int):
-  return { accumulated: digests[target, period], sourceCount: periodPosts[source, period] }
+query digestState(target: principal, source: principal, period: time):
+  return {
+    emitted: digests[target, period] by byTargetPeriod,
+    logged: digestLogs[target, period] by byTargetPeriod,
+    run: digestRuns[target, period] by byTargetPeriod,
+    sourceCount: periodPosts[source, period],
+    periodRevision: digestPeriodVersions[period],
+    recipientRevision: digestRecipientVersions[target],
+    recipientPeriodRevision: digestRecipientPeriodVersions[target, period],
+  }
 
 query postPair(postId: posts):
   return { post: posts[postId], head: postHeads[postId] by byPost }
@@ -541,7 +559,24 @@ query postPair(postId: posts):
     }
   };
   try {
-    const ownerInfo = JSON.parse(await readFile(join(hub.root!, ".snapback/owner.json"), "utf8"));
+    const control = async (path: string, body?: any, identity = "system") => {
+      const info = JSON.parse(await readFile(join(hub.root!, ".snapback/owner.json"), "utf8"));
+      const response = await fetch(hub.url + path, { method: body ? "POST" : "GET",
+        headers: { "content-type": "application/json", "X-Snapback-Control": info.secret },
+        ...(body ? { body: JSON.stringify({ ...body, as: identity }) } : {}) });
+      const value: any = await response.json();
+      assert.ok(response.ok, JSON.stringify(value).slice(0, 1000));
+      return value;
+    };
+    // Setup is deliberately ahead of the owner's clock. Application writes
+    // enter this bucket only after the clock does, and the period schedule is
+    // the sole producer of queueDigestPeriod's exact boundaries.
+    const targetPeriod = Math.ceil((Date.now() + 300000) / 60000) * 60000;
+    let clockOffset = 0;
+    for (const rows of Object.values(setupData.rows) as any[][]) for (const row of rows) {
+      if (row.period === 1) row.period = targetPeriod;
+      if (row.expiresAt === 2) row.expiresAt = targetPeriod + 65000;
+    }
     const setupPlan = (Object.entries(setupData.rows) as Array<[string, any[]]>).flatMap(([table, rows]) =>
       table === "messages" ? [
         [table, rows.slice(0, 120)],
@@ -555,16 +590,12 @@ query postPair(postId: posts):
         for (let i = 0; i < batchSize(table); i++) for (const [name, value] of Object.entries(rows[start+i] ?? rows[0])) {
           args["v" + i + "_" + name] = value;
         }
-        const response = await fetch(hub.url + "/control/execute", {
-          method: "POST", headers: { "content-type": "application/json", "X-Snapback-Control": ownerInfo.secret },
-          body: JSON.stringify({ op: "fixtureSetup." + table, args, as: "system" }),
-        });
-        const result: any = await response.json();
-        assert.ok(response.ok && result.state === "committed", table + ": " + JSON.stringify(result).slice(0, 2000));
+        const result = await control("/control/execute", { op: "fixtureSetup." + table, args });
+        assert.equal(result.state, "committed", table + ": " + JSON.stringify(result).slice(0, 2000));
       }
     }
     await Promise.all([client.ready, author.ready]);
-    const published = await client.mutation(api.feeds.publishPost, { body: "author CRUD", period: 1 });
+    const published = await client.mutation(api.feeds.publishPost, { body: "author CRUD" });
     assert.equal(published.state, "committed");
     const postId = published.data.id;
     const postPair = async () => {
@@ -700,6 +731,30 @@ query postPair(postId: posts):
     assert.deepEqual(rebuilt, [inserted.data.id, ...Array.from({ length: rebuilt.length }, (_, n) =>
       124-n).filter(n => n !== 120).map(n => "message-"+String(n).padStart(4, "0"))].slice(0, rebuilt.length));
     stop(); stop = undefined; pages = undefined;
+
+    // Replacing an existing follow is an eligibility-incarnation change. Do it
+    // before entering the measured period so it cannot create a target-period
+    // new-follower contribution for follow0499.
+    assert.equal((await client.mutation(api.feeds.setFollowing, { followed: "dev:follow0499", following: false })).state, "committed");
+    assert.equal((await client.mutation(api.feeds.setFollowing, { followed: "dev:follow0499", following: true })).state, "committed");
+    const intoTarget = Math.max(0, targetPeriod + 1000 - (Date.now() + clockOffset));
+    await control("/control/clock", { advanceMs: intoTarget }); clockOffset += intoTarget;
+
+    // One current unread survives in chat0998. Its earlier direct/source row
+    // and an earlier real send are excluded by the read mark; a later real
+    // send remains. A third real send is removed by its author before close.
+    assert.equal((await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "read before mark" })).state, "committed");
+    assert.equal((await client.mutation(api.messages.markRead, { conversationId: "chat-0998" })).state, "committed");
+    assert.equal((await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "unread after mark" })).state, "committed");
+    const currentUnread = await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "not expiring" });
+    assert.equal(currentUnread.state, "committed");
+    const refusedExpiry = await control("/control/execute", { op: "messages.expireDigestMessage",
+      args: { messageId: currentUnread.data.id } });
+    assert.equal(refusedExpiry.state, "rejected", "even the operator cannot fire the timer target without a due deadline");
+    assert.equal(refusedExpiry.code, "MESSAGE_NOT_EXPIRING");
+    const removeMe = await author.mutation(api.messages.send, { conversationId: "chat-0998", body: "remove before digest" });
+    assert.equal(removeMe.state, "committed");
+    assert.equal((await author.mutation(api.messages.remove, { messageId: removeMe.data.id })).state, "committed");
     assert.equal((await client.mutation(api.messages.leave, { conversationId: "chat-0999" })).state, "committed");
     const denied = await client.query(api.messages.searchChat, { conversationId: "chat-0999", term: "needle" });
     assert.equal(denied.state, "denied");
@@ -711,34 +766,115 @@ query postPair(postId: posts):
     const revoked = await client.query(api.messages.searchGroups, { term: "needle", membershipCursor: memberships[98].next });
     assert.ok(revoked.state === "partial" || revoked.data.every((group: any) => group.conversation?.id !== "chat-0999"));
     await Promise.all([client.close(), author.close()]);
-    const control = async (path: string, body?: any) => {
-      const info = JSON.parse(await readFile(join(hub.root!, ".snapback/owner.json"), "utf8"));
-      const response = await fetch(hub.url + path, { method: body ? "POST" : "GET",
-        headers: { "content-type": "application/json", "X-Snapback-Control": info.secret },
-        ...(body ? { body: JSON.stringify({ ...body, as: "system" }) } : {}) });
-      const value: any = await response.json();
-      assert.ok(response.ok, JSON.stringify(value).slice(0, 1000));
-      return value;
-    };
-    // This old counter recipe is intentionally NOT advertised as a completed
-    // digest: accumulation lacks final source eligibility, even across restart.
-    const job = await control("/control/job", { op: "digest.digestPass", args: { period: 1 } });
-    const deadline = Date.now() + 5000;
-    while ((await control("/control/job/" + job.id)).state !== "done") {
-      assert.ok(Date.now() < deadline, "counter job completion");
-      await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Crossing the exact boundary is the only job kick. The expiry deadline
+    // is advanced only after this attempt has accumulated rows, so the
+    // owner's 64-timer turns overlap it and cannot act as a completeness
+    // barrier.
+    const acrossBoundary = Math.max(0, targetPeriod + 60001 - (Date.now() + clockOffset));
+    await control("/control/clock", { advanceMs: acrossBoundary }); clockOffset += acrossBoundary;
+    const digestArgs = { target: "dev:u0001", source: "dev:follow0499", period: targetPeriod };
+    const runningDeadline = Date.now() + 15000;
+    let targetJob: any = null;
+    let observedJobs: any[] = [];
+    const scalar = (value: any) => value?.Int ?? value?.Id ?? value;
+    while (targetJob === null || targetJob.chunks < 2 || targetJob.state === "queued") {
+      const jobs = await control("/control/jobs");
+      observedJobs = jobs.jobs;
+      targetJob = jobs.jobs.find((row: any) => row.name === "digest.digestUser" &&
+        scalar(row.args.target) === "dev:u0001" && scalar(row.args.period) === targetPeriod && scalar(row.args.attempt) === 0) ?? null;
+      assert.ok(Date.now() < runningDeadline, "target digest reaches an accumulated chunk: " +
+        JSON.stringify(observedJobs.map((row: any) => ({ name: row.name, args: row.args, state: row.state, chunks: row.chunks })).slice(0, 12)));
     }
-    const digestArgs = { target: "dev:u0001", source: "dev:follow0499", period: 1 };
-    const before = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
-    assert.equal(before.data.accumulated.newPostsInFollowing, 500);
-    assert.equal(before.data.sourceCount, 1);
-    assert.equal((await control("/control/execute", { op: "fixtureSetup.erasePost", args: { postId: "post-0499" } })).state, "committed");
+    const partial = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
+    assert.equal(partial.data.emitted, null, "late changes happen before final emission");
+    assert.ok(partial.data.run.newPostsInFollowing > 0, "the first attempt has cached followed-post contributions");
+
+    const expireAdvance = Math.max(0, targetPeriod + 65001 - (Date.now() + clockOffset));
+    await control("/control/clock", { advanceMs: expireAdvance }); clockOffset += expireAdvance;
+
+    const unreadDeadline = Date.now() + 15000;
+    do {
+      const jobs = await control("/control/jobs");
+      targetJob = jobs.jobs.find((row: any) => row.name === "digest.digestUser" &&
+        scalar(row.args.target) === "dev:u0001" && scalar(row.args.period) === targetPeriod && scalar(row.args.attempt) === 0) ?? targetJob;
+      if (targetJob.chunks >= 11) break;
+      assert.ok(Date.now() < unreadDeadline, "target digest reaches the first unread chunk");
+    } while (true);
+    const lateLeave = await control("/control/execute", { op: "messages.leave", args: { conversationId: "chat-0000" } }, "u0001");
+    assert.equal(lateLeave.state, "committed", "a real-viewer membership revocation follows unread accumulation");
+
+    // Same-target traffic in the next period uses a distinct revision key and
+    // cannot postpone this closed period. The source deletion is an ordinary
+    // author operation and must invalidate the partial old-period attempt.
+    const laterIds: string[] = [];
+    for (let n = 0; n < 5; n++) {
+      const later = await control("/control/execute", { op: "messages.send",
+        args: { conversationId: "chat-0998", body: "later period " + n } }, "author");
+      assert.equal(later.state, "committed");
+      laterIds.push(later.data.id);
+    }
+    const removed = await control("/control/execute", { op: "feeds.removePost", args: { postId: "post-0499" } }, "follow0499");
+    assert.equal(removed.state, "committed", JSON.stringify(removed));
+    const resetDeadline = Date.now() + 15000;
+    let invalidated: any;
+    do {
+      invalidated = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
+      if (invalidated.data.emitted === null && invalidated.data.run.attempt >= 1) break;
+      assert.ok(Date.now() < resetDeadline, "the stale attempt records a fresh retry before restart");
+    } while (true);
     await hub.stop(); await hub.start(false);
-    const stale = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
-    assert.equal(stale.data.sourceCount, 0);
-    assert.equal(stale.data.accumulated.newPostsInFollowing, 500, "cached contributions cannot establish final eligibility");
-    assert.equal((await control("/control/job/" + job.id)).state, "done");
-    t.diagnostic("digest GAP: clients closed; completed 500-follow accumulation retains deleted contribution after owner restart");
+    // The development clock offset is session-local. Restore a time after the
+    // persisted expiry and retry deadlines before the owner can enqueue the
+    // pending attempt.
+    const restoreClock = Math.max(0, targetPeriod + 80000 - Date.now());
+    await control("/control/clock", { advanceMs: restoreClock }); clockOffset = restoreClock;
+
+    const doneDeadline = Date.now() + 20000;
+    let exact: any;
+    do {
+      exact = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
+      if (exact.data.emitted !== null) break;
+      assert.ok(Date.now() < doneDeadline, "fresh exact digest attempt completes after restart");
+      await new Promise(resolve => setTimeout(resolve, 10));
+    } while (true);
+    assert.deepEqual(exact.data.emitted, {
+      id: exact.data.emitted.id,
+      target: "dev:u0001", period: targetPeriod, newFollowers: 1,
+      newPostsInFollowing: 499, unreadMessages: 99, unreadChats: 98,
+    });
+    assert.deepEqual(exact.data.logged, {
+      id: exact.data.logged.id,
+      target: "dev:u0001", period: targetPeriod, periodEnd: targetPeriod + 60000,
+      newFollowers: 1, newPostsInFollowing: 499, unreadMessages: 99, unreadChats: 98,
+    });
+    assert.equal(exact.data.sourceCount, 0);
+    assert.equal(exact.data.run.status, "done");
+    assert.ok(exact.data.run.attempt >= 1, "a post deletion or overlapping expiry turn forces a fresh attempt");
+
+    const jobs = await control("/control/jobs");
+    const targetJobs = jobs.jobs.filter((row: any) => row.name === "digest.digestUser" &&
+      scalar(row.args.target) === "dev:u0001" && scalar(row.args.period) === targetPeriod);
+    let emits = 0;
+    for (const row of targetJobs) {
+      const detail = await control("/control/job/" + row.id);
+      emits += detail.commits.reduce((sum: number, commit: any) => sum + (commit.emits ?? 0), 0);
+    }
+    assert.equal(emits, 1, "retry and restart have one logical effect emission");
+    const zero = await control("/control/execute", { op: "fixtureSetup.digestState",
+      args: { target: "dev:follow0499", source: "dev:u0001", period: targetPeriod } });
+    assert.equal(zero.data.run.status, "done");
+    assert.equal(zero.data.emitted, null, "zero activity settles without a digest or effect");
+
+    await hub.stop(); await hub.start(false);
+    const replay = await control("/control/execute", { op: "fixtureSetup.digestState", args: digestArgs });
+    assert.deepEqual(replay.data.emitted, exact.data.emitted, "restart cannot duplicate the target/period receipt");
+    const outbox = await control("/control/outbox?limit=200");
+    assert.equal(outbox.rows.filter((row: any) => row.effect === "push.digest").length, 1);
+    assert.equal((await control("/control/execute", { op: "messages.leave", args: { conversationId: "chat-0998" } }, "author")).state, "committed");
+    assert.equal((await control("/control/execute", { op: "messages.remove", args: { messageId: laterIds[0] } }, "author")).state,
+      "committed", "message authors retain delete authority after leaving a conversation");
+    t.diagnostic("scheduled digest: 500 follows + 1000 memberships, 900 expiries over 64-timer turns, late real-author deletion, same-target later-period messages, restart retry, one logged effect");
   } finally {
     stop?.(); await Promise.all([client.close(), author.close()]);
     await hub.close(); await rm(directory, { recursive: true, force: true });

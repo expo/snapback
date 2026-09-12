@@ -28,14 +28,55 @@ mutation edit(messageId: messages, body: text <=2000):
   return null
 
 mutation remove(messageId: messages):
+  for contribution in periodUnread[messageId, viewer] first 50 by byMessageSender:
+    insert digestRecipientPeriodChanges { target: contribution.recipient, period: contribution.period }
+    delete periodUnread[contribution]
   delete messages[messageId]
   return null
 
-mutation send(conversationId: conversations, body: text <=2000):
-  row = insert messages { conversationId, authorId: viewer, body, at: now }
+mutation send(conversationId: conversations, body: text <=2000, expiresAt: time ?, messageId: id ?):
+  (_period, rem) = divmod(now, 60000)
+  period = now - rem
+  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, period, expiresAt, at: now }
+  for member in memberships[conversationId] first 50 by byConversationPrincipalRole:
+    if member.principal != viewer:
+      target = digestPeriodTargets[member.principal, period] by byTargetPeriod
+      if target = null:
+        insert digestPeriodTargets { target: member.principal, period }
+      insert periodUnread {
+        messageId: row.id,
+        sender: viewer,
+        recipient: member.principal,
+        conversationId,
+        membershipId: member.id,
+        period,
+        sentAt: row.at,
+        expiresAt,
+      }
+      insert digestRecipientPeriodChanges { target: member.principal, period }
   return { id: row.id }
 
 mutation leave(conversationId: conversations):
   seat = memberships[conversationId, viewer] ! else MEMBERSHIP_REQUIRED
   delete memberships[seat]
+  insert digestRecipientChanges { target: viewer }
   return null
+
+mutation markRead(conversationId: conversations):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  mark = readMarks[conversationId, viewer] by byConversationActor
+  if mark = null:
+    insert readMarks { conversationId, actor: viewer, readAt: now }
+  else:
+    update readMarks[mark] { readAt: now }
+  insert digestRecipientChanges { target: viewer }
+  return null
+
+mutation expireDigestMessage(messageId: messages):
+  message = messages[messageId] ! else NOT_FOUND
+  deadline = message.expiresAt ! else MESSAGE_NOT_EXPIRING
+  require deadline <= now else MESSAGE_NOT_EXPIRED
+  delete messages[message]
+  return null
+
+schedule expireDigestMessage on messages at .expiresAt: expireDigestMessage(.id)
