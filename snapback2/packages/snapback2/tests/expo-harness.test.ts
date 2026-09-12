@@ -499,6 +499,7 @@ for (const boundary of ["navigation", "account", "anonymous"]) test(`Expo cold C
 });
 
 
+// @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — the selected image keeps its mounted viewing instance through consumed-row removal, within one viewer.
 test("Expo keeps the conversation mounted without carrying a once-photo opening to the next viewer", async (t) => {
   let bobAssetRequests = 0;
   let releasePhoto!: () => void, receivedPhoto!: () => void;

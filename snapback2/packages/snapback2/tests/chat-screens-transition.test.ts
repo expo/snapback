@@ -331,6 +331,7 @@ test("the cold chat keeps both intents queued after a committed replay loses its
   }
 });
 
+// @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — the selected image keeps its mounted viewing instance through consumed-row removal, within one viewer.
 test("preserving the conversation does not carry a photo-opening choice to another viewer", async (t) => {
   const restore = installDom();
   let bobAssetRequests = 0;

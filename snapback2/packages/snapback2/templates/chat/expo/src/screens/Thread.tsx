@@ -8,7 +8,6 @@ import { conversationItems } from "../../shared/thread";
 export function Thread({ conversationId }: { conversationId: string }) {
   const { session: auth } = useAuth();
   const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
-  // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — only an explicit opening retains a descriptor, within its viewer and conversation.
   const [opened, setOpened] = useState({ account, conversationId, photos: {} as Record<string, { messageId: string; asset: ImageAsset }> });
   if (conversationId !== opened.conversationId || account !== undefined && account !== opened.account) setOpened({ account, conversationId, photos: {} });
   const snapshot = usePage(api.messages.conversationView, { conversationId }, { items: conversationItems });
