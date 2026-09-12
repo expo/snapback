@@ -224,6 +224,13 @@ export function createClient(options: ClientOptions): Client {
         subscribe(notifyMe) {
           mine.add(notifyMe);
           own.subscribers.add(notifyMe);
+          // A screen that closed this key a moment ago (React unmounts the
+          // old component before the new one subscribes) may have removed
+          // the watch: put it back, and refresh it.
+          if (watches.get(own.key) !== own) {
+            watches.set(own.key, own);
+            void refresh(own);
+          }
           return () => {
             mine.delete(notifyMe);
             own.subscribers.delete(notifyMe);

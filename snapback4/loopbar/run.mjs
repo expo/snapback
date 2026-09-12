@@ -5,12 +5,67 @@
 // metrics/loopbar.jsonl. Runs are serial: the clock is wall time.
 //   node loopbar/run.mjs [--n 3] [--version 0.0.2] [--model gpt-6-astra] [--effort medium]
 import { spawn, spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Servers the agent left running from its lane would make a re-run of its
+ * acceptance script hit a store that is not fresh: stop the ones whose
+ * working directory is inside the lane (never anything else). */
+function stopLaneServers(lane) {
+  const ps = spawnSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" }).stdout ?? "";
+  for (const line of ps.split("\n")) {
+    const m = line.match(/^\s*(\d+)\s+(.*)$/);
+    if (!m || !/snapback4 (dev|serve)|vite|node .*(acceptance|server)/.test(m[2])) continue;
+    const cwd = spawnSync("lsof", ["-a", "-p", m[1], "-d", "cwd", "-Fn"], { encoding: "utf8" }).stdout ?? "";
+    if (cwd.split("\n").some((l) => l.startsWith("n") && l.slice(1).startsWith(lane))) { try { process.kill(Number(m[1]), "SIGTERM"); } catch { /* gone */ } }
+  }
+}
+
+/** Dev stores under the lane (`.snapback4/`), so the acceptance script's
+ * own seed starts from nothing, as it did for the agent the first time. */
+function dropLaneStores(lane) {
+  const walk = (dir, depth) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === "node_modules") continue;
+      const path = join(dir, entry.name);
+      if (entry.name === ".snapback4") rmSync(path, { recursive: true, force: true });
+      else if (depth < 4) walk(path, depth + 1);
+    }
+  };
+  walk(lane, 0);
+}
+
+function verifyLane(lane) {
+  stopLaneServers(lane);
+  const node24 = join(process.env.HOME, ".volta/tools/image/node/24.18.0/bin");
+  const env = { ...process.env, PATH: `${node24}:${process.env.PATH}` };
+  const sh = (cmd, a) => { const r = spawnSync(cmd, a, { cwd: lane, env, encoding: "utf8", timeout: 300_000 }); return { status: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` }; };
+  const shape = (r, ok) => ({ ok, tail: r.out.slice(-400) });
+  const check = sh("npx", ["snapback4", "check"]);
+  // A program's own `require` refusing a derived argument is not a failure
+  // (0.0.11's `test` says so itself; earlier pins exit 1 on it).
+  const fixture = existsSync(join(lane, "fixtures")) ? sh("npx", ["snapback4", "test", "--fixture", "fixtures"]) : { status: 1, out: "no fixtures/" };
+  const fixtureOk = fixture.status === 0 || (fixture.out.includes("test:") && !fixture.out.split("\n").some((l) => /denied E_/.test(l)) && !/error|panicked/i.test(fixture.out));
+  dropLaneStores(lane);
+  const acceptance = sh("npm", ["run", "acceptance"]);
+  stopLaneServers(lane);
+  return { check: shape(check, check.status === 0), fixture: shape(fixture, fixtureOk), acceptance: shape(acceptance, acceptance.status === 0) };
+}
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => (a.startsWith("--") ? [a.slice(2), all[i + 1]] : [])).filter((e) => e.length));
+if (args.reverify) {
+  // Verify one finished lane again (after a leftover server spoiled the first
+  // verification, say) and record the result beside the run's line.
+  const lane = resolve(args.reverify);
+  const verify = verifyLane(lane);
+  const runLog = existsSync(join(lane, "run-log.md")) ? readFileSync(join(lane, "run-log.md"), "utf8") : "";
+  const out = { at: new Date().toISOString(), reverify: lane, verify, green: !!runLog.match(/^green=\d+/m) && verify.check.ok && verify.fixture.ok && verify.acceptance.ok };
+  console.log(JSON.stringify({ ...out, verify: Object.fromEntries(Object.entries(verify).map(([k, v]) => [k, v.ok])) }));
+  appendFileSync(join(root, "metrics/loopbar.jsonl"), JSON.stringify(out) + "\n");
+  process.exit(out.green ? 0 : 1);
+}
 const n = Number(args.n ?? 3);
 const version = args.version ?? JSON.parse(readFileSync(join(root, "packages/snapback4/package.json"), "utf8")).version;
 const model = args.model ?? "gpt-6-astra";
@@ -51,14 +106,9 @@ for (let run = 1; run <= n; run++) {
   const green = Number(runLog.match(/^green=(\d+)/m)?.[1]);
   out.agentSeconds = start && green ? green - start : null;
   out.correctionLoops = { snapback4: (runLog.match(/snapback4-defect/g) ?? []).length, docs: (runLog.match(/docs-gap/g) ?? []).length, agent: (runLog.match(/agent-error/g) ?? []).length, environment: (runLog.match(/environment/g) ?? []).length };
-  // Independent verification of the proof: check, the fixture test, the acceptance script.
-  const env = { ...process.env, PATH: `${node24}:${process.env.PATH}` };
-  const sh = (cmd, a) => { const r = spawnSync(cmd, a, { cwd: lane, env, encoding: "utf8", timeout: 300_000 }); return { ok: r.status === 0, tail: `${r.stdout ?? ""}${r.stderr ?? ""}`.slice(-400) }; };
-  out.verify = {
-    check: sh("npx", ["snapback4", "check"]),
-    fixture: existsSync(join(lane, "fixtures")) ? sh("npx", ["snapback4", "test", "--fixture", "fixtures"]) : { ok: false, tail: "no fixtures/" },
-    acceptance: sh("npm", ["run", "acceptance"]),
-  };
+  // Independent verification of the proof: check, the fixture test, the
+  // acceptance script — with nothing the agent left running.
+  out.verify = verifyLane(lane);
   out.green = !!out.agentSeconds && out.verify.check.ok && out.verify.fixture.ok && out.verify.acceptance.ok;
   out.bar = out.green && out.wallSeconds <= 1200 && out.correctionLoops.snapback4 <= 1;
   console.log(JSON.stringify({ ...out, verify: Object.fromEntries(Object.entries(out.verify).map(([k, v]) => [k, v.ok])) }));

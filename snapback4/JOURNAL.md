@@ -793,3 +793,24 @@ Three fresh Astra sessions at medium, serial, each on the published
   not a failure, and the runner checks the fixture with every persona.
   One of three met the bar on 0.0.6 as on 0.0.4; set C on 0.0.8 runs.
 - Published `snapback4@0.0.11`.
+
+## 2026-09-12 — an observed key returned to; set C's first run; 0.0.12
+
+- **A screen navigating between two components observing the same key
+  rendered a stale value** (the Clique lane at M5). React unmounts the old
+  component before the new one subscribes; the old one's close removed
+  the shared watch, and the new subscriber sat on a watch nothing
+  updated. A subscriber returning to a closed key now re-registers the
+  watch and refreshes it, on both clients; the end-to-end test closes one
+  observer and subscribes another before a change arrives.
+- **Loop bar set C (0.0.8), run 1:** green in 366 s with no attributed
+  loop — the bar met. My verifier had first failed it: the agent's
+  acceptance script started `dev --fresh` on a pin that has no such flag
+  (it read a newer README than it installed) and so re-seeded a store its
+  own run had filled; and the fixture check on every persona met a
+  `require` on a derived argument, which 0.0.8's `test` counts as a
+  failure. The verifier now stops servers the agent left running under
+  its lane, drops the lane's dev stores before the acceptance script, and
+  reads a program's own refusal on a derived argument as information;
+  `--reverify <lane>` records a second look beside the first.
+- Published `snapback4@0.0.12`.

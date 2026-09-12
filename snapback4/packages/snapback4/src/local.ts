@@ -312,6 +312,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         subscribe(listener) {
           mine.add(listener);
           own.subscribers.add(listener);
+          // A screen that closed this key a moment ago (React unmounts the
+          // old component before the new one subscribes) may have removed
+          // the watch: put it back, and refresh it, so no subscriber is
+          // left on a watch nothing updates.
+          if (watches.get(own.key) !== own) {
+            watches.set(own.key, own);
+            void rerun(own);
+          }
           return () => { mine.delete(listener); own.subscribers.delete(listener); };
         },
         close() {
