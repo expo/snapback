@@ -10,11 +10,11 @@
 **Battery gate:** `relation-activity-publication`
 **Failure signature:** `sha256:28481316e7f1aa3d7115aa7085d7a556b05f179758534d2cc03c510379e742c7`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260912T024408Z.7d09e3124e2e`
-**Last processed run:** `local.20260912T024408Z.7d09e3124e2e`
+**Last observed run:** `local.20260912T132006Z.195ccc9b90d5`
+**Last processed run:** `local.20260912T132006Z.195ccc9b90d5`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `7d09e3124e2ea43e4e53d5f26460b04f6aa4bf82`
-**Consecutive red runs:** `46`
+**Last observed revision:** `195ccc9b90d5816f4cdc6145b29b5215bd348579`
+**Consecutive red runs:** `47`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
