@@ -88,6 +88,11 @@ the third on 2026-09-04, LLP 1012 §12):
   required bytes does not count as a saving. Measurements remain in
   `snapback2/metrics/twin.jsonl`; the allocation does not establish qualification.
 
+- **New substrate work during the Snapback 3/4 bakeoff** (author, 2026-09-12; LLP 3000
+  decision 7). Fix-forward, the loop bar, acquisition and papercuts continue; no new
+  certificate axis, client custody mechanism, or runtime-ceiling change lands until the
+  author rules at the bakeoff's four-week clock. Snapback 2 is the control arm.
+
 ## Process not doing
 
 - **No drift registries, inventories, line-pinned diagnostics registries, claim
@@ -165,3 +170,8 @@ PR. If nothing can come off, the answer is no.
   fan-out proc in every app. **off:** the `tombstones` declaration, deleted from the grammar with the chat
   template's derived-log cutover (LLP 1019 D6), together with the authored log,
   fan-out proc, seven calls, delivery seeds and purge mutation. The offset is paid.
+- 2026-09-12 — **on (not-doing):** new substrate work — certificate axes, client custody
+  mechanisms, runtime-ceiling changes — for the duration of the Snapback 3/4 bakeoff
+  (LLP 3000 decision 7; author "ok"); unblocks an honest three-way comparison with
+  Snapback 2 as the control arm. Nothing leaves the doing-list: fix-forward, the loop
+  bar, acquisition and papercuts continue.

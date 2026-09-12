@@ -1,1 +1,0 @@
-../1019-derived-delivery-custody.rfc.md
