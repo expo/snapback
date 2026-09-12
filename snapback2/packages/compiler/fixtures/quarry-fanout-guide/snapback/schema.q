@@ -3,11 +3,12 @@ use identity
 table posts:
   author: principal
   body: text <=500
-  period: int
+  period: time
   at: time
   images: [image <=10000000] <=4 ?
   clip: video <=50000000 ?
   by byAuthorTime: author, at, id
+  immutable author, period, at
   public
   insert <- .author = viewer
   update <- .author = viewer
@@ -27,16 +28,22 @@ table postHeads:
 table follows:
   follower: principal
   followed: principal
+  period: time ?
+  digestEligible: bool ?
   unique byFollowerFollowed: follower, followed
   by byFollower: follower, id
+  immutable follower, followed, period, digestEligible
   public
   insert <- .follower = viewer
   delete <- .follower = viewer
 
 table digests:
   target: principal
-  period: int
+  period: time
+  newFollowers: int
   newPostsInFollowing: int
+  unreadMessages: int
+  unreadChats: int
   unique byTargetPeriod: target, period
   read <- .target = viewer
   insert <- deny
@@ -44,6 +51,54 @@ table digests:
 
 maintain periodPosts: count posts by author, period
   read <- allow
+
+maintain newFollowerPeriodCounts: count follows by followed, digestEligible, period
+  read <- deny
+
+table digestPeriodChanges:
+  period: time
+  value: int
+  immutable period
+  read <- deny
+  insert <- allow
+  update <- deny
+  delete <- deny
+
+table digestRecipientChanges:
+  target: principal
+  value: int
+  immutable target
+  read <- deny
+  insert <- allow
+  update <- deny
+  delete <- deny
+
+maintain digestPeriodVersions: sum digestPeriodChanges of value by period
+  read <- deny
+
+maintain digestRecipientVersions: sum digestRecipientChanges of value by target
+  read <- deny
+
+table digestRuns:
+  target: principal
+  period: time
+  periodEnd: time
+  attempt: int
+  periodRevision: int
+  recipientRevision: int
+  newPostsInFollowing: int
+  unreadMessages: int
+  unreadChats: int
+  lastUnreadConversation: conversations ?
+  earliestExpiry: time ?
+  retryAt: time ?
+  status: enum('pending', 'done')
+  unique byTargetPeriod: target, period
+  immutable target, period, periodEnd
+  read <- deny
+  insert <- deny
+  update <- deny
+  delete <- deny
 
 
 table profiles:
@@ -145,6 +200,21 @@ table messages:
   )
   update <- .authorId = viewer
   delete <- .authorId = viewer
+
+table periodUnread:
+  messageId: messages
+  recipient: principal
+  conversationId: conversations
+  membershipId: memberships
+  period: time
+  expiresAt: time ?
+  unique byMessageRecipient: messageId, recipient
+  by byRecipientPeriodConversation: recipient, period, conversationId, id
+  cap 50 by messageId
+  immutable messageId, recipient, conversationId, membershipId, period, expiresAt
+  read <- deny
+  insert <- exists memberships[.conversationId, viewer]
+  delete <- allow
 
 
 table reactions:

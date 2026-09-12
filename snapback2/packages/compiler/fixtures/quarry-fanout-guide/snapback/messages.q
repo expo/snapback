@@ -28,14 +28,41 @@ mutation edit(messageId: messages, body: text <=2000):
   return null
 
 mutation remove(messageId: messages):
+  pending = periodUnread[messageId] first 50 by byMessageRecipient
+  for contribution in pending:
+    insert digestRecipientChanges { target: contribution.recipient, value: 1 }
+    delete periodUnread[contribution]
   delete messages[messageId]
   return null
 
-mutation send(conversationId: conversations, body: text <=2000):
-  row = insert messages { conversationId, authorId: viewer, body, at: now }
+mutation send(conversationId: conversations, body: text <=2000, period: time ?, expiresAt: time ?, messageId: id ?):
+  row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, period, expiresAt, at: now }
+  if period != null:
+    for member in memberships[conversationId] first 50 by byConversationPrincipalRole:
+      if member.principal != viewer:
+        insert periodUnread {
+          messageId: row.id,
+          recipient: member.principal,
+          conversationId,
+          membershipId: member.id,
+          period,
+          expiresAt,
+        }
+        insert digestRecipientChanges { target: member.principal, value: 1 }
   return { id: row.id }
 
 mutation leave(conversationId: conversations):
   seat = memberships[conversationId, viewer] ! else MEMBERSHIP_REQUIRED
   delete memberships[seat]
+  insert digestRecipientChanges { target: viewer, value: 1 }
   return null
+
+mutation expireDigestMessage(messageId: messages):
+  pending = periodUnread[messageId] first 50 by byMessageRecipient
+  for contribution in pending:
+    insert digestRecipientChanges { target: contribution.recipient, value: 1 }
+    delete periodUnread[contribution]
+  delete messages[messageId]
+  return null
+
+schedule expireDigestMessage on messages at .expiresAt: expireDigestMessage(.id)

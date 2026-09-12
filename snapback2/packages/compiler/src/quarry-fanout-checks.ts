@@ -295,7 +295,7 @@ table deliveries:
     const byName = new Map(checked.map((result) => [result.program, result.certificate]));
     assert(byName.has("feeds.followingFeed") && byName.has("feeds.followingHeads")
       && byName.has("messages.searchGroups") && byName.has("messages.searchChat") && byName.has("messages.richThread") && byName.has("feeds.conversationMessageSearch")
-      && byName.has("feeds.searchScopes") && byName.has("digest.digestPass")
+      && byName.has("feeds.searchScopes") && byName.has("digest.queueDigestPeriod") && byName.has("digest.digestUser")
       && byName.has("digest.directoryBackfill"), `guide fanout programs missing: ${JSON.stringify([...byName.keys()])}`);
   });
 
