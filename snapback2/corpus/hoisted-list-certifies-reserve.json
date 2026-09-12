@@ -269,25 +269,25 @@
       {
         "meter": "output bytes",
         "value": 1900,
-        "source": "messages.at",
+        "source": "50 × messages.at (38 bytes each; 6 field-name/framing + time 32)",
         "site": "messages.list"
       },
       {
         "meter": "output bytes",
         "value": 7800,
-        "source": "messages.authorId",
+        "source": "50 × messages.authorId (156 bytes each; 12 field-name/framing + Id value maximum 144)",
         "site": "messages.list"
       },
       {
         "meter": "output bytes",
         "value": 8100,
-        "source": "messages.conversationId",
+        "source": "50 × messages.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
         "site": "messages.list"
       },
       {
         "meter": "output bytes",
         "value": 7500,
-        "source": "messages.id",
+        "source": "50 × messages.id (150 bytes each; 6 field-name/framing + messages declared identity 144)",
         "site": "messages.list"
       },
       {
@@ -305,25 +305,25 @@
       {
         "meter": "closure bytes",
         "value": 1900,
-        "source": "messages.at",
+        "source": "50 × messages.at (38 bytes each; 6 field-name/framing + time 32)",
         "site": "messages.list"
       },
       {
         "meter": "closure bytes",
         "value": 7800,
-        "source": "messages.authorId",
+        "source": "50 × messages.authorId (156 bytes each; 12 field-name/framing + Id value maximum 144)",
         "site": "messages.list"
       },
       {
         "meter": "closure bytes",
         "value": 8100,
-        "source": "messages.conversationId",
+        "source": "50 × messages.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
         "site": "messages.list"
       },
       {
         "meter": "closure bytes",
         "value": 7500,
-        "source": "messages.id",
+        "source": "50 × messages.id (150 bytes each; 6 field-name/framing + messages declared identity 144)",
         "site": "messages.list"
       },
       {

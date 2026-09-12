@@ -357,7 +357,7 @@ impl Runner<'_> {
             StopReason::Limit
         };
         self.trace.examined += examined_ids.len() as u64;
-        let halo_row = uniform.then(|| visible.get(take).cloned()).flatten();
+        let halo_row = uniform.then(|| visible.get(take)).flatten();
         let n2_row = uniform.then(|| visible.get(take + 1)).flatten();
         let n2_suffix = n2_row.map(|row| index_values(row, index)[prefix.len()..].to_vec());
         let visible_ids = visible
@@ -368,21 +368,9 @@ impl Runner<'_> {
                     .map(ToOwned::to_owned)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        // Only identities enter the examined trace. Move the visible page into
-        // its result after retaining the same halo and lookahead evidence.
-        visible.truncate(take);
-        let returned = visible;
-        let returned_ids = returned
-            .iter()
-            .map(|row| {
-                row.field("id")
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        for row in returned.iter().chain(halo_row.iter()) {
-            let id = row.field("id")?.as_str()?.to_owned();
-            self.record_row(&scan.table, &id, row, true);
+        let returned_ids = visible_ids.iter().take(take).cloned().collect::<Vec<_>>();
+        for row in visible.iter().take(take).chain(halo_row) {
+            self.record_row(&scan.table, row.field("id")?.as_str()?, row, true);
         }
         let halo = halo_row.map(|row| RowRef {
             table: scan.table.clone(),
@@ -392,6 +380,9 @@ impl Runner<'_> {
                 .expect("validated row id")
                 .to_owned(),
         });
+        // Move the visible result only after borrowing the halo for its receipt.
+        visible.truncate(take);
+        let returned = visible;
         let rule_hash = self.hashes.table(&scan.table, Effect::Read).to_owned();
         let evaluated_take = u32::try_from(take).map_err(|_| RuntimeError::Fanout)?;
         let range = TraceRange {

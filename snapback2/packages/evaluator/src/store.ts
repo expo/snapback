@@ -54,7 +54,7 @@ export class ClientStore {
       }
       for (const r of receipt.ranges) if (r.halo && (r.halo.table !== r.table || !pool.has(JSON.stringify([r.halo.table, r.halo.id]))))
         throw new EvalError('E_INPUT', 'halo must reference the same receipt row pool');
-      if (receipt.schema_hash !== this.schemaHash) receipt = { ...receipt, absences: [] };
+      if (receipt.schema_hash !== this.schemaHash) receipt = { ...receipt, absences: [], verdicts: [] };
     }
     return receipt;
   }

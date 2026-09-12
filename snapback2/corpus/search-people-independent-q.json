@@ -446,19 +446,19 @@
       {
         "meter": "output bytes",
         "value": 2120,
-        "source": "people.handle",
+        "source": "20 × people.handle (106 bytes each; 10 field-name/framing + max(text max 20 scalars: encoded value bound 96, null reserve 8))",
         "site": "search.findPeople.0"
       },
       {
         "meter": "output bytes",
         "value": 3000,
-        "source": "people.id",
+        "source": "20 × people.id (150 bytes each; 6 field-name/framing + people declared identity 144)",
         "site": "search.findPeople.0"
       },
       {
         "meter": "output bytes",
         "value": 4480,
-        "source": "people.name",
+        "source": "20 × people.name (224 bytes each; 8 field-name/framing + text max 50 scalars: encoded value bound 216)",
         "site": "search.findPeople.0"
       },
       {
@@ -481,14 +481,44 @@
       },
       {
         "meter": "closure bytes",
-        "value": 14070,
-        "source": "21 pooled people first images with table/id envelopes",
+        "value": 0,
+        "source": "search.findPeople.0 × 0 probes: separately serialized rule verdict/absence envelopes",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2226,
+        "source": "21 × people.handle (106 bytes each; 10 field-name/framing + max(text max 20 scalars: encoded value bound 96, null reserve 8))",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3150,
+        "source": "21 × people.id (150 bytes each; 6 field-name/framing + people declared identity 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4704,
+        "source": "21 × people.name (224 bytes each; 8 field-name/framing + text max 50 scalars: encoded value bound 216)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 210,
+        "source": "people row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3780,
+        "source": "21 × people table/id envelope (180 bytes each)",
         "site": null
       },
       {
         "meter": "closure bytes",
         "value": 13626,
-        "source": "search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       }
     ]

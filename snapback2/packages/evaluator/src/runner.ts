@@ -1,3 +1,4 @@
+import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
 import { mergeRemainder, mergeStreams } from "./merge";
 import { DeliveryPrediction } from './delivery-prediction';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
@@ -118,6 +119,7 @@ export class Runner {
   }
 
   execute(program: any): Execution {
+    validateCertificate(this.schema, program, this.certificate);
     this.acknowledgement = Object.values<any>(this.schema.tables).map(t => t.deliver).find(d =>
       d?.receipts && program.name === `_delivery.${d.log}.ack`)?.log;
     const flow = this.statements(program.body);
@@ -1354,4 +1356,17 @@ function queryCapped(certificate: any, trace: Trace, viewer: string): boolean {
     const laneLimited = trace.ranges.some((range) => site.lane_sites.includes(range.site) && range.stop !== "exhausted");
     return unionTooLarge || laneLimited;
   });
+}
+
+/** Identity is checked at the direct execution boundary, including prediction. */
+export function validateCertificate(schema: any, program: any, certificate: any): void {
+  if (!certificate) throw new EvalError('E_TRACE_SUBSET', 'a bound certificate is required');
+  if (certificate.value_model_version !== CURRENT_VALUE_MODEL_VERSION)
+    throw new EvalError('E_TRACE_SUBSET', 'value model version mismatch');
+  if (certificate.evaluator_version !== CURRENT_EVALUATOR)
+    throw new EvalError('E_TRACE_SUBSET', 'evaluator version mismatch');
+  if (certificate.schema_hash !== sha256(canonicalSchemaJson(schema)))
+    throw new EvalError('E_TRACE_SUBSET', 'schema hash mismatch');
+  if (certificate.plan_hash !== sha256(canonicalProgramJson(program)))
+    throw new EvalError('E_TRACE_SUBSET', 'plan hash mismatch');
 }

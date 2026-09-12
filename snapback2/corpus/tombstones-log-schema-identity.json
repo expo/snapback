@@ -294,25 +294,25 @@
       {
         "meter": "output bytes",
         "value": 380,
-        "source": "deliveries.at",
+        "source": "10 × deliveries.at (38 bytes each; 6 field-name/framing + time 32)",
         "site": "deliveries.forMessage"
       },
       {
         "meter": "output bytes",
         "value": 1500,
-        "source": "deliveries.id",
+        "source": "10 × deliveries.id (150 bytes each; 6 field-name/framing + deliveries declared identity 144)",
         "site": "deliveries.forMessage"
       },
       {
         "meter": "output bytes",
         "value": 310,
-        "source": "deliveries.kind",
+        "source": "10 × deliveries.kind (31 bytes each; 8 field-name/framing + enum maximum 23 (escaped value maximum 20))",
         "site": "deliveries.forMessage"
       },
       {
         "meter": "output bytes",
         "value": 1570,
-        "source": "deliveries.messageId",
+        "source": "10 × deliveries.messageId (157 bytes each; 13 field-name/framing + messages declared identity 144)",
         "site": "deliveries.forMessage"
       },
       {
@@ -330,25 +330,25 @@
       {
         "meter": "closure bytes",
         "value": 380,
-        "source": "deliveries.at",
+        "source": "10 × deliveries.at (38 bytes each; 6 field-name/framing + time 32)",
         "site": "deliveries.forMessage"
       },
       {
         "meter": "closure bytes",
         "value": 1500,
-        "source": "deliveries.id",
+        "source": "10 × deliveries.id (150 bytes each; 6 field-name/framing + deliveries declared identity 144)",
         "site": "deliveries.forMessage"
       },
       {
         "meter": "closure bytes",
         "value": 310,
-        "source": "deliveries.kind",
+        "source": "10 × deliveries.kind (31 bytes each; 8 field-name/framing + enum maximum 23 (escaped value maximum 20))",
         "site": "deliveries.forMessage"
       },
       {
         "meter": "closure bytes",
         "value": 1570,
-        "source": "deliveries.messageId",
+        "source": "10 × deliveries.messageId (157 bytes each; 13 field-name/framing + messages declared identity 144)",
         "site": "deliveries.forMessage"
       },
       {

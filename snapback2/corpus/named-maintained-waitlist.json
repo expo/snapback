@@ -1248,19 +1248,19 @@
       {
         "meter": "output bytes",
         "value": 309,
-        "source": "waitCounts.id",
+        "source": "waitCounts.id (309 bytes; 6 field-name/framing + waitCounts declared identity 303)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 158,
-        "source": "waitCounts.resourceId",
+        "source": "waitCounts.resourceId (158 bytes; 14 field-name/framing + Id value maximum 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 41,
-        "source": "waitCounts.value",
+        "source": "waitCounts.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
         "site": null
       },
       {
@@ -1271,20 +1271,50 @@
       },
       {
         "meter": "closure bytes",
-        "value": 861,
-        "source": "1 pooled waitCounts first images with table/id envelopes",
+        "value": 991,
+        "source": "programs.maintainedWaitlistDepth.0 × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "programs.maintainedWaitlistDepth.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "waitCounts.id (309 bytes; 6 field-name/framing + waitCounts declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 158,
+        "source": "waitCounts.resourceId (158 bytes; 14 field-name/framing + Id value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "waitCounts.value (41 bytes; 9 field-name/framing + Int value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "waitCounts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 343,
+        "source": "waitCounts table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1155,
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       },
       {
         "meter": "closure bytes",
         "value": 2135,
         "source": "public count absence evidence",
-        "site": null
-      },
-      {
-        "meter": "closure bytes",
-        "value": 2146,
-        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
         "site": null
       }
     ]

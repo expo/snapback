@@ -191,13 +191,13 @@
       {
         "meter": "output bytes",
         "value": 1500,
-        "source": "blobs.id",
+        "source": "10 × blobs.id (150 bytes each; 6 field-name/framing + blobs declared identity 144)",
         "site": "bytesIndexOrder.blobs"
       },
       {
         "meter": "output bytes",
         "value": 350,
-        "source": "blobs.payload",
+        "source": "10 × blobs.payload (35 bytes each; 11 field-name/framing + bytes max 4: encoded value bound 24)",
         "site": "bytesIndexOrder.blobs"
       },
       {
@@ -215,13 +215,13 @@
       {
         "meter": "closure bytes",
         "value": 1500,
-        "source": "blobs.id",
+        "source": "10 × blobs.id (150 bytes each; 6 field-name/framing + blobs declared identity 144)",
         "site": "bytesIndexOrder.blobs"
       },
       {
         "meter": "closure bytes",
         "value": 350,
-        "source": "blobs.payload",
+        "source": "10 × blobs.payload (35 bytes each; 11 field-name/framing + bytes max 4: encoded value bound 24)",
         "site": "bytesIndexOrder.blobs"
       },
       {

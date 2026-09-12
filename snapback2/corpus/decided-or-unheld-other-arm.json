@@ -401,19 +401,19 @@
       {
         "meter": "output bytes",
         "value": 16200,
-        "source": "memberships.conversationId",
+        "source": "100 × memberships.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
         "site": "members.page"
       },
       {
         "meter": "output bytes",
         "value": 15000,
-        "source": "memberships.id",
+        "source": "100 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
         "site": "members.page"
       },
       {
         "meter": "output bytes",
         "value": 15700,
-        "source": "memberships.principal",
+        "source": "100 × memberships.principal (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
         "site": "members.page"
       },
       {
@@ -431,19 +431,19 @@
       {
         "meter": "closure bytes",
         "value": 16200,
-        "source": "memberships.conversationId",
+        "source": "100 × memberships.conversationId (162 bytes each; 18 field-name/framing + Id value maximum 144)",
         "site": "members.page"
       },
       {
         "meter": "closure bytes",
         "value": 15000,
-        "source": "memberships.id",
+        "source": "100 × memberships.id (150 bytes each; 6 field-name/framing + memberships declared identity 144)",
         "site": "members.page"
       },
       {
         "meter": "closure bytes",
         "value": 15700,
-        "source": "memberships.principal",
+        "source": "100 × memberships.principal (157 bytes each; 13 field-name/framing + Principal value maximum 144)",
         "site": "members.page"
       },
       {

@@ -191,13 +191,13 @@
       {
         "meter": "output bytes",
         "value": 1500,
-        "source": "blobs.id",
+        "source": "10 × blobs.id (150 bytes each; 6 field-name/framing + blobs declared identity 144)",
         "site": "bytesRoundTrip.blobs"
       },
       {
         "meter": "output bytes",
         "value": 350,
-        "source": "blobs.payload",
+        "source": "10 × blobs.payload (35 bytes each; 11 field-name/framing + bytes max 4: encoded value bound 24)",
         "site": "bytesRoundTrip.blobs"
       },
       {
@@ -215,13 +215,13 @@
       {
         "meter": "closure bytes",
         "value": 1500,
-        "source": "blobs.id",
+        "source": "10 × blobs.id (150 bytes each; 6 field-name/framing + blobs declared identity 144)",
         "site": "bytesRoundTrip.blobs"
       },
       {
         "meter": "closure bytes",
         "value": 350,
-        "source": "blobs.payload",
+        "source": "10 × blobs.payload (35 bytes each; 11 field-name/framing + bytes max 4: encoded value bound 24)",
         "site": "bytesRoundTrip.blobs"
       },
       {
@@ -250,6 +250,139 @@
   },
   "prelude": [
     {
+      "certificate": {
+        "program": "bytesInsert",
+        "plan_hash": "b0627f7f08034868e5ff3bf25e26e0f3660cc221b48ca150bd24c37f18555a3c",
+        "schema_hash": "ab5e1b51154d569e4beaf5715f833b9a9179b1dc610271e266d03a386bbbfcd2",
+        "tables": {
+          "blobs": {
+            "retain": "until-revoked"
+          }
+        },
+        "rule_hashes": {
+          "blobs.insert": "7f4b61f14b78d41f24438587a256d3f441e271236ecf56f4ca3509b7e3b5b796"
+        },
+        "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+        "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+        "read_sites": [],
+        "write_sites": [
+          {
+            "table": "blobs",
+            "kind": "Insert",
+            "max_rows": 1
+          }
+        ],
+        "mutation_targets": {
+          "targets": [
+            {
+              "table": "blobs",
+              "kind": "create",
+              "unresolved": "computed"
+            }
+          ],
+          "complete": false
+        },
+        "maintained_amplification": 0,
+        "constraint_checks": [
+          "blobs:Unique(byId)"
+        ],
+        "max_examined": 0,
+        "max_index_entries": 0,
+        "max_rule_probes": 0,
+        "max_steps": 11,
+        "derived_steps": 0,
+        "derived_scratch_bytes": 0,
+        "max_heap_bytes": 352,
+        "max_output_bytes": 1024,
+        "max_closure_bytes": 0,
+        "completeness": "Page",
+        "prediction_sites": [],
+        "read_time_granularity_ms": null,
+        "halo_rows": 1,
+        "indexes_required": [],
+        "disclosures": [],
+        "bound_product": null,
+        "cost_terms": [
+          {
+            "meter": "steps",
+            "value": 5,
+            "source": "blobs Insert writes",
+            "site": "bytesInsert:statement:1"
+          },
+          {
+            "meter": "steps",
+            "value": 3,
+            "source": "expressions",
+            "site": "bytesInsert:statement:1"
+          },
+          {
+            "meter": "steps",
+            "value": 1,
+            "source": "expressions",
+            "site": "bytesInsert:statement:2"
+          },
+          {
+            "meter": "steps",
+            "value": 1,
+            "source": "statements",
+            "site": "bytesInsert:statement:1"
+          },
+          {
+            "meter": "steps",
+            "value": 1,
+            "source": "statements",
+            "site": "bytesInsert:statement:2"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 160,
+            "source": "blobs Insert writes × 32",
+            "site": "bytesInsert:statement:1"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 96,
+            "source": "expressions × 32",
+            "site": "bytesInsert:statement:1"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 32,
+            "source": "expressions × 32",
+            "site": "bytesInsert:statement:2"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 32,
+            "source": "statements × 32",
+            "site": "bytesInsert:statement:1"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 32,
+            "source": "statements × 32",
+            "site": "bytesInsert:statement:2"
+          },
+          {
+            "meter": "output bytes",
+            "value": 1024,
+            "source": "argument payload",
+            "site": null
+          },
+          {
+            "meter": "closure bytes",
+            "value": 0,
+            "source": "closure at peak retention",
+            "site": null
+          },
+          {
+            "meter": "write rows",
+            "value": 1,
+            "source": "blobs Insert",
+            "site": "bytesInsert:statement:1"
+          }
+        ]
+      },
       "program": {
         "name": "bytesInsert",
         "kind": "Mutation",

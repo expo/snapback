@@ -1228,26 +1228,122 @@
       },
       {
         "meter": "closure bytes",
-        "value": 854,
-        "source": "1 pooled balances first images with table/id envelopes",
-        "site": null
+        "value": 987,
+        "source": "before × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "before"
       },
       {
         "meter": "closure bytes",
-        "value": 1704,
-        "source": "2 pooled counts first images with table/id envelopes",
+        "value": 987,
+        "source": "count × 1 point reads: separately serialized keys, references and envelopes",
         "site": "count"
       },
       {
         "meter": "closure bytes",
-        "value": 854,
-        "source": "1 pooled decimals first images with table/id envelopes",
+        "value": 989,
+        "source": "decimal × 1 point reads: separately serialized keys, references and envelopes",
         "site": "decimal"
       },
       {
         "meter": "closure bytes",
-        "value": 4069,
-        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "value": 989,
+        "source": "money × 1 point reads: separately serialized keys, references and envelopes",
+        "site": "money"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "balances.id (309 bytes; 6 field-name/framing + balances declared identity 303)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 153,
+        "source": "balances.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "balances.value (41 bytes; 9 field-name/framing + Money { currency: \"USD\", scale: 2 } value maximum 32)",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "balances row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "balances table/id envelope",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 618,
+        "source": "2 × counts.id (309 bytes each; 6 field-name/framing + counts declared identity 303)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 306,
+        "source": "2 × counts.owner (153 bytes each; 9 field-name/framing + Principal value maximum 144)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 82,
+        "source": "2 × counts.value (41 bytes each; 9 field-name/framing + Int value maximum 32)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 678,
+        "source": "2 × counts table/id envelope (339 bytes each)",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 309,
+        "source": "decimals.id (309 bytes; 6 field-name/framing + decimals declared identity 303)",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 153,
+        "source": "decimals.owner (153 bytes; 9 field-name/framing + Principal value maximum 144)",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "decimals.value (41 bytes; 9 field-name/framing + Decimal { scale: 3 } value maximum 32)",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10,
+        "source": "decimals row width: framing/shared encoding/growth adjustment",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 341,
+        "source": "decimals table/id envelope",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 117,
+        "source": "closure root, schema hash and retained issuing arguments",
         "site": null
       },
       {

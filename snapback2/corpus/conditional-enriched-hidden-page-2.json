@@ -761,13 +761,13 @@
       {
         "meter": "closure bytes",
         "value": 150,
-        "source": "items.id",
+        "source": "items.id (150 bytes; 6 field-name/framing + items declared identity 144)",
         "site": "items.page"
       },
       {
         "meter": "closure bytes",
         "value": 104,
-        "source": "profiles.name",
+        "source": "profiles.name (104 bytes; 8 field-name/framing + text max 20 scalars: encoded value bound 96)",
         "site": "profiles.owner"
       }
     ]

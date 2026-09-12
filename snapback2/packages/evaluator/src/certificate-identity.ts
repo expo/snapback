@@ -351,7 +351,7 @@ function normalizeRead(read: any): any {
 }
 
 function normalizeScan(scan: any): any {
-  return {
+  const out = {
     ...pick(scan, ["site","table","index","prefix","order","take","after","before","range","opaque_cursor","merge_site","provenance"], "scan"),
     take: normalizeBound(scan.take),
     prefix: scan.prefix.map((key: any) => {
@@ -370,6 +370,8 @@ function normalizeScan(scan: any): any {
       lte: nullableExpression(scan.range.lte),
     },
   };
+  if (out.opaque_cursor === false) delete out.opaque_cursor;
+  return out;
 }
 
 function normalizeBound(bound: any): any {

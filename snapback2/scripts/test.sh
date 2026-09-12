@@ -48,7 +48,11 @@ run_package_checks() {
 }
 
 run_evaluator_checks() {
-  (cd packages/evaluator && bun src/test.ts)
+  evaluator_status=0
+  cargo run -p snapback2-core --bin export_corpus -- --check || evaluator_status=1
+  (cd packages/evaluator && bun src/test.ts) || evaluator_status=1
+  (cd packages/evaluator && bun run build && node dist/corpus-runner.js) || evaluator_status=1
+  return "$evaluator_status"
 }
 
 run_native_checks() {

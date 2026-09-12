@@ -370,19 +370,19 @@
       {
         "meter": "output bytes",
         "value": 76,
-        "source": "posts.at",
+        "source": "2 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 308,
-        "source": "posts.author",
+        "source": "2 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
         "site": null
       },
       {
         "meter": "output bytes",
         "value": 300,
-        "source": "posts.id",
+        "source": "2 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
         "site": null
       },
       {
@@ -400,26 +400,26 @@
       {
         "meter": "closure bytes",
         "value": 228,
-        "source": "posts.at",
-        "site": null
+        "source": "6 × posts.at (38 bytes each; 6 field-name/framing + Int value maximum 32)",
+        "site": "merge.review"
       },
       {
         "meter": "closure bytes",
         "value": 924,
-        "source": "posts.author",
-        "site": null
+        "source": "6 × posts.author (154 bytes each; 10 field-name/framing + Principal value maximum 144)",
+        "site": "merge.review"
       },
       {
         "meter": "closure bytes",
         "value": 900,
-        "source": "posts.id",
-        "site": null
+        "source": "6 × posts.id (150 bytes each; 6 field-name/framing + posts declared identity 144)",
+        "site": "merge.review"
       },
       {
         "meter": "closure bytes",
         "value": 60,
         "source": "posts row width: framing/shared encoding/growth adjustment",
-        "site": null
+        "site": "merge.review"
       }
     ]
   },
@@ -623,6 +623,118 @@
   },
   "prelude": [
     {
+      "certificate": {
+        "program": "remove",
+        "plan_hash": "5e88eee309103695b1ac29911e27bdfadcf4c9b178c08261e72af9b5729484bd",
+        "schema_hash": "69661948b010a9e79af9092c07ffb2a9530b0f215bfa9be046b6769b08c93941",
+        "tables": {
+          "follows": {
+            "retain": "until-revoked"
+          },
+          "posts": {
+            "retain": "until-revoked"
+          }
+        },
+        "rule_hashes": {
+          "posts.delete": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608"
+        },
+        "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+        "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+        "read_sites": [],
+        "write_sites": [
+          {
+            "table": "posts",
+            "kind": "Delete",
+            "max_rows": 1
+          }
+        ],
+        "mutation_targets": {
+          "targets": [
+            {
+              "table": "posts",
+              "kind": "remove",
+              "unresolved": "computed"
+            }
+          ],
+          "complete": false
+        },
+        "maintained_amplification": 0,
+        "constraint_checks": [
+          "posts:Unique(byId)"
+        ],
+        "max_examined": 0,
+        "max_index_entries": 0,
+        "max_rule_probes": 0,
+        "max_steps": 7,
+        "derived_steps": 0,
+        "derived_scratch_bytes": 0,
+        "max_heap_bytes": 224,
+        "max_output_bytes": 6,
+        "max_closure_bytes": 0,
+        "completeness": "Page",
+        "prediction_sites": [],
+        "read_time_granularity_ms": null,
+        "halo_rows": 1,
+        "indexes_required": [],
+        "disclosures": [],
+        "bound_product": null,
+        "cost_terms": [
+          {
+            "meter": "steps",
+            "value": 5,
+            "source": "posts Delete writes",
+            "site": "remove:statement:1"
+          },
+          {
+            "meter": "steps",
+            "value": 1,
+            "source": "expressions",
+            "site": "remove:statement:1"
+          },
+          {
+            "meter": "steps",
+            "value": 1,
+            "source": "statements",
+            "site": "remove:statement:1"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 160,
+            "source": "posts Delete writes × 32",
+            "site": "remove:statement:1"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 32,
+            "source": "expressions × 32",
+            "site": "remove:statement:1"
+          },
+          {
+            "meter": "heap bytes",
+            "value": 32,
+            "source": "statements × 32",
+            "site": "remove:statement:1"
+          },
+          {
+            "meter": "output bytes",
+            "value": 6,
+            "source": "null value",
+            "site": null
+          },
+          {
+            "meter": "closure bytes",
+            "value": 0,
+            "source": "closure at peak retention",
+            "site": null
+          },
+          {
+            "meter": "write rows",
+            "value": 1,
+            "source": "posts Delete",
+            "site": "remove:statement:1"
+          }
+        ]
+      },
       "program": {
         "name": "remove",
         "kind": "Mutation",

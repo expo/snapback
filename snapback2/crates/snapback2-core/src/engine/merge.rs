@@ -6,7 +6,8 @@ use crate::ir::*;
 use crate::schema::*;
 use crate::value::{Value, canonical_json};
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
 struct Lane<'a> {
     scan: &'a Scan,
@@ -17,7 +18,7 @@ struct Lane<'a> {
     exhausted: bool,
     last_examined: Option<Vec<Value>>,
     examined: Vec<String>,
-    visible: Vec<Value>,
+    visible: Vec<Rc<Value>>,
     returned: Vec<String>,
 }
 
@@ -163,6 +164,7 @@ impl Runner<'_> {
             .map(|statement| statement.as_mut().map(|statement| statement.raw_query()))
             .collect::<Vec<_>>();
         let mut heap = Vec::new();
+        let mut pool = BTreeMap::<String, Rc<Value>>::new();
         // Certification fixes the table/index/order/prefix width across authored
         // lanes. Bounds may evaluate differently: one bounded template suffices,
         // with ordinary seek for every mismatch or admission refusal.
@@ -189,7 +191,9 @@ impl Runner<'_> {
             .transpose()?
             .flatten();
         for (i, lane) in lanes.iter_mut().enumerate() {
-            if let Some(head) = self.merge_head(i, lane, cursors[i].as_mut(), seek.as_deref())? {
+            if let Some(head) =
+                self.merge_head(i, lane, cursors[i].as_mut(), seek.as_deref(), &mut pool)?
+            {
                 self.heap_push(&mut heap, head, lane.scan.order)?;
             }
         }
@@ -201,16 +205,20 @@ impl Runner<'_> {
             self.step(1)?;
             let lane = &mut lanes[head.lane];
             let row = &lane.visible[head.row];
-            let id = row.field("id")?.as_str()?.to_owned();
-            if seen.insert(id.clone()) && returned.len() < take {
-                lane.returned.push(id);
-                returned.push(row.clone());
+            let id = row.field("id")?.as_str()?;
+            if !seen.contains(id) {
+                seen.insert(id.to_owned());
+                if returned.len() < take {
+                    lane.returned.push(id.to_owned());
+                    returned.push(Rc::clone(row));
+                }
             }
             if let Some(next) = self.merge_head(
                 head.lane,
                 &mut lanes[head.lane],
                 cursors[head.lane].as_mut(),
                 seek.as_deref(),
+                &mut pool,
             )? {
                 self.heap_push(&mut heap, next, order)?;
             }
@@ -236,12 +244,15 @@ impl Runner<'_> {
             deduplicated_union_len: seen.len() as u64,
             last_returned_suffix,
         });
+        debug_assert!(pool.len() <= take.saturating_add(2).saturating_add(lanes.len()));
         for lane in lanes {
             self.record_merge_lane(lane)?;
         }
+        drop(pool);
         returned
             .into_iter()
             .map(|value| {
+                let value = Rc::unwrap_or_clone(value);
                 Ok(TrackedValue {
                     provenance: ResultProvenance::Row {
                         table: merge.table().to_owned(),
@@ -259,6 +270,7 @@ impl Runner<'_> {
         lane: &mut Lane<'_>,
         mut rows: Option<&mut rusqlite::Rows<'_>>,
         seek: Option<&index::InitialSeek>,
+        pool: &mut BTreeMap<String, Rc<Value>>,
     ) -> Result<Option<Head>, RuntimeError> {
         let certificate = self.certificate.unwrap();
         loop {
@@ -359,10 +371,20 @@ impl Runner<'_> {
                     .skip(lane.input.prefix.len())
                     .collect(),
             });
-            // The lane already retains every visible head for its receipt. The
-            // heap addresses that image; it needs no second full row body.
+            // @ref LLP 1001#3-read-and-write-states-no-silent-states — overlapping
+            // evaluated bounds share one body per intrinsic id, including receipt
+            // lookahead. Examined-id evidence stays independent of body custody.
+            let id = row.field("id")?.as_str()?;
+            let pooled = if let Some(existing) = pool.get(id) {
+                Rc::clone(existing)
+            } else {
+                let id = id.to_owned();
+                let value = Rc::new(row);
+                pool.insert(id, Rc::clone(&value));
+                value
+            };
             let position = lane.visible.len();
-            lane.visible.push(row);
+            lane.visible.push(pooled);
             return Ok(Some(Head {
                 lane: lane_id,
                 row: position,
@@ -419,7 +441,11 @@ impl Runner<'_> {
         let scan = lane.scan;
         let table = self.schema.table(&scan.table).expect("checked table");
         let index = table.index(&scan.index).expect("checked index");
-        let visible_ids = row_ids(&lane.visible)?;
+        let visible_ids = lane
+            .visible
+            .iter()
+            .map(|row| row.field("id")?.as_str().map(ToOwned::to_owned))
+            .collect::<Result<Vec<_>, _>>()?;
         let returned_ids = lane.returned;
         let end = returned_ids
             .last()
