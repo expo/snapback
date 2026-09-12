@@ -932,3 +932,16 @@ expiry gap). The five defects, read against today's main:
   before binds no existing row; the classifier now compares only
   constraints over what was already there. Additive, as it should be.
 - Published `snapback4@0.0.16`.
+
+## 2026-09-12 — the Clique run is complete
+
+M7, a fresh Astra session on the inherited lane: green in 917 s — group
+polls with idempotent vote intents, a backfilled message count per
+conversation, the pre/post API snapshot equal for eight personas, every
+prior suite and the M7 choreography segment passing. Its two
+Snapback-attributed lines were one defect, the aggregate backfill, fixed
+in 0.0.16 above. The record — builder, grade, M7, the anchors, every
+finding with its fix — is `benchmarks/runs/2026-09-12-snapback4-clique-0002/`;
+the loop bar's is beside it. LLP 3000 §5's fourth week is delivered:
+Expo, deploy, day two, the loop bar (met on 0.0.11), the Clique hub run
+and its record. What remains on the clock is fix-forward from evidence.

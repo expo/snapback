@@ -1,8 +1,11 @@
 # Clique on Snapback 4 0.0.2 — media and scheduled jobs struck, Astra medium
 
-**Status: in progress** (the continuous session started 2026-09-12 14:11 UTC;
-grading, M7 and the record follow). This directory is the run record; it is
-completed in place as each phase ends.
+**Status: complete.** The continuous session (2026-09-12 14:11–16:20 UTC)
+went green on every milestone in scope; the independent grade passed 69 of
+80 applicable assertions with two majors, both read against today's main
+below; the M7 day-two session went green in 917 s. Every Snapback-attributed
+finding but the expiry gap was fixed on main and published the same day
+(0.0.4 through 0.0.16).
 
 Commissioned by Charlie Cheever 2026-09-12: "do a clique benchmark run that
 skips media and jobs and uses astra medium". LLP 3000 §3 names the Clique hub
@@ -28,8 +31,8 @@ Snapback 4 candidate on the benchmark, one week into its four-week clock.
 | --- | --- |
 | Continuous builder | **complete**: start 1789222278, end 1789230003 (7,725 s); M1–M6 and M8 green, M7 not-run by design; `builder-final-report.md`, `builder-essay.md`, `builder-platform-gaps.md`, `builder-diary.md`, `builder-run-log.md`, `record-astra-snapback4.json` beside this file |
 | Independent grade (fresh Claude session on the frozen grader prompt) | **complete** (claude-opus-5, uncalibrated grader, not contaminated, one rerun used): 69 pass / 2 fail / 9 not-run / 21 not-applicable (struck) of 101 assertions; coverage spot-verification `honest`; defects 2 major, 2 minor, 1 cosmetic; O1 78, O2 48, O4 72 (O3, O5 null: no holdout set, no scale band in this scope); `grading-astra-snapback4.json`, `grading-astra-snapback4.trace.md` beside this file |
-| M7 day-2 evolution (fresh Astra session, same lane) | running |
-| Record and validation | pending |
+| M7 day-2 evolution (fresh Astra session, same lane) | **complete: green** in 917 s (start 1789233309, end 1789234226): group polls with idempotent vote intents, a backfilled conversation message count, pre/post snapshot equality for eight personas, all prior suites and the M7 choreography segment passing; two Snapback-attributed lines, both the day-two aggregate backfill (0.0.16); `m7-astra-snapback4.md`, `m7-astra-snapback4.run-log.md`, `m7-astra-snapback4.diary.md` beside this file |
+| Record and validation | **complete**: the lane's own `record-astra-snapback4.json` validated by the lane; this README is the record |
 
 ## What the lane found in Snapback 4 during the run
 
@@ -109,6 +112,18 @@ the center, budgeting time for client lifecycle validation.
 
 ## Results
 
-Pending: the lane's `final-report.md`, the grader report, the M7 report and
-the validated run record are copied here by `scripts/export_record.py` when
-each phase ends.
+| Phase | Outcome |
+| --- | --- |
+| Builder (M1 → M2 → M3 → M4 → M5 → M6 → M8) | all green; 7,725 s wall; the full scale replay verified; twelve Snapback-attributed lines, eight distinct findings |
+| Grade | 69 pass / 2 fail / 9 not-run / 21 struck of 101; coverage honest; 2 major / 2 minor / 1 cosmetic; O1 78, O2 48, O4 72 |
+| M7 | green in 917 s; two attributed lines (one defect, fixed) |
+
+What this run says, and does not: one lane, one model, media and scheduled
+work struck, on a machine the loop-bar sets shared; it is calibration for
+the Snapback 4 candidate a week into its clock, not a claim-eligible
+magnitude. What it measured is the builder experience on the published
+package: every milestone in scope reached green in one session, the day-two
+session inherited the app and evolved it without a migration step, and the
+defects the builder and the grader met were each small enough to fix and
+publish within the hour. The unfixed gap is expiry as a time-dependent rule
+(`NOT-DOING.md`, the `expires` clause on `sync`).

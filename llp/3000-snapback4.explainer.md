@@ -361,8 +361,10 @@ carries the chronology. Week four, 2026-09-12:
 | `apps/chat` | the reference app on the real client and the generated `api.ts`; `snapback/schema.q` with `sync` lines, `invite`, `leave`, `send`, `edit`, `unsend`, `thread`, `inbox` | this landing |
 | `fixtures/`, `floors/`, `corpus/`, `scripts/`, `metrics/` | as week one | `1700c1c755`, `224fb1d24e`, `6bc29eab02` |
 
-Not started: effects execution, jobs at runtime, word search, assets, the
-loop bar and the Clique hub run.
+| `benchmarks/runs/2026-09-12-snapback4-clique-0002/`, `benchmarks/runs/2026-09-12-snapback4-loopbar/` | the Clique hub run on 0.0.2 (Astra medium, media and scheduled work struck): every milestone green in 7,725 s, graded 69/80 applicable with two majors read against main, M7 green in 917 s; the loop bar met on 0.0.11 (3/3, 443–537 s, no attributed loop); every finding and its fix | the run's landings |
+
+Not in slice one by decision: effects execution, jobs at runtime, word
+search, assets, time in rules (`NOT-DOING.md`).
 
 ## How to orient
 
