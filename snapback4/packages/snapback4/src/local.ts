@@ -99,6 +99,16 @@ export async function createLocalClient(options: LocalOptions): Promise<Client &
         if (page.denied) return { denied: page.denied };
         if (link !== "online") setLink("online");
         if (page.watermark > seq) seq = page.watermark;
+        if (page.generation !== undefined && page.generation !== backend.generation) {
+          // Day two: the server adopted a new generation. Load it, then let
+          // the replica re-derive the partition on its next round.
+          const next = await loadBackend(doFetch, base, headers);
+          backend.generation = next.generation;
+          backend.schema = next.schema;
+          backend.programs = next.programs;
+          replica.adopt(next.schema, next.generation);
+          return { denied: { code: "E_GENERATION", family: "generation", message: "the backend changed; re-deriving the partition", retryable: true } };
+        }
         return page;
       } catch {
         setLink("offline");

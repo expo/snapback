@@ -52,10 +52,14 @@ impl Host for ServerHost {
                 let mut engine = self.engine.borrow_mut();
                 match args_of(&engine, &op, message.get("args").unwrap_or(&Json::Null)) {
                     Ok(args) => match engine.query(&op, Context::new(viewer, args).at(now)) {
-                        Ok(outcome) => json!({ "t": "read", "rid": rid, "data": wire::to_json(&outcome.data), "complete": outcome.complete, "seq": outcome.seq, "next": outcome.next }),
+                        Ok(outcome) => {
+                            json!({ "t": "read", "rid": rid, "data": wire::to_json(&outcome.data), "complete": outcome.complete, "seq": outcome.seq, "next": outcome.next })
+                        }
                         Err(refusal) => json!({ "t": "read", "rid": rid, "denied": refusal }),
                     },
-                    Err(why) => json!({ "t": "read", "rid": rid, "denied": { "code": "E_INPUT", "family": "input", "message": why } }),
+                    Err(why) => {
+                        json!({ "t": "read", "rid": rid, "denied": { "code": "E_INPUT", "family": "input", "message": why } })
+                    }
                 }
             }
             Some("m") => {
@@ -63,15 +67,37 @@ impl Host for ServerHost {
                 let id = message.get("id").and_then(Json::as_str).map(str::to_owned);
                 let new_ids: Vec<String> = message.get("newIds").and_then(Json::as_array).map(|a| a.iter().filter_map(Json::as_str).map(str::to_owned).collect()).unwrap_or_default();
                 let mut engine = self.engine.borrow_mut();
-                match args_of(&engine, &op, message.get("args").unwrap_or(&Json::Null)) {
-                    Ok(args) => match engine.mutate(&op, id.as_deref(), Context::new(viewer, args).at(now).with_ids(new_ids)) {
-                        Ok(outcome) => match outcome.state {
-                            WriteState::Sent { seq, result } => json!({ "t": "write", "rid": rid, "id": id, "state": "sent", "seq": seq, "result": wire::to_json(&result), "replayed": outcome.replayed }),
-                            WriteState::Failed { why, .. } => json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": why }),
+                // A resend of an applied write is answered before the current
+                // generation gets to judge its shape.
+                let replayed = id.as_deref().and_then(|id| engine.replay(&viewer, id).ok().flatten());
+                if let Some(outcome) = replayed
+                    && let WriteState::Sent { seq, result } = outcome.state
+                {
+                    json!({ "t": "write", "rid": rid, "id": id, "state": "sent", "seq": seq, "result": wire::to_json(&result), "replayed": true, "generation": engine.generation() })
+                } else {
+                    match args_of(&engine, &op, message.get("args").unwrap_or(&Json::Null)) {
+                        Ok(args) => match engine.mutate(&op, id.as_deref(), Context::new(viewer, args).at(now).with_ids(new_ids)) {
+                            Ok(outcome) => match outcome.state {
+                                WriteState::Sent { seq, result } => {
+                                    json!({ "t": "write", "rid": rid, "id": id, "state": "sent", "seq": seq, "result": wire::to_json(&result), "replayed": outcome.replayed, "generation": engine.generation() })
+                                }
+                                WriteState::Failed { why, .. } => {
+                                    json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": why, "generation": engine.generation() })
+                                }
+                            },
+                            Err(error) => {
+                                json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": error.refusal() })
+                            }
                         },
-                        Err(error) => json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": error.refusal() }),
-                    },
-                    Err(why) => json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": { "code": "E_INPUT", "family": "input", "message": why } }),
+                        // A write authored under an older generation that no longer fits is
+                        // judged, typed, never silently dropped.
+                        Err(why) if engine.program(&op).is_none() => {
+                            json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": { "code": "E_GENERATION", "family": "generation", "message": format!("{op} is not an operation of generation {}; {why}", engine.generation()) }, "generation": engine.generation() })
+                        }
+                        Err(why) => {
+                            json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": { "code": "E_INPUT", "family": "input", "message": why }, "generation": engine.generation() })
+                        }
+                    }
                 }
             }
             Some("sync") => {
@@ -81,7 +107,7 @@ impl Host for ServerHost {
                     match engine.snapshot(&viewer) {
                         Ok((events, watermark)) => {
                             let events: Vec<Json> = events.iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json), "seq": watermark })).collect();
-                            json!({ "t": "sync", "rid": rid, "snapshot": true, "events": events, "watermark": watermark, "more": false })
+                            json!({ "t": "sync", "rid": rid, "snapshot": true, "events": events, "watermark": watermark, "more": false, "generation": engine.generation() })
                         }
                         Err(error) => json!({ "t": "sync", "rid": rid, "denied": error.refusal() }),
                     }
@@ -89,7 +115,7 @@ impl Host for ServerHost {
                     match engine.stream(&viewer, from_seq, 200) {
                         Ok(page) => {
                             let events: Vec<Json> = page.events.iter().map(|e| json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(wire::to_json), "seq": e.seq })).collect();
-                            json!({ "t": "sync", "rid": rid, "snapshot": false, "events": events, "watermark": page.watermark, "more": page.more })
+                            json!({ "t": "sync", "rid": rid, "snapshot": false, "events": events, "watermark": page.watermark, "more": page.more, "generation": engine.generation() })
                         }
                         Err(error) => json!({ "t": "sync", "rid": rid, "denied": error.refusal() }),
                     }

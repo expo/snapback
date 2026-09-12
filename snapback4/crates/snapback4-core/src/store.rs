@@ -166,6 +166,11 @@ impl Store {
     }
 
     /// How many client-minted operation ids have been applied (sent or failed).
+    /// The recorded outcome of a client-minted op, if it applied.
+    pub fn applied_outcome(&self, principal: &str, id: &str) -> Result<Option<String>, RuntimeError> {
+        Ok(self.conn.query_row("SELECT outcome FROM _ops WHERE principal = ?1 AND id = ?2", params![principal, id], |row| row.get::<_, String>(0)).optional()?)
+    }
+
     pub fn applied_ops(&self) -> Result<u64, RuntimeError> {
         Ok(self.conn.query_row("SELECT COUNT(*) FROM _ops WHERE outcome LIKE '%\"state\":\"sent\"%'", [], |row| row.get::<_, i64>(0))? as u64)
     }

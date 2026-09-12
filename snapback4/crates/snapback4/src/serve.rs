@@ -46,7 +46,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     let engine = project.open_engine(&bound).map_err(|e| e.to_string())?;
     let seq = engine.seq().map_err(|e| e.to_string())?;
-    let generation: u64 = engine.store().meta("generation").ok().flatten().and_then(|g| g.parse().ok()).unwrap_or(1);
+    let generation: u64 = engine.generation();
     let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()) });
     let server = Server::http((bind, port)).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
@@ -91,18 +91,20 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                 let steps = snapback4_core::successor::classify(&shared.bound.lock().unwrap().schema, &bound.schema);
                 let worst = snapback4_core::successor::worst(&steps);
                 match shared.engine.lock().unwrap().adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
-                    Ok(()) => {
+                    Ok(next) => {
                         let _ = project.write_generated(&bound);
                         *shared.bound.lock().unwrap() = bound;
                         let mut generation = shared.generation.lock().unwrap();
-                        *generation += 1;
+                        *generation = next;
                         println!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms", *generation, worst, started.elapsed().as_millis());
                         for step in steps {
                             println!("  {:?}: {}", step.change, step.message);
                         }
                         shared.committed.notify_all();
                     }
-                    Err(error) => eprintln!("snapback4 dev: the new schema was not adopted: {error}"),
+                    Err(error) => {
+                        eprintln!("snapback4 dev: the new schema was not adopted: {error}")
+                    }
                 }
             }
             Ok(bound) => {
@@ -226,6 +228,23 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
+            if path.starts_with("/m/")
+                && let Some(id) = payload.get("id").and_then(Json::as_str)
+                && let Ok(Some(outcome)) = shared.engine.lock().unwrap().replay(&principal, id)
+            {
+                // A resend of an applied write: its recorded outcome, before the
+                // current generation gets to judge its shape.
+                let body = match outcome.state {
+                    WriteState::Sent { seq, result } => {
+                        json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "replayed": true, "metered": outcome.metered })
+                    }
+                    WriteState::Failed { why, current } => {
+                        json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "replayed": true, "metered": outcome.metered })
+                    }
+                };
+                respond(request, 200, body);
+                return;
+            }
             let program = shared.bound.lock().unwrap().programs.iter().find(|p| p.program.name == op).map(|p| p.program.clone());
             let Some(program) = program else {
                 respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")) }));
@@ -279,8 +298,12 @@ fn handle(mut request: Request, shared: &Shared) {
                             shared.committed.notify_all();
                         }
                         let body = match outcome.state {
-                            WriteState::Sent { seq, result } => json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "metered": outcome.metered }),
-                            WriteState::Failed { why, current } => json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "metered": outcome.metered }),
+                            WriteState::Sent { seq, result } => {
+                                json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "metered": outcome.metered })
+                            }
+                            WriteState::Failed { why, current } => {
+                                json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "metered": outcome.metered })
+                            }
                         };
                         respond(request, 200, body);
                     }

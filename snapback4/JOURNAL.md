@@ -306,3 +306,41 @@ recorded as gaps, not estimated.
   making the token dead, rollback to release 1 with the ledger.
 - Not yet: a hosted target (the release runs wherever the binary runs), TLS
   (a proxy's job in slice one), secrets (`snapback4 secret`), effects.
+
+## 2026-09-12 — week four: day two in the simulator
+
+- **Generations.** `Engine::adopt` returns the next generation and records
+  it in the store's meta; every reply on the wire and from the simulator's
+  server host carries it. A device that sees a generation other than the
+  one it holds clears its rows, resets its watermark to 0 and re-derives
+  its partition from a fresh snapshot; the outbox and its predictions stay
+  (the predictions are re-derived from the queued writes). The web replica
+  does the same: `local.ts` reloads `/schema` when the stream's generation
+  moves, and `replica.ts` re-bootstraps on the next round.
+- **Replays before judgement.** A resend of a write that already applied
+  is answered with its recorded outcome before the current generation
+  decodes its arguments (`Engine::replay`, consulted by the server and the
+  simulator host ahead of argument decoding). The day-two scenarios found
+  the bug: under a narrowing or a rename, an old client's resend of an
+  applied `send` was refused `E_INPUT` and the device withdrew a row the
+  server holds.
+- **Five scenarios (`snapback4-sim/src/chat.rs`, `day_two`)**: additive
+  (an optional column), widening (an enum variant), narrowing (`body` to
+  five characters), rule change (the read rule and the horizon), rename
+  (`body` → `text`). Alice loses the link and keeps sending; the server
+  adopts the change; the link heals. Additive and widening: every queued
+  write lands, every device re-bootstraps once, convergence holds.
+  Narrowing and rename: the queued writes fail typed (`E_INPUT`, "send
+  takes no argument body" / "body: at most 5 characters"), their
+  predictions are withdrawn, nothing is dropped silently. Rule change:
+  classified `RuleChange`; every partition re-derives; bob held every
+  message before and fewer than the server after (the horizon is three).
+  The monotone-watermark invariant is now per generation.
+- **The classifier.** `Optional(a) → Optional(b)` classifies as `a → b`
+  (it said Destructive); optional → required is at least Narrowing;
+  required → optional at least Additive.
+- **A SQLite replica store (`replica/sqlite.ts`)**: the server's two-table
+  layout on `node:sqlite` and `expo-sqlite` behind a four-method driver
+  (run, all, transaction, close); one test runs pages, counts and
+  predictions on it.
+- Suite 36 s (all of `scripts/test.sh`).

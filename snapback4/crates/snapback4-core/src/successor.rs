@@ -79,8 +79,10 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
 
 fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
     match (old, new) {
-        (ColumnType::Optional(_), inner) if inner.required() == old.required() => Change::Narrowing,
-        (inner, ColumnType::Optional(wrapped)) if wrapped.as_ref() == inner => Change::Additive,
+        (ColumnType::Optional(a), ColumnType::Optional(b)) => column_change(a, b),
+        // Optional becoming required narrows; required becoming optional widens.
+        (ColumnType::Optional(a), b) => worse(Change::Narrowing, column_change(a, b)),
+        (a, ColumnType::Optional(b)) => worse(Change::Additive, column_change(a, b)),
         (ColumnType::Text { max: a }, ColumnType::Text { max: b }) | (ColumnType::Bytes { max: a }, ColumnType::Bytes { max: b }) | (ColumnType::Json { max_bytes: a }, ColumnType::Json { max_bytes: b }) => {
             if b >= a { Change::Additive } else { Change::Narrowing }
         }
@@ -94,13 +96,20 @@ fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
     }
 }
 
-/// The worst change in a set of steps.
-pub fn worst(steps: &[Step]) -> Change {
-    let rank = |change: &Change| match change {
+fn rank(change: &Change) -> u8 {
+    match change {
         Change::Additive => 0,
         Change::RuleChange => 1,
         Change::Narrowing => 2,
         Change::Destructive => 3,
-    };
+    }
+}
+
+fn worse(a: Change, b: Change) -> Change {
+    if rank(&b) > rank(&a) { b } else { a }
+}
+
+/// The worst change in a set of steps.
+pub fn worst(steps: &[Step]) -> Change {
     steps.iter().map(|step| &step.change).max_by_key(|change| rank(change)).cloned().unwrap_or(Change::Additive)
 }

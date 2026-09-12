@@ -44,7 +44,13 @@ export class Replica {
   private following: Promise<void> | null = null;
   private closed = false;
 
-  constructor(readonly store: Store, readonly schema: SchemaJson, private transport: Transport, readonly generation: number) {}
+  constructor(readonly store: Store, public schema: SchemaJson, private transport: Transport, public generation: number) {}
+
+  /** A new generation from the server: the next sync re-derives the partition. */
+  adopt(schema: SchemaJson, generation: number) {
+    this.schema = schema;
+    this.generation = generation;
+  }
 
   /** Whether the device has applied everything the server had at the last sync. */
   get isCaughtUp(): boolean {
