@@ -57,3 +57,30 @@ Production evidence for repair checkpoint `4a9ddd57ef52a3a6b0196689d1cc33e92249f
   and both template tests. Both engine-backed receipts were `pass`.
 - The two focused Rust toolchain tests and the repaired debug packed consumer
   passed before production qualification.
+
+Final review repair checkpoint `951178082dbcbe32d7a92a73a426cc9e5fce57a1`
+closes the detached-owner gap in that evidence. Detach now passes the exact
+parent argv to its foreground child for recovery rendering only; synthetic
+child flags cannot replace user-selected foreground, JSON, project, port,
+migration, or serve arguments. Internal test-owner recovery still removes only
+its private child flags, and compiler-worker versus trusted-Node refusals retain
+their distinct environment fallbacks.
+
+Production evidence for that checkpoint:
+
+- A fresh engine-bearing Linux binary was built at 47,891,736 bytes with
+  SHA-256 `da4beea2dad15e31c63cd773119e5c31b1138ec6d86261f6c68e85235644ceb3`.
+- Fresh `snapback2-linux-x64@0.0.26` and `snapback2@0.0.26` tarballs were
+  staged without publication in
+  `snapback2/dist/npm/verify-raw-binary-951178082/`; their SHA-512 integrities
+  are `ika/vkfVBfFN/k+x+a7Gsz0bUAy6YT5ohdx25YwPKKyOXKXO5mQvX27/IAi2ZgO68FErLhGgOU81BYdfYnj9pA==`
+  and `xuS7ANIpcwCAPFz5buUug40xcKH7qNzk+lUO46tLHjkyAE4pcOhO7iy7RdrCFz5WQ3Q2+SdlAlnnTEQhpUh5gg==`.
+- The production consumer passed all prior checks plus default detached raw
+  `dev --project <quoted external path> --port 0` rewrites for both missing
+  compiler and missing Node. It then executed the same invocation through the
+  installed public wrapper, started detached, stopped via that exact project,
+  and verified its recorded owner and compiler-worker PIDs exited. Both
+  engine-backed template receipts were `pass`.
+- Focused Rust toolchain tests passed 4/4, publication tests passed 16/16, and
+  the debug packed installed consumer passed the same causal detached case.
+  The prior `verify-raw-binary-4a9ddd57e` stage remains intact.
