@@ -5,7 +5,7 @@
 **Systems:** Snapback 2 query publication and freshness, certified read envelopes, durable browser mutations, packaged guide and React/Expo examples; Clique benchmark interpretation
 **Author:** Grok 4.6, for Charlie Cheever
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (panel discussion and delegated implementation selection; Codex / GPT-6 Astra: source-checked review; distinguish landed repairs, remaining work and qualification; preserve benchmark and custody contracts)
+**Revised:** 2026-09-12 (Codex / GPT-6 Astra: reconcile implemented source, scoped qualification and measured simplification; retain Accepted status, unmet digest requirement and publication/benchmark limits)
 **Related:** LLP 1000, LLP 1001, LLP 1010, LLP 1012, LLP 1018.003, LLP 1018.004, LLP 1018.007.000, LLP 1018.008.007.002, LLP 1019, LLP 1020; [residual assessment](./1018.008.009-residual-ergonomic-gaps.research.md); [query plan](./1023.000-one-query-story.plan.md), [scale plan](./1023.001-hub-scale-certified-reads.plan.md), [write plan](./1023.002-web-writes-that-survive-the-browser.plan.md)
 
 ## Summary
@@ -15,7 +15,7 @@ discovering a boundary in a working Clique app. The program should remove
 those workarounds while preserving the product's data, authorization and
 offline guarantees.
 
-Three outcomes remain worth pursuing:
+The commissioned program has three outcomes:
 
 1. **Coherent reads on one client.** Unknown totals stay unknown; connected
    screen loads and refreshes meet their freshness requirement; held answers
@@ -30,15 +30,16 @@ Three outcomes remain worth pursuing:
 Charlie Cheever commissioned implementation on 2026-09-12 after a panel sanity
 check, delegating the decision that the plans are directionally solid to Codex.
 Implementation owner: Codex, with Astra coding agents in existing named
-Snapback 2 lanes. Each child begins by classifying its exact current
-reproduction. Already-landed fixes proceed to qualification. The residual
-research is context, not a fourth implementation work order.
+Snapback 2 lanes. The children now record their source outcomes and scoped
+qualification below. The parent remains **Accepted, not complete**: the digest
+final-emission requirement remains unmet. The residual research is context,
+not a fourth implementation work order.
 
 ## Evidence and what it establishes
 
-Source baseline for this review: local main `3b7f51564a`, inspected
-2026-09-12 UTC. It is a record of what was inspected, not an exact-HEAD gate.
-Reconcile affected changes before implementation.
+Initial review baseline: local main `3b7f51564a`, inspected 2026-09-12 UTC.
+The table preserves that checkpoint; the integration section records subsequent
+source outcomes. Neither is an exact-HEAD gate.
 
 | Evidence | Supported conclusion | Limit |
 | --- | --- | --- |
@@ -81,8 +82,10 @@ Current 1000+ implementation records and packaged guide cards govern facts.
   `offline`, `assets` and `job` before proposing a surface change.
 
 The complete local runtime ceiling is 90,000 gzip bytes, target 80,000.
-The latest [Insights record](../issues/closed/20260911-snapback2-insights-partial-twin-zero.md)
-measures **89,999** with the pinned toolchain. Assume no usable headroom.
+The initial [Insights record](../issues/closed/20260911-snapback2-insights-partial-twin-zero.md)
+measured **89,999** with the pinned toolchain. The dedicated simplification
+subsequently measured **89,986 → 89,843** on its fixed source baseline; later
+merged changes require their combined measurement. Headroom remains narrow.
 Fund added runtime bytes through deletion/simplification and measure the
 combined result with the existing five roots. Package/guide growth limits
 remain separate. Moving bytes between roots does not fund a feature.
@@ -90,9 +93,10 @@ The integrator records the baseline and each merged delta. A net-growing
 runtime repair includes its behavior-preserving byte funding in the same
 reviewed change. On 2026-09-12 the author additionally commissioned a dedicated,
 metafile-driven simplification lane toward 80,000 bytes. No lane can spend
-headroom independently of the combined result. The suggested 99,999 allocation
-is a fallback to assess after that measured attempt; it has not replaced the
-90,000 ceiling.
+headroom independently of the combined result. After the measured attempt,
+the integrator retained the 90,000 ceiling while the candidate fits it; the
+author's conditional 99,999 fallback was not adopted. The 80,000 target remains
+unmet.
 
 ## Program decisions
 
@@ -183,11 +187,14 @@ needs reassessment; score improvement with wrong data fails the program.
 
 ## Remaining decisions
 
-The query child identifies the exact freshness gap before choosing any new
-surface. The scale child tests whether the 1,000-conversation form fits before
-selecting an accounting repair or complete composition. The web child chooses a
-fix from a traced failed boundary. None is resolved by an invented score target,
-a forced rejection test, or a larger ceiling.
+The remaining implementation question is exact final-time digest eligibility,
+including deletion, membership and expiry changes after accumulation. A material
+review concern about uniform closure accounting is under reproduction; the
+query owner's once-alias/conditional/live correction and final browser check
+are also pending. Do not call the integrated source review-ready yet. Final
+native/package qualification, publication and a fresh unchanged Clique wave
+remain separate work. None is resolved by an invented score target, a forced
+rejection test, or a larger ceiling.
 
 [Review and dispositions](./reviews/1023-clique-builder-jump.gpt.md).
 
@@ -214,27 +221,58 @@ links becoming tracked without removing active work.
 
 ## Integration evidence in progress — 2026-09-12
 
-The three source lanes are integrated with main's concurrent hardening at
-`a41a132f82`. The combined pinned runtime before the dedicated simplification
-is **89,986 gzip bytes**; the packaged guide is **98,252 / 98,304 bytes**.
+The three source lanes were integrated with main's concurrent hardening at
+`a41a132f82`; the later main merge `89b705dbb2` adds the global-search pager
+and recipe, compact heads for all 1,000 memberships, and phased schedules.
+Integration preserves the full-media 500-follow fixture, ten-row grouped
+search and five-row rich history. These source forms do not establish digest
+final-emission eligibility.
+
+The dedicated byte lane measured **89,986 → 89,843 gzip bytes**, a **143-byte
+reduction**, using Node 24.18.0, esbuild 0.25.9, gzip -9 and the same five roots.
+It consolidates typed interval comparison/traversal and evaluator write-row
+bookkeeping; affected behavior checks pass. The result remains **9,843 bytes
+over the 80,000 target**. An independent second look found no safe multi-kilobyte
+cleanup: Unicode data is already compressed, and authority, coverage and
+identity validation have distinct responsibilities. No required bytes were
+relocated and no ceiling changed.
+
 Metafile contributions are uncompressed emitted bytes, not additive gzip
-savings. The largest are the range store (28,141), evaluator runner (27,987),
-offline runtime (23,641), Unicode data (17,186), and value runtime (13,006).
-`client.ts` does not participate in the fixed five roots; its public-bundle
-size remains a separate concern. Required code must not move outside the roots
-to manufacture funding.
+savings. The largest baseline contributions were the range store (28,141),
+evaluator runner (27,987), offline runtime (23,641), Unicode data (17,186), and
+value runtime (13,006). `client.ts` does not participate in the fixed five roots;
+public-entry sizes remain separate. The latest integrated guide build is
+**98,273 / 98,304 bytes**; the integrator owns final combined runtime and
+package measurements after remaining repairs.
 
-The timed Insights consumer now passes against the integrated owner's current
-authentication rules. Its controlled UTC rollover stays inside a fresh bearer
-session; after owner restart it restores the process-local development clock
-before reconnecting. The earlier whole-day jump expired the bearer, and the
-first restart moved time behind session creation. Those refusals were correct;
-the repair changes the test clock, not auth or refresh semantics. One consumer
-run covers equal-sequence day changes, delayed/overlapping results, successor
-adoption, cancellation, account change, and warm/cold offline absence.
+The timed Insights consumer passes in **3.29 seconds** against the integrated
+owner's current authentication rules. Its controlled UTC rollover stays inside
+a fresh bearer session; after owner restart it restores the process-local
+development clock before reconnecting. The earlier whole-day jump expired the
+bearer, and the first restart moved time behind session creation. Those
+refusals were correct; only the test clock changed, with no new refresh API.
+The consumer covers equal-sequence day changes, delayed/overlapping results,
+successor adoption, cancellation, account change, and warm/cold offline absence.
 
-Full-media following, grouped hub search, and rich thread pagination execute
-within existing bounds. The scheduled digest's final-emission eligibility
-remains unmet and unclaimed. The query and web lanes still own their remaining
-browser and code-review findings. Passing source checks and a staged Darwin
-package do not establish publication or the fresh Clique result.
+The real Chromium web matrix is complete for its scoped one-profile,
+IndexedDB/bearer cases: SDK and physical offline cuts, route unmount, provider
+teardown, browser process close/reopen, two ordered intents, and response-loss
+retry preserve the stated admission and settlement contracts. Configured
+durable clients refuse truthfully before principal restoration instead of
+bypassing the carrier. A post-admission refused wait retains original work
+identity. Sol's material cleanup finding is repaired in `f65f1e463b`, with
+209 affected tests passing; the owner-stop race is repaired in `906672`.
+These results do not close the separate full-acquisition objective.
+
+Full-media following, grouped hub search and rich thread pagination execute
+within existing bounds. The retained digest counterexample reaches done but
+keeps 500 accumulated contributions after a contributing post is deleted and
+the owner restarts. Phased scheduling alone does not prove final-time
+eligibility. This requirement remains unmet and unclaimed.
+
+The once-media follow-up and the material uniform-closure review concern
+remain open at this checkpoint. Darwin's 0.0.27 stage passed before the latest
+native changes; final qualification and publication are pending. The prepared
+fresh diagnostic packet on EPYC has not launched (estimated run: 7–12 hours),
+so there is no fresh independently graded M1–M8 claim. Passing source checks or
+an earlier native stage does not establish that result.
