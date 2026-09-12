@@ -1,0 +1,409 @@
+//! Binding declarations to the core schema: tables, indexes, rules,
+//! constraints, maintained aggregates and their generated targets, and the
+//! `sync` line with the principal column resolved.
+
+use super::catalog::{Catalog, TableInfo};
+use crate::ast::*;
+use crate::diag::{Diagnostic, Fallible, Site, ambiguous, name_rewrite, sync_error, type_error, unknown};
+use crate::types::{Ty, scalar_to_column};
+use snapback4_core::ir::KeyProvenance;
+use snapback4_core::schema::{self as core, Audience, Constraint, Horizon, LeavePolicy, RuleExpr, RuleTerm, Rules, Sync, Table};
+use snapback4_core::value::Value;
+use std::collections::{BTreeMap, BTreeSet};
+
+pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core::Schema {
+    let mut schema = core::Schema::default();
+    for info in catalog.tables.values() {
+        let table = bind_table(catalog, info, diagnostics);
+        schema.tables.insert(info.decl.name.clone(), table);
+    }
+    for info in catalog.tables.values() {
+        if let Some(source) = &info.inherits_sync_from
+            && let Some(sync) = schema.tables.get(source).and_then(|t| t.sync.clone())
+        {
+            schema.tables.get_mut(&info.decl.name).expect("bound").sync = Some(Sync { audience: sync.audience, horizon: None });
+        }
+    }
+    for maintain in catalog.maintains.values() {
+        let source = catalog.tables.get(&maintain.source);
+        let Some(source) = source else { continue };
+        let kind = match &maintain.column {
+            Some(column) => core::MaintainKind::Sum { of: column.clone() },
+            None => core::MaintainKind::Count,
+        };
+        let readable = maintain.readable.as_ref().and_then(|rule| bind_rule(catalog, source, rule).ok());
+        schema.maintains.push(core::Maintain { kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable });
+    }
+    for doc in &catalog.documents {
+        for effect in &doc.effects {
+            schema.effects.push(effect.name.clone());
+        }
+        if let Some((password, guests)) = doc.identity {
+            schema.auth = core::Auth { password, guests };
+        }
+    }
+    // The core's structural check catches what binding did not; a
+    // declaration that already refused is not reported twice.
+    if diagnostics.is_empty() {
+        for issue in core::validate(&schema) {
+            let site = catalog.site_for(&issue.path);
+            diagnostics.push(Diagnostic::new(&site, "E_SCHEMA_CONSTRAINT", issue.message, "fix the declaration named by this message").guide("indexes"));
+        }
+    }
+    schema
+}
+
+/// Bind one table. A refused line becomes a diagnostic and a `deny` (or an
+/// absent sync), so one mistake does not cascade into every reader.
+fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnostic>) -> Table {
+    let decl = &info.decl;
+    let mut columns = BTreeMap::new();
+    columns.insert("id".to_owned(), core::ColumnType::Id);
+    for column in &decl.columns {
+        if let TypeKind::Ref { table } = &column.type_.kind
+            && !catalog.tables.contains_key(table)
+        {
+            diagnostics.push(type_error(&column.site, format!("column {}.{} references unknown table {table}", decl.name, column.name), name_rewrite(table, catalog.tables.keys().map(String::as_str), Some("declare the table, or use id for an opaque identity"))));
+        }
+        columns.insert(column.name.clone(), scalar_to_column(&column.type_));
+    }
+    let mut indexes = BTreeMap::new();
+    let mut constraints = Vec::new();
+    for index in &info.indexes {
+        indexes.insert(index.name.clone(), core::Index::of(&index.columns.iter().map(String::as_str).collect::<Vec<_>>(), index.unique));
+        if index.unique && index.name != "byId" {
+            constraints.push(Constraint::Unique { index: index.name.clone() });
+        }
+    }
+    let mut rules = Rules::deny();
+    for effect in [Effect::Read, Effect::Insert, Effect::Update, Effect::Delete] {
+        let rule = decl.rules.iter().find(|rule| rule.effect == effect);
+        let bound = match (effect, &decl.public, rule) {
+            (Effect::Read, Some((reason, _)), Some(rule)) => {
+                diagnostics.push(unknown(&rule.site, format!("table {} cannot combine public with an explicit read rule", decl.name), format!("remove the read line, or remove `public '{reason}'`")));
+                RuleExpr::Deny
+            }
+            (Effect::Read, Some((reason, _)), None) => RuleExpr::Public { reason: reason.clone() },
+            (_, _, Some(rule)) => match bind_rule(catalog, info, rule) {
+                Ok(bound) => bound,
+                Err(diagnostic) => {
+                    diagnostics.push(diagnostic);
+                    RuleExpr::Deny
+                }
+            },
+            (_, _, None) => RuleExpr::Deny,
+        };
+        match effect {
+            Effect::Read => rules.read = bound,
+            Effect::Insert => rules.insert = bound,
+            Effect::Update => rules.update = bound,
+            Effect::Delete => rules.delete = bound,
+        }
+    }
+    for cap in &decl.caps {
+        if !info.indexes.iter().any(|index| index.columns.starts_with(&cap.by)) {
+            diagnostics.push(Diagnostic::new(&cap.site, "E_SCHEMA_CONSTRAINT", format!("cap {} by {} needs an index whose leading columns are exactly those", cap.max, cap.by.join(", ")), format!("by by{}: {}", cap.by.iter().map(|c| title(c)).collect::<String>(), cap.by.join(", "))).guide("indexes"));
+            continue;
+        }
+        constraints.push(Constraint::Cap { by: cap.by.clone(), max: cap.max });
+    }
+    for (fields, _) in &decl.immutable {
+        constraints.push(Constraint::Immutable { fields: fields.clone() });
+    }
+    for column in &decl.columns {
+        if let TypeKind::Text { min, format, .. } = &column.type_.kind
+            && (min.is_some() || format.is_some())
+        {
+            constraints.push(Constraint::Text { field: column.name.clone(), min: min.unwrap_or(0), format: format.as_deref().map(|f| if f == "handle" { core::TextFormat::Handle } else { core::TextFormat::Url }) });
+        }
+    }
+    for (value, site) in &decl.final_exists {
+        let Expr::Exists { read, .. } = value else { continue };
+        match bind_probe(catalog, info, read, site, false) {
+            Ok((table, index, key)) => constraints.push(Constraint::FinalExistsOnInsert { table, index, key }),
+            Err(diagnostic) => diagnostics.push(diagnostic),
+        }
+    }
+    let leave = match decl.retain.as_ref().map(|(policy, _)| policy.as_str()) {
+        Some("delivered-history") => LeavePolicy::DeliveredHistory,
+        _ => LeavePolicy::UntilRevoked,
+    };
+    let sync = match &decl.sync {
+        Some(sync) => match bind_sync(catalog, info, sync) {
+            Ok(sync) => Some(sync),
+            Err(diagnostic) => {
+                diagnostics.push(diagnostic);
+                None
+            }
+        },
+        None => None,
+    };
+    Table { columns, indexes, rules, constraints, leave, sync }
+}
+
+fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl) -> Fallible<Sync> {
+    let audience = match &sync.audience {
+        SyncAudience::Public => Audience::Public,
+        SyncAudience::Column(column) => {
+            match info.columns.get(column) {
+                Some(ScalarType { kind: TypeKind::Principal, .. }) => {}
+                Some(other) => return Err(sync_error(&sync.site, format!("sync to .{column} needs a principal column; {}.{column} is {}", info.decl.name, crate::print::scalar_type(other)), format!("sync to .<principal column>  -- or: {column}: principal"))),
+                None => return Err(sync_error(&sync.site, format!("sync to .{column} names an undeclared column of {}", info.decl.name), name_rewrite(column, info.columns.keys().map(String::as_str), None))),
+            }
+            Audience::Column(column.clone())
+        }
+        SyncAudience::Target { table, prefix, principal } => {
+            let Some(target) = catalog.tables.get(table) else {
+                return Err(sync_error(&sync.site, format!("sync to {table} names an unknown table"), name_rewrite(table, catalog.tables.keys().map(String::as_str), None)));
+            };
+            for column in prefix {
+                if !info.columns.contains_key(column) && column != "id" {
+                    return Err(sync_error(&sync.site, format!("sync to {table}[.{column}] names an undeclared column of {}", info.decl.name), name_rewrite(column, info.columns.keys().map(String::as_str), None)));
+                }
+            }
+            let principals: Vec<&str> = target.columns.iter().filter(|(_, kind)| matches!(kind.kind, TypeKind::Principal) && !kind.optional).map(|(name, _)| name.as_str()).collect();
+            let principal = match principal {
+                Some(named) => {
+                    if !principals.contains(&named.as_str()) {
+                        return Err(sync_error(&sync.site, format!("sync to {table}[..] by .{named}: {table}.{named} is not a principal column"), format!("sync to {table}[{}] by .<principal column of {table}>", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "))));
+                    }
+                    named.clone()
+                }
+                None => match principals.as_slice() {
+                    [one] => (*one).to_owned(),
+                    [] => return Err(sync_error(&sync.site, format!("sync to {table}[..] needs a principal column on {table} to read recipients from; it has none"), format!("add `principal: principal` to table {table}"))),
+                    many => return Err(sync_error(&sync.site, format!("sync to {table}[..]: {table} has several principal columns ({}); name the recipient column", many.join(", ")), format!("sync to {table}[{}] by .{}", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "), many[0]))),
+                },
+            };
+            Audience::Target { table: table.clone(), prefix: prefix.clone(), principal }
+        }
+    };
+    let horizon = match &sync.horizon {
+        Some((last, by)) => {
+            if !info.indexes.iter().any(|index| &index.name == by) {
+                return Err(sync_error(&sync.site, format!("horizon names unknown index {}.{by}", info.decl.name), name_rewrite(by, info.indexes.iter().map(|i| i.name.as_str()), None)));
+            }
+            Some(Horizon { last: *last, by: by.clone() })
+        }
+        None => None,
+    };
+    Ok(Sync { audience, horizon })
+}
+
+/// Bind a rule expression over a table's focal row.
+pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallible<RuleExpr> {
+    let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert };
+    rule_expr(catalog, info, &rule.value, &bindings)
+}
+
+struct RuleBindings {
+    old: Option<String>,
+    next: Option<String>,
+    update: bool,
+    insert: bool,
+}
+
+fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBindings) -> Fallible<RuleExpr> {
+    let site = expr.site();
+    match expr {
+        Expr::Name { name, .. } => match name.as_str() {
+            "allow" => Ok(RuleExpr::Allow),
+            "deny" => Ok(RuleExpr::Deny),
+            "public" => Ok(RuleExpr::Public { reason: format!("{} is public", info.decl.name) }),
+            "true" => Ok(RuleExpr::Allow),
+            "false" => Ok(RuleExpr::Deny),
+            other => Err(unknown(site, format!("`{other}` is not a rule; rules are allow, deny, public, exists, created, and comparisons over ., viewer and literals"), "read <- .ownerId = viewer")),
+        },
+        Expr::Binary { op, left, right, .. } => match op.as_str() {
+            "and" => Ok(RuleExpr::And(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
+            "or" => Ok(RuleExpr::Or(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
+            "=" | "!=" => {
+                let (l, lt) = rule_term(catalog, info, left, bindings)?;
+                let (r, rt) = rule_term(catalog, info, right, bindings)?;
+                if !lt.comparable(&rt) {
+                    return Err(type_error(site, format!("rule comparison joins {} with {}", lt.name(), rt.name()), "compare a principal column with viewer, or a column with a literal of its own type"));
+                }
+                if let (Ty::Principal, other) | (other, Ty::Principal) = (&lt, &rt)
+                    && !matches!(other, Ty::Principal | Ty::Id)
+                    && !matches!((&l, &r), (RuleTerm::Viewer, _) | (_, RuleTerm::Viewer))
+                {
+                    return Err(type_error(site, format!("viewer meets {} here; only principal columns compare with viewer", other.name()), "declare the column as principal"));
+                }
+                Ok(if op == "=" { RuleExpr::Eq(l, r) } else { RuleExpr::Ne(l, r) })
+            }
+            other => Err(unknown(site, format!("`{other}` is not a rule operator; rules use and, or, not, =, and !="), "read <- .ownerId = viewer")),
+        },
+        Expr::Unary { op, value, .. } if op == "not" => Ok(RuleExpr::Not(Box::new(rule_expr(catalog, info, value, bindings)?))),
+        Expr::Exists { read, site } => {
+            let (table, index, key) = bind_probe(catalog, info, read, site, bindings.update)?;
+            Ok(RuleExpr::Exists { table, index, key, provenance: KeyProvenance::Shape })
+        }
+        Expr::Created { read, site } => {
+            if !bindings.insert {
+                return Err(unknown(site, "created is valid only in an insert rule", "use exists in read, update and delete rules"));
+            }
+            let (table, index, key) = bind_probe(catalog, info, read, site, false)?;
+            Ok(RuleExpr::Created { table, index, key, provenance: KeyProvenance::Shape })
+        }
+        Expr::Literal { value: Literal::Bool(b), .. } => Ok(if *b { RuleExpr::Allow } else { RuleExpr::Deny }),
+        other => Err(unknown(site, format!("`{}` is not a rule", crate::print::expression(other)), "read <- exists memberships[.conversationId, viewer]")),
+    }
+}
+
+fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBindings) -> Fallible<(RuleTerm, Ty)> {
+    let site = expr.site();
+    match expr {
+        Expr::Name { name, .. } if name == "viewer" => Ok((RuleTerm::Viewer, Ty::Principal)),
+        Expr::Member { base, name, .. } => match base.as_ref() {
+            Expr::Focal { .. } => {
+                if bindings.update && bindings.old.is_some() {
+                    return Err(unknown(site, "an update (old, next) rule names its images; . is not bound", format!("next.{name}")));
+                }
+                let ty = column_ty(info, name).ok_or_else(|| unknown(site, format!("rule reads undeclared column {}.{name}", info.decl.name), name_rewrite(name, info.columns.keys().map(String::as_str).chain(["id"]), None)))?;
+                Ok((RuleTerm::Field(name.clone()), ty))
+            }
+            Expr::Name { name: binder, .. } if bindings.old.as_deref() == Some(binder) => {
+                let ty = column_ty(info, name).ok_or_else(|| unknown(site, format!("rule reads undeclared column {}.{name}", info.decl.name), name_rewrite(name, info.columns.keys().map(String::as_str).chain(["id"]), None)))?;
+                Ok((RuleTerm::OldField(name.clone()), ty))
+            }
+            Expr::Name { name: binder, .. } if bindings.next.as_deref() == Some(binder) => {
+                let ty = column_ty(info, name).ok_or_else(|| unknown(site, format!("rule reads undeclared column {}.{name}", info.decl.name), name_rewrite(name, info.columns.keys().map(String::as_str).chain(["id"]), None)))?;
+                Ok((RuleTerm::NextField(name.clone()), ty))
+            }
+            other => Err(unknown(site, format!("`{}` is not a rule term; rules read the row as .column", crate::print::expression(other)), format!(".{name}"))),
+        },
+        Expr::Name { name, .. } if bindings.update && (bindings.old.as_deref() == Some(name) || bindings.next.as_deref() == Some(name)) => Err(unknown(site, format!("select a field of {name} explicitly"), format!("{name}.id"))),
+        Expr::Name { name, .. } => Err(unknown(site, format!("`{name}` is not a rule term; rules read the row as .{name}"), format!(".{name}"))),
+        Expr::Literal { value, .. } => Ok(match value {
+            Literal::Str(text) => (RuleTerm::Literal(Value::String(text.clone())), Ty::Text(text.chars().count() as u32)),
+            Literal::Number(text) => (RuleTerm::Literal(Value::Int(text.parse().unwrap_or(0))), Ty::Int),
+            Literal::Bool(b) => (RuleTerm::Literal(Value::Bool(*b)), Ty::Bool),
+            Literal::Null => (RuleTerm::Literal(Value::Null), Ty::Null),
+        }),
+        other => {
+            let _ = catalog;
+            Err(unknown(site, format!("`{}` is not a rule term", crate::print::expression(other)), "compare .column with viewer or a literal"))
+        }
+    }
+}
+
+fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
+    if name == "id" {
+        return Some(Ty::Ref(info.decl.name.clone()));
+    }
+    info.columns.get(name).map(Ty::from_scalar)
+}
+
+/// Bind `exists t[keys]` inside a rule: the target's index by key arity and
+/// names, the terms over the focal row.
+pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, update: bool) -> Fallible<(String, String, Vec<RuleTerm>)> {
+    let Some(target) = catalog.tables.get(&read.table) else {
+        return Err(unknown(site, format!("exists probes unknown table {}", read.table), name_rewrite(&read.table, catalog.tables.keys().map(String::as_str), None)));
+    };
+    let bindings = RuleBindings { old: None, next: None, update, insert: false };
+    let mut terms = Vec::new();
+    let mut types = Vec::new();
+    for key in &read.keys {
+        let (term, ty) = rule_term(catalog, info, &key.value, &bindings)?;
+        terms.push((key.column.clone(), term));
+        types.push(ty);
+    }
+    let named: Option<Vec<String>> = if terms.iter().all(|(c, _)| c.is_some()) && !terms.is_empty() { Some(terms.iter().map(|(c, _)| c.clone().unwrap()).collect()) } else { None };
+    let candidates: Vec<&IndexDecl> = target
+        .indexes
+        .iter()
+        .filter(|index| match &read.index {
+            Some(explicit) => &index.name == explicit,
+            None => true,
+        })
+        .filter(|index| match &named {
+            Some(names) => index.columns.len() == names.len() && names.iter().all(|n| index.columns.contains(n)),
+            None => index.columns.len() == terms.len(),
+        })
+        .filter(|index| {
+            index.columns.iter().enumerate().all(|(position, column)| {
+                let ty = match &named {
+                    Some(names) => names.iter().position(|n| n == column).map(|p| &types[p]),
+                    None => types.get(position),
+                };
+                let expected = if column == "id" { Ty::Ref(read.table.clone()) } else { target.columns.get(column).map(Ty::from_scalar).unwrap_or(Ty::Unknown) };
+                ty.is_none_or(|ty| ty.comparable(&expected))
+            })
+        })
+        .collect();
+    let index = match candidates.as_slice() {
+        [one] => (*one).clone(),
+        [] => {
+            let declared: Vec<String> = target.indexes.iter().map(|i| format!("{}: {}", i.name, i.columns.join(", "))).collect();
+            return Err(unknown(site, format!("{} has no index with {} column{} matching this key", read.table, terms.len(), if terms.len() == 1 { "" } else { "s" }), format!("declare `unique by{}: <columns>` on {}; its indexes are {}", read.table.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default(), read.table, if declared.is_empty() { "none".to_owned() } else { declared.join("; ") })));
+        }
+        many => {
+            let names: Vec<&str> = many.iter().map(|i| i.name.as_str()).collect();
+            return Err(ambiguous(site, format!("{} has {} indexes matching this key: {}", read.table, many.len(), names.join(", ")), format!("{} by {}", crate::print::read_expr(read), names[0])));
+        }
+    };
+    let mut ordered: Vec<RuleTerm> = match &named {
+        Some(names) => index.columns.iter().map(|column| terms[names.iter().position(|n| n == column).unwrap()].1.clone()).collect(),
+        None => terms.into_iter().map(|(_, term)| term).collect(),
+    };
+    // Literals take the column's nominal form: an id in an identity column,
+    // a checked variant in an enum column.
+    for (term, column) in ordered.iter_mut().zip(&index.columns) {
+        let expected = if column == "id" { Some(ScalarType { kind: TypeKind::Ref { table: read.table.clone() }, optional: false }) } else { target.columns.get(column).cloned() };
+        if let (RuleTerm::Literal(Value::String(text)), Some(expected)) = (&*term, expected) {
+            match &expected.kind {
+                TypeKind::Id | TypeKind::Principal | TypeKind::Ref { .. } => *term = RuleTerm::Literal(Value::Id(text.clone())),
+                TypeKind::Enum { variants } if !variants.contains(text) => {
+                    return Err(type_error(site, format!("'{text}' is not one of {}.{column}'s variants {}", read.table, variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")), format!("'{}'", variants.first().cloned().unwrap_or_default())));
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok((read.table.clone(), index.name, ordered))
+}
+
+fn title(value: &str) -> String {
+    let mut chars = value.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    }
+}
+
+/// The columns of a generated maintain target: `id`, `value`, and the `by`
+/// columns typed as the source declares them.
+pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<TableDecl> {
+    let site = maintain.site.clone();
+    let mut columns = Vec::new();
+    let value_type = match &maintain.column {
+        None => ScalarType { kind: TypeKind::Int, optional: false },
+        Some(column) => match source.columns.get(column) {
+            Some(ty) if matches!(ty.kind, TypeKind::Int | TypeKind::Decimal { .. } | TypeKind::Money { .. }) => ty.required(),
+            Some(ty) => return Err(type_error(&site, format!("sum over {}.{column} needs int, decimal or money, not {}", maintain.source, crate::print::scalar_type(ty)), format!("maintain {}: count {} by {}", maintain.name, maintain.source, maintain.by.join(", ")))),
+            None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
+        },
+    };
+    columns.push(ColumnDecl { name: "value".into(), type_: value_type, site: site.clone() });
+    let mut seen = BTreeSet::new();
+    for field in &maintain.by {
+        if !seen.insert(field.clone()) {
+            return Err(unknown(&site, format!("maintain by repeats {field}"), format!("maintain {}: {} {} by {}", maintain.name, maintain.aggregate, maintain.source, seen.iter().cloned().collect::<Vec<_>>().join(", "))));
+        }
+        let ty = if field == "id" { ScalarType { kind: TypeKind::Ref { table: maintain.source.clone() }, optional: false } } else { source.columns.get(field).cloned().ok_or_else(|| unknown(&site, format!("maintain names unknown column {}.{field}", maintain.source), name_rewrite(field, source.columns.keys().map(String::as_str), None)))? };
+        columns.push(ColumnDecl { name: field.clone(), type_: ty, site: site.clone() });
+    }
+    Ok(TableDecl {
+        name: maintain.name.clone(),
+        columns,
+        indexes: vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, site: site.clone() }],
+        rules: vec![maintain.read.clone()],
+        immutable: Vec::new(),
+        caps: Vec::new(),
+        final_exists: Vec::new(),
+        retain: None,
+        public: None,
+        sync: None,
+        site,
+    })
+}

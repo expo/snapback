@@ -56,6 +56,7 @@ pub struct Runner<'a> {
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
     /// The sequence this run will commit as (a query reads at `seq`).
+    #[allow(dead_code)]
     pub(crate) seq: u64,
     pub(crate) statement_site: String,
 }

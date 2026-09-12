@@ -713,7 +713,10 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
                 }
             }
             // The audience index: the target's columns for the prefix, then the principal.
-            let audience_columns: Vec<String> = target_prefix_columns(target, prefix, principal).unwrap_or_default();
+            let Some(audience_columns) = target_prefix_columns(table_name, table, target, prefix, principal) else {
+                issue(issues, format!("sync to {target_name}[{}]: {target_name} has no column matching {} (same name and type, or one reference to the same table)", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "), prefix.iter().map(|c| format!("{table_name}.{c}")).collect::<Vec<_>>().join(", ")));
+                return;
+            };
             let mut wanted_index = audience_columns.clone();
             wanted_index.push(principal.clone());
             if !target.indexes.values().any(|index| index.columns() == wanted_index) {
@@ -756,15 +759,25 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
 }
 
 /// The target table's columns a content row's `prefix` columns are matched
-/// against. Snapback 2's `deliver` pins a `cap N by` group; Snapback 4 pins
-/// by name when the target has same-named columns, else by the target's
-/// non-principal reference columns in declaration order.
-pub fn target_prefix_columns(target: &Table, prefix: &[String], principal: &str) -> Option<Vec<String>> {
-    if prefix.iter().all(|column| target.columns.contains_key(column)) {
-        return Some(prefix.to_vec());
+/// against. `.id` on the content table matches the target's reference to
+/// the content table; any other column matches the target's same-named
+/// column of the same type, else its sole reference to the same table.
+pub fn target_prefix_columns(content_name: &str, content: &Table, target: &Table, prefix: &[String], principal: &str) -> Option<Vec<String>> {
+    let mut out = Vec::new();
+    for column in prefix {
+        let kind = if column == "id" { ColumnType::Ref { table: content_name.to_owned() } } else { content.columns.get(column)?.required().clone() };
+        let same_name = target.columns.get(column).filter(|target_kind| column != "id" && target_kind.required() == &kind && column != principal);
+        if same_name.is_some() {
+            out.push(column.clone());
+            continue;
+        }
+        let by_reference: Vec<&String> = target.columns.iter().filter(|(name, target_kind)| name.as_str() != "id" && name.as_str() != principal && matches!(&kind, ColumnType::Ref { .. }) && target_kind.required() == &kind).map(|(name, _)| name).collect();
+        match by_reference.as_slice() {
+            [one] => out.push((*one).clone()),
+            _ => return None,
+        }
     }
-    let candidates: Vec<String> = target.columns.iter().filter(|(name, kind)| name.as_str() != "id" && name.as_str() != principal && matches!(kind.required(), ColumnType::Ref { .. })).map(|(name, _)| name.clone()).collect();
-    (candidates.len() == prefix.len()).then_some(candidates)
+    Some(out)
 }
 
 /// The maintained target's row address for a source image: the `by` values.

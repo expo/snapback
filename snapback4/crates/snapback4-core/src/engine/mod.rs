@@ -308,6 +308,29 @@ impl Engine {
         Ok(count)
     }
 
+    /// Delete a row as the system principal: constraints, aggregates and
+    /// partition events apply. Returns the number of rows removed (0 or 1).
+    pub fn seed_delete(&mut self, table: &str, id: &str) -> Result<u64, RuntimeError> {
+        let now = crate::now_ms();
+        let tx = self.store.transaction()?;
+        let seq = tx.next_seq()?;
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        let removed = match runner.delete(table, id) {
+            Ok(()) => 1,
+            Err(RuntimeError::Require { .. }) => 0,
+            Err(error) => return Err(error),
+        };
+        let events = std::mem::take(&mut runner.events);
+        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+        drop(runner);
+        if removed > 0 {
+            tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, removed)?;
+            partition::append(&tx, seq, &events)?;
+        }
+        tx.commit()?;
+        Ok(removed)
+    }
+
     /// Load rows exactly as given: validated and indexed, rules, constraints
     /// and aggregates skipped, partition events emitted. For fixtures whose
     /// aggregates are already computed and for the conformance corpus.

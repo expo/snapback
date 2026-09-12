@@ -69,9 +69,10 @@ pub fn group_of(sync: &Sync, row: &Value) -> Vec<Value> {
 
 /// The index of the target table that lists a group's principals, and the
 /// index that lists a principal's groups.
-fn target_indexes(schema: &Schema, target_name: &str, prefix: &[String], principal: &str) -> Option<(String, Vec<String>, String)> {
+fn target_indexes(schema: &Schema, content_name: &str, target_name: &str, prefix: &[String], principal: &str) -> Option<(String, Vec<String>, String)> {
     let target = schema.table(target_name)?;
-    let columns = target_prefix_columns(target, prefix, principal)?;
+    let content = schema.table(content_name)?;
+    let columns = target_prefix_columns(content_name, content, target, prefix, principal)?;
     let mut by_group = columns.clone();
     by_group.push(principal.to_owned());
     let group_index = target.indexes.iter().find(|(_, index)| index.columns() == by_group)?.0.clone();
@@ -82,7 +83,7 @@ fn target_indexes(schema: &Schema, target_name: &str, prefix: &[String], princip
 }
 
 /// The principals that hold `row` under `sync`, as partition names.
-pub fn audience(tx: &Tx<'_>, schema: &Schema, sync: &Sync, row: &Value) -> Result<Vec<String>, RuntimeError> {
+pub fn audience(tx: &Tx<'_>, schema: &Schema, content_name: &str, sync: &Sync, row: &Value) -> Result<Vec<String>, RuntimeError> {
     Ok(match &sync.audience {
         Audience::Public => vec![PUBLIC.to_owned()],
         Audience::Column(column) => match row.field(column) {
@@ -90,7 +91,7 @@ pub fn audience(tx: &Tx<'_>, schema: &Schema, sync: &Sync, row: &Value) -> Resul
             _ => Vec::new(),
         },
         Audience::Target { table, prefix, principal } => {
-            let (group_index, _, _) = target_indexes(schema, table, prefix, principal).ok_or_else(|| RuntimeError::Schema(format!("sync to {table} has no audience index")))?;
+            let (group_index, _, _) = target_indexes(schema, content_name, table, prefix, principal).ok_or_else(|| RuntimeError::Schema(format!("sync to {table} has no audience index")))?;
             let group = group_of(sync, row);
             if group.iter().any(|value| *value == Value::Null) {
                 return Ok(Vec::new());
@@ -114,11 +115,11 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     if let Some(sync) = &table.sync {
         let before: BTreeSet<String> = match old {
-            Some(old) => audience(runner.tx, schema, sync, old)?.into_iter().collect(),
+            Some(old) => audience(runner.tx, schema, table_name, sync, old)?.into_iter().collect(),
             None => BTreeSet::new(),
         };
         let after: BTreeSet<String> = match new {
-            Some(new) => audience(runner.tx, schema, sync, new)?.into_iter().collect(),
+            Some(new) => audience(runner.tx, schema, table_name, sync, new)?.into_iter().collect(),
             None => BTreeSet::new(),
         };
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned();
@@ -145,10 +146,10 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
     if dependents.is_empty() {
         return Ok(());
     }
-    let membership = |row: Option<&Value>, sync: &Sync| -> Option<(String, Vec<Value>)> {
+    let membership = |row: Option<&Value>, content_name: &str, sync: &Sync| -> Option<(String, Vec<Value>)> {
         let row = row?;
         let Audience::Target { table: target, prefix, principal } = &sync.audience else { return None };
-        let (_, columns, _) = target_indexes(schema, target, prefix, principal)?;
+        let (_, columns, _) = target_indexes(schema, content_name, target, prefix, principal)?;
         let Ok(Value::Id(p)) = row.field(principal) else { return None };
         let group: Vec<Value> = columns.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
         if group.iter().any(|value| *value == Value::Null) {
@@ -157,8 +158,8 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
         Some((p.clone(), group))
     };
     for (content_name, sync) in dependents {
-        let was = membership(old, &sync);
-        let is = membership(new, &sync);
+        let was = membership(old, &content_name, &sync);
+        let is = membership(new, &content_name, &sync);
         if was == is {
             continue;
         }
@@ -222,7 +223,7 @@ pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Eve
                 }
             }
             Audience::Target { table: target, prefix, principal: principal_column } => {
-                let (_, columns, principal_index) = target_indexes(schema, target, prefix, principal_column).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
+                let (_, columns, principal_index) = target_indexes(schema, table_name, target, prefix, principal_column).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
                 let mut groups = BTreeSet::new();
                 for (member, _) in tx.scan(target, &principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
                     let group: Vec<Value> = columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
