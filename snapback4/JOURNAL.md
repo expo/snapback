@@ -864,3 +864,21 @@ script verified independently for each. LLP 3000 §3's loop bar (≤ 1,200 s,
 there — twelve runs on four pins, every one green inside the clock, the
 loops on the earlier pins all traced to defects fixed the same day — is
 `benchmarks/runs/2026-09-12-snapback4-loopbar/`.
+
+## 2026-09-12 — the Clique lane finished: every milestone green
+
+The continuous session on `snapback4@0.0.2` (Astra at medium, media and
+scheduled work struck) ended at `end=1789230003`, 7,725 s after it began:
+M1 green at +873 s, M2 +1,416, M3 +2,922, M4 +3,601, M5 +5,030, M6
++6,013 (the full 167,157-action scale replay verified on the second
+attempt after a verifier mistake of the agent's own), M8 +7,128; M7 is
+the separate session. The lane validated its own record, shut down the
+servers it owned by exact pid, and exported seven Hermes bytecodes. The
+anchors (§ the run record): Snapback 2 0.0.4's Astra lane reached M8 at
++7,885 s with four milestones later aborted; Convex's Astra lane, full
+scope, at +5,643 s all green; Snapback 2 0.0.29's took 13,667 s including
+a 6,146 s replay. Twelve Snapback-attributed lines in the builder's log,
+eight distinct findings, every one but the expiry gap fixed on main and
+published the same day (0.0.4 through 0.0.15); the expiry gap is in
+NOT-DOING as the `expires` clause on `sync`. The independent grade (a
+fresh Claude session on the frozen grader prompt) runs now; M7 follows.
