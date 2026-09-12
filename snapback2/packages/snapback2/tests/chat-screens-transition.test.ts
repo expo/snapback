@@ -334,7 +334,17 @@ test("the cold chat keeps both intents queued after a committed replay loses its
 test("preserving the conversation does not carry a photo-opening choice to another viewer", async (t) => {
   const restore = installDom();
   let bobAssetRequests = 0;
-  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  let releasePhoto!: () => void, receivedPhoto!: () => void;
+  const photoReady = new Promise<void>(resolve => { receivedPhoto = resolve; });
+  const heldPhoto = new Promise<void>(resolve => { releasePhoto = resolve; });
+  const alice = createClient({ url: screenOwner.url, persona: "alice", fetch: async (input, init) => {
+    if (!new URL(String(input)).pathname.startsWith("/api/asset/")) return globalThis.fetch(input, init);
+    let response: Response, bytes: ArrayBuffer;
+    try { response = await globalThis.fetch(input, init); bytes = await response.arrayBuffer(); }
+    finally { receivedPhoto(); }
+    await heldPhoto;
+    return new Response(bytes, { status: response.status, headers: response.headers });
+  } });
   const bob = createClient({ url: screenOwner.url, persona: "bob", fetch: async (input, init) => {
     if (new URL(String(input)).pathname.startsWith("/api/asset/")) bobAssetRequests++;
     return globalThis.fetch(input, init);
@@ -354,6 +364,16 @@ test("preserving the conversation does not carry a photo-opening choice to anoth
     await act(async () => root.render(render(alice)));
     await waitFor(() => !!button(), "Alice's unopened photo");
     await act(async () => { button()!.click(); });
+    const viewing = document.querySelector(`${selector} img`);
+    assert.ok(viewing, "Alice explicitly mounts one viewing instance");
+    await act(async () => { await photoReady; });
+    await act(async () => {
+      const consumed = await alice.query(api.messages.conversationView, { conversationId: "conversation-1" });
+      assert.ok(consumed.state === "complete" || consumed.state === "capped");
+      assert.ok(!JSON.stringify(consumed.data).includes(photo.id), "the real owner has redacted the consumed descriptor");
+    });
+    assert.ok(document.querySelector(`${selector} img`) === viewing, "the consumed join keeps the mounted viewing instance before bytes resolve");
+    releasePhoto();
     await waitFor(() => !!document.querySelector(`${selector} img`)?.getAttribute("src"), "Alice's opened photo bytes");
     const list = document.querySelector("ol.bubbles");
     await act(async () => root.render(render(bob)));
@@ -368,7 +388,7 @@ test("preserving the conversation does not carry a photo-opening choice to anoth
     assert.strictEqual(document.querySelector("ol.bubbles"), list);
     assert.strictEqual(document.querySelector(selector), unopened, "opening preserves Bob's bubble");
     t.diagnostic("Alice → Bob: 0 Bob byte requests before click; exactly 1 after explicit open; list and Bob bubble unchanged");
-  } finally { await act(async () => root.unmount()); await alice.close(); await bob.close(); restore(); }
+  } finally { releasePhoto(); await act(async () => root.unmount()); await alice.close(); await bob.close(); restore(); }
 });
 
 

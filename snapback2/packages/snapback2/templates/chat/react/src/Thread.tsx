@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { refusalDetails } from "../shared/status";
-import { api } from "snapback2/client";
+import { api, type ImageAsset } from "snapback2/client";
 import { AssetImage, useAuth, useMutation, useOutbox, usePage, useViewer } from "snapback2/react";
 import { Composer } from "./Composer";
 import { EditMessage } from "./EditMessage";
@@ -12,13 +12,18 @@ function Conversation({ conversationId }: { conversationId: string }) {
   const { session: auth } = useAuth();
   const viewer = useViewer(), account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
   const snapshot = usePage(api.messages.conversationView, { conversationId }, { items: conversationItems });
-  const [ui, setUi] = useState({ account, opened: [] as string[], editing: undefined as string | undefined });
-  if (account !== undefined && account !== ui.account) setUi({ account, opened: [], editing: undefined });
+  // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction — keep the selected descriptor for its mounted viewing lifetime when the live join becomes null.
+  const [ui, setUi] = useState({ account, opened: {} as Record<string, { messageId: string; asset: ImageAsset }>, editing: undefined as string | undefined });
+  if (account !== undefined && account !== ui.account) setUi({ account, opened: {}, editing: undefined });
   // Only a ready, complete view proves the edited message is gone; a partial or loading view keeps the editor.
   if (ui.editing !== undefined && snapshot.status === "ready" && !snapshot.reason && !snapshot.head.partial
     && !snapshot.items.some((item) => item.key === ui.editing && item.data?.body)) setUi({ ...ui, editing: undefined });
   const { dismiss } = useOutbox(), unsend = useMutation(messageWrites.remove);
   const composite = snapshot.head.data, preview = composite?.preview[0]?.message?.body, witness = threadWitness(snapshot);
+  const items = new Map<string, (typeof snapshot.items)[number] | undefined>(snapshot.items.map(item => [item.key, item] as const));
+  if (account != null && account === ui.account) for (const { messageId } of Object.values(ui.opened)) {
+    if (!items.has(messageId)) items.set(messageId, undefined);
+  }
   return <section aria-label="Thread">
     <header><h2>{conversationId}</h2>
       <p className="thread-summary" {...witness.summary} data-count={composite?.count} data-preview-message={composite?.preview[0]?.message?.id}>
@@ -31,18 +36,19 @@ function Conversation({ conversationId }: { conversationId: string }) {
     </header>
     {snapshot.hasMore ? <button type="button" disabled={snapshot.status === "loading"} onClick={snapshot.loadMore}>Load older messages</button> : null}
     <ol className="bubbles" {...witness.bubbles}>
-      {snapshot.items.map((item) => {
-        const message = item.data, messageId = item.key;
-        const post = item.pending.find(action => action.kind === "create"), own = message?.authorId === viewer;
+      {[...items].map(([messageId, item]) => {
+        const message = item?.data;
+        const post = item?.pending.find(action => action.kind === "create"), own = message?.authorId === viewer;
         const photoKey = account == null ? undefined : JSON.stringify([account, messageId]);
+        const photo = message?.oncePhoto, openedPhoto = photoKey === undefined ? undefined : ui.opened[photoKey]?.asset;
         return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={!message ? "bubble pending" : own ? "bubble own" : "bubble"}>
-          <p>{message?.body || item.draft?.body}</p>
+          <p>{message?.body || item?.draft?.body || (openedPhoto ? "Opened photo" : null)}</p>
           {message?.photo ? <Photo key={JSON.stringify([account, message.photo.id])} asset={message.photo} /> : null}
           {message?.clip ? <Clip key={JSON.stringify([account, message.clip.id])} asset={message.clip} /> : null}
-          {message?.oncePhoto ? photoKey !== undefined && ui.opened.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
-            : <button type="button" disabled={photoKey === undefined} onClick={() => photoKey !== undefined && setUi((state) => ({ ...state, opened: [...state.opened, photoKey] }))}>View photo once</button> : null}
-          {message && !post && !item.predicted ? <time dateTime={new Date(message.at).toISOString()}>{new Date(message.at).toLocaleTimeString()}</time> : null}
-          {item.pending.map(action => <small key={action.intent}
+          {openedPhoto ? <AssetImage asset={openedPhoto} width={240} /> : photo
+            ? <button type="button" disabled={photoKey === undefined} onClick={() => photoKey !== undefined && setUi((state) => ({ ...state, opened: { ...state.opened, [photoKey]: { messageId, asset: photo } } }))}>View photo once</button> : null}
+          {message && !post && !item?.predicted ? <time dateTime={new Date(message.at).toISOString()}>{new Date(message.at).toLocaleTimeString()}</time> : null}
+          {item?.pending.map(action => <small key={action.intent}
             data-edit={action.kind === "update" ? action.state : undefined} data-unsend={action.kind === "remove" ? action.state : undefined}>
             {action.kind === "create" ? action.label : `${action.kind === "update" ? "Edit" : "Unsend"} ${action.label.toLowerCase()}`}
             {action.dismissible ? <button type="button" onClick={() => { void dismiss(action.intent); }}>Dismiss</button> : null}

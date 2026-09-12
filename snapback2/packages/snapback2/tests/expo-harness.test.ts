@@ -501,7 +501,17 @@ for (const boundary of ["navigation", "account", "anonymous"]) test(`Expo cold C
 
 test("Expo keeps the conversation mounted without carrying a once-photo opening to the next viewer", async (t) => {
   let bobAssetRequests = 0;
-  const alice = createClient({ url: chatOwner.url, persona: "alice" });
+  let releasePhoto!: () => void, receivedPhoto!: () => void;
+  const photoReady = new Promise<void>(resolve => { receivedPhoto = resolve; });
+  const heldPhoto = new Promise<void>(resolve => { releasePhoto = resolve; });
+  const alice = createClient({ url: chatOwner.url, persona: "alice", fetch: async (input, init) => {
+    if (!new URL(String(input)).pathname.startsWith("/api/asset/")) return globalThis.fetch(input, init);
+    let response: Response, bytes: ArrayBuffer;
+    try { response = await globalThis.fetch(input, init); bytes = await response.arrayBuffer(); }
+    finally { receivedPhoto(); }
+    await heldPhoto;
+    return new Response(bytes, { status: response.status, headers: response.headers });
+  } });
   const bob = createClient({ url: chatOwner.url, persona: "bob", fetch: async (input, init) => {
     if (new URL(String(input)).pathname.startsWith("/api/asset/")) bobAssetRequests++;
     return globalThis.fetch(input, init);
@@ -520,6 +530,16 @@ test("Expo keeps the conversation mounted without carrying a once-photo opening 
     await until(() => Boolean(button()));
     const list = renderer.root.findAllByType("NativeScrollView").find(node => node.findAllByProps({ testID: "thread-summary" }).length)!;
     await act(async () => button()!.props.onPress());
+    const viewing = bubble()?.findAllByType("NativeImage")[0];
+    assert.ok(viewing, "Alice explicitly mounts one viewing instance");
+    await act(async () => { await photoReady; });
+    await act(async () => {
+      const consumed = await alice.query(api.messages.conversationView, { conversationId: "conversation-1" });
+      assert.ok(consumed.state === "complete" || consumed.state === "capped");
+      assert.ok(!JSON.stringify(consumed.data).includes(photo.id), "the real owner has redacted the consumed descriptor");
+    });
+    assert.ok(bubble()?.findAllByType("NativeImage")[0] === viewing, "the consumed join keeps the mounted viewing instance before bytes resolve");
+    releasePhoto();
     await until(() => !!bubble()?.findAllByType("NativeImage")[0]?.props.source?.uri);
     await act(async () => renderer.update(view(bob)));
     await until(() => Boolean(button()), () => `Bob unopened photo: ${JSON.stringify(bob.snapshot.auth)} ${nativeText(renderer)}`);
@@ -533,7 +553,7 @@ test("Expo keeps the conversation mounted without carrying a once-photo opening 
     assert.strictEqual(bubble(), unopened, "opening preserves Bob's bubble");
     assert.ok(renderer.root.findAllByType("NativeScrollView").includes(list));
     t.diagnostic("Alice → Bob: 0 Bob byte requests before click; exactly 1 after explicit open; list and Bob bubble unchanged");
-  } finally { if (renderer) await act(async () => renderer.unmount()); await alice.close(); await bob.close(); }
+  } finally { releasePhoto(); if (renderer) await act(async () => renderer.unmount()); await alice.close(); await bob.close(); }
 });
 
 });
