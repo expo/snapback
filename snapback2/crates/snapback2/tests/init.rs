@@ -1097,7 +1097,11 @@ console.log(JSON.stringify(config.define['import.meta.env.VITE_SNAPBACK_URL']));
                 std::fs::read_to_string(project.path.join("metro.config.cjs")).unwrap();
             assert!(metro.contains(r"\.snapback"), "{metro}");
             assert!(metro.contains("blockList"), "{metro}");
-            for override_url in [None, Some("https://backend.example.com")] {
+            for (override_url, warns) in [
+                (None, false),
+                (Some(first.trim()), false),
+                (Some("https://backend.example.com"), true),
+            ] {
                 let mut node = std::process::Command::new("node");
                 node.args(["-e", "const {evalConfig} = require(require.resolve('@expo/config/build/evalConfig', {paths: [require('node:fs').realpathSync(process.argv[2])]})); console.log(JSON.stringify(evalConfig(process.argv[1], {config: {extra: {kept: true}}}).config));"])
                     .arg(project.path.join("app.config.js"))
@@ -1122,7 +1126,7 @@ console.log(JSON.stringify(config.define['import.meta.env.VITE_SNAPBACK_URL']));
                 assert_eq!(
                     String::from_utf8_lossy(&output.stderr)
                         .contains("overrides this project's owner"),
-                    override_url.is_some(),
+                    warns,
                     "{}",
                     String::from_utf8_lossy(&output.stderr)
                 );
