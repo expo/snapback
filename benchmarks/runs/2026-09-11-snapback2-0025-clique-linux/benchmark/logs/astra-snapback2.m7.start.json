@@ -1,0 +1,27 @@
+{
+  "lane": "astra-snapback2",
+  "phase": "m7",
+  "pid": 2015605,
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "startedEpoch": 1789176391,
+  "command": [
+    "/home/ccheever/.local/bin/codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-C",
+    "/home/ccheever/clique-0025-20260911/lanes/astra-snapback2",
+    "-o",
+    "/home/ccheever/clique-0025-20260911/lanes/astra-snapback2/m7/FINAL.md",
+    "-"
+  ],
+  "prompt": "/home/ccheever/clique-0025-20260911/prompts/astra-snapback2.m7.md"
+}

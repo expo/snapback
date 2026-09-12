@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-09 (if-absent and conditional update implementation amendment); 2026-09-08 (one spelling, LLP 1011: explicit presence codes, full commissioned narrowing, maintain value reads); 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-11 (bare update row binders refuse before field lowering); 2026-09-09 (if-absent and conditional update implementation amendment); 2026-09-08 (one spelling, LLP 1011: explicit presence codes, full commissioned narrowing, maintain value reads); 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -240,6 +240,14 @@ In a one-row `update` rule `.` is the candidate image (what `r` was);
 two rows. `ruleTerm` learns the focal arm; the diagnostic that today says
 "rule terms may only be viewer, literals, or direct fields of the ruled
 row" is reworded for `.`.
+
+**Binder correction (2026-09-11).** Either named update binder denotes a
+whole row image and must select a field (`old.id`, `next.owner`), including
+when authors choose different binder names. A bare binder refuses at its
+authored site during term typing and lowering; it never becomes a candidate
+column with the same name. Columns named `old` or `next` remain accessible
+through focal/member access. Channel arguments are scalar fields of their
+synthetic args row and retain bare-name access, including those spellings.
 
 **Deletes.** The binder word in three rule productions, the `readable`
 default-binder special case, one paragraph of the reference.

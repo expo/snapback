@@ -1,0 +1,109 @@
+{
+  "version": "0.3.6-m8",
+  "runId": "3655f2d2-1ade-4482-9b87-8004e8bf8698",
+  "recordedAt": "2026-09-12T01:41:27.237Z",
+  "type": "segment-summary",
+  "segment": "m7",
+  "assertion": "__segment__",
+  "implemented": true,
+  "required": true,
+  "status": "passed",
+  "pass": true,
+  "timings": [
+    {
+      "attempt": 1,
+      "pass": true,
+      "startedAt": null,
+      "durationMs": 9128,
+      "settlementWaitMs": 7733.1,
+      "metrics": {}
+    }
+  ],
+  "bestOf": 1,
+  "details": {
+    "selection": "segment aggregate",
+    "selectedAttempt": 1,
+    "reason": null
+  },
+  "assertions": {
+    "total": 2,
+    "required": 2,
+    "implemented": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "notImplemented": 0,
+    "requiredUnimplemented": 0
+  },
+  "suite": {
+    "pass": true,
+    "receipt": "suite-m7.json",
+    "receiptSha256": "sha256:39df9853bf9ba13627805766122dd87a6cb475914efa68015c3af26eefdfc99a",
+    "outcomeClass": null
+  },
+  "choreography": {
+    "browserPass": true,
+    "requiredExternal": [],
+    "externalPass": true,
+    "supplementalExternal": [],
+    "pass": true
+  },
+  "green": true,
+  "nonGreenCause": null,
+  "outcomeClass": null,
+  "setupIdentity": {
+    "path": "/home/ccheever/clique-0025-20260911/lanes/astra-snapback2/setup-identity.json",
+    "sha256": "sha256:67aeb2c871a04e736e88ab5d4c2b97081bb56b9e750f5bb9489c591e5dac79cb"
+  },
+  "setup": {
+    "schemaVersion": "social-messenger.setup-identity.v1",
+    "instrumentPin": "social-messenger@0.3.6-m8",
+    "backend": {
+      "kind": "snapback",
+      "version": "snapback2@0.0.25"
+    },
+    "runtime": {
+      "qualifiedBinary": {
+        "claimed": true,
+        "path": "node_modules/snapback2-linux-x64/bin/snapback2",
+        "sha256": "sha256:8fbf8e939f85334cdd830fa0fa0b75f29b2ad2da27cca70ecf0683f699bb2eb9"
+      },
+      "wrapper": {
+        "claimed": true,
+        "path": "node_modules/snapback2/bin/snapback2.mjs",
+        "sha256": "sha256:f97e1d0b9a9ebd3b1dbc416b7a1a6558494a3125cfb6aa05220fcaf554d8f47b"
+      }
+    },
+    "packageClosure": {
+      "mode": "workspace",
+      "prepack": "not-applicable",
+      "artifacts": [
+        {
+          "name": "snapback2",
+          "version": "0.0.25",
+          "sha256": "sha256:73f5f81c0a9d570ecc24d3d02f8dd713c16535032d869e70b133bed8caca14b6"
+        },
+        {
+          "name": "snapback2-linux-x64",
+          "version": "0.0.25",
+          "sha256": "sha256:8fbf8e939f85334cdd830fa0fa0b75f29b2ad2da27cca70ecf0683f699bb2eb9"
+        }
+      ]
+    },
+    "toolchain": {
+      "node": {
+        "path": "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+        "version": "v24.13.1"
+      },
+      "bun": "not-used",
+      "npm": "11.8.0",
+      "playwright": "1.62.1",
+      "browser": "chromium"
+    },
+    "host": {
+      "id": "expose-builder-pixel",
+      "platform": "linux",
+      "arch": "x64"
+    }
+  }
+}

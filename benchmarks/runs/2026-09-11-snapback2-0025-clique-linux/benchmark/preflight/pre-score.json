@@ -1,0 +1,25 @@
+{
+  "status": "ready",
+  "phase": "score",
+  "host": "expose-builder-pixel",
+  "platform": "Linux-x86_64",
+  "load": [
+    0.9208984375,
+    3.89111328125,
+    5.11767578125
+  ],
+  "memoryAvailableGiB": 241.16,
+  "diskFreeGiB": 380.77,
+  "ports": "53200-53219-clear",
+  "portListeners": [],
+  "portPolicy": "evidence-only-later-phase-never-kill-by-port-or-name",
+  "snapback2": "0.0.25",
+  "linuxRuntime": "snapback2-linux-x64@0.0.25",
+  "codex": "codex-cli 0.154.0",
+  "codexAuth": "ChatGPT",
+  "playwright": "1.62.1",
+  "chromium": "151.0.7922.34",
+  "nativeSimulatorProof": "unavailable-linux-host",
+  "holdoutProbeClaims": "unavailable-none-committed",
+  "capBoundaryAdjudication": "unavailable-old-lightweight-runner-no-authentic-boundary-controller"
+}

@@ -1,0 +1,52 @@
+{
+  "format": "clique-coverage-manifest.v1",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestones": {
+    "m7": [
+      "m7-a01",
+      "m7-a03",
+      "m7-a04",
+      "m7-a06",
+      "m7-a07",
+      "m7-a09"
+    ]
+  },
+  "tests": [
+    {
+      "ids": [
+        "m7-a06"
+      ],
+      "name": "backfilled starter counts and current visible corpus match, migration snapshot hashes intact",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a01"
+      ],
+      "name": "group poll UI creation plus server shape, group and membership validation",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a03",
+        "m7-a04"
+      ],
+      "name": "one vote per user, changeable set-state, duplicate and stale retry cannot revert",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a07"
+      ],
+      "name": "settings count maintains text, polls and repeated tombstones",
+      "pass": true
+    },
+    {
+      "ids": [
+        "m7-a09"
+      ],
+      "name": "all previously green milestone suites remain green",
+      "pass": true
+    }
+  ]
+}

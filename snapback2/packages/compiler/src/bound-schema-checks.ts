@@ -2,6 +2,7 @@ import { deepStrictEqual, equal, ok, throws } from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { columnComponents } from "./index-components";
+import { compileInline } from "./quarry-check-helpers";
 import type { Document, RuleDecl, ScalarType, TableDecl } from "./quarry/ast";
 import { bindQuarrySchema } from "./quarry/bound-schema";
 import { buildCatalog } from "./quarry/catalog";
@@ -10,6 +11,113 @@ import { parseDocument } from "./quarry/parser";
 import { rustCheck } from "./rust-check";
 
 const frontend = resolve(decodeURIComponent(new URL(".", import.meta.url).pathname), "..");
+
+function updateBinderSchema(rule: string, collisions = true): string {
+  return `table rows:
+  owner: principal
+${collisions ? "  old: rows\n  next: rows\n  prior: rows\n  later: rows\n" : ""}  public
+  ${rule}
+
+table memberships:
+  row: rows
+  principal: principal
+  unique byRowPrincipal: row, principal
+  public
+`;
+}
+
+export function runBareUpdateBinderChecks(): void {
+  for (const bindings of [["old", "next"], ["prior", "later"]]) {
+    for (const name of bindings) {
+      for (const collisions of [false, true]) {
+        for (const predicate of [
+          `exists memberships[${name}, viewer]`,
+          `exists memberships[${name}, viewer] by byRowPrincipal`,
+          `exists memberships[row = ${name}, principal = viewer]`,
+          `${name} = viewer`,
+          `viewer != ${name}`,
+          `not (${name} = null) or (${bindings[0]}.owner = viewer and viewer = ${name})`,
+        ]) {
+          const source = updateBinderSchema(`update (${bindings.join(", ")}) <- ${predicate}`, collisions);
+          const result = compileInline([{ fileName: "snapback/schema.q", source }]);
+          ok(!result.ok, `bare update binder compiled: ${predicate} (collisions: ${collisions})`);
+          equal(result.diagnostics.length, 1, JSON.stringify(result.diagnostics));
+          const diagnostic = result.diagnostics[0]!;
+          const line = source.split("\n").findIndex(text => text.includes("update ("));
+          const predicateStart = source.split("\n")[line]!.indexOf("<- ") + 3;
+          equal(diagnostic.site, `snapback/schema.q:${line + 1}:${predicateStart + predicate.indexOf(name) + 1}`);
+          equal(diagnostic.code, "E_QUARRY_UNKNOWN");
+          ok(diagnostic.message.includes(`bare ${name} is the update row`), diagnostic.message);
+          equal(diagnostic.rewrite, `-- write ${name}.id or ${name}.<column>`);
+          equal(diagnostic.guide, "quarry/names");
+        }
+      }
+    }
+  }
+}
+
+export function runUpdateBinderCompatibilityChecks(): void {
+  for (const [before, after] of [["old", "next"], ["prior", "later"], ["next", "old"]]) {
+    const source = updateBinderSchema(`update (${before}, ${after}) <- (
+    ${before}.owner = viewer and ${after}.owner = viewer
+    and ${before}.id = ${after}.id and ${before}.old = ${after}.old
+    and exists memberships[${before}.id, viewer]
+    and exists memberships[${after}.next, viewer]
+  )`);
+    const result = compileInline([{ fileName: "snapback/schema.q", source }]);
+    ok(result.ok, JSON.stringify(result));
+    deepStrictEqual((result.project.schema.tables.rows!.rules as Record<string, unknown>).update, { And: [
+      { Eq: [{ OldField: "owner" }, "Viewer"] },
+      { Eq: [{ NextField: "owner" }, "Viewer"] },
+      { Eq: [{ OldField: "id" }, { NextField: "id" }] },
+      { Eq: [{ OldField: "old" }, { NextField: "old" }] },
+      { Exists: { table: "memberships", index: "byRowPrincipal", key: [{ OldField: "id" }, "Viewer"], provenance: "Shape" } },
+      { Exists: { table: "memberships", index: "byRowPrincipal", key: [{ NextField: "next" }, "Viewer"], provenance: "Shape" } },
+    ] });
+    assertSchemaCertifies(result.project.schema);
+  }
+
+  const source = updateBinderSchema("update <- .owner = viewer and .old = .next") + `
+channel typing(room: rows, old: rows, next: rows):
+  value: { typing: bool }
+  publish <- exists memberships[room, viewer] and exists memberships[old, viewer]
+  subscribe <- exists memberships[next, viewer]
+  ttl 5s
+
+channel presence(room: principal, old: principal, next: principal):
+  value: { active: bool }
+  publish <- room = viewer and old = viewer
+  subscribe <- next = viewer
+  ttl 5s
+`;
+  const result = compileInline([{ fileName: "snapback/schema.q", source }]);
+  ok(result.ok, JSON.stringify(result));
+  deepStrictEqual((result.project.schema.tables.rows!.rules as Record<string, unknown>).update, { And: [
+    { Eq: [{ Field: "owner" }, "Viewer"] },
+    { Eq: [{ Field: "old" }, { Field: "next" }] },
+  ] });
+  const channels = result.project.schema.channels as Record<string, { publish: unknown; subscribe: unknown }>;
+  deepStrictEqual(channels.typing!.publish, { And: [
+    { Exists: { table: "memberships", index: "byRowPrincipal", key: [{ Field: "room" }, "Viewer"], provenance: "Shape" } },
+    { Exists: { table: "memberships", index: "byRowPrincipal", key: [{ Field: "old" }, "Viewer"], provenance: "Shape" } },
+  ] });
+  deepStrictEqual(channels.typing!.subscribe,
+    { Exists: { table: "memberships", index: "byRowPrincipal", key: [{ Field: "next" }, "Viewer"], provenance: "Shape" } });
+  deepStrictEqual(channels.presence!.publish, { And: [
+    { Eq: [{ Field: "room" }, "Viewer"] }, { Eq: [{ Field: "old" }, "Viewer"] },
+  ] });
+  deepStrictEqual(channels.presence!.subscribe, { Eq: [{ Field: "next" }, "Viewer"] });
+  assertSchemaCertifies(result.project.schema);
+}
+
+function assertSchemaCertifies(schema: ReturnType<typeof bindQuarrySchema>): void {
+  const checked = rustCheck([{
+    name: "rule-binders.probe", kind: "Query", args: {}, read_time_granularity_ms: null,
+    body: [{ Return: { Literal: "Null" } }],
+  }], "synthetic", schema);
+  equal(checked.length, 1, JSON.stringify(checked));
+  ok(!checked[0]!.error && checked[0]!.certificate, JSON.stringify(checked));
+}
 
 export function runBoundSchemaChecks(): void {
   let checkerSchema: ReturnType<typeof bindQuarrySchema> | undefined;
@@ -113,5 +221,7 @@ function title(value: string): string {
 
 if (import.meta.main) {
   runBoundSchemaChecks();
+  runBareUpdateBinderChecks();
+  runUpdateBinderCompatibilityChecks();
   console.log("bound schema checks passed");
 }
