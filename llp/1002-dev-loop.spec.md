@@ -621,7 +621,9 @@ trace-harvest harness opts into mutation execution with `queryOnly: false`.
   `{ exited: cause }` to the log and removes `owner.json`. No exit 0 with an
   empty stdout. Shutdown wakes every idle multiplexed stream immediately;
   the stream's 15-second heartbeat wait can never hold the process beyond the
-  two-second `dev --stop` observation boundary.
+  two-second `dev --stop` observation boundary. Once the stop command observes
+  that its owner exited, that result is terminal: it must not probe again and
+  turn a supervisor's concurrent zombie reap into a false timeout.
 - **Threads.** One writer thread owns the `Runtime` behind a channel; HTTP
   connections are threads (`tiny_http` or std-only); SSE streams hold a
   receiver and are fanned out by the writer after each commit

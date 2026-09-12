@@ -846,11 +846,22 @@ fn startup_refusals(path: &Path, offset: u64) -> Vec<Refusal> {
 }
 
 fn wait_for_owner_exit(root: &Path, info: &OwnerInfo, timeout: Duration) -> bool {
+    wait_until_exited(timeout, || owner_process_exited(root, info))
+}
+
+fn wait_until_exited(timeout: Duration, mut exited: impl FnMut() -> bool) -> bool {
     let started = Instant::now();
-    while started.elapsed() < timeout && !owner_process_exited(root, info) {
+    loop {
+        // @ref LLP 1002#5-the-owner — an observed exit is terminal. A zombie
+        // can be reaped between a later signal-0 check and its process-state probe.
+        if exited() {
+            return true;
+        }
+        if started.elapsed() >= timeout {
+            return false;
+        }
         thread::sleep(Duration::from_millis(25));
     }
-    owner_process_exited(root, info)
 }
 
 fn owner_file_matches(root: &Path, expected: &OwnerInfo) -> bool {
@@ -945,6 +956,22 @@ fn unix_millis() -> i64 {
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_observed_exit_is_not_reprobed_during_reaping() {
+        for observations in [vec![true, false], vec![false, true, false]] {
+            let mut observations = observations.into_iter();
+            assert!(wait_until_exited(Duration::from_secs(1), || {
+                observations.next().unwrap_or(false)
+            }));
+            assert_eq!(observations.next(), Some(false));
+        }
+    }
+
+    #[test]
+    fn a_still_running_owner_is_not_accepted_at_the_deadline() {
+        assert!(!wait_until_exited(Duration::ZERO, || false));
+    }
 
     fn test_info(root: &Path, pid: u32, secret: &str) -> OwnerInfo {
         OwnerInfo {

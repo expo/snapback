@@ -101,3 +101,43 @@ qualification. No new read model, ceiling or reduced population is selected.
 Precise source/probe/log locations and cost terms are in the child plan's
 implementation record. Publication and the full Clique wave remain separate
 work; the digest requirement is still unmet.
+
+## Owner-stop followup — 2026-09-12
+
+The integrated hub test at 71039e4a86 passed its data assertions but twice failed
+its explicit restart boundary on 450b with E_OWNER_STOP_TIMEOUT (PIDs 3701292
+and 3707138). A third ordinary run reproduced it with PID 3718298. The original
+logs remain in /home/ccheever/snapback-1023-20260912/integration/ on that host;
+the third is scale-stop/ordinary.log beside that directory.
+
+The same prebuilt candidate owner passed on EPYC. Two 450b runs with a scratch
+stop observer also passed, with six stops taking 169–234 ms. Their owner logs
+show the digest job done before stop, and thread samples show the source watcher
+briefly reaping its compiler worker. These controls did not justify blaming
+unfinished fixture work or extending the two-second boundary.
+
+The CLI had a concrete exit-observation race: wait_for_owner_exit observed true
+to leave its loop, then called owner_process_exited again. The latter combines
+signal 0 and a process-state probe; a supervisor can reap the zombie between
+those system calls, so the repeated probe can return false after exit was
+already established. That explains how a stop could report a two-second timeout
+before two seconds elapsed, as also observed in the
+[acquisition investigation](./20260911-snapback2-full-acquisition-and-foreground-send.md).
+The repair makes the first observed exit terminal, keeping the deadline and
+still-running refusal unchanged. Deterministic tests exercise an exit observation
+followed by a false probe result, plus a genuinely running owner at the deadline.
+The digest eligibility gap above remains open.
+
+Qualification: all nine owner unit checks and all three existing native stop
+tests pass, including a genuinely surviving PID's timeout. The exact new
+adversarial tests fail against a scratch copy of the old polling loop and pass
+against the repaired loop. The complete 450b hub case passes in 36.635 seconds
+(38.126 seconds including its harness), using the repaired scratch binary and
+only a load-time binary-path override; no stop polling instrumentation is active.
+The shared 450b source, dist and binary were not modified for that run.
+
+Logs are /home/ccheever/snapback-1023-20260912/scale-stop/:
+on EPYC, owner-unit.log, owner-stop-pinned.log, old-wait-control.log and
+fixed-wait-control.log; on 450b, ordinary.log (failure), repro/ and repro2/
+(process timelines and owner logs), and fixed-ready.log (repaired consumer).
+No client runtime bytes or certified limits changed.
