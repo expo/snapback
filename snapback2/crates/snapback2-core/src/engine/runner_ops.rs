@@ -549,6 +549,10 @@ impl<'a> Runner<'a> {
             .table(table_name)
             .ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?
             .clone();
+        // @ref LLP 1001#2-what-a-commit-records — reuse work without removing trace evidence.
+        // These checks cannot write rows. Repeated declarations of one unique
+        // index share the successful probe, but retain each trace obligation.
+        let mut unique_probes = BTreeMap::new();
         for constraint in &table.constraints {
             match constraint {
                 Constraint::AppendOnly if effect != Effect::Insert => {
@@ -568,7 +572,9 @@ impl<'a> Runner<'a> {
                     }
                 }
                 Constraint::Unique { index } if effect != Effect::Delete && !skip_unique => {
-                    self.check_unique(table_name, &table, index, old, new)?
+                    let offset = self.trace.constraint_inputs.len();
+                    self.check_unique(table_name, &table, index, old, new, &unique_probes)?;
+                    unique_probes.entry(index.clone()).or_insert(offset);
                 }
                 Constraint::Cap { by, max } => {
                     let prefix = crate::cap::group_key(new, by);
@@ -698,7 +704,7 @@ impl<'a> Runner<'a> {
         }
         for (name, index) in &table.indexes {
             if index.unique && effect != Effect::Delete && !skip_unique {
-                self.check_unique(table_name, &table, name, old, new)?;
+                self.check_unique(table_name, &table, name, old, new, &unique_probes)?;
             }
         }
         Ok(())
@@ -756,8 +762,12 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
-    pub(super) fn check_unique(&mut self, table_name: &str, table: &Table, index_name: &str,
-        old: Option<&Value>, new: &Value) -> Result<(), RuntimeError> {
+    fn check_unique(&mut self, table_name: &str, table: &Table, index_name: &str,
+        old: Option<&Value>, new: &Value, probes: &BTreeMap<String, usize>) -> Result<(), RuntimeError> {
+        if let Some(&offset) = probes.get(index_name) {
+            self.trace.constraint_inputs.push(self.trace.constraint_inputs[offset].clone());
+            return Ok(());
+        }
         if self.unique_conflict(table_name, table, index_name, old, new)? {
             return Err(RuntimeError::Constraint(format!("sealed unique conflict on {table_name}.{index_name}")));
         }
