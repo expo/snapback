@@ -27,8 +27,12 @@ pub fn parse(args: &[String]) -> Options {
         if arg == "--json" {
             json = true;
         } else if let Some(flag) = arg.strip_prefix("--") {
+            // A switch takes no value; any other flag takes the next token
+            // unless that token is itself a flag.
+            const SWITCHES: &[&str] = &["no-watch", "fresh", "cost", "allow-destructive"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
+                None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
                 None => (flag.to_owned(), iter.next().cloned().unwrap_or_default()),
             };
             flags.insert(name, value);

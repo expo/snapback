@@ -772,3 +772,11 @@ Three fresh Astra sessions at medium, serial, each on the published
   agent found the dev store persisting between runs and moved its
   acceptance into a disposable directory).
 - Published `snapback4@0.0.9`.
+- **A switch only worked as the last argument.** The flag parser gave
+  every `--flag` the next token as its value, so `dev --no-watch --fresh`
+  set `no-watch` to "--fresh" and never saw `fresh` — and 0.0.9's
+  `--fresh` proof above had passed only because the seeded row was not
+  the viewer's to see. Switches (`--no-watch`, `--fresh`, `--cost`,
+  `--allow-destructive`) take no value now, and no flag swallows a
+  following flag. Re-proven: a fresh instance shows nothing a previous
+  one seeded, in either argument order. Published `snapback4@0.0.10`.
