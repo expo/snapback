@@ -1,19 +1,23 @@
 -- @ref LLP 1023.001#digest-and-backfill — every attempt revalidates the
 -- exact facts read by earlier chunks in its final emission transaction.
+effect digest from push
+
 job queueDigestPeriod(period: time, periodEnd: time):
-  chunk p in profiles first 25 by byId:
-    prior = digests[p.principal, period] by byTargetPeriod
-    run = digestRuns[p.principal, period] by byTargetPeriod
+  chunk candidate in digestTargets first 25 by byId:
+    prior = digests[candidate.target, period] by byTargetPeriod
+    run = digestRuns[candidate.target, period] by byTargetPeriod
     if prior = null and run = null:
       periodVersion = digestPeriodVersions[period]
-      recipientVersion = digestRecipientVersions[p.principal]
+      recipientVersion = digestRecipientVersions[candidate.target]
+      recipientPeriodVersion = digestRecipientPeriodVersions[candidate.target, period]
       insert digestRuns {
-        target: p.principal,
+        target: candidate.target,
         period,
         periodEnd,
         attempt: 0,
         periodRevision: periodVersion,
         recipientRevision: recipientVersion,
+        recipientPeriodRevision: recipientPeriodVersion,
         newPostsInFollowing: 0,
         unreadMessages: 0,
         unreadChats: 0,
@@ -34,9 +38,12 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
     run = digestRuns[runId]
     if run != null and run.status = 'pending' and run.attempt = attempt:
       membership = memberships[contribution.membershipId]
-      if membership != null and membership.principal = target and membership.conversationId = contribution.conversationId:
+      message = messages[contribution.messageId]
+      if membership != null and membership.principal = target and membership.conversationId = contribution.conversationId and message != null and message.period = period and message.authorId = contribution.sender:
+        mark = readMarks[contribution.conversationId, target] by byConversationActor
         deadline = contribution.expiresAt ?? now + 1
-        if deadline > now:
+        readCutoff = mark.readAt ?? contribution.sentAt - 1
+        if deadline > now and readCutoff < contribution.sentAt:
           if run.lastUnreadConversation = null or run.lastUnreadConversation != contribution.conversationId:
             update digestRuns[run] {
               unreadMessages: .unreadMessages + 1,
@@ -55,19 +62,21 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
     if pending.status = 'pending' and pending.attempt = attempt:
       periodVersion = digestPeriodVersions[period]
       recipientVersion = digestRecipientVersions[target]
-      changed = periodVersion != pending.periodRevision or recipientVersion != pending.recipientRevision
+      recipientPeriodVersion = digestRecipientPeriodVersions[target, period]
+      changed = periodVersion != pending.periodRevision or recipientVersion != pending.recipientRevision or recipientPeriodVersion != pending.recipientPeriodRevision
       expired = pending.earliestExpiry != null and pending.earliestExpiry <= now
       if changed or expired:
         update digestRuns[pending] {
           attempt: pending.attempt + 1,
           periodRevision: periodVersion,
           recipientRevision: recipientVersion,
+          recipientPeriodRevision: recipientPeriodVersion,
           newPostsInFollowing: 0,
           unreadMessages: 0,
           unreadChats: 0,
           lastUnreadConversation: null,
           earliestExpiry: null,
-          retryAt: now + 1,
+          retryAt: now + 1000,
         }
       else:
         newFollowers = newFollowerPeriodCounts[target, true, period]
@@ -77,6 +86,24 @@ job digestUser(runId: digestRuns, target: principal, period: time, attempt: int)
             insert digests {
               target,
               period,
+              newFollowers,
+              newPostsInFollowing: pending.newPostsInFollowing,
+              unreadMessages: pending.unreadMessages,
+              unreadChats: pending.unreadChats,
+            }
+            insert digestLogs {
+              target,
+              period,
+              periodEnd: pending.periodEnd,
+              newFollowers,
+              newPostsInFollowing: pending.newPostsInFollowing,
+              unreadMessages: pending.unreadMessages,
+              unreadChats: pending.unreadChats,
+            }
+            emit digest {
+              to: target,
+              period,
+              periodEnd: pending.periodEnd,
               newFollowers,
               newPostsInFollowing: pending.newPostsInFollowing,
               unreadMessages: pending.unreadMessages,

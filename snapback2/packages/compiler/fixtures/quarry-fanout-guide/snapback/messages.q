@@ -28,41 +28,57 @@ mutation edit(messageId: messages, body: text <=2000):
   return null
 
 mutation remove(messageId: messages):
-  pending = periodUnread[messageId] first 50 by byMessageRecipient
-  for contribution in pending:
-    insert digestRecipientChanges { target: contribution.recipient, value: 1 }
-    delete periodUnread[contribution]
-  delete messages[messageId]
+  message = messages[messageId] ! else NOT_FOUND
+  if message.period != null:
+    for contribution in periodUnread[messageId, viewer] first 50 by byMessageSender:
+      insert digestRecipientPeriodChanges { target: contribution.recipient, period: message.period }
+      delete periodUnread[contribution]
+  delete messages[message]
   return null
 
-mutation send(conversationId: conversations, body: text <=2000, period: time ?, expiresAt: time ?, messageId: id ?):
+mutation send(conversationId: conversations, body: text <=2000, expiresAt: time ?, messageId: id ?):
+  (_period, rem) = divmod(now, 60000)
+  period = now - rem
   row = insert messages { id: messageId ?? new, conversationId, authorId: viewer, body, period, expiresAt, at: now }
-  if period != null:
-    for member in memberships[conversationId] first 50 by byConversationPrincipalRole:
-      if member.principal != viewer:
-        insert periodUnread {
-          messageId: row.id,
-          recipient: member.principal,
-          conversationId,
-          membershipId: member.id,
-          period,
-          expiresAt,
-        }
-        insert digestRecipientChanges { target: member.principal, value: 1 }
+  for member in memberships[conversationId] first 50 by byConversationPrincipalRole:
+    if member.principal != viewer:
+      target = digestTargets[member.principal] by byTarget
+      if target = null:
+        insert digestTargets { target: member.principal }
+      insert periodUnread {
+        messageId: row.id,
+        sender: viewer,
+        recipient: member.principal,
+        conversationId,
+        membershipId: member.id,
+        period,
+        sentAt: row.at,
+        expiresAt,
+      }
+      insert digestRecipientPeriodChanges { target: member.principal, period }
   return { id: row.id }
 
 mutation leave(conversationId: conversations):
   seat = memberships[conversationId, viewer] ! else MEMBERSHIP_REQUIRED
   delete memberships[seat]
-  insert digestRecipientChanges { target: viewer, value: 1 }
+  insert digestRecipientChanges { target: viewer }
+  return null
+
+mutation markRead(conversationId: conversations):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  mark = readMarks[conversationId, viewer] by byConversationActor
+  if mark = null:
+    insert readMarks { conversationId, actor: viewer, readAt: now }
+  else:
+    update readMarks[mark] { readAt: now }
+  insert digestRecipientChanges { target: viewer }
   return null
 
 mutation expireDigestMessage(messageId: messages):
-  pending = periodUnread[messageId] first 50 by byMessageRecipient
-  for contribution in pending:
-    insert digestRecipientChanges { target: contribution.recipient, value: 1 }
-    delete periodUnread[contribution]
-  delete messages[messageId]
+  message = messages[messageId] ! else NOT_FOUND
+  if message.period != null:
+    insert digestPeriodChanges { period: message.period }
+  delete messages[message]
   return null
 
 schedule expireDigestMessage on messages at .expiresAt: expireDigestMessage(.id)

@@ -290,7 +290,7 @@ table deliveries:
     assert(snippets.every((snippet) => fixtureFeeds.includes(snippet) || fixtureMessages.includes(snippet) || fixtureDigest.includes(snippet) || fixtureSchema.includes(snippet)), "guide recipe diverged from its executed fixture");
     const lowered = await lowerProject(resolve(frontend, "fixtures/quarry-fanout-guide"));
     assert(lowered.ok, `guide fanout fixture did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-    const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+    const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
     assert(checked.every((r) => !r.error), `guide fanout fixture refused: ${JSON.stringify(checked.flatMap((r) => r.error ? [r.error] : []))}`);
     const byName = new Map(checked.map((result) => [result.program, result.certificate]));
     assert(byName.has("feeds.followingFeed") && byName.has("feeds.followingHeads")

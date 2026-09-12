@@ -49,6 +49,21 @@ table digests:
   insert <- deny
   update <- deny
 
+table digestLogs:
+  target: principal
+  period: time
+  periodEnd: time
+  newFollowers: int
+  newPostsInFollowing: int
+  unreadMessages: int
+  unreadChats: int
+  unique byTargetPeriod: target, period
+  immutable target, period, periodEnd
+  read <- deny
+  insert <- deny
+  update <- deny
+  delete <- deny
+
 maintain periodPosts: count posts by author, period
   read <- allow
 
@@ -57,7 +72,6 @@ maintain newFollowerPeriodCounts: count follows by followed, digestEligible, per
 
 table digestPeriodChanges:
   period: time
-  value: int
   immutable period
   read <- deny
   insert <- allow
@@ -66,18 +80,41 @@ table digestPeriodChanges:
 
 table digestRecipientChanges:
   target: principal
-  value: int
   immutable target
   read <- deny
   insert <- allow
   update <- deny
   delete <- deny
 
-maintain digestPeriodVersions: sum digestPeriodChanges of value by period
+maintain digestPeriodVersions: count digestPeriodChanges by period
   read <- deny
 
-maintain digestRecipientVersions: sum digestRecipientChanges of value by target
+maintain digestRecipientVersions: count digestRecipientChanges by target
   read <- deny
+
+table digestRecipientPeriodChanges:
+  target: principal
+  period: time
+  immutable target, period
+  read <- deny
+  insert <- allow
+  update <- deny
+  delete <- deny
+
+maintain digestRecipientPeriodVersions: count digestRecipientPeriodChanges by target, period
+  read <- deny
+
+-- Persistent candidates prevent unrelated profiles from delaying one user's
+-- closed-period digest. A relationship or unread event makes the recipient a
+-- candidate; zero-activity periods still settle without an emission.
+table digestTargets:
+  target: principal
+  unique byTarget: target
+  immutable target
+  read <- allow
+  insert <- allow
+  update <- deny
+  delete <- deny
 
 table digestRuns:
   target: principal
@@ -86,6 +123,7 @@ table digestRuns:
   attempt: int
   periodRevision: int
   recipientRevision: int
+  recipientPeriodRevision: int
   newPostsInFollowing: int
   unreadMessages: int
   unreadChats: int
@@ -203,16 +241,19 @@ table messages:
 
 table periodUnread:
   messageId: messages
+  sender: principal
   recipient: principal
   conversationId: conversations
   membershipId: memberships
   period: time
+  sentAt: time
   expiresAt: time ?
   unique byMessageRecipient: messageId, recipient
+  by byMessageSender: messageId, sender, recipient
   by byRecipientPeriodConversation: recipient, period, conversationId, id
   cap 50 by messageId
-  immutable messageId, recipient, conversationId, membershipId, period, expiresAt
-  read <- deny
+  immutable messageId, sender, recipient, conversationId, membershipId, period, sentAt, expiresAt
+  read <- .recipient = viewer or .sender = viewer
   insert <- exists memberships[.conversationId, viewer]
   delete <- allow
 
