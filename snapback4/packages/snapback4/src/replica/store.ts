@@ -52,6 +52,10 @@ export interface SideTx {
 }
 
 export interface Store {
+  /** The compiled backend's schema, for key encoding; set once it is known
+   * (a device that starts offline reads it from its own store first). */
+  readonly schema: SchemaJson;
+  setSchema(schema: SchemaJson): void;
   read<T>(body: (tx: StoreTx) => Promise<T>): Promise<T>;
   write<T>(body: (tx: StoreTx) => Promise<T>): Promise<T>;
   /** Drop every row and index entry (a re-bootstrap); meta and side tables stay. */
@@ -121,7 +125,8 @@ export class MemoryStore implements Store {
   private indexes = new Map<string, { key: Uint8Array; id: string }[]>();
   private meta = new Map<string, unknown>();
   private sides = new Map<string, Map<string, unknown>>();
-  constructor(readonly schema: SchemaJson) {}
+  constructor(public schema: SchemaJson) {}
+  setSchema(schema: SchemaJson) { this.schema = schema; }
 
   private tx(): StoreTx {
     const self = this;
@@ -254,7 +259,8 @@ export async function openIndexedDb(name: string, schema: SchemaJson): Promise<S
 }
 
 class IndexedDbStore implements Store {
-  constructor(private db: IDBDatabase, readonly schema: SchemaJson) {}
+  constructor(private db: IDBDatabase, public schema: SchemaJson) {}
+  setSchema(schema: SchemaJson) { this.schema = schema; }
 
   private tx(mode: IDBTransactionMode): { transaction: IDBTransaction; api: StoreTx; done: Promise<void> } {
     const transaction = this.db.transaction([...STORES], mode);

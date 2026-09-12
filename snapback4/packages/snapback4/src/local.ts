@@ -40,6 +40,9 @@ export type LocalClient = Client & {
   signOut(): Promise<void>;
 };
 
+/** The meta key under which a device keeps the backend it last loaded. */
+const BACKEND = "backend";
+
 interface Backend {
   generation: number;
   schema: SchemaJson;
@@ -101,11 +104,27 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   };
 
-  const backend = await loadBackend(doFetch, base, headers);
+  // The store opens before the network is asked: a device that starts
+  // offline runs on the backend it cached last time, on the rows it holds.
   const storeName = `snapback4:${base}:${viewer}`;
   const useIdb = options.store === "indexeddb" || (options.store === undefined && typeof indexedDB !== "undefined");
-  const store: Store = typeof options.store === "object" ? await options.store.open(storeName, backend.schema) : useIdb ? await openIndexedDb(storeName, backend.schema) : new MemoryStore(backend.schema);
+  const unknown: SchemaJson = { tables: {} };
+  const store: Store = typeof options.store === "object" ? await options.store.open(storeName, unknown) : useIdb ? await openIndexedDb(storeName, unknown) : new MemoryStore(unknown);
+  const cached = (await store.read((tx) => tx.getMeta(BACKEND))) as Backend | undefined;
   let link: Link = "online";
+  let backend: Backend;
+  try {
+    backend = await loadBackend(doFetch, base, headers);
+    await store.write((tx) => tx.setMeta(BACKEND, backend));
+  } catch (error) {
+    if (!cached) {
+      await store.close();
+      throw new Error(`createLocalClient: cannot reach ${base} and this device holds no backend yet: ${(error as Error).message}`);
+    }
+    backend = cached;
+    link = "offline";
+  }
+  store.setSchema(backend.schema);
   let closed = false;
   let seq = 0;
   const aborter = new AbortController();
@@ -162,6 +181,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           backend.generation = next.generation;
           backend.schema = next.schema;
           backend.programs = next.programs;
+          store.setSchema(next.schema);
+          await store.write((tx) => tx.setMeta(BACKEND, next));
           replica.adopt(next.schema, next.generation);
           return { denied: { code: "E_GENERATION", family: "generation", message: "the backend changed; re-deriving the partition", retryable: true } };
         }
@@ -312,6 +333,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         subscribe(listener) {
           mine.add(listener);
           own.subscribers.add(listener);
+          // A screen that closed this key a moment ago (React unmounts the
+          // old component before the new one subscribes) may have removed
+          // the watch: put it back, and refresh it, so no subscriber is
+          // left on a watch nothing updates.
+          if (watches.get(own.key) !== own) {
+            watches.set(own.key, own);
+            void rerun(own);
+          }
           return () => { mine.delete(listener); own.subscribers.delete(listener); };
         },
         close() {

@@ -793,3 +793,92 @@ Three fresh Astra sessions at medium, serial, each on the published
   not a failure, and the runner checks the fixture with every persona.
   One of three met the bar on 0.0.6 as on 0.0.4; set C on 0.0.8 runs.
 - Published `snapback4@0.0.11`.
+
+## 2026-09-12 — an observed key returned to; set C's first run; 0.0.12
+
+- **A screen navigating between two components observing the same key
+  rendered a stale value** (the Clique lane at M5). React unmounts the old
+  component before the new one subscribes; the old one's close removed
+  the shared watch, and the new subscriber sat on a watch nothing
+  updated. A subscriber returning to a closed key now re-registers the
+  watch and refreshes it, on both clients; the end-to-end test closes one
+  observer and subscribes another before a change arrives.
+- **Loop bar set C (0.0.8), run 1:** green in 366 s with no attributed
+  loop — the bar met. My verifier had first failed it: the agent's
+  acceptance script started `dev --fresh` on a pin that has no such flag
+  (it read a newer README than it installed) and so re-seeded a store its
+  own run had filled; and the fixture check on every persona met a
+  `require` on a derived argument, which 0.0.8's `test` counts as a
+  failure. The verifier now stops servers the agent left running under
+  its lane, drops the lane's dev stores before the acceptance script, and
+  reads a program's own refusal on a derived argument as information;
+  `--reverify <lane>` records a second look beside the first.
+- Published `snapback4@0.0.12`.
+- **A shape dropped `pending`** (the Clique lane at M6): a shaped history
+  built new objects from a predicted row's fields and lost the card's
+  word, so a screen on a shape could not say "Sending…". On the device an
+  object built from a pending row's fields is pending; tested. Published
+  `snapback4@0.0.13`.
+- **Loop bar set C (0.0.8):** 366 s and 472 s with no attributed loop —
+  two of three met the bar; the middle run (592 s) charged two loops to
+  `dev --fresh`, read from the registry's newer README and absent from
+  the pin it installed (the brief now names the installed README). Set D
+  on 0.0.11 runs with that brief.
+
+## 2026-09-12 — a device starts offline; 0.0.14
+
+- **A device restarting with no network could not open** (the Clique lane
+  at M6, cold-start offline): `createLocalClient` fetched `/schema` before
+  it opened the replica it already held. The client now opens the store
+  first, keeps the compiled backend in it, and when the server is
+  unreachable starts from that copy: `link()` says offline, reads carry
+  `fresh: false` and `since`, and the stream catches up (and re-adopts a
+  new generation) when the link returns. Only a device that never synced
+  needs the server to open, and says so. The end-to-end test restarts a
+  SQLite-backed device with every fetch failing.
+- Published `snapback4@0.0.14`.
+
+## 2026-09-12 — from the lane's M8; 0.0.15
+
+- **A reference key was "ambiguous" with `byId`.** `upsert likesCount[postId]`
+  on a table with a unique key over a reference matched two indexes
+  (an id compares with a reference), and the rewrite named the wrong one.
+  When candidates differ only in that way, the index whose column types
+  are the key's own types is the one meant, and is chosen.
+- **`snapback4 data` beside a running `dev` raced its schema adoption on
+  the catalog** (`UNIQUE constraint failed: _catalog.name`) and the
+  adoption failed. `install` now takes the write lock first and re-reads
+  the catalog under it, and every store waits up to five seconds for a
+  lock instead of failing at once.
+- The README wrote `sum messages.x by ..`; the grammar is `sum <table> of
+  <column> by ..`. Published `snapback4@0.0.15`.
+
+## 2026-09-12 — the loop bar is met
+
+Set D on 0.0.11: three fresh Astra agents at medium, green in 537, 443 and
+535 s, no Snapback-attributed correction loop (the third agent charged one
+and retracted it as its own error a minute later; the runner no longer
+counts a retracted line), `check`, the fixture test and the acceptance
+script verified independently for each. LLP 3000 §3's loop bar (≤ 1,200 s,
+≤ 1 loop, N ≥ 3, the published package, a fresh agent) holds. The road
+there — twelve runs on four pins, every one green inside the clock, the
+loops on the earlier pins all traced to defects fixed the same day — is
+`benchmarks/runs/2026-09-12-snapback4-loopbar/`.
+
+## 2026-09-12 — the Clique lane finished: every milestone green
+
+The continuous session on `snapback4@0.0.2` (Astra at medium, media and
+scheduled work struck) ended at `end=1789230003`, 7,725 s after it began:
+M1 green at +873 s, M2 +1,416, M3 +2,922, M4 +3,601, M5 +5,030, M6
++6,013 (the full 167,157-action scale replay verified on the second
+attempt after a verifier mistake of the agent's own), M8 +7,128; M7 is
+the separate session. The lane validated its own record, shut down the
+servers it owned by exact pid, and exported seven Hermes bytecodes. The
+anchors (§ the run record): Snapback 2 0.0.4's Astra lane reached M8 at
++7,885 s with four milestones later aborted; Convex's Astra lane, full
+scope, at +5,643 s all green; Snapback 2 0.0.29's took 13,667 s including
+a 6,146 s replay. Twelve Snapback-attributed lines in the builder's log,
+eight distinct findings, every one but the expiry gap fixed on main and
+published the same day (0.0.4 through 0.0.15); the expiry gap is in
+NOT-DOING as the `expires` clause on `sync`. The independent grade (a
+fresh Claude session on the frozen grader prompt) runs now; M7 follows.

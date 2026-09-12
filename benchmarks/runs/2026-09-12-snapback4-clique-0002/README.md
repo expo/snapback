@@ -26,8 +26,8 @@ Snapback 4 candidate on the benchmark, one week into its four-week clock.
 
 | Phase | State |
 | --- | --- |
-| Continuous builder | running |
-| Independent grade (fresh Claude session on the frozen grader prompt) | pending |
+| Continuous builder | **complete**: start 1789222278, end 1789230003 (7,725 s); M1–M6 and M8 green, M7 not-run by design; `builder-final-report.md`, `builder-essay.md`, `builder-platform-gaps.md`, `builder-diary.md`, `builder-run-log.md`, `record-astra-snapback4.json` beside this file |
+| Independent grade (fresh Claude session on the frozen grader prompt) | running |
 | M7 day-2 evolution (fresh Astra session, same lane) | pending |
 | Record and validation | pending |
 
@@ -49,6 +49,12 @@ fixed on main the same day and published after the lane's pin (the lane keeps
 | snapback4-defect (M3, repeat) | the IndexedDB abort page error, met again while predicting typing state | the 0.0.4 fix; counted twice by the lane on 0.0.2 |
 | snapback4-defect (M3) | two writes issued at once on a healthy link: the second stayed `pending` until the next link change (a flush read the outbox once) | 0.0.8: a flush runs another pass for writes queued during it |
 | snapback4 gap (M5, knowledge) | read-time expiry cannot be a read rule: rules compare with `=`/`!=` only (no `<`/`>` against `now`), and a rule that varies with time could not be an audience anyway; the lane filters expiry in its queries and purges from the client, so raw `/sync` and a history read cannot promise refusal before the purge | open: an `expires .col` clause on `sync` (the stream, the snapshot and the device's reads all exclude rows past it) is the shape; recorded as a follow-up, not struck |
+| snapback4-defect (M5) | a screen navigating between two components observing the same query key rendered a stale value: the unmounting component's close removed the shared watch a moment before the mounting one subscribed, leaving it on a watch nothing updated | 0.0.12: a subscriber returning to a closed key re-registers and refreshes the watch (both clients); end-to-end test |
+| snapback4-defect (M6) | a shaped history (`page { id, body, author: .. }`) dropped the card's `pending` word from the device's predicted rows, so a shaped screen could not show "Sending…"; the lane read the raw rows instead | 0.0.13: a shape built from a pending row is pending on the device |
+| snapback4-defect (M6) | a device restarting with no network could not open its client at all, because the client fetched `/schema` before opening the replica it already held; the lane cached the schema itself through the `fetch` option | 0.0.14: the client opens the store first, keeps the compiled backend in it, and starts offline from the cache when the server is unreachable |
+| snapback4-defect (M8, docs) | the README wrote `sum messages.x by ..`; the grammar is `sum <table> of <column> by ..` | 0.0.15: README |
+| snapback4-defect (M8) | `upsert likesCount[postId]` on a table with a unique key over a reference was "ambiguous" between that key and `byId` (an id compares with a reference), and the rewrite named `byId` | 0.0.15: the index whose column types are the key's types is chosen |
+| snapback4-defect (M8) | `snapback4 data` beside a running `dev` that was adopting a schema change raced it on the catalog: `E_STORE: UNIQUE constraint failed: _catalog.name`, and the adoption failed | 0.0.15: installs take the write lock first and re-read the catalog under it; the store waits up to five seconds for a lock |
 | snapback4-defect (M4) | `check` accepted `reactions` synced to a group with no index leading with the group column; the first `/sync` failed `E_SCHEMA` (503) and the client showed an empty partition with `fresh: false`, silently | 0.0.9: the validator requires the group index with the rewrite; a non-retryable refusal answers 500 and the client makes every read `denied` with it, once loudly |
 
 ## Anchors, for the comparison
@@ -62,10 +68,32 @@ machine with the loop-bar runs. N=1 each; calibration, not a magnitude.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Snapback 4 0.0.2**, this run | 873 | 1,416 | 2,922 | 3,601 | in progress | | | media and scheduled work struck |
+| **Snapback 4 0.0.2**, this run | 873 | 1,416 | 2,922 | 3,601 | 5,030 | 6,013 | 7,128 | every milestone green in one continuous session; media and scheduled work struck; the expiry gap disclosed in the lane's `platform-gaps.md`; the full scale replay (167,157 actions) verified inside M6 |
 | Snapback 2 0.0.4, Astra, 2026-09-05 (`~/clique-full-20260905`) | 449 | 1,184 | 1,916 | 2,511 | 5,599 | 6,208 | 7,885 | M1, M2, M5, M6 later regressed and were recorded `aborted`; M3, M4, M8 green |
 | Snapback 2 0.0.29, Astra, 2026-09-12 (`benchmarks/runs/2026-09-12-snapback2-clique-0029`) | 469 (first green proof) | | | | | | | 13,667 s total including a 6,146 s scale replay; M1–M6 plus M8 web-green, then graded O1 73 / O2 55 |
 | Convex 1.45.0, Astra, 2026-09-05 | 792 | 1,577 | 1,881 | 2,148 | 3,185 | 4,475 | 5,643 | every milestone green; no capability failures |
+
+## What the builder wrote (essay, after M8)
+
+The lane's `essay.md` (copied here when the phase closes) says the center
+of the application was "unusually compact" — the data model, ownership
+rules, sync audience and mutation intent in one Quarry program, with
+follows and reactions as set-state intents behind uniqueness constraints
+and no resolver layer — and that "several edges" were "unusually
+demanding": expiry (a time comparison is not a rule; a guarded point read
+was built and the gap disclosed), cold restoration fetching the schema
+before opening the durable replica, a stale settings screen after
+navigation between two components on one query key, retained history
+hidden by local rule evaluation after a leave, the README's maintained-sum
+spelling, and an index rewrite the upsert position did not accept. Every
+edge but expiry was a defect fixed on main the same day (0.0.7, 0.0.12,
+0.0.14, 0.0.15). Insights showed "the upside of those constraints":
+server-computed totals over maintained aggregates instead of paging; the
+plain JSON protocol and stable mutation ids made the replay adapter
+"straightforward" and the full scale replay verified. The builder's
+preference is "conditional": a relational application whose authorization
+and synchronization rules fit Quarry, especially with offline writes at
+the center, budgeting time for client lifecycle validation.
 
 ## Results
 

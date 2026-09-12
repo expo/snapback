@@ -49,7 +49,7 @@ pub struct Bounds {
 impl Store {
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         let conn = Connection::open(path)?;
-        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF;")?;
+        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 5000;")?;
         Self::prepare(conn)
     }
 
@@ -93,7 +93,18 @@ impl Store {
     /// Give every table and index a number; build the entries of any index
     /// that is new or whose definition changed. Idempotent.
     pub fn install(&mut self, schema: &Schema) -> Result<(), RuntimeError> {
-        let tx = self.conn.transaction()?;
+        // The write lock first, then the catalog as it is now: another
+        // process (a CLI verb beside a running `dev`) may have installed the
+        // same tables a moment ago, and must not be raced to the same number.
+        let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        {
+            let mut statement = tx.prepare("SELECT name, num FROM _catalog")?;
+            let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?;
+            for row in rows {
+                let (name, num) = row?;
+                self.catalog.insert(name, num);
+            }
+        }
         let mut next: i64 = tx.query_row("SELECT COALESCE(MAX(num), 0) + 1 FROM _catalog", [], |row| row.get(0))?;
         let mut rebuild = Vec::new();
         for (table_name, table) in &schema.tables {

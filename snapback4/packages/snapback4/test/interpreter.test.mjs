@@ -122,3 +122,21 @@ test("delivered history stays readable on the device after a leave", async () =>
   assert.equal(read.data.length, 5, "the retained rows are hers to read");
   assert.equal(read.complete, false, "a page of 5 over 120 rows with no cursor is not complete");
 });
+
+test("a shape over a pending row is pending", async () => {
+  // The Clique lane at M6: a shaped history dropped the card's `pending`
+  // word, so a screen built on a shape could not say "Sending…".
+  const store = await seeded();
+  await store.write((tx) => tx.put("messages", { id: "M-pending", conversationId: "c1", authorId: "dev:bob", body: "on its way", at: 9_000, editedAt: null, photo: null, pending: true }));
+  const shaped = { name: "shapedThread", kind: "Query", args: {}, body: [
+    { Let: { name: "$rows", value: { Array: [] } } },
+    { For: { binding: "$row", domain: { Page: { table: "messages", index: "byConvTime", prefix: [{ Scalar: { Literal: { Id: "c1" } } }], take: { Literal: 3 }, order: "Desc", after: null, before: null, range: null, opaque_cursor: false, site: "t:1", provenance: "Shape", merge_site: null } }, body: [
+      { Push: { target: "$rows", value: { Object: { id: { Field: { base: { Variable: "$row" }, name: "id" } }, body: { Field: { base: { Variable: "$row" }, name: "body" } } } } } },
+    ] } },
+    { Return: { Variable: "$rows" } },
+  ] };
+  const read = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:bob", {}), "query").run(shaped));
+  assert.equal(read.data[0].id, "M-pending");
+  assert.equal(read.data[0].pending, true, "the shaped row keeps the pending word");
+  assert.equal(read.data[1].pending, undefined, "a confirmed row does not");
+});

@@ -135,10 +135,11 @@ mutation edit(messageId: messages, body: text <=4000):
 
 ### Maintains
 
-`maintain counts: count messages by conversationId` (or `sum messages.x
-by ...`) keeps an aggregate table the engine writes: columns are the `by`
-columns and `value`, the id is the group's canonical key, programs read it
-by group (`counts[conversationId]`, `counts[.conversationId]` in a shape).
+`maintain counts: count messages by conversationId` (or `maintain totals:
+sum posts of score by authorId`) keeps an aggregate table the engine
+writes: columns are the `by` columns and `value`, the id is the group's
+canonical key, programs read it by group (`counts[conversationId]`,
+`counts[.conversationId]` in a shape).
 It takes its own `read` rule and inherits the source's `sync` when it
 groups by the audience columns.
 
@@ -228,7 +229,10 @@ The local-first client opens the device's replica (IndexedDB on the web,
 memory with `store: "memory"`, SQLite on Expo — §7), syncs the viewer's
 partition, runs every query locally over it, queues every mutation
 durably and predicts its rows, and follows the server's stream for the
-rest. Its options: `url`; one of `persona` (development), `session` (from
+rest. It keeps the compiled backend in the replica too, so a device that
+starts with no network opens on what it holds (`link()` is `"offline"`,
+reads carry `fresh: false` and `since`) and catches up when the link
+returns; only a device that has never synced needs the server to open. Its options: `url`; one of `persona` (development), `session` (from
 `snapback4/auth`, kept and restored by the client), or `guest: true`
 (mint one when none is kept); `store`; `sessionStore`; `fetch`;
 `waitSeconds`. It has `query(op, args) → Read`, `observe(op, args) →
