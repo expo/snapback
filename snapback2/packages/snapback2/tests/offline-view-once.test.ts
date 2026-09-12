@@ -539,6 +539,37 @@ test("web mounted image holds one viewing token; a second consumer and a remount
   } finally { await act(async () => root.unmount()); await client.close(); env.restore(); await rm(directory, { recursive: true, force: true }); }
 });
 
+// @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction —
+// a later layout must use the existing mounted allowance after consumption.
+test("web mounted once image survives a later layout measurement", async () => {
+  const directory = await tempRoot(); const owner = bearerServer(); const env = domEnvironment();
+  const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
+    fetch: owner.fetch, offline: { store: fileRangeStore(directory) } });
+  const root = createRoot(env.dom.window.document.getElementById("root")!);
+  let resize!: ResizeObserverCallback;
+  (globalThis as any).ResizeObserver = class {
+    constructor(callback: ResizeObserverCallback) { resize = callback; }
+    observe() {} disconnect() {}
+  };
+  const src = () => env.dom.window.document.querySelector("img")?.getAttribute("src");
+  try {
+    await client.ready; await client.query(api.messages.thread, THREAD_ARGS);
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client },
+      React.createElement(AssetImage, { asset: photo(B), alt: "opened once" }))));
+    assert.ok(await until(() => Boolean(src())));
+    assert.equal(await client.assetCache!.viewed(B), true);
+    await act(async () => resize([{ contentRect: { width: 120 } } as ResizeObserverEntry], {} as ResizeObserver));
+    await settle(5);
+    assert.ok(src(), "a layout update cannot discard the mounted instance's admitted image");
+    assert.equal(owner.state.assetFetches, 1, "the allowance supplies the original once image at its new display width");
+    await client.offline(); await settle(2);
+    assert.ok(src(), "the mounted allowance still displays offline");
+  } finally {
+    await act(async () => root.unmount()); await client.close(); env.restore();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("simultaneously mounted web siblings revoke the losing view-once consumer", async () => {
   const directory = await tempRoot(); const owner = bearerServer(); const env = domEnvironment();
   const releases: Array<() => void> = [];

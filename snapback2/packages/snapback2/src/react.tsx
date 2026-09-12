@@ -10,23 +10,27 @@ const noSubscription = () => () => {};
 const noCustody = () => 0;
 
 /** Each mounted byte consumer owns one allowance and every object URL it creates. */
-function useAssetBlob(url: string | undefined) {
+function useAssetBlob(url: string | undefined, asset?: ImageAsset, width?: number) {
   const client = useSnapbackClient();
   const snapshot = useSnapbackSnapshot();
   const cache = client.assetCache;
   const custody = useSyncExternalStore(cache?.subscribeCustody ?? noSubscription, cache?.getCustody ?? noCustody, noCustody);
   const revision = useSyncExternalStore(cache?.subscribeRevision ?? noSubscription, cache?.getRevision ?? noCustody, noCustody);
   const viewing = useRef({}).current;
-  const identity = useMemo(() => ({ client, url, auth: snapshot.authGeneration, custody, revision }), [client, url, snapshot.authGeneration, custody, revision]);
+  const identity = useMemo(() => ({ client, url, asset: asset?.id, width, auth: snapshot.authGeneration, custody, revision }),
+    [client, url, asset?.id, width, snapshot.authGeneration, custody, revision]);
   const [result, setResult] = useState<{ identity: typeof identity; url?: string; refusal?: Refusal }>();
   useEffect(() => {
-    if (!url || typeof URL.createObjectURL !== "function") return;
+    if ((!url && !asset) || typeof URL.createObjectURL !== "function") return;
     let active = true;
     let created: string | undefined;
     const controller = new AbortController();
-    if (url.startsWith("blob:")) { setResult({ identity, url }); return; }
-    void client.assetBlob(url, { signal: controller.signal, viewing }).then((blob) => {
-      if (!active || (cache?.getCustody?.() ?? 0) !== custody) return;
+    if (url?.startsWith("blob:")) { setResult({ identity, url }); return; }
+    // @ref LLP 1023.000#c--separate-live-once-publication-from-offline-redaction —
+    // layout may stop minting a viewed URL; this mounted token still owns its bytes.
+    void (url ? client.assetBlob(url, { signal: controller.signal, viewing })
+      : cache?.get(asset!.id, width ?? null, viewing))?.then((blob) => {
+      if (!blob || !active || (cache?.getCustody?.() ?? 0) !== custody) return;
       created = URL.createObjectURL(blob);
       setResult({ identity, url: created });
     }).catch((error) => { if (active) setResult({ identity, refusal: toRefusal(error) }); });
@@ -68,7 +72,7 @@ export function AssetImage({ asset, width, height, style, onRefusal, ...props }:
     return () => observer.disconnect();
   }, [element, width, asset.id, asset.width]);
   const deliveryUrl = useAssetUrl(measured ? asset : null, { width: requestedWidth });
-  const blob = useAssetBlob(deliveryUrl);
+  const blob = useAssetBlob(deliveryUrl, measured ? asset : undefined, requestedWidth);
   const refused = useRef(onRefusal);
   refused.current = onRefusal;
   useEffect(() => { if (blob?.refusal) refused.current?.(blob.refusal); }, [blob?.refusal]);
