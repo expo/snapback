@@ -12,7 +12,7 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const lowered = await lowerProject(fixture);
     assert(lowered.ok, JSON.stringify(lowered));
     const schedules = lowered.project.schema.schedules ?? [];
-    assert(schedules.length === 3, JSON.stringify(schedules));
+    assert(schedules.length === 4, JSON.stringify(schedules));
     const daily = schedules.find((s) => s.name === "dailyDigest")!;
     const expire = schedules.find((s) => s.name === "expireMessage")!;
     const recipeDigest = schedules.find((s) => s.name === "recipeDigest")!;
@@ -227,10 +227,12 @@ schedule digest every 2m: sweep(${argument})
     const admin = readFileSync(resolve(fixture, "snapback/admin.q"), "utf8");
     const digest = readFileSync(resolve(fixture, "snapback/digest-recipes.q"), "utf8");
     const messages = readFileSync(resolve(frontend, "../snapback2/templates/chat/snapback/messages.q"), "utf8");
-    assert(snippets.length === 4
-      && messages.includes(snippets[0]!) && admin.includes(snippets[1]!)
-      && snippets.slice(2).every((snippet) => digest.includes(snippet)), "guide recipe diverged from its fixture");
-    assert(messages.includes(snippets[0]!), "the template's expiry schedule diverged from the guide");
+    const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");
+    assert(snippets.length === 6 && snippets.every((snippet) =>
+      [schema, admin, digest, messages].some((source) => source.includes(snippet))),
+      "guide recipe diverged from its compiled fixture");
+    assert(snippets.some((snippet) => snippet.includes("schedule utcDigest on digestClocks")),
+      "guide lost its configured UTC row-clock recipe");
     const chat = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
     assert(chat.ok, JSON.stringify(chat));
     const schedules = chat.project.schema.schedules ?? [];

@@ -6,6 +6,13 @@ See `guide successor` for the fill recipe and narrowing repair.
 enqueued id; `POST /control/job` itself refuses a `wait: true` field rather than
 silently discarding it. `--json` prints each chunk and the final receipt.
 
+Transport pressure retries only the same observation, three times with backoff.
+If it persists, `E_OWNER_TRANSPORT` retains `job`, `lastObservedState` and
+`lastObservedSeq`; its project-qualified `trace` command observes the existing
+job without enqueueing again. `E_OWNER_NOT_RUNNING` means the connection was
+refused; start the owner, then trace that job. Malformed pages also stop with
+trace recovery. Repeating `run <job> --wait` would enqueue another job.
+
 `chunk` reads current rows in index order through the upper key captured
 at the start of its sweep. Later inserts between the cursor and bound are visited;
 inserts beyond it are excluded; deleted rows are skipped. Cursor and writes
@@ -37,17 +44,12 @@ rehearsal told the truth. Exit 1 is `E_REHEARSAL`, the rehearsal itself could
 not run. `--dry-run` excludes `--wait` and `--plan`; queries and mutations
 rehearse the same way.
 
-The receipt's `state` is `done` (the program ran to completion on the copy),
-`parked` (a chunk refused; earlier chunks stand and `refusals` says why),
-`rejected` (a mutation's constraint or `require` refused it), or `refused`
-(the copy would not start an admitted program). Admission — the name, the
-kind, the arguments, an ad hoc program's certificate — happens on the live
-store before any copy is taken, so a refusal there is the ordinary envelope
-(`E_OP_UNKNOWN`, `E_JOB_ARGS`) and nothing pauses the owner; `refused` is
-therefore a safety net no fixture reaches (an admitted program the copy
-itself cannot enqueue or run), kept so the receipt is never silent, not a
-branch to delete. `POST /control/run` and `POST /control/job` are the
-operator seat and take `as: system` when the body omits it;
+Rehearsal states: `done` (completed), `parked` (chunk refused; earlier chunks
+stand; see `refusals`), `rejected` (mutation constraint/require), `refused`
+(copy could not start the admitted program). Name, kind, args and certificate
+admission precede the snapshot; their ordinary refusals (`E_OP_UNKNOWN`,
+`E_JOB_ARGS`) leave the owner running. `POST /control/run` and
+`POST /control/job` default to `as: system`;
 `POST /control/execute` does not, because it also serves explicit personas,
 so send `as: system` with `dryRun: true` there. A body names its run once:
 `mode: "run" | "dry-run" | "plan"`, or the booleans `dryRun` and `plan`.

@@ -735,6 +735,9 @@ fn todos_template_passes_without_an_effects_check() {
     );
     let receipt = json_stdout(&output);
     assert_eq!(receipt["verdict"], "pass");
+    assert!(receipt["owner"]["port"].as_u64().is_some_and(|port| port > 0));
+    assert!(receipt["owner"]["pid"].as_u64().is_some_and(|pid| pid > 0));
+    assert_eq!(receipt["commands"][0], "snapback2 dev --foreground --port 0");
     assert!(
         !receipt["checks"]
             .as_array()

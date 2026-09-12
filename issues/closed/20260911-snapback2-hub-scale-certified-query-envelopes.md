@@ -58,6 +58,17 @@ records a legal preserving form for all five rows:
   and issues.
   Search remains on the original membership-authorized message rows;
   held-search authority was not widened.
+  This is the **interim client N-way merge**, not a one-lane scale result.
+  The earlier LLP 1023.001 §C exclusion of client N-way composition does not
+  describe this shipped close. On the unchanged 100,015-message Clique fixture,
+  hub `u0001`'s `busy` term matches only in the final membership slice: the
+  first 20 rows cost 1,030 HTTP queries (10 scope pages, 1,000 heads, 20
+  refills), measured at 669/616 ms on localhost EPYC; an absent term costs
+  1,010 queries/576 ms. The cost is now visible in the fanout card and recipe.
+  [LLP 1024](../../llp/1024-single-lane-delivered-search.rfc.md) records the
+  one-lane capability gap, measurement method, delivery-authority distinction
+  and write-side price; it remains Draft. This close establishes a complete
+  composition, not constant-request hub search.
 - Rich conversation composites use a smaller continued rich page while raw
   history remains independently pageable at 50.
 - Digest work uses maintained period cells and a resumable 50-row job chunk.

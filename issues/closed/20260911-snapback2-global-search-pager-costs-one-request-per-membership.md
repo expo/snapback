@@ -1,10 +1,10 @@
 # The shipped hub search form costs one certified request per membership per search
 
-**Status:** Open
+**Status:** Resolved (2026-09-11)
 **Priority:** P1
 **Date:** 2026-09-11
 **Systems:** Snapback 2 `snapback2/global-search-pager`, `guide fanout` "Search every chat", `dist/guide/recipes/global-message-search.ts`; LLP 1023.001; LLP 1019 `deliver`; LLP 1012 "Indexed held search"
-**Related:** [closed/20260911-snapback2-hub-scale-certified-query-envelopes.md](./closed/20260911-snapback2-hub-scale-certified-query-envelopes.md) (`49f504f8b5`); [LLP 1023.001](../llp/1023.001-hub-scale-certified-reads.plan.md); [0.0.25 run](../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
+**Related:** [closed/20260911-snapback2-hub-scale-certified-query-envelopes.md](./20260911-snapback2-hub-scale-certified-query-envelopes.md) (`49f504f8b5`); [LLP 1023.001](../../llp/1023.001-hub-scale-certified-reads.plan.md); [0.0.25 run](../../benchmarks/runs/2026-09-11-snapback2-0025-clique-linux/README.md)
 
 ## Symptom
 
@@ -69,3 +69,26 @@ were pointing at. Two things follow:
   form with its cost.
 - No frozen benchmark input changes; the 500-follow feed and existing
   per-chat search keep their current certificates.
+
+## Resolution — 2026-09-11
+
+Resolved by the ticket's documented-pager plus priced-RFC acceptance path.
+`guide fanout`, the copyable consumer, and the original hub-ticket close now
+call the pager the interim client N-way composition and disclose its cost.
+On an isolated copy of the frozen 100,015-message / 1,000-membership fixture,
+the last-slice `busy` term's first 20 rows required 1,030 actual HTTP query
+requests (10 directory + 1,000 heads + 20 refills), measured at 668.764 and
+615.972 ms on localhost EPYC. The absent term used 1,010 requests /575.708 ms.
+These are scoped warm-host diagnostics, not a production latency claim.
+Original benchmark inputs and replay artifacts are unchanged.
+
+[Draft LLP 1024](../../llp/1024-single-lane-delivered-search.rfc.md) prices
+50-recipient sends (1,300 new prefix postings for the representative message),
+100,015-message storage (16,739,786 additional postings), and the current
+body<=2000 certificate (20,863,641 extra derivation steps for 51 reserved
+recipients, over 1M). It evaluates index reuse, the capped scan alternative,
+current body authority, held-search boundaries and the pre-join-history gap.
+One-lane global search remains unimplemented and explicitly open in that
+Draft; the complete pager remains paved with its membership-growing cost.
+The tracked close and the local in-flight 1023.001 plan are reconciled with
+this interim status. Existing feed/per-chat query certificates are unchanged.

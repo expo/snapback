@@ -22,6 +22,10 @@ its committed ledger row.
 See `guide successor` for additive changes, checked narrowing, fill jobs and
 reviewed destructive plans.
 
+`E_OWNER_TRANSPORT` means a connection failed, not that the owner stopped.
+Retry reads; inspect a submitted write's outcome before repeating it.
+For interrupted job polling, `guide job` gives observation-only recovery.
+
 `reset` clears application data and reapplies the seed; its JSON adds
 `seed: { rows, personas }` and the human line prints those counts.
 `reset --empty` prints `seed: skipped`: it clears rows, commits, outbox, jobs

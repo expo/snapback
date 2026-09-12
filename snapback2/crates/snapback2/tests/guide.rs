@@ -80,8 +80,10 @@ fn command_guides_explain_initialization_and_successor_recovery() {
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).contains("--journey name"));
     assert!(String::from_utf8_lossy(&output.stdout).contains("--journey=--help"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("[--port N]"));
     let page = json_stdout(&project.run(&["guide", "testing", "--json"]));
     let content = page["content"].as_str().unwrap();
+    assert!(content.lines().take(10).any(|line| line.contains("--port N")));
     for needle in [
         "--journey=--help",
         "--journey=-h",
