@@ -18,6 +18,8 @@ delete environment.NODE_PATH;
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 let server;
 let stderr = "";
+let passed = false;
+let phase = "install";
 try {
   await mkdir(join(app, "snapback"));
   await writeFile(join(app, "package.json"), JSON.stringify({ private: true, type: "module", dependencies: {
@@ -34,11 +36,14 @@ try {
   await writeFile(join(app, "snapback/notes.q"), `query list():\n  return notes[viewer] first 10 by byOwner\n\nmutation add(body: text 1..120):\n  note = insert notes { owner: viewer, body }\n  return { id: note.id }\n`);
   await writeFile(join(app, "snapback/seed.ts"), `import { seed } from "snapback3";\nexport default seed({ personas: ["alice"], rows: { notes: [{ id: "first", owner: "dev:alice", body: "Installed tarball seed" }] } });\n`);
   const cli = join(installed, "dist/cli.mjs");
+  phase = "installed CLI certification";
+  process.stderr.write(`snapback3 smoke: ${phase} in ${app}\n`);
   const check = JSON.parse((await execute(npm, ["exec", "--offline", "--", "snapback3", "check", ".", "--json"], {
     cwd: app, env: environment, timeout: 30_000, maxBuffer: 4 * 1024 * 1024,
   })).stdout);
   assert.equal(check.ok, true);
   assert.equal(check.operations, 2);
+  phase = "TypeScript imports";
   await writeFile(join(app, "imports.tsx"), `import { seed, decimal, type Principal } from "snapback3";
 import { api, createClient, type ResultOf } from "snapback3/client";
 import { compileProject, lowerSeed } from "snapback3/compiler";
@@ -63,6 +68,7 @@ const view = <SnapbackProvider client={client}><Notes /></SnapbackProvider>;
     noEmit: true, skipLibCheck: false, types: ["node", "react"], lib: ["ES2022", "DOM", "DOM.Iterable"],
   }, include: ["imports.tsx", ".snapback3/build/api.d.ts"] }));
   await node([join(app, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.json"]);
+  phase = "development server";
   server = spawn(process.execPath, [cli, "dev", ".", "--port", "0"], { cwd: app, env: environment, stdio: ["ignore", "pipe", "pipe"] });
   server.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-8192); });
   const url = await new Promise((done, reject) => {
@@ -93,11 +99,16 @@ try {
   assert.equal((await client.query("notes.list")).some(note => note.body === "Installed tarball write"), true);
 } finally { client.close(); }
 `);
+  phase = "SDK seeded query and settled mutation";
   await node([join(app, "exercise.mjs"), url]);
+  passed = true;
   console.log(JSON.stringify({ ok: true, host: metadata.host, node: process.version,
     freshExternalInstall: true, workerOverride: false, certifiedOperations: check.operations,
     strictTypeImports: ["snapback3", "snapback3/client", "snapback3/react", "snapback3/compiler"],
     devHealth: true, seededQuery: true, settledMutation: true }));
+} catch (error) {
+  process.stderr.write(`snapback3 smoke failed during ${phase}; retained app: ${app}\n`);
+  throw error;
 } finally {
   if (server && server.exitCode === null && server.signalCode === null) {
     const stopped = once(server, "close");
@@ -105,7 +116,7 @@ try {
     const force = setTimeout(() => server.kill("SIGKILL"), 3000);
     try { await stopped; } finally { clearTimeout(force); }
   }
-  await rm(app, { recursive: true, force: true });
+  if (passed) await rm(app, { recursive: true, force: true });
 }
 
 async function node(args) {

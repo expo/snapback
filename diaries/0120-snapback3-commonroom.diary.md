@@ -158,6 +158,14 @@ all four exported type surfaces, a seeded query, and a durably settled mutation
 without a worker-path override. This is local distribution evidence, not an npm
 registry publication or another-platform claim.
 
+A later package requalification timed out before application code started.
+Both npm's launcher and the byte-identical repository worker remained at
+`_dyld_start + 0`; the underlying host cause is still unknown. The earlier
+qualified archive and report remain intact. Failed smoke runs now report their
+phase and preserve the synthetic installation for inspection. The
+[local issue](../snapback3/issues/20260912-package-smoke-host-exec-stall.md)
+records the bounded probes and required rerun; this later attempt did not pass.
+
 The fresh reviewer assessed the new behavior and focused inherited-core changes;
 this was a same-family review, not a fabricated cross-family consensus. The
 inherited Rust and evaluator suites remain part of the verification boundary.
