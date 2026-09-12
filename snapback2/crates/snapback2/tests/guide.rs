@@ -247,7 +247,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("job", "`break` ends its sweep"),
         (
             "chunk",
-            "current rows through the upper key",
+            "current rows",
         ),
         ("after", "`after` follows scan order"),
         ("first", "`first` is ascending"),
@@ -301,6 +301,10 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         let paragraph = content;
         let paragraph = paragraph.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(paragraph.contains(definition), "{keyword}: {paragraph}");
+        if keyword == "chunk" {
+            assert!(paragraph.contains("upper key"), "{paragraph}");
+            assert!(paragraph.contains("initial") || paragraph.contains("sweep start"), "{paragraph}");
+        }
         if keyword == "connected" {
             assert!(content.contains("## live-query: Connected\n"), "{content}");
             for needle in [

@@ -282,11 +282,12 @@ table deliveries:
   test("the fanout guide hub queries and jobs are the compiled fixture and certify", async () => {
     const page = readFileSync(resolve(frontend, "../snapback2/guide/fanout.md"), "utf8");
     const fixtureFeeds = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/feeds.q"), "utf8");
+    const fixtureSchema = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/schema.q"), "utf8");
     const fixtureDigest = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/digest.q"), "utf8");
     const fixtureMessages = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/messages.q"), "utf8");
     const snippets = [...page.matchAll(/```q\n([\s\S]*?)\n```/g)].map((match) => match[1]!);
     assert(snippets.some((snippet) => fixtureFeeds.includes(snippet)), "guide feed recipe diverged from its fixture");
-    assert(snippets.every((snippet) => fixtureFeeds.includes(snippet) || fixtureMessages.includes(snippet) || fixtureDigest.includes(snippet)), "guide recipe diverged from its executed fixture");
+    assert(snippets.every((snippet) => fixtureFeeds.includes(snippet) || fixtureMessages.includes(snippet) || fixtureDigest.includes(snippet) || fixtureSchema.includes(snippet)), "guide recipe diverged from its executed fixture");
     const lowered = await lowerProject(resolve(frontend, "fixtures/quarry-fanout-guide"));
     assert(lowered.ok, `guide fanout fixture did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
