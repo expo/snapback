@@ -351,7 +351,7 @@ function normalizeRead(read: any): any {
 }
 
 function normalizeScan(scan: any): any {
-  const out = {
+  const out: Record<string, any> = {
     ...pick(scan, ["site","table","index","prefix","order","take","after","before","range","opaque_cursor","merge_site","provenance"], "scan"),
     take: normalizeBound(scan.take),
     prefix: scan.prefix.map((key: any) => {
