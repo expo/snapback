@@ -707,7 +707,7 @@ query digestState(target: principal, source: principal, period: int):
     assert.equal(stale.data.sourceCount, 0);
     assert.equal(stale.data.accumulated.newPostsInFollowing, 500, "cached contributions cannot establish final eligibility");
     assert.equal((await control("/control/job/" + job.id)).state, "done");
-    t.diagnostic("digest GAP: clients closed; completed500-follow accumulation retains deleted contribution after owner restart");
+    t.diagnostic("digest GAP: clients closed; completed 500-follow accumulation retains deleted contribution after owner restart");
   } finally {
     stop?.(); await Promise.all([client.close(), author.close()]);
     await hub.close(); await rm(directory, { recursive: true, force: true });

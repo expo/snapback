@@ -58,6 +58,7 @@ quarry-fanout-guide fixture. Current-source probes, without ceiling changes:
 
 | Form | Current certificate outcome |
 | --- | --- |
+| Original-media 500-follow+self enriched feed, last 20 | closure 3,428,749; heap 4,216,301; output 90,652: admitted after retained-merge repair f7273a41f6 |
 | 1,000-lane message search, last 20 | heap 20,407,874; closure 17,543,326: refused |
 | Rich 50 with author, quote, 50 reactions and 50 receipts | output 4,178,012: refused |
 | Membership page 10, one search preview per group | closure 344,839; heap 393,355: admitted |
@@ -72,8 +73,31 @@ contributions cannot by themselves establish final eligibility. Existing
 periodUnread contributions require deletion/expiry maintenance as well as
 membership-incarnation checks.
 
-Executed consumer progress: all 1,000 memberships and a final-slice-only match,
-125 tied-time messages through distinct message cursors, full rich continuation,
-and warm/cold held search. Final live/revocation and feed-accounting qualification
-are recorded in the child plan as they complete. Publication and the full Clique
-wave remain separate work.
+Executed consumer result: the existing real-owner test passes in 27.096 seconds
+(28.431 seconds including the harness). It covers the original enriched feed,
+all 1,000 memberships after 99 empty slices and a final-slice-only match, 125
+tied-time messages through distinct message cursors, full rich continuation,
+warm/cold held reads, live insert/edit/delete boundary rebuilding and membership
+revocation. The shipped fanout card's grouped-search consumer is executed
+verbatim. All 18 affected compiler fanout checks plus packaged guide discovery
+pass; the package builds with 97,853 / 98,304 guide bytes.
+
+Digest keeps this ticket open. An executed negative witness closes both clients,
+completes the old 500-follow accumulation, deletes one contributing post, and
+restarts the owner. Its maintained source count becomes zero, while the cached
+total remains 500 and the job remains done. This does not qualify final emission.
+
+The retained app's compact authored counters do not resolve that gap:
+periodUnread has no expiry provenance; clearSeat removes only the current and
+previous periods, without a period cap covering paused older work. Cached
+postDigestContribution values need final deletion/expiry validation. Current
+[writer_timers.rs](../snapback2/crates/snapback2/src/writer_timers.rs) processes at
+most 64 due timers before [writer_jobs.rs](../snapback2/crates/snapback2/src/writer_jobs.rs)
+runs a job chunk, without proving that all due expiry work has drained. Thus
+timer-driven decrement alone cannot establish exact eligibility at emission.
+This is source evidence for the remaining expiry gap, not an executed expiry
+qualification. No new read model, ceiling or reduced population is selected.
+
+Precise source/probe/log locations and cost terms are in the child plan's
+implementation record. Publication and the full Clique wave remain separate
+work; the digest requirement is still unmet.
