@@ -317,6 +317,21 @@ fn a_snapshot_is_paged() {
     assert!(engine.snapshot_page("dev:bob", Some("not-a-token"), 10).is_err());
 }
 
+/// The loop bar's one docs loop on 0.1.9: a bare `t first N by index` is
+/// the empty prefix, as `chunk` already took it.
+#[test]
+fn a_bare_table_read_is_the_empty_prefix() {
+    let with = CHAT.replace("mutation edit(", "query everyone(c: cursor ?):\n  return profiles after c last 20 by byHandle\n\nquery handles():\n  return profiles first 5 by byHandle\n\nmutation edit(");
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), with.clone())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = chat_engine_from(&with, &["dev:alice"]);
+    engine.seed((0..7).map(|n| ("profiles".to_owned(), snapback4_core::value::object([("id", id(&format!("p{n}"))), ("principal", id(&format!("dev:u{n}"))), ("displayName", Value::String(format!("U{n}"))), ("handle", Value::String(format!("user{n}")))])))).unwrap();
+    let read = engine.query("handles", Context::new("dev:alice", BTreeMap::new()).at(1_000)).unwrap();
+    assert_eq!(read.data.as_array().unwrap().len(), 5);
+    let read = engine.query("everyone", Context::new("dev:alice", BTreeMap::new()).at(1_000)).unwrap();
+    assert_eq!(read.data.as_array().unwrap().len(), 7);
+}
+
 /// M7: adding an optional column with its own constraint is additive; the
 /// day-two classifier said Narrowing for a constraint no existing row meets.
 #[test]

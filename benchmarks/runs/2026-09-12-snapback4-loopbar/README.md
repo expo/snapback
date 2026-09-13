@@ -10,7 +10,7 @@ Snapback-attributed correction loop, N ≥ 3.
 | | |
 | --- | --- |
 | Brief | `snapback4/loopbar/brief.md` (the four-part proof: `check` clean, a fixture under `snapback4 test`, an HTTP acceptance script, a build) |
-| Runner | `snapback4/loopbar/run.mjs`: serial codex `exec` sessions, `gpt-6-astra` at medium, each verified independently after it stops (`check`, the fixture test with every persona, the acceptance script, with the agent's own servers stopped and its dev stores dropped first); one line per run in `snapback4/metrics/loopbar.jsonl`; lanes under `~/loopbar-sb4-2026-09-12{,-b,-c,-d}/` |
+| Runner | `snapback4/loopbar/run.mjs`: serial codex `exec` sessions, `gpt-6-astra` at medium, each verified independently after it stops (`check`, the fixture test with every persona, the acceptance script, with the agent's own servers stopped and its dev stores dropped first); one line per run in `snapback4/metrics/loopbar.jsonl`; lanes under `~/loopbar-sb4-2026-09-12{,-b,-c,-d}/` and `~/loopbar-sb4-2026-09-13-e/` |
 | Host | the same Apple M5 Max as the Clique lane, which ran throughout; wall clocks are as measured |
 | Evidence level | N=3 per pin; calibration, not a claim-eligible magnitude |
 
@@ -34,6 +34,9 @@ the agent's own attributions in its run log.
 | D | 0.0.11 | 1 | 537 | 0 | yes | **met** | — (the brief now names the installed README) |
 | D | 0.0.11 | 2 | 443 | 0 | yes | **met** | — |
 | D | 0.0.11 | 3 | 535 | 0 | yes | **met** | the agent first blamed a rejected merge cursor on the package, then retracted it as its own error (it had put the outer cursor on the inner lanes); the runner's count now ignores retracted attributions |
+| E | 0.1.9 | 1 | 373 | 0 | yes | **met** | — (2026-09-13, after the full-brief Clique run and its nine fix-forward releases; the host quiet) |
+| E | 0.1.9 | 2 | 400 | 0 | yes | **met** | one docs loop: a bare `messages first 50 by index` (no `[..]`) refused `E_QUARRY_SYNTAX`; the agent found the empty prefix from the grammar (0.1.10 accepts the bare form, as `chunk` already did) |
+| E | 0.1.9 | 3 | 376 | 0 | yes | **met** | — |
 
 Every one of twelve runs went green inside 1,200 s (366–765 s). On the
 pins before the fixes, four of nine met the bar on the loop count; every

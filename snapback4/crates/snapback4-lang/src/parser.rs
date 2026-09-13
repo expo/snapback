@@ -1021,6 +1021,11 @@ impl Parser {
             } else if self.at("[") && matches!(value, Expr::Name { .. }) {
                 let Expr::Name { name, site } = value else { unreachable!() };
                 value = Expr::Read(self.parse_read(&name, &site)?);
+            } else if matches!(value, Expr::Name { .. }) && matches!(self.peek().value.as_str(), "first" | "after" | "last") {
+                // `t first N by index`: the whole table's page, the empty
+                // prefix spelled without brackets, as `chunk` takes it.
+                let Expr::Name { name, site } = value else { unreachable!() };
+                value = Expr::Read(ReadExpr { table: name, keys: Vec::new(), index: None, range: None, site });
             } else if matches!(value, Expr::Read(_)) && self.at("where") {
                 let site = self.take("where")?.site;
                 let predicate = self.expression(0, &["<newline>", "{", ",", "}"])?;

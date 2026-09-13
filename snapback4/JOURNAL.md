@@ -1208,3 +1208,16 @@ its fix. Published `snapback4@0.1.9` (the docs). The whole brief runs;
 what the run says to do next is the feed's fan-out-on-write shape as a
 recipe, native proof in the simulator witness, and the loop bar again on
 the 0.1 line.
+
+## 2026-09-13 — the loop bar on 0.1.9: met again, faster
+
+Set E, three fresh Astra sessions on `snapback4@0.1.9` with the host quiet
+after the full-brief run: 373, 400 and 376 s of wall clock, every one
+green on the independent verification (`check` clean, the fixture under
+`test` for every persona, the acceptance script), no Snapback-attributed
+loop in any of them — set D on 0.0.11 was 537, 443 and 535 s. The bar
+stands on the 0.1 line, a third faster. One docs loop in run 2: the agent
+wrote `messages first 50 by index` with no `[..]` and the parser refused
+it; it found the empty prefix from the grammar in one step. `chunk`
+already took the bare form; reads take it now too (0.1.10). Record:
+`benchmarks/runs/2026-09-12-snapback4-loopbar/`.

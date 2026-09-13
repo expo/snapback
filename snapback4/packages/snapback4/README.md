@@ -161,8 +161,9 @@ columns.
   cursor. An omitted optional argument reads as null.
 - **Reads:** `t[key]` (one row by a unique key, null if absent or
   hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`,
-  `t[prefix] first N by index` (ascending), `t[prefix] after c last N by
-  index` (descending, from a cursor), `merge t first N by index:` with
+  `t[prefix] first N by index` (ascending; `t first N by index` is the
+  whole table's page), `t[prefix] after c last N by index` (descending,
+  from a cursor), `merge t first N by index:` with
   `[lane]` lines (one ordered page over several prefixes; a merge reads
   one page per lane, so a feed over hundreds of followed users wants its
   entries written on the way in, one table synced to `.reader` — `check`
