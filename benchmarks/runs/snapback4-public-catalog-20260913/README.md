@@ -1028,3 +1028,111 @@ the instrumented production opt-3 binary is
 `eb17f777f4a05aa87fa274e404862bfa309a72214f049c4699cb77c72b5166a6`.
 Original and instrumented hashes for every modified core file are retained
 in each record's source bindings.
+
+## SQLite plan reuse — direct statements and complete core queries
+
+The execution-phase profile led to a direct SQLite diagnostic using the
+store's indexed scan SQL. On bundled SQLite 3.53.2, the default reported
+500 automatic reprepares for 500 executions of each tested statement.
+An initial false/true/true/false QPSG sequence retained already-cached
+statements and still reported 500/500 in every case. It is retained as an
+option-toggle diagnostic: SQLite preserves those VDBEs' parameter-expiry
+masks, so it does not establish that QPSG is ineffective.
+
+The corrected diagnostic flushes the prepared-statement cache after each
+option change, before preparing the next round. Every default case still
+reports 500/500; every fresh QPSG case reports **0/500**. Both diagnostics
+run four cases in four rounds, with 100 excluded warmups and 500 timed
+executions each: 8,000 timed statements per diagnostic. Fresh-round p50s:
+
+| Direct SQL case | Default round 1 (µs) | QPSG round 2 | QPSG round 3 | Default round 4 |
+|---|---:|---:|---:|---:|
+| Hot point | 36.542 | 4.166 | 4.125 | 37.083 |
+| Rotating point | 48.208 | 13.292 | 11.042 | 48.875 |
+| Membership probe | 35.542 | 3.333 | 3.375 | 36.042 |
+| Feed heads | 47.792 | 10.792 | 10.791 | 47.833 |
+
+Exact rows/keys hashes agree across all rounds and both diagnostics.
+High-level EXPLAIN QUERY PLAN text remains the same primary-index search
+and join, with zero full-scan steps, sorts or automatic-index rows. This
+does not mean identical bytecode: QPSG records two extra VM steps per
+execution. Timers include bound SQL execution, column collection and JSON
+decode, excluding key construction and hashing. These diagnostics bypass
+engine authorization and HTTP. The two `membership-sqlite-statement-diagnostic`
+ledger records retain all 34 configuration/case observations; the rejected
+fresh-builder preflight contributes no measurements.
+
+A separate complete-query comparison restores the original qualified
+0.2.3 core source, without phase instrumentation, and uses one production
+opt-level-3 binary. Only QPSG varies: default remains false, or it is set
+after `Store::open` and before `Engine::new`. Generic scan statements are
+fresh in that experiment; the store's metadata statement was already
+cached. The 0.2.5 implementation instead sets QPSG early in
+`Store::prepare`, including metadata and native SQLite stores. These
+measurements are therefore not timings of the exact 0.2.5 artifact.
+
+Three pairs run default/QPSG, QPSG/default, default/QPSG, serially on Linux
+virtual CPU 0 in the same Colima VM. Each fresh process executes nine cases
+with 100 excluded warmups and 500 timed queries: **27,000 timed core
+queries** plus 5,400 warmups. Both settings retain `cache_size=-2000`,
+4096-byte pages, WAL/NORMAL and SQLite 3.53.2. OS cache is retained without
+resets; residency is unmeasured. Point domains are 1,000/6,000/30,000 rows,
+feed domains 50/300/1,500 pages; each rotating case times
+`min(500, domain size)` distinct inputs. Hot point repeats one key.
+
+Every warmup and timed result/next cursor matches the full fixture oracle;
+first/terminal pages and two empty controls also pass. All eleven full
+outcome/control identities, including meters, match the original
+500-sample working-set baseline in every run. Inputs, oracle checks and
+hashing are outside the query timer. Medians of three per-run percentiles:
+
+| Case | Default p50 / p95 (µs) | QPSG p50 / p95 (µs) |
+|---|---:|---:|
+| 5-group hot point | 113.376 / 156.333 | 38.416 / 47.417 |
+| 5-group rotating point | 129.334 / 166.000 | 49.583 / 73.583 |
+| 5-group rotating feed | 1202.585 / 2766.796 | 766.126 / 1278.836 |
+| 30-group hot point | 112.583 / 164.458 | 37.458 / 51.375 |
+| 30-group rotating point | 128.750 / 167.001 | 50.000 / 70.292 |
+| 30-group rotating feed | 5211.593 / 8167.972 | 1493.127 / 2103.420 |
+| 150-group hot point | 112.708 / 143.084 | 37.625 / 56.916 |
+| 150-group rotating point | 128.583 / 157.959 | 49.834 / 68.583 |
+| 150-group rotating feed | 19099.033 / 27863.464 | 5290.384 / 8841.182 |
+
+All nine p50 medians are lower, by factors of 1.57–3.61. All 27 paired
+p50 and 27 paired p95 comparisons are lower. The 150-group feed moves from
+19.099 to 5.290 ms p50 and 27.863 to 8.841 ms p95. Tails are not uniformly
+better: the 150-group rotating-point median of per-run maxima increases
+from 547.126 to 1434.669 µs. These are medians of per-run summaries, not
+pooled percentiles or uncertainty estimates.
+
+The six `membership-sqlite-qpsg-profile` ledger records preserve every
+observation and source/fixture/controller/raw-artifact hash. The common
+binary is `a109928a04599eb6e0b8bbc08384c9ae89c0721a62006ffc1d9bb32d87e7cecf`,
+built from qualified source `78366743b`; profiler SHA-256 is
+`d64a6c96636b34284f5b7b47b422271307144a6dae62f10913f4b4e2714212da`.
+SQLite counters cover warmups as well as timed calls; process CPU ticks
+include whole-case observer work, and observed query-phase RSS includes
+the full fixture/oracle. All case write/spill deltas are zero. QPSG may
+trade away useful parameter-sensitive planning for other SQL shapes.
+No HTTP/comparator, device performance, write/durability or production
+memory claim follows from this core experiment; publication qualification
+is recorded separately.
+
+The plan-reuse implementation landed as `9250a61ee` and both npm packages
+published as **0.2.5** at 2026-09-13 16:59:10.168 UTC. The existing
+publication path exited 0 after 165.1 seconds, including its installed-consumer
+proof. Its blocking suite reported zero failures in 69 seconds: 156 Rust
+tests passed, with one existing long native-job ceiling/rollback test at
+the 8,192-write limit ignored; all 61 client and 9 fixture-wrapper tests
+passed with no skips. A separate warm repeat passed the same counts in
+50.52 seconds wall time (51 seconds in the suite summary). Both downloaded
+registry tarballs match their recorded integrity and SHA-1 values; the
+Darwin production binary is 6,802,080 bytes, SHA-256
+`e752662aa96f5d224da46b333540a8e6e4b186ffc248a8b4c7c69a077a5989b3`.
+The same source archive also built successfully on Linux at production
+optimization level 3, and both production-profile store tests passed
+(0.24 seconds after an 87-second test build); the Linux binary SHA-256 is
+`251e607404f3faa4e2b0fb05eb3ae42afd4aa03fe204b8532eaf0ad1afe66718`.
+These are source, build, test, consumer and publication receipts. HTTP
+performance has not yet been measured for 0.2.5, and the earlier native-core
+experiment is not an HTTP or exact published-artifact performance result.
