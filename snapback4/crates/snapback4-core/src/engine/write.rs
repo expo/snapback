@@ -8,7 +8,6 @@ use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Maintain, MaintainKind, Table, maintained_id, maintained_key, materialize_optional_fields};
-#[cfg(feature = "sqlite")]
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json};
@@ -40,14 +39,17 @@ impl Runner<'_> {
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
-                if self.tx.lookup(table_name, name, index, &key)?.is_some() {
+                if self.live_lookup(table_name, name, index, &key)?.is_some() {
                     return Ok(false);
                 }
             }
         }
         let id = row.field("id")?.as_str()?.to_owned();
-        if self.tx.get(table_name, &id)?.is_some() {
-            return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
+        if let Some(existing) = self.tx.get(table_name, &id)? {
+            if !self.expired(&table, &existing) {
+                return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
+            }
+            self.remove(table_name, &existing)?;
         }
         self.check_constraints(table_name, None, &row, Effect::Insert)?;
         let entries = self.tx.put(table_name, &table, &row, None)?;
@@ -116,7 +118,6 @@ impl Runner<'_> {
     /// Remove a row the engine itself retires (an expired one): no rule and
     /// no constraint stands between the engine and its own sweep, while
     /// aggregates and partition events apply as for any delete.
-    #[cfg(feature = "sqlite")]
     pub(super) fn remove(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
         let entries = self.tx.delete(table_name, &table, old)?;
@@ -222,7 +223,7 @@ impl Runner<'_> {
                 if key.iter().any(|value| *value == Value::Null) {
                     continue;
                 }
-                if let Some(existing) = self.tx.lookup(table_name, name, index, &key)?
+                if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
                     && existing.field("id")?.as_str()? != id
                 {
                     return Err(RuntimeError::Constraint(format!("{table_name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
@@ -263,7 +264,24 @@ impl Runner<'_> {
                     }
                     let index_name = table.indexes.iter().find(|(_, index)| index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
                     self.meter.charge(MeterKind::IndexEntries, 1)?;
-                    let count = self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?;
+                    let count = if table.expire.is_none() {
+                        self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
+                    } else {
+                        let mut count = 0;
+                        let mut bounds = Bounds::default();
+                        loop {
+                            let rows = self.tx.scan(table_name, &index_name, &group, &bounds, Dir::Asc, 256)?;
+                            let fetched = rows.len();
+                            for (row, key) in rows {
+                                self.meter.charge(MeterKind::Examined, 1)?;
+                                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
+                                if !self.expired(&table, &row) { count += 1; }
+                                if count >= *max as u64 { break; }
+                            }
+                            if count >= *max as u64 || fetched < 256 { break; }
+                        }
+                        count
+                    };
                     if count >= *max as u64 {
                         return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows where {} = {}", by.join(", "), group.iter().map(describe).collect::<Vec<_>>().join(", "))));
                     }
@@ -293,7 +311,7 @@ impl Runner<'_> {
                 self.read_tables.insert(target.clone());
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = self.tx.lookup(target, index, target_index, &key)?;
+                let found = self.live_lookup(target, index, target_index, &key)?;
                 if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
                 if found.is_none() {
                     return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
@@ -383,20 +401,31 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(crate) fn rebuild_maintain(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
         let target = self.schema.table(&maintain.target).expect("validated").clone();
-        for (existing, _) in self.tx.scan(&maintain.target, "byId", &[], &Bounds::default(), Dir::Asc, usize::MAX)? {
-            let entries = self.tx.delete(&maintain.target, &target, &existing)?;
-            self.meter.charge(MeterKind::IndexEntries, entries)?;
-            self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
+        let mut bounds = Bounds::default();
+        loop {
+            let page = self.tx.scan(&maintain.target, "byId", &[], &bounds, Dir::Asc, 256)?;
+            if page.is_empty() { break; }
+            for (existing, key) in page {
+                bounds.after = crate::key::decode(&key);
+                let entries = self.tx.delete(&maintain.target, &target, &existing)?;
+                self.meter.charge(MeterKind::IndexEntries, entries)?;
+                self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
+            }
         }
         let source = self.schema.table(&maintain.source).expect("validated").clone();
         let mut totals: BTreeMap<String, (Vec<Value>, i128)> = BTreeMap::new();
-        for (row, _) in self.tx.scan(&maintain.source, "byId", &[], &Bounds::default(), Dir::Asc, usize::MAX)? {
-            let mut image = row;
-            materialize_optional_fields(&mut image, &source);
-            let key = maintained_key(&image, &maintain.by);
-            let change = delta(maintain, &image, 1)?;
-            let entry = totals.entry(canonical_json(&key)).or_insert((key, 0));
-            entry.1 += change;
+        bounds = Bounds::default();
+        loop {
+            let page = self.tx.scan(&maintain.source, "byId", &[], &bounds, Dir::Asc, 256)?;
+            if page.is_empty() { break; }
+            for (mut image, key) in page {
+                bounds.after = crate::key::decode(&key);
+                materialize_optional_fields(&mut image, &source);
+                let key = maintained_key(&image, &maintain.by);
+                let change = delta(maintain, &image, 1)?;
+                let entry = totals.entry(canonical_json(&key)).or_insert((key, 0));
+                entry.1 = entry.1.checked_add(change).ok_or_else(|| RuntimeError::Constraint("aggregate overflow".into()))?;
+            }
         }
         for (_, (key, change)) in totals {
             if change != 0 {

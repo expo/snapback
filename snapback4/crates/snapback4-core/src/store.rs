@@ -429,17 +429,30 @@ impl Tx<'_> {
         self.log_rows("SELECT seq, ord, t, kind, id, data FROM _log WHERE partition = ?1 AND seq > ?2 AND kind IN ('join', 'scope') ORDER BY seq, ord", &[&partition, &(after.min(i64::MAX as u64) as i64)])
     }
 
+    /// One last transition per group establishes the state at the watermark.
+    pub fn memberships_before(&self, partition: &str, watermark: u64) -> Result<Vec<LogEvent>, RuntimeError> {
+        self.log_rows("SELECT seq, ord, t, kind, id, data FROM (SELECT seq, ord, t, kind, id, data, ROW_NUMBER() OVER (PARTITION BY t, id ORDER BY seq DESC, ord DESC) AS position FROM _log WHERE partition = ?1 AND seq <= ?2 AND kind IN ('join', 'scope')) WHERE position = 1", &[&partition, &(watermark.min(i64::MAX as u64) as i64)])
+    }
+
+    pub fn commit_times(&self, sequences: &[u64]) -> Result<BTreeMap<u64, i64>, RuntimeError> {
+        let sequences = serde_json::to_string(sequences).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        let mut query = self.tx.prepare_cached("SELECT seq, at FROM _commits WHERE seq IN (SELECT value FROM json_each(?1))")?;
+        let rows = query.query_map([sequences], |row| Ok((row.get::<_, i64>(0)? as u64, row.get(1)?)))?;
+        rows.collect::<Result<_, _>>().map_err(Into::into)
+    }
+
     /// Merge every authorized interval with one SQLite statement. The JSON
-    /// parameter is a relation of (partition, inclusive start, exclusive end),
+    /// parameter is a relation of (partition, inclusive start, exclusive end, expiry),
     /// so query count is independent of the number of held groups.
-    pub fn read_log_spans(&self, spans: &[(String, u64, Option<u64>)], after: u64, only_seq: Option<u64>, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> {
+    pub fn read_log_spans(&self, spans: &[(String, u64, Option<u64>, Option<i64>)], after: u64, only_seq: Option<u64>, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> {
         let spans = serde_json::to_string(spans).map_err(|e| RuntimeError::Store(e.to_string()))?;
         self.log_rows(
             "SELECT l.seq, l.ord, l.t, l.kind, l.id, l.data FROM json_each(?1) AS span JOIN _log AS l
              ON l.partition = json_extract(span.value, '$[0]')
              AND l.seq >= json_extract(span.value, '$[1]')
              AND (json_extract(span.value, '$[2]') IS NULL OR l.seq < json_extract(span.value, '$[2]'))
-             WHERE l.seq > ?2 AND (?3 IS NULL OR l.seq = ?3) ORDER BY l.seq, l.ord LIMIT ?4",
+             JOIN _commits c ON c.seq = l.seq
+             WHERE (json_extract(span.value, '$[3]') IS NULL OR c.at < json_extract(span.value, '$[3]')) AND l.seq > ?2 AND (?3 IS NULL OR l.seq = ?3) ORDER BY l.seq, l.ord LIMIT ?4",
             &[&spans, &(after.min(i64::MAX as u64) as i64), &only_seq.map(|s| s.min(i64::MAX as u64) as i64), &(limit.min(i64::MAX as usize) as i64)])
     }
 

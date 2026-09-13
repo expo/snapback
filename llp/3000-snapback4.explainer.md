@@ -587,6 +587,18 @@ time-ordered 128-bit form.
   full response. Viewer changes and terminal write settlements have client
   subscriptions, and reads carry their next visible expiry for invalidation.
 
+- **2026-09-13 — logical lifetimes and stream history.** Membership grants
+  carry their expiry in the internal ledger; a stream filters each authorized
+  interval by the commit timestamp as well as its join/leave sequences.
+  Renewing the lifetime creates a new interval. Legacy expiring grants whose
+  lifetime cannot be recovered authorize no history. Snapshot, constraints
+  and maintained reads treat expired rows as absent before the physical sweep;
+  the simulator supplies its virtual clock explicitly. Local reads whose
+  maintained source is not fully held remain incomplete. Source and target
+  rebuild buffers are paged; retained aggregate state still scales with the
+  number of groups. The client observes auth and terminal mutation changes,
+  and visible-query lifetimes schedule reruns even on an idle commit stream.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

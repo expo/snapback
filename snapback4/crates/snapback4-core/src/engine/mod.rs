@@ -783,28 +783,40 @@ impl Engine {
     /// for the following one (none on the last). Each page is one short
     /// transaction; the watermark is the one the first page pinned.
     pub fn snapshot_page(&mut self, principal: &str, after: Option<&str>, limit: usize) -> Result<(Vec<Event>, u64, Option<String>), RuntimeError> {
+        self.snapshot_page_at(principal, after, limit, crate::now_ms())
+    }
+
+    pub fn snapshot_page_at(&mut self, principal: &str, after: Option<&str>, limit: usize, now: i64) -> Result<(Vec<Event>, u64, Option<String>), RuntimeError> {
         let cursor = match after {
             Some(token) => Some(partition::SnapshotCursor::decode(token).ok_or_else(|| RuntimeError::Input("the snapshot cursor is not one this server minted".into()))?),
             None => None,
         };
         let tx = self.store.read_transaction()?;
-        let page = partition::snapshot_page(&tx, &self.schema, principal, cursor, limit)?;
+        let page = partition::snapshot_page(&tx, &self.schema, principal, cursor, limit, now)?;
         tx.rollback()?;
         Ok((page.events, page.watermark, page.next.map(|next| next.encode())))
     }
 
     /// The whole snapshot at once (the simulator's device, tests).
     pub fn snapshot(&mut self, principal: &str) -> Result<(Vec<Event>, u64), RuntimeError> {
+        self.snapshot_at(principal, crate::now_ms())
+    }
+
+    pub fn snapshot_at(&mut self, principal: &str, now: i64) -> Result<(Vec<Event>, u64), RuntimeError> {
         let tx = self.store.read_transaction()?;
         let watermark = tx.next_seq()? - 1;
-        let events = partition::snapshot(&tx, &self.schema, principal)?;
+        let events = partition::snapshot(&tx, &self.schema, principal, now)?;
         tx.rollback()?;
         Ok((events, watermark))
     }
 
     pub fn stream(&mut self, principal: &str, watermark: u64, limit: usize) -> Result<partition::StreamPage, RuntimeError> {
+        self.stream_at(principal, watermark, limit, crate::now_ms())
+    }
+
+    pub fn stream_at(&mut self, principal: &str, watermark: u64, limit: usize, now: i64) -> Result<partition::StreamPage, RuntimeError> {
         let tx = self.store.read_transaction()?;
-        let page = partition::stream(&tx, &self.schema, principal, watermark, limit)?;
+        let page = partition::stream(&tx, &self.schema, principal, watermark, limit, now)?;
         tx.rollback()?;
         Ok(page)
     }

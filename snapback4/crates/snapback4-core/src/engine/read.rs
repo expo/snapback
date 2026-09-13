@@ -44,7 +44,7 @@ impl Probe for Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
-        let found = self.tx.lookup(table, index, index_def, key)?;
+        let found = self.live_lookup(table, index, index_def, key)?;
         if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
         Ok(found.is_some_and(|row| {
             let live = !self.expired(definition, &row);
@@ -59,6 +59,62 @@ impl Probe for Runner<'_> {
 }
 
 impl Runner<'_> {
+    /// Point lookups must pass expired siblings, even on an index whose
+    /// logical uniqueness no longer counts those rows.
+    pub(super) fn live_lookup(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        if table.expire.is_none() { return self.tx.lookup(table_name, name, index, key); }
+        let mut bounds = Bounds::default();
+        loop {
+            let rows = self.tx.scan(table_name, name, key, &bounds, Dir::Asc, 32)?;
+            let count = rows.len();
+            for (row, stored) in rows {
+                if !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
+                bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
+                if !self.expired(table, &row) { return Ok(Some(row)); }
+            }
+            if count < 32 { return Ok(None); }
+        }
+    }
+
+    /// A maintain over expiring source rows is a live fact before the
+    /// physical sweep catches up. Recompute only that fact's group, with
+    /// the usual runtime meter and device coverage rules.
+    pub(crate) fn live_aggregate(&mut self, table_name: &str, row: Value) -> Result<Option<Value>, RuntimeError> {
+        let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
+        let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
+        if source.expire.is_none() { return Ok(Some(row)); }
+        self.read_tables.insert(maintain.source.clone());
+        if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) {
+            self.beyond_horizon = true;
+            return Ok(Some(row));
+        }
+        let group = crate::schema::maintained_key(&row, &maintain.by);
+        let (index, prefix) = source.indexes.iter().find(|(_, index)| index.word_component().is_none() && index.columns().starts_with(&maintain.by))
+            .map(|(name, _)| (name.as_str(), group.clone())).unwrap_or(("byId", Vec::new()));
+        let mut bounds = Bounds::default();
+        let mut total = 0_i128;
+        loop {
+            let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 256)?;
+            let count = rows.len();
+            for (candidate, key) in rows {
+                if !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
+                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
+                if self.expired(source, &candidate) || crate::schema::maintained_key(&candidate, &maintain.by) != group { continue; }
+                self.note_expiry(source, &candidate);
+                total += match &maintain.kind { crate::schema::MaintainKind::Count => 1, crate::schema::MaintainKind::Sum { of } => i128::from(candidate.field(of)?.as_int()?) };
+            }
+            if count < 256 { break; }
+        }
+        if total == 0 { return Ok(None); }
+        if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
+            return Err(crate::value::ValueError::Overflow(total).into());
+        }
+        let mut fields = row.as_object()?.clone();
+        fields.insert("value".into(), Value::Int(total as i64));
+        Ok(Some(Value::Row(fields.into())))
+    }
+
     /// Whether a row is past its table's `expire` column at this run's
     /// clock. Expired is absent: to every reader, on every host, before
     /// any rule (the sweep makes it physical). The system sees no more
@@ -133,7 +189,7 @@ impl Runner<'_> {
         // that decided a hidden row are rolled back.
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
-        let found = self.tx.lookup(&read.table, &read.index, index, &key)?;
+        let found = self.live_lookup(&read.table, &read.index, index, &key)?;
         if !self.meter.charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
@@ -147,7 +203,7 @@ impl Runner<'_> {
         materialize_optional_fields(&mut row, table);
         if self.check_rule(&read.table, Effect::Read, None, &row)? {
             self.note_expiry(table, &row);
-            Ok(row)
+            Ok(self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null))
         } else {
             self.next_expiry = expiry_mark;
             self.meter.restore(mark);
@@ -409,6 +465,7 @@ impl Runner<'_> {
                 }
                 if allowed {
                     self.note_expiry(table, &row);
+                    let Some(row) = self.live_aggregate(&scan.table, row)? else { continue; };
                     if visible.len() == take {
                         has_more = true;
                         break 'outer;

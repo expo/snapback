@@ -167,7 +167,8 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
     for (content_name, sync) in dependents {
         let was = membership(old, &content_name, &sync);
         let is = membership(new, &content_name, &sync);
-        if was == is {
+        let expiry = |row: Option<&Value>| table.expire.as_ref().and_then(|column| row.and_then(|row| row.field(column).ok())).cloned().unwrap_or(Value::Null);
+        if was == is && expiry(old) == expiry(new) {
             continue;
         }
         // A grant that ends inside the commit that made it was never an
@@ -177,7 +178,7 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
             runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Scope, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
         }
         if let Some((partition, group)) = &is {
-            runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Join, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
+            runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Join, id: canonical_json(group), data: Some(crate::value::object([("expiresAt", expiry(new))])) });
         }
         runner.meter.charge(MeterKind::Steps, 1)?;
     }
@@ -188,16 +189,16 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
 /// orders them, else in the group index's order.
 #[cfg(feature = "sqlite")]
 pub fn group_rows(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, group: &[Value]) -> Result<Vec<Value>, RuntimeError> {
-    Ok(group_rows_from(tx, table_name, table, sync, group, None, 0, usize::MAX)?.0.into_iter().map(|(row, _)| row).collect())
+    Ok(group_rows_from(tx, table_name, table, sync, group, None, 0, usize::MAX, crate::now_ms(), None)?.0.into_iter().map(|(row, _)| row).collect())
 }
 
 /// The groups a principal holds right now under one target audience, as
 /// their prefix values.
 #[cfg(feature = "sqlite")]
-fn groups_now(tx: &Tx<'_>, schema: &Schema, bound: &AudienceBinding, target: &str, principal: &str) -> Result<Vec<Vec<Value>>, RuntimeError> {
+fn groups_now(tx: &Tx<'_>, schema: &Schema, bound: &AudienceBinding, target: &str, principal: &str, now: i64) -> Result<Vec<Vec<Value>>, RuntimeError> {
     let mut groups = BTreeSet::new();
     for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
-        if schema.table(target).is_some_and(|table| table.expired(&member, crate::now_ms())) { continue; }
+        if schema.table(target).is_some_and(|table| table.expired(&member, now)) { continue; }
         let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
         if !group.iter().any(|value| *value == Value::Null) {
             groups.insert(canonical_json(&group));
@@ -250,7 +251,7 @@ pub struct SnapshotPage {
 /// through the log, idempotently, and a group joined or left between pages
 /// reaches it as the log's join or scope.
 #[cfg(feature = "sqlite")]
-pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Option<SnapshotCursor>, limit: usize) -> Result<SnapshotPage, RuntimeError> {
+pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Option<SnapshotCursor>, limit: usize, now: i64) -> Result<SnapshotPage, RuntimeError> {
     let watermark = match &cursor {
         Some(cursor) => cursor.watermark,
         None => tx.next_seq()? - 1,
@@ -266,7 +267,7 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
             Audience::Column(_) => vec![vec![Value::Id(principal.to_owned())]],
             Audience::Target { table: target, .. } => {
                 let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
-                groups_now(tx, schema, &bound, target, principal)?
+                groups_now(tx, schema, &bound, target, principal, now)?
             }
         };
         // Resume at the group in flight, or at the first group after one
@@ -286,7 +287,7 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
                 at.group = Some(group.clone());
                 return Ok(SnapshotPage { events, watermark, next: Some(at) });
             }
-            let (rows, exhausted) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room)?;
+            let (rows, exhausted) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room, now, Some(schema))?;
             for (row, key) in rows {
                 let id = row.field("id")?.as_str()?.to_owned();
                 at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
@@ -315,11 +316,11 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
 /// The whole snapshot at once, for hosts that hold it (the simulator's
 /// device, tests); a real device pages it.
 #[cfg(feature = "sqlite")]
-pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Event>, RuntimeError> {
+pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str, now: i64) -> Result<Vec<Event>, RuntimeError> {
     let mut events = Vec::new();
     let mut cursor = None;
     loop {
-        let page = snapshot_page(tx, schema, principal, cursor, 10_000)?;
+        let page = snapshot_page(tx, schema, principal, cursor, 10_000, now)?;
         events.extend(page.events);
         match page.next {
             Some(next) => cursor = Some(next),
@@ -332,7 +333,7 @@ pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Eve
 /// counting the `taken` rows already delivered. Returns the rows with their
 /// keys and whether the group is done.
 #[cfg(feature = "sqlite")]
-fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize) -> Result<(Vec<(Value, Vec<u8>)>, bool), RuntimeError> {
+fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize, now: i64, schema: Option<&Schema>) -> Result<(Vec<(Value, Vec<u8>)>, bool), RuntimeError> {
     let (index_name, remaining, dir) = match &sync.horizon {
         Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
         None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Asc),
@@ -342,7 +343,6 @@ fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gr
         return Ok((Vec::new(), true));
     }
     let mut bounds = Bounds { after: after.map(<[Value]>::to_vec), ..Bounds::default() };
-    let now = crate::now_ms();
     let mut live = Vec::new();
     let mut exhausted = false;
     loop {
@@ -352,6 +352,11 @@ fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gr
         for (mut row, key) in rows {
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
+            if let Some(schema) = schema {
+                let mut runner = Runner::new(tx, schema, crate::engine::Context::system().at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0);
+                let Some(live_row) = runner.live_aggregate(table_name, row)? else { continue; };
+                row = live_row;
+            }
             materialize_optional_fields(&mut row, table);
             live.push((row, key));
             if live.len() > ask { break; }
@@ -416,72 +421,75 @@ pub struct StreamPage {
 struct Interval {
     from: u64,
     to: Option<u64>,
+    expires_at: Option<i64>,
 }
 
 /// The groups a principal held during `(watermark, now]`, per content
 /// table, from its memberships now and the joins and scopes logged since.
 #[cfg(feature = "sqlite")]
 fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64) -> Result<BTreeMap<(String, String), Vec<Interval>>, RuntimeError> {
-    // Membership now.
-    let mut now: BTreeSet<(String, String)> = BTreeSet::new();
+    // Physical memberships provide the initial state for databases whose old
+    // ledger predates expiry metadata. Logical expiry still bounds every span.
+    let mut current = BTreeMap::new();
     for (table_name, _, sync) in schema.synced() {
         let Audience::Target { table: target, .. } = &sync.audience else { continue };
         let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
-        for group in groups_now(tx, schema, &bound, target, principal)? {
-            now.insert((table_name.to_owned(), canonical_json(&group)));
+        for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, usize::MAX)? {
+            let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
+            if group.contains(&Value::Null) { continue; }
+            let expiry = schema.table(target).and_then(|table| table.expire.as_ref()).and_then(|column| member.field(column).ok()).and_then(|value| value.as_int().ok());
+            current.insert((table_name.to_owned(), canonical_json(&group)), expiry);
         }
     }
-    // The membership ledger must reach the same head as `now`. A bounded
-    // content page cannot establish visibility by counting its transitions.
-    let transitions_at_head = tx.membership_transitions(&partition_of(principal), watermark)?;
-    // Transitions since the watermark, per group, in order.
-    let mut transitions: BTreeMap<(String, String), Vec<(u64, bool)>> = BTreeMap::new();
-    for event in &transitions_at_head {
-        let joined = match event.kind.as_str() {
-            "join" => true,
-            "scope" => false,
-            _ => continue,
-        };
-        transitions.entry((event.table.clone(), event.id.clone())).or_default().push((event.seq, joined));
+    // @ref LLP 3000#7 — a content page cannot establish authority from a truncated ledger.
+    let previous: BTreeMap<_, _> = tx.memberships_before(&partition_of(principal), watermark)?.into_iter().map(|event| ((event.table.clone(), event.id.clone()), event)).collect();
+    let mut transitions: BTreeMap<(String, String), Vec<LogEvent>> = BTreeMap::new();
+    for event in tx.membership_transitions(&partition_of(principal), watermark)? {
+        transitions.entry((event.table.clone(), event.id.clone())).or_default().push(event);
     }
-    let keys: BTreeSet<(String, String)> = now.iter().cloned().chain(transitions.keys().cloned()).collect();
+    let keys: BTreeSet<_> = current.keys().chain(transitions.keys()).cloned().collect();
     let mut out = BTreeMap::new();
     for key in keys {
-        let steps = transitions.get(&key).cloned().unwrap_or_default();
-        // Held at the watermark iff held now with an even number of flips since.
-        let held_at_watermark = steps.first().map_or_else(|| now.contains(&key), |(_, joined)| !joined);
+        let expiring = schema.table(&key.0).and_then(|table| table.sync.as_ref()).and_then(|sync| match &sync.audience { Audience::Target { table, .. } => schema.table(table), _ => None }).is_some_and(|table| table.expire.is_some());
+        // A legacy grant without its lifetime or surviving membership cannot
+        // authorize historical reads of an expiring audience. Fail closed.
+        let fallback_expiry = || current.get(&key).copied().unwrap_or(expiring.then_some(i64::MIN));
+        let expiry = |event: &LogEvent| event.data.as_ref().and_then(|data| data.field("expiresAt").ok()).map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry);
+        let steps = transitions.get(&key).map(Vec::as_slice).unwrap_or_default();
+        let held_at_watermark = steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope");
+        let initial_expiry = if steps.is_empty() { current.get(&key).copied().flatten() } else { previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry) };
+        let mut open = held_at_watermark.then_some((watermark.saturating_add(1), initial_expiry));
         let mut spans = Vec::new();
-        let mut open: Option<u64> = held_at_watermark.then_some(watermark + 1);
-        for (seq, joined) in steps {
-            match (joined, open) {
-                (true, None) => open = Some(seq),
-                (false, Some(from)) => {
-                    spans.push(Interval { from, to: Some(seq) });
+        for event in steps {
+            match (event.kind.as_str(), open) {
+                ("join", None) => open = Some((event.seq, expiry(event))),
+                ("scope", Some((from, expires_at))) => {
+                    spans.push(Interval { from, to: Some(event.seq), expires_at });
                     open = None;
                 }
                 _ => {}
             }
         }
-        if let Some(from) = open {
-            spans.push(Interval { from, to: None });
+        if let Some((from, expires_at)) = open {
+            spans.push(Interval { from, to: None, expires_at });
         }
-        if !spans.is_empty() {
-            out.insert(key, spans);
-        }
+        if !spans.is_empty() { out.insert(key, spans); }
     }
     Ok(out)
 }
 
 #[cfg(feature = "sqlite")]
-pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, limit: usize) -> Result<StreamPage, RuntimeError> {
+pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, limit: usize, now: i64) -> Result<StreamPage, RuntimeError> {
     let limit = limit.max(1);
+    let head = tx.next_seq()?.saturating_sub(1);
+    if watermark >= head { return Ok(StreamPage { events: Vec::new(), watermark: head, more: false }); }
     let held = intervals(tx, schema, principal, watermark)?;
-    let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None), (PUBLIC.to_owned(), watermark.saturating_add(1), None)];
+    let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
         let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;
         for interval in intervals {
             if interval.to.is_none_or(|to| to > interval.from) {
-                spans.push((group_partition(table, &group), interval.from, interval.to));
+                spans.push((group_partition(table, &group), interval.from, interval.to, interval.expires_at));
             }
         }
     }
@@ -497,7 +505,7 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
     }
     let mut next = page.last().map_or(watermark, |event| event.seq);
     let more = !tx.read_log_spans(&spans, next, None, 1)?.is_empty();
-    let events = expand_joins(tx, schema, page, &held)?;
+    let events = expand_joins(tx, schema, page, &held, now)?;
     if !more { next = next.max(tx.next_seq()? - 1); }
     Ok(StreamPage { events, watermark: next, more })
 }
@@ -507,21 +515,22 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
 /// those can contain changes made after the member left. A same-commit
 /// grant and revocation conveys no authority. Joins never reach a device.
 #[cfg(feature = "sqlite")]
-fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>) -> Result<Vec<LogEvent>, RuntimeError> {
+fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<Vec<LogEvent>, RuntimeError> {
+    let commit_times = tx.commit_times(&page.iter().map(|event| event.seq).collect::<Vec<_>>())?;
     let mut out = Vec::with_capacity(page.len());
     for event in page {
         if event.kind != "join" {
             out.push(event);
             continue;
         }
-        let open = held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans| spans.iter().any(|span| span.from == event.seq && span.to.is_none_or(|to| to > event.seq)));
+        let open = held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans| spans.iter().any(|span| span.from == event.seq && span.to.is_none_or(|to| to > event.seq) && span.expires_at.is_none_or(|expires| commit_times.get(&event.seq).is_some_and(|at| *at < expires))));
         if !open {
             continue;
         }
         let Some(table) = schema.table(&event.table) else { continue };
         let Some(sync) = &table.sync else { continue };
         let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        let mut rows: Vec<Value> = tx.group_at(&group_partition(&event.table, &group), event.seq)?.into_iter().filter_map(|event| event.data).filter(|row| !table.expired(row, crate::now_ms())).collect();
+        let mut rows: Vec<Value> = tx.group_at(&group_partition(&event.table, &group), event.seq)?.into_iter().filter_map(|event| event.data).filter(|row| !table.expired(row, now)).collect();
         if let Some(horizon) = &sync.horizon {
             let index = table.index(&horizon.by).ok_or_else(|| RuntimeError::Schema(format!("missing horizon index {}", horizon.by)))?;
             rows.sort_by_cached_key(|row| std::cmp::Reverse(crate::rows::index_key(index, row, row.field("id").ok().and_then(|v| v.as_str().ok()).unwrap_or(""))));

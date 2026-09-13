@@ -104,7 +104,7 @@ impl Host for ServerHost {
                 let from_seq = message.get("from").and_then(Json::as_u64).unwrap_or(0);
                 let mut engine = self.engine.borrow_mut();
                 if from_seq == 0 {
-                    match engine.snapshot(&viewer) {
+                    match engine.snapshot_at(&viewer, ctx.now as i64) {
                         Ok((events, watermark)) => {
                             let events: Vec<Json> = events.iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json), "seq": watermark })).collect();
                             json!({ "t": "sync", "rid": rid, "snapshot": true, "events": events, "watermark": watermark, "more": false, "generation": engine.generation() })
@@ -112,7 +112,7 @@ impl Host for ServerHost {
                         Err(error) => json!({ "t": "sync", "rid": rid, "denied": error.refusal() }),
                     }
                 } else {
-                    match engine.stream(&viewer, from_seq, 200) {
+                    match engine.stream_at(&viewer, from_seq, 200, ctx.now as i64) {
                         Ok(page) => {
                             let events: Vec<Json> = page.events.iter().map(|e| json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(wire::to_json), "seq": e.seq })).collect();
                             json!({ "t": "sync", "rid": rid, "snapshot": false, "events": events, "watermark": page.watermark, "more": page.more, "generation": engine.generation() })

@@ -152,9 +152,11 @@ fn an_asset_is_served_by_its_home_rows_read_rule() {
     // A member is served once; the second view is refused; a stranger never.
     let grant = engine.asset_access("dev:bob", &asset.id, 1_005).unwrap();
     assert!(grant.once && grant.content_type == "image/png" && grant.path.is_file());
+    assert!(engine.asset_access("dev:bob", &asset.id, 1_005).is_ok(), "authorization alone does not spend a view");
+    engine.record_asset_view("dev:bob", &asset.id, 1_005).unwrap();
     assert_eq!(engine.asset_access("dev:bob", &asset.id, 1_006).unwrap_err().code(), "E_ASSET_VIEWED");
     assert_eq!(engine.asset_access("dev:mallory", &asset.id, 1_006).unwrap_err().code(), "E_ASSET_UNKNOWN");
-    assert!(engine.asset_access("dev:alice", &asset.id, 1_007).is_ok(), "the uploader is never counted");
+    assert!(engine.asset_access("dev:alice", &asset.id, 1_007).unwrap().once, "a placed upload also limits its owner to one completed view");
     // A video: the mutation reads the server's facts from an argument that
     // carried only the id, and the row keeps every fact key.
     let mut mp4 = boxed_ftyp();
@@ -539,8 +541,8 @@ fn a_search_matches_word_prefixes_newest_first() {
     assert!(matches!(edited.state, WriteState::Sent { .. }), "{:?}", edited.state);
     assert_eq!(bodies(&search(&mut engine, "dev:bob", "coffee nine", None, 1_070)), Vec::<String>::new());
     assert_eq!(bodies(&search(&mut engine, "dev:bob", "tea", None, 1_070)), vec!["tea instead", "Tea time at nine"]);
-    // The same query on a device over the rows it holds: the interpreter is one.
-    let (events, _) = engine.snapshot("dev:bob").unwrap();
+    // The same query on a device at the same virtual time as the server.
+    let (events, _) = engine.snapshot_at("dev:bob", 1_070).unwrap();
     let device = snapback4_core::rows::MemoryRows::new();
     for event in &events {
         if let Some(row) = &event.data {

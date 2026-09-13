@@ -2116,3 +2116,9 @@ sides of the membership disclosure boundary, duplicate-index continuation,
 job rollback, rewind/shape changes, reclaim, acquisition expiry and a
 concurrent writer under a stable reader snapshot. HTTP wiring, full-suite
 qualification and blind review follow before delivery.
+
+## 2026-09-13 — integrated ticket correction pass
+
+The remaining expiry cuts now share explicit virtual time in the simulator and logical absence in acquisition, non-unique lookup, uniqueness, caps, final-exists constraints and maintained reads. Partition spans carry a membership's lifetime, so an unswept membership cannot authorize commits made after expiry. Changing that lifetime writes a new grant; legacy expiring grants with no recoverable lifetime fail closed. Aggregate rebuilds page source and target rows. Schema serialization happens after releasing the compiled-backend lock.
+
+Client outcomes now have reactive viewer and terminal-write subscriptions, authenticated probes, table-scoped invalidation after stream apply, and timers for visible expiry. HTTP one-view delivery opens first, rejects partial transfers, serializes per asset/viewer, and records consumption only after a complete successful response. Poison recovery, activation interlocks, generated-write failures and CLI diagnostics have real-host regressions. Native reads use deferred transactions; device withdrawal replays surviving predictions; C exports contain unwinds where the build unwinds (production panic=abort still aborts). Language fallthrough is nullable and the ancillary declaration diagnostics are explicit. The retired TypeScript interpreter reports are covered by regressions against the unified Rust device.

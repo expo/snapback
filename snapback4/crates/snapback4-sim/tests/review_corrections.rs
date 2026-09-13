@@ -307,3 +307,70 @@ fn projected_reads_retain_the_next_visible_expiry() {
     assert_eq!(q.data,Value::String("live".into()));
     assert!(e.query("q",ctx().at(2000)).is_err());
 }
+
+#[test]
+fn expired_rows_are_absent_to_uniqueness_caps_final_exists_and_maintains() {
+    let mut e=engine("table targets:\n  code: text <=10\n  until: time ?\n  unique byCode: code\n  by byExpiry: until\n  expire at .until\n  cap 1 by code\n  read <- allow\n  insert <- allow\n  sync public\nmaintain counts: count targets by code\n  read <- allow\ntable sources:\n  code: text <=10\n  insert <- allow\n  after insert <- exists targets[.code]\nmutation add():\n  insert targets {code: 'same',until: null}\nmutation source():\n  insert sources {code: 'same'}\nquery count():\n  return counts['same'] by byGroup\nquery one():\n  return targets['same'] by byCode\n");
+    seed(&mut e,"targets",serde_json::json!([{"id":"old","code":"same","until":10}]));
+    assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(0));
+    let snapshot=e.snapshot_at("dev:alice",1000).unwrap().0;
+    assert!(snapshot.is_empty(),"expired source cannot leave a maintained count in a snapshot: {snapshot:?}");
+    let outcome=e.mutate("source",Some("refuse"),ctx().with_ids(["source".into()])).unwrap();
+    assert!(matches!(outcome.state,WriteState::Failed{ref why,..} if why.code=="E_CONSTRAINT"));
+    let outcome=e.mutate("add",Some("add"),ctx().with_ids(["new".into()])).unwrap();
+    assert!(matches!(outcome.state,WriteState::Sent{..}),"{outcome:?}");
+    assert_eq!(e.query("one",ctx()).unwrap().data.field("id").unwrap(),&Value::Id("new".into()));
+    assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(1));
+    assert_eq!(e.sweep_expired(1000,100).unwrap(),1);
+    assert_eq!(e.query("count",ctx()).unwrap().data,Value::Int(1));
+}
+
+#[test]
+fn expired_memberships_bound_stream_history_before_the_sweep() {
+    let mut e=engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  update <- allow\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join():\n  insert members {group: 'g',person: viewer,until: 10}\nmutation renew(m: members):\n  update members[m] {until: 30}\nmutation add(body: text <=10):\n  insert notes {group: 'g',body}\n");
+    let call=|e:&mut Engine,op:&str,id:&str,at:i64,args:BTreeMap<String,Value>| {
+        let w=e.mutate(op,Some(id),Context::new("dev:alice",args).at(at).with_ids([id.into()])).unwrap();
+        assert!(matches!(w.state,WriteState::Sent{..}),"{w:?}");
+    };
+    call(&mut e,"add","old",1,BTreeMap::from([("body".into(),Value::String("old".into()))]));
+    let before=e.seq().unwrap();
+    call(&mut e,"join","member",2,BTreeMap::new());
+    let joined=e.seq().unwrap();
+    call(&mut e,"add","live",9,BTreeMap::from([("body".into(),Value::String("live".into()))]));
+    call(&mut e,"add","hidden",10,BTreeMap::from([("body".into(),Value::String("hidden".into()))]));
+    assert!(e.snapshot_at("dev:alice",20).unwrap().0.is_empty());
+    for start in [before,joined] {
+        let page=e.stream_at("dev:alice",start,100,20).unwrap();
+        let ids=page.events.iter().filter(|event|event.table=="notes").map(|event|event.id.as_str()).collect::<Vec<_>>();
+        assert!(ids.contains(&"live"),"{ids:?}");
+        assert!(!ids.contains(&"hidden"),"{ids:?}");
+        assert_eq!(ids.contains(&"old"),start==before);
+    }
+    // Renew before expiry: the original deadline must not silently persist.
+    let mut e2=e;
+    call(&mut e2,"renew","renewed",9,BTreeMap::from([("m".into(),Value::Id("member".into()))]));
+    let renewed=e2.seq().unwrap();
+    call(&mut e2,"add","renewed-live",20,BTreeMap::from([("body".into(),Value::String("renewed".into()))]));
+    assert!(e2.stream_at("dev:alice",renewed,100,20).unwrap().events.iter().any(|event|event.id=="renewed-live"));
+}
+
+#[test]
+fn aggregate_rebuild_walks_multiple_source_and_target_pages() {
+    let source="table items:\n  group: text <=10\n  amount: int\n  read <- allow\nmaintain counts: count items by group\n  read <- allow\nquery q():\n  return counts['same'] by byGroup\n";
+    let mut e=engine(source);
+    seed(&mut e,"items",serde_json::json!((0..600).map(|n|serde_json::json!({"id":format!("r{n:04}"),"group":"same","amount":2})).collect::<Vec<_>>()));
+    assert_eq!(e.query("q",ctx()).unwrap().data,Value::Int(600));
+    adopt(&mut e,&source.replace("count items", "sum items of amount")).unwrap();
+    assert_eq!(e.query("q",ctx()).unwrap().data,Value::Int(1200));
+}
+
+#[test]
+fn emit_only_job_chunks_commit_work_for_the_effect_worker() {
+    let mut e=engine("effect notify\ntable inputs:\n  read <- allow\njob j():\n  chunk row in inputs first 2 by byId:\n    emit notify {id: row.id}\n");
+    seed(&mut e,"inputs",serde_json::json!([{"id":"one"},{"id":"two"},{"id":"three"}]));
+    let before=e.seq().unwrap();
+    let run=e.run_job("j",BTreeMap::new(),1000).unwrap();
+    assert_eq!(run.state,snapback4_core::JobState::Done);
+    assert_eq!(e.effects(Some("queued"),10).unwrap().len(),3);
+    assert!(e.seq().unwrap()>before);
+}

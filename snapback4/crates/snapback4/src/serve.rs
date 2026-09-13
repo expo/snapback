@@ -533,12 +533,11 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Get, "/schema") => {
             // The compiled backend a device runs locally: the schema and the
             // programs' IR, bound to a generation.
-            let body = {
+            let (schema, programs, generation) = {
                 let bound = lock(&shared.bound);
-                let programs: Vec<Json> = bound.programs.iter().map(|p| serde_json::to_value(&p.program).unwrap_or(Json::Null)).collect();
-                json!({ "generation": *lock(&shared.generation), "schema": bound.schema, "programs": programs })
+                (bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()).collect::<Vec<_>>(), *lock(&shared.generation))
             };
-            respond(request, 200, body);
+            respond(request, 200, json!({ "generation": generation, "schema": schema, "programs": programs }));
         }
         (Method::Get, "/api.ts") => {
             let text = snapback4_lang::emit::typescript(&lock(&shared.bound));
