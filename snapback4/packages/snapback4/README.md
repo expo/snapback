@@ -280,6 +280,19 @@ accounts, move that work to writes: write each reader's entry when the post
 is made, sync the entries to the reader, and read one page on the device:
 
 ```
+table follows:
+  followerId: principal
+  followedId: principal
+  bucket: int                     -- assigned by the app; bucket 0 receives immediate delivery
+  unique byPair: followerId, followedId
+  by byFollowed: followedId, followerId
+  by byFollowedBucket: followedId, bucket, followerId
+  cap 1000 by followedId
+  cap 200 by followedId, bucket
+  public 'follows are public'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+
 table feed:
   readerId: principal
   postId: posts
@@ -294,7 +307,7 @@ table feed:
 mutation createPost(body: text <=500):
   p = insert posts { authorId: viewer, body, at: now }
   insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
-  for f in follows[viewer] first 200 by byFollowed:
+  for f in follows[viewer, 0] first 200 by byFollowedBucket:
     insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
   insert fanouts { postId: p.id, authorId: viewer, at: now }
   return { id: p.id }
@@ -307,12 +320,12 @@ job fanOut():
 schedule fanOutEveryMinute every 1m: fanOut
 ```
 
-The near followers get their entry in the mutation (at most 1,024 rows
-per mutation: 200 here), the rest within a minute from the job under its
-own ceilings, `if absent` making the job's pass idempotent over what the
-mutation wrote; an account past the job's bound is the one lane its
-readers merge on read, which is what a celebrity is. The whole card:
-`snapback4 guide feeds`.
+The app assigns followers to buckets of at most 200. The mutation covers
+all of bucket 0, a complete schema-capped group; a first-200 slice of a
+larger group is refused. The job covers the whole account, capped at
+1,000 followers, with `if absent` making its pass idempotent over what the
+mutation wrote. Larger audiences use a separate lane their readers merge
+on read. The whole card: `snapback4 guide feeds`.
 
 ## 4. The client
 
@@ -404,8 +417,10 @@ duration }`; the server sniffs JPEG, PNG, WebP and MP4 and refuses the
 rest with `E_ASSET_TYPE`, and anything over the largest column's bound
 with `E_ASSET_TOO_LARGE`), then places `{ id }` in the mutation. Inside
 the mutation the argument already carries the facts the server
-established (`require clip.duration <= 60000 else TOO_LONG`; every key
-is present, null where the kind has none), and the row carries them. One asset, one home: your own
+established, and the row carries them. Every fact key is present, but
+dimensions and duration may be null. Bind `duration = clip.duration`,
+then `require duration != null else DURATION_UNKNOWN` before
+`require duration <= 60000 else TOO_LONG`. One asset, one home: your own
 upload, placed once (`E_ASSET_UNKNOWN`, `E_ASSET_PLACED`). Serving is
 the home row's read rule: `client.asset(id)` fetches the bytes under the
 viewer's credentials and returns a blob URL (`useAsset` in React;

@@ -23,6 +23,10 @@ test("lazy merges match a sorted union across ties, overlaps and every page on m
   const { DatabaseSync } = await import("node:sqlite");
   const schema = structuredClone(backend.schema);
   schema.tables.messages.expire = "editedAt";
+  const horizonSchema = structuredClone(schema);
+  // This fixture seeds the entire partition. A horizon-limited replica
+  // cannot infer that coverage from the rows currently held in its store.
+  schema.tables.messages.sync.horizon = null;
   for (const store of [new MemoryStore(schema), await openSqlite(nodeSqliteDriver(new DatabaseSync(":memory:")), schema)]) {
     try {
       const expected = [];
@@ -38,6 +42,8 @@ test("lazy merges match a sorted union across ties, overlaps and every page on m
       });
       for (const order of ["Asc", "Desc"]) {
         const program = merged(order), got = [];
+        const horizonRead = await store.read((tx) => new Interpreter(tx, horizonSchema, ctx("dev:bob", { c: null }), "query").run(program));
+        assert.equal(horizonRead.complete, false, "an empty merge lane may have older rows beyond its acquisition horizon");
         let c = null;
         for (let page = 0; page < 20; page++) {
           const result = await store.read((tx) => new Interpreter(tx, schema, ctx("dev:bob", { c }), "query").run(program));

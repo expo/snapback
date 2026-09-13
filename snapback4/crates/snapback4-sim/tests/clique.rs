@@ -123,7 +123,7 @@ fn png(width: u32, height: u32) -> Vec<u8> {
 fn an_asset_is_served_by_its_home_rows_read_rule() {
     let once = CHAT
         .replace("photo: image <=5000000 ?", "photo: image <=5000000 once ?\n  clip: video <=52428800 ?")
-        .replace("mutation edit(", "mutation sendClip(conversationId: conversations, clip: video <=52428800):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  require clip.duration <= 60000 else TOO_LONG\n  row = insert messages { conversationId, authorId: viewer, clip, at: now }\n  return { id: row.id, seconds: clip.duration }\n\nmutation edit(");
+        .replace("mutation edit(", "mutation sendClip(conversationId: conversations, clip: video <=52428800):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  duration = clip.duration\n  require duration != null else DURATION_UNKNOWN\n  require duration <= 60000 else TOO_LONG\n  row = insert messages { conversationId, authorId: viewer, clip, at: now }\n  return { id: row.id, seconds: duration }\n\nmutation edit(");
     let mut engine = chat_engine_from(&once, &["dev:alice", "dev:bob"]);
     // Bytes that are not an image, and an image larger than the column, are refused.
     assert_eq!(engine.store_asset("dev:alice", b"not an image", 1_000).unwrap_err().code(), "E_ASSET_TYPE");
@@ -168,6 +168,13 @@ fn an_asset_is_served_by_its_home_rows_read_rule() {
     let long = engine.store_asset("dev:alice", &boxed_ftyp_with(120_000), 1_007).unwrap();
     let refused = engine.mutate("sendClip", Some("v2"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("clip", photo(&long.id))])).at(1_007).with_ids(["clip2".to_owned()])).unwrap();
     assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "TOO_LONG"), "{:?}", refused.state);
+    // A recognized MP4 can lack duration metadata. It cannot satisfy a
+    // duration limit until the application has a known duration to compare.
+    let unknown = engine.store_asset("dev:alice", &boxed(b"ftyp", b"isom\x00\x00\x02\x00isomiso2"), 1_007).unwrap();
+    assert_eq!(unknown.duration, None);
+    let refused = engine.mutate("sendClip", Some("v3"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("clip", photo(&unknown.id))])).at(1_007).with_ids(["clip3".to_owned()])).unwrap();
+    assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "DURATION_UNKNOWN"), "{:?}", refused.state);
+    assert!(!engine.store().rows("messages").unwrap().iter().any(|m| m.field("id").unwrap() == &id("clip3")));
     let stored = engine.store().rows("messages").unwrap().into_iter().find(|m| m.field("id").unwrap() == &id("clip1")).unwrap();
     assert_eq!(stored.field("clip").unwrap().field("duration").unwrap(), &Value::Int(4_500));
     assert_eq!(stored.field("clip").unwrap().field("width").unwrap(), &Value::Null);
@@ -359,8 +366,12 @@ table posts:
 table follows:
   followerId: principal
   followedId: principal
+  bucket: int
   unique byPair: followerId, followedId
   by byFollowed: followedId, followerId
+  by byFollowedBucket: followedId, bucket, followerId
+  cap 1000 by followedId
+  cap 200 by followedId, bucket
   public 'follows are public'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
@@ -386,7 +397,7 @@ table fanouts:
 mutation createPost(body: text <=500):
   p = insert posts { authorId: viewer, body, at: now }
   insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
-  for f in follows[viewer] first 200 by byFollowed:
+  for f in follows[viewer, 0] first 200 by byFollowedBucket:
     insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
   insert fanouts { postId: p.id, authorId: viewer, at: now }
   return { id: p.id }
@@ -412,8 +423,12 @@ fn a_feed_fans_out_on_write() {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(!bound.notes.iter().any(|n| n.code == "N_WIDE_MERGE"), "{:?}", bound.notes);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-    // 250 followers of alice: 200 near, 50 far.
-    engine.seed((0..250).map(|n| ("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("f{n:03}"))), ("followerId", id(&format!("dev:u{n:03}"))), ("followedId", id("dev:alice"))])))).unwrap();
+    // 250 followers of alice: bucket 0 is the complete schema-capped
+    // immediate audience; the job covers every bucket, up to the full cap.
+    engine.seed((0..250).map(|n| ("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("f{n:03}"))), ("followerId", id(&format!("dev:u{n:03}"))), ("followedId", id("dev:alice")), ("bucket", Value::Int(n / 200))])))).unwrap();
+    let over_cap = engine.seed([("follows".to_owned(), snapback4_core::value::object([("id", id("overflow")), ("followerId", id("dev:extra")), ("followedId", id("dev:alice")), ("bucket", Value::Int(0))]))]).unwrap_err();
+    assert_eq!(over_cap.code(), "E_CONSTRAINT");
+    assert_eq!(engine.store().rows("follows").unwrap().len(), 250);
     let posted = engine.mutate("createPost", Some("p1"), Context::new("dev:alice", args(&[("body", Value::String("hello".into()))])).at(1_000).with_ids(["post1".to_owned()])).unwrap();
     assert!(matches!(posted.state, WriteState::Sent { .. }), "{:?}", posted.state);
     assert_eq!(engine.store().rows("feed").unwrap().len(), 201, "the author and the near 200");

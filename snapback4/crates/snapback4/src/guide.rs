@@ -192,6 +192,19 @@ meter; N_WIDE_MERGE describes that work. For frequent reads over many
 accounts, write each reader's entry when the post is made, sync the
 entries to the reader, and read one page on the device:
 
+  table follows:
+    followerId: principal
+    followedId: principal
+    bucket: int                     -- assigned by the app; bucket 0 receives immediate delivery
+    unique byPair: followerId, followedId
+    by byFollowed: followedId, followerId
+    by byFollowedBucket: followedId, bucket, followerId
+    cap 1000 by followedId
+    cap 200 by followedId, bucket
+    public 'follows are public'
+    insert <- .followerId = viewer
+    delete <- .followerId = viewer
+
   table feed:                       -- one row per reader per post
     readerId: principal
     postId: posts
@@ -203,7 +216,7 @@ entries to the reader, and read one page on the device:
     insert <- .authorId = viewer    -- the author writes their readers' entries; the job writes as the system
     sync to .readerId last 200 by byReaderTime
 
-  table fanouts:                    -- the work still to do: a post's readers past the first 200
+  table fanouts:                    -- the work still to do: a post's readers outside bucket 0
     postId: posts
     authorId: principal
     at: time
@@ -213,7 +226,7 @@ entries to the reader, and read one page on the device:
   mutation createPost(body: text <=500):
     p = insert posts { authorId: viewer, body, at: now }
     insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
-    for f in follows[viewer] first 200 by byFollowed:       -- the near followers, now
+    for f in follows[viewer, 0] first 200 by byFollowedBucket:
       insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
     insert fanouts { postId: p.id, authorId: viewer, at: now }
     return { id: p.id }
@@ -228,12 +241,13 @@ entries to the reader, and read one page on the device:
   query following(c: cursor ?):
     return feed[viewer] after c last 20 by byReaderTime { *, post: posts[.postId] }
 
-The bounds are the design: a mutation writes at most 1,024 rows, so the
-near followers are 200 and the job takes the rest a page at a time under
-its own ceilings (5 posts × 1,000 followers a chunk); an account past
-1,000 followers is a lane its readers merge on read (`[.celebrity]`),
-which is what a celebrity is. `insert ... if absent` makes the job's pass
-idempotent over the rows the mutation already wrote."#,
+The application assigns followers to buckets of at most 200. The mutation
+visits all of bucket 0, a complete schema-capped group; a first-200 slice
+of a larger group is refused. The job covers the whole account, capped at
+1,000 followers, under its own ceilings (5 posts × 1,000 followers a
+chunk). Larger audiences use a separate lane their readers merge on read.
+`insert ... if absent` makes the job's pass idempotent over the rows the
+mutation already wrote."#,
         "writes" => r#"# Writes
 
 insert t { fields }            -> the row (id minted unless given)
