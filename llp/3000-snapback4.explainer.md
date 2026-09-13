@@ -377,6 +377,16 @@ time-ordered 128-bit form.
   link and transport. The conformance obligation between the two
   interpreters is then the web's alone.
 
+  Native prediction reads remove the device-owned `pending` field before
+  passing rows into the shared mutation interpreter; query reads still expose
+  it on the card. This applies to primary-key reads, indexed lookups and scans,
+  including replay after offline reopen. Application-row validation remains
+  strict: neither `pending` nor another undeclared user field becomes a schema
+  column. The profile/vote regression fixture exercises repeated updates and
+  upserts, maintained totals, durable queue order and authoritative replacement
+  on both client tiers (`snapback4-device/tests/native.rs` and
+  `packages/snapback4/test/client-lifecycle.test.mjs`).
+
 - **2026-09-13 — wide uniform merges read heads (performance work).**
   A merge without per-lane setup, whose lane rules are uniform and whose
   index ends in `id` or is unique over required columns, keeps one ordered

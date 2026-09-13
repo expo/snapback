@@ -2,6 +2,9 @@
 use super::*;
 use rusqlite::params;
 
+// @ref LLP 3000#7-decisions-during-execution — pending belongs to the device
+// card, not the application row supplied to the shared mutation interpreter.
+// Only this metadata is removed; undeclared application fields still refuse.
 pub(super) fn without_pending(mut row: Value) -> Value {
     if let Value::Row(fields) = &mut row { fields.remove("pending"); }
     row

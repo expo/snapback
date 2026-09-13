@@ -107,10 +107,10 @@ mutation increment(counterId: counters):
   return null
 `;
 
-async function fixture(t) {
+async function fixture(t, additions = "") {
   const directory = mkdtempSync(join(tmpdir(), "sb4-client-lifecycle-"));
   mkdirSync(join(directory, "snapback"));
-  writeFileSync(join(directory, "snapback/schema.q"), readFileSync(join(root, "apps/chat/snapback/schema.q"), "utf8") + extra);
+  writeFileSync(join(directory, "snapback/schema.q"), readFileSync(join(root, "apps/chat/snapback/schema.q"), "utf8") + extra + additions);
   const child = spawn(binary, ["dev", "--port", "0", "--fresh", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", url;
@@ -191,6 +191,64 @@ test("online watches retain their changes watermark; bare tokens clear on refusa
 });
 
 for (const tier of ["local", "native"]) {
+  test(`${tier}: pending metadata survives repeated profile/vote updates and offline replay`, { timeout: 20_000 }, async (t) => {
+    const source = readFileSync(join(root, "crates/snapback4-device/tests/fixtures/pending-metadata.q"), "utf8");
+    const f = await fixture(t, source);
+    await f.seed([{ table: "people", row: { id: "alice", name: "Alice", bio: "Confirmed bio" } }]);
+    let offline = false;
+    const transport = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
+    let store, core;
+    const options = { fetch: transport, wrapStore: (value) => (store = value), wrapNative: (value) => (core = value) };
+    const queuedIds = async () => tier === "native" ? (await core.call({ op: "queued" })).ok.map((entry) => entry.id)
+      : store.read(async (tx) => (await tx.side("outbox").all()).map((entry) => entry.value).sort((a, b) => a.seq - b.seq).map((entry) => entry.id));
+    let client = await f.open(tier, options);
+    offline = true;
+    await client.sync();
+    const commands = [
+      ["profile", { person: "alice", name: "Offline Alice", bio: "Saved bio" }],
+      ["profile", { person: "alice", name: "Final Alice", bio: "Final bio" }],
+      ["vote", { person: "alice", answer: "answer", direction: 1 }],
+      ["vote", { person: "alice", answer: "answer", direction: -1 }],
+      ["updateVote", { person: "alice", answer: "answer", direction: 1 }],
+      ["scanVote", { direction: -1 }],
+    ];
+    const ids = [];
+    for (const [index, [op, input]] of commands.entries()) {
+      const result = await client.mutate(mutation(op), input);
+      assert.equal(result.state, "pending", JSON.stringify(result)); ids.push(result.id);
+      const person = await client.query(query("person"), { person: "alice" });
+      assert.equal(person.data.pending, true);
+      if (index >= 2) {
+        const total = await client.query(query("voteTotal"), { answer: "answer" });
+        assert.equal(total.data, index % 2 === 0 ? 1 : -1);
+      }
+    }
+    assert.equal(new Set(ids).size, commands.length);
+    assert.deepEqual(await queuedIds(), ids);
+    await client.close();
+    client = await f.open(tier, options);
+    assert.deepEqual(await queuedIds(), ids, "durable outbox retains submission order across reopen");
+    const person = await client.query(query("person"), { person: "alice" });
+    assert.equal(person.data.name, "Final Alice"); assert.equal(person.data.bio, "Final bio");
+    assert.equal(person.data.pending, true); assert.equal(person.fresh, false);
+    const votes = await client.query(query("voteRows"), {});
+    assert.equal(votes.data.length, 1); assert.equal(votes.data[0].direction, -1); assert.equal(votes.data[0].pending, true);
+    assert.equal((await client.query(query("voteTotal"), { answer: "answer" })).data, -1);
+    assert.equal((await f.server.query(query("person"), { person: "alice" })).data.name, "Alice", "offline updates were not sent");
+    await client.close();
+    offline = false;
+    client = await f.open(tier, options);
+    await until(async () => {
+      const row = await client.query(query("person"), { person: "alice" });
+      const total = await client.query(query("voteTotal"), { answer: "answer" });
+      const votes = await client.query(query("voteRows"), {});
+      return row.data?.name === "Final Alice" && !row.data.pending && total.data === -1
+        && votes.data?.length === 1 && !votes.data[0].pending;
+    }, "acknowledged images must replace every pending profile, vote and aggregate");
+    assert.equal((await f.server.query(query("voteTotal"), { answer: "answer" })).data, -1);
+    await until(async () => (await queuedIds()).length === 0, "all durable outbox entries settle");
+  });
+
   test(`${tier}: no-op and nosync writes retire when the partition stream is empty`, { timeout: 12_000 }, async (t) => {
     const f = await fixture(t);
     let deviceStore, deviceCore;

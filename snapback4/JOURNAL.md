@@ -1675,3 +1675,18 @@ this record makes no claim to the 60-second cold budget.
 The four Research children remain Draft with explicit remaining questions.
 Source changes stayed in the owned integration worktree; the shared dirty root
 and active sibling work were preserved.
+
+## 2026-09-13 — native pending metadata on repeated updates
+
+Interview reported `people row contains undeclared field pending` against its
+older, modified `snapback-sb4` dependency. The comprehensive-review fix already
+on main (`12c12a8e6`) filters this device metadata at all three `Predicting`
+read paths. Query results and persisted pending cards keep the field; strict
+application validation is unchanged. The same narrow filter was backported
+to Interview's local dependency without taking its unrelated edits.
+
+A shared authored fixture now covers repeated profile updates, vote upserts,
+indexed and scanned vote updates, maintained totals, offline reopen/replay,
+durable outbox order and replacement by confirmed server images. The native
+control also checks that undeclared input fields still refuse. Verification
+and the exact local-dependency scope are recorded with the resolved ticket.

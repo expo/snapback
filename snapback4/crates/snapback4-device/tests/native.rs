@@ -379,3 +379,91 @@ fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
     device.settle("pending-inc",Some(seq)).unwrap(); assert!(device.queued().unwrap().is_empty());
     drop(sender);drop(device);std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reopen() {
+    let source = include_str!("fixtures/pending-metadata.q");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    engine.seed([("people".into(), snapback4_core::value::object([
+        ("id", id("alice")), ("name", Value::String("Alice".into())), ("bio", Value::String("Confirmed bio".into())),
+    ]))]).unwrap();
+    let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+    let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("sb4-pending-metadata-{}-{nonce}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let path = dir.join("device.sqlite");
+    let mut device = Device::open(&path, Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let commands = [
+        ("profile", serde_json::json!({"person":"alice","name":"Offline Alice","bio":"Saved bio"})),
+        ("profile", serde_json::json!({"person":"alice","name":"Final Alice","bio":"Final bio"})),
+        ("vote", serde_json::json!({"person":"alice","answer":"answer","direction":1})),
+        ("vote", serde_json::json!({"person":"alice","answer":"answer","direction":-1})),
+        ("updateVote", serde_json::json!({"person":"alice","answer":"answer","direction":1})),
+        ("scanVote", serde_json::json!({"direction":-1})),
+    ];
+    let person_args = serde_json::json!({"person":"alice"});
+    for (n, (op, input)) in commands.iter().enumerate() {
+        let seq = n as u64 + 1;
+        device.admit(Queued { id:format!("write-{seq}"),seq,op:(*op).into(),args:input.clone(),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:seq as i64,predictable:true,sent_seq:None,observed_seq:None }).unwrap();
+        let person = device.query("person", "dev:alice", &person_args, 10).unwrap().data;
+        assert_eq!(person.field("pending").unwrap(), &Value::Bool(true), "mutation reads must not erase the card");
+        if n >= 2 {
+            let total = device.query("voteTotal", "dev:alice", &serde_json::json!({"answer":"answer"}), 10).unwrap().data;
+            assert_eq!(total, Value::Int(if n % 2 == 0 { 1 } else { -1 }));
+        }
+    }
+    let queued = device.queued().unwrap();
+    assert_eq!(queued.len(), commands.len());
+    drop(device);
+    device = Device::open(&path, None).unwrap();
+    assert_eq!(device.queued().unwrap(), queued, "submission order, arguments and minted IDs survive offline reopen");
+    // Match native hosts that explicitly predict their durable queue on open.
+    for entry in &queued {
+        device.predict(&entry.op, &entry.viewer, &entry.args, entry.now, entry.new_ids.clone(), entry.seq).unwrap();
+    }
+    assert_eq!(device.queued().unwrap(), queued, "re-prediction must not mutate the outbox");
+    let person = device.query("person", "dev:alice", &person_args, 10).unwrap().data;
+    assert_eq!(person.field("name").unwrap(), &Value::String("Final Alice".into()));
+    assert_eq!(person.field("bio").unwrap(), &Value::String("Final bio".into()));
+    let votes = device.query("voteRows", "dev:alice", &serde_json::json!({}), 10).unwrap().data;
+    assert_eq!(votes.as_array().unwrap().len(), 1);
+    assert_eq!(votes.as_array().unwrap()[0].field("direction").unwrap(), &Value::Int(-1));
+    assert_eq!(votes.as_array().unwrap()[0].field("pending").unwrap(), &Value::Bool(true));
+    let total = device.query("voteTotal", "dev:alice", &serde_json::json!({"answer":"answer"}), 10).unwrap().data;
+    assert_eq!(total, Value::Int(-1), "replay must not double-count the maintained total");
+    // Stripping trusted read metadata is not permission to author unknown fields.
+    for extra in ["pending", "unexpected"] {
+        let row = snapback4_core::value::object([("id", id("alice")),("name",Value::String("Alice".into())),("bio",Value::String("bio".into())),(extra,Value::Bool(true))]);
+        let error = snapback4_core::engine::validate::validate_row(device.schema(), "people", &row).unwrap_err();
+        assert_eq!(error.code(), "E_INPUT");
+        assert!(error.to_string().contains(&format!("undeclared field {extra}")));
+    }
+    let watermark = device.state().unwrap().0;
+    for entry in &queued {
+        let typed = entry.args.as_object().unwrap().iter().map(|(name, value)| {
+            let value = match value {
+                serde_json::Value::String(value) if name == "person" => id(value),
+                serde_json::Value::String(value) => Value::String(value.clone()),
+                serde_json::Value::Number(value) => Value::Int(value.as_i64().unwrap()),
+                _ => panic!("unexpected fixture argument"),
+            };
+            (name.clone(), value)
+        }).collect();
+        let sent = engine.mutate(&entry.op, Some(&entry.id), Context::new(&entry.viewer, typed).at(entry.now).with_ids(entry.new_ids.clone())).unwrap();
+        let WriteState::Sent { seq, .. } = sent.state else { panic!("server refused the admitted fixture") };
+        device.settle(&entry.id, Some(seq)).unwrap();
+    }
+    device.apply(&stream_page(&mut engine, "dev:alice", watermark), false).unwrap();
+    assert!(device.queued().unwrap().is_empty());
+    for (op, input) in [("person",person_args)] {
+        let row = device.query(op, "dev:alice", &input, 10).unwrap().data;
+        assert!(row.field("pending").is_err(), "the authoritative image replaces pending metadata");
+    }
+    let votes = device.query("voteRows", "dev:alice", &serde_json::json!({}), 10).unwrap().data;
+    assert!(votes.as_array().unwrap()[0].field("pending").is_err());
+    drop(device);
+    std::fs::remove_dir_all(dir).unwrap();
+}
