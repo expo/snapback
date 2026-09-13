@@ -1,6 +1,6 @@
 # Snapback 4: Unknown binary ops silently mean `=`, and Concat of Ids changes type
 
-Status: Open
+Status: Closed
 Severity: minor
 Priority: P2
 Area: correctness
@@ -15,18 +15,18 @@ Two parity gaps in the TS replica evaluator, both read directly from the
 code:
 
 1. `SameValueZero` has no arm in the `Binary` dispatch
-   ([interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts):343-363),
+   (retired `packages/snapback4/src/replica/interpreter.ts`:343-363),
    so it falls into `default: return equal(left, right)`. The server
-   ([runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs):529-540)
+   ([runner.rs](../../snapback4/crates/snapback4-core/src/engine/runner.rs):529-540)
    refuses non-scalars with a type error and returns `false` for
    cross-variant pairs — while the tag-erasing `equal()` returns `true`
    for `Id('u1')` vs `String('u1')` and structurally compares
    arrays/maps instead of refusing. Any future or malformed binary op
    silently becomes `=` rather than raising `E_SCHEMA`.
 2. `Concat` of two scalars always yields a JS string
-   ([interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts):383
+   (retired `packages/snapback4/src/replica/interpreter.ts`:383
    template-string branch), while the server yields `Id` for `(Id, Id)`
-   ([runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs):407-416).
+   ([runner.rs](../../snapback4/crates/snapback4-core/src/engine/runner.rs):407-416).
    Binder reachability of scalar Concat on this path is unverified, hence
    minor/latent.
 
@@ -36,8 +36,8 @@ separately.
 
 ## Implementation locations
 
-- [packages/snapback4/src/replica/interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts) (Binary dispatch, `builtin` Concat)
-- [crates/snapback4-core/src/engine/runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs) (`same_value_zero`, `Builtin::Concat`)
+- Retired `packages/snapback4/src/replica/interpreter.ts` (Binary dispatch, `builtin` Concat)
+- [crates/snapback4-core/src/engine/runner.rs](../../snapback4/crates/snapback4-core/src/engine/runner.rs) (`same_value_zero`, `Builtin::Concat`)
 
 ## Suggestion
 
@@ -46,3 +46,15 @@ non-scalars, variant-sensitive comparison) and make the Binary `default`
 throw `E_SCHEMA` instead of returning `equal()`. Align Concat's result tag
 with the server, or prove via binder tests that scalar Concat is
 unreachable and then refuse it. Add TS-vs-Rust parity cases for both.
+
+## Resolution — 2026-09-13
+
+The cited TypeScript evaluator and its default arm were retired in
+`993688b298d4070e549fe0c93588257964bfde05`. Devices execute the shared Rust
+runner, whose exhaustive `BinaryOp` match implements `SameValueZero`
+explicitly and whose `Concat` arm preserves `Id` for two identity operands.
+Rust enum exhaustiveness prevents a future binary variant from silently
+becoming equality. The mixed identity/string device regression in
+[device.rs](../../snapback4/crates/snapback4-device/tests/device.rs) passes on
+SQLite and memory; the full 17-test device crate passes. Evidence checkpoint:
+`b19a89631`.

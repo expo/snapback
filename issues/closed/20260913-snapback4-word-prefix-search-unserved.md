@@ -1,6 +1,6 @@
 # Snapback 4: word-prefix indexes are parsed and refused; Clique search cannot run
 
-Status: Open
+Status: Closed
 Priority: P2
 Date: 2026-09-13
 Systems: schema validate, interpreter scans, package README
@@ -15,10 +15,22 @@ The bakeoff protocol’s hub acquisition gate is “full durable content plus fi
 
 ## Implementation locations
 
-- [snapback4/crates/snapback4-core/src/schema.rs](../snapback4/crates/snapback4-core/src/schema.rs)
-- [snapback4/crates/snapback4-core/src/engine/read.rs](../snapback4/crates/snapback4-core/src/engine/read.rs)
-- [snapback4/packages/snapback4/README.md](../snapback4/packages/snapback4/README.md) §8
+- [snapback4/crates/snapback4-core/src/schema.rs](../../snapback4/crates/snapback4-core/src/schema.rs)
+- [snapback4/crates/snapback4-core/src/engine/read.rs](../../snapback4/crates/snapback4-core/src/engine/read.rs)
+- [snapback4/packages/snapback4/README.md](../../snapback4/packages/snapback4/README.md) §8
 
 ## Suggestion
 
 Either implement prefix scans over synced rows on the device (the kept Snapback 2 form), or record an explicit bakeoff exclusion so the hub gate is not scored as if search existed.
+
+## Resolution — 2026-09-13
+
+Word-prefix indexing and search landed before this repair in
+`1f5b8a6acf8364719ca2a80f07d6c258265dbe7d`: the binder selects `words(..)`
+indexes for `matching`, the core store writes prefix entries, and the shared
+Rust interpreter filters additional terms. The TypeScript twin cited here was
+subsequently retired. The device regression in
+[device.rs](../../snapback4/crates/snapback4-device/tests/device.rs) executes a
+prefix search over synced rows on both SQLite and memory hosts and returns a
+local page. The existing Clique search scenario remains covered; all 17 device
+tests pass. Additional evidence: `b19a89631`.

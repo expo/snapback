@@ -1,12 +1,12 @@
 # Snapback 4: Client replica interpreter falls back to now for ReadTime and unknown inputs
 
-Status: Open
+Status: Closed
 Priority: P2
 Observed: 2026-09-13
 Review finding: C03
 Evidence: Code-traced
 Baseline: `6918cccbc264cf000982b03a5a11a2cf5563f885` / Snapback 4 0.1.15
-Related: [ir.rs](../snapback4/crates/snapback4-core/src/ir.rs), [runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs), [interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts)
+Related: [ir.rs](../../snapback4/crates/snapback4-core/src/ir.rs), [runner.rs](../../snapback4/crates/snapback4-core/src/engine/runner.rs), retired `packages/snapback4/src/replica/interpreter.ts`
 
 ## Problem and reproduction
 
@@ -49,5 +49,14 @@ case "Input": switch (body as string) {
 
 ## Implementation locations
 
-- [packages/snapback4/src/replica/interpreter.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/replica/interpreter.ts#L325-L331) (`expr`)
-- [crates/snapback4-core/src/engine/runner.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/engine/runner.rs#L380)
+- Retired `packages/snapback4/src/replica/interpreter.ts` (`expr`)
+- [crates/snapback4-core/src/engine/runner.rs](../../snapback4/crates/snapback4-core/src/engine/runner.rs) (`Input::ReadTime`)
+
+## Resolution — 2026-09-13
+
+The TypeScript replica interpreter was retired in
+`993688b298d4070e549fe0c93588257964bfde05`. Native and web devices execute the
+shared Rust runner, whose exhaustive `Input` match handles `ReadTime` and
+returns `E_INPUT` when it is not pinned. There is no fallback that converts an
+unknown input to `now`; a future enum variant must be handled before Rust will
+compile. The device crate's 17 tests pass against the unified interpreter.

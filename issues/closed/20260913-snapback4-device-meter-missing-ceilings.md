@@ -1,6 +1,6 @@
 # Snapback 4: Device meter is missing heap/output/index ceilings
 
-Status: Open
+Status: Closed
 Severity: major
 Priority: P1
 Area: correctness
@@ -14,10 +14,10 @@ Related: `20260912-snapback4-query-output-budget` (server-side output enforcemen
 
 The server meter enforces six ceilings including `heap_bytes` (16 MiB),
 `output_bytes` (1 MiB) and `index_entries`
-([meter.rs](../snapback4/crates/snapback4-core/src/meter.rs):16-23,42-46,
+([meter.rs](../../snapback4/crates/snapback4-core/src/meter.rs):16-23,42-46,
 plus `charge_output` in runner.rs and `IndexEntries` charges in write.rs).
 The device `Ceilings` has only four fields —
-[interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts):44-45
+retired `packages/snapback4/src/replica/interpreter.ts`:44-45
 `{ examined, ruleProbes, steps, rowsWritten }` — and `charge()` (:172)
 tracks only `examined`/`probes` (plus `rowsWritten` at :831-840). A read
 that materializes more than 1 MiB of output reports `complete: true`
@@ -28,11 +28,23 @@ heap growth, serialized output size, or index entries touched.
 
 ## Implementation locations
 
-- [packages/snapback4/src/replica/interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts) (`Ceilings`, `charge`, merge/scan materialization)
-- [crates/snapback4-core/src/meter.rs](../snapback4/crates/snapback4-core/src/meter.rs) (reference ceilings)
+- Retired `packages/snapback4/src/replica/interpreter.ts` (`Ceilings`, `charge`, merge/scan materialization)
+- [crates/snapback4-core/src/meter.rs](../../snapback4/crates/snapback4-core/src/meter.rs) (reference ceilings)
 
 ## Suggestion
 
 Mirror the server ceilings on the device (at least output bytes and heap),
 charge result serialization, and add a parity test: a >1 MiB read must
 report the same `complete: false` cut locally and on the server.
+
+## Resolution — 2026-09-13
+
+The cited TypeScript interpreter was retired in `993688b298d4070e549fe0c93588257964bfde05`.
+Both native and web devices now call the core Rust interpreter with
+`Ceilings::default()`, so examined rows, rule probes, steps, rows written,
+heap, output and index entries share one meter implementation. The device
+regression in
+[device.rs](../../snapback4/crates/snapback4-device/tests/device.rs) constructs a
+result above 1 MiB and observes `E_BOUND` from both the device and server; it
+also exercises an indexed word-prefix read. All 17 device tests pass.
+Implementation and regression: `b19a89631`.

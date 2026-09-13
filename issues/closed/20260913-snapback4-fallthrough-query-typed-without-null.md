@@ -1,6 +1,6 @@
 # Snapback 4: a query that can fall off the end is typed without `null` and returns `null`
 
-Status: Open
+Status: Closed
 Priority: P2
 Date: 2026-09-13
 Systems: Quarry binder, interpreter, TypeScript emitter
@@ -29,12 +29,29 @@ Related binder holes in the same pass:
 
 ## Implementation locations
 
-- [snapback4/crates/snapback4-lang/src/bind/program.rs](../snapback4/crates/snapback4-lang/src/bind/program.rs)
-- [snapback4/crates/snapback4-core/src/engine/runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs) (`run` fall-through `Ok(Value::Null)`)
-- [snapback4/crates/snapback4-lang/src/bind/catalog.rs](../snapback4/crates/snapback4-lang/src/bind/catalog.rs)
-- [snapback4/crates/snapback4-lang/src/bind/schema.rs](../snapback4/crates/snapback4-lang/src/bind/schema.rs)
-- [snapback4/crates/snapback4-lang/src/emit.rs](../snapback4/crates/snapback4-lang/src/emit.rs)
+- [snapback4/crates/snapback4-lang/src/bind/program.rs](../../snapback4/crates/snapback4-lang/src/bind/program.rs)
+- [snapback4/crates/snapback4-core/src/engine/runner.rs](../../snapback4/crates/snapback4-core/src/engine/runner.rs) (`run` fall-through `Ok(Value::Null)`)
+- [snapback4/crates/snapback4-lang/src/bind/catalog.rs](../../snapback4/crates/snapback4-lang/src/bind/catalog.rs)
+- [snapback4/crates/snapback4-lang/src/bind/schema.rs](../../snapback4/crates/snapback4-lang/src/bind/schema.rs)
+- [snapback4/crates/snapback4-lang/src/emit.rs](../../snapback4/crates/snapback4-lang/src/emit.rs)
 
 ## Suggestion
 
 If the body’s last statement does not exit, join `Ty::Null` into the result (or refuse a query that can fall off the end). Refuse `from module` until imports exist. Diagnose duplicate helpers. Push `readable` bind errors. Map `tables.*.sync` issues to `E_SYNC`. Walk IR `For` independently of AST zip order. Require at least one enum variant.
+
+## Resolution — 2026-09-13
+
+The binder now joins `Ty::Null` when its lowered control flow can reach the end,
+including conditional returns and possibly-empty loops, while exhaustive
+branches keep their present result. The authored regression checks the bound
+type, runtime value and emitted TypeScript (`b19a89631`).
+
+The related frontend gaps are also closed (`a63f9fd59`): duplicate
+`shape`/`fn`/`proc`/`effect` declarations diagnose the second site without
+overwriting the first; structural sync inversions retain `E_SYNC`; chunk
+stability validates the emitted page loop after any hoisted setup; and
+`enum()` refuses. `from module` on helpers and `readable` on a maintain were
+already explicit `E_QUARRY_UNSUPPORTED` parser refusals and are now covered by
+the same regression. Thirty-one language tests pass. The remaining emitted
+TypeScript test reached its explicit missing-Bun-dependencies precondition in
+this fresh worktree and was excluded from that run.

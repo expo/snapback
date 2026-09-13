@@ -1,6 +1,6 @@
 # Snapback 4: native FFI `withdraw` and default `apply first` undo replica work
 
-Status: Open
+Status: Closed
 Priority: P2
 Date: 2026-09-13
 Systems: `snapback4-device` C ABI, Exact2/C hosts; Expo `native.ts` avoids these
@@ -17,11 +17,24 @@ Related: closed R10 (prediction restore) — `settle`/`admit` were fixed; these 
 
 ## Implementation locations
 
-- [snapback4/crates/snapback4-device/src/native.rs](../snapback4/crates/snapback4-device/src/native.rs) (`withdraw`, `apply`)
-- [snapback4/crates/snapback4-device/src/ffi.rs](../snapback4/crates/snapback4-device/src/ffi.rs)
-- [snapback4/crates/snapback4-device/include/snapback4.h](../snapback4/crates/snapback4-device/include/snapback4.h)
-- [snapback4/packages/snapback4-expo/ios/Snapback4Module.swift](../snapback4/packages/snapback4-expo/ios/Snapback4Module.swift)
+- [snapback4/crates/snapback4-device/src/native.rs](../../snapback4/crates/snapback4-device/src/native.rs) (`withdraw`, `apply`)
+- [snapback4/crates/snapback4-device/src/ffi.rs](../../snapback4/crates/snapback4-device/src/ffi.rs)
+- [snapback4/crates/snapback4-device/include/snapback4.h](../../snapback4/crates/snapback4-device/include/snapback4.h)
+- [snapback4/packages/snapback4-expo/ios/Snapback4Module.swift](../../snapback4/packages/snapback4-expo/ios/Snapback4Module.swift)
 
 ## Suggestion
 
 Restore-all then `predictions::replay` like `settle`, or restore only the named keys. Default `first` to false and document it on the header. Diagnose `open_reason` without `install_device`; never throw `{"ok": true}`.
+
+## Resolution — 2026-09-13
+
+Withdrawal now restores the confirmed base and replays the surviving outbox in
+submission order before commit. An omitted `apply.first` defaults to false, and
+the C header documents that only the first snapshot page sets it true.
+`sb4_open` records its exact denial in thread-local state; `sb4_open_reason`
+consumes that record without parsing the supplied backend or opening the store
+again. Its regression first proves a valid open can succeed, then records an
+invalid attempt and asks for the reason with valid arguments, which would have
+silently succeeded under the former retry behavior. SQLite and memory tests
+cover multi-page continuation and overlapping prediction withdrawal. All 17
+device tests pass. Implementation: `b19a89631`.
