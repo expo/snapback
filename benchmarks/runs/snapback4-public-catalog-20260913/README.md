@@ -658,6 +658,59 @@ is 7,884,352 B, SHA-256
 This release also contains main's 0.2.2 surfaces; its sizes and qualification
 do not replace the earlier comparison's pinned 0.2.1 artifact or timings.
 
+## Scan cursor experiment — not adopted
+
+A temporary candidate on 0.2.3 source `78366743b` decodes only the last
+fetched key when a batch's final row passes its existing examined-row
+charge. It also moves accepted stored keys into the result instead of
+cloning them. The local resume bound is only needed when that entire batch
+was consumed; the public continuation still comes from the last visible
+row. The proposal received independent control-flow review, and the
+temporary implementation passed the existing core corpus: sixteen Rust
+tests, with 211 corpus cases passed, 82 named exclusions and zero failures.
+That corpus does not establish current search/device coverage.
+
+The isolated example compares point queries, first category pages and
+51-row store scans on a disposable copy of the earlier public profile
+database. Each operation has 100 warmups and 5,000 timed samples. Full
+six-field reply hashes and raw store-row/key hashes agree across every
+variant and run, including warmups; hashing is outside timing. The query
+hash omits meter usage, and this public first-page fixture does not cover
+filtered refills or cap exits. These are direct core timings, excluding
+HTTP and credential processing.
+
+The first three pairs rotate control/candidate, candidate/control,
+control/candidate. A second batch pins the runner and its children to
+Linux virtual CPU 0 and rotates candidate/control, control/candidate,
+candidate/control. No builds or other controlled timed jobs overlap these
+runs. The eighteen observations in each batch remain separate, selected
+by `experiment: scan-cursor-reuse` and `affinity: unpinned|vcpu-0` in
+`metrics/storage.jsonl`. Medians of three per-run percentiles, microseconds:
+
+| Affinity | Case | Control p50 / p95 | Candidate p50 / p95 |
+|---|---|---:|---:|
+| Unpinned | Point query | 51.000 / 64.834 | 75.041 / 105.834 |
+| Unpinned | Category query | 280.459 / 427.001 | 320.667 / 408.834 |
+| Unpinned | Store scan, 51 rows | 233.917 / 283.417 | 195.209 / 254.584 |
+| CPU 0 | Point query | 59.542 / 76.625 | 44.209 / 56.375 |
+| CPU 0 | Category query | 326.667 / 435.750 | 259.834 / 274.876 |
+| CPU 0 | Store scan, 51 rows | 227.667 / 262.626 | 172.792 / 195.709 |
+
+The page p50 direction reverses between batches. Point and direct-store
+code is unchanged yet their timings also move substantially; CPU affinity
+does not remove this variation. These observations do not isolate a
+reliable speedup from the candidate. It remains an unlanded experiment;
+the shipping scan loop is unchanged. No comparator, HTTP or regression-free
+performance claim follows from these profiles.
+
+The common instrument SHA-256 is
+`d9886a62871ecdb2054324109ca8662cd7a9dce7c332b387107539de8be8a70b`.
+Control and candidate example binaries are respectively
+`e933873e078cf4bdccaedeca3f6f21e5305640dec738c46164490f779d677f9b` and
+`57871d3471d279b9d012422abbbe71f930a8f5f40c8ff026a63cfec475506093`.
+Both use the production profile at level 3 on the same ARM64 Linux VM;
+the records retain each variant's actual read-source hash.
+
 ## Simulator observation follow-up
 
 The four chat checks previously constructed and parsed every host state
