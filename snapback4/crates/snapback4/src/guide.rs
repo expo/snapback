@@ -141,7 +141,9 @@ it leaves local stores and local search on the next sync. A null time
 never expires. Disappearing messages are one field on insert —
 `expiresAt: now + ttl if ttl != null else null` with `ttl: int ?` — and
 there is no purge job to write. The index leading with the column is
-required so the sweep finds due rows without a walk."#,
+required so the sweep finds due rows without a walk. A `maintain` over an
+expiring table counts a row until the sweep removes it — exact within a
+second — while a read of the row is null at once."#,
         "assets" => r#"# Assets: upload, place, serve
 
   photo: image <=10000000 ?        a column; `once` after the bound serves one view per principal

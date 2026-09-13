@@ -1182,3 +1182,29 @@ merge whose lanes may exceed fifty, with the row count and, when it is
 past the ceiling, that the page is cut (`N_WIDE_MERGE`); the README and
 the `reads` explanation carry the fan-out-on-write shape. Published
 `snapback4@0.1.8`.
+
+## 2026-09-13 — the full-brief run is complete: the grade, M7, the record; 0.1.9
+
+The grade (a fresh Claude session, claude-opus-5, on the frozen grader
+prompt): 84 pass, 1 fail, 16 not-run of 101 on the whole brief — 100 of
+119 by independent execution — against 69 pass and 21 struck on 0.0.2.
+Coverage was judged dishonest on one sampled mapping of seventeen (the
+lane's M3 quote-jump test asserted a bubble count and the jump does not
+happen), which the protocol adjudicates to M3 capability-failure for O1
+alone: O1 62, O2 48, O3 null, O4 35 (no native simulator proof), O5 band
+30 (the following-feed ratio; the cold-sync timeout — both answered in
+0.1.6 and 0.1.8, the feed's shape still the app's). Two majors: the app's
+logout crash, and the horizonless schema's cold start. M7, a fresh Astra
+session on the inherited lane: polls, a backfilled maintained count
+grouped by conversation, tombstone and expiry, an exact migration
+comparison, every previously green suite passing but M1 — which fails at
+logout with the pre-M7 schema too, the same crash, preserved as the rules
+say — so `capability-failure` on m7-a09 after 1,386 s. Its one package
+line worth a word: a maintained count over an expiring table counts a
+row until the sweep removes it while a read of the row is null at once;
+the card and the README now say so (exact within a second). The record is
+`benchmarks/runs/2026-09-13-snapback4-clique-0003/`, every finding beside
+its fix. Published `snapback4@0.1.9` (the docs). The whole brief runs;
+what the run says to do next is the feed's fan-out-on-write shape as a
+recipe, native proof in the simulator witness, and the loop bar again on
+the 0.1 line.

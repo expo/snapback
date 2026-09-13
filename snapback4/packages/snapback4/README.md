@@ -139,7 +139,9 @@ mutation edit(messageId: messages, body: text <=4000):
   the server sweeps it within seconds and the deletion streams to each
   device holding it. A null time never expires. Disappearing messages
   are one field on insert, `expiresAt: now + ttl if ttl != null else
-  null` with `ttl: int ?`; nothing else to write.
+  null` with `ttl: int ?`; nothing else to write. A `maintain` over an
+  expiring table counts a row until the sweep removes it (exact within a
+  second), while a read of the row is null at once.
 
 ### Maintains
 
