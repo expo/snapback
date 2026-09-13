@@ -1570,3 +1570,13 @@ slice), and the Exact2 host, filed in that repository's `issues/` as a
 `DataSource` over `ffi::call` with `apps/messages` as the first app, to be
 built there when its `main` is quiet. Published `snapback4-expo@0.1.14`
 beside `snapback4@0.1.14`.
+
+
+## 2026-09-13 — link the device beside Exact2 SQLite
+
+Exact2 embeds the device beside ibex2-sqlite, which uses rusqlite 0.40.2.
+Cargo refuses two different libsqlite3-sys versions with the same sqlite3
+link name. Core and device now use rusqlite 0.40.2 so the app links one
+SQLite. No interpreter or storage API changed. The core and native-device
+tests pass with the updated dependency. Codex implements this integration
+prerequisite for the Exact2 snapback4 native-module issue.
