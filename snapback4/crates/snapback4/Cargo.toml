@@ -9,6 +9,7 @@ description = "Snapback 4 — the binary: check, dev, run, test, why, guide, doc
 [dependencies]
 snapback4-core = { path = "../snapback4-core" }
 snapback4-lang = { path = "../snapback4-lang" }
+snapback4-device = { path = "../snapback4-device" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tiny_http = "0.12"

@@ -25,6 +25,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   guide [keyword]                  the grammar, or one card: rules, sync, writes, reads, ...
   data <table> [--limit N]         print rows
   doctor                           say what is and is not in place
+  device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
   --version";
 
 fn main() -> ExitCode {
@@ -51,6 +52,7 @@ fn main() -> ExitCode {
         "why" => verbs::why(&options),
         "data" => verbs::data(&options),
         "doctor" => verbs::doctor(&options),
+        "device" => verbs::device(&options),
         "guide" => {
             match options.positionals.first().map(String::as_str) {
                 None | Some("grammar") | Some("quarry") => println!("{}", guide::GRAMMAR),

@@ -51,7 +51,9 @@ export function mintId(now = Date.now()): string {
   const bytes = new Uint8Array(10);
   if (typeof crypto !== "undefined" && crypto.getRandomValues) crypto.getRandomValues(bytes);
   else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
-  let value = BigInt(now) << 80n;
+  // 48 bits of milliseconds above 80 bits of entropy: the time leads, so
+  // ids sort by the moment they were minted.
+  let value = BigInt(now);
   for (const byte of bytes) value = (value << 8n) | BigInt(byte);
   let out = "";
   for (let i = 0; i < 26; i++) {

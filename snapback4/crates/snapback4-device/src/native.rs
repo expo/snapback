@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 /// The compiled backend, as `GET /schema` sends it.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Backend {
     pub generation: u64,
     pub schema: Schema,
@@ -76,6 +76,7 @@ pub struct Predicted {
 
 const WATERMARK: &str = "device:watermark";
 const GENERATION: &str = "device:generation";
+const BACKEND: &str = "device:backend";
 
 pub struct Device {
     store: Store,
@@ -118,12 +119,24 @@ impl Rows for Predicting<'_> {
 
 impl Device {
     /// Open the device's store at `path` (created when absent) for the
-    /// backend the server sent; the schema's indexes are installed, the
-    /// rows kept from last time stay unless the generation moved.
-    pub fn open(path: &Path, backend: Backend) -> Result<Self, RuntimeError> {
+    /// backend the server sent — or, with none, for the backend kept from
+    /// last time, so a device that starts with no network opens on what it
+    /// holds. The schema's indexes are installed; the rows kept stay unless
+    /// the generation moved.
+    pub fn open(path: &Path, backend: Option<Backend>) -> Result<Self, RuntimeError> {
         let mut store = Store::open(path)?;
-        store.install(&backend.schema)?;
         store.conn().execute_batch("CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL);")?;
+        let backend = match backend {
+            Some(backend) => {
+                store.set_meta(BACKEND, &serde_json::to_string(&backend).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
+                backend
+            }
+            None => {
+                let kept = store.meta(BACKEND)?.ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
+                serde_json::from_str(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
+            }
+        };
+        store.install(&backend.schema)?;
         let mut device = Self { store, schema: backend.schema, programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(), generation: backend.generation };
         let held = device.meta_u64(GENERATION)?;
         if held != 0 && held != device.generation {
@@ -134,9 +147,10 @@ impl Device {
         Ok(device)
     }
 
-    /// The backend changed (a new generation from `/schema`): adopt it; the
-    /// next sync is a snapshot.
+    /// The backend changed (a new generation from `/schema`): adopt it and
+    /// keep it; the next sync is a snapshot.
     pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
+        self.store.set_meta(BACKEND, &serde_json::to_string(&backend).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
         self.store.install(&backend.schema)?;
         self.schema = backend.schema;
         self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();

@@ -115,12 +115,19 @@ fn c_string(json: Json) -> *mut c_char {
 }
 
 /// Open the device's store at `path` for the backend (`GET /schema`'s
-/// JSON). Null when the arguments are not text or the store refuses; the
-/// reason is on `sb4_last_error`-free ground: call `sb4_open_reason`.
+/// JSON), or for the backend kept from last time when `backend` is null or
+/// empty (a cold start offline). Null when the store refuses: ask
+/// `sb4_open_reason` why.
 #[unsafe(no_mangle)]
 pub extern "C" fn sb4_open(path: *const c_char, backend: *const c_char) -> *mut Device {
-    let (Some(path), Some(backend)) = (c_text(path), c_text(backend)) else { return std::ptr::null_mut() };
-    let Ok(backend) = serde_json::from_str::<Backend>(backend) else { return std::ptr::null_mut() };
+    let Some(path) = c_text(path) else { return std::ptr::null_mut() };
+    let backend = match c_text(backend) {
+        None | Some("") | Some("null") => None,
+        Some(text) => match serde_json::from_str::<Backend>(text) {
+            Ok(backend) => Some(backend),
+            Err(_) => return std::ptr::null_mut(),
+        },
+    };
     match Device::open(std::path::Path::new(path), backend) {
         Ok(device) => Box::into_raw(Box::new(device)),
         Err(_) => std::ptr::null_mut(),
@@ -131,10 +138,13 @@ pub extern "C" fn sb4_open(path: *const c_char, backend: *const c_char) -> *mut 
 /// a device (`{"ok": true}` when it would open). Freed with `sb4_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn sb4_open_reason(path: *const c_char, backend: *const c_char) -> *mut c_char {
-    let (Some(path), Some(backend)) = (c_text(path), c_text(backend)) else { return c_string(json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "path and backend are text" } })) };
-    let backend = match serde_json::from_str::<Backend>(backend) {
-        Ok(backend) => backend,
-        Err(error) => return c_string(json!({ "denied": { "code": "E_INPUT", "family": "input", "message": error.to_string() } })),
+    let Some(path) = c_text(path) else { return c_string(json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "path is text" } })) };
+    let backend = match c_text(backend) {
+        None | Some("") | Some("null") => None,
+        Some(text) => match serde_json::from_str::<Backend>(text) {
+            Ok(backend) => Some(backend),
+            Err(error) => return c_string(json!({ "denied": { "code": "E_INPUT", "family": "input", "message": error.to_string() } })),
+        },
     };
     c_string(match Device::open(std::path::Path::new(path), backend) {
         Ok(_) => json!({ "ok": true }),

@@ -760,3 +760,50 @@ pub fn serve_release(options: &Options) -> i32 {
         }
     }
 }
+
+/// The native module as a process: the same `Device` the Expo and Exact2
+/// hosts link, speaking one JSON request per line on stdin and one answer
+/// per line on stdout, so a JavaScript client can be tested end to end
+/// against the real module without a native build, and a host without a
+/// linker can still run it.
+pub fn device(options: &Options) -> i32 {
+    let Some(path) = options.positionals.first() else {
+        eprintln!("usage: snapback4 device <store.sqlite> [backend.json]");
+        return 2;
+    };
+    let backend = match options.positionals.get(1) {
+        Some(file) => match std::fs::read_to_string(file).map_err(|e| e.to_string()).and_then(|text| serde_json::from_str::<snapback4_device::native::Backend>(&text).map_err(|e| e.to_string())) {
+            Ok(backend) => Some(backend),
+            Err(error) => {
+                eprintln!("device: {file}: {error}");
+                return 2;
+            }
+        },
+        None => None,
+    };
+    let mut device = match snapback4_device::native::Device::open(Path::new(path), backend) {
+        Ok(device) => device,
+        Err(error) => {
+            println!("{}", json!({ "denied": error.refusal() }));
+            return 1;
+        }
+    };
+    println!("{}", json!({ "ok": { "device": path } }));
+    use std::io::{BufRead, Write};
+    let stdin = std::io::stdin();
+    let mut stdout = std::io::stdout();
+    for line in stdin.lock().lines() {
+        let Ok(line) = line else { break };
+        if line.trim().is_empty() {
+            continue;
+        }
+        let answer = match serde_json::from_str::<Json>(&line) {
+            Ok(request) => snapback4_device::ffi::call(&mut device, &request),
+            Err(error) => json!({ "denied": { "code": "E_INPUT", "family": "input", "message": format!("the request is JSON: {error}") } }),
+        };
+        if writeln!(stdout, "{answer}").and_then(|()| stdout.flush()).is_err() {
+            break;
+        }
+    }
+    0
+}

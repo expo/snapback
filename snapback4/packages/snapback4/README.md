@@ -515,6 +515,33 @@ const client = await createLocalClient({
 `snapback4/react` works unchanged. (`node:sqlite` fits the same driver
 through `nodeSqliteDriver`.)
 
+### The native module
+
+The same interpreter the server runs, as a Rust module the host links —
+Expo's Swift and Kotlin, Exact2's Apple and Linux hosts — owning the
+partition in its own SQLite, applying the stream, keeping the outbox,
+answering queries and predictions. The JavaScript client that remains,
+`snapback4/native`, keeps the session, the link, the transport and the
+observation of reads; the card is unchanged:
+
+```ts
+import { createNativeClient, type NativeOpener } from "snapback4/native";
+
+const client = await createNativeClient({ url, guest: true, sessionStore, native, dataDir });
+```
+
+`native` is how the host opens its device: `open(path, backend)` gives
+back one JSON call, `call({ op, ... })`, into the module (`backend` is
+`GET /schema`'s JSON, or null to open on the one the device kept, which
+is how a cold start with no network opens). The module speaks the same
+call over a C ABI (`crates/snapback4-device/include/snapback4.h`:
+`sb4_open`, `sb4_call`, `sb4_free`, `sb4_close`) and, for a Rust host,
+through `snapback4_device::ffi::call`; `snapback4 device <store>` runs
+it as a process, one JSON line each way, which is how the Node tests
+drive the real module. Measured: 1.7 MB linked on iOS, SQLite included;
+the same interpreter as wasm is 194 KB gzip, so the web keeps the
+TypeScript twin above.
+
 **Proving it on the device.** The package's own simulator witness
 (`witness/expo.mjs` in the repository, run in Expo Go on a booted iOS
 simulator against a real `snapback4 dev`) records, on the SQLite store: a

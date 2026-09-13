@@ -1341,3 +1341,37 @@ implements so the client is tested without a device), the Expo module
 (Swift over the C ABI, a development build since Expo Go loads no custom
 native code, the simulator witness on it), and the Exact2 host, which
 links Rust and can call `ffi::call` directly.
+
+## 2026-09-13 — the native tier: what the JavaScript client is when the device is Rust; 0.1.13
+
+`snapback4/native` is the client over the module: `createNativeClient({
+url, native, dataDir, persona | session | guest, ... })`, where `native`
+is how the host opens its device — `open(path, backend)` returning one
+JSON `call` — and everything else is the session, the link, the
+transport (`/schema`, `/sync` paged, `/changes`, `/m`) and the
+observation of reads, on the unchanged card. The device opens on the
+backend the server sends or, with the server unreachable, on the one it
+kept (`Device::open` with none), so a cold start offline opens on what
+it holds. `snapback4 device <store> [backend]` runs the same module as a
+process, one JSON line each way, and `processCore` in the tier drives it,
+so `test/native-e2e.test.mjs` runs the tier against the real Rust module
+and a live `dev`: two devices converge, a send is pending then sent, an
+offline burst of five queues durably and lands in order, a cold start
+offline answers thirty-seven rows with `fresh: false`. Six seconds.
+
+Two defects the slice exposed, both in the client. **`mintId` shifted
+the time out of the id**: the timestamp was moved up by eighty bits and
+then by the entropy's eighty again, so every client-minted id began with
+ten zero digits and none was time-ordered; the 0.1.7 fix ("ids minted by
+one process strictly increase") sat on that and worked only because the
+outbox's own counter did the ordering. The time leads now. **The
+submission number through an async seam**: the first draft of the tier
+asked the module for `next_submission` inside `mutate`, so a burst of
+five took one number before any of them enqueued, the outbox's primary
+key refused four, and the tier ignored the refusal — the 0.1.7 lesson
+again, one seam over. The number is taken synchronously at admission
+from a counter continued from the outbox, and a refused enqueue is a
+failed write with its prediction withdrawn. Published `snapback4@0.1.13`.
+Next: the Expo module (Swift over `snapback4.h`, an xcframework of the
+two iOS targets, a development build, the simulator witness on it), and
+the Exact2 host.

@@ -69,7 +69,7 @@ fn the_device_follows_the_server_and_answers_locally() {
     let dir = std::env::temp_dir().join(format!("sb4-device-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let mut device = Device::open(&dir.join("bob.sqlite"), backend.clone()).unwrap();
+    let mut device = Device::open(&dir.join("bob.sqlite"), Some(backend.clone())).unwrap();
     assert_eq!(device.state().unwrap(), (0, backend.generation));
     // The snapshot in pages of 50: the first clears, the watermark lands with the last.
     let pages = snapshot_pages(&mut engine, "dev:bob", 50);
@@ -119,12 +119,18 @@ fn the_device_follows_the_server_and_answers_locally() {
     assert!(device.query("thread", "dev:bob", &serde_json::json!({ "conversationId": "c1" }), 3_000).unwrap().data.as_array().unwrap().iter().all(|m| m.field("id").unwrap() != &id("msgDOOM")));
     // The rows survive a reopen; a new generation clears them.
     drop(device);
-    let again = Device::open(&dir.join("bob.sqlite"), backend.clone()).unwrap();
+    let again = Device::open(&dir.join("bob.sqlite"), Some(backend.clone())).unwrap();
     assert_eq!(again.state().unwrap().0, page.watermark);
     drop(again);
+    // A cold start with no network opens on the backend it kept.
+    let mut cold = Device::open(&dir.join("bob.sqlite"), None).unwrap();
+    assert_eq!(cold.state().unwrap().0, page.watermark);
+    assert_eq!(cold.query("thread", "dev:bob", &serde_json::json!({ "conversationId": "c1" }), 3_000).unwrap().data.as_array().unwrap().len(), 50);
+    drop(cold);
+    assert!(Device::open(&dir.join("never.sqlite"), None).is_err(), "a device that never synced needs the server once");
     let mut moved = backend.clone();
     moved.generation += 1;
-    let fresh = Device::open(&dir.join("bob.sqlite"), moved).unwrap();
+    let fresh = Device::open(&dir.join("bob.sqlite"), Some(moved)).unwrap();
     assert_eq!(fresh.state().unwrap(), (0, backend.generation + 1));
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -135,7 +141,7 @@ fn a_scope_tombstone_applies_the_leave_policy() {
     let dir = std::env::temp_dir().join(format!("sb4-device-leave-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let mut device = Device::open(&dir.join("bob.sqlite"), backend).unwrap();
+    let mut device = Device::open(&dir.join("bob.sqlite"), Some(backend)).unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:bob", 1_000).iter().enumerate() {
         device.apply(page, n == 0).unwrap();
     }
@@ -159,7 +165,7 @@ fn the_c_abi_round_trips_json() {
     let dir = std::env::temp_dir().join(format!("sb4-device-ffi-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let mut device = Device::open(&dir.join("bob.sqlite"), backend).unwrap();
+    let mut device = Device::open(&dir.join("bob.sqlite"), Some(backend)).unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:bob", 1_000).into_iter().enumerate() {
         let answer = ffi::call(&mut device, &serde_json::json!({ "op": "apply", "page": serde_json::to_value(&page_json(&page)).unwrap(), "first": n == 0 }));
         assert!(answer.get("ok").is_some(), "{answer}");
