@@ -1580,3 +1580,34 @@ link name. Core and device now use rusqlite 0.40.2 so the app links one
 SQLite. No interpreter or storage API changed. The core and native-device
 tests pass with the updated dependency. Codex implements this integration
 prerequisite for the Exact2 snapback4 native-module issue.
+
+## 2026-09-12 — comprehensive architecture and code review (Codex)
+
+Charlie requested a comprehensive review, then assigned security holes to a
+separate model. This review covers architecture, correctness, performance and
+ergonomics at repository commit `d6c803878a5432cce5f045777786a049972d3d70`,
+Snapback 4 tree `cf0a13dca32b3e1721d1d947a3f82c262a0807f0` (0.0.16).
+The [review record and ticket index](../llp/reviews/3000-architecture-code-review-20260912.md)
+contain scope, source coverage, observed results and limitations.
+
+The existing `scripts/test.sh` passed in 46 seconds on pinned Node 24.19.0.
+Additional probes reproduced unchecked schema narrowing/projection, a stale
+restart generation, reused deployment source, failed snapshot replacement,
+regressed watermarks, overlapping SQLite transaction loss, incorrect prediction
+rollback and retry, stale observations, value-model/lowering differences,
+worker starvation and React/page lifecycle defects. The green baseline does
+not cover those examples. Findings distinguish execution from source tracing;
+no real deployment or npm publication was performed, and no product code was
+changed.
+
+37 filesystem tickets were filed: 23 P1 and 14 P2. LLP 3000 was extended first;
+[3000.000](../llp/3000.000-atomic-schema-and-release-activation.research.md),
+[3000.001](../llp/3000.001-durable-replica-and-write-lifecycle.research.md),
+[3000.002](../llp/3000.002-end-to-end-resource-bounds.research.md) and
+[3000.003](../llp/3000.003-one-semantics-and-credible-verification.research.md)
+are Draft Research on activation ownership, durable replica/write state,
+resource boundaries and shared semantics/verification. They accept no design
+on the author's behalf. Four historical Snapback 1 research working-set links
+were archived to keep `llp/current/` at 59; the review records the exact links,
+and their documents remain unchanged. Core implementation custody remains
+with the lead under LLP 3000.

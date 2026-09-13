@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -454,6 +454,40 @@ carries the chronology. After week four, 2026-09-12 (0.1.0):
 
 Not in slice one by decision: effects execution, word search
 (`NOT-DOING.md`).
+
+## 9. Architecture and code review, 2026-09-12
+
+The author's request for a comprehensive review adds a findings record to
+this root before opening focused research children. The review covers the
+engine, compiler, HTTP/CLI host, both client tiers and stores, React arms,
+reference apps, simulator, fixtures, witnesses and release tooling at
+Snapback 4 tree `cf0a13dca32b3e1721d1d947a3f82c262a0807f0`
+(repository commit `d6c803878a5432cce5f045777786a049972d3d70`, version
+0.0.16). It does not change the bakeoff decisions or accept new designs.
+
+The prescribed suite passes, but additional probes reproduce
+schema-admission and projection failures, lost or regressed replica state,
+incorrect predictions, stale observations, compiler semantic errors and
+request-worker starvation. Passing the existing suite does not establish
+the missing properties. The author's updated scope reserves security holes
+for another model; this record covers architecture, correctness,
+performance and ergonomics and makes no security-review claim.
+
+Four questions need design work beyond an isolated patch:
+
+- [LLP 3000.000](./3000.000-atomic-schema-and-release-activation.research.md):
+  the atomic unit and owner of schema/release activation.
+- [LLP 3000.001](./3000.001-durable-replica-and-write-lifecycle.research.md):
+  confirmed replica data, speculative writes and durable outcomes.
+- [LLP 3000.002](./3000.002-end-to-end-resource-bounds.research.md):
+  physical resource bounds across requests and replication.
+- [LLP 3000.003](./3000.003-one-semantics-and-credible-verification.research.md):
+  one semantic contract across Rust, TypeScript and verification hosts.
+
+The [detailed review and 37-ticket index](./reviews/3000-architecture-code-review-20260912.md)
+record evidence, alternatives and acceptance examples. All four children are
+Draft Research. They remain review findings and proposals; the core owner
+retains implementation custody under §1 decision 4.
 
 ## How to orient
 
