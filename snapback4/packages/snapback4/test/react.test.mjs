@@ -33,8 +33,6 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "snapback4/react", replacement: join(root, "packages/snapback4/src/react.tsx") },
-        { find: "replica-store", replacement: join(root, "packages/snapback4/src/replica/store.ts") },
-        { find: "device-replica", replacement: join(root, "packages/snapback4/src/replica/replica.ts") },
         { find: "web-composer", replacement: join(root, "apps/chat/src/Composer.tsx") },
         { find: "web-app", replacement: join(root, "apps/chat/src/App.tsx") },
         { find: "expo-thread", replacement: join(root, "apps/chat-expo/src/Thread.tsx") },
@@ -102,8 +100,6 @@ import { Composer } from "web-composer";
 import { Thread } from "expo-thread";
 import { App as WebApp } from "web-app";
 import { App as ExpoApp } from "expo-app";
-import { openIndexedDb } from "replica-store";
-import { Replica } from "device-replica";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.process = { env: {} };
@@ -173,41 +169,6 @@ async function submit() {
 }
 
 const cases = {
-  async "IndexedDB rejects finalized, competing and reopened snapshot continuations"() {
-    const name = "snapshot-owners-" + crypto.randomUUID();
-    const schema = { tables: { t: { columns: { id: "Id", value: "Int" }, indexes: { byId: { components: [{ Column: "id" }], unique: true } }, sync: { audience: "Public" } } } };
-    const a = await openIndexedDb(name, schema), b = await openIndexedDb(name, schema);
-    const transport = { sync: async () => { throw Error("unused"); } };
-    const first = new Replica(a, schema, transport, 1), second = new Replica(b, schema, transport, 1);
-    const page = (id, more) => ({ snapshot: true, events: [{ table: "t", kind: "put", id, data: { id, value: 1 } }], watermark: 10, more, ...(more ? { next: "more" } : {}) });
-    const ids = () => a.read(async tx => (await tx.scan("t", "byId", [], {}, "asc", 10)).map(entry => entry.row.id));
-    const refused = async (work) => {
-      let failure;
-      try { await work; } catch (error) { failure = error; }
-      check(/owner|finished|write was sent/.test(failure?.message ?? ""), "a stale continuation is refused");
-    };
-    try {
-      await first.apply(page("a", true), new Set(), true);
-      await first.apply(page("b", false), new Set(), false);
-      await refused(first.apply(page("b", false), new Set(), false));
-      equal(await ids(), ["a", "b"], "a repeated final page does not replace the snapshot");
-      await first.apply(page("c", true), new Set(), true);
-      await second.apply(page("d", true), new Set(), true);
-      await refused(first.apply(page("e", false), new Set(), false));
-      await second.apply(page("f", false), new Set(), false);
-      equal(await ids(), ["d", "f"], "the second owner publishes only its own pages");
-      await first.apply(page("g", true), new Set(), true);
-      const reopened = new Replica(b, schema, transport, 1);
-      await refused(reopened.apply(page("h", false), new Set(), false));
-      equal(await ids(), ["d", "f"], "reopening retains the last complete replacement");
-      await b.write(tx => tx.setMeta("outbox:sendRevision", 1));
-      await refused(first.apply({ ...page("i", false), snapshot: false, send_revision: 0 }, new Set()));
-      equal(await ids(), ["d", "f"], "another connection's send invalidates the pending-ID receipt");
-    } finally {
-      await a.close(); await b.close();
-      await new Promise((resolve, reject) => { const request = indexedDB.deleteDatabase(name); request.onsuccess = resolve; request.onerror = () => reject(request.error); });
-    }
-  },
   async "useQuery owns observations through Strict Mode, equivalent arguments and unmount"() {
     const client = controlled(args => ready(args)); let latest;
     function Probe({ value }) { latest = useQuery(query, { value }); return null; }

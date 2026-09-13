@@ -8,7 +8,8 @@ packages/*/dist/
 **/snapback/generated/
 **/.snapback4/
 
-# built, not committed: the native module packed for Apple, and Expo's generated native projects
+# built, not committed: the device as wasm for the web (scripts/build-wasm.sh), the native module packed for Apple, and Expo's generated native projects
+packages/snapback4/src/wasm/
 packages/snapback4-expo/ios/Snapback4Device.xcframework/
 apps/chat-expo/ios/
 apps/chat-expo/android/

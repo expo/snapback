@@ -1,19 +1,22 @@
 #![deny(unsafe_code)]
 //! Snapback 4 on a device: the core's interpreter — the same programs, the
-//! same words — over a store the device brings. Two hosts:
-//!
-//! - `native`: the module for Expo and for Exact2's Apple and Linux hosts.
-//!   The core's own SQLite holds the partition in the server's layout; the
-//!   module applies the stream, keeps the outbox, answers queries and
-//!   predictions, and speaks one JSON call over a C ABI (`ffi`). The
-//!   JavaScript client keeps only the session, the link and the transport.
-//! - `web`: the interpreter as wasm over a web host's callbacks, kept for
-//!   measurement (LLP 2000.000 §9): at 194 KB gzip the web keeps its
-//!   TypeScript twin.
+//! same words — over a store the device brings, one implementation for
+//! every host (LLP 3000 §7). `device` is the device; `store` is what it
+//! needs of a store; `memory` and (with `native`) the core's SQLite
+//! implement it. Hosts reach it through one JSON call (`call`): the C ABI
+//! (`ffi`) for Expo and Exact2, `web` as wasm for the browser, and the
+//! `snapback4 device` process for Node.
+
+pub mod call;
+pub mod device;
+pub mod memory;
+pub mod store;
 
 #[cfg(feature = "native")]
 pub mod ffi;
 #[cfg(feature = "native")]
 pub mod native;
+#[cfg(feature = "native")]
+mod sqlite;
 #[cfg(feature = "web")]
 pub mod web;

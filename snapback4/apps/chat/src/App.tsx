@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { createLocalClient, type LocalClient } from "snapback4/local";
+import { webDevice } from "snapback4/web";
 import { SnapbackProvider, useClient, useLink, useViewer } from "snapback4/react";
 import { Inbox } from "./Inbox.tsx";
 import { Thread } from "./Thread.tsx";
 
-// The local-first tier: the device holds the viewer's partition in IndexedDB,
-// reads run locally, writes queue durably. `snapback4 dev` serves
+// The local-first tier: the device is the Rust module as wasm, holding the
+// viewer's partition in memory and keeping it in IndexedDB behind each
+// call; reads run locally, writes queue durably. `snapback4 dev` serves
 // snapback/schema.q at 127.0.0.1:4400. A persona in the URL (?as=bob) is
 // the development door; without one the client keeps a guest session of
 // its own across reloads.
@@ -18,7 +20,7 @@ export function App() {
   useEffect(() => {
     let live: LocalClient | null = null;
     let disposed = false;
-    createLocalClient(persona ? { url, persona } : { url, guest: true }).then((c) => {
+    createLocalClient({ url, device: webDevice(), ...(persona ? { persona } : { guest: true }) }).then((c) => {
       if (disposed) { void c.close(); return; }
       live = c;
       setClient(c);

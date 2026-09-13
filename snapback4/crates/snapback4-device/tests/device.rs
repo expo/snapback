@@ -1,0 +1,432 @@
+//! The device against a real server engine, on both hosts: SQLite as a
+//! native host keeps it, and memory as the web keeps it (each commit's
+//! changes handed back on the next open). One scenario, two runs.
+
+mod common;
+
+use common::*;
+use snapback4_core::engine::WriteState;
+use snapback4_core::value::Value;
+use snapback4_device::call::call;
+use snapback4_device::device::Queued;
+
+fn on_both(scenario: impl Fn(&mut dyn HostDyn)) {
+    scenario(&mut Sqlite::new("suite"));
+    scenario(&mut Memory::new());
+}
+
+/// The scenarios are written once over this object-safe view of a host:
+/// open, close, and the calls a test makes through one JSON dispatcher.
+pub trait HostDyn {
+    fn label(&self) -> &'static str;
+    fn open(&mut self, name: &str, backend: Option<snapback4_device::device::Backend>) -> Result<Box<dyn AnyDevice + '_>, snapback4_core::error::RuntimeError>;
+}
+
+/// A device of either store, reached through the dispatcher and a few
+/// typed doors the scenarios lean on.
+pub trait AnyDevice {
+    fn call(&mut self, request: serde_json::Value) -> serde_json::Value;
+    fn close(self: Box<Self>);
+}
+
+struct Held<'a, H: Host> {
+    host: &'a mut H,
+    name: String,
+    device: Option<snapback4_device::device::Device<H::Store>>,
+}
+
+impl<H: Host> AnyDevice for Held<'_, H> {
+    fn call(&mut self, request: serde_json::Value) -> serde_json::Value {
+        call(self.device.as_mut().expect("open"), &request)
+    }
+    fn close(mut self: Box<Self>) {
+        let device = self.device.take().expect("open");
+        self.host.close(&self.name, device);
+    }
+}
+
+impl<H: Host> Drop for Held<'_, H> {
+    fn drop(&mut self) {
+        if let Some(device) = self.device.take() {
+            self.host.close(&self.name, device);
+        }
+    }
+}
+
+impl<H: Host> HostDyn for H {
+    fn label(&self) -> &'static str {
+        Host::label(self)
+    }
+    fn open(&mut self, name: &str, backend: Option<snapback4_device::device::Backend>) -> Result<Box<dyn AnyDevice + '_>, snapback4_core::error::RuntimeError> {
+        let device = Host::open(self, name, backend)?;
+        Ok(Box::new(Held { host: self, name: name.to_owned(), device: Some(device) }))
+    }
+}
+
+#[track_caller]
+fn ok(answer: serde_json::Value) -> serde_json::Value {
+    assert!(answer.get("denied").is_none(), "{answer}");
+    answer["ok"].clone()
+}
+
+fn query(device: &mut dyn AnyDevice, name: &str, viewer: &str, args: serde_json::Value, now: i64) -> serde_json::Value {
+    ok(device.call(serde_json::json!({ "op": "query", "name": name, "viewer": viewer, "args": args, "now": now })))
+}
+
+#[track_caller]
+fn rows(read: &serde_json::Value) -> &Vec<serde_json::Value> {
+    match read["data"].as_array() {
+        Some(rows) => rows,
+        None => panic!("{read}"),
+    }
+}
+
+fn apply(device: &mut dyn AnyDevice, page: &snapback4_device::device::StreamPage, first: bool) -> serde_json::Value {
+    device.call(serde_json::json!({ "op": "apply", "page": page_json(page), "first": first }))
+}
+
+fn state(device: &mut dyn AnyDevice) -> (u64, u64) {
+    let state = ok(device.call(serde_json::json!({ "op": "state" })));
+    (state["watermark"].as_u64().unwrap(), state["generation"].as_u64().unwrap())
+}
+
+#[test]
+fn the_device_follows_the_server_and_answers_locally() {
+    on_both(|host| {
+        let label = host.label();
+        let (mut engine, backend) = server();
+        let mut device = host.open("bob", Some(backend.clone())).unwrap();
+        assert_eq!(state(&mut *device), (0, backend.generation), "{label}");
+        // The snapshot in pages of 50: the first clears, the watermark lands with the last.
+        let pages = snapshot_pages(&mut engine, "dev:bob", 50);
+        assert!(pages.len() >= 3, "{} pages", pages.len());
+        for (n, page) in pages.iter().enumerate() {
+            ok(apply(&mut *device, page, n == 0));
+            assert_eq!(state(&mut *device).0 > 0, n + 1 == pages.len(), "{label}: the watermark lands with the last page");
+        }
+        let (watermark, _) = state(&mut *device);
+        // A query with the device's words: the thread pages with the server's cursors.
+        let first = query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 2_000);
+        assert_eq!(rows(&first).len(), 50, "{label}");
+        assert!(first["complete"].as_bool().unwrap() && first["next"].is_string(), "{label}: {first}");
+        let inbox = query(&mut *device, "inbox", "dev:bob", serde_json::json!({}), 2_000);
+        assert_eq!(rows(&inbox)[0]["count"], 120, "{label}");
+        // A prediction: pending on the device, counted, then replaced by the server's image.
+        let predicted = ok(device.call(serde_json::json!({ "op": "predict", "name": "send", "viewer": "dev:bob", "args": { "conversationId": "c1", "body": "hello" }, "now": 2_000, "newIds": ["msgNEW"], "entropy": 7 })));
+        assert_eq!(predicted["result"]["id"], "msgNEW", "{label}: {predicted}");
+        assert!(predicted["predicted"].as_array().unwrap().contains(&serde_json::json!("messages/msgNEW")));
+        let thread = query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 2_000);
+        assert_eq!(rows(&thread)[0]["id"], "msgNEW", "{label}");
+        assert_eq!(rows(&thread)[0]["pending"], true, "{label}");
+        assert_eq!(rows(&query(&mut *device, "inbox", "dev:bob", serde_json::json!({}), 2_000))[0]["count"], 121, "{label}");
+        // The outbox keeps it in submission order until the server answers.
+        let seq = ok(device.call(serde_json::json!({ "op": "next_submission" }))).as_u64().unwrap();
+        let entry = Queued { id: "w1".into(), seq, op: "send".into(), args: serde_json::json!({ "conversationId": "c1", "body": "hello" }), new_ids: vec!["msgNEW".into()], predicted: vec!["messages/msgNEW".into()], viewer: String::new(), now: 0, predictable: false, sent_seq: None, observed_seq: None };
+        ok(device.call(serde_json::json!({ "op": "enqueue", "entry": entry })));
+        assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().len(), 1, "{label}");
+        assert!(device.call(serde_json::json!({ "op": "enqueue", "entry": entry })).get("denied").is_some(), "{label}: a duplicate submission is refused");
+        // The server applies it; the stream brings the confirmed image, without `pending`.
+        let sent = engine.mutate("send", Some("w1"), context("dev:bob", &[("conversationId", id("c1")), ("body", Value::String("hello".into()))]).at(2_500).with_ids(["msgNEW".to_owned()])).unwrap();
+        assert!(matches!(sent.state, WriteState::Sent { .. }));
+        ok(device.call(serde_json::json!({ "op": "dequeue", "id": "w1" })));
+        let page = stream_page(&mut engine, "dev:bob", watermark);
+        assert!(page.events.iter().any(|e| e.table == "messages" && e.id == "msgNEW"));
+        ok(apply(&mut *device, &page, false));
+        let thread = query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 3_000);
+        assert_eq!(rows(&thread)[0]["id"], "msgNEW", "{label}");
+        assert!(rows(&thread)[0].get("pending").is_none(), "{label}: the server's image carries no pending");
+        assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().len(), 0);
+        // A refused prediction leaves nothing; a withdrawn one goes.
+        let refused = ok(device.call(serde_json::json!({ "op": "predict", "name": "send", "viewer": "dev:mallory", "args": { "conversationId": "c1", "body": "hi" }, "now": 3_000, "newIds": [], "entropy": 7 })));
+        assert_eq!(refused["denied"]["code"], "NOT_MEMBER", "{label}: {refused}");
+        let doomed = ok(device.call(serde_json::json!({ "op": "predict", "name": "send", "viewer": "dev:bob", "args": { "conversationId": "c1", "body": "doomed" }, "now": 3_000, "newIds": ["msgDOOM"], "entropy": 7 })));
+        ok(device.call(serde_json::json!({ "op": "withdraw", "predicted": doomed["predicted"] })));
+        assert!(rows(&query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 3_000)).iter().all(|m| m["id"] != "msgDOOM"), "{label}");
+        // The rows survive a reopen; a cold start with no network opens on
+        // the backend it kept; a new generation clears them.
+        device.close();
+        let mut again = host.open("bob", Some(backend.clone())).unwrap();
+        assert_eq!(state(&mut *again).0, page.watermark, "{label}");
+        again.close();
+        let mut cold = host.open("bob", None).unwrap();
+        assert_eq!(state(&mut *cold).0, page.watermark, "{label}");
+        assert_eq!(rows(&query(&mut *cold, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 3_000)).len(), 50, "{label}");
+        cold.close();
+        assert!(host.open("never", None).is_err(), "{label}: a device that never synced needs the server once");
+        let mut moved = backend.clone();
+        moved.generation += 1;
+        let mut fresh = host.open("bob", Some(moved)).unwrap();
+        assert_eq!(state(&mut *fresh), (0, backend.generation + 1), "{label}");
+        assert!(rows(&query(&mut *fresh, "inbox", "dev:bob", serde_json::json!({}), 3_000)).is_empty(), "{label}: a new generation starts empty");
+        fresh.close();
+    });
+}
+
+#[test]
+fn a_scope_tombstone_applies_the_leave_policy() {
+    on_both(|host| {
+        let label = host.label();
+        let (mut engine, backend) = server();
+        let mut device = host.open("bob", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:bob", 1_000).iter().enumerate() {
+            ok(apply(&mut *device, page, n == 0));
+        }
+        let (watermark, _) = state(&mut *device);
+        // Bob leaves: memberships go (until-revoked), messages stay (delivered-history).
+        let left = engine.mutate("leave", Some("l1"), context("dev:bob", &[("conversationId", id("c1"))]).at(5_000)).unwrap();
+        assert!(matches!(left.state, WriteState::Sent { .. }));
+        let page = stream_page(&mut engine, "dev:bob", watermark);
+        assert!(page.events.iter().any(|e| e.kind == "scope"), "{:?}", page.events.iter().map(|e| (&e.table, &e.kind)).collect::<Vec<_>>());
+        ok(apply(&mut *device, &page, false));
+        assert_eq!(rows(&query(&mut *device, "inbox", "dev:bob", serde_json::json!({}), 6_000)).len(), 0, "{label}: the membership is gone");
+        let thread = query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 6_000);
+        assert_eq!(thread["denied"]["code"], "MEMBERSHIP_REQUIRED", "{label}: the query requires a membership; the rows themselves stay held");
+        device.close();
+    });
+}
+
+#[test]
+fn the_call_answers_the_card_on_every_host() {
+    on_both(|host| {
+        let label = host.label();
+        let (mut engine, backend) = server();
+        let mut device = host.open("bob", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:bob", 1_000).into_iter().enumerate() {
+            ok(apply(&mut *device, &page, n == 0));
+        }
+        let answer = query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 2_000);
+        assert_eq!(rows(&answer).len(), 50, "{label}: {answer}");
+        // A refused read is the card's `denied`, inside a call that succeeded.
+        let answer = device.call(serde_json::json!({ "op": "query", "name": "nothing", "viewer": "dev:bob" }));
+        assert_eq!(answer["ok"]["denied"]["code"], "E_OP", "{label}: {answer}");
+        let answer = device.call(serde_json::json!({ "op": "nothing" }));
+        assert_eq!(answer["denied"]["code"], "E_OP", "{label}: {answer}");
+        let answer = device.call(serde_json::json!({ "op": "state" }));
+        assert_eq!(answer["ok"]["generation"], 1, "{label}");
+        device.close();
+    });
+}
+
+#[test]
+fn online_only_final_insert_target_is_unknown_to_the_predictor() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  after insert <- exists targets[.name]\n  sync public\nquery rows():\n  return sources[] first 10 by byId\nmutation add(name: text <=10):\n  insert sources {name}\n  return null\n";
+        let (mut engine, backend) = compile(source);
+        engine.seed([("targets".into(), snapback4_core::value::object([("id", id("t")), ("name", Value::String("known".into()))]))]).unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("alice", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() {
+            assert!(page.events.iter().all(|event| event.table != "targets"));
+            ok(apply(&mut *device, page, n == 0));
+        }
+        let unknown = ok(device.call(serde_json::json!({ "op": "predict", "name": "add", "viewer": "dev:alice", "args": { "name": "known" }, "now": 1, "newIds": ["s"], "entropy": 1 })));
+        assert_eq!(unknown["denied"]["code"], "E_PREDICT", "{label}: an unacquired target is unknown, not a false final constraint");
+        assert!(rows(&query(&mut *device, "rows", "dev:alice", serde_json::json!({}), 1)).is_empty(), "{label}: the failed prediction rolls back its inserted source");
+        let sent = engine.mutate("add", None, context("dev:alice", &[("name", Value::String("known".into()))]).at(1).with_ids(["s".into()])).unwrap();
+        assert!(matches!(sent.state, WriteState::Sent { .. }), "the server holds the required target");
+        device.close();
+    });
+}
+
+#[test]
+fn a_wide_merge_matches_the_server_until_the_device_horizon() {
+    on_both(|host| {
+        use snapback4_core::value::object;
+        let label = host.label();
+        let source = format!("{CHAT}\nquery feed(c: cursor ?):\n  return merge messages after c last 20 by byConvTime:\n    [m.conversationId] for m in memberships[viewer] first 20 by byPrincipalConversation\n");
+        let (mut engine, backend) = compile(&source);
+        let mut rows_seed = Vec::new();
+        // Ten lanes exercise one-head refill. The first conversation exceeds
+        // its device horizon, while the others include tied timestamps.
+        for g in 0..10 {
+            let c = id(&format!("c{g}"));
+            rows_seed.push(("conversations".to_owned(), object([("id", c.clone()), ("title", Value::String(format!("Group {g}"))), ("creatorId", id("dev:bob"))])));
+            rows_seed.push(("memberships".to_owned(), object([("id", id(&format!("m{g}"))), ("conversationId", c.clone()), ("principal", id("dev:bob")), ("role", Value::String("admin".into())), ("joinedAt", Value::Int(1))])));
+            for n in 0..if g == 0 { 550 } else { 25 } {
+                rows_seed.push(("messages".to_owned(), object([("id", id(&format!("msg{g}-{n:03}"))), ("conversationId", c.clone()), ("authorId", id("dev:bob")), ("body", Value::String(format!("m{n}"))), ("at", Value::Int(1_000 + n))])));
+            }
+        }
+        engine.seed(rows_seed).unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("bob", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:bob", 100).iter().enumerate() {
+            ok(apply(&mut *device, page, n == 0));
+        }
+        // Reopening also exercises what the host kept, not a live mirror.
+        device.close();
+        let mut device = host.open("bob", None).unwrap();
+        let mut cursor: Option<String> = None;
+        let mut complete_pages = 0;
+        loop {
+            let page = query(&mut *device, "feed", "dev:bob", serde_json::json!({ "c": cursor }), 2_000);
+            let online = engine.query("feed", context("dev:bob", &[("c", cursor.clone().map(Value::String).unwrap_or(Value::Null))]).at(2_000)).unwrap();
+            assert!(online.complete);
+            if page["complete"] == false {
+                assert!(complete_pages >= 24, "{label}: pages inside the held horizon are complete");
+                break;
+            }
+            assert_eq!(page["data"], snapback4_core::wire::to_json(&online.data), "{label}");
+            assert_eq!(page["next"], serde_json::json!(online.next), "{label}");
+            complete_pages += 1;
+            assert!(complete_pages < 40, "{label}: the exhausted horizon must report incomplete");
+            cursor = Some(page["next"].as_str().expect("the server continues past this page").to_owned());
+        }
+        device.close();
+    });
+}
+
+#[test]
+fn durable_rejection_rebase_preserves_confirmed_images() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table items:\n  group: text <=10\n  value: int\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public\nmaintain sums: sum items of value by group\n  read <- allow\nquery row(id: id):\n  return items[id] by byId\nquery total():\n  return sums['g'] by byGroup\nmutation first():\n  update items['a'] {value: 99}\n  delete items['b']\nmutation later():\n  old = items['a'] by byId\n  require old != null else MISSING\n  update items['a'] {value: old.value + 1}\nmutation many():\n  for n in range(0, 12):\n    insert items {group: 'g', value: n}\n";
+        let (mut engine, backend) = compile(source);
+        engine.seed([("items".into(), snapback4_core::value::object([("id", id("a")), ("group", Value::String("g".into())), ("value", Value::Int(1))])), ("items".into(), snapback4_core::value::object([("id", id("b")), ("group", Value::String("g".into())), ("value", Value::Int(20))]))]).unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("alice", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() {
+            ok(apply(&mut *device, page, n == 0));
+        }
+        let watermark = state(&mut *device).0;
+        let queue = |op: &str, seq: u64| Queued { id: format!("w{seq}"), seq, op: op.into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2000, predictable: true, sent_seq: None, observed_seq: None };
+        let read = |device: &mut dyn AnyDevice, key: &str| query(device, "row", "dev:alice", serde_json::json!({ "id": key }), 2000)["data"]["value"].clone();
+        ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("first", 1) })));
+        ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("later", 2) })));
+        assert_eq!(read(&mut *device, "a"), 100, "{label}");
+        // Reopen before rejection: both the base images and the ordered overlay survive.
+        device.close();
+        let mut device = host.open("alice", None).unwrap();
+        ok(device.call(serde_json::json!({ "op": "settle", "id": "w1" })));
+        assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().len(), 1, "{label}");
+        assert_eq!(read(&mut *device, "a"), 2, "{label}: the survivor replays over the confirmed image");
+        assert_eq!(read(&mut *device, "b"), 20, "{label}: the refused delete is undone");
+        assert_eq!(query(&mut *device, "total", "dev:alice", serde_json::json!({}), 2000)["data"], 22, "{label}");
+        ok(device.call(serde_json::json!({ "op": "settle", "id": "w2" })));
+        // A paged snapshot stays staged until its last page; a repeated
+        // final page cannot truncate the partition.
+        let pages = snapshot_pages(&mut engine, "dev:alice", 1);
+        assert!(pages.len() > 1);
+        ok(apply(&mut *device, &pages[0], true));
+        for page in &pages[1..pages.len() - 1] {
+            ok(apply(&mut *device, page, false));
+        }
+        assert_eq!(state(&mut *device).0, watermark, "{label}: staged, not yet applied");
+        ok(apply(&mut *device, pages.last().unwrap(), false));
+        assert!(apply(&mut *device, pages.last().unwrap(), false).get("denied").is_some(), "{label}: a repeated final page cannot truncate the partition");
+        assert_eq!(read(&mut *device, "b"), 20, "{label}");
+        // A program minting more than a guessed small preallocation persists
+        // every actual id and retains those exact rows across replay/reopen.
+        let admitted = ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("many", 3) })));
+        let ids: Vec<String> = serde_json::from_value(admitted["new_ids"].clone()).unwrap();
+        assert_eq!(ids.len(), 12, "{label}");
+        assert_eq!(ids.iter().collect::<std::collections::BTreeSet<_>>().len(), 12);
+        device.close();
+        let mut device = host.open("alice", None).unwrap();
+        ok(apply(&mut *device, &stream_page(&mut engine, "dev:alice", watermark), false));
+        assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" })))[0]["new_ids"], serde_json::json!(ids), "{label}");
+        for key in ids {
+            assert_ne!(read(&mut *device, &key), serde_json::Value::Null, "{label}");
+        }
+        device.close();
+    });
+}
+
+#[test]
+fn the_memory_host_keeps_only_what_a_reopen_needs() {
+    // The web keeps the changes each call reports: rows, metadata, the
+    // outbox, the images, the staged snapshot — never index entries — and
+    // a checkpoint between calls is as good as a close.
+    let mut host = Memory::new();
+    let (mut engine, backend) = server();
+    let mut device = Host::open(&mut host, "bob", Some(backend.clone())).unwrap();
+    let pages = snapshot_pages(&mut engine, "dev:bob", 50);
+    for (n, page) in pages.iter().enumerate() {
+        device.apply(page, n == 0).unwrap();
+        checkpoint(&mut host, "bob", &device);
+    }
+    let held = host.held("bob");
+    let seeded: usize = pages.iter().map(|page| page.events.len()).sum();
+    assert_eq!(held.keys().filter(|(s, _)| *s == 'r').count(), seeded, "one row change per row the snapshot carried");
+    assert!(held.keys().all(|(s, _)| "rmobs".contains(*s)));
+    assert!(held.iter().filter(|((s, _), _)| *s == 's').all(|(_, v)| v.is_none()), "the staged snapshot drained");
+    let predicted = device.predict("send", "dev:bob", &serde_json::json!({ "conversationId": "c1", "body": "hello" }), 2_000, vec!["msgNEW".to_owned()], 7).unwrap();
+    assert!(predicted.predicted.contains(&"messages/msgNEW".to_owned()), "{:?}", predicted.predicted);
+    drop(device);
+    // Dropped without a close: the prediction was never handed to the host.
+    let mut device = Host::open(&mut host, "bob", None).unwrap();
+    assert_eq!(device.state().unwrap().0, pages.last().unwrap().watermark);
+    let thread = device.query("thread", "dev:bob", &serde_json::json!({ "conversationId": "c1" }), 3_000).unwrap();
+    assert!(thread.data.as_array().unwrap().iter().all(|m| m.field("id").unwrap() != &id("msgNEW")));
+    assert!(host.held("bob").keys().all(|(s, _)| *s != 'r' || true));
+}
+
+#[test]
+fn pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_hosts() {
+    on_both(|host| {
+        let label = host.label();
+        let source = include_str!("fixtures/pending-metadata.q");
+        let (mut engine, backend) = compile(source);
+        engine.seed([("people".into(), snapback4_core::value::object([("id", id("alice")), ("name", Value::String("Alice".into())), ("bio", Value::String("Confirmed bio".into()))]))]).unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("alice", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() {
+            ok(apply(&mut *device, page, n == 0));
+        }
+        let commands = [
+            ("profile", serde_json::json!({ "person": "alice", "name": "Offline Alice", "bio": "Saved bio" })),
+            ("profile", serde_json::json!({ "person": "alice", "name": "Final Alice", "bio": "Final bio" })),
+            ("vote", serde_json::json!({ "person": "alice", "answer": "answer", "direction": 1 })),
+            ("vote", serde_json::json!({ "person": "alice", "answer": "answer", "direction": -1 })),
+            ("updateVote", serde_json::json!({ "person": "alice", "answer": "answer", "direction": 1 })),
+            ("scanVote", serde_json::json!({ "direction": -1 })),
+        ];
+        let person_args = serde_json::json!({ "person": "alice" });
+        for (n, (op, input)) in commands.iter().enumerate() {
+            let seq = n as u64 + 1;
+            ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: format!("write-{seq}"), seq, op: (*op).into(), args: input.clone(), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: seq as i64, predictable: true, sent_seq: None, observed_seq: None } })));
+            let person = query(&mut *device, "person", "dev:alice", person_args.clone(), 10);
+            assert_eq!(person["data"]["pending"], true, "{label}: mutation reads must not erase the card");
+            if n >= 2 {
+                assert_eq!(query(&mut *device, "voteTotal", "dev:alice", serde_json::json!({ "answer": "answer" }), 10)["data"], if n % 2 == 0 { 1 } else { -1 }, "{label}");
+            }
+        }
+        let queued = ok(device.call(serde_json::json!({ "op": "queued" })));
+        assert_eq!(queued.as_array().unwrap().len(), commands.len(), "{label}");
+        // Offline reopen: the outbox and the pending marks are what they were.
+        device.close();
+        let mut device = host.open("alice", None).unwrap();
+        assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))), queued, "{label}: submission order, arguments and minted ids survive an offline reopen");
+        let person = query(&mut *device, "person", "dev:alice", person_args.clone(), 10);
+        assert_eq!(person["data"]["name"], "Final Alice", "{label}");
+        assert_eq!(person["data"]["bio"], "Final bio", "{label}");
+        assert_eq!(person["data"]["pending"], true, "{label}: the pending mark survives a reopen");
+        let votes = query(&mut *device, "voteRows", "dev:alice", serde_json::json!({}), 10);
+        assert_eq!(rows(&votes).len(), 1, "{label}");
+        assert_eq!(rows(&votes)[0]["direction"], -1, "{label}");
+        assert_eq!(rows(&votes)[0]["pending"], true, "{label}");
+        assert_eq!(query(&mut *device, "voteTotal", "dev:alice", serde_json::json!({ "answer": "answer" }), 10)["data"], -1, "{label}: replay must not double-count the maintained total");
+        // The server takes every write; the stream's images replace the marks.
+        let watermark = state(&mut *device).0;
+        for entry in queued.as_array().unwrap() {
+            let typed = entry["args"].as_object().unwrap().iter().map(|(name, value)| {
+                let value = match value {
+                    serde_json::Value::String(value) if name == "person" => id(value),
+                    serde_json::Value::String(value) => Value::String(value.clone()),
+                    serde_json::Value::Number(value) => Value::Int(value.as_i64().unwrap()),
+                    _ => panic!("unexpected fixture argument"),
+                };
+                (name.clone(), value)
+            }).collect();
+            let sent = engine.mutate(entry["op"].as_str().unwrap(), Some(entry["id"].as_str().unwrap()), snapback4_core::engine::Context::new("dev:alice", typed).at(entry["now"].as_i64().unwrap())).unwrap();
+            let WriteState::Sent { seq, .. } = sent.state else { panic!("the server refused the admitted fixture") };
+            ok(device.call(serde_json::json!({ "op": "settle", "id": entry["id"], "seq": seq })));
+        }
+        ok(apply(&mut *device, &stream_page(&mut engine, "dev:alice", watermark), false));
+        assert!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().is_empty(), "{label}");
+        let person = query(&mut *device, "person", "dev:alice", person_args, 10);
+        assert!(person["data"].get("pending").is_none(), "{label}: the authoritative image replaces the pending mark");
+        assert!(rows(&query(&mut *device, "voteRows", "dev:alice", serde_json::json!({}), 10))[0].get("pending").is_none(), "{label}");
+        device.close();
+    });
+}

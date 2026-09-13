@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // The Chromium witness (LLP 2000.000 §11.5): what the simulator cannot
 // reach — IndexedDB. A real page on the local-first client against a real
-// `snapback4 dev`: the replica syncs into IndexedDB, reads run over it,
-// a queued write survives a reload, and the store's bytes are what the
-// server sent. Prints one JSON line.
+// `snapback4 dev`: the wasm device syncs and keeps its partition in
+// IndexedDB behind each call, reads run on it, a queued write survives a
+// reload, and the rows kept are what the server sent. Prints one JSON line.
 import { launch, record } from "./lib.mjs";
 
 const witness = await launch({ seed: [
@@ -27,7 +27,6 @@ try {
     const synced = performance.now() - t0;
     const thread = await client.query({ kind: "query", name: "thread" }, { conversationId: "c1" });
     const inbox = await client.query({ kind: "query", name: "inbox" }, {});
-    const state = await client.replica.state();
     // A refused prediction (a stranger's send) is `failed`, typed, with no page error.
     const stranger = await window.createLocalClient({ url: api, persona: "mallory", waitSeconds: 1, fetch: (...args) => window.fetch(...args) });
     const refused = await stranger.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "not a member" });
@@ -39,16 +38,16 @@ try {
     const local = await client.query({ kind: "query", name: "thread" }, { conversationId: "c1" });
     window.fetch = realFetch;
     await client.close();
-    return { syncMs: +synced.toFixed(1), threadRows: thread.data.length, threadComplete: thread.complete, next: !!thread.next, count: inbox.data[0].count, watermark: state.watermark, write: write.state, pendingLocally: local.data[0].pending === true, localFresh: local.fresh, refused: refused.state === "failed" ? refused.why?.code : refused.state };
+    return { syncMs: +synced.toFixed(1), threadRows: thread.data.length, threadComplete: thread.complete, next: !!thread.next, count: inbox.data[0].count, write: write.state, pendingLocally: local.data[0].pending === true, localFresh: local.fresh, refused: refused.state === "failed" ? refused.why?.code : refused.state };
   }, api);
   Object.assign(out, { first });
   // Second session: a fresh page on the same origin opens the same
-  // IndexedDB; the replica is already there and the queued write lands.
+  // IndexedDB; the partition is already there and the queued write lands.
   await witness.reload();
   const second = await page.evaluate(async (api) => {
     const rows = await new Promise((resolve, reject) => {
-      const open = indexedDB.open(`snapback4:${api}:dev:bob`, 1);
-      open.onsuccess = () => { const tx = open.result.transaction("rows"); const req = tx.objectStore("rows").count(); req.onsuccess = () => { resolve(req.result); open.result.close(); }; req.onerror = () => reject(req.error); };
+      const open = indexedDB.open(`snapback4-${encodeURIComponent(`${api}:dev:bob`)}`, 1);
+      open.onsuccess = () => { const tx = open.result.transaction("changes"); const req = tx.objectStore("changes").count(IDBKeyRange.bound(["r", ""], ["r", "\uffff"])); req.onsuccess = () => { resolve(req.result); open.result.close(); }; req.onerror = () => reject(req.error); };
       open.onerror = () => reject(open.error);
     });
     const t0 = performance.now();
@@ -60,12 +59,11 @@ try {
       if (thread.data[0]?.body === "queued while offline" && !thread.data[0].pending) break;
       await new Promise((r) => setTimeout(r, 50));
     }
-    const state = await client.replica.state();
     await client.close();
-    return { rowsInIdbBeforeOpen: rows, reopenMs: +reopened.toFixed(1), landed: thread.data[0]?.body === "queued while offline" && !thread.data[0].pending, watermark: state.watermark };
+    return { rowsInIdbBeforeOpen: rows, reopenMs: +reopened.toFixed(1), landed: thread.data[0]?.body === "queued while offline" && !thread.data[0].pending };
   }, api);
   Object.assign(out, { second });
-  out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && first.refused === "NOT_MEMBER" && second.rowsInIdbBeforeOpen > 300 && second.landed && second.watermark > first.watermark && out.pageErrors.length === 0;
+  out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && first.refused === "NOT_MEMBER" && second.rowsInIdbBeforeOpen > 300 && second.landed && out.pageErrors.length === 0;
 } finally {
   await witness.close();
 }

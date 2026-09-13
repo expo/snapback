@@ -31,7 +31,6 @@ export async function runWitness(reportUrl: string): Promise<void> {
     const write = await client.mutate(api.send, { conversationId: "c1", body: "sent from the simulator" });
     await step(`sent: ${write.state}`);
     const after = await client.query(api.thread, { conversationId: "c1" });
-    const state = "replica" in client ? await client.replica.state() : { watermark: -1 };
     await client.close();
     await step("first done");
     report.first = {
@@ -46,16 +45,14 @@ export async function runWitness(reportUrl: string): Promise<void> {
       // replaces it, so that flag is a race, recorded not judged.
       sentRowRead: isReady(after) && after.data[0]?.body === "sent from the simulator",
       sentRowPending: isReady(after) ? after.data[0]?.pending === true : null,
-      watermark: state.watermark,
     };
     // A second open on the same SQLite file: the rows are already there.
     const t1 = Date.now();
     const again = await openClient({ persona: "bob", guest: false });
     const reopenMs = Date.now() - t1;
-    // The rows are there: the TypeScript tier counts them in its store; the
-    // module answers through the count it maintains.
+    // The rows are there: the module answers through the count it maintains.
     const again_inbox = await again.query(api.inbox, {});
-    const rows = "replica" in again ? await again.replica.store.read((tx) => tx.count("messages", "byConvTime", ["c1"], 10_000)) : (isReady(again_inbox) ? Number(again_inbox.data[0]?.count ?? -1) : -1);
+    const rows = isReady(again_inbox) ? Number(again_inbox.data[0]?.count ?? -1) : -1;
     const again_thread = await again.query(api.thread, { conversationId: "c1" });
     await again.close();
     report.second = { reopenMs, reopenedRows: rows, threadRows: isReady(again_thread) ? again_thread.data.length : -1 };

@@ -18,6 +18,7 @@ run() {
 start=$(date +%s)
 run "cargo build" cargo build --workspace --quiet
 run "cargo test" cargo test --workspace --no-fail-fast --quiet
+run "wasm build" bash scripts/build-wasm.sh
 run "package typecheck" bun run --cwd packages/snapback4 typecheck
 run "package build" bun run --cwd packages/snapback4 build
 run "chat app check" bash -c 'cd apps/chat && ../../target/debug/snapback4 check'

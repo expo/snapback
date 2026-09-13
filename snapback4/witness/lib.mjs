@@ -70,16 +70,25 @@ export async function launch({ seed, headless = true }) {
   const { chromium } = require("playwright-core");
   const exe = chromiumExecutable();
   const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+  // The page: the one client over the wasm device, bundled with the wasm
+  // beside it (`scripts/build-wasm.sh` first), served from a directory.
   const harness = mkdtempSync(join(tmpdir(), "sb4-witness-"));
   const entry = join(harness, "harness.ts");
-  writeFileSync(entry, `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\n(window as any).createLocalClient = createLocalClient;\n`);
-  await build({ root: harness, logLevel: "silent", build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", lib: { entry, formats: ["es"], fileName: () => "harness.js" } } });
-  const bundle = readFileSync(join(harness, "dist/harness.js"), "utf8");
+  writeFileSync(entry, `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice } from "${join(root, "packages/snapback4/src/web.ts")}";\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice(), ...options });\n`);
+  writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
+  await build({ root: harness, logLevel: "silent", build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
 
   const dev = await devServer({ seed });
   const { api, app, seeded, seedMs } = dev;
 
-  const pageServer = createServer((_, res) => { res.setHeader("content-type", "text/html"); res.end(`<!doctype html><title>witness</title><script type="module">${bundle}</script>`); });
+  const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm" };
+  const pageServer = createServer((req, res) => {
+    const path = decodeURIComponent(new URL(req.url, "http://127.0.0.1").pathname);
+    const file = join(harness, "dist", path === "/" ? "index.html" : path);
+    if (!existsSync(file)) { res.statusCode = 404; res.end(); return; }
+    res.setHeader("content-type", types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream");
+    res.end(readFileSync(file));
+  });
   await new Promise((r) => pageServer.listen(0, "127.0.0.1", r));
   const pageUrl = `http://127.0.0.1:${pageServer.address().port}/`;
   const browser = await chromium.launch({ executablePath: exe, headless });

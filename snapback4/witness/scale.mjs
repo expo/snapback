@@ -28,9 +28,8 @@ try {
     const t2 = performance.now();
     const inbox = await client.query({ kind: "query", name: "inbox" }, {});
     const inboxMs = performance.now() - t2;
-    const state = await client.replica.state();
     await client.close();
-    return { syncMs: +syncMs.toFixed(0), threadRows: thread.data.length, threadComplete: thread.complete, threadMs: +threadMs.toFixed(1), inboxRows: inbox.data.length, inboxMs: +inboxMs.toFixed(1), watermark: state.watermark };
+    return { syncMs: +syncMs.toFixed(0), threadRows: thread.data.length, threadComplete: thread.complete, threadMs: +threadMs.toFixed(1), inboxRows: inbox.data.length, inboxMs: +inboxMs.toFixed(1) };
   }, witness.api);
   const heapAfter = await witness.heapMb();
   Object.assign(out, { first, heapMbBefore: heapBefore, heapMbAfter: heapAfter });

@@ -2,21 +2,20 @@
 
 Snapback 4's device in Rust, as an Expo module: the partition in its own
 SQLite, the stream applied, the outbox kept, queries and predictions
-answered — the same interpreter the server runs — behind one JSON call.
-`snapback4/native` is the client over it:
+answered — the same interpreter the server runs, and the same module the
+web runs as wasm — behind one JSON call. `snapback4/local` is the client
+over it:
 
 ```ts
-import * as SQLite from "expo-sqlite";
 import { createLocalClient } from "snapback4/local";
-import { createNativeClient } from "snapback4/native";
-import { expoSqliteDriver, openSqlite } from "snapback4/replica";
-import { nativeAvailable, nativeDevice, documentDirectory } from "snapback4-expo";
+import { createClient } from "snapback4/client";
+import { nativeAvailable, nativeDevice } from "snapback4-expo";
 
 const safe = (name: string) => name.replace(/[^A-Za-z0-9._-]/g, "_");   // store and session names carry the URL and the viewer
 const sqliteStore = { open: async (name: string, schema: unknown) => openSqlite(expoSqliteDriver(await SQLite.openDatabaseAsync(`${safe(name)}.db`)), schema) };
 const client = nativeAvailable()
-  ? await createNativeClient({ url, guest: true, sessionStore, native: nativeDevice, dataDir: documentDirectory() })
-  : await createLocalClient({ url, guest: true, sessionStore, store: sqliteStore });   // Expo Go: the TypeScript tier
+  ? await createLocalClient({ url, guest: true, sessionStore, device: nativeDevice })
+  : createClient({ url, session });   // Expo Go: the online tier, with a session the app keeps
 ```
 
 `createNativeClient` probes the module first and rejects with

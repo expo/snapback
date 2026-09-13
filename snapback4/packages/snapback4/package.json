@@ -1,6 +1,6 @@
 {
   "name": "snapback4",
-  "version": "0.1.18",
+  "version": "0.2.0",
   "type": "module",
   "description": "Snapback 4: the card (contract), the online and local-first clients (IndexedDB, SQLite), React hooks, sign-in, a labelled mock, and the `snapback4` CLI. LLP 3000.",
   "bin": {
@@ -35,9 +35,9 @@
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
     },
-    "./replica": {
-      "types": "./dist/replica/index.d.ts",
-      "import": "./dist/replica/index.js"
+    "./web": {
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.js"
     }
   },
   "files": [
@@ -46,10 +46,10 @@
     "README.md"
   ],
   "optionalDependencies": {
-    "snapback4-darwin-arm64": "0.1.18"
+    "snapback4-darwin-arm64": "0.2.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

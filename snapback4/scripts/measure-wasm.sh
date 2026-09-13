@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The device core as wasm, measured on the pinned toolchain: the size-first
 # profile, wasm-bindgen's web target, gzip-9 and brotli-11, one line to
-# metrics/wasm.jsonl beside the TypeScript twin's numbers (LLP 2000.000 §9).
+# metrics/wasm.jsonl (LLP 3000 §7: one implementation; the web ships this).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet

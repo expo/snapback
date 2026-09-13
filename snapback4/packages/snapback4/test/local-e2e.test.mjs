@@ -1,7 +1,8 @@
-// The local-first client against a live `snapback4 dev`: two devices on one
-// conversation, a send that renders pending then sent, a device that goes
-// offline and comes back, and the other device's replica following the
-// stream. Memory stores here; IndexedDB is the Chromium witness's job.
+// The local-first client against a live `snapback4 dev`, on the wasm device
+// in Node: two devices on one conversation, a send that renders pending then
+// sent, a device that goes offline and comes back, and the other device
+// following the stream. Memory persistence here; IndexedDB is the Chromium
+// witness's job.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -9,14 +10,17 @@ import { mkdtempSync, cpSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { createLocalClient } from "../dist/local.js";
 import { memorySessionStore } from "../dist/auth.js";
 import { isReady } from "../dist/contract.js";
-import { nodeSqliteDriver, openSqlite } from "../dist/replica/index.js";
-import { DatabaseSync } from "node:sqlite";
+import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = join(root, "target/debug/snapback4");
+const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
+/** One store per test: what its devices keep between opens. */
+const device = (persist = memoryPersistence()) => webDevice({ wasm, persist });
 const port = 4470 + (process.pid % 20);
 const url = `http://127.0.0.1:${port}`;
 const api = { thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" }, send: { kind: "mutation", name: "send" }, invite: { kind: "mutation", name: "invite" } };
@@ -40,6 +44,7 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
+  const kept = device();
   try {
     await until(async () => { try { await fetch(url); return true; } catch { return false; } });
     const seeded = await fetch(`${url}/seed`, { method: "POST", body: JSON.stringify([
@@ -52,8 +57,8 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
     // A switchable fetch models the link.
     let offline = false;
     const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
-    const alice = await createLocalClient({ url, persona: "alice", store: "memory", fetch: gated, waitSeconds: 2 });
-    const bob = await createLocalClient({ url, persona: "bob", store: "memory", waitSeconds: 2 });
+    const alice = await createLocalClient({ url, persona: "alice", device: kept, fetch: gated, waitSeconds: 2 });
+    const bob = await createLocalClient({ url, persona: "bob", device: kept, waitSeconds: 2 });
 
     // Bob's replica holds the conversation from the snapshot.
     const bobInbox = bob.observe(api.inbox, {});
@@ -96,7 +101,7 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
     assert.equal(alice.link(), "online");
 
     // A stranger's local read is denied by the author's code, offline or on.
-    const mallory = await createLocalClient({ url, persona: "mallory", store: "memory", waitSeconds: 2 });
+    const mallory = await createLocalClient({ url, persona: "mallory", device: kept, waitSeconds: 2 });
     const denied = await mallory.query(api.thread, { conversationId: "c1" });
     assert.equal(denied.denied?.code, "MEMBERSHIP_REQUIRED");
     await Promise.all([alice.close(), bob.close(), mallory.close()]);
@@ -119,6 +124,7 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
+  const kept = device();
   try {
     await until(async () => { try { await fetch(fifoUrl); return true; } catch { return false; } });
     await fetch(`${fifoUrl}/seed`, { method: "POST", body: JSON.stringify([
@@ -128,8 +134,8 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
     ]) });
     let offline = false;
     const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
-    const alice = await createLocalClient({ url: fifoUrl, persona: "alice", store: "memory", fetch: gated, waitSeconds: 1 });
-    const bob = await createLocalClient({ url: fifoUrl, persona: "bob", store: "memory", waitSeconds: 1 });
+    const alice = await createLocalClient({ url: fifoUrl, persona: "alice", device: kept, fetch: gated, waitSeconds: 1 });
+    const bob = await createLocalClient({ url: fifoUrl, persona: "bob", device: kept, waitSeconds: 1 });
     offline = true;
     await until(async () => { await alice.mutate(api.send, { conversationId: "c1", body: "probe" }); return alice.link() === "offline"; });
     // Twenty sends in one burst, well inside one millisecond of each other.
@@ -162,11 +168,12 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
+  const kept = device();
   try {
     await until(async () => { try { await fetch(url2); return true; } catch { return false; } });
     const sessions = memorySessionStore();
     // A cold start with no session: the client mints a guest and keeps it.
-    const first = await createLocalClient({ url: url2, guest: true, store: "memory", sessionStore: sessions, waitSeconds: 1 });
+    const first = await createLocalClient({ url: url2, guest: true, device: kept, sessionStore: sessions, waitSeconds: 1 });
     const principal = first.viewer();
     assert.match(principal, /^guest:/);
     assert.equal(first.session().principal, principal);
@@ -174,7 +181,7 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     assert.ok(isReady(inbox) && inbox.data.length === 0 && inbox.complete && inbox.fresh, JSON.stringify(inbox));
     await first.close();
     // The next start restores the same principal without asking anyone.
-    const again = await createLocalClient({ url: url2, store: "memory", sessionStore: sessions, waitSeconds: 1 });
+    const again = await createLocalClient({ url: url2, device: kept, sessionStore: sessions, waitSeconds: 1 });
     assert.equal(again.viewer(), principal);
     // Sign-out tells whoever holds the token that it ended, before the client closes.
     const ended = [];
@@ -183,22 +190,20 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     assert.deepEqual(ended, [null]);
     assert.equal(again.session(), null);
     // Signed out: no session to restore, and the old token is dead on the server.
-    await assert.rejects(createLocalClient({ url: url2, store: "memory", sessionStore: sessions, waitSeconds: 1 }), /no session/);
+    await assert.rejects(createLocalClient({ url: url2, device: kept, sessionStore: sessions, waitSeconds: 1 }), /no session/);
     const dead = await fetch(`${url2}/q/inbox`, { method: "POST", headers: { authorization: `Bearer ${first.session()?.token ?? "x"}`, "content-type": "application/json" }, body: "{}" }).then((r) => r.json());
     assert.equal(dead.denied?.code, "E_AUTH");
-    const fresh = await createLocalClient({ url: url2, guest: true, store: "memory", sessionStore: sessions, waitSeconds: 1 });
+    const fresh = await createLocalClient({ url: url2, guest: true, device: kept, sessionStore: sessions, waitSeconds: 1 });
     assert.notEqual(fresh.viewer(), principal);
     await fresh.close();
     // A cold start with no network: the device opens on the backend and
     // rows it kept, reads locally with `fresh: false`, and says it is offline.
-    const file = join(dir, "device.sqlite");
-    const sqlite = { open: async (_name, schema) => openSqlite(nodeSqliteDriver(new DatabaseSync(file)), schema) };
-    const online = await createLocalClient({ url: url2, guest: true, store: sqlite, sessionStore: sessions, waitSeconds: 1 });
+    const online = await createLocalClient({ url: url2, guest: true, device: kept, sessionStore: sessions, waitSeconds: 1 });
     const onlineInbox = await online.query(api.inbox, {});
     assert.ok(isReady(onlineInbox) && onlineInbox.fresh);
     await online.close();
     const noNetwork = () => Promise.reject(new TypeError("no network"));
-    const offline = await createLocalClient({ url: url2, store: sqlite, sessionStore: sessions, fetch: noNetwork, waitSeconds: 1 });
+    const offline = await createLocalClient({ url: url2, device: kept, sessionStore: sessions, fetch: noNetwork, waitSeconds: 1 });
     assert.equal(offline.link(), "offline");
     assert.equal(offline.viewer(), online.viewer());
     const offlineInbox = await offline.query(api.inbox, {});
@@ -206,7 +211,7 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     assert.equal(offlineInbox.fresh, false);
     assert.ok(typeof offlineInbox.since === "number");
     await offline.close();
-    await assert.rejects(createLocalClient({ url: url2, guest: true, store: "memory", sessionStore: memorySessionStore(), fetch: noNetwork, waitSeconds: 1 }), /cannot reach|E_OFFLINE/);
+    await assert.rejects(createLocalClient({ url: url2, guest: true, device: kept, sessionStore: memorySessionStore(), fetch: noNetwork, waitSeconds: 1 }), /cannot reach|E_OFFLINE/);
   } finally {
     server.kill();
     rmSync(dir, { recursive: true, force: true });
@@ -223,6 +228,7 @@ test("an upload is placed once and served by the home row's read rule", { timeou
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
+  const kept = device();
   try {
     await until(async () => { try { await fetch(assetUrl); return true; } catch { return false; } });
     await fetch(`${assetUrl}/seed`, { method: "POST", body: JSON.stringify([
@@ -230,9 +236,9 @@ test("an upload is placed once and served by the home row's read rule", { timeou
       { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
       { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
     ]) });
-    const alice = await createLocalClient({ url: assetUrl, persona: "alice", store: "memory", waitSeconds: 2 });
-    const bob = await createLocalClient({ url: assetUrl, persona: "bob", store: "memory", waitSeconds: 2 });
-    const mallory = await createLocalClient({ url: assetUrl, persona: "mallory", store: "memory", waitSeconds: 2 });
+    const alice = await createLocalClient({ url: assetUrl, persona: "alice", device: kept, waitSeconds: 2 });
+    const bob = await createLocalClient({ url: assetUrl, persona: "bob", device: kept, waitSeconds: 2 });
+    const mallory = await createLocalClient({ url: assetUrl, persona: "mallory", device: kept, waitSeconds: 2 });
     // A 2x3 PNG: signature, IHDR, and nothing more (the server reads the header).
     const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 2, 0, 0, 0, 3, 8, 6, 0, 0, 0, 0, 0, 0, 0]);
     const refused = await alice.upload(new TextEncoder().encode("not an image"));

@@ -20,10 +20,10 @@ bun run --cwd packages/snapback4 typecheck   # the contract, the client and the 
 cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
 cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
 cargo test -p snapback4-sim --test native   # native jobs: builds native-fixtures/rescore for wasm32-unknown-unknown (cold ~20 s, then cached under target/native-fixture) and runs it
-node witness/idb.mjs                 # the Chromium witness: the local-first client on IndexedDB (needs Chrome)
-node witness/expo.mjs                # the simulator witness: the client on expo-sqlite in Expo Go (booted iOS simulator)
-WITNESS_DEV_CLIENT=1 node witness/expo.mjs   # the same witness on the Rust module in a development build (apps/chat-expo: bun run ios:dev first)
-node witness/scale.mjs [G] [N] [M]   # cold sync at scale: G groups × N messages × M members into IndexedDB; wall time + JS heap → metrics/witness.jsonl
+bash scripts/build-wasm.sh           # the device as wasm into packages/snapback4/src/wasm/ (the web tier and the Chromium witness need it)
+node witness/idb.mjs                 # the Chromium witness: the client on the wasm device over IndexedDB (needs Chrome)
+WITNESS_DEV_CLIENT=1 node witness/expo.mjs   # the simulator witness: the client on the Rust module in a development build (apps/chat-expo: bun run ios:dev first; booted iOS simulator)
+node witness/scale.mjs [G] [N] [M]   # cold sync at scale: G groups × N messages × M members into the wasm device; wall time + JS heap → metrics/witness.jsonl
 node scripts/measure-storage.mjs     # what the store weighs on the scale seed (rows, indexes, partition log) → metrics/storage.jsonl
                                      # SNAPBACK4_BIN=target/release/snapback4 measures the release build (throughput numbers)
 node scripts/measure-client.mjs      # each client tier's bytes on the pinned toolchain → metrics/client.jsonl
@@ -39,10 +39,11 @@ log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
 (Quarry lexer, parser, binder, diagnostics, the TypeScript emitter),
 `snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
 world hosting the engine and a replica device), `snapback4-device` (the
-interpreter over a host's store: wasm for measurement, the native module
-for Expo and Exact2 hosts). The guide (`snapback4-lang/src/guide.rs`) is
+interpreter over a `DeviceStore`: the core's SQLite under the native
+module for Expo and Exact2 hosts, memory under wasm on the web; one
+dispatcher, one suite on both)). The guide (`snapback4-lang/src/guide.rs`) is
 the language card and the keyword cards; packages: `snapback4` (the client
-and the CLI shim), `snapback4-darwin-arm64` (the binary), `snapback4-expo`
+over the device and the CLI shim), `snapback4-darwin-arm64` (the binary), `snapback4-expo`
 (the Swift module over the device's C ABI).
 
 What exists, by week (LLP 3000 §5):

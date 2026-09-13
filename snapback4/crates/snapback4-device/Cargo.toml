@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
-description = "Snapback 4 on a device: the core's interpreter over the host's store — the native module for Expo and Exact2 hosts (`native`: the core's own SQLite, the stream applied, the outbox kept, a C ABI), or wasm over a web host's callbacks (`web`, for measurement)."
+description = "Snapback 4 on a device: one implementation of the device — the partition held, the stream applied, the outbox kept, queries and predictions answered — over the core's SQLite on a native host (`native`, with a C ABI) or over memory as wasm on the web (`web`)."
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]

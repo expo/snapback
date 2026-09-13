@@ -1,0 +1,593 @@
+//! The device's store in memory: the rows and their index entries, the
+//! metadata, the outbox, the confirmed images and the staged snapshot in
+//! B-trees, with transactions as an undo log and savepoints as marks in
+//! it. Every commit reports what it changed, so a host that cannot give
+//! the device synchronous durable storage — the web, where IndexedDB is
+//! asynchronous — keeps the partition here and writes the changes behind
+//! each call; on the next open it hands them back, and the store is what
+//! it was. Index entries are not reported: they are rebuilt on install.
+
+use crate::store::{DeviceStore, DeviceTx};
+use serde::{Deserialize, Serialize};
+use snapback4_core::error::RuntimeError;
+use snapback4_core::key;
+use snapback4_core::rows::{Bounds, Dir, Rows, index_key, scan_range};
+use snapback4_core::schema::{Index, Schema, Table};
+use snapback4_core::value::Value;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet};
+
+/// One change to what the store keeps, for the host to persist: the store
+/// (`r` rows, `m` metadata, `o` outbox, `b` confirmed images, `s` staged
+/// snapshot), the key, and the value — `None` removes.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Change {
+    pub s: char,
+    pub k: String,
+    pub v: Option<String>,
+}
+
+#[derive(Default)]
+struct State {
+    rows: BTreeMap<(String, String), Value>,
+    entries: BTreeMap<(String, Vec<u8>), String>,
+    meta: BTreeMap<String, String>,
+    outbox: BTreeMap<String, (u64, String)>,
+    base: BTreeMap<(String, String), Option<String>>,
+    staged: BTreeMap<String, (String, String)>,
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Dirty {
+    Row(String, String),
+    Meta(String),
+    Outbox(String),
+    Base(String, String),
+    Staged(String),
+}
+
+enum Undo {
+    Row((String, String), Option<Value>),
+    Entry((String, Vec<u8>), Option<String>),
+    Meta(String, Option<String>),
+    Outbox(String, Option<(u64, String)>),
+    Base((String, String), Option<Option<String>>),
+    Staged(String, Option<(String, String)>),
+}
+
+const SCHEMA_HASH: &str = "memory:schema";
+
+#[derive(Default)]
+pub struct MemoryStore {
+    state: RefCell<State>,
+    schema: Option<Schema>,
+    changes: RefCell<Vec<Change>>,
+}
+
+fn row_key(table: &str, id: &str) -> String {
+    serde_json::to_string(&(table, id)).expect("a key")
+}
+
+fn parse_row_key(key: &str) -> Result<(String, String), RuntimeError> {
+    serde_json::from_str(key).map_err(|e| RuntimeError::Store(format!("a kept row key does not parse: {e}")))
+}
+
+fn stored<T: Serialize>(value: &T) -> String {
+    serde_json::to_string(value).expect("a stored value")
+}
+
+fn parsed<T: for<'de> Deserialize<'de>>(what: &str, text: &str) -> Result<T, RuntimeError> {
+    serde_json::from_str(text).map_err(|e| RuntimeError::Store(format!("a kept {what} does not parse: {e}")))
+}
+
+impl MemoryStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Hand back what the host kept: the changes every commit reported,
+    /// in order, before the schema is installed.
+    pub fn load(&mut self, changes: impl IntoIterator<Item = Change>) -> Result<(), RuntimeError> {
+        let mut state = self.state.borrow_mut();
+        for change in changes {
+            match change.s {
+                'r' => {
+                    let key = parse_row_key(&change.k)?;
+                    match change.v {
+                        Some(image) => {
+                            state.rows.insert(key, parsed("row", &image)?);
+                        }
+                        None => {
+                            state.rows.remove(&key);
+                        }
+                    }
+                }
+                'm' => match change.v {
+                    Some(value) => {
+                        state.meta.insert(change.k, value);
+                    }
+                    None => {
+                        state.meta.remove(&change.k);
+                    }
+                },
+                'o' => match change.v {
+                    Some(entry) => {
+                        #[derive(Deserialize)]
+                        struct Seq {
+                            seq: u64,
+                        }
+                        let seq: Seq = parsed("outbox entry", &entry)?;
+                        state.outbox.insert(change.k, (seq.seq, entry));
+                    }
+                    None => {
+                        state.outbox.remove(&change.k);
+                    }
+                },
+                'b' => {
+                    let key = parse_row_key(&change.k)?;
+                    match change.v {
+                        Some(image) => {
+                            state.base.insert(key, parsed("image", &image)?);
+                        }
+                        None => {
+                            state.base.remove(&key);
+                        }
+                    }
+                }
+                's' => match change.v {
+                    Some(staged) => {
+                        state.staged.insert(change.k, parsed("staged row", &staged)?);
+                    }
+                    None => {
+                        state.staged.remove(&change.k);
+                    }
+                },
+                other => return Err(RuntimeError::Store(format!("a kept change names store {other:?}"))),
+            }
+        }
+        Ok(())
+    }
+
+    /// The changes committed since the last drain, for the host to persist.
+    pub fn drain(&self) -> Vec<Change> {
+        std::mem::take(&mut *self.changes.borrow_mut())
+    }
+
+    /// Everything the store keeps, as the changes that would rebuild it.
+    pub fn export(&self) -> Vec<Change> {
+        let state = self.state.borrow();
+        let mut out = Vec::new();
+        for ((table, id), row) in &state.rows {
+            out.push(Change { s: 'r', k: row_key(table, id), v: Some(stored(row)) });
+        }
+        for (key, value) in &state.meta {
+            out.push(Change { s: 'm', k: key.clone(), v: Some(value.clone()) });
+        }
+        for (id, (_, entry)) in &state.outbox {
+            out.push(Change { s: 'o', k: id.clone(), v: Some(entry.clone()) });
+        }
+        for ((table, id), image) in &state.base {
+            out.push(Change { s: 'b', k: row_key(table, id), v: Some(stored(image)) });
+        }
+        for (key, staged) in &state.staged {
+            out.push(Change { s: 's', k: key.clone(), v: Some(stored(staged)) });
+        }
+        out
+    }
+
+    fn rebuild_entries(state: &mut State, schema: &Schema) {
+        state.entries.clear();
+        for ((table_name, id), row) in &state.rows {
+            let Some(table) = schema.table(table_name) else { continue };
+            for (index_name, index) in &table.indexes {
+                state.entries.insert((format!("{table_name}.{index_name}"), index_key(index, row, id)), id.clone());
+            }
+        }
+    }
+}
+
+/// A row projected onto its table: columns the schema no longer has go,
+/// columns it gained read as null. `pending` is the device's own mark on
+/// a predicted row, not a column; it stays.
+fn project(row: &mut Value, table: &Table) -> bool {
+    let Value::Row(fields) = row else { return false };
+    let before = fields.len();
+    fields.retain(|column, _| column == "pending" || table.columns.contains_key(column));
+    let mut changed = fields.len() != before;
+    for column in table.columns.keys() {
+        if !fields.contains_key(column) {
+            fields.insert(column.clone(), Value::Null);
+            changed = true;
+        }
+    }
+    changed
+}
+
+impl DeviceStore for MemoryStore {
+    type Tx<'a> = MemoryTx<'a>;
+
+    fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
+        let mut state = self.state.borrow_mut();
+        let mut changes = self.changes.borrow_mut();
+        for (key, value) in metadata {
+            state.meta.insert(key.clone(), value.clone());
+            changes.push(Change { s: 'm', k: key.clone(), v: Some(value.clone()) });
+        }
+        if reset {
+            for (table, id) in state.rows.keys() {
+                changes.push(Change { s: 'r', k: row_key(table, id), v: None });
+            }
+            for (table, id) in state.base.keys() {
+                changes.push(Change { s: 'b', k: row_key(table, id), v: None });
+            }
+            for key in state.staged.keys() {
+                changes.push(Change { s: 's', k: key.clone(), v: None });
+            }
+            state.rows.clear();
+            state.base.clear();
+            state.staged.clear();
+        }
+        // Rows are projected onto the schema only when it changed since they
+        // were kept (the hash rides in the metadata); index entries are
+        // rebuilt on every install.
+        let hash = schema.hash();
+        if state.meta.get(SCHEMA_HASH) != Some(&hash) {
+            let mut rows = std::mem::take(&mut state.rows);
+            rows.retain(|(table, id), _| {
+                let kept = schema.tables.contains_key(table);
+                if !kept {
+                    changes.push(Change { s: 'r', k: row_key(table, id), v: None });
+                }
+                kept
+            });
+            for ((table_name, id), row) in rows.iter_mut() {
+                if let Some(table) = schema.table(table_name)
+                    && project(row, table)
+                {
+                    changes.push(Change { s: 'r', k: row_key(table_name, id), v: Some(stored(row)) });
+                }
+            }
+            state.rows = rows;
+            state.meta.insert(SCHEMA_HASH.to_owned(), hash.clone());
+            changes.push(Change { s: 'm', k: SCHEMA_HASH.to_owned(), v: Some(hash) });
+        }
+        Self::rebuild_entries(&mut state, schema);
+        self.schema = Some(schema.clone());
+        Ok(())
+    }
+
+    fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
+        Ok(self.state.borrow().meta.get(key).cloned())
+    }
+
+    fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> {
+        self.state.borrow_mut().meta.insert(key.to_owned(), value.to_owned());
+        self.changes.borrow_mut().push(Change { s: 'm', k: key.to_owned(), v: Some(value.to_owned()) });
+        Ok(())
+    }
+
+    fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
+        Ok(MemoryTx { store: self, undo: RefCell::new(Vec::new()), savepoints: RefCell::new(Vec::new()), dirty: RefCell::new(BTreeSet::new()) })
+    }
+}
+
+pub struct MemoryTx<'a> {
+    store: &'a MemoryStore,
+    undo: RefCell<Vec<Undo>>,
+    savepoints: RefCell<Vec<(String, usize)>>,
+    dirty: RefCell<BTreeSet<Dirty>>,
+}
+
+impl MemoryTx<'_> {
+    fn set_row(&self, key: (String, String), value: Option<Value>) {
+        let mut state = self.store.state.borrow_mut();
+        let old = match &value {
+            Some(row) => state.rows.insert(key.clone(), row.clone()),
+            None => state.rows.remove(&key),
+        };
+        self.undo.borrow_mut().push(Undo::Row(key.clone(), old));
+        self.dirty.borrow_mut().insert(Dirty::Row(key.0, key.1));
+    }
+    fn set_entry(&self, key: (String, Vec<u8>), id: Option<String>) {
+        let mut state = self.store.state.borrow_mut();
+        let old = match &id {
+            Some(id) => state.entries.insert(key.clone(), id.clone()),
+            None => state.entries.remove(&key),
+        };
+        self.undo.borrow_mut().push(Undo::Entry(key, old));
+    }
+    fn set_meta_value(&self, key: &str, value: Option<String>) {
+        let mut state = self.store.state.borrow_mut();
+        let old = match &value {
+            Some(value) => state.meta.insert(key.to_owned(), value.clone()),
+            None => state.meta.remove(key),
+        };
+        self.undo.borrow_mut().push(Undo::Meta(key.to_owned(), old));
+        self.dirty.borrow_mut().insert(Dirty::Meta(key.to_owned()));
+    }
+    fn set_outbox(&self, id: &str, value: Option<(u64, String)>) {
+        let mut state = self.store.state.borrow_mut();
+        let old = match &value {
+            Some(value) => state.outbox.insert(id.to_owned(), value.clone()),
+            None => state.outbox.remove(id),
+        };
+        self.undo.borrow_mut().push(Undo::Outbox(id.to_owned(), old));
+        self.dirty.borrow_mut().insert(Dirty::Outbox(id.to_owned()));
+    }
+    fn set_base(&self, key: (String, String), value: Option<Option<String>>) {
+        let mut state = self.store.state.borrow_mut();
+        let old = match &value {
+            Some(image) => state.base.insert(key.clone(), image.clone()),
+            None => state.base.remove(&key),
+        };
+        self.undo.borrow_mut().push(Undo::Base(key.clone(), old));
+        self.dirty.borrow_mut().insert(Dirty::Base(key.0, key.1));
+    }
+    fn set_staged(&self, key: &str, value: Option<(String, String)>) {
+        let mut state = self.store.state.borrow_mut();
+        let old = match &value {
+            Some(value) => state.staged.insert(key.to_owned(), value.clone()),
+            None => state.staged.remove(key),
+        };
+        self.undo.borrow_mut().push(Undo::Staged(key.to_owned(), old));
+        self.dirty.borrow_mut().insert(Dirty::Staged(key.to_owned()));
+    }
+
+    /// Undo everything after `mark`, newest first.
+    fn unwind(&self, mark: usize) {
+        let mut undo = self.undo.borrow_mut();
+        let mut state = self.store.state.borrow_mut();
+        while undo.len() > mark {
+            match undo.pop().expect("an undo") {
+                Undo::Row(key, old) => {
+                    match old {
+                        Some(row) => state.rows.insert(key, row),
+                        None => state.rows.remove(&key),
+                    };
+                }
+                Undo::Entry(key, old) => {
+                    match old {
+                        Some(id) => state.entries.insert(key, id),
+                        None => state.entries.remove(&key),
+                    };
+                }
+                Undo::Meta(key, old) => {
+                    match old {
+                        Some(value) => state.meta.insert(key, value),
+                        None => state.meta.remove(&key),
+                    };
+                }
+                Undo::Outbox(id, old) => {
+                    match old {
+                        Some(value) => state.outbox.insert(id, value),
+                        None => state.outbox.remove(&id),
+                    };
+                }
+                Undo::Base(key, old) => {
+                    match old {
+                        Some(image) => state.base.insert(key, image),
+                        None => state.base.remove(&key),
+                    };
+                }
+                Undo::Staged(key, old) => {
+                    match old {
+                        Some(value) => state.staged.insert(key, value),
+                        None => state.staged.remove(&key),
+                    };
+                }
+            }
+        }
+    }
+
+    fn range(&self, table: &str, index_name: &str, lo: &[u8], hi: &[u8], dir: Dir, limit: usize) -> Vec<(Value, Vec<u8>)> {
+        let state = self.store.state.borrow();
+        let ti = format!("{table}.{index_name}");
+        let within = state.entries.range((ti.clone(), lo.to_vec())..(ti, hi.to_vec()));
+        let pick = |((_, k), id): (&(String, Vec<u8>), &String)| state.rows.get(&(table.to_owned(), id.clone())).map(|row| (row.clone(), k.clone()));
+        match dir {
+            Dir::Asc => within.take(limit).filter_map(pick).collect(),
+            Dir::Desc => within.rev().take(limit).filter_map(pick).collect(),
+        }
+    }
+}
+
+impl Rows for MemoryTx<'_> {
+    fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        Ok(self.store.state.borrow().rows.get(&(table.to_owned(), id.to_owned())).cloned())
+    }
+    fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        if key.len() != index.components.len() {
+            return Err(RuntimeError::Schema(format!("point read {table}.{index_name} supplied {} of {} key columns", key.len(), index.components.len())));
+        }
+        let prefix = key::encode(key);
+        Ok(self.range(table, index_name, &prefix, &key::upper_bound(&prefix), Dir::Asc, 1).pop().map(|(row, _)| row))
+    }
+    fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        Ok(match scan_range(prefix, bounds, dir) {
+            Some((lo, hi)) => self.range(table, index_name, &lo, &hi, dir, limit),
+            None => Vec::new(),
+        })
+    }
+    fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
+        let base = key::encode(prefix);
+        Ok(self.range(table, index_name, &base, &key::upper_bound(&base), Dir::Asc, limit as usize).len() as u64)
+    }
+    fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        let id = row.field("id")?.as_str()?.to_owned();
+        let mut written = 0;
+        for (index_name, index) in &table.indexes {
+            let ti = format!("{table_name}.{index_name}");
+            if let Some(old) = old {
+                self.set_entry((ti.clone(), index_key(index, old, &id)), None);
+            }
+            self.set_entry((ti, index_key(index, row, &id)), Some(id.clone()));
+            written += 1;
+        }
+        self.set_row((table_name.to_owned(), id), Some(row.clone()));
+        Ok(written)
+    }
+    fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        let id = old.field("id")?.as_str()?.to_owned();
+        for (index_name, index) in &table.indexes {
+            self.set_entry((format!("{table_name}.{index_name}"), index_key(index, old, &id)), None);
+        }
+        self.set_row((table_name.to_owned(), id), None);
+        Ok(table.indexes.len() as u64)
+    }
+}
+
+impl DeviceTx for MemoryTx<'_> {
+    fn commit(self) -> Result<(), RuntimeError> {
+        let state = self.store.state.borrow();
+        let mut changes = self.store.changes.borrow_mut();
+        for dirty in self.dirty.borrow().iter() {
+            changes.push(match dirty {
+                Dirty::Row(table, id) => Change { s: 'r', k: row_key(table, id), v: state.rows.get(&(table.clone(), id.clone())).map(stored) },
+                Dirty::Meta(key) => Change { s: 'm', k: key.clone(), v: state.meta.get(key).cloned() },
+                Dirty::Outbox(id) => Change { s: 'o', k: id.clone(), v: state.outbox.get(id).map(|(_, entry)| entry.clone()) },
+                Dirty::Base(table, id) => Change { s: 'b', k: row_key(table, id), v: state.base.get(&(table.clone(), id.clone())).map(stored) },
+                Dirty::Staged(key) => Change { s: 's', k: key.clone(), v: state.staged.get(key).map(stored) },
+            });
+        }
+        // Committed: there is nothing left to undo when this drops.
+        self.undo.borrow_mut().clear();
+        self.savepoints.borrow_mut().clear();
+        Ok(())
+    }
+    fn rollback(self) -> Result<(), RuntimeError> {
+        self.unwind(0);
+        Ok(())
+    }
+    fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
+        let mark = self.undo.borrow().len();
+        self.savepoints.borrow_mut().push((name.to_owned(), mark));
+        Ok(())
+    }
+    fn release(&self, name: &str) -> Result<(), RuntimeError> {
+        let mut savepoints = self.savepoints.borrow_mut();
+        let at = savepoints.iter().rposition(|(n, _)| n == name).ok_or_else(|| RuntimeError::Store(format!("no savepoint {name}")))?;
+        savepoints.truncate(at);
+        Ok(())
+    }
+    fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
+        let mark = {
+            let mut savepoints = self.savepoints.borrow_mut();
+            let at = savepoints.iter().rposition(|(n, _)| n == name).ok_or_else(|| RuntimeError::Store(format!("no savepoint {name}")))?;
+            let mark = savepoints[at].1;
+            savepoints.truncate(at);
+            mark
+        };
+        self.unwind(mark);
+        Ok(())
+    }
+    fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
+        Ok(self.store.state.borrow().meta.get(key).cloned())
+    }
+    fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
+        self.set_meta_value(key, Some(value.to_owned()));
+        Ok(())
+    }
+    fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError> {
+        for key in keys {
+            self.set_meta_value(key, None);
+        }
+        Ok(())
+    }
+    fn clear_rows(&self) -> Result<(), RuntimeError> {
+        let keys: Vec<(String, String)> = self.store.state.borrow().rows.keys().cloned().collect();
+        for key in keys {
+            self.set_row(key, None);
+        }
+        let entries: Vec<(String, Vec<u8>)> = self.store.state.borrow().entries.keys().cloned().collect();
+        for key in entries {
+            self.set_entry(key, None);
+        }
+        Ok(())
+    }
+    fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> {
+        {
+            let state = self.store.state.borrow();
+            if state.outbox.contains_key(id) {
+                return Err(RuntimeError::Store(format!("the outbox already holds {id}")));
+            }
+            if state.outbox.values().any(|(held, _)| *held == seq) {
+                return Err(RuntimeError::Store(format!("the outbox already holds submission {seq}")));
+            }
+        }
+        self.set_outbox(id, Some((seq, entry.to_owned())));
+        Ok(())
+    }
+    fn outbox_upsert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> {
+        self.set_outbox(id, Some((seq, entry.to_owned())));
+        Ok(())
+    }
+    fn outbox_delete(&self, id: &str) -> Result<(), RuntimeError> {
+        if self.store.state.borrow().outbox.contains_key(id) {
+            self.set_outbox(id, None);
+        }
+        Ok(())
+    }
+    fn outbox_get(&self, id: &str) -> Result<Option<String>, RuntimeError> {
+        Ok(self.store.state.borrow().outbox.get(id).map(|(_, entry)| entry.clone()))
+    }
+    fn outbox_entries(&self) -> Result<Vec<String>, RuntimeError> {
+        let state = self.store.state.borrow();
+        let mut entries: Vec<(u64, &String)> = state.outbox.values().map(|(seq, entry)| (*seq, entry)).collect();
+        entries.sort_by_key(|(seq, _)| *seq);
+        Ok(entries.into_iter().map(|(_, entry)| entry.clone()).collect())
+    }
+    fn outbox_max_seq(&self) -> Result<u64, RuntimeError> {
+        Ok(self.store.state.borrow().outbox.values().map(|(seq, _)| *seq).max().unwrap_or(0))
+    }
+    fn base_remember(&self, table: &str, id: &str, image: Option<&str>) -> Result<(), RuntimeError> {
+        let key = (table.to_owned(), id.to_owned());
+        if !self.store.state.borrow().base.contains_key(&key) {
+            self.set_base(key, Some(image.map(str::to_owned)));
+        }
+        Ok(())
+    }
+    fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> {
+        Ok(self.store.state.borrow().base.iter().map(|((table, id), image)| (table.clone(), id.clone(), image.clone())).collect())
+    }
+    fn base_clear(&self) -> Result<(), RuntimeError> {
+        let keys: Vec<(String, String)> = self.store.state.borrow().base.keys().cloned().collect();
+        for key in keys {
+            self.set_base(key, None);
+        }
+        Ok(())
+    }
+    fn staged_put(&self, key: &str, table: &str, image: &str) -> Result<(), RuntimeError> {
+        self.set_staged(key, Some((table.to_owned(), image.to_owned())));
+        Ok(())
+    }
+    fn staged_delete(&self, key: &str) -> Result<(), RuntimeError> {
+        if self.store.state.borrow().staged.contains_key(key) {
+            self.set_staged(key, None);
+        }
+        Ok(())
+    }
+    fn staged_after(&self, after: &str, limit: usize) -> Result<Vec<(String, String, String)>, RuntimeError> {
+        use std::ops::Bound::{Excluded, Unbounded};
+        Ok(self.store.state.borrow().staged.range::<str, _>((Excluded(after), Unbounded)).take(limit).map(|(key, (table, image))| (key.clone(), table.clone(), image.clone())).collect())
+    }
+    fn staged_table_after(&self, table: &str, after: &str, limit: usize) -> Result<Vec<(String, String)>, RuntimeError> {
+        use std::ops::Bound::{Excluded, Unbounded};
+        Ok(self.store.state.borrow().staged.range::<str, _>((Excluded(after), Unbounded)).filter(|(_, (held, _))| held == table).take(limit).map(|(key, (_, image))| (key.clone(), image.clone())).collect())
+    }
+    fn staged_clear(&self) -> Result<(), RuntimeError> {
+        let keys: Vec<String> = self.store.state.borrow().staged.keys().cloned().collect();
+        for key in keys {
+            self.set_staged(&key, None);
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Drop for MemoryTx<'a> {
+    // A transaction dropped without commit or rollback rolls back.
+    fn drop(&mut self) {
+        if !self.undo.borrow().is_empty() {
+            self.unwind(0);
+        }
+    }
+}

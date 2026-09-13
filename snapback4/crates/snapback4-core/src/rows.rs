@@ -43,6 +43,51 @@ pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
     index.columns().iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect()
 }
 
+/// The encoded key range `[lo, hi)` a scan covers: the prefix, narrowed by
+/// the bounds on the first free component and by a cursor position; `None`
+/// when the range is empty. Every in-memory store scans the same way.
+pub fn scan_range(prefix: &[Value], bounds: &Bounds, dir: Dir) -> Option<(Vec<u8>, Vec<u8>)> {
+    let base = key::encode(prefix);
+    let mut lo = base.clone();
+    let mut hi = key::upper_bound(&base);
+    let with = |value: &Value| {
+        let mut extended = prefix.to_vec();
+        extended.push(value.clone());
+        key::encode(&extended)
+    };
+    if let Some(value) = &bounds.gte {
+        lo = lo.max(with(value));
+    }
+    if let Some(value) = &bounds.gt {
+        lo = lo.max(key::upper_bound(&with(value)));
+    }
+    if let Some(value) = &bounds.lte {
+        hi = hi.min(key::upper_bound(&with(value)));
+    }
+    if let Some(value) = &bounds.lt {
+        hi = hi.min(with(value));
+    }
+    if let Some(after) = &bounds.after {
+        let mut position = prefix.to_vec();
+        position.extend(after.iter().cloned());
+        let position = key::encode(&position);
+        match dir {
+            Dir::Asc => lo = lo.max(key::upper_bound(&position)),
+            Dir::Desc => hi = hi.min(position),
+        }
+    }
+    if let Some(before) = &bounds.before {
+        let mut position = prefix.to_vec();
+        position.extend(before.iter().cloned());
+        let position = key::encode(&position);
+        match dir {
+            Dir::Asc => hi = hi.min(position),
+            Dir::Desc => lo = lo.max(key::upper_bound(&position)),
+        }
+    }
+    (lo < hi).then_some((lo, hi))
+}
+
 /// The store as the interpreter sees it.
 pub trait Rows {
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError>;
@@ -118,48 +163,10 @@ impl Rows for MemoryRows {
         Ok(self.range(table, index_name, &prefix, &key::upper_bound(&prefix), Dir::Asc, 1).pop().map(|(row, _)| row))
     }
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let base = key::encode(prefix);
-        let mut lo = base.clone();
-        let mut hi = key::upper_bound(&base);
-        let with = |value: &Value| {
-            let mut extended = prefix.to_vec();
-            extended.push(value.clone());
-            key::encode(&extended)
-        };
-        if let Some(value) = &bounds.gte {
-            lo = lo.max(with(value));
-        }
-        if let Some(value) = &bounds.gt {
-            lo = lo.max(key::upper_bound(&with(value)));
-        }
-        if let Some(value) = &bounds.lte {
-            hi = hi.min(key::upper_bound(&with(value)));
-        }
-        if let Some(value) = &bounds.lt {
-            hi = hi.min(with(value));
-        }
-        if let Some(after) = &bounds.after {
-            let mut position = prefix.to_vec();
-            position.extend(after.iter().cloned());
-            let position = key::encode(&position);
-            match dir {
-                Dir::Asc => lo = lo.max(key::upper_bound(&position)),
-                Dir::Desc => hi = hi.min(position),
-            }
-        }
-        if let Some(before) = &bounds.before {
-            let mut position = prefix.to_vec();
-            position.extend(before.iter().cloned());
-            let position = key::encode(&position);
-            match dir {
-                Dir::Asc => hi = hi.min(position),
-                Dir::Desc => lo = lo.max(key::upper_bound(&position)),
-            }
-        }
-        if lo >= hi {
-            return Ok(Vec::new());
-        }
-        Ok(self.range(table, index_name, &lo, &hi, dir, limit))
+        Ok(match scan_range(prefix, bounds, dir) {
+            Some((lo, hi)) => self.range(table, index_name, &lo, &hi, dir, limit),
+            None => Vec::new(),
+        })
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         let base = key::encode(prefix);

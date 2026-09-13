@@ -1892,3 +1892,104 @@ four codes (`E_NATIVE`, `E_NATIVE_TOOLCHAIN`, `E_NATIVE_BUILD`,
 Not done: the SDK on crates.io; the same Rust over the device's `Rows`;
 a binary protocol should the JSON per call ever be the cost.
 
+## 2026-09-13 — one implementation: the device over a store trait, memory for the web, the ruling
+
+The author asked whether the TypeScript twin was there only because wasm
+had measured larger, and ruled: unify, one implementation in Rust (LLP
+3000 §7). The web keeps its device in memory, since the interpreter's
+store boundary is synchronous and IndexedDB is not; the host writes each
+commit's changes behind the call and hands them back on the next open.
+
+The device crate is that now. `store.rs` says what a device needs of a
+store beyond `Rows` — a transaction with savepoints, metadata, the
+outbox in submission order, the confirmed images beneath predictions,
+the staged snapshot — and `device.rs` is the one device over it: the
+stream applied with the watermark, paged snapshots staged until the last
+page, admit and settle over confirmed images with the survivors replayed,
+queries and predictions through `engine::local`; the snapshot owner is
+a number from the store, not a process id, because a browser has none.
+`sqlite.rs` binds the core's store on a native host, unchanged in
+behaviour: the seven scenarios the reviewed module carried pass on it as
+they did. `memory.rs` is the web's store — B-trees, transactions as an
+undo log with savepoints as marks in it, index entries rebuilt on
+install — and every commit reports its changes as `{s, k, v}` for the
+host to persist; the first drain after an open carries what the open
+installed, the backend and the generation. `call.rs` is the one JSON
+dispatcher every host speaks, and `web.rs` the wasm surface over the
+memory store: open with the backend and what the host kept, call, drain.
+
+`tests/device.rs` runs every scenario on both stores — the memory host
+in the test keeps each drain the way IndexedDB will, and a reopen loads
+it back — and `tests/native.rs` keeps what only SQLite has: two devices
+over one store, a store that fails mid-snapshot. One defect the memory
+store had before the suite caught it: a committed transaction rolled
+itself back on drop, because commit left its undo log standing.
+
+Measured whole as wasm (`metrics/wasm.jsonl`): 1,212,605 B raw,
+312,924 gzip, 237,870 brotli, against 194,465 gzip when the wasm carried
+query and predict alone. That is the price before the diet; the ruling
+accepts it and the diet is the third slice. Next: the one client over
+one device interface with three openers (wasm on the web, the Expo
+module, the process for Node), the TypeScript interpreter, replica and
+stores retired once the Chromium and scale witnesses pass on wasm, the
+apps and the docs moved, 0.2.0.
+
+## 2026-09-13 — one client, three openers: the twin retired; 0.2.0
+
+The JavaScript that remains is the one client the native tier already
+was — `snapback4/local`'s `createLocalClient({ url, device, ... })`: the
+session, the link, the transport, the observation of reads — over one
+device interface, `DeviceOpener`: `open(name, backend)` giving back one
+JSON call. The client derives the store's name from the server and the
+viewer; where it lives is the opener's business. Three openers:
+`webDevice()` from `snapback4/web` (the wasm device over memory, each
+call's changes written to IndexedDB behind it, in one transaction per
+call, so a queued write is as durable as the twin's was); `nativeDevice`
+from `snapback4-expo` (the module, the store under the documents
+directory); `processDevice()` from `snapback4/native` (the `snapback4
+device` process, for Node). On the web one tab is one device: a tab that
+finds the store's lock held opens a tab-scoped store, and the writes an
+orphaned tab left queued are adopted, in their order, by the next device
+that opens the store. Expo Go, which loads no custom native code and no
+wasm under Hermes, runs the online tier with a session the app keeps.
+
+Gone: the TypeScript interpreter, replica, stores, cursors and key
+encoding (`src/replica/*`, 2,400 lines), their tests and the key vectors,
+the two compiler tests that ran the twin against the interpreter, and
+the twin's half of the storage measurement. The lifecycle suite runs its
+scenarios on both the wasm and the process tier — thirty of them; the
+one about two clients over one store stays native, since on the web a
+tab is a device. The end-to-end suites run on the wasm device in Node
+and the process device.
+
+Two defects the move found. Replay minted past the admitted ids only to
+learn it needed more, and minting with no entropy asked the clock —
+`SystemTime::now`, which a browser does not have — so the wasm aborted
+where a native host went on; replay's entropy now comes from the entry,
+and the core's seed is a counter on wasm. And the memory store projected
+every kept row onto the schema at each open, which stripped the device's
+own `pending` mark from predictions across a reopen — caught by the
+pending-metadata scenario that landed on main meanwhile, once it ran on
+the wasm tier; rows are projected only when the schema's hash moved, and
+the mark is not a column. That scenario now runs on both stores in the
+device suite.
+
+Measured (`metrics/client.jsonl`, `metrics/witness.jsonl`): the
+local-first JavaScript is 12,070 B gzip where the twin's tier was
+16,842, and the wasm beside it 313,763. The Chromium witness on the
+wasm device: 303 rows synced in 75 ms (the twin: 59), a reopen in 17 ms
+(4.5), the queued write landing after a reload, the refused prediction
+typed; at scale, 20,440 events in 3,304 ms (4,496), the heap at 19.6 MB
+(22.1), a thread read in 4.8 ms (10.2), and a reopen in 256 ms (11.7) —
+the price of loading the partition into memory, which the ruling
+accepted, and the number to watch. The simulator witness on the native
+module is unchanged in kind and in number.
+
+What the bytes are, from a symbol-bearing build: serde's derived
+visitors 284 KB, serde_json 335 KB, alloc 267 KB (mostly serde's
+instantiations), core 181 KB, the interpreter 126 KB, the device 61 KB —
+two thirds JSON, a tenth interpreter. The diet is filed
+(`issues/20260913-snapback4-wasm-device-diet.md`): decode the backend by
+hand from one `Value` walk and drop the IR's derives on the device,
+answer as text, fewer `format!` sites; done under 150 KB gzip. Next
+after it: a rerun of the full brief on the unified client.

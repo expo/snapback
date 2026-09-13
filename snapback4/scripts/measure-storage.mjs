@@ -23,7 +23,7 @@ if (process.argv.includes("--catalog")) {
   process.exit(0);
 }
 
-// --workloads adds HTTP and local replica measurements to the same seed.
+// --workloads adds HTTP measurements to the same seed.
 // These are within-Snapback measurements, not competitor wins: the transport,
 // hardware, durability and dataset must also match in a comparison run.
 const workloads = process.argv.includes("--workloads");
@@ -81,8 +81,8 @@ try {
   const s = report.storage;
   assert.equal(doctor.status, 0, doctor.stderr);
   const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
-  const client = workloads ? Buffer.concat(["store", "sqlite", "interpreter", "replica", "key", "cursor"].map((name) => readFileSync(join(root, `packages/snapback4/dist/replica/${name}.js`)))) : undefined;
-  out = { at: new Date().toISOString(), binary, binarySha256: digest(readFileSync(binary)), clientSha256: client && digest(client), workloadSha256: digest(readFileSync(new URL(import.meta.url))), seedSha256: digest(JSON.stringify(seed)), sha: spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim(), dirty: !!spawnSync("git", ["status", "--porcelain", "--untracked-files=no", "--", "snapback4"], { cwd: join(root, ".."), encoding: "utf8" }).stdout.trim(), node: process.version, host: `${platform()}-${arch()} ${cpus()[0].model}`, transport: "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL", replicas: workloads ? "MemoryStore; node:sqlite :memory: (not Expo or durable device storage)" : undefined, groups, messages, members, seeded: seeded.seeded, seedMs, rowsBytes: s.rows, rowCount: s.row_count, indexBytes: s.indexes, logBytes: s.log, logEvents: s.log_events, fileBytes: s.file, logPerRows: +(s.log / s.rows).toFixed(2), filePerRows: +(s.file / s.rows).toFixed(2), measurements };
+  const client = workloads ? Buffer.concat(["local", "web", "backend"].map((name) => readFileSync(join(root, `packages/snapback4/dist/${name}.js`)))) : undefined;
+  out = { at: new Date().toISOString(), binary, binarySha256: digest(readFileSync(binary)), clientSha256: client && digest(client), workloadSha256: digest(readFileSync(new URL(import.meta.url))), seedSha256: digest(JSON.stringify(seed)), sha: spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim(), dirty: !!spawnSync("git", ["status", "--porcelain", "--untracked-files=no", "--", "snapback4"], { cwd: join(root, ".."), encoding: "utf8" }).stdout.trim(), node: process.version, host: `${platform()}-${arch()} ${cpus()[0].model}`, transport: "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL", replicas: undefined, groups, messages, members, seeded: seeded.seeded, seedMs, rowsBytes: s.rows, rowCount: s.row_count, indexBytes: s.indexes, logBytes: s.log, logEvents: s.log_events, fileBytes: s.file, logPerRows: +(s.log / s.rows).toFixed(2), filePerRows: +(s.file / s.rows).toFixed(2), measurements };
 } finally {
   server.kill();
   await exited;
@@ -125,33 +125,8 @@ async function measureWorkloads(request, seed) {
   const inbox = await timed("httpInbox", () => request("/q/inbox", {}), (r) => assert.equal(r.data.length, Math.min(50, groups)));
   await timed("httpFeed", () => request("/q/feed", { c: null }), checkFeed);
 
-  const { MemoryStore } = await import("../packages/snapback4/dist/replica/store.js");
-  const { openSqlite, nodeSqliteDriver } = await import("../packages/snapback4/dist/replica/sqlite.js");
-  const { Interpreter } = await import("../packages/snapback4/dist/replica/interpreter.js");
-  const { Replica } = await import("../packages/snapback4/dist/replica/replica.js");
-  const { DatabaseSync } = await import("node:sqlite");
-  const backend = await request("/schema");
-  const programs = Object.fromEntries(backend.programs.map((p) => [p.name, p]));
-  for (const kind of ["memory", "sqlite"]) {
-    const store = kind === "memory" ? new MemoryStore(backend.schema) : await openSqlite(nodeSqliteDriver(new DatabaseSync(":memory:")), backend.schema);
-    let pages = 0, events = 0;
-    const replica = new Replica(store, backend.schema, { async sync(from, limit, after) {
-      const p = await request(`/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}`);
-      pages++; events += p.events.length;
-      return p;
-    } }, backend.generation);
-    try {
-      const start = performance.now();
-      assert.equal((await replica.syncOnce()).ok, true);
-      results[`${kind}ColdSync`] = { ms: +(performance.now() - start).toFixed(1), pages, events };
-      const run = (op, args) => store.read((tx) => new Interpreter(tx, backend.schema, { viewer: "dev:bob", args, now: Date.now(), newIds: [], mint: () => { throw new Error("query minted an id"); } }, "query").run(programs[op]));
-      await timed(`${kind}Point`, () => run("point", pointArgs), checkPoint);
-      await timed(`${kind}Thread`, () => run("thread", threadArgs), checkThread);
-      await timed(`${kind}Inbox`, () => run("inbox", {}), (r) => assert.deepEqual(r.data, inbox.data));
-      await timed(`${kind}Feed`, () => run("feed", { c: null }), checkFeed);
-      assert.equal(await store.read((tx) => tx.count("messages", "byId", [], Number.MAX_SAFE_INTEGER)), groups * Math.min(messages, 500));
-    } finally { await replica.close(); }
-  }
+  // The device's own timings are the witnesses' (metrics/witness.jsonl):
+  // one implementation, measured where it runs.
   const sent = await timed("httpSend", (n) => request("/m/send", { id: `perf-send-${n}`, args: { conversationId: "c000", body: "measured send" } }), (r) => assert.equal(r.state, "sent"));
   await timed("httpEdit", () => request("/m/edit", { args: { messageId: sent.result.id, body: "measured edit" } }), (r) => assert.equal(r.state, "sent"));
   return results;

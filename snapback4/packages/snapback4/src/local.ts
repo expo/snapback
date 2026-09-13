@@ -1,61 +1,50 @@
-// The local-first tier (LLP 2000.000 §7): a replica of the viewer's
-// partitions, a durable outbox of client-minted writes, and the interpreter,
-// on the same card as the online tier. Queries run locally and are
-// `complete` inside the horizon; `fresh` says the replica has everything the
-// server had at the last sync; a predictable mutation renders its rows as
-// `pending` before the server confirms them.
+// The local-first tier (LLP 3000 §7, one implementation): the device is
+// the Rust module — the partition in its own store, the stream applied,
+// the outbox kept, queries and predictions answered — and this client is
+// what remains: the session, the link, the transport, and the observation
+// of reads. Every word a screen reads is still the card. The module is
+// reached through one JSON call (`DeviceCore`), so the wasm device on the
+// web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
+// `snapback4 device` process for Node (`snapback4/native`) all fit.
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { createClient, mintId } from "./client.ts";
+import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
-import { Interpreter, Refused, type LocalRead, type ProgramJson } from "./replica/interpreter.ts";
-import { predict, restoreConfirmed } from "./replica/predictions.ts";
-import { operationTables } from "./replica/dependencies.ts";
-import { Replica, type StreamPage } from "./replica/replica.ts";
-import { MemoryStore, openIndexedDb, type Row, type SchemaJson, type Store, type StoreTx } from "./replica/store.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, restoreSession, type Session, type SessionStore } from "./auth.ts";
+
+/** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
+export interface DeviceCore {
+  call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
+  close(): Promise<void>;
+}
+
+/** How a host opens its device: a store name the client derives from the
+ * server and the viewer (the host decides where that lives), and the
+ * backend the server sent — null to open on the one kept from last time. */
+export interface DeviceOpener {
+  open(name: string, backend: BackendJson | null): Promise<DeviceCore>;
+}
 
 export interface LocalOptions {
   readonly url: string;
-  /** A development persona (loopback only): `alice` acts as `dev:alice`. */
   readonly persona?: string;
-  /** A session from `guest()`, `login()` or `signup()`; the client keeps it
-   * and restores it on the next start, so an app passes it once. */
   readonly session?: Session;
-  /** With no session kept for this server, mint a guest (`use identity guests`). */
   readonly guest?: boolean;
-  /** Where the session is kept: `localStorage` by default, memory without one. */
   readonly sessionStore?: SessionStore;
   readonly fetch?: typeof fetch;
-  /** `"indexeddb"` on the web (the default when available), `"memory"` for
-   * tests, or an opener for another store (`openSqlite` from
-   * `snapback4/replica` on Expo and Node). */
-  readonly store?: "indexeddb" | "memory" | { open(name: string, schema: SchemaJson): Promise<Store> };
+  /** The device: `webDevice()` on the web, `nativeDevice` from
+   * `snapback4-expo`, `processDevice()` in Node. */
+  readonly device: DeviceOpener;
   readonly waitSeconds?: number;
 }
 
 export type LocalClient = Client & {
-  readonly replica: Replica;
   sync(): Promise<void>;
-  /** The session this device holds, or null once it ended: after `signOut()`,
-   * or once the server refused it. Anything that keeps the token (a native
-   * image header, a presence lease) takes it from `onSession`/`useSession`
-   * and stops when it is null; a token read after sign-out is null. */
   session(): Session | null;
-  /** Told when the session ends (null) — sign-out, or the server's refusal. */
   onSession(notify: (session: Session | null) => void): () => void;
-  /** End the session on the server and forget it here; the client closes. */
   signOut(): Promise<void>;
 };
-
-/** The meta key under which a device keeps the backend it last loaded. */
-const BACKEND = "backend";
-
-interface Backend {
-  generation: number;
-  schema: SchemaJson;
-  programs: Record<string, ProgramJson>;
-}
 
 interface Watch {
   op: Query<unknown, unknown>;
@@ -63,7 +52,6 @@ interface Watch {
   key: string;
   tables: Set<string>;
   snapshot: Read<unknown>;
-  lastServerAt: number;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
@@ -71,17 +59,38 @@ interface Watch {
 
 interface Queued {
   id: string;
-  /** The device's submission order: the outbox flushes by it. */
-  seq?: number;
+  seq: number;
   op: string;
   args: unknown;
-  newIds: string[];
-  /** Rows this write predicted, to withdraw on failure: `table/id`. */
+  new_ids: string[];
   predicted: string[];
   predictable?: boolean;
+  sent_seq?: number | null;
+  observed_seq?: number | null;
+  viewer?: string;
   now?: number;
-  sentSeq?: number;
-  observedSeq?: number;
+}
+
+const PAGE = 4000;
+
+async function requireSyncProtocol(core: DeviceCore): Promise<void> {
+  try {
+    // A JavaScript update can run inside an older Expo development build.
+    // Probe without sending or changing an outbox entry, even when offline.
+    const reply = await core.call({ op: "sync_state" });
+    const denied = reply?.denied as Refusal | undefined;
+    if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
+    const state = reply?.ok as Record<string, unknown> | undefined;
+    const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+    if (denied || !state || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+      throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
+    }
+  } catch (error) {
+    // No client, follower or retry owns this handle yet. Await its release
+    // and preserve the startup diagnostic if close itself also fails.
+    try { await core.close(); } catch {}
+    throw error;
+  }
 }
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
@@ -92,8 +101,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let session: Session | null = null;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
-    // The device's session: the one passed, else the one kept for this
-    // server, else a fresh guest when the app allows one.
     if (options.session) {
       session = options.session;
       await keepSession(base, session, sessions);
@@ -110,7 +117,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
   let sessionDead = false;
-  let partitionDenied: Refusal | null = null;
   const sessionListeners = new Set<(session: Session | null) => void>();
   const endSession = async () => {
     sessionDead = true;
@@ -124,37 +130,30 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
   };
 
-  // The store opens before the network is asked: a device that starts
-  // offline runs on the backend it cached last time, on the rows it holds.
-  const storeName = `snapback4:${base}:${viewer}`;
-  const useIdb = options.store === "indexeddb" || (options.store === undefined && typeof indexedDB !== "undefined");
-  const unknown: SchemaJson = { tables: {} };
-  const store: Store = typeof options.store === "object" ? await options.store.open(storeName, unknown) : useIdb ? await openIndexedDb(storeName, unknown) : new MemoryStore(unknown);
-  const cached = (await store.read((tx) => tx.getMeta(BACKEND))) as Backend | undefined;
+  // The device opens on the backend the server sends, or on the one it
+  // kept when the server is unreachable: a device that has synced once
+  // starts offline on what it holds. One store per server and viewer.
+  const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
   let link: Link = "online";
-  let backend: Backend;
+  let generation = 0;
+  let backend: BackendJson | null = null;
   try {
     backend = await loadBackend(doFetch, base, headers);
-    await store.write((tx) => tx.setMeta(BACKEND, backend));
-  } catch (error) {
-    if (!cached) {
-      await store.close();
-      throw new Error(`createLocalClient: cannot reach ${base} and this device holds no backend yet: ${(error as Error).message}`);
-    }
-    backend = cached;
+  } catch {
     link = "offline";
   }
-  store.setSchema(backend.schema);
+  const active = new Set<Promise<unknown>>();
+  const core = await options.device.open(storeName, backend);
+  await requireSyncProtocol(core);
+  if (backend) generation = Number(backend.generation ?? 0);
+  else {
+    const state = await call({ op: "state" });
+    generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
+  }
+  if (!backend) backend = (await call({ op: "backend" })).ok as BackendJson;
+  const online = createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
   let closed = false;
   let closing: Promise<void> | undefined;
-  const active = new Set<Promise<unknown>>();
-  function track<T>(work: Promise<T>): Promise<T> {
-    active.add(work);
-    void work.finally(() => active.delete(work)).catch(() => {});
-    return work;
-  }
-  let changesSeq = 0;
-  const online = createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
   const aborter = new AbortController();
   let networkTail: Promise<unknown> = Promise.resolve();
   function network<T>(body: () => Promise<T>): Promise<T> {
@@ -162,8 +161,26 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     networkTail = result.catch(() => {});
     return result;
   }
+  let seq = 0;
+  // The submission counter is taken synchronously as each write is admitted
+  // — a burst predicts concurrently and would otherwise number itself in
+  // the order its predictions finished — and continues from what the
+  // module's outbox holds.
+  let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1;
+  let partitionDenied: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
+  const settled = new Map<string, (write: Write) => void>();
+  let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
+  let caughtUp = false;
+
+  async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
+    const work = core.call(request);
+    active.add(work);
+    try { return (await work) as { ok?: unknown; denied?: Refusal }; }
+    finally { active.delete(work); }
+  }
+
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
   const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
 
@@ -180,9 +197,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || sessionDead) return { ok: false };
     try {
       const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body), signal: aborter.signal });
-      if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       const json = (await response.json()) as Record<string, unknown>;
       if (closed) return { ok: false };
+      if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       await refusedSession(json.denied ?? json.why);
       if (link !== "online") setLink("online");
       return { ok: true, json };
@@ -192,73 +209,93 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
 
-  const replica = new Replica(store, backend.schema, {
-    async sync(from, limit, after, stream) {
-      try {
-        if (closed || sessionDead) return { denied: unavailable() };
-        const { pending, sendRevision } = await store.read(async (tx) => ({
-          pending: (await tx.side("outbox").all()).map((entry) => entry.value as Queued).filter((entry) => entry.sentSeq === undefined).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || a.id.localeCompare(b.id)).slice(0, 256).map((entry) => entry.id),
-          sendRevision: Number(await tx.getMeta("outbox:sendRevision") ?? 0),
-        }));
-        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}${stream ? "&stream=1" : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
-        if (response.status >= 500) { setLink("offline"); return { denied: offline() }; }
-        const page = (await response.json()) as StreamPage & { denied?: Refusal };
-        if (closed) return { denied: unavailable() };
+  // ----- the stream -----
+
+  let syncing: Promise<boolean> | null = null;
+  function syncOnce(): Promise<boolean> {
+    if (syncing) return syncing;
+    const result = network(syncRound);
+    syncing = result;
+    void result.finally(() => { if (syncing === result) syncing = null; }).catch(() => {});
+    return result;
+  }
+  async function syncRound(): Promise<boolean> {
+    caughtUp = false;
+    if (closed || sessionDead) return false;
+    const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
+    let watermark = state?.watermark ?? 0;
+    const touched = new Set<string>();
+    let after: string | undefined;
+    let catchingUp = false;
+    try {
+      for (let pages = 0; pages < 100_000; pages++) {
+        let page: Record<string, unknown>;
+        try {
+          const captured = await call({ op: "sync_state" });
+          if (captured.denied) return false;
+          const { pending_ids: pending, send_revision } = captured.ok as { pending_ids: string[]; send_revision: number };
+          const response = await doFetch(`${base}/sync?from=${watermark}&limit=${PAGE}${after ? `&after=${encodeURIComponent(after)}` : ""}${catchingUp ? "&stream=1" : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
+          if (response.status >= 500) { setLink("offline"); return false; }
+          page = (await response.json()) as Record<string, unknown>;
+          page.send_revision = send_revision;
+        } catch {
+          setLink("offline");
+          return false;
+        }
+        if (closed) return false;
         if (page.denied) {
           await refusedSession(page.denied);
-          if (!page.denied.retryable) {
-            // The server refuses this device's partition (a schema the store
-            // cannot serve, a dead session): every read says so, once
-            // loudly here, and until the next successful sync.
-            if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${page.denied.code}: ${page.denied.message}`);
-            partitionDenied = page.denied;
+          if (!(page.denied as Refusal).retryable) {
+            if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${(page.denied as Refusal).code}: ${(page.denied as Refusal).message}`);
+            partitionDenied = page.denied as Refusal;
             for (const watch of watches.values()) void rerun(watch);
           }
-          return { denied: page.denied };
+          return false;
         }
-        partitionDenied = null;
         if (link !== "online") setLink("online");
-        if (page.generation !== undefined && page.generation !== backend.generation) {
-          // Day two: the server adopted a new generation. Load it, then let
-          // the replica re-derive the partition on its next round.
-          const next = await loadBackend(doFetch, base, headers, aborter.signal);
-          if (closed) return { denied: unavailable() };
-          const previous = backend;
+        partitionDenied = null;
+        const pageGeneration = Number(page.generation ?? generation);
+        if (pageGeneration !== generation) {
+          // A new generation: adopt the backend the server now serves; the
+          // device drops its rows and the next round takes a snapshot.
           try {
-            await store.write(async (tx) => {
-              if (closed) throw new Error("client closed during backend adoption");
-              await tx.setMeta(BACKEND, next);
-              // Existing operations finish with their own index schema;
-              // later transactions see the backend and schema together.
-              store.setSchema(next.schema);
-              backend = next;
-              replica.adopt(next.schema, next.generation);
-            });
-          } catch (error) {
-            store.setSchema(previous.schema);
-            backend = previous;
-            replica.adopt(previous.schema, previous.generation);
-            throw error;
+            backend = await loadBackend(doFetch, base, headers, aborter.signal);
+            if (closed) return false;
+            const adopted = await call({ op: "adopt", backend });
+            if (adopted.denied) return false;
+            generation = Number(backend.generation ?? pageGeneration);
+          } catch {
+            return false;
           }
-          for (const watch of watches.values()) void rerun(watch);
-          return { denied: { code: "E_GENERATION", family: "generation", message: "the backend changed; re-deriving the partition", retryable: true } };
+          watermark = 0; after = undefined; catchingUp = false; continue;
         }
-        return { ...page, send_revision: sendRevision };
-      } catch {
-        setLink("offline");
-        return { denied: offline() };
+        if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
+        page.stage_snapshot = !!page.snapshot;
+        page.snapshot_catchup = catchingUp;
+        const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined });
+        if (closed) return false;
+        if (applied.denied) return false;
+        for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
+        if (page.snapshot && page.more && page.next) {
+          after = page.next as string;
+          continue;
+        }
+        after = undefined;
+        watermark = Number(page.watermark ?? watermark);
+        if (page.snapshot) { catchingUp = true; continue; }
+        if (!page.more) {
+          caughtUp = true;
+          break;
+        }
       }
-    },
-  }, backend.generation);
-  // Capture pending IDs and apply all pages before a later admitted write
-  // may reach the server. Otherwise its commit can appear without a match.
-  replica.coordinate = network;
-
-  // Every applied batch re-runs the queries whose tables it touched.
-  replica.onChange((touched) => {
-    if (replica.isCaughtUp) lastSyncAt = Date.now();
-    for (const watch of watches.values()) if (touched.size === 0 || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
-  });
+      if (!caughtUp) return false;
+      lastSyncAt = Date.now();
+      await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
+      return true;
+    } finally {
+      if (!closed && (touched.size > 0 || caughtUp)) for (const watch of watches.values()) if (touched.size === 0 || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
+    }
+  }
 
   async function waitForChange(): Promise<void> {
     if (link !== "online") {
@@ -267,13 +304,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return;
     }
     try {
-      const response = await doFetch(`${base}/changes?since=${changesSeq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
+      const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
       if (!response.ok) throw new Error(`changes: HTTP ${response.status}`);
       const json = (await response.json()) as { seq: number; tables?: string[]; generation?: number };
-      if (json.seq > changesSeq || (json.generation !== undefined && json.generation !== backend.generation)) {
-        changesSeq = Math.max(changesSeq, json.seq);
+      if (json.seq > seq || (json.generation !== undefined && json.generation !== generation)) {
+        seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
-        for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t)) || json.generation !== backend.generation) void rerun(watch);
+        for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t)) || json.generation !== generation) void rerun(watch);
       }
     } catch {
       if (closed) return;
@@ -282,48 +319,60 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
 
-  function runLocal<R>(op: Query<unknown, R>, args: unknown) { return track(evaluateLocal(op, args)); }
+  let following: Promise<void> | null = null;
+  function follow() {
+    if (following) return;
+    following = (async () => {
+      if (caughtUp && !closed) await waitForChange();
+      while (!closed) {
+        let ok = false;
+        try {
+          ok = await syncOnce();
+        } catch {
+          if (closed) break;
+        }
+        if (closed) break;
+        if (!ok) await new Promise((r) => setTimeout(r, 1000));
+        else await waitForChange();
+      }
+    })();
+  }
+
+  // ----- reads -----
+
+  function runLocal<R>(op: Query<unknown, R>, args: unknown) {
+    const work = evaluateLocal(op, args);
+    active.add(work);
+    void work.finally(() => active.delete(work)).catch(() => {});
+    return work;
+  }
 
   async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string> }> {
     const refused = unavailable();
     if (refused) return { read: { denied: refused }, tables: new Set() };
-    const program = backend.programs[op.name];
-    const selectedBackend = backend;
-    if (!program) return { read: { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } }, tables: new Set() };
-    if (partitionDenied) return { read: { denied: partitionDenied }, tables: new Set(Object.keys(backend.schema.tables)) };
-    const tables = operationTables(program, backend.schema);
+    const schema = backend!.schema;
+    const program = backend!.programs.find((p) => p.name === op.name);
+    const tables = program && schema ? operationTables(program, schema) : new Set<string>();
+    if (partitionDenied) return { read: { denied: partitionDenied }, tables };
     const server = async () => {
       const read = await online.query(op, args);
       if ("denied" in read) await refusedSession(read.denied);
       setLink(online.link());
       return { read, tables };
     };
-    const onlineOnly = [...tables].some((t) => !backend.schema.tables[t]?.sync);
+    const onlineOnly = [...tables].some((t) => !schema.tables[t]?.sync);
     if (onlineOnly && link === "online") return server();
-    let interpreter: Interpreter | undefined;
-    try {
-      const outcome: LocalRead = await store.read((tx) => {
-        if (backend !== selectedBackend) throw new Refused({ code: "E_GENERATION", family: "generation", message: "the backend changed before this read ran", retryable: true });
-        interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint: mintId }, "query");
-        return interpreter.run(program);
-      });
-      const unavailableWhy = unavailable();
-      if (unavailableWhy) return { read: { denied: unavailableWhy }, tables };
-      if ((!outcome.complete || interpreter?.hasUnknownReads) && link === "online" && !(await queued()).some((e) => e.observedSeq === undefined && (e.predictable ?? e.predicted.length > 0))) return server();
-      const fresh = link === "online" && replica.isCaughtUp;
-      const read: Read<R> = { data: outcome.data as R, complete: outcome.complete && !onlineOnly, fresh, next: outcome.next as Cursor | null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) };
-      return { read, tables: new Set([...tables, ...outcome.tables]) };
-    } catch (error) {
-      for (const table of interpreter?.tables ?? []) tables.add(table);
-      if (error instanceof Refused) {
-        if (onlineOnly || interpreter?.hasUnknownReads) return link === "online" ? server() : { read: { denied: offline() }, tables };
-        return { read: { denied: error.refusal }, tables };
-      }
-      throw error;
-    }
+    const answer = await call({ op: "query", name: op.name, viewer: principal, args, now: Date.now() });
+    const unavailableWhy = unavailable();
+    if (unavailableWhy) return { read: { denied: unavailableWhy }, tables };
+    if (answer.denied) return { read: { denied: answer.denied }, tables };
+    const outcome = answer.ok as { denied?: Refusal; data?: unknown; complete?: boolean; next?: string | null; tables?: string[]; unknown?: boolean };
+    for (const table of outcome.tables ?? []) tables.add(table);
+    if (outcome.denied) return onlineOnly || outcome.unknown ? link === "online" ? server() : { read: { denied: offline() }, tables } : { read: { denied: outcome.denied }, tables };
+    if (outcome.complete === false && link === "online" && !(await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0))) return server();
+    const fresh = link === "online" && caughtUp;
+    return { read: { data: outcome.data as R, complete: outcome.complete !== false && !onlineOnly, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) }, tables };
   }
-
-  let lastSyncAt = Number(await store.read((tx) => tx.getMeta("syncedAt")) ?? 0);
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
@@ -331,7 +380,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   async function rerun(watch: Watch) {
     if (closed) return;
-    if (watch.running) { watch.dirty = true; return; }
+    if (watch.running) {
+      watch.dirty = true;
+      return;
+    }
     watch.running = true;
     try {
       const { read, tables } = await runLocal(watch.op, watch.args);
@@ -341,29 +393,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       notify(watch);
     } finally {
       watch.running = false;
-      if (watch.dirty) { watch.dirty = false; void rerun(watch); }
+      if (watch.dirty) {
+        watch.dirty = false;
+        void rerun(watch);
+      }
     }
   }
 
   // ----- the outbox -----
 
-  /** The meta key of the outbox's submission counter. */
-  const OUTBOX_SEQ = "outbox:seq";
-
-  /** Every queued write in the order it was submitted on this device. */
   async function queued(): Promise<Queued[]> {
-    return store.read(async (tx) => (await tx.side("outbox").all()).map((e) => e.value as Queued).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || (a.id < b.id ? -1 : 1)));
-  }
-
-  // The submission counter is taken synchronously as each write is
-  // admitted — twenty writes in one burst predict concurrently and would
-  // otherwise number themselves in the order their predictions finished —
-  // and persisted with the entry, so the order survives a restart.
-  let submissions = Number((await store.read((tx) => tx.getMeta(OUTBOX_SEQ))) ?? 0);
-
-  async function enqueue(tx: StoreTx, entry: Queued): Promise<void> {
-    await tx.setMeta(OUTBOX_SEQ, submissions);
-    await tx.side("outbox").put(entry.id, entry);
+    const answer = await call({ op: "queued" });
+    if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
+    return (answer.ok as Queued[] | undefined) ?? [];
   }
 
   let retry: ReturnType<typeof setTimeout> | undefined;
@@ -371,8 +413,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let flushing: Promise<void> | null = null;
   let flushAgain = false;
   function flush(): Promise<void> {
-    // A write queued while a flush runs is flushed by the same flush, on
-    // its next pass: nothing waits for the next link change.
     if (flushing) {
       flushAgain = true;
       return flushing;
@@ -391,91 +431,51 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void run.finally(() => { if (flushing === run) flushing = null; }).catch(() => {});
     return run;
   }
-
   function retryFlush() {
     if (closed || sessionDead || retry) return;
     retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
     (retry as { unref?: () => void }).unref?.();
-    retryMs = Math.min(retryMs * 2, 5000);
+    retryMs = Math.min(5000, retryMs * 2);
   }
-
-  async function rebase(tx: StoreTx, apply: () => Promise<void>, acknowledged: Record<string, number> = {}) {
-    await restoreConfirmed(tx, backend.schema);
-    await apply();
-    const watermark = Number(await tx.getMeta("watermark") ?? 0);
-    for (const [id, seq] of Object.entries(acknowledged)) {
-      if (!Number.isSafeInteger(seq) || seq < 0 || seq > watermark) continue;
-      const entry = await tx.side("outbox").get(id) as Queued | undefined;
-      if (entry) await tx.side("outbox").put(id, { ...entry, observedSeq: seq });
-    }
-    const entries = (await tx.side("outbox").all()).map((e) => e.value as Queued).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || a.id.localeCompare(b.id));
-    for (const entry of entries) {
-      if (entry.sentSeq !== undefined && entry.sentSeq <= watermark) { await tx.side("outbox").delete(entry.id); continue; }
-      if (entry.observedSeq !== undefined && entry.observedSeq <= watermark) continue;
-      const program = backend.programs[entry.op];
-      if (!program || !(entry.predictable ?? entry.predicted.length > 0)) continue;
-      try {
-        await predict(tx, backend.schema, program, {
-          viewer: principal, args: entry.args as Record<string, unknown>, now: entry.now ?? Date.now(), newIds: [...entry.newIds],
-          mint: () => { throw new Refused({ code: "E_PREDICT", family: "prediction", message: "replay needs an id that was not fixed before this write was submitted" }); },
-        });
-      } catch (error) {
-        if (!(error instanceof Refused)) throw error;
-        // Its POST may already be in flight with the original IDs. Keep the
-        // admitted write, but stop rendering a prediction we cannot replay.
-        if (error.refusal.code === "E_PREDICT") await tx.side("outbox").put(entry.id, { ...entry, predicted: [], predictable: false });
-      }
-    }
-  }
-  replica.reconcile = rebase;
 
   async function flushOnce() {
-    {
-      for (const entry of await queued()) {
-        if (closed) return;
-        if (entry.sentSeq !== undefined) { await replica.syncOnce(); continue; }
-        const result = await network(async () => {
-          if (closed || sessionDead) return { ok: false as const };
-          await store.write(async (tx) => tx.setMeta("outbox:sendRevision", Number(await tx.getMeta("outbox:sendRevision") ?? 0) + 1));
-          return post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.newIds });
-        });
-        if (closed) return;
-        if (!result.ok) { retryFlush(); return; }
-        const json = result.json;
-        const why = (json.why ?? json.denied) as Refusal | undefined;
-        if (why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
-        retryMs = 250;
-        await store.write((tx) => rebase(tx, async () => {
-          if (json.state === "sent") {
-            const current = await tx.side("outbox").get(entry.id) as Queued | undefined;
-            if (current) await tx.side("outbox").put(entry.id, { ...current, sentSeq: Number(json.seq ?? 0) });
-          }
-          else await tx.side("outbox").delete(entry.id);
-        }));
-        settled.get(entry.id)?.(json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) } : { state: "failed", id: entry.id, why: why ?? offline() });
-        settled.delete(entry.id);
-        if (json.state === "sent") await replica.syncOnce();
-        for (const watch of watches.values()) void rerun(watch);
-      }
-
+    for (const entry of await queued()) {
+      if (closed) return;
+      if (entry.sent_seq != null) { await syncOnce(); continue; }
+      const result = await network(async () => {
+        if (closed || sessionDead) return { ok: false as const };
+        const started = await call({ op: "begin_send" });
+        if (started.denied) return { ok: false as const };
+        return post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
+      });
+      if (closed) return;
+      if (!result.ok) { retryFlush(); return; }
+      const json = result.json;
+      const why = (json.why ?? json.denied) as Refusal | undefined;
+      if (why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+      const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? {seq: Number(json.seq ?? 0)} : {}) });
+      if (applied.denied) { retryFlush(); return; }
+      retryMs = 250;
+      const settle = settled.get(entry.id);
+      settled.delete(entry.id);
+      const outcome: Write = json.state === "sent"
+        ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) }
+        : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
+      if (outcome.state === "sent") await syncOnce();
+      settle?.(outcome);
+      for (const watch of watches.values()) void rerun(watch);
     }
   }
 
-  const settled = new Map<string, (write: Write) => void>();
-
-  const client = {
-    replica,
-    async sync() {
-      if (!closed && !sessionDead) await replica.syncOnce();
-    },
-    async query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>> {
-      return (await runLocal(op as Query<unknown, R>, args)).read;
+  const client: LocalClient = {
+    async query(op, args) {
+      return (await runLocal(op, args)).read;
     },
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, lastServerAt: 0, subscribers: new Set(), running: false, dirty: false };
+        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, subscribers: new Set(), running: false, dirty: false };
         watches.set(key, watch);
         void rerun(watch);
       }
@@ -483,18 +483,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const mine = new Set<() => void>();
       return {
         getSnapshot: () => own.snapshot as Read<R>,
-        subscribe(listener) {
-          mine.add(listener);
-          own.subscribers.add(listener);
-          // A screen that closed this key a moment ago (React unmounts the
-          // old component before the new one subscribes) may have removed
-          // the watch: put it back, and refresh it, so no subscriber is
-          // left on a watch nothing updates.
+        subscribe(notifyMe) {
+          mine.add(notifyMe);
+          own.subscribers.add(notifyMe);
           if (watches.get(own.key) !== own) {
             watches.set(own.key, own);
             void rerun(own);
           }
-          return () => { mine.delete(listener); own.subscribers.delete(listener); };
+          return () => {
+            mine.delete(notifyMe);
+            own.subscribers.delete(notifyMe);
+          };
         },
         close() {
           for (const s of mine) own.subscribers.delete(s);
@@ -506,63 +505,53 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const id = mintId();
       const unavailableWhy = unavailable();
       if (unavailableWhy) return { state: "failed", id, why: unavailableWhy };
-      const seq = ++submissions;
-      const program = backend.programs[op.name];
-      const selectedBackend = backend;
-      if (!program) return { state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } };
+      const submission = ++submissions;
       const newIds: string[] = [];
-      const mint = () => { const minted = mintId(); newIds.push(minted); return minted; };
-      const now = Date.now();
-      const tables = operationTables(program, backend.schema);
-      const onlineOnly = [...tables].some((t) => !backend.schema.tables[t]?.sync);
-      // Register before admission: a concurrent flush can see the durable
-      // entry as soon as the transaction commits.
-      const outcome = new Promise<Write>((resolve) => settled.set(id, resolve));
-      let refused: Refusal | null = null;
-      await track((async () => {
-        try {
-          await store.write(async (tx) => {
-            if (backend !== selectedBackend) throw new Refused({ code: "E_GENERATION", family: "generation", message: "the backend changed before this write was admitted", retryable: true });
-            const predicted = onlineOnly ? [] : await predict(tx, backend.schema, program, { viewer: principal, args: args as Record<string, unknown>, now, newIds: [], mint });
-            await enqueue(tx, { id, seq, op: op.name, args, now, newIds: [...newIds], predicted, predictable: !onlineOnly });
-          });
-        } catch (error) {
-          if (error instanceof Refused && error.refusal.code === "E_PREDICT") {
-            try { await store.write((tx) => enqueue(tx, { id, seq, op: op.name, args, now, newIds: [], predicted: [], predictable: false })); }
-            catch (failure) { refused = { code: "E_STORE", family: "store", message: `write ${id} was not admitted: ${String(failure)}` }; }
-          } else refused = error instanceof Refused ? error.refusal : { code: "E_STORE", family: "store", message: `write ${id} was not admitted: ${String(error)}` };
-        }
-      })());
-      if (refused) { settled.delete(id); return { state: "failed", id, why: refused }; }
+      // The module mints ids for `new` from the ids we pass, so the server
+      // applies the same ones; a burst takes them from one ascending clock.
+      for (let n = 0; n < 8; n++) newIds.push(mintId());
+      const schema = backend!.schema;
+      const program = backend!.programs.find((p) => p.name === op.name);
+      const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
+      const result = new Promise<Write>((resolve) => settled.set(id, resolve));
+      try {
+        const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
+        if (admitted.denied) { settled.delete(id); return { state: "failed", id, why: admitted.denied }; }
+      } catch (error) {
+        settled.delete(id);
+        return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
+      }
       if (closed) { settled.delete(id); return { state: "pending", id }; }
       for (const watch of watches.values()) void rerun(watch);
       void flush();
       if (link !== "online") return { state: "pending", id };
       let timer: ReturnType<typeof setTimeout> | undefined;
-      try { return await Promise.race([outcome, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve({ state: "pending", id }), 4_000); })]); }
+      try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve({ state: "pending", id }), 4_000); })]); }
       finally { clearTimeout(timer); }
     },
-    async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
+    async upload(bytes) {
       const unavailableWhy = unavailable();
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
-      // An upload is bytes on the server; there is nothing to queue.
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const uploaded = await uploadAsset(base, headers, doFetch, bytes);
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
-    asset: (id: string) => fetchAsset(base, headers, doFetch, id),
-    assetSource: (id: string) => assetSource(base, headers, id),
+    asset: (id) => fetchAsset(base, headers, doFetch, id),
+    assetSource: (id) => assetSource(base, headers, id),
     link: () => link,
-    onLink(listener: (link: Link) => void) {
+    onLink(listener) {
       linkListeners.add(listener);
       return () => linkListeners.delete(listener);
     },
     viewer: () => sessionDead ? null : viewer,
     session: () => (sessionDead ? null : session),
-    onSession(listener: (session: Session | null) => void) {
+    onSession(listener) {
       sessionListeners.add(listener);
       return () => sessionListeners.delete(listener);
+    },
+    async sync() {
+      if (!closed && !sessionDead) await syncOnce();
     },
     async signOut() {
       if (session && !sessionDead) await logout(base, session.token, doFetch);
@@ -579,29 +568,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       sessionListeners.clear();
       for (const [id, resolve] of settled) resolve({ state: "pending", id });
       closing = (async () => {
-        await Promise.allSettled([online.close(), flushing, ...active]);
-        await replica.close();
+        await Promise.allSettled([following, syncing, flushing, online.close(), ...active]);
+        await core.close();
         settled.clear();
       })();
       return closing;
     },
   };
-  // First: catch up, then re-apply any predictions still in the outbox.
-  await client.sync();
-  await reapplyPredictions();
-  changesSeq = (await replica.state()).watermark;
-  replica.follow(waitForChange);
+  if (link === "online") await syncOnce();
+  seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
+  follow();
   void flush();
-
-  async function reapplyPredictions() { await store.write((tx) => rebase(tx, async () => {})); }
-
   return client;
 }
 
-async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<Backend> {
+async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<BackendJson> {
   const response = await doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) });
-  const json = (await response.json()) as { generation: number; schema: SchemaJson; programs: ProgramJson[] };
-  return { generation: json.generation, schema: json.schema, programs: Object.fromEntries(json.programs.map((p) => [p.name, p])) };
+  return (await response.json()) as BackendJson;
 }
-
-export type { Row };

@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "jsx": "react-jsx",
     "types": [],
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "allowJs": true
   },
   "include": [
     "src/**/*.ts",

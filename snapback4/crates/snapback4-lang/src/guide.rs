@@ -891,7 +891,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_OFFLINE", "family link — the client could not reach the server; retryable. A local-first read still answers from the device with `fresh: false` and `since`; a write waits as `pending` and lands when the link returns."),
     ("E_CLIENT", "family client — the client refused before asking the server: a hook used outside its provider, a session that ended, a malformed argument. The message says which."),
     ("E_CLOSED", "family client — the client was closed while this request was in flight. The local-first client resolves such a write `pending` instead: it is queued durably and lands on the next open."),
-    ("E_NATIVE_VERSION", "family client — the native module in this build predates the JavaScript client; reloading JavaScript does not update it. Rebuild the development build with the matching snapback4-expo."),
+    ("E_DEVICE_VERSION", "family client — the device this client opened predates it: the native module in this build, or a wasm from another package version, lacks the sync receipt protocol (`sync_state`, `begin_send`, `admit`, `settle`). Reloading JavaScript does not update a native module: rebuild the development build (`npx expo run:ios`) with the matching `snapback4-expo`; on the web serve the wasm this package version ships."),
     ("E_QUARRY_SYNTAX", "the parser could not read this line; the rewrite is a canonical spelling. `snapback4 guide` is the language card."),
     ("E_QUARRY_UNSUPPORTED", "a form Snapback 4 does not have; the rewrite names the one it does. The language card lists every form left out and its idiom."),
     ("E_QUARRY_UNKNOWN", "a name is not declared; the rewrite suggests the nearest one."),

@@ -10,7 +10,8 @@ import { mkdtempSync, cpSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createNativeClient, processCore } from "../dist/native.js";
+import { createLocalClient } from "../dist/local.js";
+import { processDevice } from "../dist/native.js";
 import { isReady } from "../dist/contract.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -28,7 +29,6 @@ async function until(check, ms = 10_000) {
     await sleep(25);
   }
 }
-const native = processCore(binary, (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
 
 test("the native module follows the server, predicts, queues, and starts cold offline", { timeout: 90_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-native-"));
@@ -51,15 +51,13 @@ test("the native module follows the server, predicts, queues, and starts cold of
     ]) });
     const { mkdirSync } = await import("node:fs");
     mkdirSync(data, { recursive: true });
+    const native = processDevice(binary, data, (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
     let offline = false;
     const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
-    const alice = await createNativeClient({ url, persona: "alice", native, dataDir: data, fetch: gated, waitSeconds: 2 });
+    const alice = await createLocalClient({ url, persona: "alice", device: native, fetch: gated, waitSeconds: 2 });
     let bobCore;
-    const bobNative = { open: async (path, backend) => {
-      bobCore = await native.open(path, backend);
-      return bobCore;
-    } };
-    const bob = await createNativeClient({ url, persona: "bob", native: bobNative, dataDir: data, waitSeconds: 2 });
+    const bobDevice = { open: async (name, backend) => (bobCore = await native.open(name, backend)) };
+    const bob = await createLocalClient({ url, persona: "bob", device: bobDevice, waitSeconds: 2 });
     open.push(alice, bob);
     // Bob's device holds the partition: the thread pages, the count is right.
     const thread = await bob.query(api.thread, { conversationId: "c1", c: null });
@@ -95,7 +93,7 @@ test("the native module follows the server, predicts, queues, and starts cold of
     await bob.close();
     // A cold start with the server unreachable: the device opens on the backend it kept.
     const dead = () => Promise.reject(new TypeError("no network"));
-    const cold = await createNativeClient({ url, persona: "bob", native, dataDir: data, fetch: dead, waitSeconds: 1 });
+    const cold = await createLocalClient({ url, persona: "bob", device: native, fetch: dead, waitSeconds: 1 });
     open.push(cold);
     assert.equal(cold.link(), "offline");
     const held = await cold.query(api.thread, { conversationId: "c1", c: null });

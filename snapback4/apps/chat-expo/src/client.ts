@@ -1,14 +1,15 @@
 // One call opens the device: the Rust module when this build carries it
-// (a development or production build), else the TypeScript tier over
-// expo-sqlite (Expo Go). Either way the secure store keeps the session and
-// a guest is minted when there is none; the persona door is for
-// development against `snapback4 dev` on the same machine.
-import * as SQLite from "expo-sqlite";
+// (a development or production build), else the online tier in Expo Go,
+// which loads no custom native code and no wasm. Either way the secure
+// store keeps the session and a guest is minted when there is none; the
+// persona door is for development against `snapback4 dev` on the same
+// machine.
 import * as SecureStore from "expo-secure-store";
+import { guest, keepSession, restoreSession } from "snapback4/auth";
+import { createClient } from "snapback4/client";
+import type { Client } from "snapback4/contract";
 import { createLocalClient, type LocalClient, type LocalOptions } from "snapback4/local";
-import { createNativeClient, type NativeClient } from "snapback4/native";
-import { expoSqliteDriver, openSqlite } from "snapback4/replica";
-import { documentDirectory, nativeAvailable, nativeDevice } from "snapback4-expo";
+import { nativeAvailable, nativeDevice } from "snapback4-expo";
 
 export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
 const persona = process.env.EXPO_PUBLIC_SNAPBACK_PERSONA;
@@ -19,20 +20,22 @@ const sessionStore = {
   delete: (key: string) => SecureStore.deleteItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
 };
 
-export const sqliteStore = {
-  async open(name: string, schema: Parameters<typeof openSqlite>[1]) {
-    const db = await SQLite.openDatabaseAsync(`${name.replace(/[^A-Za-z0-9._-]/g, "_")}.db`);
-    return openSqlite(expoSqliteDriver(db), schema);
-  },
-};
+export type DeviceClient = LocalClient | Client;
 
-export type DeviceClient = LocalClient | NativeClient;
+/** Which tier this build runs: the Rust module, or the online tier. */
+export const tier: "native" | "online" = nativeAvailable() ? "native" : "online";
 
-/** Which tier this build runs: the Rust module, or the TypeScript twin. */
-export const tier: "native" | "local" = nativeAvailable() ? "native" : "local";
-
-export function openClient(extra: Partial<LocalOptions> = {}): Promise<DeviceClient> {
-  const identity = extra.persona ?? persona ? { persona: extra.persona ?? persona } : { guest: true, sessionStore };
-  if (tier === "native") return createNativeClient({ url, ...identity, native: nativeDevice, dataDir: documentDirectory(), waitSeconds: 20, fetch: extra.fetch });
-  return createLocalClient({ url, ...identity, store: sqliteStore, waitSeconds: 20, ...extra });
+export async function openClient(extra: Partial<LocalOptions> = {}): Promise<DeviceClient> {
+  const as = extra.persona ?? persona;
+  if (tier === "native") return createLocalClient({ url, ...(as ? { persona: as } : { guest: true, sessionStore }), device: nativeDevice, waitSeconds: 20, fetch: extra.fetch });
+  if (as) return createClient({ url, persona: as, fetch: extra.fetch });
+  // The online tier keeps no session of its own: restore the one kept, or mint a guest.
+  let session = await restoreSession(url, sessionStore);
+  if (!session) {
+    const signedIn = await guest(url, extra.fetch ?? fetch);
+    if (!signedIn.ok) throw new Error(`${signedIn.why.code}: ${signedIn.why.message}`);
+    session = signedIn.session;
+    await keepSession(url, session, sessionStore);
+  }
+  return createClient({ url, session, fetch: extra.fetch });
 }

@@ -1,9 +1,9 @@
-// The opener `snapback4/native` takes, over the Expo module: absent in
+// The opener `snapback4/local` takes, over the Expo module: absent in
 // Expo Go (which loads no custom native code), present in a development
-// or production build. An app asks `nativeAvailable()` and falls back to
-// the TypeScript tier (`snapback4/local` over expo-sqlite) when it is not.
+// or production build. An app asks `nativeAvailable()` and runs the
+// online tier (`snapback4/client`) when it is not.
 import { requireOptionalNativeModule } from "expo-modules-core";
-import type { NativeCore, NativeOpener } from "snapback4/native";
+import type { DeviceCore, DeviceOpener } from "snapback4/local";
 
 interface Snapback4Native {
   readonly documentDirectory: string;
@@ -26,10 +26,10 @@ export function documentDirectory(): string {
   return native.documentDirectory;
 }
 
-export const nativeDevice: NativeOpener = {
-  async open(path, backend): Promise<NativeCore> {
+export const nativeDevice: DeviceOpener = {
+  async open(name, backend): Promise<DeviceCore> {
     if (!native) throw new Error("snapback4-expo: the native module is not in this build (Expo Go loads no custom native code; make a development build)");
-    const handle = await native.open(path, backend ? JSON.stringify(backend) : null);
+    const handle = await native.open(`${native.documentDirectory.replace(/\/$/, "")}/${name}.sqlite`, backend ? JSON.stringify(backend) : null);
     return {
       async call(request) {
         const t0 = trace ? Date.now() : 0;

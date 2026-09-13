@@ -163,7 +163,7 @@ comparison or grades their own track. The author rules on the numbers.
 | --- | --- | --- |
 | Loop bar | Fresh agent, published package, reduced Clique M1–M3, ≤ 1,200 s, ≤ 1 Snapback-attributed correction loop, N ≥ 3 | The existing loop-bar protocol (`rules/NOT-DOING.md` §"The bars") |
 | Hub acquisition | Full durable content plus first offline thread and search on `u0001`, within 2× the measured physical floor | Floors recorded in the journal in week 1 (§5); the same script on every track |
-| Client bytes | Online tier ≤ Convex's shipped React client; local-first tier ≤ PowerSync's shipped web client | Measured on one pinned toolchain, recorded once in the journal, never assumed |
+| Client bytes | Online tier ≤ Convex's shipped React client; the local-first tier's JavaScript ≤ PowerSync's shipped web client, with the wasm device measured beside it and its own budget set by the diet (§7, 2026-09-13: one implementation) | Measured on one pinned toolchain, recorded once in the journal, never assumed |
 | Scenarios | LLP 2000 §4's six scenarios green under the simulator on the hub fixture; LLP 2000 §10's outcomes 1–5 and LLP 2000.000 §11's 6–7 | The simulator run record plus the device witnesses |
 | Interaction budgets | LLP 2000 §7's targets | Recorded beside the gates; descriptive, not gating, in slice one |
 | Holistic score | Three-scorer Clique score with the Convex control | Reported; descriptive, not gating |
@@ -506,6 +506,26 @@ time-ordered 128-bit form.
   2000.000 §10's effects-host question for compute over the store only;
   the network stays outside.
 
+- **2026-09-13 — one implementation, in Rust (author ruling, on the lead's
+  recommendation).** The author asked whether the TypeScript twin existed
+  only because wasm measured larger, and ruled: unify, one implementation
+  in Rust. The device (`crates/snapback4-device`) is generic over a
+  `DeviceStore` — the core's SQLite on a native host, memory on the web —
+  and runs as wasm in the browser over the memory store, reporting each
+  commit's changes for the host to persist in IndexedDB behind the call;
+  a cold start loads them back. The byte anchor of §3 (the local-first
+  tier under Convex's client) is retired as a bar for the web: the wasm
+  device measured 312,924 B gzip whole (194,465 as query and predict
+  alone), which is the size other local-first stacks ship a database at,
+  and a diet follows. Consequences accepted: the web device holds its
+  partition in memory, bounded per viewer by sync lines and horizons; a
+  tab is a device, and an orphaned tab's queued writes are adopted by the
+  next device that opens the store; Expo Go, which loads no native code
+  and no wasm under Hermes, runs the online tier. The TypeScript
+  interpreter, replica and stores retire once the wasm tier passes the
+  Chromium and scale witnesses; the conformance obligation between two
+  interpreters ends with them.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
@@ -519,13 +539,13 @@ carries the chronology. After week four, 2026-09-12 (0.1.0):
 | `crates/snapback4` | `init`, `check [--cost]`, `dev` (serve + watch + adopt with the day-two class), `run`, `test [--fixture]` (meters beside ceilings), `why`, `guide`, `data`, `doctor`, `deploy`, `rollback`, `serve` (a release, tokens only); the HTTP wire (`/q`, `/m`, `/sync`, `/changes`, `/schema`, `/seed`, `/auth/*`) | `b7449cdaac`, then H0 |
 | `crates/snapback4-core/src/identity.rs` | guests and password accounts (argon2id), bearer sessions by digest, logout | `c3f983744a` |
 | `llp/reviews/3000-*.md`, `crates/snapback4-sim/tests/reviews.rs` | decision 4's two blind reviews (partition inversion, gpt; the meter's cut, grok), each finding reproduced as a test against the fix | the reviews landing |
-| `packages/snapback4/src/replica/*`, `local.ts`, `auth.ts` | the key encoding (held to Rust's vectors), the store in memory and on IndexedDB, opaque cursors, the interpreter on the device with the meter and predictions, the replica following the stream, the local-first client on the card (re-bootstrapping on a new generation), sign-in helpers, a SQLite store for `node:sqlite` and `expo-sqlite`; the device hoists as the server does; bytes: online 3,218 B gzip, local-first 14,846 B (anchors: Convex React 21,713 B, PowerSync web 3,697,919 B) | `c5db8c1585`, `c3f983744a`, `1ff36fe04d` |
-| `witness/idb.mjs`, `witness/scale.mjs`, `witness/expo.mjs` | the Chromium/IndexedDB witness; cold sync at scale (20,480 events: 3.3 s, 26 MB heap); the Expo Go simulator witness on SQLite (303 rows in 209 ms) | `c5db8c1585`, `72af994205`, the Expo landing |
-| `apps/chat-expo` | the chat app on React Native: SQLite store, secure-store session, the same client and generated api | the Expo landing |
+| `packages/snapback4/src/local.ts`, `web.ts`, `native.ts`, `backend.ts`, `auth.ts` | the one client over one device interface (`DeviceOpener`: `open(name, backend)` → one JSON call): the session, the link, the transport, the observation of reads; three openers — `webDevice()` (the wasm device, memory with IndexedDB written behind each call, one device per tab, an orphaned tab's queued writes adopted), `nativeDevice` (`snapback4-expo`), `processDevice()` (Node); the TypeScript interpreter, replica and stores retired (the ruling of 2026-09-13); the lifecycle suite runs on both the wasm and the process tier | the one-implementation landing |
+| `witness/idb.mjs`, `witness/scale.mjs`, `witness/expo.mjs` | the Chromium witness on the wasm device over IndexedDB; cold sync at scale on it; the simulator witness on the native module in a development build | `c5db8c1585`, `72af994205`, the Expo landing, the one-implementation landing |
+| `apps/chat-expo` | the chat app on React Native: the native module in a development build, the online tier in Expo Go (no custom native code, no wasm under Hermes), secure-store session, the same client and generated api | the Expo landing, the one-implementation landing |
 | `packages/snapback4-darwin-arm64`, `packages/snapback4/bin` | the binary as an optional dependency of the client package; `npx snapback4` | the Expo landing |
 | `crates/snapback4-sim` | seeded scheduler, virtual clock, faulty network and disks, kill/restart, trace digest; the real engine as a host; a replica device with a durable outbox and predictions that survive a re-bootstrap; the chat world under faults with §6's invariants 1, 2, 3, 5, 6 per event and 4, 7 at quiescence; the five day-two scenarios with a partitioned device and queued writes | `1700c1c755`, `b7449cdaac`, `1ff36fe04d` |
 | `packages/snapback4` | the card (`contract.ts`), the online-tier client (`client.ts`), the React hooks, the labelled mock; `snapback4@0.0.1` on npm (week one's client only; republish pending) | `39af0c81a6`, this landing |
-| `apps/chat` | the reference app on the real client and the generated `api.ts`; `snapback/schema.q` with `sync` lines, `invite`, `leave`, `send`, `edit`, `unsend`, `thread`, `inbox` | this landing |
+| `apps/chat` | the reference app on the one client over the wasm device (`webDevice()`), and the generated `api.ts`; `snapback/schema.q` with `sync` lines, `invite`, `leave`, `send`, `edit`, `unsend`, `thread`, `inbox` | this landing; the one-implementation landing |
 | `fixtures/`, `floors/`, `corpus/`, `scripts/`, `metrics/` | as week one | `1700c1c755`, `224fb1d24e`, `6bc29eab02` |
 
 | `benchmarks/runs/2026-09-12-snapback4-clique-0002/`, `benchmarks/runs/2026-09-12-snapback4-loopbar/` | the Clique hub run on 0.0.2 (Astra medium, media and scheduled work struck): every milestone green in 7,725 s, graded 69/80 applicable with two majors read against main, M7 green in 917 s; the loop bar met on 0.0.11 (3/3, 443–537 s, no attributed loop); every finding and its fix | the run's landings |
@@ -534,7 +554,7 @@ carries the chronology. After week four, 2026-09-12 (0.1.0):
 
 | `benchmarks/runs/2026-09-13-snapback4-clique-0003/` | the Clique hub run on 0.1.0, the whole brief, nothing struck: every milestone green in 7,002 s (M8 at 6,926 s), graded 84/1/16 of 101 (O1 62, O2 48, O4 35, O5 band 30), M7 capability-failure on the app's pre-existing logout crash after delivering its polls and migration; eight fix-forward releases the same night (0.1.1–0.1.8: one thread per request, asset facts on the argument, `a if cond else b`, `sum(page, .x)`, a one-second clock, the paged snapshot with `N_NO_HORIZON`, the outbox in submission order, `N_WIDE_MERGE`); then what the run said to do next: the `feeds` card (fan-out on write, compiled and run in `tests/clique.rs`), `onSession`/`useSession` for the sign-out contract the app's logout crash exposed, and the simulator witness proving a cold start offline and writes composed offline surviving a restart on SQLite | the run's landings, 0.1.12 |
 
-| `crates/snapback4-device` | the device in Rust: `rows::Rows` over the core's SQLite, the stream applied with the watermark, the outbox, `engine::local` queries and pending predictions, a generation change, one JSON call over a C ABI (`include/snapback4.h`), against a real engine in `tests/native.rs`; 1.7 MB linked on iOS; the same interpreter as wasm for the web measured at 194 KB gzip, so the web keeps TypeScript | the native landing |
+| `crates/snapback4-device` | one device over a `DeviceStore` (`store.rs`): `device.rs` applies the stream with the watermark, stages paged snapshots, keeps the outbox in submission order over confirmed images, answers queries and predictions through `engine::local`; `sqlite.rs` binds the core's store on a native host with the C ABI (`ffi.rs`, `include/snapback4.h`); `memory.rs` is the store for the web, transactions as an undo log, each commit's changes reported for the host to persist; `call.rs` is the one JSON dispatcher; `web.rs` the wasm surface (open with what the host kept, call, drain). `tests/device.rs` runs every scenario on both stores against a real engine; `tests/native.rs` what only SQLite has (two devices on one store, a failing store). Measured whole as wasm: 312,924 B gzip before the diet | the native landing; the one-implementation landing |
 
 | `packages/snapback4-expo`, `apps/chat-expo/src/client.ts`, `witness/expo.mjs` (`WITNESS_DEV_CLIENT=1`) | the Expo module: Swift over the C ABI, the Rust library as a 9.1 MB xcframework (staticlib alone, stripped; 3.3 MB on npm), `nativeAvailable()` choosing the tier at import; the simulator witness on a development build passes the five proofs on the module (303 rows synced in 31 ms, reopen 6 ms, cold start offline 2 ms) → `metrics/witness.jsonl` `dev-client-native`; `snapback4-expo@0.1.14` on npm | the Expo module landing |
 

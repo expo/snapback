@@ -6,7 +6,7 @@
 import { gzipSync, brotliCompressSync } from "node:zlib";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
-import { mkdtempSync, readFileSync, readdirSync, appendFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, appendFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,9 +16,12 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = join(root, "packages/snapback4/src");
 // Vite (rolldown + oxc) is the app's pinned toolchain; borrow it from there.
 const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);
+// The local-first tier is JavaScript over the wasm device: the client, the
+// web opener and the wasm-bindgen glue; the wasm itself is measured by
+// `scripts/measure-wasm.sh` and reported here beside it when built.
 const tiers = {
   online: ["contract.ts", "client.ts", "react.tsx"],
-  "local-first": ["contract.ts", "local.ts", "react.tsx"],
+  "local-first": ["contract.ts", "local.ts", "web.ts", "react.tsx"],
 };
 const out = { at: new Date().toISOString(), sha: execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root, encoding: "utf8" }).trim(), tiers: {} };
 for (const [tier, entries] of Object.entries(tiers)) {
@@ -28,12 +31,19 @@ for (const [tier, entries] of Object.entries(tiers)) {
     logLevel: "silent",
     build: { outDir: dir, emptyOutDir: true, minify: "oxc", target: "es2022", sourcemap: false, lib: { entry: Object.fromEntries(entries.map((e) => [e.replace(/\.tsx?$/, ""), join(pkg, e)])), formats: ["es"] }, rollupOptions: { external: ["react", "react-dom", "react/jsx-runtime"] } },
   });
-  const files = readdirSync(dir).filter((f) => f.endsWith(".js")).map((f) => readFileSync(join(dir, f)));
+  // Vite's library build inlines the wasm the web opener names as a data
+  // URL; the JavaScript is what is measured here, the wasm below.
+  const files = readdirSync(dir).filter((f) => f.endsWith(".js")).map((f) => Buffer.from(readFileSync(join(dir, f), "utf8").replace(/data:application\/wasm;base64,[A-Za-z0-9+/=]+/g, "wasm")));
   const raw = files.reduce((a, b) => a + b.length, 0);
   const gzip = gzipSync(Buffer.concat(files), { level: 9 }).length;
   const brotli = brotliCompressSync(Buffer.concat(files)).length;
   out.tiers[tier] = { raw, gzip, brotli };
   rmSync(dir, { recursive: true, force: true });
+}
+const wasm = join(pkg, "wasm/snapback4_device_bg.wasm");
+if (existsSync(wasm)) {
+  const bytes = readFileSync(wasm);
+  out.wasm = { raw: bytes.length, gzip: gzipSync(bytes, { level: 9 }).length, brotli: brotliCompressSync(bytes).length };
 }
 mkdirSync(join(root, "metrics"), { recursive: true });
 appendFileSync(join(root, "metrics/client.jsonl"), JSON.stringify(out) + "\n");

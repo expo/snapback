@@ -48,10 +48,22 @@ pub fn minted_at(id: &str) -> Option<i64> {
 }
 
 /// Entropy for a process: the clock, the pid and the address of a stack slot.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn seed() -> u64 {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1);
     let local = 0u8;
     nanos ^ (std::process::id() as u64).rotate_left(32) ^ (&local as *const u8 as u64)
+}
+
+/// On the web there is no clock or pid to ask without the host: a counter
+/// and a stack address, distinct per call; a device's ids take their
+/// entropy from the host in any case (`Context::with_entropy`).
+#[cfg(target_arch = "wasm32")]
+pub fn seed() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static CALLS: AtomicU64 = AtomicU64::new(0x9E37_79B9_7F4A_7C15);
+    let local = 0u8;
+    CALLS.fetch_add(0x9E37_79B9_7F4A_7C15, Ordering::Relaxed) ^ (&local as *const u8 as u64).rotate_left(17)
 }
 
 #[cfg(test)]

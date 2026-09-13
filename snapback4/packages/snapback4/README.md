@@ -386,17 +386,8 @@ table (`N_NO_HORIZON`) unless the group cannot grow (one row per group, or
 a `cap` over it); give a growing table a horizon (`last 500 by <index>`:
 the newest N per group stay on the device, the rest are online and a
 local read past them says `complete: false`). A snapshot arrives in pages
-(the client asks for 4,000 events at a time; the wire's default is 2,000
-and its ceiling 10,000), each applied in its own transaction, so a large
-partition costs a device no more memory than one page; in Node, open the
-SQLite store (`openSqlite(nodeSqliteDriver(new DatabaseSync(path)))`) for
-anything larger than a test, since the memory store holds every row on
-the heap. What it keeps under `delivered-history` it can still read
-locally through a query without a membership `require` (the server
-refuses the same query once the membership is gone, so a "history" query
-answers on the device and is empty online). A table without `sync` is
-online-only: a query that reads one runs on the server, and is `complete:
-false` on a device with no link.
+of 2,000 events, each staged in its own transaction and published
+together with the last, so a device never shows half a snapshot.
 
 ### Feeds: fan out on write, read one page
 
@@ -483,44 +474,48 @@ card: `snapback4 guide feeds`.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
+import { webDevice } from "snapback4/web";             // the device on the web
 import { createClient } from "snapback4/client";       // the online tier (no store)
 import { api } from "../snapback/generated/api";
 
-const client = await createLocalClient({ url: "http://127.0.0.1:4400", persona: "alice" });
+const client = await createLocalClient({ url: "http://127.0.0.1:4400", persona: "alice", device: webDevice() });
 const thread = await client.query(api.thread, { conversationId });
 const write = await client.mutate(api.send, { conversationId, body: "hi" });
 ```
 
-The local-first client opens the device's replica (IndexedDB on the web,
-memory in Node, SQLite on Expo — §7), syncs the viewer's partition, runs
-every query locally over it, queues every mutation durably and predicts
-its rows, and follows the server's stream for the rest. It keeps the
-compiled backend in the replica too, so a device that starts with no
-network opens on what it holds (`link()` is `"offline"`, reads carry
-`fresh: false` and `since`) and catches up when the link returns; only a
-device that has never synced needs the server to open. Its options:
-`url`; one of `persona` (development), `session` (from `snapback4/auth`,
-kept and restored by the client), or `guest: true` (mint one when none is
-kept); `store` (`"indexeddb"`, the default where IndexedDB exists;
-`"memory"`, the default elsewhere; or an opener `{ open(name, schema) }`
-— §7); `sessionStore`; `fetch`; `waitSeconds`. Creation rejects with an
-`Error` when guest sign-in fails, when no session is available and `guest`
-is not set, or when the server is unreachable and the device holds no
-backend. It has `query(op, args) → Read`, `observe(op, args) →
-{ getSnapshot(), subscribe(listener) → unsubscribe, close() }` (a live
-read; React's `useSyncExternalStore` shape), `mutate(op, args) → Write`,
-`upload`, `asset`, `assetSource` (assets, below), `link()`, `onLink`,
-`viewer()`, `session()`, `onSession`, `signOut()`, `sync()`, `replica`,
-`close()`. After `signOut()` the client is closed and `session()` is null,
-as it is once the server refuses the session: anything that keeps the
-token — a native image header, a presence lease — takes it from
-`onSession` (`useSession` in React) and stops when it is null, so nothing
-reads a token after sign-out. A query over a table without `sync` runs on
-the server when online and is `complete: false` offline. The online client
-(`createClient`, synchronous) takes `url` with `persona`, `session` or
-`token`, plus `fetch` and `waitSeconds`, and has the same card without a
-store or `replica`; without credentials its link is `"signed-out"` and its
-reads are `E_AUTH`.
+The local-first client opens the device — the Rust module, the same
+interpreter the server runs: as wasm on the web (`webDevice()`, the
+partition in memory and kept in IndexedDB behind each call), as the
+native module on Expo (§7), as a process in Node (`processDevice()` from
+`snapback4/native`) — syncs the viewer's partition into it, runs every
+query on it, queues every mutation durably and predicts its rows, and
+follows the server's stream for the rest. The device keeps the compiled
+backend too, so a device that starts with no network opens on what it
+holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
+and catches up when the link returns; only a device that has never
+synced needs the server to open. The client itself is the session, the
+link, the transport and the observation of reads: about seventeen
+kilobytes over a device of three hundred. Its options: `url`; `device`;
+one of `persona` (development), `session` (from `snapback4/auth`, kept
+and restored by the client), or `guest: true` (mint one when none is
+kept); `sessionStore`; `fetch`; `waitSeconds`. It has `query(op, args) →
+Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
+unsubscribe, close() }` (a live read; React's `useSyncExternalStore`
+shape), `mutate(op, args) → Write`, `link()`, `onLink`, `viewer()`,
+`session()`, `onSession`, `signOut()`, `sync()`, `close()`. After
+`signOut()` the client is closed and `session()` is null, as it is once
+the server refuses the session: anything that keeps the token — a native
+image header, a presence lease — takes it from `onSession` (`useSession`
+in React) and stops when it is null, so nothing reads a token after
+sign-out. The online client takes `url` with `persona`, `session` or
+`token`, and has the same card without a device.
+
+On the web one tab is one device: a second tab on the same store opens
+its own, and the writes a tab left queued when it closed are adopted by
+the next device that opens the store. `webDevice({ wasm })` takes the
+wasm as a URL, a Response, bytes or a compiled module when a bundler
+cannot resolve the default beside the module; `webDevice({ persist:
+memoryPersistence() })` keeps nothing, for tests.
 
 ### The card
 
@@ -747,76 +742,62 @@ chunks each tick, and sweeps unplaced assets once a minute.
 
 ## 7. Expo
 
-The same client runs on React Native with SQLite as the store:
+The same client runs on React Native over the native module — the
+`snapback4-expo` package, §7.1 — in a development or production build.
+Expo Go loads no custom native code and no wasm under Hermes, so an app
+there runs the online tier with a session it keeps itself:
 
 ```ts
-import * as SQLite from "expo-sqlite";
 import * as SecureStore from "expo-secure-store";
 import { createLocalClient } from "snapback4/local";
-import { expoSqliteDriver, openSqlite } from "snapback4/replica";
+import { nativeAvailable, nativeDevice } from "snapback4-expo";
 
-const safe = (name: string) => name.replace(/[^A-Za-z0-9._-]/g, "_");   // store and session names carry the URL and the viewer
-const client = await createLocalClient({
-  url, guest: true,
-  store: { open: async (name, schema) => openSqlite(expoSqliteDriver(await SQLite.openDatabaseAsync(`${safe(name)}.db`)), schema) },
-  sessionStore: { get: (k) => SecureStore.getItemAsync(safe(k)), set: (k, v) => SecureStore.setItemAsync(safe(k), v), delete: (k) => SecureStore.deleteItemAsync(safe(k)) },
-});
+const sessionStore = { get: SecureStore.getItemAsync, set: SecureStore.setItemAsync, delete: SecureStore.deleteItemAsync };
+const client = nativeAvailable()
+  ? await createLocalClient({ url, guest: true, sessionStore, device: nativeDevice })
+  : createClient({ url, session: await kept() });   // Expo Go
 ```
 
-`snapback4/react` works unchanged. (`node:sqlite` fits the same driver
-through `nodeSqliteDriver`; `snapback4/replica` also exports the memory
-and IndexedDB stores and the key encoding.)
+`snapback4/react` works unchanged.
 
 ### The native module
 
 The same interpreter the server runs, as a Rust module the host links —
 Expo's Swift and Kotlin, Exact2's Apple and Linux hosts — owning the
 partition in its own SQLite, applying the stream, keeping the outbox,
-answering queries and predictions. The JavaScript client that remains,
-`snapback4/native`, keeps the session, the link, the transport and the
-observation of reads; the card is unchanged, without `replica`:
-
-```ts
-import { createNativeClient, type NativeOpener } from "snapback4/native";
-
-const client = await createNativeClient({ url, guest: true, sessionStore, native, dataDir });
-```
-
-`native` is how the host opens its device: `open(path, backend)` gives
-back `{ call, close }` — one JSON call, `call({ op, ... })`, into the
-module, and `close()` to release it (`backend` is `GET /schema`'s JSON,
-or null to open on the one the device kept, which is how a cold start
-with no network opens). The client probes the module first and rejects
-with `E_NATIVE_VERSION` when the native binary predates the JavaScript
-client (reloading JavaScript does not update the module; rebuild). The
+answering queries and predictions; the wasm the web runs is the same
+module over memory. A host opens its device with `open(name, backend)`
+and gives back one JSON call, `call({ op, ... })`, into the module
+(`backend` is `GET /schema`'s JSON, or null to open on the one the
+device kept, which is how a cold start with no network opens). The
 module speaks the same call over a C ABI
 (`crates/snapback4-device/include/snapback4.h`: `sb4_open`, `sb4_call`,
 `sb4_free`, `sb4_close`) and, for a Rust host, through
-`snapback4_device::ffi::call`; `snapback4 device <store> [backend.json]`
-runs it as a process, one JSON line each way, and `processCore(binary,
-spawn, writeFile)` from `snapback4/native` is the opener over that
-process, which is how the Node tests drive the real module. Measured:
-1.7 MB linked on iOS, SQLite included; the same interpreter as wasm is
-194 KB gzip, so the web keeps the TypeScript twin above.
+`snapback4_device::ffi::call`; `snapback4 device <store>` runs it as a
+process, one JSON line each way, which is how the Node tests drive the
+real module. Measured: 1.7 MB linked on iOS, SQLite included; 313 KB
+gzip as wasm.
 
 For Expo the module is the `snapback4-expo` package: `nativeDevice` is
-the opener, `documentDirectory()` the place for stores, and
-`nativeAvailable()` says whether this build carries it, so an app opens
-the Rust device in a development or production build and the TypeScript
-tier above in Expo Go, with nothing above the choice changing;
-`EXPO_PUBLIC_SNAPBACK_TRACE=1` logs every call.
+the opener and `nativeAvailable()` says whether this build carries it,
+so an app opens the Rust device in a development or production build and
+the online tier in Expo Go, with nothing above the choice changing.
+
+The client probes the device first and refuses with `E_DEVICE_VERSION`
+when the device predates it: reloading JavaScript does not update a
+native module; rebuild the development build.
 
 **Proving it on the device.** The package's own simulator witness
-(`witness/expo.mjs` in the repository, run on a booted iOS simulator
-against a real `snapback4 dev`, in Expo Go on the TypeScript tier and
-with `WITNESS_DEV_CLIENT=1` on the Rust module in a development build)
-records the same five things on either: a cold sync, local reads and a
-send, a reopen that finds the rows, a cold start with the server
-unreachable that opens on what the store holds and answers with
+(`witness/expo.mjs` in the repository, run with `WITNESS_DEV_CLIENT=1`
+on a booted iOS simulator against a real `snapback4 dev`, the Rust
+module in a development build) records five things: a cold sync, local
+reads and a send, a reopen that finds the rows, a cold start with the
+server unreachable that opens on what the store holds and answers with
 `fresh: false`, and two writes composed offline that survive a restart of
-the app still offline and flush in order on reconnect. On the module the
-cold sync of 303 rows takes 31 ms against the TypeScript tier's 199. An
-app proves the same the same way: gate the client's `fetch` option to
+the app still offline and flush in order on reconnect; the cold sync of
+303 rows takes 31 ms. The Chromium witness (`witness/idb.mjs`) proves the
+same on the wasm device over IndexedDB. An app proves the same the same
+way: gate the client's `fetch` option to
 model the link (the server never has to die), close and reopen the
 client to model a restart, and read the outcomes off the card.
 

@@ -11,12 +11,13 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
-import { createNativeClient, processCore } from "../dist/native.js";
+import { processDevice } from "../dist/native.js";
 import { guest, logout } from "../dist/auth.js";
-import { nodeSqliteDriver, openSqlite } from "../dist/replica/index.js";
+import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
+const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const query = (name) => ({ kind: "query", name });
 const mutation = (name) => ({ kind: "mutation", name });
 const thread = query("thread"), inbox = query("inbox"), send = mutation("send");
@@ -141,23 +142,29 @@ async function fixture(t, additions = "") {
   await seed(rows);
   const server = createClient({ url, persona: "alice" });
   clients.add(server);
-  const native = processCore(binary, (command, params) => {
+  const spawnDevice = (command, params) => {
     const device = spawn(command, params, { stdio: ["pipe", "pipe", "inherit"] });
     children.add(device);
     device.once("exit", () => children.delete(device));
     return device;
-  }, async (path, text) => writeFileSync(path, text));
+  };
+  // What the wasm devices keep between opens, per fixture: one store per
+  // name, as one origin's IndexedDB would be.
+  const kept = new Map();
   async function open(tier, options = {}) {
     const dataDir = join(directory, options.name ?? tier);
     mkdirSync(dataDir, { recursive: true });
     const common = { url, persona: options.persona ?? "alice", fetch: options.fetch, waitSeconds: 1 };
-    const client = tier === "native"
-      ? await createNativeClient({ ...common, native: options.wrapNative ? { open: async (...params) => options.wrapNative(await native.open(...params)) } : native, dataDir })
-      : tier === "online" ? createClient(common)
-      : await createLocalClient({ ...common, store: { open: async (_name, schema) => {
-        const store = await openSqlite(nodeSqliteDriver(new DatabaseSync(join(dataDir, "device.sqlite"))), schema);
-        return options.wrapStore ? options.wrapStore(store) : store;
-      } } });
+    if (tier === "online") {
+      const client = createClient(common);
+      clients.add(client);
+      return client;
+    }
+    let persist = kept.get(dataDir);
+    if (!persist) kept.set(dataDir, (persist = memoryPersistence()));
+    const opener = tier === "native" ? processDevice(binary, dataDir, spawnDevice, async (path, text) => writeFileSync(path, text)) : webDevice({ wasm, persist });
+    const device = options.wrapNative ? { open: async (...params) => options.wrapNative(await opener.open(...params)) } : opener;
+    const client = await createLocalClient({ ...common, device });
     clients.add(client);
     return client;
   }
@@ -190,17 +197,16 @@ test("online watches retain their changes watermark; bare tokens clear on refusa
   assert.equal(bearer.link(), "signed-out");
 });
 
-for (const tier of ["local", "native"]) {
+for (const tier of ["wasm", "native"]) {
   test(`${tier}: pending metadata survives repeated profile/vote updates and offline replay`, { timeout: 20_000 }, async (t) => {
     const source = readFileSync(join(root, "crates/snapback4-device/tests/fixtures/pending-metadata.q"), "utf8");
     const f = await fixture(t, source);
     await f.seed([{ table: "people", row: { id: "alice", name: "Alice", bio: "Confirmed bio" } }]);
     let offline = false;
     const transport = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
-    let store, core;
-    const options = { fetch: transport, wrapStore: (value) => (store = value), wrapNative: (value) => (core = value) };
-    const queuedIds = async () => tier === "native" ? (await core.call({ op: "queued" })).ok.map((entry) => entry.id)
-      : store.read(async (tx) => (await tx.side("outbox").all()).map((entry) => entry.value).sort((a, b) => a.seq - b.seq).map((entry) => entry.id));
+    let core;
+    const options = { fetch: transport, wrapNative: (value) => (core = value) };
+    const queuedIds = async () => (await core.call({ op: "queued" })).ok.map((entry) => entry.id);
     let client = await f.open(tier, options);
     offline = true;
     await client.sync();
@@ -251,9 +257,9 @@ for (const tier of ["local", "native"]) {
 
   test(`${tier}: no-op and nosync writes retire when the partition stream is empty`, { timeout: 12_000 }, async (t) => {
     const f = await fixture(t);
-    let deviceStore, deviceCore;
-    const client = await f.open(tier, { wrapStore: (store) => { deviceStore = store; return store; }, wrapNative: (core) => { deviceCore = core; return core; } });
-    const queued = async () => tier === "local" ? deviceStore.read(tx => tx.side("outbox").all()) : (await deviceCore.call({ op: "queued" })).ok;
+    let deviceCore;
+    const client = await f.open(tier, { wrapNative: (core) => { deviceCore = core; return core; } });
+    const queued = async () => (await deviceCore.call({ op: "queued" })).ok;
     assert.equal((await client.mutate(mutation("noChange"), {})).state, "sent");
     await client.sync();
     assert.deepEqual(await queued(), [], "a commit with no row events is covered by the drained watermark");
@@ -310,7 +316,9 @@ for (const tier of ["local", "native"]) {
     assert.equal((await write).state, "pending", "the committed write keeps its ID while its full reply is unavailable");
   });
 
-  test(`${tier}: another client sending after sync capture cannot publish an uncorrelated page`, { timeout: 12_000 }, async (t) => {
+  // Two clients over one store is a native host's case (two processes on
+  // one phone): on the web a tab is a device and a second tab opens its own.
+  if (tier === "native") test(`${tier}: another client sending after sync capture cannot publish an uncorrelated page`, { timeout: 12_000 }, async (t) => {
     const f = await fixture(t);
     await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
     const entered = deferred(), release = deferred(), committed = deferred();
@@ -344,8 +352,7 @@ for (const tier of ["local", "native"]) {
     await committed.promise;
     release.resolve();
     const error = await sync;
-    if (tier === "local") assert.match(error?.message ?? "", /write was sent/);
-    else assert.ok(applyRefusals.length > 0, "the native transaction rejects the stale send revision");
+    assert.ok(applyRefusals.length > 0, `the device's transaction rejects the stale send revision (${error?.message ?? "no error"})`);
     assert.equal((await observer.query(counter, counterArgs)).data.value, 1, "the prediction is retained once after rejecting the stale page");
     await observer.sync();
     const confirmed = await observer.query(counter, counterArgs);
@@ -600,58 +607,6 @@ for (const tier of ["local", "native"]) {
   }
 }
 
-test("local backend adoption waits for the transaction using the previous index schema", { timeout: 10_000 }, async (t) => {
-  const f = await fixture(t);
-  const syncEntered = deferred(), syncRelease = deferred(), writing = deferred(), finishWrite = deferred(), loaded = deferred(), releasePost = deferred();
-  let upgrade = false, holdSync = false, holdWrite = false, currentSchema;
-  const wrapStore = (store) => ({
-    get schema() { return store.schema; },
-    setSchema(schema) { currentSchema = schema; store.setSchema(schema); },
-    read: (...params) => store.read(...params),
-    write: (body) => store.write((tx) => body({ ...tx, async put(table, row) {
-      if (holdWrite && table === "messages" && row.body === "held prediction") {
-        holdWrite = false; writing.resolve(); await finishWrite.promise;
-        assert.equal(currentSchema.tables.messages.indexes.byBody, undefined, "an old transaction retains the old schema until it finishes");
-      }
-      return tx.put(table, row);
-    } })),
-    close: () => store.close(),
-  });
-  const client = await f.open("local", { wrapStore, fetch: async (input, init) => {
-    const path = new URL(input).pathname;
-    if (path === "/sync" && holdSync) { holdSync = false; syncEntered.resolve(); await held(syncRelease, init.signal); }
-    if (path === "/m/send") await held(releasePost, init.signal);
-    const response = await fetch(input, init);
-    if (!upgrade || !["/schema", "/sync", "/changes"].includes(path)) return response;
-    const json = await response.json();
-    json.generation += 1;
-    if (path === "/schema") {
-      json.schema.tables.messages.indexes.byBody = { components: [{ Column: "body" }, { Column: "id" }], unique: false };
-      loaded.resolve();
-    }
-    return Response.json(json, { status: response.status });
-  } });
-  try {
-    upgrade = true; holdSync = true;
-    const syncing = client.sync();
-    await syncEntered.promise;
-    holdWrite = true;
-    const write = client.mutate(send, { conversationId: "c1", body: "held prediction" });
-    await writing.promise;
-    syncRelease.resolve();
-    await loaded.promise;
-    await sleep(20);
-    assert.equal(currentSchema.tables.messages.indexes.byBody, undefined, "loading a backend does not replace a busy store's schema");
-    finishWrite.resolve();
-    await syncing;
-    assert.ok(currentSchema.tables.messages.indexes.byBody);
-    releasePost.resolve();
-    assert.equal((await write).state, "sent");
-  } finally {
-    syncRelease.resolve(); finishWrite.resolve(); releasePost.resolve();
-  }
-});
-
 test("close aborts online posts and stops admission", { timeout: 10_000 }, async (t) => {
   const f = await fixture(t);
   const entered = deferred();
@@ -673,8 +628,8 @@ test("close aborts online posts and stops admission", { timeout: 10_000 }, async
   assert.equal((await f.server.query(thread, args)).data.length, 2);
 });
 
-test("native process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async () => {
-  const opener = (script) => processCore(process.execPath, (command) => spawn(command, ["-e", script], { stdio: ["pipe", "pipe", "inherit"] }), async () => {});
+test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async () => {
+  const opener = (script) => processDevice(process.execPath, "unused", (command) => spawn(command, ["-e", script], { stdio: ["pipe", "pipe", "inherit"] }), async () => {});
   await assert.rejects(opener("process.exit(4)").open("unused", null), /exited/);
   const core = await opener('process.stdout.write(JSON.stringify({ok:true}) + "\\n"); process.stdin.once("data", () => process.exit(5));').open("unused", null);
   await assert.rejects(core.call({ op: "state" }), /exited/);
@@ -682,7 +637,7 @@ test("native process failures reject opening and pending calls instead of leavin
   await assert.rejects(core.call({ op: "state" }), /closed|exited/);
 });
 
-test("native compatibility rejects old and malformed protocols before online or offline startup", async () => {
+test("device compatibility rejects old and malformed protocols before online or offline startup", async () => {
   const valid = { watermark: 0, generation: 1, pending_ids: [], send_revision: 0 };
   const replies = [
     { denied: { code: "E_OP", family: "op", message: "unknown op sync_state" } },
@@ -695,28 +650,28 @@ test("native compatibility rejects old and malformed protocols before online or 
   for (const offline of [false, true]) for (const reply of replies) {
     const calls = [], requests = [];
     let closed = 0;
-    await assert.rejects(createNativeClient({
-      url: "http://incompatible.invalid", persona: "alice", dataDir: "unused",
+    await assert.rejects(createLocalClient({
+      url: "http://incompatible.invalid", persona: "alice",
       fetch: async (input) => {
         requests.push(new URL(input).pathname);
         if (offline) throw new TypeError("offline");
         return Response.json({ generation: 1, schema: { tables: {} }, programs: [] });
       },
-      native: { open: async () => ({ call: async (request) => { calls.push(request.op); return reply; }, close: async () => { await sleep(0); closed++; } }) },
-    }), /E_NATIVE_VERSION:.*Update snapback4-expo.*rebuild.*native binary/);
+      device: { open: async () => ({ call: async (request) => { calls.push(request.op); return reply; }, close: async () => { await sleep(0); closed++; } }) },
+    }), /E_DEVICE_VERSION:.*rebuild.*native binary/);
     assert.equal(closed, 1, "startup waits for the incompatible core to close");
     assert.deepEqual(calls, ["sync_state"], "no follower, query, admission or retry starts");
     assert.deepEqual(requests, ["/schema"]);
   }
 });
 
-test("native compatibility closes the core and preserves operational startup errors", async () => {
+test("device compatibility closes the core and preserves operational startup errors", async () => {
   for (const failure of [{ denied: { code: "E_STORE", family: "store", message: "database is locked" } }, new Error("native connection closed")]) {
     let closed = 0;
-    await assert.rejects(createNativeClient({
-      url: "http://native-error.invalid", persona: "alice", dataDir: "unused",
+    await assert.rejects(createLocalClient({
+      url: "http://native-error.invalid", persona: "alice",
       fetch: async () => { throw new TypeError("offline"); },
-      native: { open: async () => ({
+      device: { open: async () => ({
         call: async () => { if (failure instanceof Error) throw failure; return failure; },
         close: async () => { closed++; throw new Error("close also failed"); },
       }) },
@@ -725,7 +680,7 @@ test("native compatibility closes the core and preserves operational startup err
   }
 });
 
-test("native compatibility accepts the current core online and on an offline reopen", { timeout: 12_000 }, async (t) => {
+test("device compatibility accepts the current core online and on an offline reopen", { timeout: 12_000 }, async (t) => {
   const f = await fixture(t), calls = [];
   const wrapNative = (core) => ({
     call: async (request) => { calls.push(request.op); return core.call(request); },
@@ -756,23 +711,11 @@ test("online serialization failures retain the minted id without scheduling netw
   await client.close();
 });
 
-for (const tier of ["local", "native"]) {
+for (const tier of ["wasm", "native"]) {
   test(`${tier}: close waits for an applying acknowledgment and aborts sync`, { timeout: 10_000 }, async (t) => {
     const f = await fixture(t);
     const entered = deferred(), release = deferred();
     let storeClosed = false;
-    const wrapStore = (store) => ({
-      setSchema: (...args) => store.setSchema(...args),
-      read: (...args) => store.read(...args),
-      write: (body) => store.write((tx) => body({ ...tx, side: (name) => {
-        const side = tx.side(name);
-        return { ...side, async put(key, value) {
-          if (name === "outbox" && value.sentSeq !== undefined) { entered.resolve(); await release.promise; }
-          return side.put(key, value);
-        } };
-      } })),
-      async close() { storeClosed = true; await store.close(); },
-    });
     const wrapNative = (core) => ({
       async call(request) {
         if (request.op === "settle" && request.seq !== undefined) { entered.resolve(); await release.promise; }
@@ -780,7 +723,7 @@ for (const tier of ["local", "native"]) {
       },
       async close() { storeClosed = true; await core.close(); },
     });
-    const client = await f.open(tier, { wrapStore, wrapNative });
+    const client = await f.open(tier, { wrapNative });
     const write = client.mutate(send, { conversationId: "c1", body: "in flight at close" });
     await entered.promise;
     const closing = client.close();
