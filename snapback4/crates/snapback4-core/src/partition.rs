@@ -453,7 +453,7 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64) -> R
         let expiring = schema.table(&key.0).and_then(|table| table.sync.as_ref()).and_then(|sync| match &sync.audience { Audience::Target { table, .. } => schema.table(table), _ => None }).is_some_and(|table| table.expire.is_some());
         // A legacy grant without its lifetime or surviving membership cannot
         // authorize historical reads of an expiring audience. Fail closed.
-        let fallback_expiry = || current.get(&key).copied().unwrap_or(expiring.then_some(i64::MIN));
+        let fallback_expiry = || expiring.then_some(i64::MIN);
         let expiry = |event: &LogEvent| event.data.as_ref().and_then(|data| data.field("expiresAt").ok()).map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry);
         let steps = transitions.get(&key).map(Vec::as_slice).unwrap_or_default();
         let held_at_watermark = steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope");

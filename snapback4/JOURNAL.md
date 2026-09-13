@@ -2172,3 +2172,9 @@ binary (6,802,080 B, opt-level 3), packed 439,283 B for the client and
 both in 176 s. The client tarball carries the web device's wasm without
 the host (1.4 MB raw), as §9 decided. The registry answered `snapback4@0.2.4`
 about two minutes after the platform package; a view in between reads 404.
+
+## 2026-09-13 — moving-main integration and review correction
+
+The ticket pass integrates 0.2.4's native reads while preserving deferred device transactions, query expiry metadata, refusal-safe client adoption and asset-delivery serialization. A partial independent Sol review found a legacy grant borrowing a later rejoin's expiry. The regression fails against the prior fallback and passes when historical legacy grants without their own deadline fail closed. The reviewer was stopped by a provider safety filter before completing its broader audit; this is a received finding, not a clean whole-review verdict.
+
+The first full local suite passed all assertions in 87 s with rebuilt artifacts. A controlled warm Linux run also passed but took 64.04 s, so the 60-second ticket requires a further runner correction. Publication remains pending that qualification. The planned pins are snapback4/snapback4-darwin-arm64 0.2.5 and a rebuilt snapback4-expo 0.2.1.
