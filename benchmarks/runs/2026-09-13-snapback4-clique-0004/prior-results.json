@@ -1,0 +1,647 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "clique-prior-results",
+  "preparedDate": "2026-09-13",
+  "scope": {
+    "purpose": "Machine-readable prior anchors for the September 13 Snapback 4 three-model comparison.",
+    "scorePolicy": "Only values explicitly present in retained grader or holistic artifacts are recorded; absent or uncomparable values are null.",
+    "comparisonLimitsSourceIds": [
+      "instrument_limits_md",
+      "instrument_inventory_json"
+    ]
+  },
+  "comparisonLimits": {
+    "september12VsCurrentInstrument": {
+      "byteIdentical": true,
+      "instrumentCommit": "409954115f151a72dd95e897c5f00f36877f11e0",
+      "fileCount": 177,
+      "inventorySha256": "5055fa1206846ad9f51744b117001cb1fbed5b61dc865b355125015355251df4"
+    },
+    "september05Instrument": {
+      "instrumentCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "fileCount": 170,
+      "inventorySha256": "1e5eedccb31c0a552a9446315a60ce67dbec2e6c3b38e6cfdad6a6286d33db5f",
+      "sharedPaths": 170,
+      "unchangedSharedPaths": 123,
+      "changedSharedPaths": 47,
+      "currentOnlyPaths": 7,
+      "strictSameInstrumentMagnitudeComparison": false,
+      "materialDifferences": [
+        "fixture pack 0.2.1-m8 versus 0.2.2-m8 changes M3 membership/actions",
+        "UI kit 0.3.2-m8 versus 0.3.3-m8 and choreography 0.3.6-m8 versus 0.3.8-m8 change executable acceptance behavior",
+        "September 5 lacks the current launch-environment URL isolation",
+        "metering and run-record custody differ",
+        "September 5 ran three backend lanes in parallel per wave on a contended M5 Max; the current campaign runs builders serially"
+      ]
+    },
+    "stableComparatorInputs": [
+      "main brief",
+      "101-ID assertion manifest and applicability map",
+      "grader prompt and report schema",
+      "13,014,016-byte scale log and committed digest"
+    ],
+    "gradeComparison": "Use the 101-ID subtotal. Prior structured graders reported no results for the 18 M8 IDs.",
+    "wallClockComparison": "September 5 wall clocks are contextual only because instrument, environment, parallel scheduling, and machine contention differ."
+  },
+  "results": [
+    {
+      "id": "sep12-snapback4-astra",
+      "campaignRecord": "2026-09-13-snapback4-clique-0003",
+      "product": {
+        "name": "Snapback 4",
+        "packages": {
+          "snapback4": "0.1.0",
+          "snapback4-darwin-arm64": "0.1.0"
+        },
+        "coreVersion": "0.0.16",
+        "sourceIds": [
+          "sep12_campaign_readme",
+          "sep12_run_record"
+        ]
+      },
+      "builder": {
+        "model": "gpt-6-astra",
+        "effort": "medium",
+        "sourceIds": [
+          "sep12_run_record",
+          "sep12_builder_report"
+        ]
+      },
+      "grade101": {
+        "grader": {
+          "family": "claude",
+          "model": "claude-opus-5",
+          "effort": null,
+          "calibrationPassed": false,
+          "sameFamilyGraded": false
+        },
+        "counts": {
+          "pass": 84,
+          "fail": 1,
+          "not-run": 16,
+          "total": 101
+        },
+        "oDimensions": {
+          "O1": 62,
+          "O2": 48,
+          "O4": 35,
+          "O5": 30
+        },
+        "oDimensionKinds": {
+          "O1": "score",
+          "O2": "score",
+          "O4": "score",
+          "O5": "band"
+        },
+        "structuredM8": {
+          "counts": null,
+          "reportedIds": 0,
+          "totalIds": 18
+        },
+        "sourceIds": [
+          "sep12_grade_astra_snapback4"
+        ]
+      },
+      "holistic": {
+        "status": "absent",
+        "scorer": null,
+        "method": null,
+        "total": null,
+        "categories": null,
+        "sourceIds": []
+      },
+      "continuousWall": {
+        "seconds": 7002,
+        "display": "1 h 56 min 42 s",
+        "startEpoch": 1789255852,
+        "endEpoch": 1789262854,
+        "method": "raw lane start to continuous builder end from the retained run log; excludes the 70-second report-closure tail (the run record reports 7,072 seconds through report close)",
+        "sourceIds": [
+          "sep12_campaign_readme",
+          "sep12_builder_run_log",
+          "sep12_builder_report",
+          "sep12_run_record"
+        ]
+      },
+      "m7": {
+        "outcome": "capability-failure",
+        "seconds": 1386,
+        "display": "23 min 6 s",
+        "startEpoch": 1789265724,
+        "endEpoch": 1789267110,
+        "capSeconds": 14400,
+        "withinCap": true,
+        "method": "M7 report raw first-line start to end",
+        "sourceIds": [
+          "sep12_m7_astra_snapback4"
+        ]
+      }
+    },
+    {
+      "id": "sep05-snapback2-astra",
+      "campaignRecord": "2026-09-05-clique-full-3x3",
+      "product": {
+        "name": "Snapback 2",
+        "packages": {
+          "snapback2": "0.0.4",
+          "snapback2-darwin-arm64": "0.0.4"
+        },
+        "sourceIds": [
+          "sep05_campaign_readme",
+          "sep05_builder_astra_report",
+          "sep05_builder_astra_package_lock"
+        ]
+      },
+      "builder": {
+        "model": "gpt-6-astra",
+        "effort": "medium",
+        "sourceIds": [
+          "sep05_builder_astra_start",
+          "sep05_campaign_readme"
+        ]
+      },
+      "grade101": {
+        "grader": {
+          "family": "claude",
+          "model": "claude-opus-5",
+          "effort": null,
+          "calibrationPassed": false,
+          "sameFamilyGraded": false
+        },
+        "counts": {
+          "pass": 81,
+          "fail": 11,
+          "not-run": 9,
+          "total": 101
+        },
+        "oDimensions": {
+          "O1": 40,
+          "O2": 30,
+          "O4": null,
+          "O5": 30
+        },
+        "oDimensionKinds": {
+          "O1": "score",
+          "O2": "score",
+          "O4": "score",
+          "O5": "band"
+        },
+        "structuredM8": {
+          "counts": null,
+          "reportedIds": 0,
+          "totalIds": 18
+        },
+        "sourceIds": [
+          "sep05_grade_astra_snapback2"
+        ]
+      },
+      "holistic": {
+        "status": "complete",
+        "scorer": {
+          "family": "astra",
+          "model": "gpt-6-astra",
+          "effort": "xhigh"
+        },
+        "method": "same-family narrative assessment across that wave's three backend lanes; not independent acceptance grading",
+        "total": 64,
+        "categories": {
+          "setup_and_docs": 63,
+          "data_modeling": 68,
+          "authorization": 84,
+          "queries_and_live": 67,
+          "writes_and_transactions": 76,
+          "offline_sync": 74,
+          "media_assets": 43,
+          "background_work": 70,
+          "client_integration": 69,
+          "diagnostics_dev_loop": 68,
+          "scale_and_limits": 68,
+          "operations": 43
+        },
+        "sourceIds": [
+          "sep05_holistic_scores",
+          "sep05_campaign_readme"
+        ]
+      },
+      "continuousWall": {
+        "seconds": 14614,
+        "display": "4 h 3 min 34 s",
+        "startEpoch": 1788625794,
+        "endEpoch": 1788640408,
+        "method": "builder final report's raw start/reportEnd interval; includes the resumed continuation after the original session ended abruptly",
+        "sourceIds": [
+          "sep05_builder_astra_report",
+          "sep05_campaign_readme"
+        ]
+      },
+      "m7": {
+        "outcome": "green",
+        "seconds": 1156,
+        "display": "19 min 16 s",
+        "startEpoch": 1788744775,
+        "endEpoch": 1788745931,
+        "capSeconds": 14400,
+        "withinCap": true,
+        "method": "M7 report raw first-line start to end",
+        "note": null,
+        "sourceIds": [
+          "sep05_m7_astra_snapback2"
+        ]
+      }
+    },
+    {
+      "id": "sep05-snapback2-grok",
+      "campaignRecord": "2026-09-05-clique-full-3x3",
+      "product": {
+        "name": "Snapback 2",
+        "packages": {
+          "snapback2": "0.0.4",
+          "snapback2-darwin-arm64": "0.0.4"
+        },
+        "sourceIds": [
+          "sep05_campaign_readme",
+          "sep05_builder_grok_report",
+          "sep05_builder_grok_package_lock"
+        ]
+      },
+      "builder": {
+        "model": "grok-4.6",
+        "effort": "xhigh",
+        "sourceIds": [
+          "sep05_builder_grok_start",
+          "sep05_campaign_readme"
+        ]
+      },
+      "grade101": {
+        "grader": {
+          "family": "claude",
+          "model": "claude-opus-5",
+          "effort": null,
+          "calibrationPassed": false,
+          "sameFamilyGraded": false
+        },
+        "counts": {
+          "pass": 68,
+          "fail": 9,
+          "not-run": 24,
+          "total": 101
+        },
+        "oDimensions": {
+          "O1": 15,
+          "O2": 30,
+          "O4": null,
+          "O5": 0
+        },
+        "oDimensionKinds": {
+          "O1": "score",
+          "O2": "score",
+          "O4": "score",
+          "O5": "band"
+        },
+        "structuredM8": {
+          "counts": null,
+          "reportedIds": 0,
+          "totalIds": 18
+        },
+        "sourceIds": [
+          "sep05_grade_grok_snapback2"
+        ]
+      },
+      "holistic": {
+        "status": "complete",
+        "scorer": {
+          "family": "grok",
+          "model": "grok-4.6",
+          "effort": "xhigh"
+        },
+        "method": "same-family narrative assessment across that wave's three backend lanes; not independent acceptance grading",
+        "total": 57,
+        "categories": {
+          "setup_and_docs": 65,
+          "data_modeling": 73,
+          "authorization": 82,
+          "queries_and_live": 58,
+          "writes_and_transactions": 86,
+          "offline_sync": 76,
+          "media_assets": 58,
+          "background_work": 80,
+          "client_integration": 44,
+          "diagnostics_dev_loop": 80,
+          "scale_and_limits": 40,
+          "operations": 55
+        },
+        "sourceIds": [
+          "sep05_holistic_scores",
+          "sep05_campaign_readme"
+        ]
+      },
+      "continuousWall": {
+        "seconds": 10927,
+        "display": "3 h 2 min 7 s",
+        "startEpoch": 1788644421,
+        "endEpoch": 1788655348,
+        "method": "endEpoch minus startEpoch from the builder final report; no validated run record was retained",
+        "sourceIds": [
+          "sep05_builder_grok_report",
+          "sep05_campaign_readme"
+        ]
+      },
+      "m7": {
+        "outcome": "green",
+        "seconds": 1876,
+        "display": "31 min 16 s",
+        "startEpoch": 1788745131,
+        "endEpoch": 1788747007,
+        "capSeconds": 14400,
+        "withinCap": true,
+        "method": "M7 report raw first-line start to end",
+        "note": null,
+        "sourceIds": [
+          "sep05_m7_grok_snapback2"
+        ]
+      }
+    },
+    {
+      "id": "sep05-snapback2-muse",
+      "campaignRecord": "2026-09-05-clique-full-3x3",
+      "product": {
+        "name": "Snapback 2",
+        "packages": {
+          "snapback2": "0.0.4",
+          "snapback2-darwin-arm64": "0.0.4"
+        },
+        "sourceIds": [
+          "sep05_campaign_readme",
+          "sep05_builder_muse_report",
+          "sep05_builder_muse_package_lock"
+        ]
+      },
+      "builder": {
+        "model": "muse-spark-1.3",
+        "effort": "xhigh",
+        "sourceIds": [
+          "sep05_builder_muse_start",
+          "sep05_campaign_readme"
+        ]
+      },
+      "grade101": {
+        "grader": {
+          "family": "claude",
+          "model": "claude-opus-5",
+          "effort": null,
+          "calibrationPassed": false,
+          "sameFamilyGraded": false
+        },
+        "counts": {
+          "pass": 75,
+          "fail": 17,
+          "not-run": 9,
+          "total": 101
+        },
+        "oDimensions": {
+          "O1": 30,
+          "O2": 25,
+          "O4": null,
+          "O5": 30
+        },
+        "oDimensionKinds": {
+          "O1": "score",
+          "O2": "score",
+          "O4": "score",
+          "O5": "band"
+        },
+        "structuredM8": {
+          "counts": null,
+          "reportedIds": 0,
+          "totalIds": 18
+        },
+        "sourceIds": [
+          "sep05_grade_muse_snapback2"
+        ]
+      },
+      "holistic": {
+        "status": "complete",
+        "scorer": {
+          "family": "muse",
+          "model": "muse-spark-1.3",
+          "effort": "xhigh"
+        },
+        "method": "same-family narrative assessment across that wave's three backend lanes; not independent acceptance grading",
+        "total": 78,
+        "categories": {
+          "setup_and_docs": 38,
+          "data_modeling": 85,
+          "authorization": 80,
+          "queries_and_live": 55,
+          "writes_and_transactions": 85,
+          "offline_sync": 92,
+          "media_assets": 80,
+          "background_work": 45,
+          "client_integration": 65,
+          "diagnostics_dev_loop": 50,
+          "scale_and_limits": 78,
+          "operations": 60
+        },
+        "sourceIds": [
+          "sep05_holistic_scores",
+          "sep05_campaign_readme"
+        ]
+      },
+      "continuousWall": {
+        "seconds": 29693,
+        "display": "8 h 14 min 53 s",
+        "startEpoch": 1788657941,
+        "endEpoch": 1788687634,
+        "method": "builder final report's raw start/end interval for attempt 2; the provider-outage attempt 1 is excluded by the campaign record",
+        "sourceIds": [
+          "sep05_builder_muse_report",
+          "sep05_campaign_readme"
+        ]
+      },
+      "m7": {
+        "outcome": "green",
+        "seconds": 21506,
+        "display": "5 h 58 min 26 s",
+        "startEpoch": 1788775348,
+        "endEpoch": 1788796854,
+        "capSeconds": 14400,
+        "withinCap": false,
+        "method": "M7 report raw first-line start to end",
+        "note": "Retained artifact is green, but the run exceeded the four-hour safety cap and is not a clean on-budget completion; the original pending summary was stale.",
+        "sourceIds": [
+          "sep05_m7_muse_start",
+          "sep05_m7_muse_events",
+          "sep05_m7_muse_run_log",
+          "sep05_m7_muse_report",
+          "sep05_m7_muse_suite",
+          "sep05_m7_muse_choreography",
+          "sep05_m7_muse_pre_snapshot",
+          "sep05_m7_muse_post_snapshot",
+          "sep05_campaign_readme"
+        ]
+      }
+    }
+  ],
+  "sources": {
+    "instrument_limits_md": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/instrument-comparison.md",
+      "sha256": "98fd367c8e97bd527251de017f8578cb83908bd4d3efc6dd7fdb1c0a224be45a"
+    },
+    "instrument_inventory_json": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/instrument-comparison.json",
+      "sha256": "8b0aaab1e96aa4643ad1a9cc8fa73e38452e7c43704093a9df0043851a54ba06"
+    },
+    "sep05_campaign_readme": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/README.md",
+      "sha256": "05e2b2b29f3647b2a478fa36b2396f7c44ee58e6f71833865dfc45229d4f3d3d"
+    },
+    "sep05_holistic_scores": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/holistic-scores.json",
+      "sha256": "fcba924f03a745d58ee9aa0e8468cafe3aa448bc0e32c3d3ec1064e5c3537df5"
+    },
+    "sep05_grade_astra_snapback2": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/grading-astra-snapback2.json",
+      "sha256": "39170e2a7865d674b0740f0474c4b4370f394de302f00617313d19fb1a5df4cd"
+    },
+    "sep05_grade_grok_snapback2": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/grading-grok-snapback2.json",
+      "sha256": "f3dd51ce60eac3e6c591f9720903f5a5d5160ff914355ddad76edb020dd80ea9"
+    },
+    "sep05_grade_muse_snapback2": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/grading-muse-snapback2.json",
+      "sha256": "0a9979296ad123da2e5c30ff961cde7e86d8d1946fad5c77c5846c2e62a64165"
+    },
+    "sep05_m7_astra_snapback2": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/m7-astra-snapback2.md",
+      "sha256": "13eae63aefcdfc302022eeceb577562515319e0d17583d0c3cccc489f4ace206"
+    },
+    "sep05_m7_grok_snapback2": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/m7-grok-snapback2.md",
+      "sha256": "c4aaf4df9214bc6391c214e440a013e2b0dc844408f76f6a204aeec7adb11799"
+    },
+    "sep05_builder_astra_start": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/logs/astra-snapback2.start.json",
+      "sha256": "278a7faf18106b5e9a493645f60f4dcb30c6e98e06554a81c663e1019f9b1cc7"
+    },
+    "sep05_builder_grok_start": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/logs/grok-snapback2.start.json",
+      "sha256": "0c2394aae851611a5576534da44b5080261bc58997599127e1151ab4891b4988"
+    },
+    "sep05_builder_muse_start": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/logs/muse-snapback2.start.json",
+      "sha256": "c32f9eecbe84ef05a200449c319faca56f3d562acb3fd154d3634338c9cfffad"
+    },
+    "sep05_builder_astra_report": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/astra-snapback2/final-report.md",
+      "sha256": "7d964f7e1e867693481678c8ebd78f43f5ae623c8a446e14cbca0110513725e2"
+    },
+    "sep05_builder_grok_report": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/grok-snapback2/final-report.md",
+      "sha256": "5d1490cef28b433951069a421206b315caf6434f2f5fb173997e085c361b3d65"
+    },
+    "sep05_builder_muse_report": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/final-report.md",
+      "sha256": "d0f011a14482c2085de0ebbd1710753d662a2125f2013b67aefc1c801418537d"
+    },
+    "sep05_builder_astra_package_lock": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/astra-snapback2/package-lock.json",
+      "sha256": "1496e9b40724ead3b8b71df609175b1bf37607eec26e8f99dae26c60938bcd6b"
+    },
+    "sep05_builder_grok_package_lock": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/grok-snapback2/package-lock.json",
+      "sha256": "3a2515b7a3295dcf0c0ec1ec5134f414e8389005fc333bdf893c2a25b98756f0"
+    },
+    "sep05_builder_muse_package_lock": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/package-lock.json",
+      "sha256": "a2c6fbb944f1d50ec6cc67970e336ecdd612ba348fdc66062b482b052bd6813f"
+    },
+    "sep05_m7_muse_start": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/logs/muse-snapback2.m7.start.json",
+      "sha256": "f9726efbd948e248fa58990a3e700c240989861cf4e9104a147ff1e19744efc1"
+    },
+    "sep05_m7_muse_events": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/logs/muse-snapback2.m7.ndjson",
+      "sha256": "79b399ef936c5457f6fffd354d989f00cfb0ec68230f0a0f8165bc8174519b79"
+    },
+    "sep05_m7_muse_run_log": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/m7/run-log.md",
+      "sha256": "63e15499a034c63635744d7b29cf844ee60b7f03616e63bfbf57086ddd38e264"
+    },
+    "sep05_m7_muse_report": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/m7/final-report.md",
+      "sha256": "ede0d6e88ab0c706163487dd2cad051f781485de280850ba37580dd582185932"
+    },
+    "sep05_m7_muse_suite": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/receipts/suite-m7.json",
+      "sha256": "57f4466b30bc13d6843e6a2db4ab83c78032156568bc27b529acc5e2742f35b8"
+    },
+    "sep05_m7_muse_choreography": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/receipts/choreo-m7.jsonl",
+      "sha256": "e31419a84b388497cc4faeb16370e60cac218a5b163c926617f6aff9c5f0d8ab"
+    },
+    "sep05_m7_muse_pre_snapshot": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/m7/pre-snapshot/manifest.json",
+      "sha256": "69b96ac7edea751a1a34fa4eaf95f2a9c5f2887f03fa93e12a18c89b244ca680"
+    },
+    "sep05_m7_muse_post_snapshot": {
+      "custody": "raw-source",
+      "path": "/Users/ccheever/clique-full-20260905/lanes/muse-snapback2/m7/post-snapshot/manifest.json",
+      "sha256": "24f50720a46fc3461b3316e3932c228d9d3dba4cf5a4c04e01dc7c63178763d4"
+    },
+    "sep12_campaign_readme": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0003/README.md",
+      "sha256": "18185083a3027145418b17730ae3a2f4cc5837e0962ecbc732721932694558cc"
+    },
+    "sep12_builder_report": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0003/builder-final-report.md",
+      "sha256": "aab68ea9c957ec08dfa0d5180a5ba5e46368f88e00e5d557d5f21b492ab4a745"
+    },
+    "sep12_builder_run_log": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0003/builder-run-log.md",
+      "sha256": "0c488430cf4489032de649eacb10e18608756f32e8811f8180efdc89ab4461f5"
+    },
+    "sep12_run_record": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0003/record-astra-snapback4.json",
+      "sha256": "b38f3c294e68ec1a3e1633a017e96f59dca969db1fa9a0edfe13e9e11b48e924"
+    },
+    "sep12_grade_astra_snapback4": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0003/grading-astra-snapback4.json",
+      "sha256": "6938a190b797cdf4c92100d7aca0eb1fe3092882c02f1a6c7fc86f4de0b801ba"
+    },
+    "sep12_m7_astra_snapback4": {
+      "custody": "repository",
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0003/m7-astra-snapback4.md",
+      "sha256": "c74b7853cdb4483290d3d589bfbff43499d679ec6fae20257e20358c6dd7e739"
+    }
+  }
+}

@@ -10,7 +10,7 @@ The repairs landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`.
 The publisher reran the full suite in 30 seconds: 236 Rust, 9 fixture and
 89 client passes, zero failures and one declared ignored test. Its installed
 consumer checks passed. `release-qualification.json` retains the package,
-binary and raw-log digests. The builder reports M1 green; independent grading has not started.
+binary and raw-log digests. The builder reports M1 and M2 green; independent grading has not started.
 
 ## Frozen run
 
@@ -38,12 +38,12 @@ grader behavior across runs.
 
 ## Results
 
-Astra reports M1 green and is building M2. These are builder outcomes; the
+Astra reports M1 and M2 green and is building M3. These are builder outcomes; the
 independent grade remains pending. Grok, Muse, scoring and M7 have not started.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | running | pending | pending | pending | pending | pending | running | pending | pending | pending | pending |
+| Astra medium | builder green | builder green | running | pending | pending | pending | pending | running | pending | pending | pending | pending |
 | Grok 4.6 xhigh | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
 | Muse Spark 1.3 xhigh | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
 
@@ -62,7 +62,8 @@ builder model and effort.
 ## Prior N=1 anchors
 
 The grade column below is limited to the prior 101 M1–M7 IDs. These are
-calibration anchors only. The [instrument audit](./instrument-comparison.md)
+calibration anchors only. [The prior-results dataset](./prior-results.json)
+retains the exact scores, timings, methods and 32 hashed sources. The [instrument audit](./instrument-comparison.md)
 confirms byte-identical September 12/current packets, while September 5 differs
 in 47 shared files and adds seven current files. The brief, assertion manifest,
 grader contract and scale log are unchanged, but fixture membership, UI and
