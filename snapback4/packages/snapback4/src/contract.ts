@@ -103,6 +103,7 @@ export interface Client {
   onLink(notify: (link: Link) => void): () => void;
   viewer(): Principal | null;
   onViewer(notify: (viewer: Principal | null) => void): () => void;
+  onWrite(notify: (write: Exclude<Write, { state: "pending" }>) => void): () => void;
   close(): Promise<void>;
 }
 
