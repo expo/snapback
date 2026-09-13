@@ -183,7 +183,7 @@ fn rejection_family(code: &str) -> &'static str {
 // @ref LLP 1012#7-writes-offline — trace validation compares what the client
 // actually read, keyed by the same bytes the pool carried.
 pub fn row_digest(row: &Value) -> String {
-    digest(&value_to_wire_json(row))
+    digest(&WireValue(row))
 }
 
 /// The digest a rule verdict carries for its pinned inputs, on the receipt
@@ -500,6 +500,15 @@ pub(crate) fn row_pool(
     execution: &Execution,
     schema: &crate::Schema,
 ) -> Result<Vec<DeliveryRow>, DeliveryProjectionError> {
+    Ok(row_pool_records(execution, schema)?.into_iter().map(|row| DeliveryRow {
+        table: row.table.clone(), id: row.id.clone(), row: value_to_wire_json(&row.row),
+    }).collect())
+}
+
+pub(crate) fn row_pool_records<'a>(
+    execution: &'a Execution,
+    schema: &crate::Schema,
+) -> Result<Vec<&'a RowRecord>, DeliveryProjectionError> {
     execution
         .receipt
         .validate_pool(schema)
@@ -519,14 +528,7 @@ pub(crate) fn row_pool(
             }
         }
     }
-    Ok(pool
-        .into_iter()
-        .map(|((table, id), row)| DeliveryRow {
-            table,
-            id,
-            row: value_to_wire_json(&row.row),
-        })
-        .collect())
+    Ok(pool.into_values().collect())
 }
 
 fn pooled_value(
@@ -650,6 +652,37 @@ pub(crate) fn delivery_verdict(verdict: &Verdict) -> DeliveryVerdict {
 }
 
 /// The public JSON encoding used by query data and every row in the pool.
+// @ref LLP 1001#native-owner-image-pipeline — borrow the existing typed image;
+// encoding never requires a second object tree or changes its nominal values.
+pub struct WireValue<'a>(pub &'a Value);
+
+impl Serialize for WireValue<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::{SerializeMap, SerializeSeq};
+        match self.0 {
+            Value::Null => serializer.serialize_unit(),
+            Value::Bool(value) => serializer.serialize_bool(*value),
+            Value::Int(value) => serializer.serialize_i64(*value),
+            Value::String(value) | Value::Id(value) => serializer.serialize_str(value),
+            Value::Bytes(value) => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("Bytes", &crate::encode_bytes_hex(value))?;
+                map.end()
+            }
+            Value::Row(values) | Value::Map(values) => {
+                let mut map = serializer.serialize_map(Some(values.len()))?;
+                for (key, value) in values { map.serialize_entry(key, &WireValue(value))?; }
+                map.end()
+            }
+            Value::Array(values) => {
+                let mut seq = serializer.serialize_seq(Some(values.len()))?;
+                for value in values { seq.serialize_element(&WireValue(value))?; }
+                seq.end()
+            }
+        }
+    }
+}
+
 pub fn value_to_wire_json(value: &Value) -> Json {
     match value {
         Value::Null => Json::Null,
@@ -673,6 +706,24 @@ mod tests {
     use crate::engine::{AuthoritativeTrace, ClosureReceipt};
     use crate::ir::Order;
     use crate::object;
+
+    #[test]
+    fn borrowed_wire_encoding_and_fingerprints_match_the_owned_json_oracle() {
+        let scalar = vec![Value::Null, Value::Bool(false), Value::Bool(true), Value::Int(crate::I53_MIN),
+            Value::Int(crate::I53_MAX), Value::Id("id\0😀".into()), Value::String("\"\\\n\r\t\u{2028}é".into()),
+            Value::Bytes(vec![0, 1, 127, 128, 255])];
+        let fields = BTreeMap::from([("z\0".into(), Value::Array(scalar.clone())),
+            ("a".into(), Value::Map(BTreeMap::from([("Bytes".into(), Value::String("literal".into()))]).into()))]);
+        for value in scalar.into_iter().chain([Value::Array(vec![]), Value::Row(fields.clone().into()), Value::Map(fields.into())]) {
+            let before = crate::canonical_json(&value);
+            let expected = value_to_wire_json(&value);
+            assert_eq!(serde_json::to_vec(&WireValue(&value)).unwrap(), serde_json::to_vec(&expected).unwrap());
+            assert_eq!(row_digest(&value), digest(&expected));
+            assert_eq!(crate::canonical_json(&value), before, "wire encoding changed nominal input");
+            let row = crate::acquisition::AcquisitionRow { table: "items".into(), id: "a".into(), row: value };
+            assert_eq!(serde_json::to_value(row).unwrap(), json!({"table":"items","id":"a","row":expected}));
+        }
+    }
 
     #[test]
     fn replay_effects_emit_only_the_authorized_projection_and_preserve_unknown() {

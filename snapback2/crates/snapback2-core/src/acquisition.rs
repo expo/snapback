@@ -26,8 +26,28 @@ pub struct AcquisitionPage {
 
 pub struct AcquisitionRead {
     pub page: AcquisitionPage,
-    pub rows: Vec<DeliveryRow>,
+    pub rows: Vec<AcquisitionRow>,
     pub seq: u64,
+}
+
+// @ref LLP 1001#native-owner-image-pipeline — the validated pool keeps its
+// Arc-backed typed images through final response serialization.
+#[derive(Debug, Serialize)]
+pub struct AcquisitionRow {
+    pub table: String,
+    pub id: String,
+    #[serde(serialize_with = "serialize_wire")]
+    pub row: Value,
+}
+
+fn serialize_wire<S: serde::Serializer>(value: &Value, serializer: S) -> Result<S::Ok, S::Error> {
+    WireValue(value).serialize(serializer)
+}
+
+#[derive(Debug)]
+pub struct AcquisitionAcknowledgement {
+    pub execution: Execution,
+    pub commit: Option<CommitRecord>,
 }
 
 pub(crate) fn scan(log: &str) -> Scan {
@@ -88,8 +108,10 @@ impl Runtime {
         context.args = BTreeMap::from([("after".into(), after.clone().map(Value::String).unwrap_or(Value::Null))]);
         let (program, certificate) = self.generation.acquisition_bindings[log].as_ref().expect("native page admitted");
         let (execution, events, cursor, exhausted) = self.engine.acquire_page(program, certificate, context, &content, log, after.clone())?;
-        let rows = offline::row_pool(&execution, self.generation.schema())
-            .map_err(|e| RuntimeError::Input(e.to_string()))?;
+        let rows = offline::row_pool_records(&execution, self.generation.schema())
+            .map_err(|e| RuntimeError::Input(e.to_string()))?.into_iter().map(|row| AcquisitionRow {
+                table: row.table.clone(), id: row.id.clone(), row: row.row.clone(),
+            }).collect();
         let receipt = DeliveryReceipt {
             ranges: execution.receipt.ranges.iter().map(offline::delivery_range).collect(),
             absences: execution.receipt.absences.iter().map(|(table, index, key)|
@@ -101,7 +123,7 @@ impl Runtime {
         } })
     }
 
-    pub fn acquire_receipts(&mut self, log: &str, events: Vec<String>, mut context: Context) -> Result<Execution, RuntimeError> {
+    pub fn acquire_receipts(&mut self, log: &str, events: Vec<String>, mut context: Context) -> Result<AcquisitionAcknowledgement, RuntimeError> {
         self.executions = self.executions.saturating_add(1);
         self.acquisition_content(log)?;
         let (content, _, d) = delivery::declarations(self.generation.schema()).find(|(_, _, d)| d.log == log).unwrap();

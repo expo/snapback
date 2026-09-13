@@ -1536,7 +1536,7 @@ a new author ruling, in [LLP 1022](./1022-local-first-v1-implementation-history.
 
 ## Native acquisition restart
 
-**Experiment, 2026-09-12; implementer: Codex acquisition lane, starting today.**
+**Experiment, 2026-09-12; implementer: Codex acquisition lane.**
 The author commissioned a complete acquisition architecture restart toward
 2–3 seconds and explicitly permitted revisiting other Snapback 2 architecture.
 This opens the isolated acquisition prototype despite the later bakeoff freeze;
@@ -1583,3 +1583,14 @@ work, not savings to hide in a latency claim. In particular, the auxiliary
 query owner receipts are sufficient for the frozen acquisition witness but
 are not yet the general client's full negative-chronology/revocation system.
 No production or full offline-bar claim follows from the experiment.
+
+
+The full vertical prototype is preserved at
+`a2680554e1bd84f828d7a44ed1620d6d0e950bb8` on
+`llp-ship/acquisition-20260912/architecture-restart`, outside the shipped runtime.
+Its one frozen 10,008-message acquisition witness passes correctness but takes
+8,080.116 ms; cold offline reopen takes 2,763.170 ms. The complete runtime is
+97,973 gzip bytes against the unchanged 90,000-byte ceiling. The target remains
+unproven and the prototype is not promoted. See
+[LLP 1018.008.007.002 §8](./1018.008.007.002-bounded-bulk-acquisition.plan.md#8-complete-acquisition-architecture-restart)
+for the changed UI/protocol scope, exact receipt oracle and measured disposition.

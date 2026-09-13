@@ -37,6 +37,14 @@ impl State {
                     "inspect the store and restart the owner",
                 )
             })?;
+        self.after_commit_record(commit)
+    }
+
+    // @ref LLP 1001#native-owner-image-pipeline — native packets hand off the
+    // exact durably appended record; every post-commit consequence stays here.
+    pub(super) fn after_commit_record(&mut self, commit: snapback2_core::CommitRecord) -> Result<(), Refusal> {
+        self.operator_rejection = None;
+        let seq = commit.seq;
         // @ref LLP 1021#1-the-lifecycle-is-in-the-log — record the emission before any post-commit maintenance or runner wake.
         if commit.emits > 0 {
             for row in self

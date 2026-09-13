@@ -108,6 +108,12 @@ pub struct OwnerHandle {
 }
 
 impl OwnerHandle {
+    pub fn acquire(&self, body: Json, identity: Identity) -> Result<Vec<u8>, Refusal> {
+        let (reply, encoded) = mpsc::channel();
+        self.call(Action::Acquire { body, identity, reply })?;
+        encoded.recv().map_err(|_| owner_gone())?
+    }
+
     pub fn call(&self, action: Action) -> Result<Json, Refusal> {
         let (tx, rx) = mpsc::channel();
         self.tx
@@ -204,6 +210,7 @@ pub enum Action {
     Acquire {
         body: Json,
         identity: Identity,
+        reply: Sender<Result<Vec<u8>, Refusal>>,
     },
     ReplayBatch {
         body: Json,
@@ -684,7 +691,10 @@ impl State {
                 Ok(response)
             }
             Action::QueryBatch { body, identity } => self.query_batch(body, identity),
-            Action::Acquire { body, identity } => self.acquire(body, identity),
+            Action::Acquire { body, identity, reply } => {
+                let _ = reply.send(self.acquire_encoded(body, identity));
+                Ok(Json::Null)
+            }
             Action::ReplayBatch { body, identity } => self.replay_batch(body, identity),
             Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {

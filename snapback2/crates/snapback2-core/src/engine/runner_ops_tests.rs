@@ -478,6 +478,109 @@ mod index_replacement {
     use super::*;
     use crate::search_key::SearchContract;
 
+    // @ref LLP 1001#native-owner-image-pipeline — actual indexed identity,
+    // first-image evidence and transaction rollback remain independent of reuse.
+    #[test]
+    fn native_images_match_uncached_reads_across_replacement_deletion_and_rollback() {
+        fn run(reuse: bool, export: bool) -> (String, Value) {
+            let mut engine = fixture();
+            let schema = engine.schema.clone();
+            let read = |site: &str, index: &str, key: Value| Expr::Get(Read {
+                site: site.into(), table: "indexed".into(), index: index.into(),
+                key: vec![Expr::Literal(key)], provenance: KeyProvenance::Const,
+            });
+            let by_id = |site| read(site, "byId", Value::Id("a".into()));
+            let program = Program { name: "images".into(), kind: ProgramKind::Mutation,
+                args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![
+                    Stmt::Let { name: "first".into(), value: by_id("first") },
+                    Stmt::Let { name: "again".into(), value: by_id("again") },
+                    update(object([("label", Value::String("new".into())), ("score", Value::Int(2))])),
+                    Stmt::Let { name: "changed".into(), value: by_id("changed") },
+                    Stmt::Let { name: "oldKey".into(), value: read("oldKey", "byLabel", Value::String("é".into())) },
+                    Stmt::Let { name: "newKey".into(), value: read("newKey", "byLabel", Value::String("new".into())) },
+                    Stmt::Delete { table: "indexed".into(), key: Expr::Literal(Value::Id("a".into())) },
+                    Stmt::Return(Expr::Array(vec![Expr::Variable("first".into()), Expr::Variable("again".into()),
+                        Expr::Variable("changed".into()), Expr::Variable("oldKey".into()), Expr::Variable("newKey".into()), by_id("deleted")])),
+                ] };
+            let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+            let hashes = hashes::PolicyHashes::new(&schema);
+            let (trace, result) = {
+                let tx = engine.store.conn.transaction().unwrap();
+                let mut runner = Runner::new(&tx, &schema, &hashes, &certificate,
+                    Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()), &[], &[], RuleAuthority::StoreAuthoritative, 8);
+                runner.reuse_images = reuse;
+                runner.export_receipt = export;
+                let Flow::Return(result, _) = runner.statements(&program.body).unwrap() else { panic!("missing result"); };
+                runner.assert_bounds().unwrap();
+                let values = result.as_array().unwrap();
+                let (Value::Row(first), Value::Row(again)) = (&values[0], &values[1]) else { panic!("missing rows"); };
+                assert_eq!(first.shares_image(again), reuse);
+                assert_eq!(values[2].field("score").unwrap(), &Value::Int(2));
+                assert_eq!(values[3], Value::Null);
+                assert_eq!(values[2], values[4]);
+                assert_eq!(values[5], Value::Null);
+                assert_eq!(runner.trace.rows[0].row.field("score").unwrap(), &Value::Int(0));
+                if !export { assert!(runner.receipt.rows.is_empty() && runner.receipt.absences.is_empty()); }
+                (canonical_json(&runner.trace), result)
+            }; // Rollback discards both writes and any reusable execution image.
+            assert_eq!(engine.rows("indexed").unwrap()[0].field("score").unwrap(), &Value::Int(0));
+            let tx = engine.store.conn.transaction().unwrap();
+            let mut fresh = Runner::new(&tx, &schema, &hashes, &certificate,
+                Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()), &[], &[], RuleAuthority::StoreAuthoritative, 8);
+            fresh.reuse_images = true;
+            assert_eq!(fresh.expr(&by_id("first")).unwrap().field("score").unwrap(), &Value::Int(0));
+            (trace, result)
+        }
+        let oracle = run(false, true);
+        assert_eq!(run(true, true), oracle);
+        assert_eq!(run(true, false), oracle);
+    }
+
+    #[test]
+    fn native_images_invalidate_before_the_maintained_upsert_refetch() {
+        let index = |names: &[&str], unique| Index { components: names.iter()
+            .map(|name| IndexComponent::Column((*name).into())).collect(), unique };
+        let schema = Schema {
+            tables: BTreeMap::from([
+                ("ledger".into(), public_table(BTreeMap::from([("id".into(), ColumnType::Id),
+                    ("bucket".into(), ColumnType::Id), ("amount".into(), ColumnType::Int)]),
+                    BTreeMap::from([("byId".into(), index(&["id"], true)), ("byBucket".into(), index(&["bucket", "id"], false))]))),
+                ("balances".into(), public_table(BTreeMap::from([("id".into(), ColumnType::Id),
+                    ("bucket".into(), ColumnType::Id), ("value".into(), ColumnType::Int)]),
+                    BTreeMap::from([("byId".into(), index(&["id"], true)), ("byValue".into(), index(&["value", "id"], false))]))),
+            ]),
+            maintains: vec![Maintain { kind: MaintainKind::Sum { of: "amount".into() }, source: "ledger".into(),
+                by: vec!["bucket".into()], target: "balances".into(), readable: Some(RuleExpr::Allow) }],
+            ..Schema::default()
+        };
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        let id = canonical_json(&vec![Value::Id("bucket".into())]);
+        let old = object([("id", Value::Id(id.clone())), ("bucket", Value::Id("bucket".into())), ("value", Value::Int(1))]);
+        engine.seed("balances", old.clone()).unwrap();
+        engine.seed("ledger", object([("id", Value::Id("a".into())), ("bucket", Value::Id("bucket".into())), ("amount", Value::Int(1))])).unwrap();
+        let read = |site: &str| Expr::Get(Read { site: site.into(), table: "balances".into(), index: "byId".into(),
+            key: vec![Expr::Literal(Value::Id(id.clone()))], provenance: KeyProvenance::Const });
+        let program = Program { name: "aggregate".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(),
+            read_time_granularity_ms: None, body: vec![
+                Stmt::Let { name: "before".into(), value: read("before") },
+                Stmt::Update { table: "ledger".into(), key: Expr::Literal(Value::Id("a".into())),
+                    patch: Expr::Literal(object([("amount", Value::Int(2))])) },
+                Stmt::Return(read("after")),
+            ] };
+        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let hashes = hashes::PolicyHashes::new(&schema);
+        let tx = engine.store.conn.transaction().unwrap();
+        let mut runner = Runner::new(&tx, &schema, &hashes, &certificate,
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()), &[], &[], RuleAuthority::StoreAuthoritative, 8);
+        runner.reuse_images = true;
+        let Flow::Return(result, _) = runner.statements(&program.body).unwrap() else { panic!("missing sum"); };
+        assert_eq!(result.field("value").unwrap(), &Value::Int(2));
+        assert!(runner.lookup_raw("balances", "byValue", &[Value::Int(1), Value::Id(id.clone())]).unwrap().is_none());
+        assert_eq!(runner.lookup_raw("balances", "byValue", &[Value::Int(2), Value::Id(id)]).unwrap(), Some(result));
+        assert_eq!(runner.trace.rows[0].row, old);
+        runner.assert_bounds().unwrap();
+    }
+
     fn fixture() -> Engine {
         let plain = |columns: &[&str], unique| Index {
             components: columns

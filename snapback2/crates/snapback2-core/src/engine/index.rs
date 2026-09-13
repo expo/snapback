@@ -168,6 +168,20 @@ pub(super) fn lookup_indexed(
     index: &Index,
     key: &[Value],
 ) -> Result<Option<Value>, RuntimeError> {
+    lookup_indexed_with(connection, schema, table_name, index_name, index, key, |_| None)
+}
+
+// @ref LLP 1001#native-owner-image-pipeline — SQL still chooses the actual
+// indexed identity on every lookup. Only its current retained image is reused.
+pub(super) fn lookup_indexed_with(
+    connection: &Connection,
+    schema: &Schema,
+    table_name: &str,
+    index_name: &str,
+    index: &Index,
+    key: &[Value],
+    current: impl Fn(&str) -> Option<Value>,
+) -> Result<Option<Value>, RuntimeError> {
     if key.len() != index.components.len() || index.derived_offset().is_some() {
         return Err(RuntimeError::Schema(format!(
             "point read {table_name}.{index_name} supplied {} of {} key columns",
@@ -177,7 +191,14 @@ pub(super) fn lookup_indexed(
     }
     crate::cap::validate_key_identities(schema, table_name, index_name, 0, key)?;
     // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — canonical identity reads use the row address in the same transaction; evidence is unchanged.
-    let data: Option<String> = if index_name == "byId"
+    let read = |row: &rusqlite::Row<'_>| -> rusqlite::Result<(Option<Value>, String)> {
+        let id: &str = row.get_ref(0)?.as_str()?;
+        match current(id) {
+            Some(value) => Ok((Some(value), String::new())),
+            None => Ok((None, row.get(1)?)),
+        }
+    };
+    let data = if index_name == "byId"
         && index.unique
         && matches!(index.components.as_slice(), [IndexComponent::Column(column)] if column == "id")
         && schema.table(table_name).is_some_and(|table| {
@@ -185,8 +206,8 @@ pub(super) fn lookup_indexed(
         })
         && let [Value::Id(id)] = key
     {
-        connection.prepare_cached("SELECT data FROM rows WHERE table_name = ?1 AND row_id = ?2")?
-            .query_row(params![table_name, id], |row| row.get(0)).optional()?
+        connection.prepare_cached("SELECT row_id, data FROM rows WHERE table_name = ?1 AND row_id = ?2")?
+            .query_row(params![table_name, id], read).optional()?
     } else {
         let mut parameters = vec![table_name.to_owned(), index_name.to_owned()];
         let mut predicates = Vec::new();
@@ -195,7 +216,7 @@ pub(super) fn lookup_indexed(
             predicates.push(format!("ie.c{offset} = ?{}", parameters.len()));
         }
         let sql = format!(
-            "SELECT r.data
+            "SELECT r.row_id, r.data
          FROM index_entries ie
          JOIN rows r ON r.table_name = ie.table_name AND r.row_id = ie.row_id
          WHERE ie.table_name = ?1 AND ie.index_name = ?2 AND {}
@@ -203,9 +224,10 @@ pub(super) fn lookup_indexed(
             predicates.join(" AND ")
         );
         connection.prepare_cached(&sql)?
-            .query_row(params_from_iter(parameters.iter()), |row| row.get(0)).optional()?
+            .query_row(params_from_iter(parameters.iter()), read).optional()?
     };
-    data.map(|data| {
+    data.map(|(cached, data)| {
+        if let Some(value) = cached { return Ok(value); }
         serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
     })
     .transpose()

@@ -1446,3 +1446,53 @@ per-principal encrypted client stores.
 
    > **Superseded history:** ~~Whether `Capped` should carry the site name on
    > the wire or only the take.~~
+
+
+## Native owner image pipeline
+
+**Isolated experiment, 2026-09-12; implementers: Codex acquisition owner lane.**
+The active author goal remains initial acquisition below three seconds. The
+8,080.116 ms native prototype did not meet it. The author permits revisiting
+other Snapback 2 architecture and borrowing Snapback 3/4 ideas. This experiment
+changes storage-read, audit and wire ownership together; it does not change the
+durable row format, preload rows before acquisition, or raise any ceiling.
+
+`ObjectFields` already shares immutable maps. The next owner path carries those
+typed images from storage reads through evidence and a borrowed `WireValue`
+serializer, rather than constructing another wire JSON body tree. Its bytes and
+row fingerprints must be exactly equivalent to the existing wire conversion,
+including nested values, Bytes, escaping and ordered object fields. The native
+page pool keeps its existing visibility validation and row uniqueness checks.
+
+A native bounded execution can reuse a previously decoded, still-current image
+from its authoritative first-image pool. SQLite still establishes the actual
+matching row identity for every read; neither absence nor index-result caches
+are introduced. The shared physical row-change path invalidates exactly the
+changed identity before another read can reuse it. Trace first images remain
+immutable across changes and are never mistaken for the current image. A new
+runner begins with no retained decoded rows. Hidden/disclosed first images keep
+their existing independent custody and accounting.
+
+Native receipt commands retain authoritative row images, point digests, rule
+and constraint inputs, touched keys, writes, final constraints and the same
+resource containment. An explicit command mode omits only exportable client
+`ClosureReceipt` material that this native protocol never returns. It must not
+suppress checks, metering, authoritative audit facts or intermediate write
+lifecycle behavior. Ordinary queries, mutations and replay keep their existing
+receipt construction.
+
+A changed native receipt packet returns the exact `CommitRecord` appended in its
+SQLite transaction. After commit, the owner applies the same maintenance,
+invalidation, live delivery and channel processing using that record, avoiding
+an append-then-reload round trip. There is no group commit, skipped per-commit
+publication, or durability change. The response builder serializes each native
+row and page once into a bounded frame carried as bytes to HTTP. The complete
+frame remains at most 1 MiB, with committed prefix completions preserved if a
+later page refuses. Fairness checks remain between complete bounded units.
+
+This is a combined prototype hypothesis, not an attribution of the earlier
+8.08 seconds. Meaningful exact-wire, current-image invalidation, hidden-first,
+rollback, native authorization/receipt and bounded-frame controls precede the
+next full endpoint measurement. Only the unchanged full workload and all
+remaining application/runtime obligations can complete the sub-three-second
+goal; a reduced UI result alone cannot.

@@ -64,7 +64,7 @@ pub use offline::{
     DeliveryVerdict, REPLAY_GRANT_COUNT, REPLAY_GRANT_LIFETIME_MS, REPLAY_GRANT_LOW_WATERMARK,
     ReplayCommit, ReplayGrant, ReplayTrace, ReplayTracePoint, ReplayTraceVerdict,
     StoredClientIntent, created_inputs_digest, project as project_delivery,
-    replay_mutation_response, row_digest, rule_inputs_digest, value_to_wire_json,
+    replay_mutation_response, row_digest, rule_inputs_digest, value_to_wire_json, WireValue,
 };
 pub use principal::PrincipalId;
 pub use programs::*;

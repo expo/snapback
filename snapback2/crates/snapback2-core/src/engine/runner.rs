@@ -57,6 +57,8 @@ pub(super) struct Runner<'a> {
     pub(super) derived_temporary_peak: u64,
     pub(super) account_search_pool: bool,
     pub(super) row_membership: row_membership::RowMembership,
+    pub(super) reuse_images: bool,
+    pub(super) export_receipt: bool,
     pub(super) certificate: Option<&'a Certificate>,
     pub(super) rule_certificate: Option<&'a RuleCertificate>,
     pub(super) context: Context,
@@ -129,6 +131,8 @@ impl<'a> Runner<'a> {
                     .is_some_and(|i| i.derived_offset().is_some())
             }),
             row_membership: Default::default(),
+            reuse_images: false,
+            export_receipt: true,
             certificate: Some(certificate),
             rule_certificate: None,
             context,
@@ -188,6 +192,8 @@ impl<'a> Runner<'a> {
             derived_temporary_peak: 0,
             account_search_pool: false,
             row_membership: Default::default(),
+            reuse_images: false,
+            export_receipt: true,
             certificate: None,
             rule_certificate,
             context,
@@ -1057,14 +1063,16 @@ impl<'a> Runner<'a> {
                 });
                 if primary.is_none() {
                     self.trace.absences.push(evidence.primary.clone());
-                    self.receipt.absences.push(evidence.primary);
-                    self.receipt.ranges.push(evidence.range);
+                    if self.export_receipt {
+                        self.receipt.absences.push(evidence.primary);
+                        self.receipt.ranges.push(evidence.range);
+                    }
                 }
             }
             self.trace.points.push(point);
             let absence = (read.table.clone(), read.index.clone(), key);
             self.trace.absences.push(absence.clone());
-            self.receipt.absences.push(absence);
+            if self.export_receipt { self.receipt.absences.push(absence); }
             Ok(TrackedValue::plain(Value::Null))
         }
     }

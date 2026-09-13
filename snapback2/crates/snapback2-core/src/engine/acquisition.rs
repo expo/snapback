@@ -1,7 +1,7 @@
 // @ref LLP 1019#native-acquisition-restart — the native kernel bypasses only
 // authored statement/replay machinery; rules, containment and write lifecycle remain.
 use super::*;
-use crate::acquisition::{self, AcquisitionEvent};
+use crate::acquisition::{self, AcquisitionAcknowledgement, AcquisitionEvent};
 
 impl Engine {
     fn acquisition_context(&self, program: &Program, certificate: &Certificate, context: &mut Context) -> Result<(), RuntimeError> {
@@ -24,6 +24,7 @@ impl Engine {
         let transaction = self.store.conn.transaction()?;
         let mut runner = Runner::new(&transaction, &self.schema, &self.hashes, certificate, context,
             &self.verdicts, &self.authority_absences, self.rule_authority, seq);
+        runner.reuse_images = true;
         let values = runner.scan_tracked(&acquisition::scan(log))?;
         let mut events = Vec::with_capacity(values.len());
         let cursor = if let Some(last) = values.last() {
@@ -58,7 +59,7 @@ impl Engine {
 
     pub(crate) fn acquire_receipts(&mut self, program: &Program, certificate: &Certificate, mut context: Context,
         content: &str, d: &crate::delivery::Deliver,
-    ) -> Result<Execution, RuntimeError> {
+    ) -> Result<AcquisitionAcknowledgement, RuntimeError> {
         self.acquisition_context(program, certificate, &mut context)?;
         if crate::delivery::acknowledgement(&self.schema, program).is_none() {
             return Err(RuntimeError::TraceSubset("native receipt requires canonical acknowledgement".into()));
@@ -71,6 +72,10 @@ impl Engine {
         let transaction = self.store.conn.transaction()?;
         let mut runner = Runner::new(&transaction, &self.schema, &self.hashes, &certificate, context,
             &self.verdicts, &self.authority_absences, self.rule_authority, seq);
+        // @ref LLP 1001#native-owner-image-pipeline — native commands retain
+        // full authoritative evidence; only the unreturned client export is absent.
+        runner.reuse_images = true;
+        runner.export_receipt = false;
         let table = d.receipts_table().expect("canonical receipts declaration");
         runner.acknowledgement = Some(table.clone());
         let events = runner.context.args["events"].as_array()?.to_vec();
@@ -95,14 +100,16 @@ impl Engine {
         let seq = if changed { seq } else { current_seq };
         let execution = Execution { result: Value::Null, result_provenance: ResultProvenance::None,
             trace: runner.trace, receipt: runner.receipt, state: ExecutionState::Committed { seq }, seq, next: None };
-        if changed {
-            append_commit(&transaction, &CommitRecord { job: None, job_chunk: None, schedule: None,
+        let commit = if changed {
+            let commit = CommitRecord { job: None, job_chunk: None, schedule: None,
                 seq, at, program: program.name.clone(), principal, kind: "receipt".into(), by: None,
                 touched: execution.trace.touched.clone(), scope_touches: execution.trace.scope_touches.clone(),
-                writes: execution.trace.writes.clone(), emits: execution.trace.emits.len() as u64 })?;
-        }
+                writes: execution.trace.writes.clone(), emits: execution.trace.emits.len() as u64 };
+            append_commit(&transaction, &commit)?;
+            Some(commit)
+        } else { None };
         transaction.commit()?;
-        Ok(execution)
+        Ok(AcquisitionAcknowledgement { execution, commit })
     }
 }
 

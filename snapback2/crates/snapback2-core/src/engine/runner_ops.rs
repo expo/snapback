@@ -195,6 +195,9 @@ impl<'a> Runner<'a> {
         index_work: search_index::Derivation,
         origin: RowChangeOrigin,
     ) -> Result<(), RuntimeError> {
+        if let Some(row) = old.or(new) {
+            self.row_membership.invalidate(&self.trace.rows, table, row.field("id")?.as_str()?);
+        }
         if let Some(preimages) = &mut self.replay_preimages {
             let row = old.or(new).expect("physical row change has an image");
             let id = row.field("id")?.as_str()?.to_owned();
@@ -407,6 +410,8 @@ impl<'a> Runner<'a> {
              ON CONFLICT(table_name, row_id) DO UPDATE SET data = excluded.data",
             params![target, id, canonical_json(&row)],
         )?;
+        // This maintained path refetches before the shared lifecycle callback.
+        self.row_membership.invalidate(&self.trace.rows, target, &id);
         let aggregate = self
             .fetch_id(target, &id)?
             .expect("aggregate row was just upserted");
@@ -942,20 +947,20 @@ impl<'a> Runner<'a> {
                     pinned_inputs_digest: pinned_inputs_digest.clone(),
                 });
                 if hidden {
-                    self.receipt.verdicts.push(Verdict {
+                    if self.export_receipt { self.receipt.verdicts.push(Verdict {
                         rule_hash: rule_hash.to_owned(),
                         pinned_inputs_digest,
                         principal: self.context.viewer.to_string(),
                         auth_epoch: self.context.auth_epoch,
                         result,
-                    });
+                    }); }
                 } else if let Some(found) = found {
                     let id = found.field("id")?.as_str()?.to_owned();
                     self.record_row(table, &id, &found, true);
                 } else {
                     let absence = (table.clone(), index.clone(), key);
                     self.trace.absences.push(absence.clone());
-                    self.receipt.absences.push(absence);
+                    if self.export_receipt { self.receipt.absences.push(absence); }
                 }
                 self.rule_memo.insert(memo_key.clone(), result);
                 self.rule_memo_entries.push(memo_key);
@@ -1144,7 +1149,8 @@ impl<'a> Runner<'a> {
         let index_schema = table_schema
             .index(index)
             .ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
-        let mut found = lookup_indexed(self.tx, self.schema, table, index, index_schema, key)?;
+        let mut found = super::index::lookup_indexed_with(self.tx, self.schema, table, index, index_schema, key,
+            |id| self.current_image(table, id))?;
         if let Some(row) = &mut found {
             materialize_optional_fields(row, table_schema);
         }
@@ -1155,11 +1161,15 @@ impl<'a> Runner<'a> {
         let mut statement = self.tx.prepare_cached(
             "SELECT data FROM rows WHERE table_name = ?1 AND row_id = ?2",
         )?;
-        let data: Option<String> = statement
-            .query_row(params![table, id], |row| row.get(0))
+        let data: Option<(Option<Value>, String)> = statement
+            .query_row(params![table, id], |row| match self.current_image(table, id) {
+                Some(value) => Ok((Some(value), String::new())),
+                None => Ok((None, row.get(0)?)),
+            })
             .optional()?;
         let mut row = data
-            .map(|data| {
+            .map(|(cached, data)| {
+                if let Some(value) = cached { return Ok(value); }
                 serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
             })
             .transpose()?;
@@ -1173,6 +1183,10 @@ impl<'a> Runner<'a> {
         Ok(row)
     }
 
+    fn current_image(&self, table: &str, id: &str) -> Option<Value> {
+        self.reuse_images.then(|| self.row_membership.current(&self.trace.rows, table, id)).flatten().cloned()
+    }
+
     pub(super) fn record_row(&mut self, table: &str, id: &str, row: &Value, client: bool) {
         let retained = self.row_membership.record(
             &mut self.trace.rows,
@@ -1180,7 +1194,7 @@ impl<'a> Runner<'a> {
             table,
             id,
             row,
-            client,
+            client && self.export_receipt,
         );
         if self.account_search_pool {
             self.derived_hold(retained);

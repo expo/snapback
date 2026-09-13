@@ -731,3 +731,14 @@ every frozen receipt row: exactly 5,558 false-to-true transitions, all 10,008
 true at completion, no true-to-false transition, and every originally true
 row's first sequence unchanged. The fixture, full message hash, body-before-ACK,
 authorization, rollback, lost-reply and physical-reopen obligations remain.
+
+
+The full vertical prototype is preserved at
+`a2680554e1bd84f828d7a44ed1620d6d0e950bb8` on
+`llp-ship/acquisition-20260912/architecture-restart`, outside the shipped runtime.
+Its one frozen 10,008-message acquisition witness passes correctness but takes
+8,080.116 ms; cold offline reopen takes 2,763.170 ms. The complete runtime is
+97,973 gzip bytes against the unchanged 90,000-byte ceiling. The target remains
+unproven and the prototype is not promoted. See
+[LLP 1018.008.007.002 §8](./1018.008.007.002-bounded-bulk-acquisition.plan.md#8-complete-acquisition-architecture-restart)
+for the changed UI/protocol scope, exact receipt oracle and measured disposition.

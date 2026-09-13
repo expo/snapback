@@ -119,6 +119,46 @@ mod tests {
         assert!(runner.trace.constraint_inputs.is_empty());
     }
 
+    // @ref LLP 1001#native-owner-image-pipeline — a reused read still records
+    // its exact current fingerprint; only the client export is omitted.
+    #[test]
+    fn native_acknowledgement_hands_off_the_exact_durable_commit_and_current_images() {
+        let (mut engine, schema, d) = fixture();
+        let receipt = engine.rows("deliveriesReceipts").unwrap().remove(0);
+        let id = receipt.field("id").unwrap().clone();
+        let program = delivery::ack_program("messages", &d);
+        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let context = |events| {
+            let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::from([
+                ("events".into(), Value::Array(events)),
+            ]));
+            context.now = Some(10);
+            context
+        };
+        let outcome = engine.acquire_receipts(&program, &certificate, context(vec![id.clone(), id.clone()]), "messages", &d).unwrap();
+        let execution = outcome.execution;
+        let commit = outcome.commit.expect("changed packet has a commit");
+        let stored = engine.store.commits_since(commit.seq - 1, 1).unwrap().remove(0);
+        assert_eq!(canonical_json(&commit), canonical_json(&stored));
+        assert_eq!(execution.seq, commit.seq);
+        assert_eq!(execution.trace.writes["deliveriesReceipts"], 1);
+        assert_eq!(execution.trace.points.len(), 8);
+        let points = execution.trace.points.iter().filter(|point| point.table == "deliveriesReceipts").collect::<Vec<_>>();
+        assert_eq!(points.len(), 2);
+        assert_ne!(points[0].digest, points[1].digest, "the update left a stale reusable receipt image");
+        assert_eq!(points[0].digest.as_deref(), Some(crate::offline::row_digest(&receipt).as_str()));
+        let first = execution.trace.rows.iter().find(|row| row.table == "deliveriesReceipts").unwrap();
+        assert_eq!(first.row, receipt);
+        assert!(execution.receipt.rows.is_empty() && execution.receipt.absences.is_empty()
+            && execution.receipt.verdicts.is_empty() && execution.receipt.ranges.is_empty());
+        assert!(execution.trace.constraint_inputs.iter().any(|input| input.check == "DeliveryAcknowledgement"));
+        let retry = engine.acquire_receipts(&program, &certificate, context(vec![id]), "messages", &d).unwrap();
+        assert!(retry.commit.is_none());
+        assert_eq!(retry.execution.seq, commit.seq);
+        assert!(retry.execution.trace.writes.is_empty());
+        assert_eq!(engine.rows("deliveriesReceipts").unwrap()[0].field("seq").unwrap(), &Value::Int(commit.seq as i64));
+    }
+
     fn failed_acknowledgement(failure: &str) {
         let (mut engine, schema, d) = fixture();
         let receipt = engine.rows("deliveriesReceipts").unwrap().remove(0);

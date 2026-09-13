@@ -581,7 +581,10 @@ fn handle(
         ("POST", "/api/auth/asset-session") => {
             call_json(request, &context, Action::AssetSession { identity }, 200)
         }
-        ("POST", "/api/acquire") => call_json(request, &context, Action::Acquire { body, identity }, 200),
+        ("POST", "/api/acquire") => match context.handle.acquire(body, identity) {
+            Ok(encoded) => respond_encoded_json(request, 200, encoded, &context.mode),
+            Err(error) => respond_refusal(request, refusal_status(&error), error, &context.mode),
+        },
         ("POST", "/api/query") if body.get("batch").is_some() => call_json(
             request,
             &context,
@@ -740,13 +743,19 @@ fn call_json(request: Request, context: &Context, action: Action, ok_status: u16
 }
 
 pub(crate) fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
+    respond_encoded_json(request, status, serde_json::to_vec(&value).unwrap_or_else(|_| b"{}".to_vec()), mode);
+}
+
+// @ref LLP 1001#native-owner-image-pipeline — encoded native frames cross the
+// owner/HTTP boundary without another JSON body tree or serialization pass.
+fn respond_encoded_json(request: Request, status: u16, encoded: Vec<u8>, mode: &str) {
     let mut headers = vec![content_type("application/json")];
     decorate_asset_response_headers(request.url(), &mut headers);
     if status == 200 && request.url().split('?').next() == Some("/api/program") {
         headers.push(header_value("Cache-Control", "private, immutable"));
     }
     let mut response =
-        Response::from_string(serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned()))
+        Response::from_data(encoded)
             .with_status_code(StatusCode(status));
     for header in headers {
         response.add_header(header);
