@@ -1089,3 +1089,14 @@ with `?? 0` as the rewrite for an optional field — a bare `return` is
 `return null`, and the README says there is no `/`: `(quotient,
 remainder) = divmod(a, b)` binds both so no remainder goes unread.
 Published `snapback4@0.1.4`.
+
+## 2026-09-12 — from the full-brief lane's M8: the clock ticks once a second; 0.1.5
+
+The lane's unattended digest proof asserted 1.5 s after the two-minute
+boundary and found nothing; its restarted backend then logged
+`schedule daily fired` and `job digest done: 5 chunks, 17 rows written`
+for that same boundary — once, as the boundary committed with the job
+row says. The mechanism held; the server's clock ticked every five
+seconds. It ticks once a second now (a quiet tick is a few index probes
+under the lock), so an expired row is swept and a schedule's job runs
+within a second of its moment. Published `snapback4@0.1.5`.

@@ -122,16 +122,18 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
     }
 }
 
-/// The server's own clock, every few seconds: rows past their `expire`
-/// column are swept, so the deletion reaches every device that holds them
+/// The server's own clock, once a second: rows past their `expire` column
+/// are swept, so the deletion reaches every device that holds them
 /// (readers never see an expired row in the meantime; this is the purge);
-/// schedules whose boundary passed queue their jobs; queued jobs run a
-/// chunk at a time, the engine free for requests between chunks; and once
-/// a minute, released and abandoned uploads leave the disk.
+/// schedules whose boundary passed queue their jobs, so a digest lands
+/// within a second of its boundary; queued jobs run a chunk at a time,
+/// the engine free for requests between chunks; and once a minute,
+/// released and abandoned uploads leave the disk. A quiet tick is a few
+/// index probes under the lock.
 fn maintain(shared: Arc<Shared>) {
     let mut tick: u64 = 0;
     loop {
-        std::thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(1));
         tick += 1;
         let now = snapback4_core::now_ms();
         let swept = shared.engine.lock().unwrap().sweep_expired(now, 2_000);
@@ -168,7 +170,7 @@ fn maintain(shared: Arc<Shared>) {
                 }
             }
         }
-        if tick % 12 == 0 && let Err(error) = shared.engine.lock().unwrap().sweep_assets(now) {
+        if tick % 60 == 0 && let Err(error) = shared.engine.lock().unwrap().sweep_assets(now) {
             eprintln!("snapback4: the asset sweep failed: {error}");
         }
     }
