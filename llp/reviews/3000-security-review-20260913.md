@@ -25,15 +25,19 @@ P0 is an unauthenticated authorization bypass of the default development server.
 
 | ID | Priority | Filesystem ticket | Evidence |
 |---|---|---|---|
-| S01 | P0 | [Cross-origin use of loopback personas and seed](../../issues/20260913-snapback4-dev-cross-origin-loopback-doors.md) | Code + DNS-rebinding argument |
-| S02 | P1 | [serve binds all interfaces over cleartext HTTP](../../issues/20260913-snapback4-serve-cleartext-all-interfaces.md) | Code + journal |
-| S03 | P1 | [Unauthenticated schema dump and change feed](../../issues/20260913-snapback4-unauthenticated-catalog-and-changes.md) | Code |
-| S04 | P1 | [Auth hashing holds the engine lock; no rate limit](../../issues/20260913-snapback4-auth-engine-lock-and-rate-limits.md) | Code |
-| S05 | P1 | [Unique constraints oracle hidden rows](../../issues/20260913-snapback4-unique-constraint-existence-oracle.md) | Code |
-| S06 | P1 | [Partition log replays deleted row images](../../issues/20260913-snapback4-partition-log-deleted-row-images.md) | Code |
-| S07 | P1 | [Store and assets are created world-readable](../../issues/20260913-snapback4-store-world-readable-permissions.md) | Code |
-| S08 | P1 | [Uploads write to disk under the engine mutex](../../issues/20260913-snapback4-upload-holds-engine-lock.md) | Code |
-| S09 | P2 | [Server-minted ids leak the xorshift state](../../issues/20260913-snapback4-predictable-server-minted-ids.md) | Reproduced |
-| S10 | P2 | [check does not refuse self-granting audience inserts](../../issues/20260913-snapback4-audience-self-grant-insert-rules.md) | Code |
-| S11 | P2 | [Unbounded HTTP threads and no socket deadlines](../../issues/20260913-snapback4-unbounded-http-threads-and-timeouts.md) | Code |
-| S12 | P2 | [View-once owner bypass and uncapped pixel dimensions](../../issues/20260913-snapback4-asset-once-and-pixel-bounds.md) | Code |
+| S01 | P0 | [Cross-origin use of loopback personas and seed](../../issues/closed/20260913-snapback4-dev-cross-origin-loopback-doors.md) | Code + DNS-rebinding argument |
+| S02 | P1 | [serve binds all interfaces over cleartext HTTP](../../issues/closed/20260913-snapback4-serve-cleartext-all-interfaces.md) | Code + journal |
+| S03 | P1 | [Unauthenticated schema dump and change feed](../../issues/closed/20260913-snapback4-unauthenticated-catalog-and-changes.md) | Code |
+| S04 | P1 | [Auth hashing holds the engine lock; no rate limit](../../issues/closed/20260913-snapback4-auth-engine-lock-and-rate-limits.md) | Code |
+| S05 | P1 | [Unique constraints oracle hidden rows](../../issues/closed/20260913-snapback4-unique-constraint-existence-oracle.md) | Code |
+| S06 | P1 | [Partition log replays deleted row images](../../issues/closed/20260913-snapback4-partition-log-deleted-row-images.md) | Code |
+| S07 | P1 | [Store and assets are created world-readable](../../issues/closed/20260913-snapback4-store-world-readable-permissions.md) | Code |
+| S08 | P1 | [Uploads write to disk under the engine mutex](../../issues/closed/20260913-snapback4-upload-holds-engine-lock.md) | Code |
+| S09 | P2 | [Server-minted ids leak the xorshift state](../../issues/closed/20260913-snapback4-predictable-server-minted-ids.md) | Reproduced |
+| S10 | P2 | [check does not refuse self-granting audience inserts](../../issues/closed/20260913-snapback4-audience-self-grant-insert-rules.md) | Code |
+| S11 | P2 | [Unbounded HTTP threads and no socket deadlines](../../issues/closed/20260913-snapback4-unbounded-http-threads-and-timeouts.md) | Code |
+| S12 | P2 | [View-once owner bypass and uncapped pixel dimensions](../../issues/closed/20260913-snapback4-asset-once-and-pixel-bounds.md) | Code |
+
+## Remediation follow-up
+
+The original review above is retained as a baseline. All twelve tickets were resolved on 2026-09-13; the [implementation and follow-up review record](./3000-security-remediation-20260913.md) states the executed checks, later findings, and remaining scope limits.
