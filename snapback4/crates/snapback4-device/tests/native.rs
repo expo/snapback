@@ -209,13 +209,13 @@ fn a_wide_merge_matches_the_server_until_the_device_horizon() {
     let backend = Backend { generation: engine.generation(), schema: bound.schema, programs };
     let dir = std::env::temp_dir().join(format!("sb4-device-merge-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let mut device = Device::open(&dir.join("bob.sqlite"), backend.clone()).unwrap();
+    let mut device = Device::open(&dir.join("bob.sqlite"), Some(backend)).unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:bob", 100).iter().enumerate() {
         device.apply(page, n == 0).unwrap();
     }
     // Reopening also exercises the persisted native store, not a JS mirror.
     drop(device);
-    let mut device = Device::open(&dir.join("bob.sqlite"), backend).unwrap();
+    let mut device = Device::open(&dir.join("bob.sqlite"), None).unwrap();
     let mut cursor: Option<String> = None;
     let mut complete_pages = 0;
     loop {
