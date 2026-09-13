@@ -1268,3 +1268,45 @@ trap on the way: `expo start --localhost` binds Metro to `::1` alone and
 Expo Go, dialing 127.0.0.1, "could not connect"; the witness names the
 packager host as 127.0.0.1 instead and picks its own simulator by
 `WITNESS_UDID` when several are booted. Published `snapback4@0.1.12`.
+
+## 2026-09-13 — one interpreter, measured as wasm: the web keeps TypeScript, native hosts get the core
+
+The author: ship a native Rust module for Expo and for Exact2, and how
+much larger is the wasm than the TypeScript twin? Measured, not guessed.
+The core now compiles without SQLite: a `Rows` trait (`rows.rs`) is what
+the interpreter needs of a store — get, lookup, scan, count, put, delete,
+and an asset ledger it may not have — the server's transaction implements
+it, `MemoryRows` implements it on the heap, and the `sqlite` feature
+(default on) gates the store, identity, the asset ledger, jobs and the
+log. `engine::local` runs a program on a device with the device's three
+words (a synced table's rows readable as held, an online-only table and a
+page at the horizon `complete: false`), so the Rust interpreter says on a
+device what the TypeScript twin says; `tests/device.rs` proves the thread
+pages with the server's cursors, delivered history stays readable, the
+horizon is a `complete: false`, and a send predicts and counts. A new
+crate, `snapback4-device`, is that interpreter as wasm over a host's
+synchronous callbacks (rows as JSON, keys as hex), size-first: opt-level
+z, fat LTO, one codegen unit, panic abort.
+
+| | raw | gzip | brotli |
+| --- | ---: | ---: | ---: |
+| the device core as wasm (`scripts/measure-wasm.sh` → `metrics/wasm.jsonl`) | 680,459 | 194,465 | 156,211 |
+| its wasm-bindgen glue | 15,935 | 3,656 | 3,242 |
+| the TypeScript interpreter alone | 21,521 | 7,067 | 6,406 |
+| the TypeScript interpreter, store and replica | 31,241 | 10,303 | 9,358 |
+| the whole local-first TypeScript tier (client included) | 58,484 | 16,842 | 14,888 |
+
+Twenty-eight times the TypeScript interpreter, nine times the Convex
+anchor LLP 3000 §3 budgets the web client against; `wasm-opt -Oz` made
+the gzip larger, not smaller. The bytes are serde's derived readers for
+the schema, the IR and the value model, `serde_json`, and `std`'s
+formatting, none of which a smaller interpreter would shed. So LLP
+2000.000 §9's recommendation stands, now with its number: TypeScript
+stays on the web, and the Rust core is the native module where SQLite is
+already native and bytes are a static library, not a download — Expo,
+and Exact2's Apple and Linux hosts, which link Rust and expose
+`storage.sqlite` to their TypeScript apps. There the module owns the
+store outright (the server's two-table SQLite layout, the same code),
+applies the stream, keeps the outbox, and answers queries and
+predictions; the JavaScript client keeps only the session, the link and
+the transport. That is the next landing; this one is the foundation.

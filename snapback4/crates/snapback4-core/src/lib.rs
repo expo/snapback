@@ -8,25 +8,33 @@ pub mod assets;
 pub mod cursor;
 pub mod engine;
 pub mod error;
+#[cfg(feature = "sqlite")]
 pub mod identity;
 pub mod ids;
 pub mod ir;
 pub mod key;
 pub mod meter;
 pub mod partition;
+pub mod rows;
 pub mod schema;
+#[cfg(feature = "sqlite")]
 pub mod store;
 pub mod successor;
 pub mod value;
 pub mod wire;
 
+#[cfg(feature = "sqlite")]
 pub use engine::job::{JobRun, JobState};
-pub use engine::{AssetGrant, Context, Engine, MutationOutcome, QueryOutcome, WriteState};
+#[cfg(feature = "sqlite")]
+pub use engine::{AssetGrant, Engine};
+pub use engine::{Context, MutationOutcome, QueryOutcome, WriteState};
 pub use error::{MeterKind, Refusal, RuntimeError};
 pub use ir::{Program, ProgramKind};
 pub use meter::{Ceilings, Metered};
 pub use schema::Schema;
+#[cfg(feature = "sqlite")]
 pub use store::Store;
+pub use rows::Rows;
 pub use value::Value;
 
 /// The engine-private principal that owns the store; no caller can be it.

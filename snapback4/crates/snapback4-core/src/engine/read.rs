@@ -9,7 +9,7 @@ use crate::cursor::{CursorColumn, CursorPosition, decode_cursor_for, encode_curs
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::schema::{Effect, Index, Table, materialize_optional_fields};
-use crate::store::{Bounds, Dir};
+use crate::rows::{Bounds, Dir};
 use crate::value::{Value, canonical_json};
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
@@ -48,6 +48,12 @@ impl Runner<'_> {
             return Ok(true);
         }
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        // A device holds a synced table's rows because the server delivered
+        // each under the read rule and withdraws what it revokes; what
+        // `retain delivered-history` kept stays readable here (LLP 3000 §7).
+        if self.device && effect == Effect::Read && table.sync.is_some() {
+            return Ok(true);
+        }
         let rule = table.rules.for_effect(effect).clone();
         let mut next = next.clone();
         materialize_optional_fields(&mut next, table);
@@ -77,6 +83,9 @@ impl Runner<'_> {
         let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
         self.read_tables.insert(read.table.clone());
         self.meter.at(&read.site);
+        if self.device && table.sync.is_none() {
+            self.beyond_horizon = true;
+        }
         if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
             // A null key on a required column addresses nothing.
             return Ok(Value::Null);
@@ -176,6 +185,9 @@ impl Runner<'_> {
         let take = self.take(&scan.take)?;
         self.read_tables.insert(scan.table.clone());
         self.meter.at(&scan.site);
+        if self.device && table.sync.is_none() {
+            self.beyond_horizon = true;
+        }
         let dir = match scan.order {
             Order::Asc => Dir::Asc,
             Order::Desc => Dir::Desc,
@@ -244,6 +256,15 @@ impl Runner<'_> {
             if fetched_len < batch {
                 break;
             }
+        }
+        // Inside the horizon a short page is the whole group; at the horizon
+        // it may continue on the server.
+        if self.device && !has_more && !capped
+            && let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref())
+            && horizon.by == scan.index
+            && self.tx.count_prefix(&scan.table, &scan.index, &prefix, u64::from(horizon.last))? >= u64::from(horizon.last)
+        {
+            self.beyond_horizon = true;
         }
         if self.page_depth == 0 && !scan.opaque_cursor && has_more {
             self.page_overflow = true;

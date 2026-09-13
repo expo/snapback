@@ -3,22 +3,35 @@
 //! writes under the meter and returns `sent` with its sequence or `failed`
 //! with a refusal, and applies at most once per client-minted id.
 
+#[cfg(feature = "sqlite")]
 pub mod job;
+pub mod local;
 pub mod read;
 pub mod rules;
 pub mod runner;
 pub mod validate;
 pub mod write;
 
+#[cfg(feature = "sqlite")]
 use crate::assets::{self, Asset, AssetKind, asset_id};
-use crate::error::{MeterKind, Refusal, RuntimeError};
+use crate::error::{MeterKind, Refusal};
+#[cfg(feature = "sqlite")]
+use crate::error::RuntimeError;
+#[cfg(feature = "sqlite")]
 use crate::ir::{Program, ProgramKind};
-use crate::schema::{ColumnType, Effect, materialize_optional_fields};
-use crate::meter::{Ceilings, Cut, Meter, Metered};
+use crate::meter::Metered;
+#[cfg(feature = "sqlite")]
+use crate::meter::{Ceilings, Cut, Meter};
+#[cfg(feature = "sqlite")]
 use crate::partition::{self, Event};
-use crate::schema::Schema;
+#[cfg(feature = "sqlite")]
+use crate::schema::{ColumnType, Effect, Schema, materialize_optional_fields};
+#[cfg(feature = "sqlite")]
 use crate::store::Store;
-use crate::value::{Value, canonical_json};
+use crate::value::Value;
+#[cfg(feature = "sqlite")]
+use crate::value::canonical_json;
+#[cfg(feature = "sqlite")]
 use runner::Runner;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, VecDeque};
@@ -111,6 +124,7 @@ pub struct MutationOutcome {
 }
 
 /// Leave to serve an asset's bytes: where they are and what they are.
+#[cfg(feature = "sqlite")]
 #[derive(Clone, Debug)]
 pub struct AssetGrant {
     pub path: std::path::PathBuf,
@@ -120,6 +134,7 @@ pub struct AssetGrant {
     pub once: bool,
 }
 
+#[cfg(feature = "sqlite")]
 pub struct Engine {
     store: Store,
     schema: Schema,
@@ -128,6 +143,7 @@ pub struct Engine {
     entropy: u64,
 }
 
+#[cfg(feature = "sqlite")]
 impl Engine {
     pub fn new(mut store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
         let issues = crate::schema::validate(&schema);

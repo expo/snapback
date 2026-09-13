@@ -7,7 +7,7 @@ use crate::ir::*;
 use crate::meter::Meter;
 use crate::partition::Event;
 use crate::schema::Schema;
-use crate::store::Tx;
+use crate::rows::Rows;
 use crate::value::{Value, ValueError, canonical_json, object};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -34,7 +34,7 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
-    pub(crate) tx: &'a Tx<'a>,
+    pub(crate) tx: &'a dyn Rows,
     pub(crate) schema: &'a Schema,
     pub(crate) context: Context,
     pub(crate) meter: Meter,
@@ -63,6 +63,12 @@ pub struct Runner<'a> {
     /// The program's page had more rows than it returned and no cursor to
     /// continue on: the result is not `complete`, and the card says so.
     pub(crate) page_overflow: bool,
+    /// Running on a device over its partition (`engine::local`): a synced
+    /// table's rows are readable as held, an online-only table's are not
+    /// here, and a page at the horizon may continue on the server.
+    pub(crate) device: bool,
+    /// The device touched an online-only table or a horizon: `complete: false`.
+    pub(crate) beyond_horizon: bool,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
     pub(crate) seq: u64,
@@ -70,7 +76,7 @@ pub struct Runner<'a> {
 }
 
 impl<'a> Runner<'a> {
-    pub fn new(tx: &'a Tx<'a>, schema: &'a Schema, context: Context, meter: Meter, seq: u64) -> Self {
+    pub fn new(tx: &'a dyn Rows, schema: &'a Schema, context: Context, meter: Meter, seq: u64) -> Self {
         let mut env = BTreeMap::new();
         for (name, value) in &context.args {
             env.insert(name.clone(), value.clone());
@@ -93,6 +99,8 @@ impl<'a> Runner<'a> {
             page: None,
             non_uniform: false,
             page_overflow: false,
+            device: false,
+            beyond_horizon: false,
             seq,
             statement_site: String::new(),
         }

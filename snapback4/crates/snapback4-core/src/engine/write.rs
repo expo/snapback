@@ -8,7 +8,9 @@ use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Maintain, MaintainKind, Table, maintained_id, maintained_key, materialize_optional_fields};
-use crate::store::{Bounds, Dir, index_values};
+#[cfg(feature = "sqlite")]
+use crate::rows::{Bounds, Dir};
+use crate::rows::index_values;
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json};
 use std::collections::BTreeMap;
 
@@ -114,6 +116,7 @@ impl Runner<'_> {
     /// Remove a row the engine itself retires (an expired one): no rule and
     /// no constraint stands between the engine and its own sweep, while
     /// aggregates and partition events apply as for any delete.
+    #[cfg(feature = "sqlite")]
     pub(super) fn remove(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
         let entries = self.tx.delete(table_name, &table, old)?;
@@ -128,6 +131,11 @@ impl Runner<'_> {
     /// may name an asset that was never uploaded: a fixture's placeholder,
     /// metadata only, never served.
     fn with_asset_facts(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+        if !self.tx.holds_assets() {
+            // A device: the row keeps the asset value as sent; the server
+            // establishes the facts when the write arrives.
+            return Ok(row);
+        }
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if !table.columns.values().any(|kind| matches!(kind.required(), ColumnType::Image { .. } | ColumnType::Video { .. })) {
             return Ok(row);
@@ -170,6 +178,9 @@ impl Runner<'_> {
     /// for this row; the one it no longer names releases it, and the bytes
     /// are served no more. Part of every physical row change.
     fn place_assets(&mut self, table_name: &str, table: &Table, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+        if !self.tx.holds_assets() {
+            return Ok(());
+        }
         let now = self.context.now.unwrap_or(0);
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned();
         for (column, kind) in &table.columns {
@@ -357,6 +368,7 @@ impl Runner<'_> {
     /// then every source row contributes once. A schema change that adds or
     /// redefines a `maintain` calls this, so a count over existing rows is
     /// right from its first read (day two, LLP 2000.000 §11.2).
+    #[cfg(feature = "sqlite")]
     pub(crate) fn rebuild_maintain(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         for (existing, _) in self.tx.scan(&maintain.target, "byId", &[], &Bounds::default(), Dir::Asc, usize::MAX)? {

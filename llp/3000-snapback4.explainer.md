@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -361,6 +361,21 @@ time-ordered 128-bit form.
   boundary committed with the job row, so restarts never double-fire and
   a schedule first seen starts from its next boundary. No client calls a
   job.
+
+- **2026-09-13 — one interpreter, hosted two ways (lead, after the author
+  asked for a native Rust module for Expo and Exact2).** The core's
+  interpreter runs over a `Rows` trait; with the `sqlite` feature off it
+  compiles to wasm. Measured on the pinned toolchain: the device core as
+  wasm is 194,465 B gzip (680,459 raw) against 7,067 B for the TypeScript
+  interpreter and 16,842 B for the whole local-first TypeScript tier, nine
+  times the Convex anchor of §3. So the web keeps the TypeScript twin, held
+  to the Rust interpreter by the key and cursor vectors, the corpus and
+  the device tests; and the Rust core is the native module on hosts where
+  SQLite is native and bytes are a library — Expo, and Exact2's Apple and
+  Linux hosts — owning the store, the stream's application, the outbox,
+  queries and predictions, with the JavaScript client reduced to session,
+  link and transport. The conformance obligation between the two
+  interpreters is then the web's alone.
 
 ## 8. Implementation map
 

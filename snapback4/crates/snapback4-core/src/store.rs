@@ -7,6 +7,7 @@
 
 use crate::error::RuntimeError;
 use crate::key;
+pub use crate::rows::{Bounds, Dir, index_key, index_values};
 use crate::schema::{Index, Schema, Table};
 use crate::value::{Value, canonical_json};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -27,26 +28,6 @@ pub struct Store {
 pub struct Tx<'a> {
     tx: rusqlite::Transaction<'a>,
     catalog: &'a BTreeMap<String, i64>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Dir {
-    Asc,
-    Desc,
-}
-
-/// Bounds on the components after a scan prefix (`after` a cursor position,
-/// or a value range on the first free component).
-#[derive(Clone, Debug, Default)]
-pub struct Bounds {
-    /// Resume strictly after this suffix position.
-    pub after: Option<Vec<Value>>,
-    /// Stop strictly before this suffix position.
-    pub before: Option<Vec<Value>>,
-    pub gt: Option<Value>,
-    pub gte: Option<Value>,
-    pub lt: Option<Value>,
-    pub lte: Option<Value>,
 }
 
 impl Store {
@@ -241,18 +222,6 @@ impl Sizes {
     pub fn amplification(&self) -> f64 {
         if self.rows == 0 { 0.0 } else { self.log as f64 / self.rows as f64 }
     }
-}
-
-/// The stored key of one index entry: the components, then the id.
-pub fn index_key(index: &Index, row: &Value, id: &str) -> Vec<u8> {
-    let mut components = index_values(index, row);
-    components.push(Value::Id(id.to_owned()));
-    key::encode(&components)
-}
-
-/// The index's component values from a row image; absent optionals are null.
-pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
-    index.columns().iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect()
 }
 
 impl<'a> Tx<'a> {
@@ -558,5 +527,38 @@ mod tests {
         tx.delete("m", table, &row("m5", "a", 5)).unwrap();
         assert_eq!(tx.count_prefix("m", "byConvAt", &[Value::Id("a".into())], 100).unwrap(), 5);
         assert_eq!(tx.get("m", "m5").unwrap(), None);
+    }
+}
+
+impl crate::rows::Rows for Tx<'_> {
+    fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        Tx::get(self, table, id)
+    }
+    fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        Tx::lookup(self, table, index_name, index, key)
+    }
+    fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        Tx::scan(self, table, index_name, prefix, bounds, dir, limit)
+    }
+    fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
+        Tx::count_prefix(self, table, index_name, prefix, limit)
+    }
+    fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        Tx::put(self, table_name, table, row, old)
+    }
+    fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        Tx::delete(self, table_name, table, old)
+    }
+    fn holds_assets(&self) -> bool {
+        true
+    }
+    fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
+        Tx::asset(self, id)
+    }
+    fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<crate::assets::Asset, RuntimeError> {
+        Tx::claim_asset(self, id, by, table, row_id, column)
+    }
+    fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
+        Tx::release_asset(self, id, now)
     }
 }

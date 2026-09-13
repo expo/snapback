@@ -275,8 +275,11 @@ mod tests {
     }
 }
 
+#[cfg(feature = "sqlite")]
+mod persistence {
 // ----- persistence: the `_assets` and `_asset_views` tables -----
 
+use super::*;
 use crate::store::{Store, Tx};
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -382,4 +385,5 @@ impl Tx<'_> {
         self.conn().execute("INSERT OR IGNORE INTO _asset_views(asset, principal, at) VALUES (?1, ?2, ?3)", params![id, principal, now])?;
         Ok(())
     }
+}
 }

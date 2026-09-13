@@ -113,6 +113,7 @@ pub enum RuntimeError {
     Asset { code: &'static str, message: String },
     #[error("E_GENERATION: {0}")]
     Generation(String),
+    #[cfg(feature = "sqlite")]
     #[error("E_STORE: {0}")]
     Sql(#[from] rusqlite::Error),
     #[error("E_STORE: {0}")]
@@ -139,7 +140,9 @@ impl RuntimeError {
             Self::Auth(_) => "E_AUTH".into(),
             Self::Asset { code, .. } => (*code).into(),
             Self::Generation(_) => "E_GENERATION".into(),
-            Self::Sql(_) | Self::Store(_) => "E_STORE".into(),
+            #[cfg(feature = "sqlite")]
+            Self::Sql(_) => "E_STORE".into(),
+            Self::Store(_) => "E_STORE".into(),
         }
     }
 
@@ -154,14 +157,24 @@ impl RuntimeError {
             Self::UnknownOp(_) => "op",
             Self::Asset { .. } => "asset",
             Self::Generation(_) => "generation",
-            Self::Sql(_) | Self::Store(_) => "store",
+            #[cfg(feature = "sqlite")]
+            Self::Sql(_) => "store",
+            Self::Store(_) => "store",
         }
     }
 
     /// Whether a program's refusal is the caller's to repair (as opposed to
     /// a store failure the caller should retry later).
+    fn is_store_failure(&self) -> bool {
+        #[cfg(feature = "sqlite")]
+        if matches!(self, Self::Sql(_)) {
+            return true;
+        }
+        matches!(self, Self::Store(_))
+    }
+
     pub fn is_refusal(&self) -> bool {
-        !matches!(self, Self::Sql(_) | Self::Store(_))
+        !self.is_store_failure()
     }
 
     pub fn refusal(&self) -> Refusal {
@@ -199,7 +212,9 @@ impl RuntimeError {
                 refusal.retryable = true;
                 refusal.guide = Some("writes".into());
             }
-            Self::Sql(_) | Self::Store(_) => refusal.retryable = true,
+            #[cfg(feature = "sqlite")]
+            Self::Sql(_) => refusal.retryable = true,
+            Self::Store(_) => refusal.retryable = true,
             Self::Asset { message, .. } => {
                 refusal.message = message.clone();
                 refusal.guide = Some("assets".into());

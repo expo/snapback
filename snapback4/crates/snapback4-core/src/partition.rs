@@ -16,8 +16,13 @@
 
 use crate::engine::runner::Runner;
 use crate::error::{MeterKind, RuntimeError};
-use crate::schema::{Audience, AudienceBinding, Schema, Sync, Table, audience_binding, materialize_optional_fields};
-use crate::store::{Bounds, Dir, LogEvent, Tx};
+#[cfg(feature = "sqlite")]
+use crate::schema::Table;
+use crate::schema::{Audience, AudienceBinding, Schema, Sync, audience_binding, materialize_optional_fields};
+#[cfg(feature = "sqlite")]
+use crate::rows::{Bounds, Dir};
+#[cfg(feature = "sqlite")]
+use crate::store::{LogEvent, Tx};
 use crate::value::{Value, canonical_json};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -182,6 +187,7 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
 
 /// The rows of one group within the horizon, newest first when a horizon
 /// orders them, else in the group index's order.
+#[cfg(feature = "sqlite")]
 pub fn group_rows(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, group: &[Value]) -> Result<Vec<Value>, RuntimeError> {
     let (index_name, limit, dir) = match &sync.horizon {
         Some(horizon) => (horizon.by.clone(), horizon.last as usize, Dir::Desc),
@@ -199,6 +205,7 @@ pub fn group_rows(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gro
 
 /// The groups a principal holds right now under one target audience, as
 /// their prefix values.
+#[cfg(feature = "sqlite")]
 fn groups_now(tx: &Tx<'_>, bound: &AudienceBinding, target: &str, principal: &str) -> Result<Vec<Vec<Value>>, RuntimeError> {
     let mut groups = BTreeSet::new();
     for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
@@ -253,6 +260,7 @@ pub struct SnapshotPage {
 /// memory; a row that changes between pages reaches the device again
 /// through the log, idempotently, and a group joined or left between pages
 /// reaches it as the log's join or scope.
+#[cfg(feature = "sqlite")]
 pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Option<SnapshotCursor>, limit: usize) -> Result<SnapshotPage, RuntimeError> {
     let watermark = match &cursor {
         Some(cursor) => cursor.watermark,
@@ -317,6 +325,7 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
 
 /// The whole snapshot at once, for hosts that hold it (the simulator's
 /// device, tests); a real device pages it.
+#[cfg(feature = "sqlite")]
 pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Event>, RuntimeError> {
     let mut events = Vec::new();
     let mut cursor = None;
@@ -333,6 +342,7 @@ pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Eve
 /// A group's rows from a position: at most `room`, never past the horizon
 /// counting the `taken` rows already delivered. Returns the rows with their
 /// keys and whether the group is done.
+#[cfg(feature = "sqlite")]
 fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize) -> Result<(Vec<(Value, Vec<u8>)>, bool), RuntimeError> {
     let (index_name, remaining, dir) = match &sync.horizon {
         Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
@@ -357,6 +367,7 @@ fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gr
 
 /// The index a horizonless audience walks: the first leading with the
 /// audience's columns.
+#[cfg(feature = "sqlite")]
 fn audience_index(table_name: &str, table: &Table, sync: &Sync) -> Result<String, RuntimeError> {
     let group_columns: Vec<String> = match &sync.audience {
         Audience::Public => Vec::new(),
@@ -370,6 +381,7 @@ fn audience_index(table_name: &str, table: &Table, sync: &Sync) -> Result<String
 /// coalesce to the last (a put then a delete logs the delete alone, so an
 /// image that did not survive the commit never crosses the wire); joins
 /// and scopes keep their place.
+#[cfg(feature = "sqlite")]
 pub fn append(tx: &Tx<'_>, seq: u64, events: &[Event]) -> Result<(), RuntimeError> {
     let mut last: BTreeMap<(&str, &str, &str), usize> = BTreeMap::new();
     for (position, event) in events.iter().enumerate() {
@@ -385,6 +397,7 @@ pub fn append(tx: &Tx<'_>, seq: u64, events: &[Event]) -> Result<(), RuntimeErro
     Ok(())
 }
 
+#[cfg(feature = "sqlite")]
 /// A page of the stream a device follows: the principal's own partition,
 /// the public one, and the groups it holds, merged by sequence, after
 /// `watermark`.
@@ -397,6 +410,7 @@ pub struct StreamPage {
     pub more: bool,
 }
 
+#[cfg(feature = "sqlite")]
 /// One group's membership over the window: `[from, to)` in sequence
 /// numbers, `to` open while the membership stands.
 #[derive(Clone, Debug)]
@@ -405,6 +419,7 @@ struct Interval {
     to: Option<u64>,
 }
 
+#[cfg(feature = "sqlite")]
 impl Interval {
     fn covers(&self, seq: u64) -> bool {
         seq >= self.from && self.to.is_none_or(|to| seq < to)
@@ -413,6 +428,7 @@ impl Interval {
 
 /// The groups a principal held during `(watermark, now]`, per content
 /// table, from its memberships now and the joins and scopes logged since.
+#[cfg(feature = "sqlite")]
 fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, own: &[LogEvent]) -> Result<BTreeMap<(String, String), Vec<Interval>>, RuntimeError> {
     // Membership now.
     let mut now: BTreeSet<(String, String)> = BTreeSet::new();
@@ -461,6 +477,7 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, own:
     Ok(out)
 }
 
+#[cfg(feature = "sqlite")]
 pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, limit: usize) -> Result<StreamPage, RuntimeError> {
     let own_partition = partition_of(principal);
     let own = tx.read_log(&own_partition, watermark, limit + 1)?;
@@ -520,6 +537,7 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
 }
 
 /// Every event of one commit across the principal's partitions.
+#[cfg(feature = "sqlite")]
 fn commit_events(tx: &Tx<'_>, _schema: &Schema, _principal: &str, own_partition: &str, held: &BTreeMap<(String, String), Vec<Interval>>, seq: u64) -> Result<Vec<LogEvent>, RuntimeError> {
     let mut events = tx.read_log_seq(own_partition, seq)?;
     events.append(&mut tx.read_log_seq(PUBLIC, seq)?);
@@ -537,6 +555,7 @@ fn commit_events(tx: &Tx<'_>, _schema: &Schema, _principal: &str, own_partition:
 /// still open at the end of the window; a join whose group was left again
 /// within the window delivers nothing beyond the group's own events over
 /// the interval. Joins never reach a device.
+#[cfg(feature = "sqlite")]
 fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>) -> Result<Vec<LogEvent>, RuntimeError> {
     let mut out = Vec::with_capacity(page.len());
     for event in page {
@@ -559,6 +578,7 @@ fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeM
     Ok(out)
 }
 
+#[cfg(feature = "sqlite")]
 fn has_more(tx: &Tx<'_>, own_partition: &str, held: &BTreeMap<(String, String), Vec<Interval>>, next: u64) -> Result<bool, RuntimeError> {
     if !tx.read_log(own_partition, next, 1)?.is_empty() || !tx.read_log(PUBLIC, next, 1)?.is_empty() {
         return Ok(true);

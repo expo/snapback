@@ -12,6 +12,16 @@ license = "MIT"
 [profile.release]
 incremental = true
 
+# The device core as wasm: size first.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+incremental = false
+strip = true
+
 # The shipped bytes. Small, stripped, one codegen unit.
 [profile.production]
 inherits = "release"

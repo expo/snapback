@@ -22,7 +22,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **JavaScript in the data plane.** Queries and mutations run in the Rust interpreter inside the SQLite transaction, and in the same interpreter on the client (host decided at week 3 by measurement, LLP 2000.000 §9).
 - **An embedded JS engine for effects, until measured.** The four reference effects are measured on the builder's Node, an embedded engine and a hosted isolate first (LLP 2000.000 §10).
 - **Committed generated code; an auth mode; a supervised bundler.** As Snapback 2 (`rules/NOT-DOING.md`): types by inference, personas not modes, `SNAPBACK_URL` is the client contract.
-- **A TypeScript twin over the receipt design.** If a TypeScript interpreter ships on web it is rebuilt over the replica and held under the competitor-anchored budget.
+- **A TypeScript twin over the receipt design.** The TypeScript interpreter ships on the web over the replica, under the competitor-anchored budget (16,842 B gzip against 21,713); the same interpreter as wasm measured 194,465 B (2026-09-13), so wasm does not ship on the web. Native hosts (Expo, Exact2) get the Rust core as a module instead.
 - **More than one hosted target, an admin console, media transcoding or thumbnails, push, cron syntax beyond `every N at HH:MM`, vector or ranked search, federation, multi-region, device-to-device sync, at-rest encryption claims.** After the clock, on evidence.
 - **Observability beyond `why`, `trace`, `logs`, `data`.**
 - **A guide corpus.** The compiler's facts, a one-screen grammar and keyword cards, as Snapback 2; no freshness dates.

@@ -6,11 +6,18 @@ license.workspace = true
 publish = false
 description = "Snapback 4 core: the value model, schema, IR, SQLite store, rules, the runtime meter, the interpreter, and the partition log (LLP 3000 §5 week 2)."
 
+[features]
+default = ["sqlite"]
+# The server: the SQLite store, identity, the asset ledger, jobs, the log.
+# Without it the crate is the interpreter over the `Rows` trait, for a
+# device that brings its own store (wasm on the web, or a host's SQLite).
+sqlite = ["dep:rusqlite", "dep:argon2", "dep:getrandom"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
-rusqlite = { version = "0.32", features = ["bundled"] }
-argon2 = "0.5"
-getrandom = "0.3"
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+argon2 = { version = "0.5", optional = true }
+getrandom = { version = "0.3", optional = true }
