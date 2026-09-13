@@ -11,8 +11,6 @@ import { createLocalClient } from "snapback4/local";
 import { createClient } from "snapback4/client";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
 
-const safe = (name: string) => name.replace(/[^A-Za-z0-9._-]/g, "_");   // store and session names carry the URL and the viewer
-const sqliteStore = { open: async (name: string, schema: unknown) => openSqlite(expoSqliteDriver(await SQLite.openDatabaseAsync(`${safe(name)}.db`)), schema) };
 const client = nativeAvailable()
   ? await createLocalClient({ url, guest: true, sessionStore, device: nativeDevice })
   : createClient({ url, session });   // Expo Go: the online tier, with a session the app keeps
@@ -27,11 +25,13 @@ Expo Go loads no custom native code, so the module is present only in a
 development or production build: add `expo-dev-client`, then
 `npx expo run:ios` (the module autolinks; nothing to configure). The
 Rust library ships in the package as `ios/Snapback4Device.xcframework`
-(9.1 MB, a 4.8 MB archive a slice, built by `scripts/build-xcframework.sh`
-from `crates/snapback4-device`); it costs an app 1.7 MB linked, SQLite
-included, and a module call takes about a millisecond.
+(about 13.1 MB in 0.2.1, a 6.6 MB archive per slice, built by
+`scripts/build-xcframework.sh` from `crates/snapback4-device`). It includes
+SQLite and the native-query Wasm host. The earlier module measured 1.7 MB
+linked and about a millisecond per call; those measurements predate the
+native-query host.
 
-Proved on the iOS simulator by the repository's witness in a development
+Earlier iOS simulator evidence from the repository's witness in a development
 build (`WITNESS_DEV_CLIENT=1 node witness/expo.mjs`, recorded in
 `metrics/witness.jsonl` as `dev-client-native`): a cold sync of 303 rows
 in 31 ms, a reopen in 6 ms, a cold start with no network answering the
