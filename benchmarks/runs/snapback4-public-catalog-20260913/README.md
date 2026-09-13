@@ -1539,3 +1539,77 @@ A thread walk has four pages; outsider and empty controls have one. Their p95/p9
 Qualification history is preserved: both production builds and option probes passed, while the original candidate Rust workspace run reported 237 passed / 1 failed / 1 ignored because a frontend test lacked locked Bun dependencies. After frozen installation, all 14 frontend tests passed with all 615 archived source files and both binaries unchanged. This resolves to 238 distinct candidate Rust tests passed, including the experiment-only option probe, and one existing ignored test; the corpus reported 211 passed cases and 82 named skips. The original failed exits and corrective receipts remain bound by `qualified-v2.json` (`4710463e1198f4204fbe0a613dac540b1041ab200db342c7bafc0c5a37442e3f`). This experimental qualification is not a complete publication or installed-consumer receipt.
 
 Raw controller records, their nested raw/regrant observations, all proof/log hashes, and the independent aggregation are preserved in the six annotated storage records and the ignored run's `page-cache-http-formal-summary.json`. This experiment supplies no exact-next-publication, comparator, device-throughput, write, durability, memory-pressure or universal performance claim. SQLite's changed cross-connection memory-recycling behavior was not tested under memory pressure. Any publication uses its own qualification and receipt.
+
+### Completed Office membership comparison: qualified 0.2.5, trials 24–26
+
+Nine serial runs on the Office M1 Max's ARM64 Colima VZ VM (4 CPUs, 12 GiB) compared the retained Linux production Snapback 0.2.5 binary `251e607404f3faa4e2b0fb05eb3ae42afd4aa03fe204b8532eaf0ad1afe66718` from source `9250a61ee8ad3b7a9fb899e43368e43a041e8508`, Convex CLI 1.45.0/self-host image `sha256:69885bae73766f625404a5425b22702341e89b43002f1d700864f8364be0d1f8` (server version string unknown), and Supabase CLI 2.117.0/PostgREST 16.2/Postgres 17.6.1.167 with the recorded component image digests. This measures the old qualified Linux 0.2.5 build, not 0.2.8 or the separate Durand M4 experiments. A shared version string does not establish identity with a registry platform binary.
+
+Orders were Snapback/Convex/Supabase, Convex/Supabase/Snapback, then Supabase/Snapback/Convex. The frozen instrument SHA-256 is `36f4026bcbef551d675842c760fbdc491f94e5d8b062fe8626bdf2a4cb12c39b`, controller `cd0ca16890fce049684a4f6732e3acad96b2465ab8e50b1bb8c46837754e2540`, and setup helper `47bf199de85f48117c87dcfd21f5fd2b21933e30ddbea5a7bd7447fb925bdcac`; each is bound in the retained log and records. Every backend completed all 39 cases × 500 samples in each round: **175,500 timed reads**, 10,530 excluded warmups and zero reported errors. The controller completed with exit 0 at 2026-09-13 21:20:50.445Z. All 27 public record/raw/regrant files are retained.
+
+A fresh privileged proof read all 501 groups, 186 memberships and 100,000 messages after every reset and before timing. The ordinary verifier checked exact ordered authorized unions of 1,000 / 6,000 / 30,000 / 0 / 0 messages, representative threads, timestamp ties, hidden foreign points, forged-viewer refusal, invalid/tampered/expired credentials and cross-reader cursor safety. An acknowledged own leave reduced the first union to 800, including correct old-cursor behavior and retained access for another member. Administrative regrant then restored every initial union using the same measured credentials. These checks passed in all nine runs. After leave/regrant, the proof is complete ordinary authorized-union/thread verification; no second privileged physical-database scan is claimed. There are 243 untimed walks (27 per run), plus other untimed auth/cursor/mutation checks. This frozen instrument did not measure traversal-page latencies.
+
+Snapback has lower three-run median p50 than Supabase in all 39 cases, but lower p95 in 36, p99 in 35 and maximum in 35. Against Convex, the respective counts are 21, 19, 19 and 20. All comparisons below are strict on reported values, with no ties, workload weighting or significance claim. Each aggregate is the median of three per-run statistics, not a pooled percentile over 1,500 requests. “Same round” pairs trial IDs across the rotating serial order; it does not establish a causal A/B effect.
+
+| Snapback statistic favorable | Convex: case medians / same-round comparisons | Supabase: case medians / same-round comparisons |
+|---|---:|---:|
+| Lower p50 | 21/39 · 56/117 | 39/39 · 113/117 |
+| Lower p95 | 19/39 · 55/117 | 36/39 · 107/117 |
+| Lower p99 | 19/39 · 52/117 | 35/39 · 101/117 |
+| Lower maximum | 20/39 · 54/117 | 35/39 · 101/117 |
+| Higher requests/s | 21/39 · 57/117 | 39/39 · 111/117 |
+
+Convex retains lower median p50 in 15/18 feed cases; Snapback is lower in 9/9 point and 9/12 thread cases. The largest feed gaps are the 150-group C8 cases: Snapback p50 is 6.67× / 7.46× / 10.94× Convex for first / next / working-set feeds, with p95 12.36× / 13.28× / 21.74×. Supabase has lower median p95 for all three of those wide C8 feeds. It has lower p99 and maximum for those three plus the 5-group C8 feed-next case.
+
+The 39/39 median p50 result against Supabase also contains four unfavorable individual comparisons: trial 25's 5-group feed-first C8 is 21.055 vs 16.610 ms; trial 26's 5-group feed-next C8 is 25.114 vs 15.536, 150-group feed-next C8 is 51.022 vs 39.749, and 150-group feed-working-set C8 is 44.881 vs 32.856. These are preserved along with every p95/p99/maximum and throughput loss. The largest case observation across all three rounds is 450.759 ms for Snapback (150-group feed-working-set C8, trial 25), 105.718 ms for Convex (150-group point-working-set C1, trial 25) and 1,027.657 ms for Supabase (150-group feed-next C8, trial 25). Table maximums below are medians of the three run maximums, not these overall worst observations.
+
+In every cell, values are **Snapback / Convex / Supabase**. Latencies are milliseconds; throughput is HTTP requests/second.
+
+| Case | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| groups5PointHotC1 | 3.290 / 3.711 / 6.193 | 6.822 / 6.959 / 12.799 | 10.307 / 11.090 / 22.685 | 24.570 / 25.257 / 35.524 | 245.0 / 240.9 / 132.7 |
+| groups5PointWorkingSetC1 | 3.197 / 12.109 / 7.150 | 6.191 / 28.320 / 29.340 | 9.727 / 47.884 / 48.648 | 19.486 / 63.938 / 69.217 | 279.4 / 69.7 / 96.0 |
+| groups5ThreadFirstC1 | 4.191 / 4.345 / 9.269 | 7.557 / 7.405 / 35.655 | 12.174 / 11.179 / 61.745 | 29.497 / 17.119 / 83.834 | 207.3 / 206.0 / 72.8 |
+| groups5ThreadNextC1 | 3.732 / 5.286 / 8.696 | 6.707 / 9.721 / 36.418 | 9.696 / 20.081 / 60.908 | 21.305 / 33.825 / 83.522 | 233.1 / 162.9 / 75.3 |
+| groups5FeedFirstC1 | 4.112 / 4.519 / 9.644 | 7.255 / 8.821 / 34.676 | 10.055 / 17.347 / 53.725 | 20.562 / 25.347 / 76.367 | 211.2 / 192.7 / 70.1 |
+| groups5FeedNextC1 | 3.976 / 4.073 / 9.059 | 6.322 / 7.256 / 32.324 | 8.623 / 9.749 / 50.718 | 24.730 / 27.403 / 69.317 | 232.3 / 223.7 / 78.2 |
+| groups5FeedWorkingSetC1 | 4.441 / 3.665 / 10.666 | 7.510 / 5.715 / 33.300 | 10.447 / 9.060 / 61.188 | 20.960 / 44.466 / 90.101 | 207.0 / 248.6 / 70.1 |
+| groups5PointWorkingSetC8 | 3.775 / 6.940 / 12.262 | 9.456 / 21.027 / 28.483 | 35.887 / 39.976 / 169.221 | 37.570 / 42.731 / 215.696 | 1591.8 / 915.5 / 542.8 |
+| groups5ThreadFirstC8 | 6.873 / 8.475 / 19.649 | 21.138 / 21.461 / 41.533 | 34.170 / 49.942 / 81.232 | 40.878 / 62.004 / 93.001 | 806.1 / 761.5 / 355.3 |
+| groups5ThreadNextC8 | 7.230 / 5.991 / 25.672 | 16.108 / 12.053 / 61.419 | 36.181 / 22.028 / 77.096 | 45.727 / 24.042 / 82.529 | 931.9 / 1171.0 / 274.3 |
+| groups5FeedFirstC8 | 13.549 / 5.018 / 26.759 | 38.325 / 10.896 / 65.480 | 49.331 / 24.599 / 93.911 | 65.877 / 25.919 / 138.504 | 476.5 / 1375.6 / 257.8 |
+| groups5FeedNextC8 | 16.242 / 4.887 / 17.174 | 46.964 / 10.670 / 48.131 | 76.585 / 23.651 / 65.111 | 100.826 / 24.870 / 77.791 | 383.8 / 1414.0 / 371.4 |
+| groups5FeedWorkingSetC8 | 18.587 / 5.367 / 21.628 | 50.237 / 10.093 / 65.228 | 84.018 / 26.279 / 152.682 | 109.210 / 31.216 / 157.239 | 361.2 / 1298.3 / 281.4 |
+| groups30PointHotC1 | 3.121 / 3.309 / 9.579 | 6.521 / 5.349 / 40.086 | 11.191 / 8.726 / 60.321 | 40.652 / 19.142 / 96.414 | 278.3 / 272.5 / 70.1 |
+| groups30PointWorkingSetC1 | 3.596 / 13.196 / 6.787 | 7.239 / 36.125 / 24.928 | 11.145 / 54.888 / 39.102 | 33.123 / 81.680 / 52.422 | 243.6 / 57.2 / 107.3 |
+| groups30ThreadFirstC1 | 4.411 / 4.542 / 9.845 | 8.997 / 8.578 / 35.753 | 13.417 / 11.527 / 58.980 | 32.852 / 31.679 / 100.703 | 185.6 / 199.8 / 70.1 |
+| groups30ThreadNextC1 | 3.606 / 4.824 / 10.672 | 6.502 / 11.020 / 33.682 | 9.967 / 19.448 / 60.301 | 26.909 / 46.693 / 77.673 | 243.9 / 168.6 / 69.6 |
+| groups30FeedFirstC1 | 4.460 / 4.666 / 11.244 | 7.560 / 10.100 / 30.585 | 10.909 / 18.780 / 49.220 | 19.208 / 31.479 / 84.808 | 206.4 / 185.8 / 68.5 |
+| groups30FeedNextC1 | 5.949 / 5.372 / 10.611 | 11.443 / 18.190 / 31.281 | 16.794 / 40.897 / 46.835 | 34.397 / 48.918 / 69.079 | 144.9 / 125.1 / 71.9 |
+| groups30FeedWorkingSetC1 | 6.031 / 4.893 / 13.732 | 11.910 / 8.079 / 59.232 | 23.815 / 12.746 / 86.561 | 42.209 / 35.025 / 138.101 | 144.0 / 193.3 / 47.2 |
+| groups30PointWorkingSetC8 | 3.027 / 6.018 / 17.420 | 6.459 / 19.388 / 45.558 | 21.632 / 31.803 / 67.636 | 24.236 / 48.789 / 98.710 | 2092.0 / 937.5 / 381.2 |
+| groups30ThreadFirstC8 | 7.402 / 6.097 / 19.425 | 21.461 / 15.731 / 50.136 | 39.661 / 40.300 / 87.569 | 47.558 / 46.543 / 102.331 | 852.1 / 1031.5 / 340.9 |
+| groups30ThreadNextC8 | 6.770 / 9.449 / 20.784 | 17.999 / 34.503 / 49.971 | 31.026 / 51.062 / 69.541 | 36.075 / 54.920 / 76.551 | 961.5 / 672.9 / 324.8 |
+| groups30FeedFirstC8 | 12.232 / 9.260 / 30.042 | 29.240 / 21.066 / 88.369 | 37.878 / 51.463 / 108.997 | 57.876 / 55.874 / 137.662 | 564.1 / 725.4 / 213.0 |
+| groups30FeedNextC8 | 13.501 / 5.788 / 21.381 | 32.896 / 11.162 / 47.909 | 41.756 / 42.999 / 55.941 | 55.359 / 56.570 / 69.643 | 501.9 / 1153.2 / 333.5 |
+| groups30FeedWorkingSetC8 | 14.128 / 5.834 / 33.344 | 31.089 / 27.104 / 78.058 | 44.858 / 47.261 / 97.087 | 61.307 / 57.152 / 112.737 | 496.6 / 940.6 / 214.6 |
+| groups150PointHotC1 | 2.930 / 3.794 / 6.914 | 5.431 / 6.211 / 16.689 | 9.212 / 8.415 / 28.739 | 18.542 / 19.041 / 73.545 | 287.3 / 243.8 / 118.9 |
+| groups150PointWorkingSetC1 | 3.709 / 12.937 / 7.408 | 6.347 / 39.579 / 33.829 | 8.846 / 64.476 / 49.130 | 27.028 / 100.619 / 75.381 | 255.1 / 56.5 / 85.3 |
+| groups150ThreadFirstC1 | 4.281 / 3.923 / 10.898 | 9.506 / 6.340 / 34.737 | 17.657 / 11.885 / 53.059 | 41.543 / 39.063 / 62.658 | 197.8 / 231.7 / 67.1 |
+| groups150ThreadNextC1 | 3.657 / 4.554 / 8.972 | 6.783 / 7.765 / 27.291 | 9.509 / 11.059 / 47.277 | 35.468 / 24.715 / 81.945 | 242.2 / 199.7 / 81.9 |
+| groups150FeedFirstC1 | 7.662 / 3.593 / 18.326 | 16.025 / 6.611 / 42.352 | 27.864 / 8.372 / 59.434 | 37.381 / 22.316 / 104.075 | 109.3 / 247.8 / 45.7 |
+| groups150FeedNextC1 | 8.660 / 3.991 / 19.368 | 13.292 / 7.304 / 58.923 | 15.772 / 13.628 / 83.701 | 27.056 / 31.009 / 107.580 | 106.8 / 221.2 / 38.5 |
+| groups150FeedWorkingSetC1 | 9.833 / 4.979 / 17.727 | 21.844 / 9.759 / 38.185 | 33.784 / 16.487 / 55.988 | 70.669 / 25.894 / 104.787 | 87.0 / 180.0 / 49.5 |
+| groups150PointWorkingSetC8 | 4.328 / 5.507 / 13.620 | 11.794 / 12.826 / 48.440 | 25.416 / 21.475 / 76.975 | 27.083 / 26.051 / 85.190 | 1435.5 / 1234.9 / 437.0 |
+| groups150ThreadFirstC8 | 6.134 / 6.792 / 15.107 | 15.499 / 22.246 / 31.770 | 36.687 / 35.831 / 48.014 | 38.358 / 41.222 / 55.736 | 1116.5 / 911.9 / 468.2 |
+| groups150ThreadNextC8 | 6.478 / 7.115 / 24.234 | 17.854 / 22.417 / 53.054 | 31.083 / 30.981 / 66.135 | 34.073 / 34.124 / 97.904 | 995.9 / 861.8 / 298.6 |
+| groups150FeedFirstC8 | 28.147 / 4.220 / 42.101 | 115.218 / 9.325 / 74.549 | 172.695 / 33.803 / 111.080 | 330.212 / 39.670 / 155.737 | 192.8 / 1427.8 / 176.8 |
+| groups150FeedNextC8 | 37.216 / 4.988 / 60.051 | 135.092 / 10.171 / 116.901 | 228.484 / 24.541 / 208.722 | 412.712 / 26.291 / 259.787 | 149.5 / 1379.3 / 121.8 |
+| groups150FeedWorkingSetC8 | 44.881 / 4.102 / 58.169 | 169.251 / 7.787 / 131.892 | 280.653 / 23.488 / 164.238 | 429.344 / 28.977 / 198.299 | 121.7 / 1686.1 / 120.4 |
+
+The protocol uses real native bearer authentication: copied 90-day Snapback guest sessions, Convex RS256 custom JWTs, and Supabase ES256 password-login users with RLS. Those paths have different implementation costs. Supabase login refresh occurs before timing and never between leave and regrant; the controller asserts an unchanged credential-file digest before the second verifier. The raw verify-only records retain the older instrument's `timedIdentities: 3` field, but their explicit scope and lack of measurements mean that invocation has zero timed samples.
+
+There is no harness/application result cache. Native automatic query caching remains enabled, and actual hit/eviction rates are unmeasured. Full initial traversals visit all feed/thread page arguments before repeated cases. Working-set sequences match across backends within each trial: 500 timed point inputs from domains of 1,000/6,000/30,000, and 50/300/500 unique timed feed-page inputs from domains of 50/300/1,500. The wide feed's full domain is verified outside timers. Request latency includes HTTP, JSON decoding and normalized projection; exact response assertions follow the request timer, while whole-case elapsed/RPS includes that observer and loop work. Thirty warmups per case are excluded.
+
+Snapback restores its full pristine SQLite snapshot and restarts its server before each run. Convex/Supabase retain processes and immutable message/group tables while replacing memberships. OS cache remains without resets and residency is unmeasured. The Supabase plan artifact verifies 12 executed prepared query bodies extracted from deployed SECURITY INVOKER functions under the authenticated role/claims, including indexed continuation arms. Because nested `auto_explain` was unavailable, this is body-plan evidence, not a nested stored-function trace; actual HTTP authorization and returned data are checked separately.
+
+The nine annotated storage records preserve the original controller records, embed the untouched raw instrument and separate same-session regrant records, and bind their files and common execution log by SHA-256. The ignored `membership-025-formal-summary.json` contains every backend/case median, every same-round contrast, all losses and all supporting hashes. These results do not establish an overall or current-release win, statistical significance, isolated QPSG attribution, cold-cache behavior, full Clique coverage, device/realtime throughput, materialized feed/count performance, write throughput, memory-pressure behavior or durability. Later security, independent-reader and page-cache changes require their own scoped evidence.
