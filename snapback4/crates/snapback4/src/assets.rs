@@ -7,7 +7,7 @@
 use crate::serve::{Shared, lock, principal_of, refusal_json, respond};
 use serde_json::json;
 use snapback4_core::error::Refusal;
-use std::io::{Read as _, Seek, SeekFrom};
+use std::io::{self, Read as _, Seek, SeekFrom};
 use tiny_http::{Header, Request, Response};
 
 /// The most an upload may be when no column bounds it yet: the request is
@@ -82,7 +82,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     if start > 0 && file.seek(SeekFrom::Start(start)).is_err() {
         return respond(request, 500, json!({ "denied": refusal_json(&Refusal::new("E_STORE", "store", "cannot read the bytes")) }));
     }
-    let reader = file.take(length);
+    let reader = ExactReader { inner: file.take(length), remaining: length };
     let mut response = Response::new(tiny_http::StatusCode(status), headers, reader, Some(length as usize), None);
     if status == 206 {
         response = response.with_status_code(206);
@@ -92,6 +92,28 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, snapback4_core::now_ms()) {
             eprintln!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
         }
+    }
+}
+
+/// `io::copy` considers an early EOF successful. Convert it to an error so a
+/// truncated asset cannot consume a one-view grant after a short response.
+struct ExactReader<R> {
+    inner: R,
+    remaining: u64,
+}
+
+impl<R: io::Read> io::Read for ExactReader<R> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        if self.remaining == 0 || buffer.is_empty() {
+            return Ok(0);
+        }
+        let wanted = buffer.len().min(self.remaining as usize);
+        let read = self.inner.read(&mut buffer[..wanted])?;
+        if read == 0 {
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "the asset ended before its recorded byte count"));
+        }
+        self.remaining -= read as u64;
+        Ok(read)
     }
 }
 
