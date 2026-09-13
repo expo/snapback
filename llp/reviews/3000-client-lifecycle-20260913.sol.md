@@ -51,3 +51,13 @@ Static-only bounded review covered both predecessor-scope/live-renewal behavior 
 ### Disposition
 
 Reproduced red with mutation A delayed until a current-token B query ends the session. Staleness is now captured from the request revision or active rotation before the refusal handler can change session state. The same regression retains the durable pending entry, while current-credential E_AUTH remains authoritative. Seven session-security and ten focused lifecycle tests, typecheck and build pass.
+
+## Request-revision correction review — 0c21402ed — Sol
+
+Received from a fresh `gpt-5.6-sol` xhigh session; only immutable supplied source and regression context was reviewed, without tools.
+
+No material finding remains in the reviewed scope at 0c21402edaa23381d42d94edb915d73762ecaebe.
+
+The pre-await classification correctly preserves stale status across successful rotation, failed rotation, and a concurrent authoritative session end. The mutation caller consequently retries without settling the durable entry, while a current-revision, non-rotating `E_AUTH` remains terminal through `refusedSession`.
+
+This was a static-only review of the request-revision correction.

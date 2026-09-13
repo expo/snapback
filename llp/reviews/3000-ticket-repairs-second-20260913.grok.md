@@ -174,3 +174,35 @@ Other scoped intersections were inspected at `d8cdc6c81` and did not show a mate
 - Ceilings were not changed by the resolutions.
 
 Static review only; no tests were run.
+
+## Final correction review — c30a517d7 — Grok
+
+Received from a fresh, mutually blind `grok-4.6` xhigh CLI session. This review covers the expired-predecessor/renewal and obsolete-authentication read/write corrections at the immutable checkpoint named below. The separately reproduced concurrent-sign-out classification correction follows in its own final delta review.
+
+No material finding remains in the reviewed scope at `c30a517d7cbb7429295a0708bee33b51b5534a94`.
+
+Static-only pass over both corrections as they exist at that commit (no tests, no later worktree edits).
+
+**Correction 1 (expired predecessor vs live renewal).** `memberships_before` supplies the last join/scope at the watermark. A following replacement join therefore still reconstructs the prior span; `expand_joins` emits that span’s `scope` before `group_at` acquisition when the replacement commit is at or after the old deadline (`partition.rs` 485–487, 624–628). Device apply is vector order, so that `scope` lands before the new puts. A live same-audience update skips the logged `scope` (`renewed`, 196–201) and does not synthesize one (`commit at < old expiry`). Shortening to an already-elapsed deadline still logs `scope`. Delivered-history `leave` stays a no-op; the stream still rewrites puts with current visibility.
+
+**Correction 2 (obsolete `E_AUTH` after rotation).** `obsoleteAuth` is `E_AUTH` that did not kill the session (`local.ts` 388–390). Writes hit `retryFlush` on that flag and do not `settle` (724). Reads wait on `refreshing` when present, then retry with current headers (589–594). Current-revision `E_AUTH` still runs `endSession` (`rotating` false). Refresh waits for current-revision `syncOnce`, then `void rerun` under the existing running/dirty coalescing (361–365, 648–668). Close is rechecked after the wait via `unavailable()`.
+
+## Request-revision correction review — 0c21402ed — Grok
+
+Received from a fresh `grok-4.6` xhigh session, mutually blind with the corresponding Sol review. Only immutable supplied source and regression context was reviewed, without tools.
+
+**No material finding remains in the reviewed scope at `0c21402edaa23381d42d94edb915d73762ecaebe`.**
+
+This is a static-only review of the request-revision correction. The moved expression matches the intended obsolete-vs-current split, and the two immediate callers keep the right settle/retry outcomes on the interleavings in scope.
+
+The old `E_AUTH && !sessionDead` bit was not a request identity. `endSession` sets `sessionDead` for *whoever* won the current-credential refusal, so a later reply that still carried the old bearer could be treated as live. The replacement uses the request’s captured revision plus the in-flight rotation flag, and it is read before `await refusedSession(...)`. That await is required: `endSession` bumps `credentialRevision` (and clears `rotating`) synchronously, so evaluating the new formula *after* the handler would mark the current request’s own `E_AUTH` obsolete and skip a terminal settle.
+
+Interleavings:
+
+- **Successful rotation.** Start of `refreshCurrent` sets `rotating` and bumps `credentialRevision` before the new bearer is installed. An in-flight post therefore sees `request.revision !== credentialRevision` and/or `rotating`. `flushOnce` retries instead of `settle`; the query loop waits on `refreshing` and retries. After the replacement token is installed, a matching-revision, non-rotating `E_AUTH` is current: `obsoleteAuth` is false, `refusedSession` ends the session, and a mutation at that revision may settle as failed.
+- **Failed rotation.** Failure bumps `credentialRevision` again and only then may `endSession`. Stale replies remain revision-mismatched, so they stay obsolete and do not settle. A later post at the post-failure revision is classified independently; a real current `E_AUTH` can still end the session.
+- **Concurrent session end (the new regression).** Order: old `/m/send` is in flight at revision *R* → rotation installs the new bearer → a current-revision `/q/remote` `E_AUTH` runs `refusedSession` → `endSession` → the held old `E_AUTH` arrives. Classification is already `obsoleteAuth === true` from `request.revision !== credentialRevision`. `flushOnce` takes `retryFlush()` and does not `settle`. `retryFlush` no-ops once `sessionDead` is set, so the outbox row stays pending. The current query still signs out: its own `obsoleteAuth` is false.
+
+`|| rotating` is load-bearing for the window where a post is captured *after* the mid-rotation revision bump but *before* the second bump and `rotating = false`. In that window the revision matches and the wire token is still the old one; `refusedSession` already refuses to kill the session while `rotating` is set. Treating that `E_AUTH` as obsolete is the same rule, not a new one.
+
+No other surface was reviewed.
