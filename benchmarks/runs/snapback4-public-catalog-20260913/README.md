@@ -1,9 +1,10 @@
-# Snapback 4 public-catalog reads — 2026-09-13
+# Snapback 4 catalog HTTP performance — 2026-09-13
 
-This is a warm, local HTTP microbenchmark on actual Snapback 4, Convex and
-Supabase backends. It is not the independent Clique bakeoff, a hosted latency
-comparison, or a write/durability/SDK benchmark. The overall performance goal
-remains open.
+The public-read batches below are warm, local HTTP microbenchmarks on actual
+Snapback 4, Convex and Supabase backends. A private extension also validates
+owned reads and atomic, replay-safe updates. These are not the independent
+Clique bakeoff, a hosted comparison, an SDK benchmark or evidence of matched
+power-loss durability. The overall performance goal remains open.
 
 ## Fixture and instrument
 
@@ -24,7 +25,7 @@ Every timed response is checked against expected records or absence; Snapback
 must also say `complete: true`. No partial result or request failure counts
 as a successful sample.
 
-The measurement instrument SHA-256 is
+The public batches through trial 17 use instrument SHA-256
 `1537193eadf44c24c4208550d5e0b14cbd1e58acb02313fb7c702312ab15a02c`.
 Run it with `--catalog snapback4|convex|supabase --rows 100000 --samples 500
 --trial N`, `SB4_CATALOG_URL` set to the appropriate loopback HTTP URL, and
@@ -385,6 +386,93 @@ The production server selects level 3 on this evidence. The wasm profile
 retains z, and `build-xcframework.sh` explicitly selects z for native device
 libraries. The incremental release profile is unchanged. Qualification of
 the shipping artifact remains separate from these Linux experiment binaries.
+
+## Private catalog extension and correctness smokes
+
+`--private-catalog-init NEW_DIRECTORY` extends the existing instrument with
+schemas and operations for private data. The logical seed adds
+`ownerSlot = floor(n / 100) % 2` and `revision: 0` to each public product:
+two owners have 50,000 rows each and 500 rows per category. Initial normalized
+JSONL SHA-256 is
+`fdf373afc5317df2b7c44cd4c169e424dd3da5bf7acf614cfc1ef598dc113057`.
+Administrative setup maps the owner slots to real principals and imports the
+fixture. Queries return SKU, category, price, title and revision through
+owner-leading indexes. Owner, SKU, category, price and title are immutable.
+
+Snapback uses real guest bearer sessions and viewer-derived rules. Convex
+uses a disposable RS256 issuer, an audience and a public JWKS data URI;
+every operation obtains its owner from verified identity. Supabase uses
+ordinary local Auth password logins, native ES256 user JWTs and a low-privilege
+API key, with SELECT/UPDATE RLS keyed to `auth.uid()`. Issuance is untimed;
+the private runner never uses administrative credentials. The generated SQL
+revokes default broad privileges before granting SELECT and column-specific
+UPDATE. Its receipt schema stays outside the REST API and GraphQL search
+path. In this actual local instance, SQL and the HTTP endpoint confirm that
+the GraphQL extension is disabled; a real request selecting the private REST
+schema returns 406. No GraphQL performance result is implied.
+
+The update atomically increments a non-indexed revision and returns the new
+value. Each backend records success or NOT_FOUND by `(principal, operationId)`
+in the same transaction. Convex uses an indexed absence read plus insertion
+in its mutation transaction. Supabase uses an invoker-rights, VOLATILE RPC,
+a unique receipt claim and an atomic SQL increment. Reusing an ID with a
+changed payload replays the original outcome. Successful replays are timed
+separately from fresh C1/C8 updates; warmup writes also make real changes.
+Every formal trial must begin with the pristine revision-zero fixture and
+empty operation receipts.
+
+Run `--private-catalog BACKEND --rows 100000 --samples N --trial T` with
+`SB4_CATALOG_URL`, public `SB4_CATALOG_METADATA`, and `SB4_PRIVATE_SESSIONS`
+pointing to a private JSON file. That file supplies `backend`, three
+`sessions` (`principal` and `token`, in two-owner/outsider order), Supabase's
+low-privilege `apiKey`, a validly signed expired `expiredToken`, and optional
+non-secret `publicMetadata`. Keep credentials outside tracked files. The
+output records actual auth and deployment metadata and whether expiry was
+checked. It prints one JSON record; private results are retained explicitly
+after inspection. Backend caches remain enabled; both owners' category keys
+are warmed, with concurrent connection expansion inside timing.
+
+All three 100,000-row correctness smokes passed with 50 samples in each of
+eleven cases (550 timed calls per backend), plus untimed ownership,
+pagination and mutation checks. They used private instrument
+`d92311e8d2bd6c750d301f5da2c3db9e4415ab0aa64f2482526b867c814c8822` and the
+existing 0.1.16 size-profile Snapback binary. The actual full partitions were
+verified before and after, including the outsider's empty partition. All
+three final normalized hashes equal
+`acd0715b81c62a4cd4249d8f20c6184cac856d88224e4800f6ed936c817bcfd7`.
+Checks covered cross-owner reads/cursors, forged owner arguments, missing,
+malformed, tampered and expired credentials, Supabase immutable-column PATCH
+refusal, original successful/failed outcomes, principal-scoped IDs, eight
+contended increments and eight concurrent attempts with one ID. Expired
+Supabase tokens use the native signing key and ordinary user claims, with
+expiry forced one hour into the past solely for the untimed refusal check;
+timed calls use ordinary Auth-issued access tokens.
+
+These smoke timings are excluded from comparative conclusions. The appended
+records are labelled `experiment: private-catalog-smoke`. This extension
+does not yet establish a private-read or write performance win. Writes use
+each backend's defaults: Snapback serves with SQLite WAL/NORMAL, Postgres
+reports `fsync=on`, `synchronous_commit=on`, `full_page_writes=on` and logged
+tables, and this pinned Convex binary's effective synchronous setting is not
+established. Any timing comparison must therefore say **default-mode
+acknowledgement latency**, not matched power-loss-durable writes.
+
+After an actual, separately recorded backend restart, add `--private-restart`
+with the same trial and sample count to check the entire prior final state,
+replay Alice's success with a changed payload, Bob's same ID and Alice's
+failed ID, then verify the entire state again. This mode has no timing cases
+and does not restart a process itself. It cannot establish power-loss
+durability, SDK retry behavior or immediate logout equivalence.
+
+The restart checks passed for all three backends at 09:24–09:26 UTC after
+graceful restarts of the recorded Snapback process, the owned Convex backend
+container and the owned PostgreSQL container. Each check reverified all
+100,000 rows, replayed the three outcomes above and reverified the same
+`acd0715b…` full-state hash. Raw records use
+`workload: private-catalog-restart-replay`, retain the actual before/after
+process or container start identities, and name the extended instrument hash
+`71b0810d3b648116bd9f10bfb5d28f5ce0cedad68bb502d365a7d1f028acc992`.
+No process-kill, machine-crash or power-loss fault was injected.
 
 ## Simulator observation follow-up
 

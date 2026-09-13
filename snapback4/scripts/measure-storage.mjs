@@ -640,6 +640,24 @@ async function measurePrivateCatalog() {
     assert.deepEqual((await query("all", { c: null }, 2)).data, []);
     return { rows: total, sha256: createHash("sha256").update(rows.map(r => JSON.stringify(r)).join("\n") + "\n").digest("hex") };
   };
+  if (process.argv.includes("--private-restart")) {
+    // Run after the orchestrator restarts the backend, with the same trial
+    // and sample count as its completed private-catalog run. Reconstruct
+    // that run's exact expected state rather than accepting any extant row.
+    const prefix = "private-catalog-" + trial, ownSku = catalogRow(count - 200).sku, otherSku = catalogRow(count - 100).sku;
+    expectedRevisions.set(ownSku, 11); expectedRevisions.set(otherSku, 1);
+    const writes = shuffle(count / 2 - 200);
+    for (let caseIndex = 0; caseIndex < 2; caseIndex++) for (let n = 0; n < samples + 30; n++) {
+      expectedRevisions.set(catalogRow(ownerNumber(n % 2, writes[caseIndex * (samples + 30) + n])).sku, 1);
+    }
+    const before = await verify();
+    assert.deepEqual(await bump(otherSku, prefix + "-first"), { state: "sent", result: { sku: ownSku, revision: 1 } });
+    assert.deepEqual(await bump(otherSku, prefix + "-first", 1), { state: "sent", result: { sku: otherSku, revision: 1 } });
+    assert.deepEqual(await bump(ownSku, prefix + "-failed"), { state: "failed", code: "NOT_FOUND" });
+    const after = await verify(); assert.deepEqual(after, before);
+    console.log(JSON.stringify({ at: new Date().toISOString(), workload: "private-catalog-restart-replay", backend, trial, samples, rows: count, before, after, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), scope: "untimed state/replay check; the orchestrator must record the actual restart separately; no power-loss durability claim" }));
+    return;
+  }
   const measurements = {};
   const run = async (name, concurrency, call, warmups = 30) => {
     for (let n = 0; n < warmups; n++) await call(n);
