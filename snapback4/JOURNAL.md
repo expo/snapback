@@ -1138,3 +1138,34 @@ milliseconds), and the outbox carries its own submission sequence, kept
 in the store's meta and flushed by, so the order survives a restart and
 a clock that steps back. Test: twenty sends in one offline burst reach
 the other device in the order they were sent. Published `snapback4@0.1.7`.
+
+## 2026-09-13 — the full-brief Clique run: every milestone green on 0.1.0
+
+The lane (`~/clique-sb4-20260912-full`, Astra medium, `snapback4@0.1.0`
+pinned, nothing struck) ended at 7,002 s of wall clock with M1, M2, M3,
+M4, M5, M6 and M8 green: 654, 607, 716, 151, 673, 1,180 and 2,945 s of
+closure wall in turn (the struck run on 0.0.2: 7,725 s to M8 with media
+and scheduled work removed). Media messages, avatars, view-once photos,
+asset revocation, server-enforced expiry with no client open, and the
+scheduled digest under the two-minute config all passed the frozen suite
+and the two-client choreography; the scale replay settled 167,157
+actions in 512 s and verified against the invariant manifest. Of 31
+recorded correction events the lane attributed 20 to itself, 4 to the
+environment, 4 as ambiguous and 3 to the package; every package line is
+answered above, in 0.1.1 through 0.1.7, and the record reads each
+against main. The lane declares one protocol deviation: its last
+diagnosis read the installed package's `dist/local.js`, not a source
+checkout, and it says so.
+
+What it did not claim: the scale envelope's O5. Cold sync of `u0500`
+over the full corpus on the memory store blocked Node past 30 s (0.1.6:
+the snapshot is paged and `check` notes a table with no horizon; the
+lane's schema had none), and the wide-follow probe — the following feed
+for a user who follows 500 against one who follows 5 — measured 19.2×
+where the envelope allows 3×. That ratio is the shape of `merge` over
+500 lanes, each lane read one page deep; the feed the brief describes
+wants a fan-out-on-write table or a bounded lane count, and the
+package's notes should say so at `check` when a merge's lane source is
+unbounded in practice. Open, for the next slice. The 60-second video
+bound the lane checked on the client is one `require` on the server
+since 0.1.2. Grading and M7 follow.
