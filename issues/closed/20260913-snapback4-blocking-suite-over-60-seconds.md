@@ -160,3 +160,13 @@ The enlarged suite again exceeded the budget: the exact `3d2007794` product tree
 Final integrated checkpoint `669dc0c0188860f60c2a8a34f09882a101a8e4f0` passed two sequential warm runs on expo-build-1000 (AMD EPYC 9454, 96 logical CPUs, 251 GiB RAM): **36.70 s and 36.50 s**. Each passed 189 Rust tests, 9 fixture tests and 77 client tests, plus the package/web/Expo checks. One predeclared 8,192-write native throughput test remains ignored with its existing reason; it is not counted as a pass. Cargo tests took 34 s, fixtures 10 s and client tests 17 s, overlapped. Node 24.13.1, Bun 1.3.14, Rust/Cargo 1.97.0 and wasm-bindgen 0.2.127; tracked files stayed clean.
 
 The local integrated run also passed every assertion in 54 s, including an 11 s wasm rebuild; its post-success cleanup warning led to the Bash correction included in both final Linux runs. Raw receipts live in `.llp/ship-runs/sb4-36-20260913/qualification/` and `/home/ccheever/lanes/sb4-36-20260913-verify-logs/`. Final raw-log SHA-256 values: `25142c96fd5fc2a6584491e2f9f2f552d9185d1ca39b5569db97e9417f882cce` and `dafc0e78456281b401793ef902d074a8b4312f73081c67c42d8ff1ef85ddfabc`.
+
+Final security-integrated follow-up: `d8cdc6c81` passes the complete suite in
+34.29 s warm on the same controlled Linux host and 56 s locally. Both runs
+report 234 Rust, 9 fixture and 86 client passes, zero failures, and the same
+one explicitly ignored debug-host throughput test. The clean Linux raw log
+SHA-256 is `e654d70e889ab84ce61872d57f27e91dfbf41873482dee91580989655d84136b`;
+the retained qualification receipt is
+`linux-final-run-7-d8cdc6c81.receipt.json` under this run's ignored ledger.
+This checkpoint also integrates main's independently qualified SQLite plan
+reuse; no causal claim assigns the whole final timing change to the runner.

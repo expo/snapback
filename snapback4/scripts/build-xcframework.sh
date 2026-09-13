@@ -11,7 +11,7 @@ printf 'module Snapback4Device {\n  header "snapback4.h"\n  export *\n}\n' > "$h
 # The crate is also an rlib (the CLI's `device` verb, the tests); a build
 # of every crate type at once leaves the staticlib un-optimised across
 # crates, 37 MB of bitcode. Asked for as a staticlib alone it is one
-# optimised object beside SQLite and the builtins; stripped, 4.8 MB a slice.
+# optimised object beside SQLite and the builtins; stripped, about 6.6 MB a slice with the native-read host.
 stripped=$(mktemp -d)
 for target in aarch64-apple-ios aarch64-apple-ios-sim; do
   cargo rustc -p snapback4-device --crate-type staticlib --profile production --config 'profile.production.opt-level="z"' --target "$target" --quiet

@@ -25,7 +25,7 @@ Expo Go loads no custom native code, so the module is present only in a
 development or production build: add `expo-dev-client`, then
 `npx expo run:ios` (the module autolinks; nothing to configure). The
 Rust library ships in the package as `ios/Snapback4Device.xcframework`
-(about 13.1 MB in 0.2.1, a 6.6 MB archive per slice, built by
+(about 13.2 MB in 0.2.1, a 6.6 MB archive per slice, built by
 `scripts/build-xcframework.sh` from `crates/snapback4-device`). It includes
 SQLite and the native-query Wasm host. The earlier module measured 1.7 MB
 linked and about a millisecond per call; those measurements predate the
