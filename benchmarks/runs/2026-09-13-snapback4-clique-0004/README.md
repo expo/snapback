@@ -7,7 +7,9 @@ All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
 
-The repairs landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`.
+The [36 ticket dispositions](./ticket-dispositions.md) are complete: 28 include
+implemented fixes, seven were already resolved or obsolete, and one documents
+existing policy. The repairs landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`.
 The publisher reran the full suite in 30 seconds: 236 Rust, 9 fixture and
 89 client passes, zero failures and one declared ignored test. Its installed
 consumer checks passed. `release-qualification.json` retains the package,
