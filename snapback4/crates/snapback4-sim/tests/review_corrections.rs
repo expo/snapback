@@ -471,3 +471,68 @@ fn an_expiring_point_read_charges_its_live_row_once() {
     assert!(outcome.complete, "{outcome:?}");
     assert_eq!(outcome.metered.examined, 1, "{outcome:?}");
 }
+
+#[test]
+fn opening_an_older_store_backfills_missing_live_sum_candidates_once() {
+    let source = "table items:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\n  sync public\nmaintain sums: sum items of amount by group\n  read <- allow\nquery point():\n  return sums['g'] by byGroup\nquery scan():\n  return sums[] first 10 by byGroup\n";
+    let dir = std::env::temp_dir().join(format!("sb4-live-sum-backfill-{}-{}", std::process::id(), snapback4_core::now_ms()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("store.sqlite");
+    let bound = compile(source);
+    let mut e = Engine::new(Store::open(&path).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    seed(&mut e, "items", serde_json::json!([
+        {"id":"live","group":"g","amount":5,"until":null},
+        {"id":"expired","group":"g","amount":-5,"until":2000}
+    ]));
+    let sources = e.store().rows("items").unwrap();
+    let before_repair = e.seq().unwrap();
+    // This is the shape written by a prior binary: the zero-valued target
+    // and all of its indexes are missing, and no repair marker is present.
+    e.store().conn().execute_batch(
+        "DELETE FROM i WHERE ti IN (SELECT num FROM _catalog WHERE name GLOB 'sums.*');
+         DELETE FROM r WHERE t = (SELECT num FROM _catalog WHERE name = 'sums');
+         DELETE FROM _meta WHERE key = 'live_sum_candidates';"
+    ).unwrap();
+    drop(e);
+
+    let mut repaired = Engine::open(Store::open(&path).unwrap()).unwrap();
+    assert_eq!(repaired.store().rows("items").unwrap(), sources);
+    assert_eq!(repaired.seq().unwrap(), before_repair + 1, "the repair is one logged rebuild");
+    assert_eq!(repaired.query("point", ctx().at(3000)).unwrap().data, Value::Int(5));
+    let scan = repaired.query("scan", ctx().at(3000)).unwrap().data;
+    let rows = scan.as_array().unwrap();
+    assert_eq!(rows.len(), 1, "{scan:?}");
+    assert_eq!(rows[0].field("group").unwrap(), &Value::String("g".into()));
+    assert_eq!(rows[0].field("value").unwrap(), &Value::Int(5));
+    let repaired_seq = repaired.seq().unwrap();
+    drop(repaired);
+
+    let mut reopened = Engine::open(Store::open(&path).unwrap()).unwrap();
+    assert_eq!(reopened.seq().unwrap(), repaired_seq, "the durable marker prevents another rebuild");
+    assert_eq!(reopened.query("point", ctx().at(3000)).unwrap().data, Value::Int(5));
+    assert_eq!(reopened.store().rows("items").unwrap(), sources);
+    assert_eq!(reopened.sweep_expired(3000, 100).unwrap(), 1);
+    assert_eq!(reopened.seed_delete("items", "live").unwrap(), 1);
+    assert!(reopened.store().rows("items").unwrap().is_empty());
+    assert!(reopened.store().rows("sums").unwrap().is_empty(), "a zero candidate has no reason to remain after its last physical source");
+    drop(reopened);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_capped_maintained_point_returns_the_observed_partial_count() {
+    let mut e = engine("table items:\n  group: text <=10\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain counts: count items by group\n  read <- allow\nquery count():\n  return counts['g'] by byGroup\n");
+    seed(&mut e, "items", serde_json::json!((0..5).map(|n| serde_json::json!({
+        "id": format!("item-{n}"),
+        "group": "g",
+        "until": null
+    })).collect::<Vec<_>>()));
+    let mut ceilings = e.ceilings();
+    ceilings.examined = 3;
+    e.set_ceilings(ceilings);
+
+    let outcome = e.query("count", ctx()).unwrap();
+    assert_eq!(outcome.data, Value::Int(2), "one candidate and two observed source rows: {outcome:?}");
+    assert!(!outcome.complete, "{outcome:?}");
+    assert!(matches!(outcome.capped_at, Some((snapback4_core::error::MeterKind::Examined, _))), "{outcome:?}");
+}
