@@ -56,6 +56,22 @@ process launch, without identifying the underlying macOS cause. The host
 was M5 Max Black, macOS 26.6.2 (25G83), with load averages 42.39/31.39/23.10.
 The sample is `shared-suite-sample-70679.txt` in the run directory.
 
+That complete run finished with zero failed assertions in 676 s (675.06 s
+on the stage timer): Cargo build 7.50 s, Cargo tests 610.11 s, and the chat
+compiler launch 33.318 s. The simulator group itself took 8.54 s. This run
+predates main's subsequent correctness fixes and the integrated vendor patch;
+the sampled pre-main pause does not establish the cause of every delay.
+
+After integrating those changes, Linux qualification on the Office M1 Max's
+four-vCPU/12-GiB Colima VM passed all Rust tests and client assertions using
+`TMPDIR=/tmp`. Its fifteen-test simulator group took 51.21 s. The script
+reported 105 s and one failed stage because the copied source initially
+lacked the shared root benchmark fixture pack. With that exact committed
+pack copied, all nine fixture tests passed separately in 40.716 s. The React
+browser lifetime group was skipped because Chromium is absent in the VM;
+the native process-core test passed. These separate runs establish no
+complete-suite budget pass. The Darwin publication repeat remains pending.
+
 Resolution: restore the existing complete suite to the 60 s budget on an
 appropriately idle documented host, without dropping correctness assertions,
 raising the budget, or adding a gate. Record before/after step timings and

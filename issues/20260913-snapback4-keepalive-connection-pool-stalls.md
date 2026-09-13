@@ -49,7 +49,18 @@ and independent review remain in the ignored run directory
 `tiny-http-manifest-changes.patch`, `tiny-http-queue-fixed-review/`,
 `transport-stall-review.md`, `queue-results/`). No shared registry cache was
 patched. The platform package includes the dependency's MIT notice in its
-published files. Integrated qualification and delivery remain pending.
+published files.
+
+Integrated source `43569823cf89d6e685fd4cf2712a2e6b8c4cae92` passed all twelve
+combined dependency tests on Linux, three Darwin HTTP/version tests, six
+real-HTTP bounds tests, and the Rust workspace and available client tests on
+Linux. In fresh production-profile comparisons (trials 12–14), all 24,000
+Snapback requests passed their assertions and the maximum latency was
+124.371 ms. Each run included connection expansion and full fixture
+verification. Both competitor backends were remeasured in the same rotating
+batch. The [catalog record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+retains the raw records and remaining competitor gaps. Delivery and
+publication remain pending.
 
 Resolution: deliver the approved reproducible dependency fix, run the existing
 HTTP lifecycle tests against that integrated binary, and repeat the matched

@@ -230,7 +230,7 @@ effective concurrency, so apparently better control p50/p95 can coexist with
 much worse completion time. Connection expansion remains inside the measured
 interval, as it was in the original protocol.
 
-The pool change is **not yet shipped**: the author approved its reproducible
+The author approved the pool change's reproducible
 vendored package and one new Cargo manifest on 2026-09-13. Main then landed an
 existing vendor copy with a bounded unread-body drain. The 0.1.16 integration
 adds the reviewed pool helper/test there and retains the drain fix, response
@@ -239,6 +239,64 @@ introduced. The earlier profile/HTTP experiments predate those other main
 changes and do not qualify the integrated candidate's latency. The
 [open transport issue](../../../issues/20260913-snapback4-keepalive-connection-pool-stalls.md)
 records the prepared fix, review and remaining integration qualification.
+
+## Integrated 0.1.16 production profile, trials 12–14
+
+The integrated runtime source is
+`43569823cf89d6e685fd4cf2712a2e6b8c4cae92`, including main's atomic activation,
+strict decoding, bounded responses and unread-body drain corrections. The
+Linux ARM64 binary SHA-256 is
+`6705674aefffa2794a6d7c70567ce4b5603fa1b64620cc69739cc6e14e457d02`.
+It uses the same `production` profile now selected by publication: size
+optimization, fat LTO, one codegen unit, abort on panic and stripped symbols.
+The retained server pathname contains `release`, but the installed artifact
+was copied from `target/production`; the raw metadata records this explicitly.
+Earlier batches used the release profile and predate other main changes, so
+this batch is not an isolated before/after estimate of any one optimization.
+
+All three backends were rerun with 1,000 timed requests per case, the same
+instrument, runtime, verified fixture and competitor images. Trial order was
+Snapback/Convex/Supabase, Convex/Supabase/Snapback, then
+Supabase/Snapback/Convex. The nine raw records have `trial: 12–14`, timestamps
+2026-09-13T07:47 through 07:53 UTC and `workload: public-catalog` in
+`metrics/storage.jsonl`. Every run reverified all 100,000 rows. All 72,000
+timed responses passed their assertions; connection-pool expansion remains
+inside the measured interval.
+
+Medians of three per-run percentiles and client-observed throughput;
+latencies are milliseconds:
+
+| Case | Snapback p50 / p95 / RPS | Convex p50 / p95 / RPS | Supabase p50 / p95 / RPS |
+|---|---:|---:|---:|
+| Repeated point | 3.320 / 6.574 / 262.8 | 3.171 / 5.780 / 274.5 | 4.181 / 8.266 / 208.2 |
+| Distinct point, C1 | 3.290 / 6.589 / 253.2 | 6.954 / 14.045 / 124.2 | 3.647 / 4.772 / 263.8 |
+| Distinct point, C8 | 3.638 / 5.347 / 2091.6 | 22.963 / 54.175 / 296.1 | 7.708 / 19.529 / 867.8 |
+| Distinct point, C32 | 22.657 / 68.107 / 1010.7 | 79.282 / 141.503 / 370.3 | 27.568 / 61.805 / 989.7 |
+| Distinct missing point | 3.319 / 6.364 / 265.1 | 7.093 / 15.254 / 118.7 | 4.509 / 9.170 / 185.3 |
+| Repeated 50-row page, C1 | 3.423 / 5.819 / 263.3 | 2.913 / 6.237 / 263.2 | 4.903 / 9.606 / 169.7 |
+| Repeated 50-row page, C8 | 8.517 / 20.859 / 792.4 | 4.612 / 11.342 / 1278.5 | 9.474 / 20.329 / 736.0 |
+| Repeated continuation | 3.761 / 6.072 / 227.1 | 3.548 / 6.057 / 245.2 | 5.037 / 7.460 / 182.6 |
+
+None of the 24,000 timed Snapback requests had a multi-second stall; the
+maximum was 124.371 ms. Snapback's aggregate p50 is lower than Supabase's in
+all eight cases, but Supabase has lower p95 in distinct-point C1, point C32
+and category-page C8. Convex has lower p50 on repeated points and all three
+category/continuation cases. Its category-page C8 throughput is 1,278.5
+requests/s versus Snapback's 792.4. These are remaining targets, not an
+overall platform win; the 0.1.15 eight-of-eight p95 result does not describe
+this newer candidate. Three runs on a shared VM do not establish the
+significance of small differences.
+
+The combined dependency's twelve library tests passed on Linux. Current
+Darwin checks passed three HTTP/version tests, six real-HTTP body/output
+bound tests and the SQLite-free core build. Linux passed the Rust workspace,
+typechecks/build and client tests; its React browser lifetime group was
+skipped because Chromium is unavailable. A missing shared fixture pack was
+copied from the committed repository and all nine fixture tests passed on
+rerun. These separate checks are not a single passing timed Linux suite;
+Darwin's complete publication qualification follows delivery. References
+validated with 471 LLPs, 8,682 references, zero errors and zero unchecked.
+Independent source review found no material issue in the integrated runtime.
 
 ## Simulator observation follow-up
 
@@ -264,6 +322,10 @@ assertions passed. The new regression was tested separately and excluded
 from this equal-test comparison. These timings improve the developer loop;
 they are not server request latency or a competitor measurement. Complete
 suite qualification remains separate from this isolated result.
+The trace and equal-test timing comparison predates main's later activation
+and day-two fixture corrections. The current integrated Linux simulator's
+fifteen-test group passed in 51.21 s on the four-vCPU VM; the earlier 8 s
+Darwin result is not a timing claim for that combined candidate.
 
 ## Work remaining
 
