@@ -406,19 +406,29 @@ fn an_expired_unswept_grant_does_not_hide_its_replacement_interval() {
     call(&mut e, "join", "new-member", 20, BTreeMap::from([("until".into(), Value::Int(100))]));
     call(&mut e, "add", "content", 21, BTreeMap::new());
 
-    let page = e.stream_at("dev:alice", before, 100, 22).unwrap();
-    assert!(page.events.iter().any(|event| event.table == "notes" && event.id == "content" && event.kind == "put"), "{:#?}", page.events);
-    assert!(!page.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "{:#?}", page.events);
+    let caught_up = e.stream_at("dev:alice", before, 100, 22).unwrap();
+    assert!(caught_up.events.iter().any(|event| event.table == "notes" && event.id == "content" && event.kind == "put"), "{:#?}", caught_up.events);
+    assert!(!caught_up.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "{:#?}", caught_up.events);
+    let drained = caught_up.watermark;
+
+    assert_eq!(e.sweep_expired(22, 100).unwrap(), 1);
+    call(&mut e, "add", "after-sweep", 23, BTreeMap::new());
+    for (watermark, expected) in [(before, &["content", "after-sweep"][..]), (drained, &["after-sweep"][..])] {
+        let page = e.stream_at("dev:alice", watermark, 100, 24).unwrap();
+        let notes = page.events.iter().filter(|event| event.table == "notes").collect::<Vec<_>>();
+        assert!(expected.iter().all(|id| notes.iter().any(|event| event.id == *id && event.kind == "put")), "watermark={watermark}: {notes:#?}");
+        assert!(!notes.iter().any(|event| event.kind == "scope"), "watermark={watermark}: {notes:#?}");
+    }
 }
 
 #[test]
-fn expired_sources_reconstitute_an_absent_zero_sum_for_point_and_scan_reads() {
+fn expired_sources_recompute_a_zero_sum_for_point_and_scan_reads() {
     let mut e = engine("table items:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain sums: sum items of amount by group\n  read <- allow\nquery point():\n  return sums['g'] by byGroup\nquery scan():\n  return sums[] first 10 by byGroup\n");
     seed(&mut e, "items", serde_json::json!([
         {"id":"live","group":"g","amount":5,"until":null},
         {"id":"expired","group":"g","amount":-5,"until":2000}
     ]));
-    assert!(e.store().rows("sums").unwrap().is_empty(), "the physical zero aggregate should be absent");
+    assert_eq!(e.query("point", ctx()).unwrap().data, Value::Int(0));
 
     let point = e.query("point", ctx().at(3000)).unwrap().data;
     let scan = e.query("scan", ctx().at(3000)).unwrap().data;

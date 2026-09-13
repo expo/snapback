@@ -171,6 +171,32 @@ fn query_reports_the_next_expiry_to_the_host() {
 }
 
 #[test]
+fn a_zero_sum_can_become_nonzero_on_the_device_clock() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table items:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\n  sync public\nmaintain sums: sum items of amount by group\n  read <- allow\nquery total():\n  return sums['g'] by byGroup\n";
+        let (mut engine, backend) = compile(source);
+        engine.seed([
+            ("items".into(), snapback4_core::value::object([("id", id("live")), ("group", Value::String("g".into())), ("amount", Value::Int(5)), ("until", Value::Null)])),
+            ("items".into(), snapback4_core::value::object([("id", id("expired")), ("group", Value::String("g".into())), ("amount", Value::Int(-5)), ("until", Value::Int(2_000))])),
+        ]).unwrap();
+        assert_eq!(engine.query("total", context("dev:alice", &[]).at(1_000)).unwrap().data, Value::Int(0));
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("zero-sum", Some(backend)).unwrap();
+        for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 1_000).iter().enumerate() {
+            ok(apply(&mut *device, page, index == 0));
+        }
+
+        let before = query(&mut *device, "total", "dev:alice", serde_json::json!({}), 1_000);
+        assert_eq!(before["data"], 0, "{label}: the zero-valued candidate reaches the device");
+        assert_eq!(before["nextExpiry"], 2_000, "{label}");
+        let after = query(&mut *device, "total", "dev:alice", serde_json::json!({}), 3_000);
+        assert_eq!(after["data"], 5, "{label}: expiry recomputes the sum without another commit");
+        device.close();
+    });
+}
+
+#[test]
 // @ref LLP 3000#7-decisions-during-execution — an expiring audience is a device-clock revocation; retention decides what survives it.
 fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
     on_both(|host| {
