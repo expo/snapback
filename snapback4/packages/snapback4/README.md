@@ -136,7 +136,9 @@ mutation edit(messageId: messages, body: text <=4000):
   `exists` needs any index over exactly its key; a scan needs an index whose
   leading columns are the scan's prefix, and pages in the order of the
   remaining columns; a cursor needs an index ending in `id` or a unique one.
-  `by index` names one when two match.
+  `by index` names one when two match. `by name: scope, words(text cols),
+  at, id` is a words index: one entry per distinct word of the named text
+  columns, read with `matching` (Search, below) and nothing else.
 - **Constraints:** `cap N by cols` (at most N rows per group; needs an index
   leading with those columns), `immutable cols`, `after insert <- exists
   t[..]` (a row that must exist by the end of the mutation that inserted
@@ -200,8 +202,10 @@ statement), at most eight levels deep.
   uniform lanes with a non-nullable unique index or an index ending in
   `id` read one head per lane, then advance the winning lanes; other
   lanes read a page each; `check` notes a merge past 50 lanes), `walk
-  t[seed] up .parentId depth 8` (a bounded list of rows). A key may name
-  its columns: `t[a = x, b = y]`.
+  t[seed] up .parentId depth 8` (a bounded list of rows), `t[scope]
+  matching q after c last N by wordsIndex` (word-prefix search; Search,
+  below), `connected[p]` (open connections; `exists connected[p]` tests;
+  Presence, below). A key may name its columns: `t[a = x, b = y]`.
 - **Shapes:** `{ *, author: users[.authorId], count: counts[.conversationId] }`
   after a page, a list, a row or an object; `.` is the row; `*` spreads its
   columns; a point read inside a shape is null for a hidden row. A shape is
@@ -220,7 +224,7 @@ statement), at most eight levels deep.
   `require cond else CODE`, `if:` / `else:` (no `else if`: nest), `for x
   in domain:` over a page, a bounded list, `range(a, b)` (integer
   literals) or `tokens(text)`, `break`, `return [value]`, a `proc` call,
-  and a write. Values: `viewer`, `now`, `new` (an id, mutations only),
+  `emit effect { payload }` (Effects, below), and a write. Values: `viewer`, `now`, `new` (an id, mutations only),
   `count(page | list)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
   b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
   `tokens(text)` (the @mentions, at most 64), `share(amount, list,
@@ -338,6 +342,128 @@ job. Quarry still declares the table, its rules and its `sync`; a query
 or mutation cannot be native, because a device predicts Quarry and the
 certificate reads it. Anything that needs the network stays outside and
 writes into a table the job reads.
+
+### Search
+
+```quarry
+table conversations:
+  title: text <=120
+  read <- exists memberships[.id, viewer]
+  insert <- allow
+  sync to memberships[.id]
+
+table memberships:
+  conversationId: conversations
+  principal: principal
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  read <- exists memberships[.conversationId, viewer]
+  insert <- allow
+  sync to memberships[.conversationId]
+
+table messages:
+  conversationId: conversations
+  authorId: principal
+  body: text <=4000 ?
+  caption: text <=200 ?
+  at: time
+  by byConvTime: conversationId, at, id
+  by byConvWords: conversationId, words(body, caption), at, id
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  sync to memberships[.conversationId] last 500 by byConvTime
+
+table profiles:
+  principal: principal
+  displayName: text <=50
+  handle: text <=30 format handle
+  unique byPrincipal: principal
+  unique byHandle: handle
+  by byNameWords: words(displayName, handle), id
+  public 'profiles are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+
+query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  return messages[conversationId] matching q after c last 50 by byConvWords
+
+query people(q: text <=100, c: cursor ?):
+  return profiles matching q after c first 20 by byNameWords
+```
+
+`words(cols)` is an index component: one entry per distinct word of the
+named text columns, folded the same way on every host (NFC, lowercase, a
+word boundary at every character that is not a letter or a digit). The
+columns before it scope the search (a chat); the columns after it order
+the page and end in `id`, so a cursor continues it. A words index serves
+`matching` and nothing else, and cannot be unique. `matching q` folds the
+text the same way: the first term selects every word it is a prefix of
+("cof": coffee, coffers, cofounder — one seek each, at most 32 words,
+else `complete: false`) and merges them as ordered lanes into one page,
+newest first when the index says so; every further term must be a prefix
+of some word of the row ("cof car" finds "COFFEE for Carol"). Mid-word
+text never matches; an empty search matches nothing; an expired row is
+gone at once; an edit re-tokenizes. A scope the rule decides costs one
+verdict per word. An unscoped words index (`by byWords: words(body), at,
+id`) under a per-chat rule checks the rule per row and is never
+`complete` (`N_NEVER_COMPLETE`): search across every chat on the device
+(§4), where the partition holds exactly what the viewer may read, offline
+too.
+
+### Effects
+
+```quarry
+effect notify
+
+table memberships:
+  conversationId: id
+  principal: principal
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  read <- exists memberships[.conversationId, viewer]
+  insert <- allow
+
+table messages:
+  conversationId: id
+  authorId: principal
+  body: text <=4000
+  at: time
+  by byConvTime: conversationId, at, id
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+
+mutation send(conversationId: id, body: text <=4000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  msg = insert messages { conversationId, authorId: viewer, body, at: now }
+  for m in memberships[conversationId] first 50 by byConversationPrincipal:
+    if m.principal != viewer and not exists connected[m.principal]:
+      emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
+  return { id: msg.id }
+```
+
+The data plane never calls out. `emit name { payload }` in a mutation or
+a job keeps the payload durably in the same commit as the rows (a
+refused mutation emits nothing), and a worker — a process the
+application runs with a service token, §4 — performs it and settles it.
+A failure retries with backoff up to eight attempts; a worker that dies
+loses its lease and the effect is claimed again; two workers never hold
+one effect. `snapback4 doctor` counts them. A scheduled job that emits
+once per period is the digest recipe.
+
+### Presence
+
+`connected[p]` is how many connections a principal holds open on the
+server now — a device following the stream keeps a long poll open, and
+one that answered a moment ago still counts for 35 seconds — and `exists
+connected[p]` is the test. It is not a table: nothing syncs, nothing is
+written. A mutation reads it to notify only those with no connected
+client (Effects, above); a query reads it for an online mark. On a
+device the word is unknown: a query that reads it is `complete: false`,
+and a mutation's prediction reads everyone as connected, the server
+deciding when the write arrives.
 
 ### The meter
 
@@ -467,8 +593,15 @@ larger group is refused. The job covers the whole account, capped at
 mutation wrote. Larger audiences use a separate lane their readers merge
 on read. The entries sync to each reader; `following` joins `posts`, an
 online-only table here, so it answers on the server — carry the columns
-the reader renders on the entry itself to answer on the device. The whole
-card: `snapback4 guide feeds`.
+the reader renders on the entry itself to answer on the device. At 500
+follows the reader's page examines the rows it examines at 5: one prefix
+of the reader's own lane. A ranked feed for a community keeps one shared
+candidate set instead: a job on a schedule scores the pool from maintains
+into a public `ranked` table every device holds, the viewer's own signals
+(`seen`, votes, a ranker's `affinity`) sync to the viewer, and the device
+composes the two; the external ranker writes its per-reader word through a
+service seat (`insert <- viewer = 'service:ranker'`). The whole card, both
+shapes: `snapback4 guide feeds`.
 
 ## 4. The client
 
@@ -620,6 +753,33 @@ schema opts in with `use identity` (guests and password accounts),
 routes refuse with `E_AUTH`. `snapback4 dev` also admits personas;
 `snapback4 serve` (a release) admits tokens only.
 
+An application that authenticates its own accounts — a phone number it
+verified, a member of its own directory — mints their sessions through a
+service (below) and hands each token to that account's device, which then
+talks to the server directly with `createLocalClient({ url, session })`;
+the principal is the application's own name for the account
+(`member:42`), outside the engine's namespaces.
+
+### Workers and services (`snapback4/worker`)
+
+```ts
+import { runWorker, mintSession, revokeSessions, listEffects, GiveUp } from "snapback4/worker";
+
+runWorker({ url, token, effects: { notify: async (payload, meta) => { await push(payload); return { providerId: meta.id }; } } });
+const session = await mintSession(url, token, "member:42", "member", 30);
+await revokeSessions(url, token, "member:42");
+```
+
+A service is a principal `service:<name>` with a bearer session of its
+own: `snapback4 token --service pusher` prints it once (`--release <dir>`
+for a deployment). Rules admit it like any principal (`insert <- viewer =
+'service:ranker'`); with its token a worker claims what the backend
+`emit`s under a lease, performs it, and settles it — a thrown handler
+retries with backoff, `GiveUp` fails it at once, the returned value is
+kept beside the effect — and mints or revokes the sessions of the
+accounts the application authenticates itself. `meta.id` is the
+idempotency key a provider should see.
+
 ### The mock (`snapback4/mock`)
 
 `createMockClient({ viewer, tables, ops })` is a client with the same
@@ -669,17 +829,21 @@ PNG and `asset` is always denied.
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's
   structural class. **`snapback4 types`** writes `api.ts` alone.
+- **`snapback4 token --service <name> [--days N] [--release <dir>]`**
+  mints a service's bearer token into the project's store (or a
+  deployment's) and prints it once.
 - **`snapback4 why <E_CODE | op | table>`** explains a refusal code, an
   operation's arguments, result and cost, or a table's rules, sync line,
   expire column and indexes; **`data <table> [--limit N]`** prints rows
   (50 by default); **`doctor [--json]`** says what is in place: the
-  store, its size, schedules and their last boundary, the last job runs;
-  **`guide [keyword]`** prints the language card (`snapback4 guide`, or
-  `guide language`) or one card: language, types, indexes, rules, sync,
-  expire, assets, reads, shapes, writes, programs, jobs, native, feeds,
-  bounds, refusals, personas (`guide <E_CODE>` explains a code); **`--version`**
-  prints the binary's version, which equals the package's. Every flag may
-  be spelled `--flag=value`.
+  store, its size, schedules and their last boundary, the last job runs,
+  the effects by state and the failed ones;
+  **`guide [keyword]`** prints the language card or one card: language,
+  types, indexes, rules, sync, expire, assets, reads, shapes, writes,
+  programs, jobs, native, feeds, search, effects, services, presence,
+  bounds, refusals, personas (`guide <E_CODE>` explains a code);
+  **`--version`** prints the binary's version, which equals the
+  package's. Every flag may be spelled `--flag=value`.
 
 ### The wire
 
@@ -709,7 +873,18 @@ works; `Cache-Control: private, no-store` for `once`, else immutable).
 `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
 (`{ "email", "password" }`) answer `{ "session": { principal, kind,
 token, expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout`
-with the bearer token answers `{ "ok": true }`. Authorization:
+with the bearer token answers `{ "ok": true }`. With a service token:
+`POST /auth/session` (`{ "principal", "kind"?, "days"? }`) mints a session
+for an account the application authenticated, `POST /auth/revoke`
+(`{ "principal" }`) ends every session of one and answers `{ "revoked" }`,
+`POST /effects/claim` (`{ "effect"?, "limit"?, "lease"?, "wait"? }`, the
+last two in seconds; `wait` long-polls until something is due) answers
+`{ "effects": [{ id, effect, payload, attempt, seq, at }] }`, `POST
+/effects/<id>/done` (`{ "result"? }`) and `POST /effects/<id>/failed`
+(`{ "error", "retry" }`) settle one (`E_EFFECT_LEASE` when this worker
+does not hold it, 404 `E_EFFECT_UNKNOWN` when no such effect is queued),
+and `GET /effects?state=queued` lists them; a user's token at any of these
+is 401 `E_AUTH`. Authorization:
 `x-snapback-persona` (dev, same machine, `[A-Za-z0-9_-]+`) or
 `Authorization: Bearer <token>`; a bearer wins when both are sent. Status
 codes: 401 with no or a dead credential, 404 `E_OP` for an unknown
@@ -803,12 +978,11 @@ client to model a restart, and read the outcomes off the card.
 
 ## 8. Not in this release
 
-Word search (`tokens(text)` is the @mentions of a text, not an index:
-search over synced rows on the device, or by a prefix index), effects
-(`effect x from m` and `emit x payload` are accepted and queued in the
-server's `_outbox`, and nothing delivers them: write the fact to a table
-and let a job or a reader act on it), platform binaries other than
-darwin-arm64 (build from source with `cargo build --release -p snapback4`
-and set `SNAPBACK4_BIN`), an Android module. If the package cannot
-express something, the diagnostic names the term; record the gap and
-move on.
+Platform binaries other than darwin-arm64 (build from source with
+`cargo build --release -p snapback4` and set `SNAPBACK4_BIN`), an Android
+module, search beyond word prefixes (no stemming, relevance ranking,
+phrase or mid-word matching), push delivery itself (a worker's, through
+the effects above), an identity provider beyond guests, passwords,
+services and the sessions a service mints, presence beyond the server's
+own polls. If the package cannot express something, the diagnostic names
+the term; record the gap and move on.

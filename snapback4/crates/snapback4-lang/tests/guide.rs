@@ -66,7 +66,8 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["room", "thread", "inbox", "following", "ancestors", "digest", "mentions", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative"]);
+    assert_eq!(names, ["room", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "online", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative"]);
+    assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
@@ -116,6 +117,13 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(oldest.iter().map(|m| m.field("at").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [2_000, 2_100], "sorted ascending by at");
     // mentions: tokens.
     assert_eq!(engine.query("mentions", Context::new(alice, args(&[("body", text("hey @bob and @carol"))])).at(2_200)).unwrap().data, Value::Array(vec![text("bob"), text("carol")]));
+    // search: a word prefix over the room's messages, newest first; online: nobody is connected here.
+    let found = engine.query("search", Context::new(alice, args(&[("roomId", id("r1")), ("q", text("KEE"))])).at(2_200)).unwrap();
+    assert_eq!(found.data.as_array().unwrap().iter().map(|m| m.field("body").unwrap().clone()).collect::<Vec<_>>(), vec![text("keep")]);
+    assert!(found.complete);
+    assert_eq!(engine.query("online", Context::new(alice, args(&[("p", id(bob))])).at(2_200)).unwrap().data, Value::Int(0));
+    // sendBrief emitted for the members with no connection: bob, once per send.
+    assert_eq!(engine.effects(Some("queued"), 10).unwrap().len(), 2, "one effect per send, for the one other member");
     // post: a loop over a bounded list argument; following: a merge over lanes, shaped.
     let posted = engine.mutate("post", Some("p1"), Context::new(alice, args(&[("bodies", Value::Array(vec![text("a"), text("b")]))])).at(3_000).with_ids(["post1".to_owned(), "post2".to_owned()])).unwrap();
     assert_eq!(sent(&posted), &Value::Int(2));

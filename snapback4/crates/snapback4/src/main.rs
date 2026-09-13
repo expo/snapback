@@ -25,6 +25,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
   guide [keyword]                  the language card, or one keyword card (guide lists them)
   data <table> [--limit N]         print rows
+  token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor                           say what is and is not in place
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
   --version";
@@ -52,6 +53,7 @@ fn main() -> ExitCode {
         "test" => verbs::test(&options),
         "why" => verbs::why(&options),
         "data" => verbs::data(&options),
+        "token" => verbs::token(&options),
         "doctor" => verbs::doctor(&options),
         "device" => verbs::device(&options),
         "guide" => {

@@ -64,7 +64,7 @@ impl Binder<'_> {
                     return Err(Diagnostic::new(site, "E_EMIT_IN_QUERY", "queries cannot emit effects", "change query to mutation before emitting an effect"));
                 }
                 if !self.catalog.effects.contains_key(effect) {
-                    return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect} from <module>` at the top level")));
+                    return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect}` at the top level; a worker with a service token claims what is emitted (guide effects)")));
                 }
                 let (expr, _) = self.expr(payload, out)?;
                 out.push(Stmt::Emit { effect: effect.clone(), payload: expr });

@@ -31,7 +31,7 @@ pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, 
     runner.charge_output(&data)?;
     let next = runner.next_cursor()?;
     Ok(QueryOutcome {
-        complete: runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon,
+        complete: runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon && !runner.presence_unknown,
         capped_at: runner.meter.capped_at.clone(),
         next,
         data,

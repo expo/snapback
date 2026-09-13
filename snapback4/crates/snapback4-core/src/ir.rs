@@ -201,12 +201,15 @@ pub enum Builtin {
     Count,
     Sum,
     CountCapped,
+    /// `connected[p]`: how many connections the principal holds open on the
+    /// server now; `exists connected[p]` is `> 0`. A device answers 1.
+    Connected,
 }
 
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Len | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped => 1,
+            Self::Len | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::Concat | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }

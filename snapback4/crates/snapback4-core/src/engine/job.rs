@@ -197,6 +197,7 @@ impl Engine {
     /// parks the job with the refusal; a job whose program changed since
     /// it was queued parks with `E_JOB_GENERATION`.
     pub fn run_job_chunk(&mut self, now: i64) -> Result<Option<JobRun>, RuntimeError> {
+        let presence = self.presence.clone();
         let tx = self.store.transaction()?;
         let head = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
         let Some(head) = head else { return Ok(None) };
@@ -224,7 +225,7 @@ impl Engine {
         let (binding, scan, body) = sweeps[sweep];
         tx.savepoint("job_chunk")?;
         let seq = tx.next_seq()?;
-        let mut context = Context::system().at(now);
+        let mut context = Context::system().at(now).with_presence(presence);
         context.args = head.args.clone();
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
         // The sweep's upper key is captured when it begins: a row the body

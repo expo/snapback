@@ -126,8 +126,13 @@ impl Binder<'_> {
                 self.member(e, t, name, site)
             }
             A::Call { name, args, .. } => self.call(name, args, site, out),
+            A::Read(read) if read.table == "connected" && !self.catalog.tables.contains_key("connected") => self.connected(read, out),
             A::Read(read) => self.read(read, out),
             A::Merge(merge) => self.merge(merge, out),
+            A::Exists { read, .. } if read.table == "connected" && !self.catalog.tables.contains_key("connected") => {
+                let (count, _) = self.connected(read, out)?;
+                Ok((Expr::Binary { op: BinaryOp::Gt, left: Box::new(count), right: Box::new(Expr::Literal(Value::Int(0))) }, Ty::Bool))
+            }
             A::Exists { read, .. } => {
                 let (point, _) = self.point(read, ReadMode::Exists, out)?;
                 Ok((Expr::Exists(point), Ty::Bool))
@@ -158,6 +163,23 @@ impl Binder<'_> {
             }
             A::Write { .. } => self.write(expr, out, true).map(|opt| opt.expect("a valued write")),
         }
+    }
+
+    /// `connected[p]`: how many connections the principal holds open on the
+    /// server now, an int; `exists connected[p]` is the bool. Not a table:
+    /// the server's registry of long polls answers it, a device answers 1
+    /// and marks its read, and the server decides the write.
+    fn connected(&mut self, read: &ReadExpr, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+        let site = &read.site;
+        if read.keys.len() != 1 || read.range.is_some() || read.matching.is_some() || read.index.is_some() {
+            return Err(unknown(site, "connected takes one principal: connected[p] counts its connections, exists connected[p] tests", "exists connected[m.principal]"));
+        }
+        let key = &read.keys[0];
+        let (e, t) = self.expr_as_identity(&key.value, out, &Ty::Principal)?;
+        if !matches!(t.required(), Ty::Principal | Ty::Id) {
+            return Err(type_error(key.value.site(), format!("connected takes a principal, got {}", t.name()), "connected[m.principal]"));
+        }
+        Ok((Expr::Builtin { builtin: Builtin::Connected, args: vec![e] }, Ty::Int))
     }
 
     pub(super) fn name(&mut self, name: &str, site: &Site) -> Fallible<(Expr, Ty)> {

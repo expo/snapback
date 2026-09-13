@@ -51,6 +51,9 @@ pub fn expression(expr: &Expr) -> String {
 
 pub fn read_expr(read: &ReadExpr) -> String {
     let mut out = format!("{}[{}]", read.table, read.keys.iter().map(key_part).collect::<Vec<_>>().join(", "));
+    if let Some(matching) = &read.matching {
+        out.push_str(&format!(" matching {}", expression(matching)));
+    }
     if let Some(range) = &read.range {
         if let Some(cursor) = &range.cursor {
             out.push_str(&format!(" after {}", expression(cursor)));

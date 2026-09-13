@@ -74,7 +74,9 @@ impl Store {
                     if schema.maintain_for(name).is_none() { crate::engine::validate::validate_row(schema, name, &row)?; }
                     tx.tx.execute("UPDATE r SET data = ?1 WHERE t = ?2 AND id = ?3", params![canonical_json(&row), t, id])?;
                     for (index_name, index) in &table.indexes {
-                        tx.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![catalog[&format!("{name}.{index_name}")], index_key(index, &row, id), id])?;
+                        for key in index_keys(index, &row, id) {
+                            tx.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![catalog[&format!("{name}.{index_name}")], key, id])?;
+                        }
                     }
                     Ok(())
                 })?;

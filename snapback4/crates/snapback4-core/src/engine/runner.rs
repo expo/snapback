@@ -74,6 +74,13 @@ pub struct Runner<'a> {
     pub(crate) device: bool,
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
+    /// While a search page runs: the words columns and the terms after the
+    /// first, which every row of the page must also carry.
+    pub(crate) word_filter: Option<(Vec<String>, Vec<String>)>,
+    /// The program read `connected[p]` where no registry answers (a
+    /// device): a query's result is not `complete`; a prediction stands,
+    /// the server deciding when the write arrives.
+    pub(crate) presence_unknown: bool,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
     pub(crate) seq: u64,
@@ -109,6 +116,8 @@ impl<'a> Runner<'a> {
             page_overflow: false,
             device: false,
             beyond_horizon: false,
+            word_filter: None,
+            presence_unknown: false,
             seq,
             statement_site: String::new(),
         }
@@ -480,6 +489,25 @@ impl<'a> Runner<'a> {
                 let base = amount.div_euclid(count);
                 let remainder = amount.rem_euclid(count) as usize;
                 Value::int(base as i128 + i128::from(position < remainder)).map_err(Into::into)
+            }
+            Builtin::Connected => {
+                let principal = args.remove(0);
+                let principal = match &principal {
+                    Value::Id(id) | Value::String(id) => id.as_str(),
+                    Value::Null => return Ok(Value::Int(0)),
+                    other => return Err(ValueError::Type { expected: "principal", actual: other.kind() }.into()),
+                };
+                match &self.context.presence {
+                    Some(presence) => Value::int(presence.connections(principal) as i128).map_err(Into::into),
+                    None => {
+                        // Nobody here knows: a device reads everyone as
+                        // connected (the least speculative rows) and the
+                        // server's answer replaces its prediction; `run`
+                        // and tests read nobody as connected.
+                        self.presence_unknown = true;
+                        Ok(Value::Int(if self.device { 1 } else { 0 }))
+                    }
+                }
             }
             Builtin::Count | Builtin::CountCapped => Value::int(args.remove(0).as_array()?.len() as i128).map_err(Into::into),
             Builtin::Sum => {

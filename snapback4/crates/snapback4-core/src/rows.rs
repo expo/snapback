@@ -29,27 +29,19 @@ pub struct Bounds {
     pub gte: Option<Value>,
     pub lt: Option<Value>,
     pub lte: Option<Value>,
+    /// The first free component is a word that starts with this text: the
+    /// range of a `matching` read over a `words(..)` index (`key::word_range`).
+    pub word: Option<String>,
 }
 
-/// The stored key of one index entry: the components, then the id.
-pub fn index_key(index: &Index, row: &Value, id: &str) -> Vec<u8> {
-    let mut components = index_values(index, row);
-    components.push(Value::Id(id.to_owned()));
-    key::encode(&components)
-}
-
-/// The index's component values from a row image; absent optionals are null.
-pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
-    index.columns().iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect()
-}
-
-/// The encoded key range `[lo, hi)` a scan covers: the prefix, narrowed by
-/// the bounds on the first free component and by a cursor position; `None`
-/// when the range is empty. Every in-memory store scans the same way.
+/// The byte range a scan covers: every key extending the encoded prefix,
+/// narrowed by the bounds. `None` when the range is empty.
 pub fn scan_range(prefix: &[Value], bounds: &Bounds, dir: Dir) -> Option<(Vec<u8>, Vec<u8>)> {
     let base = key::encode(prefix);
-    let mut lo = base.clone();
-    let mut hi = key::upper_bound(&base);
+    let (mut lo, mut hi) = match &bounds.word {
+        Some(word) => key::word_range(&base, word),
+        None => (base.clone(), key::upper_bound(&base)),
+    };
     let with = |value: &Value| {
         let mut extended = prefix.to_vec();
         extended.push(value.clone());
@@ -86,6 +78,43 @@ pub fn scan_range(prefix: &[Value], bounds: &Bounds, dir: Dir) -> Option<(Vec<u8
         }
     }
     (lo < hi).then_some((lo, hi))
+}
+
+/// The stored key of one index entry of a plain index: the components,
+/// then the id. A `words(..)` index has one entry per token: `index_keys`.
+pub fn index_key(index: &Index, row: &Value, id: &str) -> Vec<u8> {
+    let mut components = index_values(index, row);
+    components.push(Value::Id(id.to_owned()));
+    key::encode(&components)
+}
+
+/// Every stored key of a row in an index: one for a plain index; for an
+/// index with a `words(..)` component, one per distinct token of the named
+/// text columns, the token in the component's position (none when the
+/// text has no token: the row is absent from that index, as a null key
+/// would be from a point read). Every store writes and deletes exactly
+/// these, on every host.
+pub fn index_keys(index: &Index, row: &Value, id: &str) -> Vec<Vec<u8>> {
+    let Some((position, fields)) = index.word_component() else { return vec![index_key(index, row, id)] };
+    let texts: Vec<&str> = fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok())).collect();
+    let tokens = crate::words::row_tokens(texts);
+    let values = index_values(index, row);
+    tokens
+        .into_iter()
+        .map(|token| {
+            let mut components: Vec<Value> = values[..position].to_vec();
+            components.push(Value::String(token));
+            components.extend(values[position..].iter().cloned());
+            components.push(Value::Id(id.to_owned()));
+            key::encode(&components)
+        })
+        .collect()
+}
+
+/// The index's column values from a row image, in component order, the
+/// word component skipped; absent optionals are null.
+pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
+    index.columns().iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect()
 }
 
 /// The store as the interpreter sees it.
@@ -179,10 +208,14 @@ impl Rows for MemoryRows {
         for (index_name, index) in &table.indexes {
             let ti = format!("{table_name}.{index_name}");
             if let Some(old) = old {
-                entries.remove(&(ti.clone(), index_key(index, old, &id)));
+                for key in index_keys(index, old, &id) {
+                    entries.remove(&(ti.clone(), key));
+                }
             }
-            entries.insert((ti, index_key(index, row, &id)), id.clone());
-            written += 1;
+            for key in index_keys(index, row, &id) {
+                entries.insert((ti.clone(), key), id.clone());
+                written += 1;
+            }
         }
         self.rows.borrow_mut().insert((table_name.to_owned(), id), row.clone());
         Ok(written)
@@ -190,10 +223,14 @@ impl Rows for MemoryRows {
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
         let id = old.field("id")?.as_str()?.to_owned();
         let mut entries = self.entries.borrow_mut();
+        let mut removed = 0;
         for (index_name, index) in &table.indexes {
-            entries.remove(&(format!("{table_name}.{index_name}"), index_key(index, old, &id)));
+            for key in index_keys(index, old, &id) {
+                entries.remove(&(format!("{table_name}.{index_name}"), key));
+                removed += 1;
+            }
         }
         self.rows.borrow_mut().remove(&(table_name.to_owned(), id));
-        Ok(table.indexes.len() as u64)
+        Ok(removed)
     }
 }

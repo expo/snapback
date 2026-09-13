@@ -140,15 +140,111 @@ impl Runner<'_> {
         }
     }
 
-    /// The scan's prefix values, evaluated.
+    /// The scan's prefix values, evaluated. A word term is not a value a
+    /// store can seek to; `scan_words` takes those scans apart first.
     pub(super) fn prefix_values(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
         scan.prefix
             .iter()
             .map(|key| match key {
                 IndexKeyExpr::Scalar(expr) => self.expr(expr),
-                IndexKeyExpr::WordPrefix(_) => Err(RuntimeError::Schema("word-prefix scans are not in this slice".into())),
+                IndexKeyExpr::WordPrefix(_) => Err(RuntimeError::Schema("a matching term is read through its words(..) index, never as a prefix value".into())),
             })
             .collect()
+    }
+
+    /// A `matching` read: the query's first term selects every word of the
+    /// index it is a prefix of (one seek each, at most `MAX_WORD_LANES`),
+    /// and those words are merged as ordered lanes into one page, newest
+    /// first when the index says so; every further term must also be a
+    /// prefix of some word of the row (a filter over the page, never a
+    /// second index). No term matches nothing: an empty search is empty,
+    /// not everything.
+    fn scan_words(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
+        const MAX_WORD_LANES: usize = 32;
+        let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
+        let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
+        let Some((position, fields)) = index.word_component() else {
+            return Err(RuntimeError::Schema(format!("{}.{} has no words(..) component for a matching read", scan.table, scan.index)));
+        };
+        let fields = fields.to_vec();
+        let mut scope = Vec::new();
+        let mut query = Value::Null;
+        for key in &scan.prefix {
+            match key {
+                IndexKeyExpr::Scalar(expr) => scope.push(self.expr(expr)?),
+                IndexKeyExpr::WordPrefix(expr) => query = self.expr(expr)?,
+            }
+        }
+        if scope.len() != position {
+            return Err(RuntimeError::Schema(format!("{}.{} takes {position} prefix values before its words, not {}", scan.table, scan.index, scope.len())));
+        }
+        let text = match query {
+            Value::String(text) => text,
+            Value::Null => String::new(),
+            other => return Err(RuntimeError::Input(format!("matching takes text, not {}", other.kind()))),
+        };
+        let terms = crate::words::terms(&text);
+        self.read_tables.insert(scan.table.clone());
+        self.meter.at(&scan.site);
+        if self.device && table.sync.is_none() {
+            self.beyond_horizon = true;
+        }
+        let empty_page = |this: &mut Self| {
+            if this.page_depth == 0 && scan.opaque_cursor {
+                this.pages.insert(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, next: None });
+            }
+        };
+        if terms.is_empty() {
+            empty_page(self);
+            return Ok(Vec::new());
+        }
+        // The words the first term is a prefix of, one seek per word: the
+        // seek lands on the word's first entry, the next seek starts past
+        // its last. Each costs one index entry on the meter.
+        let mut words: Vec<String> = Vec::new();
+        let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
+        loop {
+            if !self.meter.charge(MeterKind::IndexEntries, 1)? {
+                break;
+            }
+            let found = self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
+            let Some((_, key)) = found.into_iter().next() else { break };
+            let Some(Value::String(word)) = crate::key::decode(&key).and_then(|values| values.into_iter().nth(position)) else {
+                return Err(RuntimeError::Store(format!("{}.{} holds a key whose word is not text", scan.table, scan.index)));
+            };
+            if words.len() == MAX_WORD_LANES {
+                // More words than the page can merge: what it returns is
+                // right, and it is not everything.
+                match self.meter.cut {
+                    crate::meter::Cut::Cap => {
+                        if self.meter.capped_at.is_none() {
+                            self.meter.capped_at = Some((MeterKind::IndexEntries, scan.site.clone()));
+                        }
+                    }
+                    crate::meter::Cut::Abort => return Err(RuntimeError::Bound { kind: MeterKind::IndexEntries, actual: MAX_WORD_LANES as u64 + 1, ceiling: MAX_WORD_LANES as u64, site: scan.site.clone() }),
+                }
+                break;
+            }
+            bounds.after = Some(vec![Value::String(word.clone())]);
+            words.push(word);
+        }
+        if words.is_empty() {
+            empty_page(self);
+            return Ok(Vec::new());
+        }
+        let lanes = words
+            .iter()
+            .map(|word| {
+                let mut prefix: Vec<IndexKeyExpr> = scope.iter().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value.clone()))).collect();
+                prefix.push(IndexKeyExpr::Scalar(Expr::Literal(Value::String(word.clone()))));
+                MergeLane { setup: Vec::new(), scan: Scan { prefix, ..scan.clone() }, source: None, binding: String::new() }
+            })
+            .collect();
+        let merge = Merge { site: scan.site.clone(), lanes };
+        self.word_filter = (terms.len() > 1).then(|| (fields, terms[1..].to_vec()));
+        let merged = if rules::lazy_merge(self.schema, &merge) { self.merge_lazy(&merge) } else { self.merge(&merge) };
+        self.word_filter = None;
+        merged
     }
 
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
@@ -164,8 +260,11 @@ impl Runner<'_> {
         })
     }
 
+    /// The typed columns after a prefix of `prefix_len` components: what a
+    /// cursor carries. Counted in components, so a words lane's cursor is
+    /// the order columns after the word.
     fn cursor_suffix(table: &Table, index: &Index, prefix_len: usize) -> Vec<CursorColumn> {
-        index.columns().iter().skip(prefix_len).map(|name| CursorColumn { name: name.clone(), kind: table.columns[name].clone() }).collect()
+        index.suffix_after(prefix_len).iter().map(|name| CursorColumn { name: name.clone(), kind: table.columns[name].clone() }).collect()
     }
 
     /// The bounds of a scan: the cursor position and any value range.
@@ -206,6 +305,11 @@ impl Runner<'_> {
     }
 
     pub(super) fn scan_with_keys(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        if scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
+            // A search page is a merge of word lanes; it carries no keys of
+            // its own (a job never sweeps a words index).
+            return self.scan_words(scan).map(|rows| (rows, Vec::new()));
+        }
         let prefix = self.prefix_values(scan)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
@@ -259,6 +363,15 @@ impl Runner<'_> {
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().take(index.components.len()).skip(prefix.len()).collect());
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
+                    continue;
+                }
+                // A search's further terms: a row a lane found under its
+                // first word still has to carry the rest.
+                let unmatched = self.word_filter.as_ref().is_some_and(|(fields, terms)| {
+                    let texts: Vec<&str> = fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok())).collect();
+                    !crate::words::row_matches(&crate::words::row_tokens(texts), terms)
+                });
+                if unmatched {
                     continue;
                 }
                 materialize_optional_fields(&mut row, table);
@@ -343,7 +456,7 @@ impl Runner<'_> {
         let order = first.scan.order;
         let take = self.take(&first.scan.take)?;
         let prefix_len = first.scan.prefix.len();
-        let suffix_columns: Vec<String> = index.columns().into_iter().skip(prefix_len).collect();
+        let suffix_columns: Vec<String> = index.suffix_after(prefix_len);
         // A merge's cursor names the merge's own scope; it is checked before
         // lane discovery so an empty discovery cannot admit a foreign token.
         if first.scan.opaque_cursor
@@ -422,7 +535,7 @@ impl Runner<'_> {
         let take = self.take(&first.scan.take)?;
         let order = first.scan.order;
         let prefix_len = first.scan.prefix.len();
-        let columns: Vec<_> = index.columns().into_iter().skip(prefix_len).collect();
+        let columns: Vec<_> = index.suffix_after(prefix_len);
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?

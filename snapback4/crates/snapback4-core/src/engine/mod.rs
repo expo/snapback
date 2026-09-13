@@ -4,6 +4,8 @@
 //! with a refusal, and applies at most once per client-minted id.
 
 #[cfg(feature = "sqlite")]
+pub mod effects;
+#[cfg(feature = "sqlite")]
 pub mod job;
 #[cfg(feature = "native")]
 pub mod native;
@@ -41,6 +43,15 @@ use runner::Runner;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, VecDeque};
 
+/// Who is connected right now: what a server knows from the long polls it
+/// holds open, answered to a program's `connected[p]`. Only a server has
+/// one; a device treats every principal as connected and lets the server
+/// decide (`Runner::presence_unknown`).
+pub trait Presence: std::fmt::Debug + Send + Sync {
+    /// How many connections `principal` holds open now.
+    fn connections(&self, principal: &str) -> u64;
+}
+
 /// Who runs the program, with what, and when.
 #[derive(Clone, Debug)]
 pub struct Context {
@@ -54,11 +65,18 @@ pub struct Context {
     entropy: u64,
     /// Every id consumed by this execution, including newly minted ids.
     pub(crate) minted_ids: Vec<String>,
+    /// The server's live registry behind `connected[p]`, when there is one.
+    pub presence: Option<std::sync::Arc<dyn Presence>>,
 }
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new() }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+    }
+
+    pub fn with_presence(mut self, presence: Option<std::sync::Arc<dyn Presence>>) -> Self {
+        self.presence = presence;
+        self
     }
 
     pub fn system() -> Self {
@@ -154,6 +172,9 @@ pub struct Engine {
     /// Lines native jobs logged, for the host to print.
     #[cfg(feature = "native")]
     native_logs: Vec<String>,
+    /// The server's registry of open connections, given to every context
+    /// that does not bring its own; none in tests and `run`.
+    presence: Option<std::sync::Arc<dyn Presence>>,
 }
 
 #[cfg(feature = "sqlite")]
@@ -165,7 +186,16 @@ impl Engine {
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, None)?;
-        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new() })
+        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+    }
+
+    /// The registry every program's `connected[p]` reads, on this engine.
+    pub fn set_presence(&mut self, presence: Option<std::sync::Arc<dyn Presence>>) {
+        self.presence = presence;
+    }
+
+    pub fn presence(&self) -> Option<std::sync::Arc<dyn Presence>> {
+        self.presence.clone()
     }
 
     /// Activate an immutable source release. Its pointer lives in the same
@@ -175,7 +205,7 @@ impl Engine {
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)))?;
-        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new() })
+        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
     }
 
     /// Attach to an already activated semantic generation without installing
@@ -190,7 +220,7 @@ impl Engine {
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         tx.rollback()?;
-        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new() })
+        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -467,6 +497,9 @@ impl Engine {
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
         }
+        if context.presence.is_none() {
+            context.presence = self.presence.clone();
+        }
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()? - 1;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
@@ -541,6 +574,9 @@ impl Engine {
         }
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
+        }
+        if context.presence.is_none() {
+            context.presence = self.presence.clone();
         }
         context.entropy = self.entropy;
         let ceilings = self.ceilings;

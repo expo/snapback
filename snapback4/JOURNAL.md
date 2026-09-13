@@ -1993,3 +1993,82 @@ two thirds JSON, a tenth interpreter. The diet is filed
 hand from one `Value` walk and drop the IR's derives on the device,
 answer as text, fewer `format!` sites; done under 150 KB gzip. Next
 after it: a rerun of the full brief on the unified client.
+
+## 2026-09-13 — what Clique and Interview still needed: search, effects, service seats, presence, the ranked feed
+
+The author asked for everything the two applications still lacked on the
+platform, in this order: Clique's feed and search gaps, production identity
+with worker integration, then Interview's authoring model and ranked feed.
+The full-brief Clique record listed the platform half plainly — word
+search parsed but not served, effects excluded, the push seam's connection
+tracking hand-built in tables, the following feed at 19.2× — and
+Interview's implementation record listed its adapter's remaining
+responsibilities: it proxied every request because the engine had no seat
+for a service and no session for a phone it verified. Five things landed
+in one change, each in the Rust core so the server and the unified device
+share them; the TypeScript replica (being deleted by the unification lane)
+was not touched.
+
+- **Word-prefix search.** `words(cols)` is an index component (Snapback
+  2's serialized `WordPrefixes`, now built: one entry per distinct token,
+  `index_keys` on every store, `key::word_range` for the byte range of a
+  prefix) and `matching q` is the read. The first term's words are found by
+  one seek each (at most 32; more is `complete: false`) and merged as lanes
+  through the existing lazy merge, so a page is newest-first across every
+  matching word with one cursor; further terms filter the page. One
+  tokenizer (`words.rs`: NFC, lowercase, alphanumeric words; the contract
+  string is recorded in the schema so a store built under another is
+  refused). The device runs the same interpreter over the same entries, so
+  offline search is the same code. Cursor suffixes are counted in
+  components now (`Index::suffix_after`), the one change the plain paths
+  needed. `parser.rs` was at its 1,500-line limit: the table block moved to
+  `parser/tables.rs`.
+- **Effects.** `emit` and `_outbox` existed with nothing draining them. The
+  engine now keeps the queue honest (`engine/effects.rs`: claim under a
+  lease, settle done or failed, backoff 2 s doubling to 5 min, eight
+  attempts, expired leases requeued by the maintenance thread) and the
+  wire exposes it to a worker (`/effects/claim` with a long poll,
+  `/effects/<id>/done|failed`, `GET /effects`). `snapback4/worker` is the
+  loop (`runWorker`), forty lines over the wire. The engine never calls
+  out; NOT-DOING's "embedded JS engine, until measured" is decided: no.
+- **Service seats and custom sessions.** `service:<name>` principals with
+  their own sessions (`snapback4 token --service name`, a store row, printed
+  once), admitted by rules as `viewer = 'service:name'` (a text literal
+  beside `viewer` in a rule is a principal now, as in a program). A service
+  mints sessions for accounts the application authenticated itself
+  (`POST /auth/session`, principals outside the engine's namespaces) and
+  revokes them (`POST /auth/revoke`). This is Interview's adapter reduced
+  to an identity provider and two workers: the device talks to the server
+  with its own token.
+- **Presence.** `connected[p]` counts the long polls the server holds open
+  for a principal (and 35 s after one answered), through a `Presence`
+  registry the engine hands every context. Not a table. On a device the
+  word is unknown: a query says `complete: false`, a prediction reads
+  everyone as connected and the server decides. The Clique push seam is
+  now `if not exists connected[m.principal]: emit notify {..}`.
+- **The feed at scale, and the ranked shape.** The fan-out-on-write recipe
+  is measured on the brief's probe: a reader with 500 follows and one with
+  5, twenty posts by every author, both pages examine the same rows (the
+  bar is 3×; this is 1×) and each device holds exactly its own lane under
+  the horizon. LLP 3000.004 §4.2 lands on the `feeds` card as the ranked
+  variant, compiled and run: a `ranked` public partition scored by a job
+  from a maintain, `seen` and `affinity` synced to the viewer, the ranker
+  admitted by its service name and refused as a user.
+
+Tests: `tests/clique.rs` gained six (search on the server and on a
+`MemoryRows` device, the compiler's search checks, the effects lifecycle
+with a test `Presence`, the service seat and device presence, the feed
+ratio, the ranked feed); `packages/snapback4/test/worker.test.mjs` drives
+the real binary: `token` from the CLI, minted member sessions, a held
+poll read as presence, an emit claimed, retried and settled by
+`runWorker`, revocation closing the door. Version 0.1.17. The web replica
+does not run `matching` locally until the unified device replaces it (the
+README says so); the unification lane's device stores must write
+`index_keys`, not `index_key`, for a words index to exist on a device —
+one call each in `memory.rs` and `sqlite.rs`.
+
+Not done here, by design: relevance ranking, stemming, an identity
+provider in the engine (phone, OAuth), push delivery, multi-server
+presence. Interview's own re-authoring onto these seats (its phone worker
+minting sessions, its model worker as an effect handler, Home on the
+ranked recipe) is application work in the Interview repository.

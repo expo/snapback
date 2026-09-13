@@ -7,7 +7,7 @@
 use crate::project::{Project, persona_principal};
 use snapback4_core::error::Refusal;
 use snapback4_core::ir::ProgramKind;
-use snapback4_core::{Context, Engine, WriteState, wire};
+use snapback4_core::{Context, Engine, Presence, WriteState, wire};
 use snapback4_lang::Bound;
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
@@ -26,6 +26,46 @@ pub struct Shared {
     /// `dev` admits loopback personas; a release refuses them.
     pub personas: bool,
     pub entropy: Mutex<u64>,
+    /// Who holds a long poll open right now: what `connected[p]` reads.
+    pub presence: Arc<Live>,
+}
+
+/// A connection lasts as long as its poll and a grace after it: a client
+/// re-polls within milliseconds of an answer, a dropped one never does.
+const PRESENCE_GRACE: Duration = Duration::from_secs(35);
+
+/// The registry of open long polls, per principal: how many are open now,
+/// and when the last one ended. A device that holds `/changes?wait` open
+/// (every tier does) is connected; nothing else is.
+#[derive(Debug, Default)]
+pub struct Live(Mutex<BTreeMap<String, (u32, Option<Instant>)>>);
+
+impl Live {
+    fn enter(&self, principal: &str) {
+        let mut map = self.0.lock().unwrap();
+        map.entry(principal.to_owned()).or_insert((0, None)).0 += 1;
+    }
+
+    fn leave(&self, principal: &str) {
+        let mut map = self.0.lock().unwrap();
+        if let Some(entry) = map.get_mut(principal) {
+            entry.0 = entry.0.saturating_sub(1);
+            entry.1 = Some(Instant::now());
+        }
+        // Forget principals long gone, so the map is the connected set.
+        map.retain(|_, (open, last)| *open > 0 || last.is_some_and(|at| at.elapsed() < PRESENCE_GRACE));
+    }
+}
+
+impl Presence for Live {
+    fn connections(&self, principal: &str) -> u64 {
+        let map = self.0.lock().unwrap();
+        match map.get(principal) {
+            Some((open, _)) if *open > 0 => u64::from(*open),
+            Some((_, Some(last))) if last.elapsed() < PRESENCE_GRACE => 1,
+            _ => 0,
+        }
+    }
 }
 
 /// How the server is run: `dev` on a project (personas, watch), or a
@@ -58,9 +98,11 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
     }
     crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
+    let presence = Arc::new(Live::default());
+    engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
-    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()) });
+    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence });
     let server = Server::http((bind, port)).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -198,10 +240,34 @@ fn maintain(shared: Arc<Shared>) {
                 }
             }
         }
+        if tick % 5 == 0 {
+            let requeued = shared.engine.lock().unwrap().requeue_expired_effects(now);
+            match requeued {
+                Ok(0) => {}
+                Ok(n) => {
+                    println!("snapback4: {n} effect lease{} expired; queued again", if n == 1 { "" } else { "s" });
+                    shared.committed.notify_all();
+                }
+                Err(error) => eprintln!("snapback4: the effect lease sweep failed: {error}"),
+            }
+        }
         if tick % 60 == 0 && let Err(error) = shared.engine.lock().unwrap().sweep_assets(now) {
             eprintln!("snapback4: the asset sweep failed: {error}");
         }
     }
+}
+
+/// A worker's seat: a bearer session of a service principal.
+fn service_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
+    let principal = principal_of(request, shared)?;
+    if !snapback4_core::identity::is_service(&principal) {
+        return Err(Refusal::new("E_AUTH", "auth", "this is a worker's door: send a service token (`snapback4 token --service <name>`)").guide("effects"));
+    }
+    Ok(principal)
+}
+
+fn effect_json(run: &snapback4_core::EffectRun) -> Json {
+    json!({ "id": run.id, "effect": run.effect, "payload": wire::to_json(&run.payload), "state": run.state, "attempt": run.attempts, "seq": run.seq, "at": run.at, "nextAt": run.next_at, "leaseUntil": run.lease_until, "result": run.result.as_ref().map(wire::to_json), "error": run.error })
 }
 
 /// A commit outside a request: let every long poll see it.
@@ -529,6 +595,12 @@ fn handle(mut request: Request, shared: &Shared) {
             let since: u64 = params.get("since").and_then(|s| s.parse().ok()).unwrap_or(0);
             let wait: u64 = params.get("wait").and_then(|s| s.parse().ok()).unwrap_or(0).min(25);
             let deadline = Instant::now() + Duration::from_secs(wait);
+            // A poll held open is a connection: `connected[p]` counts it
+            // while it waits, and for a grace after it answers.
+            let connected = principal_of(&request, shared).ok();
+            if let Some(principal) = &connected {
+                shared.presence.enter(principal);
+            }
             {
                 let mut seq = shared.seq.lock().unwrap();
                 while *seq <= since && Instant::now() < deadline {
@@ -536,6 +608,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     let (guard, _) = shared.committed.wait_timeout(seq, remaining).unwrap();
                     seq = guard;
                 }
+            }
+            if let Some(principal) = &connected {
+                shared.presence.leave(principal);
             }
             let changes = shared.engine.lock().unwrap().changes(since, 500);
             match changes {
@@ -592,6 +667,98 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
+            }
+        }
+        (Method::Post, "/auth/session") | (Method::Post, "/auth/revoke") => {
+            // An application that authenticates its own accounts (a phone
+            // it verified, a directory it owns) mints their sessions through
+            // its service and hands each token to that account's device.
+            let service = match service_of(&request, shared) {
+                Ok(service) => service,
+                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+            };
+            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
+            let Some(principal) = payload.get("principal").and_then(Json::as_str).map(str::to_owned) else {
+                return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")) }));
+            };
+            let now = snapback4_core::now_ms();
+            let outcome = {
+                let engine = shared.engine.lock().unwrap();
+                if path == "/auth/session" {
+                    let kind = payload.get("kind").and_then(Json::as_str).unwrap_or("account");
+                    let days = payload.get("days").and_then(Json::as_i64).unwrap_or(snapback4_core::identity::SESSION_DAYS);
+                    snapback4_core::identity::custom_session(engine.store(), &principal, kind, now, days).map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
+                } else {
+                    snapback4_core::identity::revoke_principal(engine.store(), &principal).map(|revoked| json!({ "revoked": revoked, "principal": principal }))
+                }
+            };
+            match outcome {
+                Ok(body) => respond(request, 200, body),
+                Err(error) => respond(request, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
+            }
+        }
+        (Method::Post, "/effects/claim") => {
+            let worker = match service_of(&request, shared) {
+                Ok(worker) => worker,
+                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+            };
+            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
+            let effect = payload.get("effect").and_then(Json::as_str).map(str::to_owned);
+            let limit = payload.get("limit").and_then(Json::as_u64).unwrap_or(1).clamp(1, 100) as usize;
+            let lease_ms = payload.get("lease").and_then(Json::as_i64).unwrap_or(60).clamp(1, 900) * 1_000;
+            let wait = payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25);
+            let deadline = Instant::now() + Duration::from_secs(wait);
+            loop {
+                let claimed = shared.engine.lock().unwrap().claim_effects(&worker, effect.as_deref(), limit, lease_ms, snapback4_core::now_ms());
+                match claimed {
+                    Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
+                        // Nothing due: wait for a commit (an emit), or for a
+                        // backoff to pass, then look again.
+                        let seq = shared.seq.lock().unwrap();
+                        let remaining = deadline.saturating_duration_since(Instant::now()).min(Duration::from_secs(2));
+                        let _ = shared.committed.wait_timeout(seq, remaining).unwrap();
+                    }
+                    Ok(runs) => return respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
+                    Err(error) => { let refusal = error.refusal(); return respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
+                }
+            }
+        }
+        (Method::Post, path) if path.starts_with("/effects/") && (path.ends_with("/done") || path.ends_with("/failed")) => {
+            let worker = match service_of(&request, shared) {
+                Ok(worker) => worker,
+                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+            };
+            let id = path.trim_start_matches("/effects/").trim_end_matches("/done").trim_end_matches("/failed").to_owned();
+            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
+            let settled = if path.ends_with("/done") {
+                let result = match payload.get("result") {
+                    None | Some(Json::Null) => None,
+                    Some(json) => match wire::untyped(json) {
+                        Ok(value) => Some(value),
+                        Err(why) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("result: {why}"))) })),
+                    },
+                };
+                snapback4_core::Settled::Done { result }
+            } else {
+                snapback4_core::Settled::Failed { error: payload.get("error").and_then(Json::as_str).unwrap_or("the worker failed").to_owned(), retry: payload.get("retry").and_then(Json::as_bool).unwrap_or(true) }
+            };
+            let outcome = shared.engine.lock().unwrap().settle_effect(&id, &worker, settled, snapback4_core::now_ms());
+            match outcome {
+                Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
+                Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_EFFECT_UNKNOWN" { 404 } else { 200 }, json!({ "denied": refusal_json(&refusal) })) }
+            }
+        }
+        (Method::Get, "/effects") => {
+            if let Err(refusal) = service_of(&request, shared) {
+                return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+            }
+            let params = query_params(&url);
+            let state = params.get("state").cloned();
+            let limit: usize = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(100);
+            let outcome = shared.engine.lock().unwrap().effects(state.as_deref(), limit);
+            match outcome {
+                Ok(runs) => respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
+                Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
             }
         }
         (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login") | (Method::Post, "/auth/logout") => {

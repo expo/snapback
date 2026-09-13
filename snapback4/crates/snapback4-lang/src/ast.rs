@@ -102,6 +102,9 @@ pub struct ReadExpr {
     pub keys: Vec<KeyPart>,
     pub index: Option<String>,
     pub range: Option<RangeSpec>,
+    /// `matching q`: the search text, read through a `words(..)` index whose
+    /// word component follows exactly the keys.
+    pub matching: Option<Box<Expr>>,
     pub site: Site,
 }
 
@@ -200,9 +203,27 @@ pub enum Stmt {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IndexDecl {
     pub name: String,
+    /// The columns, in order, the `words(..)` component left out.
     pub columns: Vec<String>,
     pub unique: bool,
+    /// `words(a, b)`: its position among the components (the number of
+    /// columns before it) and the text columns it tokenizes. An index with
+    /// one serves `matching` reads whose keys are exactly those columns,
+    /// and nothing else.
+    pub words: Option<(usize, Vec<String>)>,
     pub site: Site,
+}
+
+impl IndexDecl {
+    /// Whether the index serves ordinary prefix reads and probes.
+    pub fn is_plain(&self) -> bool {
+        self.words.is_none()
+    }
+
+    /// Whether a `matching` read with this many keys reads this index.
+    pub fn searches_after(&self, keys: usize) -> bool {
+        self.words.as_ref().is_some_and(|(position, _)| *position == keys)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

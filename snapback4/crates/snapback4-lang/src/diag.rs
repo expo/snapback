@@ -105,6 +105,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_SYNC" => "sync",
         "E_SCHEMA_CONSTRAINT" => "indexes",
         "E_EMIT_IN_QUERY" => "programs",
+        "E_EFFECT_UNKNOWN" | "E_EFFECT_LEASE" => "effects",
         _ => "language",
     }
 }

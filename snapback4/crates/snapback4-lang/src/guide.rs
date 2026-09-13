@@ -8,7 +8,7 @@
 //! on its own; one that does not compiles beside the language card's schema.
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "bounds", "refusals", "personas"];
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "services", "presence", "bounds", "refusals", "personas"];
 
 /// The contents of every ```quarry block in a card or a README.
 pub fn quarry(text: &str) -> Vec<String> {
@@ -80,6 +80,7 @@ accepts is below, once; the suite compiles and runs this file.
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
 use personas alice, bob, carol        -- a development cast: `--as alice` and the persona header act as dev:alice
+effect notify                         -- a name a mutation or job may `emit` under; a worker with a service token performs it (guide effects)
 
 table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
@@ -121,6 +122,7 @@ table messages:
   expiresAt: time ?
   at: time
   by byRoomTime: roomId, at, id
+  by byRoomWords: roomId, words(body), at, id   -- a words index: one entry per distinct word of the text columns; read with `matching` (guide search)
   by byExpiresAt: expiresAt
   immutable roomId, authorId
   read <- exists members[.roomId, viewer]
@@ -230,6 +232,13 @@ query digest(roomId: rooms):
 query mentions(body: text <=4000):
   return tokens(body)                 -- the @mentions in a text, without the @, at most 64: a bounded list
 
+query search(roomId: rooms, q: text <=100, c: cursor ?):
+  require exists members[roomId, viewer] else NOT_MEMBER
+  return messages[roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: every term a prefix of some word of the row, newest first
+
+query online(p: principal):
+  return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
+
 mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
   room = insert rooms { id: new, name, ownerId: viewer, kind, tags, createdAt: now }   -- `new` mints an id; omit `id` and one is minted anyway
   insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
@@ -238,6 +247,9 @@ mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text 
 mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- a conditional value: the arm not taken never runs, and `ttl` is present in the taken one
+  for m in members[roomId] first 100 by byRoomPrincipal:
+    if m.principal != viewer and not exists connected[m.principal]:
+      emit notify { targetUserId: m.principal, roomId, preview: slice(body ?? '', 0, 80) }   -- kept in this commit; a worker claims and settles it (guide effects)
   return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` is the value when the left is null
 
 mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?):
@@ -314,12 +326,15 @@ with `return [value]`, or with its last expression, or with its final write.
 - `<` on an optional value, `not a = b` → narrow first; `not` binds tightest, so write `not (a = b)` or `a != b`.
 - Writes and `new` in a query → a mutation.
 - A `for` over a page in a mutation past its cap → a mutation loops over one complete schema-capped group (`cap N by cols`, `first N`); everything wider is a job's `chunk`.
-- `effect x from m` and `emit x payload` → accepted and queued in the server's `_outbox`; nothing delivers them in this release. Write the fact to a table and let a job or a reader act on it.
-- Word search → `tokens(text)` is the @mentions of a text, not an index; search synced rows on the device, or read by a prefix index.
+- `effect x from m` → `effect x`; the body is a worker's (`snapback4/worker`), never the engine's.
+- Substring, stemmed, phrase or ranked search, `like`, `contains` → `words(cols)` in an index and `matching q`: every term a prefix of some word (guide search).
+- Presence tables, heartbeats, typing → `connected[p]` for the connected set; typing lives in the client.
+- Service accounts as rows, an admin flag, `system` → `viewer = 'service:name'` in a rule (guide services).
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, expire,
-assets, reads, shapes, writes, programs, jobs, native, feeds, bounds,
-refusals, personas. `snapback4 why <CODE>` explains a refusal.
+assets, reads, shapes, writes, programs, jobs, native, feeds, search,
+effects, services, presence, bounds, refusals, personas. `snapback4 why
+<CODE>` explains a refusal.
 "##;
 
 pub fn card(keyword: &str) -> Option<&'static str> {
@@ -821,7 +836,271 @@ chunk). Larger audiences use a separate lane their readers merge on read.
 `insert ... if absent` makes the job's pass idempotent over the rows the
 mutation already wrote. The entries sync to each reader; `following` joins
 `posts`, an online-only table here, so it answers on the server — carry the
-columns the reader renders on the entry itself to answer on the device."##,
+columns the reader renders on the entry itself to answer on the device. At
+500 follows the reader's page examines the rows it examines at 5: one
+prefix of the reader's own lane.
+
+A ranked feed for a community keeps one shared candidate set instead of a
+row per reader: a job on a schedule scores the pool from maintains into a
+public `ranked` table every device holds, the viewer's own signals sync to
+the viewer, and the device composes the two; an external ranker writes its
+per-reader word through a service seat (guide services):
+
+```quarry
+use identity
+use personas alice, bob, marc
+
+table posts:
+  authorId: principal
+  body: text <=6000
+  at: time
+  by byTime: at, id
+  immutable authorId, at
+  public 'posts are public'
+  insert <- .authorId = viewer
+  sync public last 2000 by byTime
+
+table votes:
+  postId: posts
+  principal: principal
+  direction: int
+  unique byPostPrincipal: postId, principal
+  by byPrincipal: principal, id
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync to .principal last 1000 by byPrincipal
+
+maintain postScore: sum votes of direction by postId
+  read <- allow
+
+table ranked:                       -- layer 1: one shared page, scored by the server
+  postId: posts
+  score: int
+  at: time
+  unique byPost: postId
+  by byScore: score, id
+  public 'the ranking is one shared page'
+  insert <- deny
+  update <- deny
+  sync public last 500 by byScore
+
+table seen:                         -- layer 2: the viewer's own signals
+  readerId: principal
+  postId: posts
+  at: time
+  unique byReaderPost: readerId, postId
+  by byReaderTime: readerId, at, id
+  read <- .readerId = viewer
+  insert <- .readerId = viewer
+  sync to .readerId last 1000 by byReaderTime
+
+table affinity:                     -- the ranker's word, per reader
+  readerId: principal
+  postId: posts
+  score: int
+  at: time
+  unique byReaderPost: readerId, postId
+  by byReaderScore: readerId, score, id
+  read <- .readerId = viewer
+  insert <- viewer = 'service:ranker'
+  update <- viewer = 'service:ranker'
+  sync to .readerId last 200 by byReaderScore
+
+job rescore():
+  chunk p in posts first 100 by byId:
+    (ageHours, rem) = divmod(now - p.at, 3600000)
+    upsert ranked[p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
+schedule rescoreEvery every 5m: rescore
+
+query home(c: cursor ?):
+  return ranked after c last 50 by byScore { *, post: posts[.postId], seen: exists seen[viewer, .postId], mine: votes[.postId, viewer], lift: affinity[viewer, .postId] }
+
+mutation vote(postId: posts, direction: int):
+  require exists posts[postId] else POST_NOT_FOUND
+  require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
+  upsert votes[postId, viewer] { postId, principal: viewer, direction }
+
+mutation markSeen(postId: posts):
+  require exists posts[postId] else POST_NOT_FOUND
+  return insert seen { readerId: viewer, postId, at: now } if absent
+
+mutation setAffinity(readerId: principal, postId: posts, score: int):
+  require exists posts[postId] else POST_NOT_FOUND
+  upsert affinity[readerId, postId] { readerId, postId, score, at: now }
+```
+
+A maintain that groups by something other than its source's audience (a
+score by post over private votes) reaches no device as a value; the job's
+`ranked` row is what puts the score on every device. Time decay is the
+cadence: the order refreshes when the job runs. A native job (guide native)
+can score with floats and a real loop; the tables and the sync are the
+same."##,
+        "search" => r##"# Search: word prefixes, on the server and on the device
+
+```quarry
+table members:
+  roomId: id
+  principal: principal
+  unique byRoomPrincipal: roomId, principal
+  by byPrincipalRoom: principal, roomId, id
+  cap 100 by roomId
+  read <- exists members[.roomId, viewer]
+  insert <- allow
+
+table messages:
+  roomId: id
+  body: text <=4000 ?
+  caption: text <=200 ?
+  at: time
+  by byRoomWords: roomId, words(body, caption), at, id   -- the scope, the words, the order, the id
+  by byWords: words(body, caption), at, id                -- unscoped: every chat, the rule checked per row
+  read <- exists members[.roomId, viewer]
+  insert <- allow
+
+table profiles:
+  principal: principal
+  displayName: text <=50
+  handle: text <=30 format handle
+  unique byPrincipal: principal
+  by byNameWords: words(displayName, handle), id
+  public 'profiles are public'
+  insert <- .principal = viewer
+
+query inRoom(roomId: id, q: text <=100, c: cursor ?):
+  require exists members[roomId, viewer] else NOT_MEMBER
+  return messages[roomId] matching q after c last 50 by byRoomWords
+
+query people(q: text <=100, c: cursor ?):
+  return profiles matching q after c first 20 by byNameWords
+```
+
+`words(cols)` is an index component: one entry per distinct word of the
+named text columns, in that position, folded the same way everywhere
+(NFC, lowercase, a word boundary at every character that is not a letter
+or digit). The columns before it are the search's scope; the columns
+after it order the page and end in `id`, so a cursor continues it. A
+words index serves `matching` and nothing else, and cannot be unique.
+
+`matching q` folds the text the same way. Its first term selects every
+word it is a prefix of ("cof": coffee, coffers, cofounder — one seek each,
+at most 32 words, else the page is `complete: false`), and those words
+merge as ordered lanes into one page — newest first when the index says
+so. Every further term must be a prefix of some word of the row ("cof
+car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
+search matches nothing, not everything; an expired row is gone at once;
+an edit re-tokenizes. A uniform scope (the rule decided by the room)
+costs one verdict per word; the unscoped `byWords` under a per-room rule
+checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
+it) — search across every room on the device instead, where the
+partition holds exactly what the viewer may read, offline included."##,
+        "effects" => r##"# Effects: the outside world, performed by a worker
+
+```quarry
+effect notify
+
+table members:
+  roomId: id
+  principal: principal
+  unique byRoomPrincipal: roomId, principal
+  by byPrincipalRoom: principal, roomId, id
+  cap 100 by roomId
+  read <- exists members[.roomId, viewer]
+  insert <- allow
+
+table messages:
+  roomId: id
+  authorId: principal
+  body: text <=4000
+  at: time
+  by byRoomTime: roomId, at, id
+  read <- exists members[.roomId, viewer]
+  insert <- .authorId = viewer and exists members[.roomId, viewer]
+
+mutation send(roomId: id, body: text <=4000):
+  require exists members[roomId, viewer] else NOT_MEMBER
+  msg = insert messages { roomId, authorId: viewer, body, at: now }
+  for m in members[roomId] first 100 by byRoomPrincipal:
+    if m.principal != viewer and not exists connected[m.principal]:
+      emit notify { targetUserId: m.principal, roomId, preview: slice(body, 0, 80) }
+  return { id: msg.id }
+```
+
+The data plane never calls out. `emit name { payload }` in a mutation or
+a job writes the payload durably in the same commit as the rows (a
+refused mutation emits nothing), and a worker with a service token
+(`snapback4 token --service pusher`; guide services) performs it:
+
+```ts
+import { runWorker } from "snapback4/worker";
+runWorker({ url, token, effects: { notify: async (payload, meta) => { await push(payload); return { providerId: meta.id }; } } });
+```
+
+The loop is `POST /effects/claim { effect?, limit?, lease?, wait? }` (a
+lease in seconds; `wait` long-polls until something is due), then `POST
+/effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
+retry }`; `GET /effects?state=` lists them (queued, running, sent,
+failed) and `doctor` counts them. A thrown handler retries with backoff
+(2 s, 4 s, ... up to 5 min) until the eighth attempt, then rests as
+`failed`; throw `GiveUp` to fail at once. A worker that dies loses its
+lease and the effect is claimed again (E_EFFECT_LEASE for the one that
+settles late); two workers never hold one effect. `meta.id` is the
+idempotency key a provider should see. A scheduled job that `emit`s once
+per period is the digest recipe."##,
+        "services" => r##"# Services: a worker's seat, and accounts the application authenticates
+
+```quarry
+table rankings:
+  postId: id
+  score: int
+  unique byPost: postId
+  read <- allow
+  insert <- viewer = 'service:ranker'     -- a text literal beside viewer names a principal
+  update <- viewer = 'service:ranker'
+
+mutation rank(postId: id, score: int):
+  upsert rankings[postId] { postId, score }
+```
+
+`snapback4 token --service ranker [--days 365] [--release <dir>]` prints,
+once, a bearer session for the principal `service:ranker`. Rules name it
+like any principal, so the ranker is admitted and nobody else is; with
+its token a worker claims effects (guide effects) and runs any operation
+a rule admits it to.
+
+An application that authenticates its own accounts — a phone number it
+verified, a member of its own directory — mints their sessions through its
+service and hands each token to that account's device, which then talks
+to the server directly with `createLocalClient({ url, session })`:
+
+```ts
+import { mintSession, revokeSessions } from "snapback4/worker";
+const session = await mintSession(url, serviceToken, "member:42", "member", 30);   // POST /auth/session
+await revokeSessions(url, serviceToken, "member:42");                              // POST /auth/revoke
+```
+
+The principal is the application's own name for the account, outside the
+engine's namespaces (`dev:`, `guest:`, `user:`, `service:` and `system`
+are refused). `snapback4 dev` and `snapback4 serve` both take these
+tokens; the adapter that owned every request becomes an identity provider
+and a worker."##,
+        "presence" => r##"# Presence: who is connected right now
+
+```quarry
+query connections(p: principal):
+  return connected[p]                    -- an int; `exists connected[p]` is the bool
+```
+
+`connected[p]` is how many connections a principal holds open on the
+server now: a device following the stream keeps a long poll open
+(`GET /changes?wait=25`), and a poll that answered a moment ago still
+counts for 35 seconds, the gap before the next. It is not a table: nothing
+syncs, nothing is written. A mutation reads it to notify only those with
+no connected client (guide effects); a query reads it for an online mark.
+On a device the word is unknown: a query that reads it is `complete:
+false`, and a mutation's prediction reads everyone as connected (the
+least speculative rows) — the server decides when the write arrives.
+`snapback4 run` reads nobody as connected."##,
         "bounds" => r##"# Bounds and the meter
 
 Nothing is priced at check. As a program runs, the meter counts examined
@@ -873,7 +1152,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_STRUCTURAL_FANOUT", "family schema — a mutation loops over a page that is not one complete schema-capped group (no `cap` over the pinned prefix, a `first N` under the cap, a cursor, a non-uniform read rule, or a merge). Pin a capped group with a literal bound at least its cap, or move the pass to a job's chunk."),
     ("E_UNBOUND_SCAN", "family schema — a compiled program scans a table or index the schema no longer has. Recompile: `snapback4 check` after the schema change."),
     ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
-    ("E_AUTH", "family auth — no principal: send `x-snapback-persona` in development or a bearer token; a persona is refused off loopback and under `serve`."),
+    ("E_AUTH", "family auth — no principal, a session that is not live, or the wrong kind at a door: send `x-snapback-persona` in development or a bearer token (a persona is refused off loopback and under `serve`); claiming effects and minting sessions take a service token (`snapback4 token --service <name>`), never a user's (guide services)."),
     ("E_CONFLICT", "family constraint — `update .. if` found the row changed; the failed write carries the current row. Read it and retry with a fresh edit. Retryable."),
     ("E_CONSTRAINT", "family constraint — a unique index, a cap, an immutable column, a text format or an after-insert postcondition refused the write. The message names which."),
     ("E_FANOUT", "family bound — a loop received more items than its declared bound."),
@@ -887,7 +1166,9 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_ASSET_UNKNOWN", "family asset — no asset is served under that id to this viewer: it was never uploaded, it is another uploader's unplaced upload, its home row is gone, cleared, expired or hidden from this viewer. Hidden and absent are one word on purpose."),
     ("E_ASSET_PLACED", "family asset — the upload already belongs to a row: one asset, one home. Upload the bytes again for a second row."),
     ("E_ASSET_VIEWED", "family asset — a `once` image was served to this principal already; the second view is refused (HTTP 410). The sender is never counted."),
-    ("E_PREDICT", "family prediction — the device could not predict this mutation locally (a read it needs is not on the device, an effect, or an id that was not fixed at submission); the write is queued without local rows and the server judges it."),
+    ("E_EFFECT_UNKNOWN", "family schema — no effect is queued under that id on this server (HTTP 404): it was never emitted here, or `doctor` shows it under another id. A worker settles only what it claimed (guide effects)."),
+    ("E_EFFECT_LEASE", "family schema — the effect is not running under this worker's claim: another worker holds it, its lease expired and it was queued again, or it is already settled. Claim it again (`POST /effects/claim`) before settling; two workers never hold one effect (guide effects)."),
+    ("E_PREDICT", "family prediction — the device could not predict this mutation locally (a read it needs is not on the device, or an id that was not fixed at submission); the write is queued without local rows and the server judges it. An `emit` predicts nothing and needs nothing: the server keeps the effect when the write lands."),
     ("E_OFFLINE", "family link — the client could not reach the server; retryable. A local-first read still answers from the device with `fresh: false` and `since`; a write waits as `pending` and lands when the link returns."),
     ("E_CLIENT", "family client — the client refused before asking the server: a hook used outside its provider, a session that ended, a malformed argument. The message says which."),
     ("E_CLOSED", "family client — the client was closed while this request was in flight. The local-first client resolves such a write `pending` instead: it is queued durably and lands on the next open."),
@@ -904,7 +1185,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SCHEDULE", "a schedule names something that is not a job, or a job whose arguments the clock cannot supply: a scheduled job takes `periodStart: time` and `periodEnd: time`, or nothing."),
     ("E_JOB_CURSOR_INDEX", "a job's chunk sweeps an index a write could change under the cursor; declare its non-id columns `immutable`, or sweep by `byId`."),
     ("E_OP_RESERVED", "refusal codes in `require .. else CODE` cannot start with E_; that namespace is the platform's."),
-    ("E_EMIT_IN_QUERY", "queries cannot emit effects; make it a mutation. Effects are queued and not delivered in this release (the language card)."),
+    ("E_EMIT_IN_QUERY", "queries cannot emit effects; make it a mutation. An emitted effect is kept in the mutation's commit and performed by a worker with a service token (guide effects)."),
     ("E_NATIVE", "family schema — `native` on a query or mutation (only a job can be native: a device predicts Quarry, not wasm); a native job declared with no snapback/native/Cargo.toml; a job the module does not implement (the message lists what it does); a module that does not load; a native job run with no module installed (`snapback4 check` builds it). guide native."),
     ("E_NATIVE_TOOLCHAIN", "family store — cargo is not on PATH, or the wasm32-unknown-unknown target is not installed; the rewrite is the rustup line. A native job is Rust compiled to wasm by `snapback4 check`."),
     ("E_NATIVE_BUILD", "family schema — `cargo build` of snapback/native failed; the message is the tail of its output. Build it by hand with the rewrite to see everything."),

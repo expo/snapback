@@ -162,11 +162,11 @@ impl Parser {
             } else if self.at("[") && matches!(value, Expr::Name { .. }) {
                 let Expr::Name { name, site } = value else { unreachable!() };
                 value = Expr::Read(self.parse_read(&name, &site)?);
-            } else if matches!(value, Expr::Name { .. }) && matches!(self.peek().value.as_str(), "first" | "after" | "last") && !stops.contains(&self.peek().value.as_str()) {
+            } else if matches!(value, Expr::Name { .. }) && matches!(self.peek().value.as_str(), "first" | "after" | "last" | "matching") && !stops.contains(&self.peek().value.as_str()) {
                 // `t first N by index`: the whole table's page, the empty
                 // prefix spelled without brackets, as `chunk` takes it.
                 let Expr::Name { name, site } = value else { unreachable!() };
-                value = Expr::Read(ReadExpr { table: name, keys: Vec::new(), index: None, range: None, site });
+                value = Expr::Read(ReadExpr { table: name, keys: Vec::new(), index: None, range: None, matching: None, site });
             } else if matches!(value, Expr::Read(_)) && self.at("where") {
                 let site = self.take("where")?.site;
                 let predicate = self.expression(0, &["<newline>", "{", ",", "}"])?;
@@ -178,7 +178,7 @@ impl Parser {
                 return Err(Diagnostic::new(&site, "E_QUARRY_UNSUPPORTED", format!("where is not a Quarry filter; index the predicate {} or check it in the read rule", print::expression(&predicate)), format!("declare an index whose prefix pins `{}`, then read {}", print::expression(&predicate), print::read_expr(&repaired))).guide("indexes"));
             } else if matches!(value, Expr::Read(_)) && self.at("before") {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
-            } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "after" | "first" | "last" | "by") {
+            } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by") {
                 let Expr::Read(read) = value else { unreachable!() };
                 value = Expr::Read(self.parse_range(read)?);
             } else if self.maybe("!") {
@@ -220,7 +220,7 @@ impl Parser {
             }
         }
         self.take("]")?;
-        Ok(ReadExpr { table: table.to_owned(), keys, index: None, range: None, site: site.clone() })
+        Ok(ReadExpr { table: table.to_owned(), keys, index: None, range: None, matching: None, site: site.clone() })
     }
 
     pub(super) fn parse_range(&mut self, mut read: ReadExpr) -> Fallible<ReadExpr> {
@@ -231,9 +231,10 @@ impl Parser {
         let mut highest: i32 = -1;
         let mut seen = std::collections::BTreeSet::new();
         let mut violation: Option<Token> = None;
-        while matches!(self.peek().value.as_str(), "after" | "first" | "last" | "by") {
+        while matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by") {
             let key = self.word()?;
             let rank = match key.value.as_str() {
+                "matching" => -1,
                 "after" => 0,
                 "first" | "last" => 1,
                 _ => 2,
@@ -244,6 +245,14 @@ impl Parser {
             seen.insert(rank);
             highest = highest.max(rank);
             match key.value.as_str() {
+                "matching" => {
+                    // The search text: a page over the words of a `words(..)`
+                    // index the text's terms are prefixes of.
+                    let candidate = self.expression(0, &["after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"])?;
+                    if read.matching.is_none() {
+                        read.matching = Some(Box::new(candidate));
+                    }
+                }
                 "after" => {
                     let candidate = self.expression(0, &["after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"])?;
                     if cursor.is_none() {
@@ -265,7 +274,7 @@ impl Parser {
                 }
             }
         }
-        if take.is_none() && cursor.is_none() {
+        if take.is_none() && cursor.is_none() && read.matching.is_none() {
             if let Some(violation) = violation {
                 return Err(syntax_with(&violation.site, "read modifiers may appear once and only in canonical order", print::read_expr(&read)));
             }

@@ -22,9 +22,13 @@ pub mod store;
 pub mod successor;
 pub mod value;
 pub mod wire;
+pub mod words;
 
 #[cfg(feature = "sqlite")]
+pub use engine::effects::{EffectRun, Settled};
+#[cfg(feature = "sqlite")]
 pub use engine::job::{JobRun, JobState};
+pub use engine::Presence;
 #[cfg(feature = "sqlite")]
 pub use engine::{AssetGrant, Engine};
 pub use engine::{Context, MutationOutcome, QueryOutcome, WriteState};

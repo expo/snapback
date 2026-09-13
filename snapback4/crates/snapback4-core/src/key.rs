@@ -79,6 +79,26 @@ pub fn upper_bound(prefix: &[u8]) -> Vec<u8> {
     out
 }
 
+/// The range of every key whose next component is a string that starts
+/// with `word`, after the encoded `base`: a word-prefix scan. The lower
+/// bound is the string tag and the escaped body without its terminator, so
+/// it is a byte prefix of `word` itself and of every longer word; a byte
+/// `0xFF` never occurs in UTF-8 or in the escaping, so `lo ++ 0xFF` bounds
+/// exactly those keys.
+pub fn word_range(base: &[u8], word: &str) -> (Vec<u8>, Vec<u8>) {
+    let mut lo = base.to_vec();
+    lo.push(T_STRING);
+    for byte in word.as_bytes() {
+        if *byte == 0 {
+            lo.extend_from_slice(&[0x00, 0xFF]);
+        } else {
+            lo.push(*byte);
+        }
+    }
+    let hi = upper_bound(&lo);
+    (lo, hi)
+}
+
 /// Decode the components back (needed for cursors minted from stored keys).
 pub fn decode(mut bytes: &[u8]) -> Option<Vec<Value>> {
     let mut out = Vec::new();

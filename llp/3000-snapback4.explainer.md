@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -539,6 +539,42 @@ time-ordered 128-bit form.
   [comparison record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
   retains all trials, compiler inputs, remaining losses and qualification.
 
+- **2026-09-13 — search is one index shape, one tokenizer, one read
+  (lead, after the author asked for what Clique and Interview still
+  needed).** `words(cols)` is an index component with one entry per
+  distinct folded token and a recorded contract; `matching q` is the only
+  read of such an index: the first term's words, found by one seek each
+  and bounded, merge as ordered lanes into one page with one cursor,
+  further terms filter the page. No relevance ranking, no stemming, no
+  phrase or mid-word match. The device runs the same interpreter over the
+  same entries, so offline search is the same code, not a second
+  implementation.
+
+- **2026-09-13 — the engine never calls out; a worker with a seat does
+  (lead).** `emit` keeps the effect in the mutation's commit; a service
+  principal claims it under a lease over the wire, performs it, settles
+  it; failures back off to a bound; leases expire back to the queue. The
+  "embedded JS engine for effects, until measured" question of LLP
+  2000.000 §10 is decided against: JavaScript stays out of the process.
+
+- **2026-09-13 — services and custom sessions (lead).** `service:<name>`
+  is a principal with its own session, admitted by rules by name; it
+  mints and revokes sessions for accounts the application authenticated
+  itself, outside the engine's namespaces. The engine is not an identity
+  provider; the application's worker is.
+
+- **2026-09-13 — presence is the server's own knowledge (lead).**
+  `connected[p]` counts a principal's open long polls (and a grace after
+  one answered); it is not a table and syncs nothing. A device does not
+  know and says so: a query is `complete: false`, a prediction reads
+  everyone as connected and the server decides.
+
+- **2026-09-13 — the ranked feed is on the card (lead; LLP 3000.004 §9
+  decision 3 taken as "now").** Shape 4.2 — a shared scored partition, the
+  viewer's own signals, an external ranker through a service seat — is
+  compiled and run beside the fan-out recipe, and the fan-out recipe is
+  measured at the brief's probe: 500 follows examine what 5 examine.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
@@ -573,8 +609,10 @@ carries the chronology. After week four, 2026-09-12 (0.1.0):
 
 | `crates/snapback4-core/src/engine/native.rs`, `crates/snapback4-native`, `crates/snapback4/src/native.rs`, `native-fixtures/rescore`, `crates/snapback4-sim/tests/native.rs` | native jobs (LLP 3000.005): the wasm host over the chunk's `Runner` (get, lookup, scan, mint, insert, insert-if-absent, update, upsert, delete, log, now), one chunk per call with the module's state in the job row, fuel per chunk, refusals and traps parking the job; the guest SDK (`Ctx`, `Chunk`, `Next`, `jobs!`, `from_row`/`row_of`); `check` writing `native.rs` and building `native.wasm`, `dev` rebuilding on save, `deploy` shipping the module, `doctor` and `check --cost` reporting it; the fixture: Interview's rescore in Rust with a float exponent, resumed across three chunks, plus a write past the ceiling and a panic, each parked with its reason | the native-jobs landing |
 
-Not in slice one by decision: effects execution, word search
-(`NOT-DOING.md`).
+| `crates/snapback4-core/src/words.rs`, `engine/read.rs` (`scan_words`), `engine/effects.rs`, `identity.rs` (services, custom sessions), `engine/mod.rs` (`Presence`), `crates/snapback4/src/serve.rs` (`/effects/*`, `/auth/session`, `/auth/revoke`, the `Live` registry), `verbs.rs` (`token`), `packages/snapback4/src/worker.ts` | 0.2.1, what Clique and Interview still needed: word-prefix search on one index shape on every host; effects claimed and settled by a worker with a service token; service seats and sessions for the application's own accounts; `connected[p]`; the feed ratio measured at 1× and the ranked recipe on the `feeds` card | the 2026-09-13 landing |
+
+Not in this slice by decision: relevance-ranked search, an identity
+provider in the engine, push delivery itself (`NOT-DOING.md`).
 
 ## 9. Architecture and code review, 2026-09-12
 

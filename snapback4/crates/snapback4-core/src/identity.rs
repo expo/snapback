@@ -145,3 +145,89 @@ mod tests {
         assert!(matches!(login(&store, "nobody@example.com", "wrong", 2_000), Err(RuntimeError::Auth(_))));
     }
 }
+
+/// The namespace of a worker's principal: `service:<name>`. A service is
+/// admitted by a rule like any principal (`insert <- viewer =
+/// 'service:ranker'`), claims effects, and mints sessions for the accounts
+/// an application authenticates itself.
+pub const SERVICE_PREFIX: &str = "service:";
+
+pub fn is_service(principal: &str) -> bool {
+    principal.starts_with(SERVICE_PREFIX)
+}
+
+/// The namespaces the engine mints itself; an application's own accounts
+/// live outside them.
+const RESERVED_PREFIXES: [&str; 4] = ["dev:", "guest:", "user:", SERVICE_PREFIX];
+
+fn valid_name(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 64 && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// A session for the service `name`, `days` long: what `snapback4 token
+/// --service name` prints once and a worker keeps.
+pub fn service_session(store: &Store, name: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+    if !valid_name(name) {
+        return Err(RuntimeError::Auth("a service name is 1–64 letters, digits, _ or -".into()));
+    }
+    open_session_for(store, &format!("{SERVICE_PREFIX}{name}"), "service", now, days)
+}
+
+/// A session for a principal the application authenticated itself (a phone
+/// number it verified, an account in its own directory): the application's
+/// service mints it and hands the token to that user's device, which then
+/// talks to the server directly. The principal is the application's own
+/// name for the account (`member:42`), outside the engine's namespaces.
+pub fn custom_session(store: &Store, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+    if principal == crate::SYSTEM_PRINCIPAL || RESERVED_PREFIXES.iter().any(|prefix| principal.starts_with(prefix)) {
+        return Err(RuntimeError::Auth(format!("{principal} is a principal the engine mints itself; name the account in your own namespace (`member:42`)")));
+    }
+    if !crate::value::identity_fits(principal) || principal.len() > 128 {
+        return Err(RuntimeError::Auth("a principal is 1–128 printable characters".into()));
+    }
+    if !valid_name(kind) {
+        return Err(RuntimeError::Auth("a session kind is 1–64 letters, digits, _ or -".into()));
+    }
+    open_session_for(store, principal, kind, now, days)
+}
+
+fn open_session_for(store: &Store, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+    let days = days.clamp(1, 3_650);
+    let token = base64url(&random_bytes(32)?);
+    let expires_at = now + days * 86_400_000;
+    store.conn().execute("INSERT OR IGNORE INTO _principals(id, kind, name, created_at) VALUES (?1, ?2, NULL, ?3)", params![principal, kind, now])?;
+    store.conn().execute("INSERT INTO _sessions(token_digest, principal, kind, created_at, expires_at) VALUES (?1, ?2, ?3, ?4, ?5)", params![digest(&token), principal, kind, now, expires_at])?;
+    Ok(Session { principal: principal.to_owned(), kind: kind.to_owned(), token, expires_at })
+}
+
+/// End every session of a principal: an account lifecycle event (a lost
+/// phone, a removed member) the application's service performs. Returns
+/// how many sessions ended.
+pub fn revoke_principal(store: &Store, principal: &str) -> Result<u64, RuntimeError> {
+    Ok(store.conn().execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64)
+}
+
+#[cfg(test)]
+mod service_tests {
+    use super::*;
+
+    #[test]
+    fn services_and_custom_accounts_have_sessions_of_their_own() {
+        let store = Store::memory().unwrap();
+        let ranker = service_session(&store, "ranker", 1_000, 30).unwrap();
+        assert_eq!((ranker.principal.as_str(), ranker.kind.as_str()), ("service:ranker", "service"));
+        assert!(is_service(&ranker.principal));
+        assert_eq!(resolve(&store, &ranker.token, 2_000).unwrap(), Some(("service:ranker".into(), "service".into())));
+        assert!(resolve(&store, &ranker.token, 1_000 + 31 * 86_400_000).unwrap().is_none(), "a service token expires when told to");
+        assert!(matches!(service_session(&store, "not a name", 1_000, 30), Err(RuntimeError::Auth(_))));
+        let member = custom_session(&store, "member:42", "member", 1_000, 30).unwrap();
+        assert!(!is_service(&member.principal));
+        assert_eq!(resolve(&store, &member.token, 2_000).unwrap(), Some(("member:42".into(), "member".into())));
+        assert!(matches!(custom_session(&store, "user:42", "member", 1_000, 30), Err(RuntimeError::Auth(_))), "the engine's namespaces are its own");
+        assert!(matches!(custom_session(&store, "system", "member", 1_000, 30), Err(RuntimeError::Auth(_))));
+        let second = custom_session(&store, "member:42", "member", 1_500, 30).unwrap();
+        assert_eq!(revoke_principal(&store, "member:42").unwrap(), 2);
+        assert!(resolve(&store, &second.token, 2_000).unwrap().is_none());
+        assert!(resolve(&store, &ranker.token, 2_000).unwrap().is_some(), "another principal's sessions stand");
+    }
+}

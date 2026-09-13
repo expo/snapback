@@ -297,14 +297,30 @@ impl Index {
         Self { components: columns.iter().map(|c| IndexComponent::Column((*c).to_owned())).collect(), unique }
     }
 
-    /// The column names, in order. Word-prefix components (a Snapback 2
-    /// search form this slice does not support) contribute nothing.
+    /// The column names, in order. A `words(..)` component is not a column
+    /// and contributes nothing here; `word_component` names it.
     pub fn columns(&self) -> Vec<String> {
         self.components.iter().filter_map(|c| c.column().cloned()).collect()
     }
 
     pub fn is_plain(&self) -> bool {
         self.components.iter().all(|c| matches!(c, IndexComponent::Column(_)))
+    }
+
+    /// The `words(..)` component, if any: its position among the
+    /// components and the text columns it tokenizes.
+    pub fn word_component(&self) -> Option<(usize, &[String])> {
+        self.components.iter().enumerate().find_map(|(position, component)| match component {
+            IndexComponent::WordPrefixes { fields, .. } => Some((position, fields.as_slice())),
+            IndexComponent::Column(_) => None,
+        })
+    }
+
+    /// The columns after the first `components` components: a cursor's
+    /// suffix, and the order a page continues in. Counted in components,
+    /// so a scan whose prefix ends with a word skips the word too.
+    pub fn suffix_after(&self, components: usize) -> Vec<String> {
+        self.components.iter().skip(components).filter_map(|c| c.column().cloned()).collect()
     }
 }
 
@@ -558,6 +574,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 issue(&mut issues, ipath.clone(), "declare between 1 and 8 components".into());
             }
             let mut seen = BTreeSet::new();
+            let mut words = 0;
             for component in &index.components {
                 match component {
                     IndexComponent::Column(column) => {
@@ -570,7 +587,33 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                             _ => {}
                         }
                     }
-                    IndexComponent::WordPrefixes { .. } => issue(&mut issues, ipath.clone(), "word-prefix indexes are not in this slice".into()),
+                    IndexComponent::WordPrefixes { fields, contract } => {
+                        // One tokenizer, named: a store built under another
+                        // contract would answer a different question.
+                        words += 1;
+                        if words > 1 {
+                            issue(&mut issues, ipath.clone(), "an index has at most one words(..) component".into());
+                        }
+                        if index.unique {
+                            issue(&mut issues, ipath.clone(), "a words(..) index cannot be unique: a row has one entry per word".into());
+                        }
+                        if fields.is_empty() {
+                            issue(&mut issues, ipath.clone(), "words(..) names at least one text column".into());
+                        }
+                        if index.components.last().is_some_and(|last| last == component) {
+                            issue(&mut issues, ipath.clone(), "words(..) is followed by the columns a page is ordered by, ending in id".into());
+                        }
+                        if contract.as_str() != Some(crate::words::CONTRACT) {
+                            issue(&mut issues, ipath.clone(), format!("words(..) contract {contract} is not this engine's {}", crate::words::CONTRACT));
+                        }
+                        for field in fields {
+                            match table.columns.get(field).map(ColumnType::required) {
+                                Some(ColumnType::Text { .. }) => {}
+                                Some(kind) => issue(&mut issues, ipath.clone(), format!("words({field}) needs a text column; {field} is {kind}")),
+                                None => issue(&mut issues, ipath.clone(), format!("words names undeclared column {field}")),
+                            }
+                        }
+                    }
                 }
             }
         }

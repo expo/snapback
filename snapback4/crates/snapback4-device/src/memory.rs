@@ -11,7 +11,7 @@ use crate::store::{DeviceStore, DeviceTx};
 use serde::{Deserialize, Serialize};
 use snapback4_core::error::RuntimeError;
 use snapback4_core::key;
-use snapback4_core::rows::{Bounds, Dir, Rows, index_key, scan_range};
+use snapback4_core::rows::{Bounds, Dir, Rows, index_keys, scan_range};
 use snapback4_core::schema::{Index, Schema, Table};
 use snapback4_core::value::Value;
 use std::cell::RefCell;
@@ -180,7 +180,9 @@ impl MemoryStore {
         for ((table_name, id), row) in &state.rows {
             let Some(table) = schema.table(table_name) else { continue };
             for (index_name, index) in &table.indexes {
-                state.entries.insert((format!("{table_name}.{index_name}"), index_key(index, row, id)), id.clone());
+                for key in index_keys(index, row, id) {
+                    state.entries.insert((format!("{table_name}.{index_name}"), key), id.clone());
+                }
             }
         }
     }
@@ -418,21 +420,29 @@ impl Rows for MemoryTx<'_> {
         for (index_name, index) in &table.indexes {
             let ti = format!("{table_name}.{index_name}");
             if let Some(old) = old {
-                self.set_entry((ti.clone(), index_key(index, old, &id)), None);
+                for key in index_keys(index, old, &id) {
+                    self.set_entry((ti.clone(), key), None);
+                }
             }
-            self.set_entry((ti, index_key(index, row, &id)), Some(id.clone()));
-            written += 1;
+            for key in index_keys(index, row, &id) {
+                self.set_entry((ti.clone(), key), Some(id.clone()));
+                written += 1;
+            }
         }
         self.set_row((table_name.to_owned(), id), Some(row.clone()));
         Ok(written)
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
         let id = old.field("id")?.as_str()?.to_owned();
+        let mut removed = 0;
         for (index_name, index) in &table.indexes {
-            self.set_entry((format!("{table_name}.{index_name}"), index_key(index, old, &id)), None);
+            for key in index_keys(index, old, &id) {
+                self.set_entry((format!("{table_name}.{index_name}"), key), None);
+                removed += 1;
+            }
         }
         self.set_row((table_name.to_owned(), id), None);
-        Ok(table.indexes.len() as u64)
+        Ok(removed)
     }
 }
 

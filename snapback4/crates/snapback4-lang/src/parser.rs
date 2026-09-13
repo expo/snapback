@@ -356,16 +356,44 @@ impl Parser {
             explicit = Some(self.word()?.value);
             self.take(":")?;
         }
-        let mut columns = vec![self.word()?.value];
-        while self.maybe(",") {
-            columns.push(self.word()?.value);
+        let mut columns = Vec::new();
+        let mut words = None;
+        loop {
+            let component = self.word()?;
+            if component.value == "words" && self.at("(") {
+                // `words(body, caption)`: one entry per distinct word of the
+                // named text columns, in this position.
+                if words.is_some() {
+                    return Err(syntax_with(&component.site, "an index has one words(..) component", "words(body)"));
+                }
+                self.take("(")?;
+                let mut fields = vec![self.word()?.value];
+                while self.maybe(",") {
+                    fields.push(self.word()?.value);
+                }
+                self.take(")")?;
+                words = Some((columns.len(), fields));
+            } else {
+                columns.push(component.value);
+            }
+            if !self.maybe(",") {
+                break;
+            }
         }
         let Some(name) = explicit else {
             let inferred = format!("by{}", columns.iter().map(|c| title(c)).collect::<String>());
             return Err(syntax_with(&site, "index declarations require an explicit name", format!("{} {inferred}: {}", if unique { "unique" } else { "by" }, columns.join(", "))));
         };
+        if let Some((position, fields)) = &words {
+            if unique {
+                return Err(syntax_with(&site, "a words(..) index cannot be unique: a row has one entry per word", format!("by {name}: {}", columns.iter().take(*position).cloned().chain(std::iter::once(format!("words({})", fields.join(", ")))).chain(columns.iter().skip(*position).cloned()).collect::<Vec<_>>().join(", "))));
+            }
+            if *position == columns.len() {
+                return Err(syntax_with(&site, "words(..) is followed by the columns a search page is ordered by, ending in id", format!("by {name}: {}words({}), at, id", columns.iter().map(|c| format!("{c}, ")).collect::<String>(), fields.join(", "))));
+            }
+        }
         self.newline()?;
-        Ok(IndexDecl { name, columns, unique, site })
+        Ok(IndexDecl { name, columns, unique, words, site })
     }
 
     fn parse_maintain(&mut self) -> Fallible<MaintainDecl> {
@@ -424,11 +452,13 @@ impl Parser {
         Ok(MaintainDecl { name, aggregate: aggregate.value, source, column, by, read, site })
     }
 
+    /// `effect notify`: a name a mutation or job may `emit` under; the
+    /// engine queues it and an external worker performs it (`from module`
+    /// is accepted for Snapback 2 sources and means nothing here).
     fn parse_effect(&mut self) -> Fallible<EffectDecl> {
         let site = self.take("effect")?.site;
         let name = self.binding_name()?;
-        self.take("from")?;
-        let module = self.word()?.value;
+        let module = if self.maybe("from") { self.word()?.value } else { String::new() };
         self.newline()?;
         Ok(EffectDecl { name, module, site })
     }

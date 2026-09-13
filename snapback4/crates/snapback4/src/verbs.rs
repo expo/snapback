@@ -429,6 +429,14 @@ pub fn doctor(options: &Options) -> i32 {
                             lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{}{}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
                         }
                     }
+                    if let Ok(counts) = engine.effect_counts() && !counts.is_empty() {
+                        lines.push(format!("effects   {}", counts.iter().map(|(state, n)| format!("{n} {state}")).collect::<Vec<_>>().join(", ")));
+                        if let Ok(failed) = engine.effects(Some("failed"), 3) {
+                            for run in failed {
+                                lines.push(format!("effect    {} {} failed after {} attempt{}: {}", run.effect, run.id, run.attempts, if run.attempts == 1 { "" } else { "s" }, run.error.unwrap_or_default()));
+                            }
+                        }
+                    }
                 }
                 Err(error) => {
                     ok = false;
@@ -677,6 +685,44 @@ fn arg_word(kind: &ir::ArgType) -> String {
 
 mod releases;
 pub use releases::{deploy, rollback, serve_release};
+
+/// `token --service <name> [--days N] [--release <dir>]`: a bearer session
+/// for a service principal, printed once. A service is a worker's seat: it
+/// claims effects, mints sessions for the accounts the application
+/// authenticates itself, and is admitted by rules as `service:<name>`.
+pub fn token(options: &Options) -> i32 {
+    let Some(name) = options.flags.get("service").filter(|name| !name.is_empty()) else {
+        eprintln!("usage: snapback4 token --service <name> [--days N] [--release <dir>]");
+        return 2;
+    };
+    let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
+    let store = match options.flags.get("release") {
+        Some(dir) => snapback4_core::Store::open(&Path::new(dir).join("store.sqlite")),
+        None => project_or_exit().open_store(),
+    };
+    let store = match store {
+        Ok(store) => store,
+        Err(error) => {
+            eprintln!("cannot open the store: {error}");
+            return 2;
+        }
+    };
+    match snapback4_core::identity::service_session(&store, name, snapback4_core::now_ms(), days) {
+        Ok(session) => {
+            if options.json {
+                println!("{}", json!({ "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }));
+            } else {
+                println!("{}", session.token);
+                eprintln!("token: a session for {} until {} — printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
+            }
+            0
+        }
+        Err(error) => {
+            eprintln!("token: {error}");
+            1
+        }
+    }
+}
 
 /// The native module as a process: the same `Device` the Expo and Exact2
 /// hosts link, speaking one JSON request per line on stdin and one answer

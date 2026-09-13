@@ -201,12 +201,23 @@ impl<'a> Binder<'a> {
             }
             after = Some(Box::new(e));
         }
+        let mut prefix: Vec<IndexKeyExpr> = prefix.into_iter().map(IndexKeyExpr::Scalar).collect();
+        if let Some(matching) = &read.matching {
+            // The search text follows the keys as the word term; the index
+            // was chosen for its words component in exactly that position.
+            let (e, t) = self.expr(matching, out)?;
+            if !matches!(t, Ty::Text(_)) {
+                let rewrite = if matches!(t, Ty::Optional(ref inner) if matches!(**inner, Ty::Text(_))) { format!("{} ?? ''", print::expression(matching)) } else { "matching q  -- with q: text <=100".to_owned() };
+                return Err(type_error(matching.site(), format!("matching takes present text, got {}", t.name()), rewrite));
+            }
+            prefix.push(IndexKeyExpr::WordPrefix(e));
+        }
         Ok((
             Scan {
                 site: self.site(),
                 table: read.table.clone(),
                 index: index.name,
-                prefix: prefix.into_iter().map(IndexKeyExpr::Scalar).collect(),
+                prefix,
                 order: if range.order == ast::Order::Asc { Order::Asc } else { Order::Desc },
                 take: Bound::Literal(range.take),
                 after,
@@ -243,10 +254,14 @@ impl<'a> Binder<'a> {
             keys.push((expected_column, e, t));
         }
         let named = keys.iter().all(|(c, _, _)| c.is_some()) && !keys.is_empty();
+        // A `words(..)` index serves one read: `matching` with exactly its
+        // leading columns as keys. Every other read sees plain indexes only.
+        let searching = mode == ReadMode::Range && read.matching.is_some();
         let mut candidates: Vec<&ast::IndexDecl> = info
             .indexes
             .iter()
             .filter(|index| read.index.as_ref().is_none_or(|explicit| explicit == &index.name))
+            .filter(|index| if searching { index.searches_after(keys.len()) } else { index.is_plain() })
             .filter(|index| match mode {
                 ReadMode::Point => index.unique && index.columns.len() == keys.len(),
                 ReadMode::Exists => index.columns.len() == keys.len(),
@@ -278,6 +293,8 @@ impl<'a> Binder<'a> {
             let known = info.indexes.iter().find(|i| &i.name == explicit);
             return Err(match known {
                 None => unknown(&read.site, format!("{} has no index {explicit}", read.table), name_rewrite(explicit, info.indexes.iter().map(|i| i.name.as_str()), None)),
+                Some(index) if index.words.is_some() && !searching => unknown(&read.site, format!("{}.{explicit} is a words index; it is read with matching", read.table), format!("{}[{}] matching q first 50 by {explicit}", read.table, index.columns[..index.words.as_ref().map_or(0, |(p, _)| *p)].join(", "))),
+                Some(index) if searching => unknown(&read.site, format!("{}.{explicit} has its words after {} column{}; matching takes exactly those as keys", read.table, index.words.as_ref().map_or(0, |(p, _)| *p), if index.words.as_ref().map_or(0, |(p, _)| *p) == 1 { "" } else { "s" }), format!("{}[{}] matching q first 50 by {explicit}", read.table, index.columns[..index.words.as_ref().map_or(0, |(p, _)| *p)].join(", "))),
                 Some(index) => type_error(&read.site, format!("{}.{explicit} is over {}; this {} supplies {} key{}", read.table, index.columns.join(", "), if point { "point read" } else { "range" }, keys.len(), if keys.len() == 1 { "" } else { "s" }), if point { format!("{}[{}]", read.table, index.columns.join(", ")) } else { format!("{}[{}] first 50 by {explicit}", read.table, index.columns[..index.columns.len() - 1].join(", ")) }),
             });
         }
@@ -299,7 +316,10 @@ impl<'a> Binder<'a> {
             }
             0 => {
                 let declared: Vec<String> = info.indexes.iter().map(|i| format!("{} ({})", i.name, i.columns.join(", "))).collect();
-                if point {
+                if searching {
+                    let scope: Vec<String> = keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect();
+                    Err(unknown(&read.site, format!("{} has no words index after {} key{}; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("by by{}Words: {}words(<text column>), at, id", scope.iter().map(|c| title(c)).collect::<String>(), scope.iter().map(|c| format!("{c}, ")).collect::<String>())))
+                } else if point {
                     Err(unknown(&read.site, format!("{} has no unique index over {} column{} matching this key; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("unique by{}: {}", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", "))))
                 } else {
                     Err(unknown(&read.site, format!("{} has no index whose prefix takes {} key{}; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("by by{}: {}, id", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", "))))
@@ -374,6 +394,9 @@ impl<'a> Binder<'a> {
         let Some(index) = info.indexes.iter().find(|index| index.name == merge.index).cloned() else {
             return Err(unknown(&merge.site, format!("{} has no index {}", merge.table, merge.index), name_rewrite(&merge.index, info.indexes.iter().map(|i| i.name.as_str()), None)));
         };
+        if !index.is_plain() {
+            return Err(unsupported(&merge.site, "merge over a words index", format!("read {}[..] matching q first {} by {} per lane, or on the device over synced rows", merge.table, merge.take, merge.index)));
+        }
         let width = merge.lanes.first().map(|lane| lane.prefix.len()).unwrap_or(0);
         if width >= index.columns.len() {
             return Err(type_error(&merge.site, format!("merge lane prefixes must leave at least one {}.{} suffix column", merge.table, merge.index), "drop the last prefix key from every lane"));
@@ -402,7 +425,7 @@ impl<'a> Binder<'a> {
                 source = Some(scan);
                 binding = self.declare(name, Ty::Row(domain.table.clone()));
             }
-            let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), site: lane.site.clone() };
+            let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: None, site: lane.site.clone() };
             let (mut scan, _) = self.scan(&read, &mut setup)?;
             self.pop_scope();
             scan.after = cursor_expr.clone().map(Box::new);
@@ -653,7 +676,7 @@ impl<'a> Binder<'a> {
                 return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false, named: Vec::new() });
             }
         }
-        let read = ReadExpr { table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, site: site.clone() };
+        let read = ReadExpr { table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, site: site.clone() };
         let (bound, index) = self.select_index(info, &read, ReadMode::Point, out)?;
         let named: Vec<(String, A)> = keys.iter().enumerate().map(|(position, part)| (part.column.clone().unwrap_or_else(|| index.columns[position].clone()), part.value.clone())).collect();
         let key = self.order_keys(info, &index, bound)?;

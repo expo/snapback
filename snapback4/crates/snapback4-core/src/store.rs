@@ -7,7 +7,7 @@
 
 use crate::error::RuntimeError;
 use crate::key;
-pub use crate::rows::{Bounds, Dir, index_key, index_values};
+pub use crate::rows::{Bounds, Dir, index_key, index_keys, index_values};
 use crate::schema::{Index, Schema, Table};
 use crate::value::{Value, canonical_json};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -72,6 +72,15 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _asset_views (asset TEXT NOT NULL, principal TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (asset, principal)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _jobs (id TEXT PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL, program_hash TEXT NOT NULL, state TEXT NOT NULL, sweep INTEGER NOT NULL, cursor TEXT, upper TEXT, chunks INTEGER NOT NULL, rows_written INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT);",
         )?;
+        // The outbox grew a worker protocol (leases, backoff, results); a
+        // store from before it gains the columns in place, once.
+        let outbox_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_outbox')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        for (column, kind) in [("lease_until", "INTEGER"), ("claimed_by", "TEXT"), ("next_at", "INTEGER"), ("result", "TEXT"), ("error", "TEXT")] {
+            if !outbox_columns.iter().any(|name| name == column) {
+                conn.execute_batch(&format!("ALTER TABLE _outbox ADD COLUMN {column} {kind};"))?;
+            }
+        }
+        conn.execute_batch("CREATE INDEX IF NOT EXISTS _outbox_due ON _outbox(state, effect, seq);")?;
         // Catalog numbers and ownership must come from the same snapshot.
         // An activation between separate reads must never attach new IR to
         // the previous catalog, even when every number is monotone.
@@ -230,47 +239,7 @@ impl<'a> Tx<'a> {
     /// Rows under `prefix` in index order, bounded, at most `limit`. Each row
     /// comes with its stored key so a cursor can be minted from the last.
     pub fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let base = key::encode(prefix);
-        let mut lo = base.clone();
-        let mut hi = key::upper_bound(&base);
-        let with = |value: &Value| {
-            let mut extended = prefix.to_vec();
-            extended.push(value.clone());
-            key::encode(&extended)
-        };
-        if let Some(value) = &bounds.gte {
-            lo = lo.max(with(value));
-        }
-        if let Some(value) = &bounds.gt {
-            lo = lo.max(key::upper_bound(&with(value)));
-        }
-        if let Some(value) = &bounds.lte {
-            hi = hi.min(key::upper_bound(&with(value)));
-        }
-        if let Some(value) = &bounds.lt {
-            hi = hi.min(with(value));
-        }
-        if let Some(after) = &bounds.after {
-            let mut position = prefix.to_vec();
-            position.extend(after.iter().cloned());
-            let position = key::encode(&position);
-            match dir {
-                Dir::Asc => lo = lo.max(key::upper_bound(&position)),
-                Dir::Desc => hi = hi.min(position),
-            }
-        }
-        if let Some(before) = &bounds.before {
-            let mut position = prefix.to_vec();
-            position.extend(before.iter().cloned());
-            let position = key::encode(&position);
-            match dir {
-                Dir::Asc => hi = hi.min(position),
-                Dir::Desc => lo = lo.max(key::upper_bound(&position)),
-            }
-        }
-        if lo >= hi {
-            return Ok(Vec::new());
-        }
+        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         self.scan_keys(table, index_name, &lo, &hi, dir, limit)
     }
 
@@ -300,8 +269,8 @@ impl<'a> Tx<'a> {
     }
 
     /// Write a row image: a fresh insert when `old` is none, else a replace
-    /// that touches only the indexes whose keys changed. Returns the number
-    /// of index entries written.
+    /// that touches only the index entries whose keys changed (a `words`
+    /// index has one per token). Returns the number of entries written.
     pub fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?.to_owned();
@@ -312,22 +281,29 @@ impl<'a> Tx<'a> {
                 self.tx.prepare_cached("INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)")?.execute(params![t, id, data])?;
                 for (index_name, index) in &table.indexes {
                     let ti = self.num(&format!("{table_name}.{index_name}"))?;
-                    self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, index_key(index, row, &id), id])?;
-                    entries += 1;
+                    for key in index_keys(index, row, &id) {
+                        self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, key, id])?;
+                        entries += 1;
+                    }
                 }
             }
             Some(old) => {
                 self.tx.prepare_cached("UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2")?.execute(params![t, id, data])?;
                 for (index_name, index) in &table.indexes {
-                    let before = index_key(index, old, &id);
-                    let after = index_key(index, row, &id);
+                    let before = index_keys(index, old, &id);
+                    let after = index_keys(index, row, &id);
                     if before == after {
                         continue;
                     }
                     let ti = self.num(&format!("{table_name}.{index_name}"))?;
-                    self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, before])?;
-                    self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, after, id])?;
-                    entries += 2;
+                    for key in before.iter().filter(|key| !after.contains(key)) {
+                        self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                        entries += 1;
+                    }
+                    for key in after.iter().filter(|key| !before.contains(key)) {
+                        self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, key, id])?;
+                        entries += 1;
+                    }
                 }
             }
         }
@@ -341,8 +317,10 @@ impl<'a> Tx<'a> {
         let mut entries = 0;
         for (index_name, index) in &table.indexes {
             let ti = self.num(&format!("{table_name}.{index_name}"))?;
-            self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, index_key(index, old, &id)])?;
-            entries += 1;
+            for key in index_keys(index, old, &id) {
+                self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                entries += 1;
+            }
         }
         Ok(entries)
     }

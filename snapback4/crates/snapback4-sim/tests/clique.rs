@@ -5,6 +5,7 @@
 use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::partition::holdings;
 use snapback4_core::value::Value;
+use snapback4_core::rows::Rows as _;
 use snapback4_sim::chat::{CHAT, chat_engine_from};
 use std::collections::BTreeMap;
 
@@ -392,4 +393,558 @@ fn a_feed_fans_out_on_write() {
     // The schedule fires the job from the server's clock.
     engine.fire_schedules(60_000).unwrap();
     assert_eq!(engine.fire_schedules(120_000).unwrap(), vec!["fanOutEveryMinute".to_owned()]);
+}
+
+const SEARCH: &str = r#"
+use identity
+use personas alice, bob, carol
+
+table profiles:
+  principal: principal
+  displayName: text <=50
+  handle: text <=30 format handle
+  unique byPrincipal: principal
+  unique byHandle: handle
+  by byNameWords: words(displayName, handle), id
+  public 'profiles are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+
+table conversations:
+  title: text <=120
+  read <- exists memberships[.id, viewer]
+  insert <- allow
+  sync to memberships[.id]
+
+table memberships:
+  conversationId: conversations
+  principal: principal
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  read <- exists memberships[.conversationId, viewer]
+  insert <- allow
+  sync to memberships[.conversationId]
+
+table messages:
+  conversationId: conversations
+  authorId: principal
+  body: text <=4000 ?
+  caption: text <=200 ?
+  at: time
+  expiresAt: time ?
+  by byConvTime: conversationId, at, id
+  by byExpiresAt: expiresAt
+  by byConvWords: conversationId, words(body, caption), at, id
+  by byWords: words(body, caption), at, id
+  expire at .expiresAt
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  update <- .authorId = viewer
+  sync to memberships[.conversationId] last 500 by byConvTime
+
+query people(q: text <=100):
+  return profiles matching q first 20 by byNameWords
+
+query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  return messages[conversationId] matching q after c last 2 by byConvWords
+
+query everywhere(q: text <=100, c: cursor ?):
+  return messages matching q after c last 50 by byWords { *, conversation: conversations[.conversationId] }
+
+mutation send(conversationId: conversations, body: text <=4000, ttl: int ?):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  return insert messages { conversationId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }
+
+mutation edit(messageId: messages, body: text <=4000):
+  msg = messages[messageId] ! else NOT_FOUND
+  update messages[msg] { body }
+"#;
+
+fn search_engine() -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), SEARCH.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    let mut rows = vec![
+        ("conversations".to_owned(), snapback4_core::value::object([("id", id("c1")), ("title", Value::String("General".into()))])),
+        ("conversations".to_owned(), snapback4_core::value::object([("id", id("c2")), ("title", Value::String("Side".into()))])),
+        ("memberships".to_owned(), snapback4_core::value::object([("id", id("m1")), ("conversationId", id("c1")), ("principal", id("dev:alice"))])),
+        ("memberships".to_owned(), snapback4_core::value::object([("id", id("m2")), ("conversationId", id("c1")), ("principal", id("dev:bob"))])),
+        ("memberships".to_owned(), snapback4_core::value::object([("id", id("m3")), ("conversationId", id("c2")), ("principal", id("dev:carol"))])),
+    ];
+    for (n, (name, handle)) in [("Carol Danvers", "carol"), ("Carl Sagan", "carl"), ("Bob Ross", "bob_ross"), ("Alice", "alice")].iter().enumerate() {
+        rows.push(("profiles".to_owned(), snapback4_core::value::object([("id", id(&format!("p{n}"))), ("principal", id(&format!("dev:{handle}"))), ("displayName", Value::String((*name).into())), ("handle", Value::String((*handle).into()))])));
+    }
+    engine.seed(rows).unwrap();
+    engine
+}
+
+fn bodies(read: &snapback4_core::QueryOutcome) -> Vec<String> {
+    read.data.as_array().unwrap().iter().map(|m| m.field("body").unwrap().as_str().unwrap_or("").to_owned()).collect()
+}
+
+/// M5: word-prefix search — case-insensitive over NFC text, newest first,
+/// paginated, scoped to a chat or across every chat the viewer may read;
+/// people by display name or handle; an empty search finds nothing; an
+/// expired row is gone from the results at once.
+#[test]
+fn a_search_matches_word_prefixes_newest_first() {
+    let mut engine = search_engine();
+    let send = |engine: &mut Engine, who: &str, conv: &str, body: &str, at: i64, ttl: Option<i64>| {
+        let mut a = args(&[("conversationId", id(conv)), ("body", Value::String(body.into()))]);
+        if let Some(ttl) = ttl { a.insert("ttl".into(), Value::Int(ttl)); }
+        let outcome = engine.mutate("send", Some(&format!("s{at}")), Context::new(who, a).at(at).with_ids([format!("m{at}")])).unwrap();
+        assert!(matches!(outcome.state, WriteState::Sent { .. }), "{:?}", outcome.state);
+    };
+    send(&mut engine, "dev:alice", "c1", "Coffee time at nine", 1_000, None);
+    send(&mut engine, "dev:bob", "c1", "the coffers are empty", 1_001, None);
+    send(&mut engine, "dev:alice", "c1", "tea instead", 1_002, None);
+    send(&mut engine, "dev:bob", "c1", "COFFEE for Carol", 1_003, None);
+    send(&mut engine, "dev:carol", "c2", "coffee in the side room", 1_004, None);
+    send(&mut engine, "dev:alice", "c1", "brief coffee", 1_005, Some(100));
+    let search = |engine: &mut Engine, who: &str, q: &str, cursor: Option<String>, now: i64| {
+        let mut a = args(&[("conversationId", id("c1")), ("q", Value::String(q.into()))]);
+        if let Some(c) = cursor { a.insert("c".into(), Value::String(c)); }
+        engine.query("inChat", Context::new(who, a).at(now)).unwrap()
+    };
+    // Newest first across every word "cof" is a prefix of, two a page, a cursor to the rest.
+    let page = search(&mut engine, "dev:bob", "cof", None, 1_050);
+    assert_eq!(bodies(&page), vec!["brief coffee", "COFFEE for Carol"]);
+    assert!(page.complete && page.next.is_some(), "{page:?}");
+    let page = search(&mut engine, "dev:bob", "cof", page.next.clone(), 1_050);
+    assert_eq!(bodies(&page), vec!["the coffers are empty", "Coffee time at nine"]);
+    assert!(page.complete && page.next.is_none(), "the last page ends: {page:?}");
+    // Case-insensitive; a second term filters the page; an empty search is empty.
+    assert_eq!(bodies(&search(&mut engine, "dev:bob", "COF car", None, 1_050)), vec!["COFFEE for Carol"]);
+    assert_eq!(bodies(&search(&mut engine, "dev:bob", "coffee nine", None, 1_050)), vec!["Coffee time at nine"]);
+    assert!(bodies(&search(&mut engine, "dev:bob", "", None, 1_050)).is_empty());
+    assert!(bodies(&search(&mut engine, "dev:bob", "offee", None, 1_050)).is_empty(), "mid-word is not a match");
+    // The expired row is gone at once, before the sweep.
+    assert_eq!(bodies(&search(&mut engine, "dev:bob", "cof", None, 1_200)), vec!["COFFEE for Carol", "the coffers are empty"]);
+    // A non-member is refused; carol's chat never leaks into bob's search.
+    assert!(engine.query("inChat", Context::new("dev:carol", args(&[("conversationId", id("c1")), ("q", Value::String("cof".into()))])).at(1_050)).is_err());
+    // Everywhere: the unscoped index, the rule checked per row, grouped by the app.
+    let everywhere = engine.query("everywhere", Context::new("dev:bob", args(&[("q", Value::String("coffee".into()))])).at(1_050)).unwrap();
+    assert_eq!(bodies(&everywhere), vec!["brief coffee", "COFFEE for Carol", "Coffee time at nine"]);
+    assert_eq!(everywhere.data.as_array().unwrap()[0].field("conversation").unwrap().field("title").unwrap(), &Value::String("General".into()));
+    let everywhere = engine.query("everywhere", Context::new("dev:carol", args(&[("q", Value::String("coffee".into()))])).at(1_050)).unwrap();
+    assert_eq!(bodies(&everywhere), vec!["coffee in the side room"]);
+    // People: by display name or handle, either word.
+    let names = |read: snapback4_core::QueryOutcome| read.data.as_array().unwrap().iter().map(|p| p.field("handle").unwrap().as_str().unwrap().to_owned()).collect::<Vec<_>>();
+    assert_eq!(names(engine.query("people", Context::new("dev:alice", args(&[("q", Value::String("car".into()))])).at(1_050)).unwrap()), vec!["carol", "carl"]);
+    assert_eq!(names(engine.query("people", Context::new("dev:alice", args(&[("q", Value::String("ross".into()))])).at(1_050)).unwrap()), vec!["bob_ross"]);
+    assert_eq!(names(engine.query("people", Context::new("dev:alice", args(&[("q", Value::String("Danv".into()))])).at(1_050)).unwrap()), vec!["carol"]);
+    // An edit re-tokenizes: the old words leave the index, the new ones enter.
+    let edited = engine.mutate("edit", Some("e1"), Context::new("dev:alice", args(&[("messageId", id("m1000")), ("body", Value::String("Tea time at nine".into()))])).at(1_060)).unwrap();
+    assert!(matches!(edited.state, WriteState::Sent { .. }), "{:?}", edited.state);
+    assert_eq!(bodies(&search(&mut engine, "dev:bob", "coffee nine", None, 1_070)), Vec::<String>::new());
+    assert_eq!(bodies(&search(&mut engine, "dev:bob", "tea", None, 1_070)), vec!["tea instead", "Tea time at nine"]);
+    // The same query on a device over the rows it holds: the interpreter is one.
+    let (events, _) = engine.snapshot("dev:bob").unwrap();
+    let device = snapback4_core::rows::MemoryRows::new();
+    for event in &events {
+        if let Some(row) = &event.data {
+            device.put(&event.table, engine.schema().table(&event.table).unwrap(), row, None).unwrap();
+        }
+    }
+    let program = engine.program("inChat").unwrap().clone();
+    let local = snapback4_core::engine::local::query(&device, engine.schema(), &program, Context::new("dev:bob", args(&[("conversationId", id("c1")), ("q", Value::String("cof".into()))])).at(1_070), snapback4_core::Ceilings::default()).unwrap();
+    assert_eq!(bodies(&local), vec!["brief coffee", "COFFEE for Carol"], "the device page at 1070, before the brief message expires");
+}
+
+/// The compiler holds the search to its index: a words index is read with
+/// `matching` and nothing else; `matching` needs a words index after exactly
+/// its keys; the text is present; a merge stays on plain indexes.
+#[test]
+fn search_reads_are_checked() {
+    let compile = |source: String| snapback4_lang::compile(&[("schema.q".to_owned(), source)]);
+    let codes = |bound: &snapback4_lang::Bound| bound.diagnostics.iter().map(|d| d.code.clone()).collect::<Vec<_>>();
+    assert!(compile(SEARCH.to_owned()).diagnostics.is_empty());
+    let plain_read_of_words = compile(SEARCH.replace("query people(q: text <=100):\n  return profiles matching q first 20 by byNameWords", "query people(q: text <=100):\n  return profiles first 20 by byNameWords"));
+    assert_eq!(codes(&plain_read_of_words), vec!["E_QUARRY_UNKNOWN"], "{:?}", plain_read_of_words.diagnostics);
+    assert!(plain_read_of_words.diagnostics[0].rewrite.contains("matching q"));
+    let no_words_index = compile(SEARCH.replace("query people(q: text <=100):\n  return profiles matching q first 20 by byNameWords", "query people(q: text <=100):\n  return profiles matching q first 20 by byHandle"));
+    assert_eq!(codes(&no_words_index), vec!["E_QUARRY_UNKNOWN"], "{:?}", no_words_index.diagnostics);
+    let wrong_scope = compile(SEARCH.replace("return messages[conversationId] matching q after c last 2 by byConvWords", "return messages matching q after c last 2 by byConvWords"));
+    assert_eq!(codes(&wrong_scope), vec!["E_QUARRY_UNKNOWN"], "{:?}", wrong_scope.diagnostics);
+    let optional_text = compile(SEARCH.replace("query people(q: text <=100):", "query people(q: text <=100 ?):"));
+    assert_eq!(codes(&optional_text), vec!["E_QUARRY_TYPE"], "{:?}", optional_text.diagnostics);
+    assert!(optional_text.diagnostics[0].rewrite.contains("q ?? ''"));
+    let unique_words = compile(SEARCH.replace("by byNameWords: words(displayName, handle), id", "unique byNameWords: words(displayName, handle), id"));
+    assert_eq!(codes(&unique_words), vec!["E_QUARRY_SYNTAX"], "{:?}", unique_words.diagnostics);
+    let words_last = compile(SEARCH.replace("by byNameWords: words(displayName, handle), id", "by byNameWords: words(displayName, handle)"));
+    assert_eq!(codes(&words_last), vec!["E_QUARRY_SYNTAX"], "{:?}", words_last.diagnostics);
+    let not_text = compile(SEARCH.replace("by byNameWords: words(displayName, handle), id", "by byNameWords: words(principal), id"));
+    assert_eq!(codes(&not_text), vec!["E_QUARRY_TYPE"], "{:?}", not_text.diagnostics);
+    let merged = compile(SEARCH.replace("query people(q: text <=100):\n  return profiles matching q first 20 by byNameWords", "query people(q: text <=100):\n  return merge messages last 20 by byConvWords:\n    ['c1']"));
+    assert_eq!(codes(&merged), vec!["E_QUARRY_UNSUPPORTED"], "{:?}", merged.diagnostics);
+}
+
+const EFFECTS: &str = r#"
+use personas alice, bob, carol
+
+effect notify
+
+table conversations:
+  title: text <=120
+  read <- exists memberships[.id, viewer]
+  insert <- allow
+  sync to memberships[.id]
+
+table memberships:
+  conversationId: conversations
+  principal: principal
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  read <- exists memberships[.conversationId, viewer]
+  insert <- allow
+  sync to memberships[.conversationId]
+
+table messages:
+  conversationId: conversations
+  authorId: principal
+  body: text <=4000
+  at: time
+  by byConvTime: conversationId, at, id
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  sync to memberships[.conversationId] last 500 by byConvTime
+
+table rankings:
+  postId: id
+  score: int
+  unique byPost: postId
+  read <- allow
+  insert <- viewer = 'service:ranker'
+  update <- viewer = 'service:ranker'
+
+mutation send(conversationId: conversations, body: text <=4000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  msg = insert messages { conversationId, authorId: viewer, body, at: now }
+  for m in memberships[conversationId] first 50 by byConversationPrincipal:
+    if m.principal != viewer and not exists connected[m.principal]:
+      emit notify { targetUserId: m.principal, chatId: conversationId, messageId: msg.id, preview: slice(body, 0, 80) }
+  return { id: msg.id }
+
+query online(p: principal):
+  return connected[p]
+
+mutation rank(postId: id, score: int):
+  upsert rankings[postId] { postId, score }
+"#;
+
+#[derive(Debug)]
+struct Online(Vec<String>);
+impl snapback4_core::Presence for Online {
+    fn connections(&self, principal: &str) -> u64 {
+        self.0.iter().filter(|p| p.as_str() == principal).count() as u64
+    }
+}
+
+fn effects_engine() -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), EFFECTS.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    engine.seed(vec![
+        ("conversations".to_owned(), snapback4_core::value::object([("id", id("c1")), ("title", Value::String("General".into()))])),
+        ("memberships".to_owned(), snapback4_core::value::object([("id", id("m1")), ("conversationId", id("c1")), ("principal", id("dev:alice"))])),
+        ("memberships".to_owned(), snapback4_core::value::object([("id", id("m2")), ("conversationId", id("c1")), ("principal", id("dev:bob"))])),
+        ("memberships".to_owned(), snapback4_core::value::object([("id", id("m3")), ("conversationId", id("c1")), ("principal", id("dev:carol"))])),
+    ]).unwrap();
+    engine
+}
+
+/// M6: the push seam. A send emits a notification for every member with no
+/// connected client, in the same commit as the message; a worker with a
+/// service seat claims it under a lease, settles it, and a failure retries
+/// with backoff until the attempts run out; an expired lease goes back to
+/// the queue; a stranger's token claims nothing.
+#[test]
+fn an_emit_is_claimed_and_settled_by_a_worker() {
+    let mut engine = effects_engine();
+    // bob holds a poll open; carol does not.
+    engine.set_presence(Some(std::sync::Arc::new(Online(vec!["dev:bob".into()]))));
+    let sent = engine.mutate("send", Some("s1"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("body", Value::String("Coffee? ".repeat(20)))])).at(1_000).with_ids(["msg1".to_owned()])).unwrap();
+    assert!(matches!(sent.state, WriteState::Sent { .. }), "{:?}", sent.state);
+    let queued = engine.effects(Some("queued"), 10).unwrap();
+    assert_eq!(queued.len(), 1, "{queued:?}");
+    assert_eq!(queued[0].payload.field("targetUserId").unwrap(), &id("dev:carol"));
+    assert_eq!(queued[0].payload.field("preview").unwrap().as_str().unwrap().chars().count(), 80);
+    assert_eq!(engine.query("online", Context::new("dev:alice", args(&[("p", id("dev:bob"))])).at(1_000)).unwrap().data, Value::Int(1));
+    assert_eq!(engine.query("online", Context::new("dev:alice", args(&[("p", id("dev:carol"))])).at(1_000)).unwrap().data, Value::Int(0));
+    // A worker claims it: one attempt, a lease; a second worker gets nothing.
+    let claimed = engine.claim_effects("service:pusher", Some("notify"), 10, 60_000, 2_000).unwrap();
+    assert_eq!(claimed.len(), 1);
+    let run = &claimed[0];
+    assert_eq!((run.state.as_str(), run.attempts, run.claimed_by.as_deref(), run.lease_until), ("running", 1, Some("service:pusher"), Some(62_000)));
+    assert!(engine.claim_effects("service:other", None, 10, 60_000, 2_001).unwrap().is_empty());
+    // The other worker cannot settle what it does not hold.
+    assert_eq!(engine.settle_effect(&run.id, "service:other", snapback4_core::Settled::Done { result: None }, 2_002).unwrap_err().code(), "E_EFFECT_LEASE");
+    // A failure retries after a backoff; before it, nothing is due.
+    let failed = engine.settle_effect(&run.id, "service:pusher", snapback4_core::Settled::Failed { error: "provider 503".into(), retry: true }, 2_003).unwrap();
+    assert_eq!((failed.state.as_str(), failed.next_at, failed.error.as_deref()), ("queued", Some(2_003 + 4_000), Some("provider 503")));
+    assert!(engine.claim_effects("service:pusher", None, 10, 60_000, 3_000).unwrap().is_empty(), "not due yet");
+    assert!(!engine.effects_due(None, 3_000).unwrap());
+    assert!(engine.effects_due(None, 7_000).unwrap());
+    let again = engine.claim_effects("service:pusher", None, 10, 60_000, 7_000).unwrap();
+    assert_eq!((again.len(), again[0].attempts), (1, 2));
+    // The lease expires: the effect is queued again, the attempt kept.
+    assert_eq!(engine.requeue_expired_effects(60_000).unwrap(), 0, "the lease still stands");
+    assert_eq!(engine.requeue_expired_effects(70_000).unwrap(), 1);
+    let requeued = engine.effects(Some("queued"), 10).unwrap();
+    assert_eq!((requeued.len(), requeued[0].attempts, requeued[0].claimed_by.as_deref()), (1, 2, None));
+    // Settled: sent, with the worker's result kept beside it.
+    let third = engine.claim_effects("service:pusher", None, 10, 60_000, 70_001).unwrap();
+    let done = engine.settle_effect(&third[0].id, "service:pusher", snapback4_core::Settled::Done { result: Some(snapback4_core::value::object([("providerId", Value::String("apns-1".into()))])) }, 70_002).unwrap();
+    assert_eq!(done.state, "sent");
+    assert_eq!(done.result.unwrap().field("providerId").unwrap(), &Value::String("apns-1".into()));
+    assert_eq!(engine.effect_counts().unwrap().get("sent"), Some(&1));
+    assert_eq!(engine.settle_effect("nope", "service:pusher", snapback4_core::Settled::Done { result: None }, 70_003).unwrap_err().code(), "E_EFFECT_UNKNOWN");
+    // A worker that gives up, or runs out of attempts, leaves the effect failed.
+    engine.set_presence(None);
+    engine.mutate("send", Some("s2"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("body", Value::String("again".into()))])).at(80_000).with_ids(["msg2".to_owned()])).unwrap();
+    let both = engine.claim_effects("service:pusher", None, 10, 60_000, 80_001).unwrap();
+    assert_eq!(both.len(), 2, "nobody connected without a registry: bob and carol");
+    let gave_up = engine.settle_effect(&both[0].id, "service:pusher", snapback4_core::Settled::Failed { error: "no such device".into(), retry: false }, 80_002).unwrap();
+    assert_eq!(gave_up.state, "failed");
+    let mut id_of = both[1].id.clone();
+    let mut at = 80_003;
+    for attempt in 1..=snapback4_core::engine::effects::MAX_ATTEMPTS {
+        let failed = engine.settle_effect(&id_of, "service:pusher", snapback4_core::Settled::Failed { error: "flaky".into(), retry: true }, at).unwrap();
+        if attempt == snapback4_core::engine::effects::MAX_ATTEMPTS {
+            assert_eq!(failed.state, "failed", "attempt {attempt}");
+            break;
+        }
+        assert_eq!(failed.state, "queued", "attempt {attempt}");
+        at = failed.next_at.unwrap() + 1;
+        let next = engine.claim_effects("service:pusher", None, 10, 60_000, at).unwrap();
+        assert_eq!(next.len(), 1, "attempt {attempt}");
+        id_of = next[0].id.clone();
+    }
+    assert_eq!(engine.effect_counts().unwrap().get("failed"), Some(&2));
+}
+
+/// A service is a principal a rule can name; `connected` on a device reads
+/// everyone as connected and says so on the card.
+#[test]
+fn a_service_is_admitted_by_its_name_and_a_device_defers_presence() {
+    let mut engine = effects_engine();
+    let stranger = engine.mutate("rank", Some("r1"), Context::new("dev:alice", args(&[("postId", id("p1")), ("score", Value::Int(3))])).at(1_000)).unwrap();
+    assert!(matches!(&stranger.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{:?}", stranger.state);
+    let ranked = engine.mutate("rank", Some("r2"), Context::new("service:ranker", args(&[("postId", id("p1")), ("score", Value::Int(3))])).at(1_000)).unwrap();
+    assert!(matches!(ranked.state, WriteState::Sent { .. }), "{:?}", ranked.state);
+    assert_eq!(engine.store().rows("rankings").unwrap().len(), 1);
+    let program = engine.program("online").unwrap().clone();
+    let device = snapback4_core::rows::MemoryRows::new();
+    let local = snapback4_core::engine::local::query(&device, engine.schema(), &program, Context::new("dev:bob", args(&[("p", id("dev:carol"))])).at(1_000), snapback4_core::Ceilings::default()).unwrap();
+    assert_eq!((local.data, local.complete), (Value::Int(1), false), "a device does not know; the server does");
+    // The compiler holds the word to one principal.
+    let bad = snapback4_lang::compile(&[("schema.q".to_owned(), EFFECTS.replace("return connected[p]", "return connected[p, 'x']"))]);
+    assert_eq!(bad.diagnostics.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), vec!["E_QUARRY_UNKNOWN"]);
+    let bad = snapback4_lang::compile(&[("schema.q".to_owned(), EFFECTS.replace("return connected[p]", "return connected[1]"))]);
+    assert_eq!(bad.diagnostics.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), vec!["E_QUARRY_TYPE"]);
+    let unknown_effect = snapback4_lang::compile(&[("schema.q".to_owned(), EFFECTS.replace("effect notify\n", ""))]);
+    assert_eq!(unknown_effect.diagnostics.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), vec!["E_QUARRY_UNKNOWN"]);
+}
+
+/// O5: the following feed at 500 follows costs what it costs at 5 — the
+/// fan-out-on-write shape reads one prefix of the reader's own entries, so
+/// the page's examined rows do not grow with the follow count (the brief's
+/// bar is 3×; this is 1×), and the read is complete on a synced device.
+#[test]
+fn a_feed_read_costs_the_same_at_five_and_five_hundred_follows() {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), feed())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    // wide follows 500 authors, narrow follows 5; every author has posted 20 times.
+    let mut rows = Vec::new();
+    for a in 0..500 {
+        rows.push(("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("fw{a:03}"))), ("followerId", id("dev:wide")), ("followedId", id(&format!("dev:a{a:03}"))), ("bucket", Value::Int(0))])));
+        if a < 5 {
+            rows.push(("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("fn{a:03}"))), ("followerId", id("dev:narrow")), ("followedId", id(&format!("dev:a{a:03}"))), ("bucket", Value::Int(0))])));
+        }
+    }
+    engine.seed(rows).unwrap();
+    let mut n = 0;
+    for a in 0..500 {
+        for k in 0..20 {
+            n += 1;
+            let posted = engine.mutate("createPost", Some(&format!("p{n}")), Context::new(&format!("dev:a{a:03}"), args(&[("body", Value::String(format!("post {k} by {a}")))])).at(1_000 + n).with_ids([format!("post{n}")])).unwrap();
+            assert!(matches!(posted.state, WriteState::Sent { .. }), "{:?}", posted.state);
+        }
+    }
+    let read = |engine: &mut Engine, who: &str| engine.query("following", Context::new(who, BTreeMap::new()).at(100_000)).unwrap();
+    let wide = read(&mut engine, "dev:wide");
+    let narrow = read(&mut engine, "dev:narrow");
+    assert!(wide.complete && narrow.complete);
+    assert_eq!((wide.data.as_array().unwrap().len(), narrow.data.as_array().unwrap().len()), (20, 20));
+    assert_eq!(wide.metered.examined, narrow.metered.examined, "a page of the reader's own lane: the same rows examined at 500 follows as at 5 ({} vs {})", wide.metered.examined, narrow.metered.examined);
+    assert_eq!(wide.metered.rule_probes, narrow.metered.rule_probes);
+    assert!(wide.metered.examined <= 41, "{:?}", wide.metered);
+    // The newest post first, whoever wrote it; the wide reader's page is
+    // from many authors, the narrow reader's from five.
+    let authors = |read: &snapback4_core::QueryOutcome| read.data.as_array().unwrap().iter().map(|e| e.field("authorId").unwrap().as_str().unwrap().to_owned()).collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(wide.data.as_array().unwrap()[0].field("post").unwrap().field("body").unwrap(), &Value::String("post 19 by 499".into()));
+    assert!(authors(&narrow).len() <= 5 && authors(&narrow).iter().all(|a| a < &"dev:a005".to_owned()), "{:?}", authors(&narrow));
+    // Each reader's device holds exactly its own feed, bounded by the horizon.
+    let (events, _) = engine.snapshot("dev:wide").unwrap();
+    assert_eq!(holdings(&events)["feed"].len(), 200, "the horizon: the newest 200 of 10,000 entries");
+    let (events, _) = engine.snapshot("dev:narrow").unwrap();
+    assert_eq!(holdings(&events)["feed"].len(), 100);
+}
+
+const RANKED: &str = r#"
+use identity
+use personas alice, bob, marc
+
+table posts:
+  authorId: principal
+  body: text <=6000
+  at: time
+  by byTime: at, id
+  immutable authorId, at
+  public 'posts are public'
+  insert <- .authorId = viewer
+  sync public last 2000 by byTime
+
+table votes:
+  postId: posts
+  principal: principal
+  direction: int
+  unique byPostPrincipal: postId, principal
+  by byPrincipal: principal, id
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync to .principal last 1000 by byPrincipal
+
+maintain postScore: sum votes of direction by postId
+  read <- allow
+
+-- Layer 1: one shared candidate set, scored on the server by a job, on every device.
+table ranked:
+  postId: posts
+  score: int
+  at: time
+  unique byPost: postId
+  by byScore: score, id
+  public 'the ranking is one shared page'
+  insert <- deny
+  update <- deny
+  sync public last 500 by byScore
+
+-- Layer 2: the viewer's own signals, on the viewer's device.
+table seen:
+  readerId: principal
+  postId: posts
+  at: time
+  unique byReaderPost: readerId, postId
+  by byReaderTime: readerId, at, id
+  read <- .readerId = viewer
+  insert <- .readerId = viewer
+  sync to .readerId last 1000 by byReaderTime
+
+-- The external ranker's word, per reader: written by a service, read by the reader.
+table affinity:
+  readerId: principal
+  postId: posts
+  score: int
+  at: time
+  unique byReaderPost: readerId, postId
+  by byReaderScore: readerId, score, id
+  read <- .readerId = viewer
+  insert <- viewer = 'service:ranker'
+  update <- viewer = 'service:ranker'
+  sync to .readerId last 200 by byReaderScore
+
+job rescore():
+  chunk p in posts first 100 by byId:
+    (ageHours, rem) = divmod(now - p.at, 3600000)
+    upsert ranked[p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
+
+schedule rescoreEvery every 5m: rescore
+
+query home(c: cursor ?):
+  return ranked after c last 50 by byScore { *, post: posts[.postId], seen: exists seen[viewer, .postId], mine: votes[.postId, viewer], lift: affinity[viewer, .postId] }
+
+mutation writePost(body: text <=6000):
+  return insert posts { authorId: viewer, body, at: now }
+
+mutation vote(postId: posts, direction: int):
+  require exists posts[postId] else POST_NOT_FOUND
+  require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
+  upsert votes[postId, viewer] { postId, principal: viewer, direction }
+
+mutation markSeen(postId: posts):
+  require exists posts[postId] else POST_NOT_FOUND
+  return insert seen { readerId: viewer, postId, at: now } if absent
+
+mutation setAffinity(readerId: principal, postId: posts, score: int):
+  require exists posts[postId] else POST_NOT_FOUND
+  upsert affinity[readerId, postId] { readerId, postId, score, at: now }
+"#;
+
+/// The ranked feed of LLP 3000.004 §4.2 on the `feeds` card: one shared
+/// candidate set scored by a job on a cadence from a maintain, every
+/// device holding it; the viewer's own signals synced to the viewer; the
+/// external ranker admitted by its service name and nobody else.
+#[test]
+fn a_ranked_feed_is_scored_by_a_job_and_composed_on_the_device() {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), RANKED.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    let post = |engine: &mut Engine, who: &str, body: &str, n: i64| {
+        let outcome = engine.mutate("writePost", Some(&format!("w{n}")), Context::new(who, args(&[("body", Value::String(body.into()))])).at(n).with_ids([format!("post{n}")])).unwrap();
+        assert!(matches!(outcome.state, WriteState::Sent { .. }), "{:?}", outcome.state);
+    };
+    post(&mut engine, "dev:bob", "bob's", 1);
+    post(&mut engine, "dev:marc", "marc's", 2);
+    post(&mut engine, "dev:alice", "alice's", 3);
+    let vote = |engine: &mut Engine, who: &str, post: &str, direction: i64, n: i64| {
+        let outcome = engine.mutate("vote", Some(&format!("v{n}")), Context::new(who, args(&[("postId", id(post)), ("direction", Value::Int(direction))])).at(n)).unwrap();
+        assert!(matches!(outcome.state, WriteState::Sent { .. }), "{:?}", outcome.state);
+    };
+    vote(&mut engine, "dev:alice", "post2", 1, 10);
+    vote(&mut engine, "dev:bob", "post2", 1, 11);
+    vote(&mut engine, "dev:marc", "post1", -1, 12);
+    let run = engine.run_job("rescore", BTreeMap::new(), 100).unwrap();
+    assert_eq!((run.state, run.rows_written), (snapback4_core::JobState::Done, 3), "{run:?}");
+    let home = |engine: &mut Engine, who: &str| engine.query("home", Context::new(who, BTreeMap::new()).at(200)).unwrap();
+    let page = home(&mut engine, "dev:bob");
+    assert!(page.complete);
+    let order: Vec<(String, i64, bool)> = page.data.as_array().unwrap().iter().map(|r| (r.field("postId").unwrap().as_str().unwrap().to_owned(), r.field("score").unwrap().as_int().unwrap(), r.field("seen").unwrap().as_bool().unwrap())).collect();
+    assert_eq!(order, vec![("post2".into(), 20, false), ("post3".into(), 0, false), ("post1".into(), -10, false)]);
+    assert_eq!(page.data.as_array().unwrap()[0].field("mine").unwrap().field("direction").unwrap(), &Value::Int(1), "bob's own vote beside the row");
+    assert_eq!(page.data.as_array().unwrap()[1].field("mine").unwrap(), &Value::Null);
+    // The viewer's signals move on the device alone; the ranker's lift is its seat's to write.
+    engine.mutate("markSeen", Some("seen1"), Context::new("dev:bob", args(&[("postId", id("post2"))])).at(201).with_ids(["seen1".to_owned()])).unwrap();
+    let refused = engine.mutate("setAffinity", Some("aff0"), Context::new("dev:bob", args(&[("readerId", id("dev:bob")), ("postId", id("post3")), ("score", Value::Int(9))])).at(202).with_ids(["aff0".to_owned()])).unwrap();
+    assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{:?}", refused.state);
+    let lifted = engine.mutate("setAffinity", Some("aff1"), Context::new("service:ranker", args(&[("readerId", id("dev:bob")), ("postId", id("post3")), ("score", Value::Int(9))])).at(203).with_ids(["aff1".to_owned()])).unwrap();
+    assert!(matches!(lifted.state, WriteState::Sent { .. }), "{:?}", lifted.state);
+    let page = home(&mut engine, "dev:bob");
+    let rows = page.data.as_array().unwrap();
+    assert_eq!(rows[0].field("seen").unwrap(), &Value::Bool(true));
+    assert_eq!(rows[1].field("lift").unwrap().field("score").unwrap(), &Value::Int(9));
+    assert_eq!(rows[2].field("lift").unwrap(), &Value::Null);
+    // Votes move the order on the cadence: the next rescore re-ranks.
+    vote(&mut engine, "dev:alice", "post1", 1, 300);
+    vote(&mut engine, "dev:bob", "post1", 1, 301);
+    vote(&mut engine, "dev:marc", "post1", 1, 302);
+    engine.run_job("rescore", BTreeMap::new(), 400).unwrap();
+    let page = home(&mut engine, "dev:bob");
+    assert_eq!(page.data.as_array().unwrap()[0].field("postId").unwrap(), &id("post1"));
+    assert_eq!(page.data.as_array().unwrap()[0].field("score").unwrap(), &Value::Int(30));
+    // Every device holds the shared ranking and its own signals, nothing else's.
+    let (events, _) = engine.snapshot("dev:bob").unwrap();
+    let held = holdings(&events);
+    assert_eq!((held["ranked"].len(), held["seen"].len(), held["affinity"].len(), held["votes"].len()), (3, 1, 1, 2));
+    let (events, _) = engine.snapshot("dev:marc").unwrap();
+    let held = holdings(&events);
+    assert_eq!((held["ranked"].len(), held.get("seen").map_or(0, |s| s.len()), held.get("affinity").map_or(0, |s| s.len())), (3, 0, 0));
+    // The schedule fires the job from the server's clock.
+    engine.fire_schedules(300_000).unwrap();
+    assert_eq!(engine.fire_schedules(600_000).unwrap(), vec!["rescoreEvery".to_owned()]);
 }

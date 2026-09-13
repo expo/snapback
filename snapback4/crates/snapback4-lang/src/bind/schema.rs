@@ -70,7 +70,11 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     let mut indexes = BTreeMap::new();
     let mut constraints = Vec::new();
     for index in &info.indexes {
-        indexes.insert(index.name.clone(), core::Index::of(&index.columns.iter().map(String::as_str).collect::<Vec<_>>(), index.unique));
+        let mut bound = core::Index::of(&index.columns.iter().map(String::as_str).collect::<Vec<_>>(), index.unique);
+        if let Some((position, fields)) = &index.words {
+            bound.components.insert(*position, core::IndexComponent::WordPrefixes { fields: fields.clone(), contract: serde_json::Value::String(snapback4_core::words::CONTRACT.to_owned()) });
+        }
+        indexes.insert(index.name.clone(), bound);
         if index.unique && index.name != "byId" {
             constraints.push(Constraint::Unique { index: index.name.clone() });
         }
@@ -101,7 +105,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         }
     }
     for cap in &decl.caps {
-        if !info.indexes.iter().any(|index| index.columns.starts_with(&cap.by)) {
+        if !info.indexes.iter().any(|index| index.is_plain() && index.columns.starts_with(&cap.by)) {
             diagnostics.push(Diagnostic::new(&cap.site, "E_SCHEMA_CONSTRAINT", format!("cap {} by {} needs an index whose leading columns are exactly those", cap.max, cap.by.join(", ")), format!("by by{}: {}", cap.by.iter().map(|c| title(c)).collect::<String>(), cap.by.join(", "))).guide("indexes"));
             continue;
         }
@@ -163,7 +167,7 @@ fn bind_expire(info: &TableInfo, column: &str, site: &Site) -> Fallible<String> 
         return Err(type_error(site, format!("expire at .{column}: {table}.{column} is {}, and a row's life ends at a time", crate::print::scalar_type(kind)), format!("{column}: time ?")));
     }
     let title = title(column);
-    if !info.indexes.iter().any(|index| index.columns.first().map(String::as_str) == Some(column)) {
+    if !info.indexes.iter().any(|index| index.is_plain() && index.columns.first().map(String::as_str) == Some(column)) {
         return Err(Diagnostic::new(site, "E_SCHEMA_CONSTRAINT", format!("expire at .{column} needs an index leading with {column}, so the sweep finds due rows without a walk"), format!("by by{title}: {column}")).guide("expire"));
     }
     Ok(column.to_owned())
@@ -253,8 +257,22 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             "and" => Ok(RuleExpr::And(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
             "or" => Ok(RuleExpr::Or(vec![rule_expr(catalog, info, left, bindings)?, rule_expr(catalog, info, right, bindings)?])),
             "=" | "!=" => {
-                let (l, lt) = rule_term(catalog, info, left, bindings)?;
-                let (r, rt) = rule_term(catalog, info, right, bindings)?;
+                let (mut l, mut lt) = rule_term(catalog, info, left, bindings)?;
+                let (mut r, mut rt) = rule_term(catalog, info, right, bindings)?;
+                // `viewer = 'service:ranker'`: a text literal beside the
+                // viewer names a principal, as it does beside `=` in a program.
+                let as_principal = |term: &mut RuleTerm, ty: &mut Ty| {
+                    if let RuleTerm::Literal(Value::String(text)) = term {
+                        *term = RuleTerm::Literal(Value::Id(text.clone()));
+                        *ty = Ty::Principal;
+                    }
+                };
+                if matches!(l, RuleTerm::Viewer) {
+                    as_principal(&mut r, &mut rt);
+                }
+                if matches!(r, RuleTerm::Viewer) {
+                    as_principal(&mut l, &mut lt);
+                }
                 if !lt.comparable(&rt) {
                     return Err(type_error(site, format!("rule comparison joins {} with {}", lt.name(), rt.name()), "compare a principal column with viewer, or a column with a literal of its own type"));
                 }
@@ -355,6 +373,7 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
     let candidates: Vec<&IndexDecl> = target
         .indexes
         .iter()
+        .filter(|index| index.is_plain())
         .filter(|index| match &read.index {
             Some(explicit) => &index.name == explicit,
             None => true,
@@ -442,7 +461,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     Ok(TableDecl {
         name: maintain.name.clone(),
         columns,
-        indexes: vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, site: site.clone() }],
+        indexes: vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, words: None, site: site.clone() }],
         rules: vec![maintain.read.clone()],
         immutable: Vec::new(),
         caps: Vec::new(),
