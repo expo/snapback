@@ -44,6 +44,10 @@ and negative program cases, including merge and nested return shapes. The
 [feeds fixture](../../snapback4/crates/snapback4-sim/tests/clique.rs) now asserts
 that all notes are absent; it passes. The Rust/TypeScript page-plan parity test
 also passes, and the revised Interview sketch compiles with zero notes.
-The complete suite passes 125 Rust, 94 client and 9 fixture tests.
-Implementation: `fd1d9d91f9e96390bbe80c32e9438d93bdd16bdd`; independent read-only
+The complete suite passes 127 Rust, 94 client and 9 fixture tests.
+Implementation: `9c61b0988e1965e71b5ee15e0d6c85ee116ca5c0`; independent read-only
 review reported no material findings.
+
+Final integrated verification: `50c8edfdc844c0530e4d548bd8e7b7500a26331c`;
+the [suite-budget closure](./20260913-snapback4-blocking-suite-over-60-seconds.md)
+records the two complete warm runs and independent review.

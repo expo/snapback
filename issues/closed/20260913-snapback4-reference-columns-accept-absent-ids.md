@@ -37,8 +37,12 @@ The authored regression in
 checks the string `"null"` versus JSON null, unchecked insert/update/upsert,
 absent/hidden refusals without row changes, a visible target with one additional
 examined row, and target deletion without cascade. It passes in the complete
-suite (125 Rust tests, 94 client tests and 9 fixture tests). The revised
+suite (127 Rust tests, 94 client tests and 9 fixture tests). The revised
 Interview sketch also compiles: 12 tables, 10 operations, zero notes.
-Implementation: `fd1d9d91f9e96390bbe80c32e9438d93bdd16bdd`; independent read-only
+Implementation: `9c61b0988e1965e71b5ee15e0d6c85ee116ca5c0`; independent read-only
 review reported no material findings. This closes an undocumented semantic
 choice; it does not introduce automatic foreign keys.
+
+Final integrated verification: `50c8edfdc844c0530e4d548bd8e7b7500a26331c`;
+the [suite-budget closure](./20260913-snapback4-blocking-suite-over-60-seconds.md)
+records the two complete warm runs and independent review.

@@ -162,7 +162,7 @@ the installed-consumer proof and published `snapback4@0.1.15` and
 their integrity values were verified in the npm registry. Publication took
 188.3 s; the client tarball is 56,905 B and the Darwin ARM64 binary 8,103,840 B.
 The persistent suite-budget overrun is tracked as
-[a P0 timing issue](../../../issues/20260913-snapback4-blocking-suite-over-60-seconds.md).
+[a P0 timing issue](../../../issues/closed/20260913-snapback4-blocking-suite-over-60-seconds.md).
 
 Registry integrity:
 

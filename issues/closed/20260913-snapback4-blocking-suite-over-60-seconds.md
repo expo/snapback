@@ -1,6 +1,6 @@
 # Snapback 4: warm blocking suite exceeds the 60-second budget
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P0
 **Date:** 2026-09-13
 **Systems:** `snapback4/scripts/test.sh`, the simulator and development loop
@@ -27,7 +27,7 @@ framing/version unit group took 0.01 s. Stage-level timing and an equivalent
 current-main control are needed before blaming a particular change.
 
 Evidence and the exact release pin are in
-[the catalog record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+[the catalog record](../../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
 Detailed local logs are retained under
 `.llp/ship-runs/sb4-performance-20260913/catalog-{final-suite,publish}.log`.
 
@@ -88,3 +88,67 @@ Resolution: restore the existing complete suite to the 60 s budget on an
 appropriately idle documented host, without dropping correctness assertions,
 raising the budget, or adding a gate. Record before/after step timings and
 close this ticket once the warm repeated run fits.
+
+
+## Resolution — 2026-09-13
+
+The complete warm suite is within budget on an otherwise idle, documented
+host, with every baseline assertion retained. The final integrated source is
+`50c8edfdc844c0530e4d548bd8e7b7500a26331c`, based on `d5215e6d2` (0.1.16).
+
+Profiling the original fault run put 2,001 of 2,258 samples under invariant
+inspection. Concurrent implementation `4e126d206` shares one freshly parsed
+snapshot among the four fixed chat checks and prepares repeated SQL statements.
+Integration retains that scoped ChatChecks implementation, its comparison
+regression, and an additional regression through a scheduled event boundary.
+Every invariant, seed, event check and convergence assertion remains. The
+simulator group fell from 28.35 s to 10.88/10.87 s on the controlled host.
+
+The existing test script now prints each stage's duration and passes Cargo
+`--no-fail-fast`. No new gate or budget is introduced. The native e2e test
+also now verifies Bob's committed local replica before closing: an online
+query can fall back to the server and is not a persistence barrier. Both waits
+share the original 20 s deadline and the original cold/FIFO assertions remain.
+Linux Chromium discovery enables the existing React browser assertions.
+
+**Controlled before/after:** expo-build-1000, AMD EPYC 9454, 96 logical CPUs,
+251 GiB RAM, Ubuntu Linux; Node 24.13.1, Bun 1.3.12, Rust 1.97.0,
+CARGO_BUILD_JOBS=4, frozen dependencies. One suite lane; recorded one-minute load averages
+were 0.90–2.73 around the warm comparisons. The control
+is `d765f8179` plus only the same Linux browser-discovery adapter used in the
+candidate, so the browser assertions run on both sides. These are actual
+`bash scripts/test.sh` runs, timed externally with a monotonic clock; fractional
+stage and total durations below are seconds.
+
+| Stage | Before | Integrated warm 1 | Integrated warm 2 |
+| --- | ---: | ---: | ---: |
+| cargo build | 0.044 | 0.043 | 0.044 |
+| cargo test | 36.217 | 18.756 | 18.745 |
+| package typecheck | 1.013 | 0.994 | 1.008 |
+| package build | 1.157 | 1.151 | 1.149 |
+| chat app check | 0.007 | 0.008 | 0.008 |
+| chat app typecheck | 1.014 | 1.007 | 1.036 |
+| expo app typecheck | 0.765 | 0.772 | 0.752 |
+| fixture wrapper tests | 10.869 | 10.966 | 10.844 |
+| client tests | 10.525 | 10.540 | 10.688 |
+| **Total** | **61.621** | **44.248** | **44.283** |
+
+Every integrated run passes 127 Rust tests, 94 client tests and 9 fixture
+tests, with zero failures or skipped tests, plus all package/web/Expo checks.
+The version-change rebuild run also passed in 59.405 s. The two additional
+Rust tests above the pre-integration candidate come from main's borrowed-wire
+and shared-observation regressions; no prior tests were removed.
+
+The provisional pre-integration candidate passed complete Mac runs in
+39.379/44.583 s and controlled Linux runs in 44.720/44.818 s. Those are retained
+as historical measurements, not substituted for the final integrated runs.
+The shared Mac's original 88.409 s baseline included two client failures and a
+load rise from 18.36 to 58.14; intermittent pre-main macOS launch pauses remain
+host observations, not engine-runtime measurements.
+
+Detailed logs, sampled stacks and monotonic stage JSON are retained under
+`.llp/ship-runs/sb4-open-tickets-20260913/` (especially
+`integrated-linux-*.log` and `integrated-linux-*-timing.json`); the remote
+copy is under the same run name on expo-build-1000. Independent read-only
+review reported no material findings for the integrated source. Reference
+validation passed with 471 LLPs, 8,684 refs, zero errors and zero unchecked.

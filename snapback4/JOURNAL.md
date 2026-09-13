@@ -1737,3 +1737,23 @@ separate observation and first-failure checks. This preserves both regressions
 and every baseline assertion. The reference, note and native-test corrections
 are unchanged. Preliminary measurements above refer to the pre-integration
 candidate; the final ticket evidence records the integrated qualification.
+
+
+## 2026-09-13 — three remaining tickets qualified and closed (Codex)
+
+All three tickets are closed with their original observations and individual
+resolutions under `issues/closed/`. The final integrated source 50c8edfdc
+passes the complete suite on the otherwise idle expo-build-1000 host:
+127 Rust tests, 94 client tests, 9 fixture tests, no failures or skips, plus
+all build/typecheck steps. Warm repeats take 44.248 and 44.283 seconds, versus
+61.621 seconds for the controlled baseline. The simulator group takes
+10.88/10.87 seconds versus 28.35 seconds. The version-change rebuild run
+also passes in 59.405 seconds. The closed suite-budget ticket preserves the
+host/toolchain, per-stage table and limitations of earlier shared-Mac runs.
+
+The final implementation keeps main's ChatChecks optimization, prepared
+statements, borrowed-wire encoding and worker reservation fix. It adds the
+reference/diagnostic corrections and test robustness without a new gate,
+a larger budget or fewer assertions. Independent read-only review found no
+material issues at 50c8edfdc. The Interview sketch compiles with 12 tables,
+10 operations and zero notes; ref-check passes 471 LLPs and 8,684 references.
