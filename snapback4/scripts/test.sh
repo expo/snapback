@@ -10,10 +10,12 @@ parallel_dir=$(mktemp -d "${TMPDIR:-/tmp}/snapback4-test.XXXXXX")
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
-  for pid in "${child_pids[@]}"; do
+  for pid in "${child_pids[@]:-}"; do
+    [ -n "$pid" ] || continue
     kill "$pid" 2>/dev/null || true
   done
-  for pid in "${child_pids[@]}"; do
+  for pid in "${child_pids[@]:-}"; do
+    [ -n "$pid" ] || continue
     wait "$pid" 2>/dev/null || true
   done
   rm -rf "$parallel_dir"
