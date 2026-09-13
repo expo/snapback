@@ -1269,3 +1269,133 @@ are bound by pre-measurement receipt SHA-256
 The [test-harness follow-up](../../../issues/20260913-snapback4-parallel-http-tests-exhaust-darwin-file-descriptors.md)
 records that environment limitation. These are source-built artifacts;
 HTTP comparison and publication evidence remain separate.
+
+### Independent reader QPSG: ARM Darwin HTTP A/B (0.2.6 source builds)
+
+Three serial paired orders (baseline/candidate, candidate/baseline,
+baseline/candidate; trials 31–33) compared the unmodified
+`342c53d306d7484cd64e820ee27a151e02eb4b0b` source with only the
+independent-reader QPSG change. Both binaries were rebuilt on Durand, Apple M4
+Pro/macOS 26.6.1, with Rust 1.97.0 and the production profile; both report 0.2.6
+and are 6,967,536 B. These are source-built A/B measurements, separate from
+registry downloads and 0.2.7 publication qualification. The runtime patch is
+SHA-256 `130497a69db40f6b1401b88eeb8b299bf223765a039438aa8a22faa03066483c`;
+baseline binary
+`f3f10874b7765edcd4bb64551cac82127e4c8a22e9801f10389786cb883f56a1`, candidate
+`1f4cb4548ce79496db29c8900ccd7d7e888c0621f272e7efe8704ff1760c8aee`.
+
+All six runs passed 39 cases × 500 samples: **117,000 repeated-case timed
+requests**, 7,020 excluded warmups, and **33,510 separately timed traversal
+pages** (150,510 timed HTTP requests total), with zero reported errors. Each run
+restored the same pristine 100,000-message/501-group/186-membership SQLite
+snapshot and the same five actually issued seven-day guest sessions. Complete
+physical/logical fixture proofs before reads, after leave, after regrant and
+after verification matched. Exact authorized feeds/threads, tie order,
+invalid/expired/forged credentials, outsider access, acknowledged revocation,
+old/foreign cursors and same-session regrant checks passed. Regrant used the
+same running server without credential refresh.
+
+The candidate has lower **three-run median p50 in 39/39 cases, p95 in 38/39, p99
+in 32/39 and maximum in 26/39**; median RPS is higher in 39/39. Paired
+lower-latency counts are 105/117 p50, 99/117 p95, 86/117 p99 and 79/117 maximum.
+These are strict comparisons of reported statistics, with no significance claim.
+Representative feed working-set medians follow; each cell is baseline →
+candidate, and RPS is computed from whole-case elapsed time.
+
+| Memberships / concurrency | p50 ms | p95 ms | requests/s |
+|---|---:|---:|---:|
+| 5 / C1 | 0.630 → 0.540 | 0.729 → 0.616 | 1492.2 → 1785.3 |
+| 5 / C8 | 7.099 → 3.733 | 8.368 → 5.048 | 1134.3 → 2154.3 |
+| 30 / C1 | 4.904 → 0.713 | 6.318 → 0.754 | 199.8 → 1342.6 |
+| 30 / C8 | 31.574 → 4.729 | 34.197 → 6.611 | 252.4 → 1666.5 |
+| 150 / C1 | 5.739 → 1.765 | 6.229 → 1.904 | 174.2 → 555.7 |
+| 150 / C8 | 97.780 → 15.839 | 109.242 → 17.522 | 81.1 → 513.0 |
+
+Tails and run variation remain material to interpretation. The one median p95
+increase is 5-group PointWorkingSet C1, 0.398 → 0.400 ms. Seven case-median p99s
+and thirteen case-median maxima increase; all 18 paired p95, 31 paired p99 and
+38 paired maximum regressions remain in the records. Trial 33 reverses several
+30/150-group C1 thread/feed results, including 150-group ThreadNext C1 p50 0.502
+→ 4.097 ms. The largest observed repeated-case requests are 154.218 ms baseline
+and 41.596 ms candidate. Medians do not erase those per-case reversals.
+
+Traversal timings are separate: 27 walks per run (initial, after-leave, regrant
+verification), with no excluded warmups. The 150-membership reader traverses all
+1,500 feed pages in each phase:
+
+| 150-group full feed phase | page p50 ms | page p95 ms | walk elapsed s |
+|---|---:|---:|---:|
+| Initial | 4.116 → 1.775 | 4.296 → 1.908 | 6.2239 → 2.7138 |
+| After leave | 5.685 → 1.779 | 6.232 → 6.141 | 8.5456 → 4.5743 |
+| Same-session regrant | 4.099 → 1.773 | 4.341 → 1.895 | 6.1939 → 2.7342 |
+
+Across all 27 walk identities, page-p50 and page-p95 medians each decrease in
+19, increase in seven and tie in one. Page-p99 medians increase in eight and
+maximum medians in ten. The 150-group after-leave feed p99 increases 6.969 →
+7.854 ms; its regrant median maximum increases 9.591 → 19.930 ms. Thread walks
+have four pages and empty controls one, so their high quantiles are small-sample
+controls. All walk records, including these tails, are retained.
+
+Per-request timers include loopback HTTP, JSON/projection and adapter checks;
+exact oracle comparisons follow each timer. Whole-case/walk elapsed and
+throughput include those comparisons and scheduling. Full SQLite/auth checks
+precede initial walks, which warm the repeated cases. Servers and Node clients
+restart between variants, while OS caches remain without resets and residency is
+unmeasured. Connection scheduling, thermal state and cache hit rates were not
+isolated. No result cache or ceiling change was introduced. This supplies scoped
+HTTP A/B evidence, with no comparator, device, write-throughput, durability,
+cold-cache or overall Clique claim.
+
+Build qualification finished before setup: both production builds passed; the
+first parallel baseline host attempt failed with explicit
+descriptor-exhaustion/reset errors (20 passed, six failed). Retained corrective
+checks ran serially at the unchanged soft descriptor limit 256 and passed
+baseline core/host 54 and candidate host 26; together with the original
+candidate core/corpus/sim checks, candidate qualification is 129 Rust tests plus
+211 corpus cases and 82 named exclusions. Original failed receipts remain. An
+earlier V1 controller smoke stopped before timing at its JSON/SQLite
+object-prototype identity guard; the reported formal runs use only corrected V2.
+
+Frozen instrument SHA-256
+`ebe5b64dd15a6e16371a7449bd8ec55e6a5421ec392bec64b943472f42d616be`; V2
+controller `674cc8a59600f14ba3ac810f7a492f8646f2ab847893c6c2466169c56606d3af`;
+qualified pre-run receipt
+`5e1f073fb552873010edfcbea37c48deb8ecf1339be9cf7af502083c209e8597`. The six
+accompanying raw-preserving records retain every observation; the retained
+`reader-http-formal-summary.json` contains all 39 case medians, 27 walk medians,
+every paired/tail regression and exact raw/build/controller hashes.
+
+## Published 0.2.7 — independent-reader plan reuse
+
+`snapback4@0.2.7` and `snapback4-darwin-arm64@0.2.7` were published at
+2026-09-13T19:55:18Z from source
+`485018648782c692122788c8a094d145008c65c8`, carrying the reader QPSG fix.
+The unchanged publisher ran the full suite on Durand (M4 Pro,
+macOS 26.6.1): **237 Rust tests passed, one ignored; 89 client tests and
+nine fixture tests passed; zero failures in 58 seconds** on the prepared
+host. The existing ignored test covers native-job ceiling/rollback behavior
+at the 8,192-write limit. Rust test scheduling used `RUST_TEST_THREADS=1`;
+the publication helper applied no descriptor-limit override, and each test
+retained its own explicit concurrency. Separate dependency/tool preparation
+and compilation preceded this qualification. The Durand HTTP A/B had
+finished before publication preparation began.
+
+The publisher then built the production CLI with Rust 1.97.0 (opt-level 3,
+fat LTO, one codegen unit), packed both packages, and verified the installed
+CLI digest/version, TypeScript compilation, and the installed mock client's
+query/write behavior.
+The CLI is **6,967,536 bytes**, SHA-256
+`e54745cd668981efd3ead1dd4bad9e289f390b57d248e57d418942b6dac3476b`.
+The client and platform tarballs are **451,061** and **3,420,548 bytes**.
+Both registry downloads match the qualified tarballs byte for byte and
+match their registry integrity values; the downloaded CLI reports 0.2.7.
+
+The source/fixture archive SHA-256 is
+`7d95f9f95f2246d752b0dcd435b66a467e76ab658e789e3d53d22c108f1f7063`;
+all archived files and prepared tools were checked again before the
+publisher ran. The successful publisher log SHA-256 is
+`d7c11d07465ef61859f1880a22036dba3ff18a78c1cbf56c239892f6da4e735d`.
+The publication took 145.4 seconds including the suite and is recorded in
+`snapback4/metrics/publish.jsonl`. The HTTP A/B above uses the separately
+bound source-built 0.2.6 variants; it does not measure this exact registry
+artifact or establish a Convex/Supabase, device, write, or durability win.
