@@ -138,7 +138,8 @@ mutation edit(messageId: messages, body: text <=4000):
   absent to every reader on every host from that moment, before any rule;
   the server sweeps it within seconds and the deletion streams to each
   device holding it. A null time never expires. Disappearing messages
-  are `expiresAt: now + ttl if ttl` on insert; nothing else to write.
+  are one field on insert, `expiresAt: now + ttl if ttl != null else
+  null` with `ttl: int ?`; nothing else to write.
 
 ### Maintains
 
@@ -175,7 +176,9 @@ columns.
   immutables and text formats; any refusal rolls the whole mutation back.
 - **Statements:** `x = expr`, `require cond else CODE`, `if:` / `else:`,
   `for x in page:`, `return`. Values: `viewer`, `now`, `new` (an id),
-  `count(page)`, `sum(page, .x)`, `slice`, `min`, `max`, `a ?? b`.
+  `count(page)`, `sum(page, .x)`, `slice`, `min`, `max`, `a ?? b`,
+  `a if cond else b` (the arm not taken is never evaluated; `x != null`
+  as the condition narrows `x` in the taken arm).
   `=` and `!=` are total (null equals null); `<` and friends need
   present operands — narrow with `if x != null:` or `x ! else CODE`.
 - **Refusals** a program raises with `require .. else CODE` reach the

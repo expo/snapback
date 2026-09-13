@@ -82,7 +82,8 @@ Writes: insert t {..} [if absent], update t[key] {..} [if cond],
 upsert t[key] {..}, delete t[key]. A final write is the implicit return.
 Statements: `x = expr`, `require cond else CODE`, `if:`/`else:`,
 `for x in page:`, `return`, `emit effect payload`. Values: viewer, now,
-new (an id), count(), sum(), slice(), min(), max(), tokens(), a ?? b.
+new (an id), count(), sum(), slice(), min(), max(), tokens(), a ?? b,
+a if cond else b (the arm not taken is never evaluated; `x != null` narrows x).
 
 Personas: `use personas alice, bob`; run as one with `--as alice`.
 More: `snapback4 guide <keyword>` — rules, sync, writes, reads, shapes,
@@ -132,9 +133,10 @@ A row past the time in the column is absent — to every reader, on every
 host, before any rule — from that moment; the server's sweep deletes it
 within seconds and the deletion streams to each device holding it, so
 it leaves local stores and local search on the next sync. A null time
-never expires. `now + ttl if ttl` on insert is the whole disappearing-
-messages feature; there is no purge job to write. The index leading
-with the column is required so the sweep finds due rows without a walk."#,
+never expires. Disappearing messages are one field on insert —
+`expiresAt: now + ttl if ttl != null else null` with `ttl: int ?` — and
+there is no purge job to write. The index leading with the column is
+required so the sweep finds due rows without a walk."#,
         "assets" => r#"# Assets: upload, place, serve
 
   photo: image <=10000000 ?        a column; `once` after the bound serves one view per principal

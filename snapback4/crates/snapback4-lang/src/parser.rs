@@ -875,6 +875,19 @@ impl Parser {
             let right = self.expression(precedence + u8::from(token.value != "??"), stops)?;
             left = Expr::Binary { op: token.value, left: Box::new(left), right: Box::new(right), site: token.site };
         }
+        // `a if cond else b`, below every operator: the value is one of the
+        // two, and the other is never evaluated.
+        if minimum == 0 && self.at("if") && !stops.contains(&"if") && self.peek_at(1).value != "absent" {
+            let site = self.take("if")?.site;
+            let mut inner: Vec<&str> = stops.to_vec();
+            inner.push("else");
+            let condition = self.expression(0, &inner)?;
+            if !self.maybe("else") {
+                return Err(syntax_with(&site, "a conditional value takes both arms: value if condition else other", format!("{} if {} else null", print::expression(&left), print::expression(&condition))));
+            }
+            let otherwise = self.expression(0, stops)?;
+            left = Expr::If { then: Box::new(left), condition: Box::new(condition), otherwise: Box::new(otherwise), site };
+        }
         Ok(left)
     }
 

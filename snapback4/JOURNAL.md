@@ -1061,3 +1061,18 @@ group" and described the row**, and the lane expected a row where the
 read is the number; it is the number (0 when the group has no row), and
 the README now says so, the row shape being sync's business. Published
 `snapback4@0.1.2`.
+
+## 2026-09-12 — from the full-brief lane's M5: the card promised a form the grammar lacked; 0.1.3
+
+The `expire` card said disappearing messages were "`now + ttl if ttl`
+on insert". The lane wrote exactly that and `check` refused it,
+`E_QUARRY_SYNTAX`: the phrase was prose in the shape of code, and Quarry
+had no conditional value at all — this session had hit the same wall
+writing the expiry test and stepped around it with a second mutation
+instead of noticing what that meant. A `snapback4-defect`, rightly.
+Quarry now has `a if cond else b`, below every operator, the arm not
+taken never evaluated (lowered to a temporary assigned in one arm of an
+`if`, so both hosts run it unchanged) and `x != null` narrowing `x` in
+the taken arm; the card and the README say the true line,
+`expiresAt: now + ttl if ttl != null else null` with `ttl: int ?`, and
+the expiry test sends through exactly it. Published `snapback4@0.1.3`.

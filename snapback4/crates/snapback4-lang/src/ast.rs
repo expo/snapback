@@ -176,13 +176,15 @@ pub enum Expr {
     ShapeUse { base: Box<Expr>, name: String, site: Site },
     Shape { base: Box<Expr>, fields: Vec<ShapeField>, site: Site },
     Walk { table: String, seed: Box<Expr>, column: String, depth: u32, site: Site },
+    /// `a if cond else b`: one of two values, the other never evaluated.
+    If { then: Box<Expr>, condition: Box<Expr>, otherwise: Box<Expr>, site: Site },
     Write { op: WriteOp, table: String, keys: Vec<KeyPart>, fields: Vec<ObjectField>, if_absent: bool, condition: Option<Box<Expr>>, site: Site },
 }
 
 impl Expr {
     pub fn site(&self) -> &Site {
         match self {
-            Expr::Name { site, .. } | Expr::Focal { site } | Expr::Literal { site, .. } | Expr::Array { site, .. } | Expr::Object { site, .. } | Expr::Unary { site, .. } | Expr::Binary { site, .. } | Expr::Member { site, .. } | Expr::Call { site, .. } | Expr::Exists { site, .. } | Expr::Created { site, .. } | Expr::Assert { site, .. } | Expr::ShapeUse { site, .. } | Expr::Shape { site, .. } | Expr::Walk { site, .. } | Expr::Write { site, .. } => site,
+            Expr::Name { site, .. } | Expr::Focal { site } | Expr::Literal { site, .. } | Expr::Array { site, .. } | Expr::Object { site, .. } | Expr::Unary { site, .. } | Expr::Binary { site, .. } | Expr::Member { site, .. } | Expr::Call { site, .. } | Expr::Exists { site, .. } | Expr::Created { site, .. } | Expr::Assert { site, .. } | Expr::ShapeUse { site, .. } | Expr::Shape { site, .. } | Expr::Walk { site, .. } | Expr::If { site, .. } | Expr::Write { site, .. } => site,
             Expr::Read(read) => &read.site,
             Expr::Merge(merge) => &merge.site,
         }

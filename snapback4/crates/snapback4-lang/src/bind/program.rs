@@ -433,6 +433,32 @@ impl<'a> Binder<'a> {
                 }
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
+            A::If { then, condition, otherwise, .. } => {
+                let (cond, cond_ty) = self.expr(condition, out)?;
+                if !cond_ty.is_bool() {
+                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), "compare the value: `x if ttl != null else y`"));
+                }
+                // Each arm binds under its narrowing and runs only when taken.
+                let temp = self.temp("if");
+                let mut then_out = Vec::new();
+                self.push_scope();
+                self.narrow(condition, true);
+                let then_bound = self.expr(then, &mut then_out);
+                self.pop_scope();
+                let (then_expr, then_ty) = then_bound?;
+                let mut else_out = Vec::new();
+                self.push_scope();
+                self.narrow(condition, false);
+                let else_bound = self.expr(otherwise, &mut else_out);
+                self.pop_scope();
+                let (else_expr, else_ty) = else_bound?;
+                then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
+                else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
+                out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
+                out.push(Stmt::If { condition: cond, then_body: then_out, else_body: else_out });
+                let ty = if then_ty == Ty::Null { else_ty.optional() } else if else_ty == Ty::Null { then_ty.optional() } else { then_ty.join(&else_ty) };
+                Ok((ir::var(&temp), ty))
+            }
             A::Member { base, name, .. } => {
                 let (e, t) = self.expr(base, out)?;
                 self.member(e, t, name, site)

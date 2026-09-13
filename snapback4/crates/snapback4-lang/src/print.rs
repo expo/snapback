@@ -29,6 +29,7 @@ pub fn expression(expr: &Expr) -> String {
         Expr::ShapeUse { base, name, .. } => format!("{} {name}", expression(base)),
         Expr::Shape { base, fields, .. } => format!("{} {{ {} }}", expression(base), shape_fields(fields)),
         Expr::Walk { table, seed, column, depth, .. } => format!("walk {table}[{}] up .{column} depth {depth}", expression(seed)),
+        Expr::If { then, condition, otherwise, .. } => format!("{} if {} else {}", expression(then), expression(condition), expression(otherwise)),
         Expr::Write { op, table, keys, fields, if_absent, condition, .. } => {
             let mut out = format!("{} {table}", op.word());
             if *op != WriteOp::Insert {

@@ -49,14 +49,14 @@ fn an_added_aggregate_is_built_from_existing_rows() {
 fn an_expired_row_is_absent_then_swept() {
     let with = CHAT
         .replace("  editedAt: time ?\n  at: time\n  by byConvTime: conversationId, at, id\n", "  editedAt: time ?\n  at: time\n  expiresAt: time ?\n  by byConvTime: conversationId, at, id\n  by byExpiresAt: expiresAt\n  expire at .expiresAt\n")
-        .replace("mutation edit(messageId: messages, body: text <=4000):", "mutation sendBrief(conversationId: conversations, body: text <=4000, ttl: int):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages { conversationId, authorId: viewer, body, at: now, expiresAt: now + ttl }\n  return { id: row.id }\n\nmutation edit(messageId: messages, body: text <=4000):");
+        .replace("mutation edit(messageId: messages, body: text <=4000):", "mutation sendBrief(conversationId: conversations, body: text <=4000, ttl: int ?):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages { conversationId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }\n  return { id: row.id, brief: ttl != null }\n\nmutation edit(messageId: messages, body: text <=4000):");
     let mut engine = chat_engine_from(&with, &["dev:alice", "dev:bob"]);
     let send = |engine: &mut Engine, op: &str, body: &str, ttl: Option<i64>, at: i64| {
         let mut a = args(&[("conversationId", id("c1")), ("body", Value::String(body.into()))]);
         if let Some(ttl) = ttl {
             a.insert("ttl".into(), Value::Int(ttl));
         }
-        let outcome = engine.mutate(if ttl.is_some() { "sendBrief" } else { "send" }, Some(op), Context::new("dev:alice", a).at(at).with_ids([op.to_owned()])).unwrap();
+        let outcome = engine.mutate("sendBrief", Some(op), Context::new("dev:alice", a).at(at).with_ids([op.to_owned()])).unwrap();
         assert!(matches!(outcome.state, WriteState::Sent { .. }), "{:?}", outcome.state);
     };
     send(&mut engine, "keep", "forever", None, 1_000);
