@@ -24770,6 +24770,372 @@
       ],
       "unprovenHypothesis": "Directory/posting work is a suspect for investigation given 320956 posting keys over 20216 directory records. The diagnostic encoding expands binary keys and does not measure persisted size or heap. This run has no component timing that attributes the slowdown to indexing or separates it from owner receipt-group cost.",
       "decision": "Preserve the failed latency result before the next architecture change. The 25979.865335 ms full candidate point misses three seconds, the 105675-byte required runtime exceeds 90000, and the reduced UI leaves full application qualification outstanding. The 7494.677590 ms prior point is retained unchanged; the active goal remains open."
+    },
+    "blockIndexClientRestart": {
+      "date": "2026-09-12",
+      "kind": "isolated storage carrier restart full endpoint",
+      "status": "correctness and physical reopen pass; latency target failed; architecture rejected for acquisition",
+      "source": "4f649a9a5b149defc19fe7f1f6dab1889efd9398",
+      "method": {
+        "experiment": "sub3-20260912-block-index-client-01",
+        "harnessVersion": "v4-independent-block-inspection-retained-stop-attempts",
+        "instrumented": false,
+        "host": {
+          "hostname": "expose-builder-pixel-a",
+          "platform": "linux",
+          "release": "6.8.0-100-generic",
+          "node": "v24.13.1",
+          "cpus": 12,
+          "load": [
+            0.07,
+            0.08,
+            0.09
+          ]
+        },
+        "browser": "140.0.7339.186",
+        "clock": "Navigation includes SDK/program/auth loads, actual 100-conversation minimal DOM inbox, durable native content and receipt settlement, network cut and first named offline IR history/search. Independent physical inspection, actual owner/browser stop and offline process reopen follow the primary clock. Milestones are not additive cost attribution."
+      },
+      "fixedHashes": {
+        "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+        "oracle": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+        "owner": "582e5ed525e986c0c6e530d5fc68a780976789ca2fdb2a0b7f8ba66073f3ae39",
+        "compilerCore": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+        "browser": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+        "harness": "f7bdc90edc57f83d4bc3c79b789ba3c2bc4155fb8abd1d58e0ad709601153628",
+        "clientEntry": "a3edc44dae37d80f9d53905f0a66af2288f3e4d5a222cad4883fc8faf584990a",
+        "compiledProject": "526a8ddf51c2cb1b15aee97bc2695538d60a78aeeb7246c948d1ab6be020cdab",
+        "app": "a7a796c6af5ba9aacb67bd68549e9ff05f990dfa052e86267d2b71e12e832197"
+      },
+      "sample": {
+        "firstInboxMs": 379.06818999999996,
+        "contentMs": 73699.227811,
+        "receiptSettlementMs": 76107.77071699999,
+        "firstUseStartedAtMs": 76112.523142,
+        "completeAcquisitionMs": 76217.770491,
+        "firstOfflineHistoryMs": 72.20000076293945,
+        "firstOfflineSearchMs": 22.599998474121094,
+        "physicalReopenMs": 635.702409999998,
+        "reopenHistoryMs": 55.89999961853027,
+        "reopenSearchMs": 21.5,
+        "scope": "Navigation includes SDK/program/auth loads, actual 100-conversation minimal DOM inbox, durable native content and receipt settlement, network cut and first named offline IR history/search. Independent physical inspection, actual owner/browser stop and offline process reopen follow the primary clock. Milestones are not additive cost attribution."
+      },
+      "ownerReceipts": {
+        "sameKeys": true,
+        "total": 10008,
+        "finalReceived": 10008,
+        "falseToTrue": 5558,
+        "trueToFalse": 0,
+        "identityChanges": 0,
+        "initiallyReceived": 4450,
+        "firstSequenceChanges": 0,
+        "nonadvancingNewSequences": 0,
+        "validSequences": true,
+        "transitionsSha256": "02b43da0048f78b972dabe15366f72224328623ebeefd4755919d2507cf5490b",
+        "retainedFirstSequenceSha256": "0dff8e2c29afaace6e39b98c082198ee297cd598251222b2f93a06642cbdc936",
+        "observation": "Per-row before/after committed SQLite states. This counts changed receipt rows, not internal UPDATE statements or transport packets.",
+        "pass": true
+      },
+      "settlement": {
+        "remaining": 0,
+        "rejected": 0
+      },
+      "durable": {
+        "databaseVersion": 1,
+        "format": "snapback2-durable-blocks-v1",
+        "schema": [
+          {
+            "name": "blocks",
+            "keyPath": null,
+            "autoIncrement": false,
+            "indexes": []
+          },
+          {
+            "name": "meta",
+            "keyPath": null,
+            "autoIncrement": false,
+            "indexes": []
+          },
+          {
+            "name": "pages",
+            "keyPath": null,
+            "autoIncrement": true,
+            "indexes": []
+          },
+          {
+            "name": "proofs",
+            "keyPath": null,
+            "autoIncrement": false,
+            "indexes": []
+          },
+          {
+            "name": "scopes",
+            "keyPath": null,
+            "autoIncrement": false,
+            "indexes": [
+              {
+                "name": "dependencyKeys",
+                "keyPath": "dependencyKeys",
+                "multiEntry": true,
+                "unique": false
+              },
+              {
+                "name": "selectionKeys",
+                "keyPath": "selectionKeys",
+                "multiEntry": true,
+                "unique": false
+              }
+            ]
+          }
+        ],
+        "snapshots": {
+          "blocks": {
+            "records": 5366,
+            "diagnosticEncodedUtf8Bytes": 201931929,
+            "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+            "sha256": "dba71a9a792c5b7b43174f57b4ef2c3add16516a29b203ecf021782ed89ce273"
+          },
+          "meta": {
+            "records": 5,
+            "diagnosticEncodedUtf8Bytes": 620056,
+            "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+            "sha256": "80bf21ea77b4f7223cd00b1e22d5cecc0bf030ec10874cb8f97e7250556dcf65"
+          },
+          "pages": {
+            "records": 102,
+            "diagnosticEncodedUtf8Bytes": 8366996,
+            "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+            "sha256": "034b11ba5184023e1663ba5311ad9c55671d0d480f432b2ae22277e4715c8af0"
+          },
+          "proofs": {
+            "records": 3,
+            "diagnosticEncodedUtf8Bytes": 52082,
+            "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+            "sha256": "a2d999e330aee5a808b895b225b1c2fcf0ef4fcd2df811950ed5a36506d8882e"
+          },
+          "scopes": {
+            "records": 1,
+            "diagnosticEncodedUtf8Bytes": 1693,
+            "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+            "sha256": "4c906fd2f0a4a1a6f02e9d1f18404e35b0d268158fe0c45743a71d649a5b987e"
+          }
+        },
+        "tables": {
+          "conversations": 100,
+          "memberships": 100,
+          "deliveries": 10008,
+          "messages": 10008
+        },
+        "integrity": {
+          "pageRows": 20216,
+          "directoryRecords": 20216,
+          "postingKeys": 320956,
+          "scopeKeys": 10008,
+          "blockNamespaces": {
+            "directory": {
+              "initialized": true,
+              "entries": 20216,
+              "leaves": 401,
+              "revision": 30
+            },
+            "postings": {
+              "initialized": true,
+              "entries": 320956,
+              "leaves": 4922,
+              "revision": 30
+            },
+            "memberships": {
+              "initialized": true,
+              "entries": 10008,
+              "leaves": 40,
+              "revision": 28
+            }
+          },
+          "derivedIndexTotals": [
+            [
+              "messages",
+              "bySearch",
+              10008
+            ]
+          ],
+          "proofPositions": 101,
+          "proofRanges": 2,
+          "proofAbsences": 0,
+          "proofVerdicts": 0,
+          "scopes": 1
+        },
+        "state": {
+          "principal": "dev:alice",
+          "seq": 10290,
+          "serial": 201,
+          "sealed": false,
+          "logs": {
+            "deliveries": {
+              "cursor": "WzEsImRlbGl2ZXJpZXMiLCJieVJlY2lwaWVudCIsIkFzYyIsW3sibmFtZSI6InNlcSIsImtpbmQiOiJJbnQifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjEwMTA3fSx7IklkIjoiYTRmMTQ1OWU2NmFmYjVkYjQ0MDU4ODBiZDBhMmFjOGVhNWRlYWZmNjUwYzUyYjg3Y2MwOTkzYTFiOGY4MmFiMiJ9XV0",
+              "exhausted": true,
+              "acquired": 10008
+            }
+          },
+          "pendingPackets": 0,
+          "rejectedPackets": 0
+        },
+        "note": "Post-clock independent raw block decode and awaited diagnostic SDK inspection only. Fixture-only ASCII word derivation refuses unexpected non-ASCII indexed source; broader Unicode semantics remain covered by the actual SDK browser controls. Complete type-tagged hashes preserve all five raw stores without exporting bearer/token hash or raw state. Diagnostic bytes are not disk allocation or retained heap; scope status/index/dependency consistency is checked without replacing the timed IR authority oracle.",
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "sdkMessageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "sdkMatchesPhysical": true,
+        "matchesOwnerMessages": true
+      },
+      "durableReopen": {
+        "totalMs": 635.702409999998,
+        "inboxRows": 100,
+        "physicalOwnerStopped": true,
+        "physicalChromiumRestart": true,
+        "pass": true,
+        "allFiveSnapshotsIdentical": true,
+        "schemaIdentical": true
+      },
+      "reopenSnapshots": {
+        "blocks": {
+          "records": 5366,
+          "diagnosticEncodedUtf8Bytes": 201931929,
+          "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+          "sha256": "dba71a9a792c5b7b43174f57b4ef2c3add16516a29b203ecf021782ed89ce273"
+        },
+        "meta": {
+          "records": 5,
+          "diagnosticEncodedUtf8Bytes": 620056,
+          "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+          "sha256": "80bf21ea77b4f7223cd00b1e22d5cecc0bf030ec10874cb8f97e7250556dcf65"
+        },
+        "pages": {
+          "records": 102,
+          "diagnosticEncodedUtf8Bytes": 8366996,
+          "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+          "sha256": "034b11ba5184023e1663ba5311ad9c55671d0d480f432b2ae22277e4715c8af0"
+        },
+        "proofs": {
+          "records": 3,
+          "diagnosticEncodedUtf8Bytes": 52082,
+          "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+          "sha256": "a2d999e330aee5a808b895b225b1c2fcf0ef4fcd2df811950ed5a36506d8882e"
+        },
+        "scopes": {
+          "records": 1,
+          "diagnosticEncodedUtf8Bytes": 1693,
+          "encoding": "type-tagged JSON including binary keys; not persisted bytes",
+          "sha256": "4c906fd2f0a4a1a6f02e9d1f18404e35b0d268158fe0c45743a71d649a5b987e"
+        }
+      },
+      "storageEstimate": {
+        "quota": 280825793740,
+        "usage": 34696912,
+        "usageDetails": {
+          "indexedDB": 34696912
+        }
+      },
+      "singlePointComparison": {
+        "referenceExperiment": "sub3-20260912-receipt-group-durable-client-01",
+        "referenceSource": "6d85738294c4ae3bc553c12a84ce6f38b8168377",
+        "referenceRaw": "/tmp/sub3-20260912-receipt-group-durable-client-01.json",
+        "referenceRawSha256": "fdd37044c747e5153a214befaba7215ae7210495dcfd4cb458daacd57405d2bd",
+        "referenceFullMs": 25979.865335,
+        "candidateFullMs": 76217.770491,
+        "deltaMs": 50237.90515600001,
+        "ratio": 2.9337246174374756,
+        "referenceContentMs": 22482.19024,
+        "candidateContentMs": 73699.227811,
+        "sameOwner": true,
+        "scope": "One later candidate point versus a retained earlier point, not an adjacent randomized pair or distribution. Same owner, fixture, browser and unchanged primary timed app/query blocks; v4 independently inspects the changed physical format and retains stop attempts after the primary clock. This measures a large regression for the combined candidate; it does not attribute the cause to one function or storage primitive."
+      },
+      "qualification": {
+        "subThreeSeconds": false,
+        "replicatedCohort": false,
+        "distributionOrP95": false,
+        "sameLegacyProtocolOrUi": false,
+        "promotion": false,
+        "fullReactUi": false,
+        "runtimeBytes": {
+          "gzip": 111970,
+          "ceiling": 90000,
+          "passes": false,
+          "manifest": "/tmp/acquisition-block-index-sdk-manifest-20260912.json",
+          "manifestSha256": "dc2ffbf555407507b0efbc5d79cd74439d7c39b08b50f5c59ad40806af2448c6",
+          "scope": "Canonical five roots explicitly include NativeAcquisitionClient; no byte exemption."
+        },
+        "storageDiagnosticBytes": "Type-tagged diagnostic encoding is neither persisted payload size, disk allocation nor retained heap. Independent fixture-specific physical inspector runs only after the primary clock.",
+        "durability": "Actual IndexedDB completion and owner-offline physical Chromium restart; default browser durability, not fsync/power-loss qualification."
+      },
+      "postflight": {
+        "path": "/tmp/acquisition-block-postflight-20260912.json",
+        "sha256": "61ad534a84b127b5010a972ffd33adc329f284f442543d3b3a68134488d6e8b6",
+        "pass": true,
+        "allRelevantProcessesAbsent": true,
+        "recordedPidCount": 22,
+        "groupReleased": true
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/sub3-20260912-block-index-client-01.json",
+          "bytes": 63349,
+          "sha256": "8982c7a668ebd87589e547a56e29bc48baad1c3994b510c0f20a0b0ac3834d00"
+        },
+        {
+          "path": "/tmp/sub3-20260912-block-index-client-01.log",
+          "bytes": 331,
+          "sha256": "9e901e98c27b3215384b8dcb6c237964ba6d40bee09c46c8145519f0b270724c"
+        },
+        {
+          "path": "/tmp/acquisition-block-postflight-20260912.json",
+          "bytes": 9107,
+          "sha256": "61ad534a84b127b5010a972ffd33adc329f284f442543d3b3a68134488d6e8b6"
+        },
+        {
+          "path": "/tmp/acquisition-block-staged-preflight-20260912.json",
+          "bytes": 11207,
+          "sha256": "dc33036c5578f81b9416d345db606de659deb82ed77160c7e2f29e948212cfd9"
+        },
+        {
+          "path": "/tmp/acquisition-block-index-sdk-manifest-20260912.json",
+          "bytes": 108205,
+          "sha256": "dc2ffbf555407507b0efbc5d79cd74439d7c39b08b50f5c59ad40806af2448c6"
+        },
+        {
+          "path": "/tmp/acquisition-block-index-source-manifest-20260912.json",
+          "bytes": 227364,
+          "sha256": "f82f7b9969de76e6084dcb567a64f62e994399541aabc3ad550a53eaf4c8a9c5"
+        },
+        {
+          "path": "/tmp/acquisition-block-index-sdk-20260912.tar.gz",
+          "bytes": 1499480,
+          "sha256": "f8ae011dcb2caa4ff464171ee52eeca6eede38e20fe31370cb9015568b5d4481"
+        },
+        {
+          "path": "/tmp/acquisition-block-index-source-20260912.tar.gz",
+          "bytes": 4861526,
+          "sha256": "cef8e26449332d86b1d38fad3816ed175cd6f5d6de21d34a20fceb8d49c472c3"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-v4-20260912.mjs",
+          "bytes": 67682,
+          "sha256": "f7bdc90edc57f83d4bc3c79b789ba3c2bc4155fb8abd1d58e0ad709601153628"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-v4-20260912-manifest.json",
+          "bytes": 4670,
+          "sha256": "eafc699c7786cb565faa971b92b225a45d3b63aa714e64a3533e084383918417"
+        },
+        {
+          "path": "/tmp/acquisition-block-launch-01-20260912.sh",
+          "bytes": 1182,
+          "sha256": "8e3f9ef1ec52f06d0e267bd9a7b27ef54aa3d88e62c77cf0cd1a7eab6c0ef579"
+        },
+        {
+          "path": "/tmp/acquisition-block-index-sample-20260912.json",
+          "bytes": 43733,
+          "sha256": "1feec3929bfe89585da8a9aeec7051e1b78a266cf1eeb2542279612007ab111f"
+        }
+      ],
+      "decision": "Preserve the failed candidate and all evidence. Reject incremental browser block-index maintenance for acquisition. No profiling/parameter tuning/rerun of this candidate. Investigate bounded owner-built storage-ready transfer and atomic activation as a new unproven complete prototype, preserving the existing timed app and all oracles."
     }
   }
 }
