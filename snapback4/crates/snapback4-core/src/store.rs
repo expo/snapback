@@ -401,6 +401,13 @@ impl<'a> Tx<'a> {
         Ok(self.tx.query_row("SELECT COALESCE(MAX(seq), 0) + 1 FROM _commits", [], |row| row.get::<_, i64>(0))? as u64)
     }
 
+    /// A meta key written with the transaction (a device's watermark lands
+    /// with the rows it covers).
+    pub fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
+        self.tx.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, value])?;
+        Ok(())
+    }
+
     pub fn record_commit(&self, seq: u64, at: i64, program: &str, principal: &str, kind: &str, touched: &[String], writes: u64) -> Result<(), RuntimeError> {
         self.tx.execute(
             "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",

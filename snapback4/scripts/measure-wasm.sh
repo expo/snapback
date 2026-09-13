@@ -4,7 +4,7 @@
 # metrics/wasm.jsonl beside the TypeScript twin's numbers (LLP 2000.000 §9).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-cargo build -p snapback4-device --profile wasm --target wasm32-unknown-unknown --quiet
+cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet
 out=$(mktemp -d)
 wasm-bindgen --target web --out-dir "$out" target/wasm32-unknown-unknown/wasm/snapback4_device.wasm
 wasm=$out/snapback4_device_bg.wasm

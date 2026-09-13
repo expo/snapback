@@ -386,9 +386,11 @@ dependencies = [
 name = "snapback4-device"
 version = "0.1.12"
 dependencies = [
+ "rusqlite",
  "serde",
  "serde_json",
  "snapback4-core",
+ "snapback4-lang",
  "wasm-bindgen",
 ]
 

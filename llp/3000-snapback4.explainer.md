@@ -405,6 +405,8 @@ carries the chronology. After week four, 2026-09-12 (0.1.0):
 
 | `benchmarks/runs/2026-09-13-snapback4-clique-0003/` | the Clique hub run on 0.1.0, the whole brief, nothing struck: every milestone green in 7,002 s (M8 at 6,926 s), graded 84/1/16 of 101 (O1 62, O2 48, O4 35, O5 band 30), M7 capability-failure on the app's pre-existing logout crash after delivering its polls and migration; eight fix-forward releases the same night (0.1.1–0.1.8: one thread per request, asset facts on the argument, `a if cond else b`, `sum(page, .x)`, a one-second clock, the paged snapshot with `N_NO_HORIZON`, the outbox in submission order, `N_WIDE_MERGE`); then what the run said to do next: the `feeds` card (fan-out on write, compiled and run in `tests/clique.rs`), `onSession`/`useSession` for the sign-out contract the app's logout crash exposed, and the simulator witness proving a cold start offline and writes composed offline surviving a restart on SQLite | the run's landings, 0.1.12 |
 
+| `crates/snapback4-device` | the device in Rust: `rows::Rows` over the core's SQLite, the stream applied with the watermark, the outbox, `engine::local` queries and pending predictions, a generation change, one JSON call over a C ABI (`include/snapback4.h`), against a real engine in `tests/native.rs`; 1.7 MB linked on iOS; the same interpreter as wasm for the web measured at 194 KB gzip, so the web keeps TypeScript | the native landing |
+
 Not in slice one by decision: effects execution, word search
 (`NOT-DOING.md`).
 

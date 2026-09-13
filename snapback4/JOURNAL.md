@@ -1310,3 +1310,34 @@ store outright (the server's two-table SQLite layout, the same code),
 applies the stream, keeps the outbox, and answers queries and
 predictions; the JavaScript client keeps only the session, the link and
 the transport. That is the next landing; this one is the foundation.
+
+## 2026-09-13 — the native module: the device in Rust, over the core's own SQLite
+
+`snapback4-device` with its `native` feature (the default) is the device
+the TypeScript replica has been: the partition in the core's own SQLite,
+the server's two-table layout through the server's own code; the stream
+applied a page at a time with the watermark landing with the rows (a
+snapshot's first page clears, its last carries the watermark; a scope
+tombstone applies the table's leave policy, its group typed by the
+audience columns before it meets the index); the outbox as a side table
+in submission order; queries through `engine::local`; predictions in one
+transaction whose rows carry `pending: true` until the server's image
+replaces them, withdrawn if the server refuses; a generation change
+clearing the rows and keeping the outbox; and a JSON call over a C ABI —
+`sb4_open`, `sb4_call`, `sb4_free`, `sb4_close`, one `op` per request,
+every answer `ok` or `denied`, a query's refusal the card's `denied`
+inside `ok` — with `ffi::call` for a Rust host to use without the C
+layer. `tests/native.rs` runs it against a real server engine: the
+snapshot in pages of fifty, the thread paging with the server's cursors,
+a send predicted and counted then confirmed through the stream, a leave
+under `delivered-history` and `until-revoked`, a reopen keeping the
+watermark, a new generation not. What an app pays: the iOS dynamic
+library, production profile, stripped, is 1.7 MB (`text` 1,736,704 B),
+SQLite included (`scripts/measure-native.sh` → `metrics/native.jsonl`);
+the static archive is larger only because it carries every object. Next:
+the JavaScript tier over the module (`snapback4/native`: session, link,
+transport and observation only, one code path the TypeScript twin also
+implements so the client is tested without a device), the Expo module
+(Swift over the C ABI, a development build since Expo Go loads no custom
+native code, the simulator witness on it), and the Exact2 host, which
+links Rust and can call `ffi::call` directly.
