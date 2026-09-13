@@ -1240,3 +1240,32 @@ recorded discovered binary hashes and checked stability before each run.
 Expected build/archive, pilot and corrected-check bindings were reconciled
 **after** timing against retained artifacts; no pre-run expected-hash check
 or timing rerun is implied.
+
+## Plan reuse on the new independent readers
+
+The 0.2.6 source (`342c53d306d7484cd64e820ee27a151e02eb4b0b`) added
+independent read-only SQLite connections for HTTP query/sync work. Those
+connections skipped the QPSG setting in the ordinary store constructor.
+Commit `434ab8e79` restores the same per-connection planning policy before
+statements are cached. No SQL, transaction boundary or result cache changes.
+
+The new file-reader regression reproduced 12 automatic reprepares for 12
+bound scans before the fix. Afterward it passed with zero reprepares in
+both directions, exact rows/keys across bounds and limits, an unchanged
+snapshot across a concurrent index-changing commit, fresh rows in the next
+transaction, and schema-triggered plan invalidation. Linux qualification
+passed 129 Rust tests plus 211 corpus cases with 82 named skips. An initial
+host-test command selected a nonexistent library target; the separate
+corrected binary-target check passed. The failed invocation is retained.
+
+Matched ARM Darwin builds use the same 0.2.6 source plus this isolated
+runtime/test delta. Candidate qualification passed 129 Rust tests and the
+same corpus cases; baseline qualification passed 54 Rust tests. The initial
+parallel baseline host run exhausted Darwin's default 256 file descriptors;
+serial host checks passed at that unchanged limit, preserving each test's
+explicit concurrency. The original failure and the successful correction
+are bound by pre-measurement receipt SHA-256
+`5e1f073fb552873010edfcbea37c48deb8ecf1339be9cf7af502083c209e8597`.
+The [test-harness follow-up](../../../issues/20260913-snapback4-parallel-http-tests-exhaust-darwin-file-descriptors.md)
+records that environment limitation. These are source-built artifacts;
+HTTP comparison and publication evidence remain separate.
