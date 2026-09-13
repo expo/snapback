@@ -1125,3 +1125,16 @@ horizon is for, and the README says the memory store is for tests and
 Node hosts open SQLite. This is the Snapback 2 run's "cold sync 62 s /
 748 MB" answered where it should be: at `check`, before the corpus
 exists, and on the wire, a page at a time. Published `snapback4@0.1.6`.
+
+## 2026-09-13 — from the full-brief lane's M8 closure: the outbox in submission order; 0.1.7
+
+The lane's last attributed line: queued writes did not always flush in
+the order they were submitted, and it re-ordered them itself through the
+client's `fetch` and `store` seams. True: the outbox flushed by id, and an
+id is 48 bits of milliseconds then 80 of entropy, so two writes in one
+millisecond flushed in the order of their entropy. Now an id minted by
+one process strictly increases (two in one millisecond take successive
+milliseconds), and the outbox carries its own submission sequence, kept
+in the store's meta and flushed by, so the order survives a restart and
+a clock that steps back. Test: twenty sends in one offline burst reach
+the other device in the order they were sent. Published `snapback4@0.1.7`.

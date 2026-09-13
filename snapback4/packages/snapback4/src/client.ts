@@ -39,8 +39,15 @@ interface Watch {
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-/** A time-ordered 128-bit id: 48 bits of milliseconds, 80 bits of entropy, 26 base32 digits. */
+let lastMinted = 0;
+
+/** A time-ordered 128-bit id: 48 bits of milliseconds, 80 bits of entropy,
+ * 26 base32 digits. Ids minted by one process strictly increase: two in one
+ * millisecond take successive milliseconds, so their order is the order
+ * they were minted in, not the order of their entropy. */
 export function mintId(now = Date.now()): string {
+  now = Math.max(now, lastMinted + 1);
+  lastMinted = now;
   const bytes = new Uint8Array(10);
   if (typeof crypto !== "undefined" && crypto.getRandomValues) crypto.getRandomValues(bytes);
   else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);

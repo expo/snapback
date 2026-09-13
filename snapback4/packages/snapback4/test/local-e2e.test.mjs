@@ -109,6 +109,49 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
   }
 });
 
+test("queued writes flush in the order they were submitted", { timeout: 60_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sb4-fifo-"));
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
+  const fifoPort = port + 40;
+  const fifoUrl = `http://127.0.0.1:${fifoPort}`;
+  const server = spawn(binary, ["dev", "--port", String(fifoPort), "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  let log = "";
+  server.stdout.on("data", (d) => (log += d));
+  server.stderr.on("data", (d) => (log += d));
+  try {
+    await until(async () => { try { await fetch(fifoUrl); return true; } catch { return false; } });
+    await fetch(`${fifoUrl}/seed`, { method: "POST", body: JSON.stringify([
+      { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
+      { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
+      { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
+    ]) });
+    let offline = false;
+    const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
+    const alice = await createLocalClient({ url: fifoUrl, persona: "alice", store: "memory", fetch: gated, waitSeconds: 1 });
+    const bob = await createLocalClient({ url: fifoUrl, persona: "bob", store: "memory", waitSeconds: 1 });
+    offline = true;
+    await until(async () => { await alice.mutate(api.send, { conversationId: "c1", body: "probe" }); return alice.link() === "offline"; });
+    // Twenty sends in one burst, well inside one millisecond of each other.
+    const writes = await Promise.all(Array.from({ length: 20 }, (_, n) => alice.mutate(api.send, { conversationId: "c1", body: `q${String(n).padStart(2, "0")}` })));
+    assert.ok(writes.every((w) => w.state === "pending"));
+    offline = false;
+    const thread = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.length === 21 ? r : null; }, 20_000);
+    const bodies = thread.data.map((m) => m.body).filter((b) => b !== "probe").reverse();
+    try {
+      assert.deepEqual(bodies, Array.from({ length: 20 }, (_, n) => `q${String(n).padStart(2, "0")}`));
+    } finally {
+      await alice.close(); await bob.close();
+    }
+  } catch (error) {
+    error.message += `\n--- server log ---\n${log}`;
+    throw error;
+  } finally {
+    server.kill();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("a device restores its session on its own", { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
