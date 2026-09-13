@@ -40,6 +40,7 @@ impl Host {
             uploads: AtomicUsize::new(0),
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
+            effect_wait: Mutex::new(None),
         });
         let server = Arc::new(
             Server::http_with_limits(("127.0.0.1", 0), tiny_http::ConnectionLimits::default())
@@ -350,6 +351,56 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
     *host.shared.seq.lock().unwrap() = 1;
     host.shared.committed.notify_all();
     assert_eq!(status(&poll.join().unwrap()), 401);
+}
+
+#[test]
+fn an_effect_claim_rechecks_service_session_after_waiting() {
+    let host = Host::new(false);
+    let token = {
+        let engine = host.shared.engine.lock().unwrap();
+        snapback4_core::identity::service_session(
+            engine.store(),
+            "worker",
+            snapback4_core::now_ms(),
+            1,
+        )
+        .unwrap()
+        .token
+    };
+    let (woke_tx, woke_rx) = mpsc::channel();
+    let release = Arc::new((Mutex::new(false), Condvar::new()));
+    let release_at_wait = release.clone();
+    *host.shared.effect_wait.lock().unwrap() = Some(Arc::new(move || {
+        woke_tx.send(()).unwrap();
+        let (lock, ready) = &*release_at_wait;
+        let mut released = lock.lock().unwrap();
+        while !*released {
+            released = ready.wait(released).unwrap();
+        }
+    }));
+
+    let address = host.address;
+    let bearer = format!("Authorization: Bearer {token}\r\n");
+    let worker = thread::spawn(move || {
+        exchange(
+            address,
+            &format!(
+                "POST /effects/claim HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 10\r\n{bearer}\r\n{{\"wait\":1}}"
+            ),
+        )
+    });
+    woke_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+    {
+        let engine = host.shared.engine.lock().unwrap();
+        snapback4_core::identity::close_session(engine.store(), &token).unwrap();
+    }
+    let (lock, ready) = &*release;
+    *lock.lock().unwrap() = true;
+    ready.notify_all();
+
+    let response = worker.join().unwrap();
+    assert_eq!(status(&response), 401, "{response}");
+    assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
 }
 
 fn quick_limits() -> tiny_http::ConnectionLimits {

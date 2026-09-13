@@ -560,7 +560,9 @@ time-ordered 128-bit form.
   password bodies and attempts per peer and normalized email are bounded, and
   unknown accounts pay the same verification work. Ordinary sessions last
   seven days. Refresh replaces the presented session, logout-all revokes every
-  session for its principal, and expired sessions are pruned. The web client
+  session for its principal, and expired sessions are pruned. Change polls and
+  effect claims reauthenticate after waiting before observing or claiming new
+  work. The web client
   keeps credentials in memory by default, exposes localStorage only as an
   explicit compatibility store, and refreshes a near-expiry session before it
   becomes unusable.

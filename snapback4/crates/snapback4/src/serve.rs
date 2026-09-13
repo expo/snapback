@@ -43,6 +43,8 @@ pub struct Shared {
     pub auth_work: WorkHook,
     #[cfg(test)]
     pub upload_work: WorkHook,
+    #[cfg(test)]
+    pub effect_wait: WorkHook,
 }
 
 /// A connection lasts as long as its poll and a grace after it: a client
@@ -128,6 +130,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
+        #[cfg(test)] effect_wait: Mutex::new(None),
     });
     let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
@@ -895,10 +898,6 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         (Method::Post, "/effects/claim") => {
-            let worker = match service_of(&request, shared) {
-                Ok(worker) => worker,
-                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
-            };
             let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
             let effect = payload.get("effect").and_then(Json::as_str).map(str::to_owned);
             let limit = payload.get("limit").and_then(Json::as_u64).unwrap_or(1).clamp(1, 100) as usize;
@@ -906,6 +905,14 @@ fn handle(mut request: Request, shared: &Shared) {
             let wait = payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25);
             let deadline = Instant::now() + Duration::from_secs(wait);
             loop {
+                // @ref LLP 3000#7-decisions-during-execution — long effect claims reauthenticate after every wait.
+                // A wait is a new authorization boundary: a token revoked or
+                // expired while no work was available cannot claim work that
+                // appeared afterward.
+                let worker = match service_of(&request, shared) {
+                    Ok(worker) => worker,
+                    Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+                };
                 let claimed = shared.engine.lock().unwrap().claim_effects(&worker, effect.as_deref(), limit, lease_ms, snapback4_core::now_ms());
                 match claimed {
                     Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
@@ -914,6 +921,8 @@ fn handle(mut request: Request, shared: &Shared) {
                         let seq = shared.seq.lock().unwrap();
                         let remaining = deadline.saturating_duration_since(Instant::now()).min(Duration::from_secs(2));
                         let _ = shared.committed.wait_timeout(seq, remaining).unwrap();
+                        #[cfg(test)]
+                        test_work(&shared.effect_wait);
                     }
                     Ok(runs) => return respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
                     Err(error) => { let refusal = error.refusal(); return respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
