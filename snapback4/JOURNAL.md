@@ -2121,3 +2121,14 @@ the guide's `native` card, the language card, the programs card and the
 README carry the read. Not done: the web's second build; the SDK on
 crates.io.
 
+
+## 2026-09-13 — 0.2.4 published: native reads, the device-side twin
+
+`snapback4@0.2.4` and `snapback4-darwin-arm64@0.2.4` are on npm
+(15:35 UTC): the twin of LLP 3000.005 §9 on the pin. The publish ran the
+suite green in 65 s under a load of about twenty, built the production
+binary (6,802,080 B, opt-level 3), packed 439,283 B for the client and
+3,329,586 B for the platform, proved the installed consumer, and published
+both in 176 s. The client tarball carries the web device's wasm without
+the host (1.4 MB raw), as §9 decided. The registry answered `snapback4@0.2.4`
+about two minutes after the platform package; a view in between reads 404.
