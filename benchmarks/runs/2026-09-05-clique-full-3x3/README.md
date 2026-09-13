@@ -83,7 +83,7 @@ coverage manifest claiming assertions its suite does not actually exercise.
 | grok-snapback2 | green | 31 min |
 | grok-convex | green | 22 min |
 | grok-supabase | pending | |
-| muse-snapback2 | pending | |
+| muse-snapback2 | green (retained artifact; audited 2026-09-13) | 5 h 58 min 26 s (over 4 h safety cap) |
 | muse-convex | green | 429 min |
 | muse-supabase | pending | |
 
@@ -91,6 +91,30 @@ coverage manifest claiming assertions its suite does not actually exercise.
 muse-convex's wall includes hours of idle provider retries between turns. grok-supabase's first
 M7 session died after its suite passed and continues in a second session; muse-snapback2's first
 M7 attempt died at its first line on a provider outage and was relaunched.
+
+##### 2026-09-13 retained-artifact audit: muse-snapback2 M7
+
+The `pending` entry originally recorded above was stale, not evidence that the
+relaunched session remained unfinished. A read-only audit of the retained raw
+lane found a completed `muse-spark-1.3` / `xhigh` run. The lane clock records
+`start=1788775348` (2026-09-07 03:02:28 PDT) and `end=1788796854`
+(2026-09-07 09:00:54 PDT), or 21,506 seconds (5 h 58 min 26 s). The launcher
+receipt begins six seconds earlier at epoch 1788775342. The run reports M7 green:
+the suite passed 7/7, choreography passed 2/2 on its first segment attempt, the
+pre/post comparison retained all 39 prior message reads, and all prior milestone
+suites passed again. This exceeded the benchmark's four-hour safety cap and must
+not be presented as a clean on-budget completion.
+
+The audited raw sources under `/Users/ccheever/clique-full-20260905/` are:
+
+- `logs/muse-snapback2.m7.start.json` — SHA-256 `f9726efbd948e248fa58990a3e700c240989861cf4e9104a147ff1e19744efc1`
+- `logs/muse-snapback2.m7.ndjson` — SHA-256 `79b399ef936c5457f6fffd354d989f00cfb0ec68230f0a0f8165bc8174519b79`; ends with durable `run.terminal.completed`
+- `lanes/muse-snapback2/m7/run-log.md` — SHA-256 `63e15499a034c63635744d7b29cf844ee60b7f03616e63bfbf57086ddd38e264`
+- `lanes/muse-snapback2/m7/final-report.md` — SHA-256 `ede0d6e88ab0c706163487dd2cad051f781485de280850ba37580dd582185932`
+- `lanes/muse-snapback2/receipts/suite-m7.json` — SHA-256 `57f4466b30bc13d6843e6a2db4ab83c78032156568bc27b529acc5e2742f35b8`
+- `lanes/muse-snapback2/receipts/choreo-m7.jsonl` — SHA-256 `e31419a84b388497cc4faeb16370e60cac218a5b163c926617f6aff9c5f0d8ab`
+- `lanes/muse-snapback2/m7/pre-snapshot/manifest.json` — SHA-256 `69b96ac7edea751a1a34fa4eaf95f2a9c5f2887f03fa93e12a18c89b244ca680`
+- `lanes/muse-snapback2/m7/post-snapshot/manifest.json` — SHA-256 `24f50720a46fc3461b3316e3932c228d9d3dba4cf5a4c04e01dc7c63178763d4`
 
 Per-lane records (`record-<wave>-<backend>.json`, validated with
 `benchmarks/tools/social-messenger/record-validator.mjs`), the grading reports,
