@@ -1,0 +1,200 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  defaultSessionStore,
+  forgetSession,
+  keepSession,
+  localStorageSessionStore,
+  memorySessionStore,
+  restoreSession,
+} from "../dist/auth.js";
+import { createClient } from "../dist/client.js";
+import { createLocalClient } from "../dist/local.js";
+import { listEffects, mintSession, revokeSessions, runWorker } from "../dist/worker.js";
+
+const session = (token, expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000) => ({ principal: "user:alice", kind: "user", token, expiresAt });
+const auth = (init) => new Headers(init?.headers).get("authorization");
+const until = async (predicate, message) => {
+  const deadline = Date.now() + 2_000;
+  while (!predicate() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.ok(predicate(), message);
+};
+
+test("the default session store stays in memory and browser persistence is explicit", async () => {
+  const calls = [];
+  const values = new Map();
+  const storage = {
+    getItem(key) { calls.push(["get", key]); return values.get(key) ?? null; },
+    setItem(key, value) { calls.push(["set", key, value]); values.set(key, value); },
+    removeItem(key) { calls.push(["delete", key]); values.delete(key); },
+  };
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const url = `https://memory-${Date.now()}.invalid`;
+  try {
+    await keepSession(url, session("memory-token"), defaultSessionStore);
+    assert.equal((await restoreSession(url, defaultSessionStore)).token, "memory-token");
+    await forgetSession(url, defaultSessionStore);
+    assert.deepEqual(calls, [], "the secure default never consults page-readable localStorage");
+
+    const persistent = localStorageSessionStore(storage);
+    await keepSession(url, session("persistent-token"), persistent);
+    assert.equal((await restoreSession(url, persistent)).token, "persistent-token");
+    await forgetSession(url, persistent);
+    assert.deepEqual(calls.map(([op]) => op), ["set", "get", "delete"]);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    else delete globalThis.localStorage;
+  }
+});
+
+test("the local client rotates near expiry and keeps every protected request on the current bearer", async () => {
+  const base = "https://sessions.invalid";
+  const backend = {
+    generation: 1,
+    schema: { tables: { remote: { columns: {}, indexes: {}, sync: null } } },
+    programs: [{ name: "remote", kind: "Query", args: {}, body: [{ table: "remote" }] }],
+    native: { digest: "native-one", jobs: [], reads: [] },
+  };
+  const requests = [];
+  let refreshes = 0;
+  let native = null;
+  let changes = 0;
+  let answerOldPoll;
+  const held = new Set();
+  const doFetch = async (input, init = {}) => {
+    const url = new URL(input);
+    requests.push({ path: url.pathname, authorization: auth(init) });
+    if (url.pathname === "/auth/refresh") {
+      refreshes += 1;
+      return Response.json({ session: session(`rotated-${refreshes}`, Date.now() + 7 * 24 * 60 * 60 * 1000) });
+    }
+    if (url.pathname === "/auth/logout-all") return Response.json({ ok: true, revoked: 3 });
+    if (url.pathname === "/schema") return Response.json(backend);
+    if (url.pathname === "/native.wasm") return new Response(new Uint8Array([0, 1, 2]));
+    if (url.pathname === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (url.pathname === "/q/remote") return Response.json({ data: "server", complete: true, seq: 0, tables: ["remote"], viewer: "user:alice" });
+    if (url.pathname === "/changes") {
+      changes += 1;
+      if (changes === 1) return new Promise((resolve) => { answerOldPoll = () => resolve(Response.json({ denied: { code: "E_AUTH", family: "auth", message: "old token" } }, { status: 401 })); });
+      return new Promise((resolve, reject) => {
+        const stop = () => { held.delete(stop); reject(new DOMException("aborted", "AbortError")); };
+        held.add(stop);
+        init.signal?.addEventListener("abort", stop, { once: true });
+      });
+    }
+    throw new Error(`unexpected request ${url.pathname}`);
+  };
+  const core = {
+    async call(request) {
+      switch (request.op) {
+        case "sync_state": return { ok: { watermark: 0, generation: 1, send_revision: 0, pending_ids: [] } };
+        case "state": return { ok: { watermark: 0, generation: 1, native } };
+        case "backend": return { ok: backend };
+        case "next_submission": return { ok: 1 };
+        case "meta": return { ok: 0 };
+        case "set_meta": return { ok: true };
+        case "install_native": native = request.digest; return { ok: true };
+        case "apply": return { ok: { touched: [] } };
+        case "queued": return { ok: [] };
+        default: return { ok: true };
+      }
+    },
+    async close() {},
+  };
+  const store = memorySessionStore();
+  const client = await createLocalClient({
+    url: base,
+    session: session("old-token", Date.now() + 1_000),
+    sessionStore: store,
+    device: { open: async () => core },
+    fetch: doFetch,
+    waitSeconds: 1,
+  });
+  assert.equal(client.session().token, "rotated-1", "a provided near-expiry session rotates before schema discovery");
+  assert.equal((await restoreSession(base, store)).token, "rotated-1");
+  await until(() => changes === 1, "the authenticated changes follower started");
+
+  const observed = [];
+  client.onSession((value) => observed.push(value?.token ?? null));
+  const rotated = await client.refreshSession();
+  assert.equal(rotated.ok, true);
+  assert.equal(client.session().token, "rotated-2");
+  assert.equal((await restoreSession(base, store)).token, "rotated-2");
+  assert.deepEqual(observed, ["rotated-2"]);
+
+  answerOldPoll();
+  await until(() => changes >= 2, "the follower recovered with the replacement bearer");
+  assert.equal(client.session().token, "rotated-2", "a delayed refusal for the invalidated token cannot end the replacement session");
+  assert.equal((await client.query({ name: "remote" }, {})).data, "server");
+
+  const revoked = await client.logoutAll();
+  assert.deepEqual(revoked, { ok: true, revoked: 3 });
+  assert.equal(client.session(), null);
+  assert.equal(client.link(), "signed-out");
+  assert.equal(await restoreSession(base, store), null);
+  assert.deepEqual(observed, ["rotated-2", null]);
+
+  const byPath = (path) => requests.filter((request) => request.path === path).map((request) => request.authorization);
+  assert.deepEqual(byPath("/auth/refresh"), ["Bearer old-token", "Bearer rotated-1"]);
+  for (const path of ["/schema", "/native.wasm"]) assert.deepEqual(byPath(path), ["Bearer rotated-1"]);
+  assert.ok(byPath("/sync").includes("Bearer rotated-1"));
+  assert.ok(byPath("/sync").includes("Bearer rotated-2"));
+  assert.deepEqual(byPath("/changes").slice(0, 2), ["Bearer rotated-1", "Bearer rotated-2"]);
+  assert.deepEqual(byPath("/q/remote"), ["Bearer rotated-2"]);
+  assert.deepEqual(byPath("/auth/logout-all"), ["Bearer rotated-2"]);
+  for (const stop of held) stop();
+});
+
+test("an authenticated change-feed refusal signs the online client out", async () => {
+  let changes = 0;
+  const client = createClient({
+    url: "https://online.invalid",
+    session: session("online-token"),
+    waitSeconds: 1,
+    fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      assert.equal(auth(init), "Bearer online-token");
+      if (path === "/q/read") return Response.json({ data: 1, complete: true, seq: 0, tables: ["items"], viewer: "user:alice" });
+      if (path === "/changes") {
+        changes += 1;
+        return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "session ended" } }, { status: 401 });
+      }
+      throw new Error(`unexpected request ${path}`);
+    },
+  });
+  const observed = client.observe({ name: "read" }, {});
+  await until(() => changes === 1 && client.link() === "signed-out", "the protected change feed ended the client session");
+  assert.equal(client.viewer(), null);
+  assert.equal(observed.getSnapshot().denied?.code, "E_AUTH");
+  await client.close();
+});
+
+test("worker, effect inspection, and service-session calls always carry the service bearer", async () => {
+  const token = "service-secret";
+  const requests = [];
+  const stop = new AbortController();
+  const doFetch = async (input, init = {}) => {
+    const path = new URL(input).pathname;
+    requests.push({ path, authorization: auth(init) });
+    if (path === "/effects/claim") {
+      stop.abort();
+      return Response.json({ effects: [] });
+    }
+    if (path === "/effects") return Response.json({ effects: [] });
+    if (path === "/auth/session") return Response.json({ session: { principal: "member:42", kind: "member", token: "member-token", expiresAt: Date.now() + 60_000 } });
+    if (path === "/auth/revoke") return Response.json({ revoked: 2 });
+    throw new Error(`unexpected request ${path}`);
+  };
+  await listEffects(baseFor("effects"), token, "queued", doFetch);
+  await mintSession(baseFor("effects"), token, "member:42", "member", undefined, doFetch);
+  await revokeSessions(baseFor("effects"), token, "member:42", doFetch);
+  await runWorker({ url: baseFor("effects"), token, effects: { notify: () => null }, signal: stop.signal, fetch: doFetch }).done;
+  assert.deepEqual(requests.map(({ path }) => path), ["/effects", "/auth/session", "/auth/revoke", "/effects/claim"]);
+  assert.ok(requests.every(({ authorization }) => authorization === `Bearer ${token}`));
+});
+
+function baseFor(name) {
+  return `https://${name}.invalid`;
+}

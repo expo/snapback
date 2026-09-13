@@ -11,7 +11,20 @@ import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, 
 import { createClient, mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
-import { defaultSessionStore, forgetSession, guest, keepSession, logout, restoreSession, type Session, type SessionStore } from "./auth.ts";
+import {
+  defaultSessionStore,
+  forgetSession,
+  guest,
+  keepSession,
+  logout,
+  logoutAll as revokeAllSessions,
+  refreshSession as rotateSession,
+  restoreSession,
+  type Session,
+  type SessionRevocation,
+  type SessionStore,
+  type SignIn,
+} from "./auth.ts";
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
@@ -43,6 +56,10 @@ export type LocalClient = Client & {
   sync(): Promise<void>;
   session(): Session | null;
   onSession(notify: (session: Session | null) => void): () => void;
+  /** Rotate this device's bearer and atomically adopt the replacement. */
+  refreshSession(): Promise<SignIn>;
+  /** Revoke every session for this principal and close this client. */
+  logoutAll(): Promise<SessionRevocation>;
   signOut(): Promise<void>;
 };
 
@@ -72,6 +89,13 @@ interface Queued {
 }
 
 const PAGE = 4000;
+const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
+class BackendAuthError extends Error {
+  constructor(readonly denied: Refusal) {
+    super(`${denied.code}: ${denied.message}`);
+  }
+}
 
 async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   try {
@@ -101,34 +125,40 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let session: Session | null = null;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
-    if (options.session) {
-      session = options.session;
-      await keepSession(base, session, sessions);
-    } else session = await restoreSession(base, sessions);
+    session = options.session ?? await restoreSession(base, sessions);
+    if (session && (!Number.isFinite(session.expiresAt) || session.expiresAt <= Date.now())) {
+      session = null;
+      await forgetSession(base, sessions);
+    }
     if (!session && options.guest) {
       const signedIn = await guest(base, doFetch);
       if (!signedIn.ok) throw new Error(`createLocalClient: ${signedIn.why.code}: ${signedIn.why.message}`);
       session = signedIn.session;
-      await keepSession(base, session, sessions);
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
+    if (session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
+      const refreshed = await rotateSession(base, session.token, doFetch);
+      if (refreshed.ok) {
+        if (refreshed.session.principal !== session.principal) {
+          await forgetSession(base, sessions);
+          throw new Error("createLocalClient: E_AUTH: a refreshed session changed principal");
+        }
+        session = refreshed.session;
+      } else if (refreshed.why.code === "E_AUTH") {
+        await forgetSession(base, sessions);
+        throw new Error(`createLocalClient: ${refreshed.why.code}: ${refreshed.why.message}`);
+      }
+    }
+    await keepSession(base, session, sessions);
     headers.authorization = `Bearer ${session.token}`;
   }
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
   let sessionDead = false;
+  let credentialRevision = 0;
+  let rotating = false;
   const sessionListeners = new Set<(session: Session | null) => void>();
-  const endSession = async () => {
-    sessionDead = true;
-    delete headers.authorization;
-    delete headers["x-snapback-persona"];
-    setLink("signed-out");
-    await forgetSession(base, sessions);
-    for (const listener of sessionListeners) listener(null);
-  };
-  const refusedSession = async (denied: unknown) => {
-    if (!sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
-  };
+  const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
 
   // The device opens on the backend the server sends, or on the one it
   // kept when the server is unreachable: a device that has synced once
@@ -138,8 +168,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let generation = 0;
   let backend: BackendJson | null = null;
   try {
-    backend = await loadBackend(doFetch, base, headers);
-  } catch {
+    backend = await loadBackend(doFetch, base, requestCredentials().headers);
+  } catch (error) {
+    if (error instanceof BackendAuthError) {
+      await forgetSession(base, sessions);
+      throw new Error(`createLocalClient: ${error.denied.code}: ${error.denied.message}`);
+    }
     link = "offline";
   }
   const active = new Set<Promise<unknown>>();
@@ -160,7 +194,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const have = (await call({ op: "state" })).ok as { native?: string | null } | undefined;
     if (have?.native === wanted) return;
     try {
-      const response = await doFetch(`${base}/native.wasm`, { headers, ...(signal ? { signal } : {}) });
+      const request = requestCredentials();
+      const response = await doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) });
       if (!response.ok) return;
       const bytes = new Uint8Array(await response.arrayBuffer());
       let hex = "";
@@ -171,7 +206,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   };
   await installNative();
-  const online = createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
+  const makeOnline = () => createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
+  let online = makeOnline();
+  let onlineRevision = credentialRevision;
   let closed = false;
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
@@ -213,14 +250,104 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) void rerun(watch);
   };
 
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  let refreshing: Promise<SignIn> | null = null;
+
+  const endSession = async () => {
+    if (sessionDead) return;
+    sessionDead = true;
+    session = null;
+    rotating = false;
+    credentialRevision += 1;
+    if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = undefined; }
+    delete headers.authorization;
+    delete headers["x-snapback-persona"];
+    setLink("signed-out");
+    await forgetSession(base, sessions);
+    for (const listener of [...sessionListeners]) listener(null);
+  };
+
+  const refusedSession = async (denied: unknown, revision: number) => {
+    if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
+  };
+
+  const scheduleRefresh = (retryAfter?: number) => {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = undefined;
+    if (closed || sessionDead || options.persona || !session) return;
+    const untilDue = Math.max(0, session.expiresAt - Date.now() - REFRESH_BEFORE_EXPIRY_MS);
+    const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
+    const delay = Math.min(Math.max(1, requested), 2_147_000_000);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = undefined;
+      if (requested > delay) scheduleRefresh();
+      else void refreshCurrent().catch(() => scheduleRefresh(60_000));
+    }, delay);
+    (refreshTimer as { unref?: () => void }).unref?.();
+  };
+
+  const refreshCurrent = (): Promise<SignIn> => {
+    if (refreshing) return refreshing;
+    if (closed) return Promise.resolve({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } });
+    if (sessionDead || !session || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+    const token = session.token;
+    const expectedPrincipal = session.principal;
+    rotating = true;
+    credentialRevision += 1;
+    const work = (async (): Promise<SignIn> => {
+      const refreshed = await rotateSession(base, token, doFetch);
+      if (!refreshed.ok) {
+        rotating = false;
+        credentialRevision += 1;
+        if (refreshed.why.code === "E_AUTH" && session?.token === token) await endSession();
+        else if (refreshed.why.retryable) scheduleRefresh(60_000);
+        return refreshed;
+      }
+      if (refreshed.session.principal !== expectedPrincipal) {
+        const why: Refusal = { code: "E_AUTH", family: "auth", message: "a refreshed session changed principal" };
+        rotating = false;
+        credentialRevision += 1;
+        await endSession();
+        return { ok: false, why };
+      }
+      session = refreshed.session;
+      headers.authorization = `Bearer ${session.token}`;
+      credentialRevision += 1;
+      const previous = online;
+      if (!closed) {
+        online = makeOnline();
+        onlineRevision = credentialRevision;
+      }
+      let persistenceError: unknown;
+      try { await keepSession(base, session, sessions); }
+      catch (error) { persistenceError = error; }
+      rotating = false;
+      if (!closed) {
+        for (const listener of [...sessionListeners]) listener(session);
+        setLink("online");
+      }
+      await previous.close();
+      scheduleRefresh();
+      if (persistenceError) throw persistenceError;
+      return refreshed;
+    })();
+    refreshing = work;
+    void work.finally(() => {
+      rotating = false;
+      if (refreshing === work) refreshing = null;
+    }).catch(() => {});
+    return work;
+  };
+
   async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
     if (closed || sessionDead) return { ok: false };
     try {
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body), signal: aborter.signal });
+      const request = requestCredentials();
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers: request.headers, body: JSON.stringify(body), signal: aborter.signal });
       const json = (await response.json()) as Record<string, unknown>;
       if (closed) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
-      await refusedSession(json.denied ?? json.why);
+      await refusedSession(json.denied ?? json.why, request.revision);
       if (link !== "online") setLink("online");
       return { ok: true, json };
     } catch {
@@ -250,21 +377,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: Record<string, unknown>;
+        let pageRevision = credentialRevision;
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
           const { pending_ids: pending, send_revision } = captured.ok as { pending_ids: string[]; send_revision: number };
-          const response = await doFetch(`${base}/sync?from=${watermark}&limit=${PAGE}${after ? `&after=${encodeURIComponent(after)}` : ""}${catchingUp ? "&stream=1" : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
+          const request = requestCredentials();
+          const response = await doFetch(`${base}/sync?from=${watermark}&limit=${PAGE}${after ? `&after=${encodeURIComponent(after)}` : ""}${catchingUp ? "&stream=1" : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers: request.headers, signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as Record<string, unknown>;
           page.send_revision = send_revision;
+          pageRevision = request.revision;
         } catch {
           setLink("offline");
           return false;
         }
         if (closed) return false;
         if (page.denied) {
-          await refusedSession(page.denied);
+          await refusedSession(page.denied, pageRevision);
           if (!(page.denied as Refusal).retryable) {
             if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${(page.denied as Refusal).code}: ${(page.denied as Refusal).message}`);
             partitionDenied = page.denied as Refusal;
@@ -278,14 +408,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (pageGeneration !== generation) {
           // A new generation: adopt the backend the server now serves; the
           // device drops its rows and the next round takes a snapshot.
+          let backendRevision = credentialRevision;
           try {
-            backend = await loadBackend(doFetch, base, headers, aborter.signal);
+            const request = requestCredentials();
+            backendRevision = request.revision;
+            backend = await loadBackend(doFetch, base, request.headers, aborter.signal);
             if (closed) return false;
             const adopted = await call({ op: "adopt", backend });
             if (adopted.denied) return false;
             await installNative(aborter.signal);
             generation = Number(backend.generation ?? pageGeneration);
-          } catch {
+          } catch (error) {
+            if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
             return false;
           }
           watermark = 0; after = undefined; catchingUp = false; continue;
@@ -325,9 +459,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return;
     }
     try {
-      const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
-      if (!response.ok) throw new Error(`changes: HTTP ${response.status}`);
-      const json = (await response.json()) as { seq: number; tables?: string[]; generation?: number };
+      const request = requestCredentials();
+      const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers: request.headers, signal: aborter.signal });
+      const json = (await response.json()) as { seq: number; tables?: string[]; generation?: number; denied?: Refusal };
+      if (!response.ok || json.denied) {
+        await refusedSession(json.denied, request.revision);
+        if (json.denied?.code === "E_AUTH") return;
+        throw new Error(`changes: HTTP ${response.status}`);
+      }
       if (json.seq > seq || (json.generation !== undefined && json.generation !== generation)) {
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
@@ -345,7 +484,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (following) return;
     following = (async () => {
       if (caughtUp && !closed) await waitForChange();
-      while (!closed) {
+      while (!closed && !sessionDead) {
         let ok = false;
         try {
           ok = await syncOnce();
@@ -376,9 +515,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const tables = program && schema ? operationTables(program, schema) : new Set<string>();
     if (partitionDenied) return { read: { denied: partitionDenied }, tables };
     const server = async () => {
-      const read = await online.query(op, args);
-      if ("denied" in read) await refusedSession(read.denied);
-      setLink(online.link());
+      const requester = online;
+      const requestRevision = onlineRevision;
+      const read = await requester.query(op, args);
+      if ("denied" in read) await refusedSession(read.denied, requestRevision);
+      if (requester === online) setLink(requester.link());
       return { read, tables };
     };
     const onlineOnly = [...tables].some((t) => !schema.tables[t]?.sync);
@@ -554,12 +695,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const unavailableWhy = unavailable();
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
-      const uploaded = await uploadAsset(base, headers, doFetch, bytes);
+      const request = requestCredentials();
+      const uploaded = await uploadAsset(base, request.headers, doFetch, bytes);
+      if (!uploaded.ok) await refusedSession(uploaded.why, request.revision);
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
-    asset: (id) => fetchAsset(base, headers, doFetch, id),
-    assetSource: (id) => assetSource(base, headers, id),
+    async asset(id) {
+      const request = requestCredentials();
+      const read = await fetchAsset(base, request.headers, doFetch, id);
+      if ("denied" in read) await refusedSession(read.denied, request.revision);
+      return read;
+    },
+    assetSource: (id) => assetSource(base, requestCredentials().headers, id),
     link: () => link,
     onLink(listener) {
       linkListeners.add(listener);
@@ -574,7 +722,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async sync() {
       if (!closed && !sessionDead) await syncOnce();
     },
+    refreshSession: refreshCurrent,
+    async logoutAll() {
+      if (refreshing) await refreshing;
+      if (closed) return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } };
+      if (sessionDead || !session) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
+      const revision = credentialRevision;
+      const revoked = await revokeAllSessions(base, session.token, doFetch);
+      if (revoked.ok) {
+        await endSession();
+        await client.close();
+      } else {
+        await refusedSession(revoked.why, revision);
+        if (sessionDead) await client.close();
+      }
+      return revoked;
+    },
     async signOut() {
+      if (refreshing) await refreshing;
       if (session && !sessionDead) await logout(base, session.token, doFetch);
       if (!sessionDead) await endSession();
       await client.close();
@@ -584,12 +749,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       closed = true;
       aborter.abort();
       if (retry) clearTimeout(retry);
+      if (refreshTimer) clearTimeout(refreshTimer);
       watches.clear();
       linkListeners.clear();
       sessionListeners.clear();
       for (const [id, resolve] of settled) resolve({ state: "pending", id });
       closing = (async () => {
-        await Promise.allSettled([following, syncing, flushing, online.close(), ...active]);
+        await Promise.allSettled([following, syncing, flushing, refreshing, online.close(), ...active]);
         await core.close();
         settled.clear();
       })();
@@ -600,10 +766,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   follow();
   void flush();
+  scheduleRefresh();
   return client;
 }
 
 async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<BackendJson> {
   const response = await doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) });
-  return (await response.json()) as BackendJson;
+  let json: BackendJson & { denied?: Refusal };
+  try { json = (await response.json()) as BackendJson & { denied?: Refusal }; }
+  catch (error) {
+    if (response.status === 401) throw new BackendAuthError({ code: "E_AUTH", family: "auth", message: "the server refused this session" });
+    throw error;
+  }
+  if (json.denied || response.status === 401) throw new BackendAuthError(json.denied ?? { code: "E_AUTH", family: "auth", message: "the server refused this session" });
+  if (!response.ok) throw new Error(`schema: HTTP ${response.status}`);
+  return json;
 }

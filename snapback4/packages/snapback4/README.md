@@ -661,18 +661,26 @@ synced needs the server to open. The client itself is the session, the
 link, the transport and the observation of reads: about seventeen
 kilobytes over a device of three hundred. Its options: `url`; `device`;
 one of `persona` (development), `session` (from `snapback4/auth`, kept
-and restored by the client), or `guest: true` (mint one when none is
-kept); `sessionStore`; `fetch`; `waitSeconds`. It has `query(op, args) →
-Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
+and restored for this JavaScript runtime by default), or `guest: true`
+(mint one when none is kept); `sessionStore`; `fetch`; `waitSeconds`. It
+has `query(op, args) → Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
 unsubscribe, close() }` (a live read; React's `useSyncExternalStore`
 shape), `mutate(op, args) → Write`, `link()`, `onLink`, `viewer()`,
-`session()`, `onSession`, `signOut()`, `sync()`, `close()`. After
+`session()`, `onSession`, `refreshSession()`, `logoutAll()`, `signOut()`,
+`sync()`, `close()`. A restored or provided session within 24 hours of
+expiry rotates before the protected backend is fetched; a running client
+schedules the same rotation. A successful rotation replaces the stored
+session and the Authorization bearer before `onSession` receives it. After
 `signOut()` the client is closed and `session()` is null, as it is once
 the server refuses the session: anything that keeps the token — a native
 image header, a presence lease — takes it from `onSession` (`useSession`
 in React) and stops when it is null, so nothing reads a token after
-sign-out. The online client takes `url` with `persona`, `session` or
-`token`, and has the same card without a device.
+sign-out. `logoutAll()` does the same after the server confirms every
+session for the principal was revoked; an offline refusal leaves this
+session in place so the operation can be retried. The online client takes
+`url` with `persona`, `session` or `token`, and has the same card without a
+device; applications that keep its session use `refreshSession(url,
+token)` and replace the online client with the returned session.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
@@ -771,15 +779,23 @@ nothing to queue.
 ### Sign-in (`snapback4/auth`)
 
 `guest(url)`, `signup(url, email, password)`, `login(url, email,
-password)` return `{ ok: true, session }` or `{ ok: false, why }`
-(each takes an optional final `fetch`); `logout(url, token)` ends one. A
-session is `{ principal, kind: "guest" | "user", token, expiresAt }`;
-pass it to `createLocalClient({ url, session })` once and the client
-keeps it (`localStorage` on the web, falling back to memory when it
-throws; memory otherwise; or the `sessionStore` you pass — three methods
-`get`, `set`, `delete`; `expo-secure-store` fits, with the key made
-filesystem-safe as in §7). A password is eight characters or more. The
-schema opts in with `use identity` (guests and password accounts),
+password)` and `refreshSession(url, token)` return `{ ok: true, session
+}` or `{ ok: false, why }` (each takes an optional final `fetch`). Refresh
+atomically invalidates the presented token, so adopt the returned session;
+the local client does this through its method and `onSession` lifecycle.
+`logout(url, token)` ends one session; `logoutAll(url, token)` confirms
+`{ ok: true, revoked }` after ending every session for the principal. A
+session is `{ principal, kind, token, expiresAt }` (`kind` is `"guest"` or
+`"user"` for built-in identity, or the application kind a service minted);
+pass it to `createLocalClient({ url, session })` once and the client keeps
+it in memory by default. Memory prevents another page script from reading
+the bearer out of browser storage, and means a reload must sign in again or
+receive the session from the application. For continuity, pass a
+`sessionStore` with async `get`, `set`, `delete`; `expo-secure-store` fits,
+with the key made filesystem-safe as in §7. `localStorageSessionStore()` is
+an explicit web opt-in when persistence across reloads is worth making the
+bearer readable to every script on the page. A password is eight characters
+or more. The schema opts in with `use identity` (guests and password accounts),
 `use identity guests` or `use identity password`; without it the `/auth`
 routes refuse with `E_AUTH`. `snapback4 dev` also admits personas;
 `snapback4 serve` (a release) admits tokens only.
@@ -879,9 +895,11 @@ PNG and `asset` is always denied.
 ### The wire
 
 The client is the intended surface; the wire is plain JSON for anything
-else. `GET /` is the server's card (`{ snapback4, generation, seq, ops:
+else. The server card and compiled metadata require a live principal.
+`GET /` is the server's card (`{ snapback4, generation, seq, ops:
 [{ name, kind }], tables: [{ name, sync }] }`); `GET /api.ts` the
-generated TypeScript; `GET /schema` the compiled backend. `POST /q/<op>`
+generated TypeScript; `GET /schema` the compiled backend; `GET
+/native.wasm` the native module when the backend has one. `POST /q/<op>`
 with `{ "args": {..} }` answers `{ data, complete, seq, next, tables,
 viewer }` or `{ denied }`; `POST /m/<op>` with `{ "id", "args",
 "newIds" }` answers `{ state: "sent", id, seq, result }` or `{ state:
@@ -895,16 +913,20 @@ acknowledged }`, continued with `after=<next>` (`limit` up to 10,000;
 queued writes the server has applied; `GET /sync?from=W` (or `stream=1`)
 is the stream from a watermark: `{ snapshot: false, events: [{ seq,
 table, kind, id, data }], watermark, more, generation, acknowledged }`.
-`GET /changes?since=S&wait=N` answers `{ seq, tables, generation }` when
-a commit lands or after N seconds (25 at most; 0 answers at once; at most
-500 commits are summarised; no credentials needed). `POST /assets` (the
+`GET /changes?since=S&wait=N` requires the same principal and answers
+`{ seq, tables, generation }` when a commit lands or after N seconds (25
+at most; 0 answers at once; at most
+500 commits are summarised). `POST /assets` (the
 file's bytes as the body, 64 MiB at most) answers `{ asset }`; `GET
 /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
-works; `Cache-Control: private, no-store` for `once`, else immutable).
+works; every viewer-authorized response uses `Cache-Control: private, no-store`).
 `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
 (`{ "email", "password" }`) answer `{ "session": { principal, kind,
 token, expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout`
-with the bearer token answers `{ "ok": true }`. With a service token:
+with the bearer token answers `{ "ok": true }`; `POST /auth/refresh`
+returns a replacement session and invalidates that bearer; `POST
+/auth/logout-all` revokes every session for its principal and answers
+`{ "ok": true, "revoked": N }`. With a service token:
 `POST /auth/session` (`{ "principal", "kind"?, "days"? }`) mints a session
 for an account the application authenticated, `POST /auth/revoke`
 (`{ "principal" }`) ends every session of one and answers `{ "revoked" }`,

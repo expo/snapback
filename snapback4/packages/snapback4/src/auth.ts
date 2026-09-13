@@ -7,21 +7,31 @@ import type { Refusal } from "./contract.ts";
 
 export interface Session {
   readonly principal: string;
-  readonly kind: "guest" | "user";
+  /** `guest` or `user` for built-in identity; an application-defined kind
+   * for a session minted by its service. */
+  readonly kind: string;
   readonly token: string;
   readonly expiresAt: number;
 }
 
 export type SignIn = { readonly ok: true; readonly session: Session } | { readonly ok: false; readonly why: Refusal };
+export type SessionRevocation = { readonly ok: true; readonly revoked: number } | { readonly ok: false; readonly why: Refusal };
+
+const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+const refused = (message: string): Refusal => ({ code: "E_AUTH", family: "auth", message });
+const isSession = (value: unknown): value is Session => {
+  const found = value as Partial<Session> | null;
+  return Boolean(found && typeof found.principal === "string" && found.principal.length > 0 && typeof found.kind === "string" && typeof found.token === "string" && found.token.length > 0 && typeof found.expiresAt === "number" && Number.isFinite(found.expiresAt) && found.expiresAt > Date.now());
+};
 
 async function post(url: string, path: string, body: unknown, doFetch: typeof fetch): Promise<SignIn> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const json = (await response.json()) as { session?: Session; denied?: Refusal };
-    if (json.session) return { ok: true, session: json.session };
-    return { ok: false, why: json.denied ?? { code: "E_AUTH", family: "auth", message: "sign-in was refused" } };
+    if (response.ok && isSession(json.session)) return { ok: true, session: json.session };
+    return { ok: false, why: json.denied ?? refused("sign-in was refused") };
   } catch {
-    return { ok: false, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true } };
+    return { ok: false, why: offline() };
   }
 }
 
@@ -39,51 +49,80 @@ export function login(url: string, email: string, password: string, doFetch: typ
   return post(url, "/auth/login", { email, password }, doFetch);
 }
 
-/** Where a device keeps its session between starts: `localStorage` on the
- * web, memory elsewhere, or what the app passes (`expo-secure-store` fits
- * behind three one-line methods). The client restores the session itself:
- * an app calls `createLocalClient({ url })` on a cold start and gets the
- * same principal back. */
+/** Replace one live bearer token. The server invalidates `token` before it
+ * returns the replacement, so callers must adopt the returned session. */
+export async function refreshSession(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SignIn> {
+  try {
+    const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+    const json = (await response.json()) as { session?: Session; denied?: Refusal };
+    if (response.ok && isSession(json.session)) return { ok: true, session: json.session };
+    return { ok: false, why: json.denied ?? refused("session refresh was refused") };
+  } catch {
+    return { ok: false, why: offline() };
+  }
+}
+
+/** End every live session for the bearer token's principal. */
+export async function logoutAll(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SessionRevocation> {
+  try {
+    const response = await doFetch(`${url.replace(/\/$/, "")}/auth/logout-all`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+    const json = (await response.json()) as { ok?: boolean; revoked?: number; denied?: Refusal };
+    if (json.denied) return { ok: false, why: json.denied };
+    if (response.ok && (json.ok === true || typeof json.revoked === "number")) return { ok: true, revoked: Number(json.revoked ?? 0) };
+    return { ok: false, why: refused("session revocation was refused") };
+  } catch {
+    return { ok: false, why: offline() };
+  }
+}
+
+/** Where a device keeps its bearer session. The default is memory, so a web
+ * page cannot read a long-lived token from browser storage. Pass a secure
+ * platform store for continuity across starts. */
 export interface SessionStore {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;
   delete(key: string): Promise<void>;
 }
 
-const kept = new Map<string, string>();
-
-export const defaultSessionStore: SessionStore = {
-  async get(key) {
-    try { return globalThis.localStorage?.getItem(key) ?? kept.get(key) ?? null; } catch { return kept.get(key) ?? null; }
-  },
-  async set(key, value) {
-    kept.set(key, value);
-    try { globalThis.localStorage?.setItem(key, value); } catch { /* memory keeps it for this run */ }
-  },
-  async delete(key) {
-    kept.delete(key);
-    try { globalThis.localStorage?.removeItem(key); } catch { /* nothing to forget there */ }
-  },
-};
-
-/** A session store that forgets on exit, for tests and one-off scripts. */
+/** A session store that forgets when this JavaScript runtime exits. */
 export function memorySessionStore(): SessionStore {
   const m = new Map<string, string>();
   return { async get(k) { return m.get(k) ?? null; }, async set(k, v) { m.set(k, v); }, async delete(k) { m.delete(k); } };
+}
+
+export const defaultSessionStore: SessionStore = memorySessionStore();
+
+/** Explicit browser persistence. Any script running on the page can read
+ * this token; use it only when that exposure is acceptable. */
+export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">): SessionStore {
+  const target = () => {
+    const found = storage ?? globalThis.localStorage;
+    if (!found) throw new Error("localStorage is unavailable in this runtime");
+    return found;
+  };
+  return {
+    async get(key) { return target().getItem(key); },
+    async set(key, value) { target().setItem(key, value); },
+    async delete(key) { target().removeItem(key); },
+  };
 }
 
 export const sessionKey = (url: string) => `snapback4:${url.replace(/\/$/, "")}:session`;
 
 /** The session kept for a server, if it has not expired. */
 export async function restoreSession(url: string, store: SessionStore = defaultSessionStore): Promise<Session | null> {
-  const raw = await store.get(sessionKey(url));
+  const key = sessionKey(url);
+  const raw = await store.get(key);
   if (!raw) return null;
   try {
     const session = JSON.parse(raw) as Session;
-    if (typeof session.token !== "string" || typeof session.principal !== "string") return null;
-    if (typeof session.expiresAt === "number" && session.expiresAt <= Date.now()) return null;
+    if (!isSession(session)) {
+      await store.delete(key);
+      return null;
+    }
     return session;
   } catch {
+    await store.delete(key);
     return null;
   }
 }

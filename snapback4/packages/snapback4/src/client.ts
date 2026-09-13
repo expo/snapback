@@ -82,6 +82,14 @@ export function createClient(options: ClientOptions): Client {
   const watches = new Map<string, Watch>();
   const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; resolve: (write: Write) => void }[] = [];
 
+  const endCredentials = () => {
+    viewer = null;
+    credentials = false;
+    delete headers.authorization;
+    delete headers["x-snapback-persona"];
+    setLink("signed-out");
+  };
+
   const setLink = (next: Link) => {
     if (closed) return;
     if (link === next) return;
@@ -128,11 +136,7 @@ export function createClient(options: ClientOptions): Client {
       if (closed) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       if (((json.denied ?? json.why) as Refusal | undefined)?.code === "E_AUTH") {
-        viewer = null;
-        credentials = false;
-        delete headers.authorization;
-        delete headers["x-snapback-persona"];
-        setLink("signed-out");
+        endCredentials();
       }
       else if (credentials && typeof json.viewer === "string") viewer = json.viewer as Principal;
       if (link !== "online" && credentials) setLink("online");
@@ -203,8 +207,12 @@ export function createClient(options: ClientOptions): Client {
       }
       try {
         const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
+        const json = (await response.json()) as { seq: number; tables: string[]; generation?: number; denied?: Refusal };
+        if (json.denied?.code === "E_AUTH") {
+          endCredentials();
+          break;
+        }
         if (!response.ok) throw new Error(`changes: HTTP ${response.status}`);
-        const json = (await response.json()) as { seq: number; tables: string[]; generation?: number };
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         generation = json.generation;
         if (json.seq > seq || changedGeneration) {
@@ -324,10 +332,15 @@ export function createClient(options: ClientOptions): Client {
       if (closed) return { ok: false, why: ended() };
       if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
       const uploaded = await uploadAsset(base, headers, doFetch, bytes);
+      if (!uploaded.ok && uploaded.why.code === "E_AUTH") endCredentials();
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
-    asset: (id) => fetchAsset(base, headers, doFetch, id),
+    async asset(id) {
+      const read = await fetchAsset(base, headers, doFetch, id);
+      if ("denied" in read && read.denied.code === "E_AUTH") endCredentials();
+      return read;
+    },
     assetSource: (id) => assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {

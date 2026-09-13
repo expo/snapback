@@ -62,6 +62,13 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     const deadline = Date.now() + 3000;
     while (!url && child.exitCode == null && Date.now() < deadline) await sleep(10);
     assert.ok(url, log || "server did not listen");
+    await t.test("catalog, generated API, native module, and change activity refuse anonymous callers", async () => {
+      for (const path of ["/", "/schema", "/api.ts", "/native.wasm", "/changes?since=0&wait=0"]) {
+        const response = await fetch(url + path, { signal: AbortSignal.timeout(500) });
+        assert.equal(response.status, 401, `${path} must require a principal`);
+        assert.equal((await response.json()).denied?.code, "E_AUTH");
+      }
+    });
     await t.test("declared/chunked oversize, truncation and invalid UTF-8 do not execute a write", async () => {
       const declared = await raw(`POST /m/add HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: ${MiB + 1}\r\nExpect: 100-continue\r\nx-snapback-persona: alice\r\n\r\n`);
       assert.match(declared, /^HTTP\/1.1 413/m);
@@ -90,15 +97,15 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     });
     await t.test("eight idle polls leave health/schema/query work free and commits wake subscribers", async () => {
       const controllers = Array.from({ length: 8 }, () => new AbortController());
-      const polls = controllers.map((controller) => fetch(url + "/changes?since=99999999&wait=1", { signal: controller.signal }).then((response) => response.json()).catch(() => null));
+      const polls = controllers.map((controller) => fetch(url + "/changes?since=99999999&wait=1", { headers, signal: controller.signal }).then((response) => response.json()).catch(() => null));
       try {
         await sleep(80);
         const started = Date.now();
-        for (const path of ["/", "/schema"]) assert.equal((await fetch(url + path, { signal: AbortSignal.timeout(500) })).status, 200);
+        for (const path of ["/", "/schema"]) assert.equal((await fetch(url + path, { headers, signal: AbortSignal.timeout(500) })).status, 200);
         await ping();
         assert.ok(Date.now() - started < 500, "ordinary work must not await the long-poll interval");
-        const { seq } = await (await fetch(url)).json();
-        const wake = fetch(url + `/changes?since=${seq}&wait=2`).then((response) => response.json());
+        const { seq } = await (await fetch(url, { headers })).json();
+        const wake = fetch(url + `/changes?since=${seq}&wait=2`, { headers }).then((response) => response.json());
         await sleep(30);
         const write = await (await post("/m/add", "{}")).json();
         const notified = await wake;
