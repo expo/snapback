@@ -121,6 +121,7 @@ const SNAPSHOT_KEYS: [&str; 4] = [SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_S
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
 const NATIVE_DIGEST: &str = "device:native:digest";
+const NATIVE_GENERATION: &str = "device:native:generation";
 
 pub struct Device<S: DeviceStore> {
     store: S,
@@ -189,7 +190,7 @@ fn sha256(bytes: &[u8]) -> String {
 
 fn clear_native<S: DeviceStore>(store: &mut S) -> Result<(), RuntimeError> {
     let tx = store.transaction()?;
-    tx.delete_meta(&[NATIVE, NATIVE_DIGEST])?;
+    tx.delete_meta(&[NATIVE, NATIVE_DIGEST, NATIVE_GENERATION])?;
     tx.commit()
 }
 
@@ -218,9 +219,10 @@ impl<S: DeviceStore> Device<S> {
         }
         let cached_digest = store.meta(NATIVE_DIGEST)?;
         let cached_module = store.meta(NATIVE)?;
+        let cached_generation = store.meta(NATIVE_GENERATION)?;
         #[cfg(feature = "wasm-host")]
-        let native = match (&cached_module, &cached_digest) {
-            (Some(hex), Some(digest)) => snapback4_core::value::decode_bytes_hex(hex)
+        let native = match (&cached_module, &cached_digest, &cached_generation) {
+            (Some(hex), Some(digest), Some(generation)) if generation.parse::<u64>().ok() == Some(backend.generation) => snapback4_core::value::decode_bytes_hex(hex)
                 .filter(|bytes| sha256(bytes) == *digest)
                 .and_then(|bytes| snapback4_core::engine::native::Module::compile(&bytes).ok())
                 .map(std::sync::Arc::new),
@@ -230,7 +232,7 @@ impl<S: DeviceStore> Device<S> {
         let valid_native = false;
         #[cfg(feature = "wasm-host")]
         let valid_native = native.is_some();
-        let cache_present = cached_module.is_some() || cached_digest.is_some();
+        let cache_present = cached_module.is_some() || cached_digest.is_some() || cached_generation.is_some();
         let native_digest = if valid_native { cached_digest } else { None };
         if !valid_native && cache_present {
             // A partial, corrupt, mismatched or no-longer-loadable cache is
@@ -266,6 +268,7 @@ impl<S: DeviceStore> Device<S> {
             let tx = self.store.transaction()?;
             tx.set_meta(NATIVE, &snapback4_core::value::encode_bytes_hex(bytes))?;
             tx.set_meta(NATIVE_DIGEST, digest)?;
+            tx.set_meta(NATIVE_GENERATION, &generation.to_string())?;
             tx.commit()?;
             self.native = Some(std::sync::Arc::new(module));
             self.native_digest = Some(digest.to_owned());

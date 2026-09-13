@@ -195,6 +195,39 @@ fn a_bad_cached_module_is_removed_instead_of_advertised() {
     assert_eq!(device.native_digest(), None);
     assert_eq!(device.store().meta("device:native").unwrap(), None);
     assert_eq!(device.store().meta("device:native:digest").unwrap(), None);
+    assert_eq!(device.store().meta("device:native:generation").unwrap(), None);
+}
+
+#[test]
+fn an_interrupted_adopt_and_a_legacy_cache_fail_closed_on_reopen() {
+    let (_, backend, _) = server();
+    let digest = hex(&sha256(module()));
+    let kept = {
+        let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+        device.install_native(module(), &digest, backend.generation).unwrap();
+        device.store().export()
+    };
+
+    // Simulate a crash after the new backend/generation transaction commits
+    // but before adopt's best-effort cache deletion transaction begins.
+    let mut interrupted = kept.clone();
+    let mut next = backend.clone();
+    next.generation += 1;
+    interrupted.push(snapback4_device::memory::Change { s: 'm', k: "device:backend".into(), v: Some(serde_json::to_string(&next).unwrap()) });
+    interrupted.push(snapback4_device::memory::Change { s: 'm', k: "device:generation".into(), v: Some(next.generation.to_string()) });
+    let mut store = MemoryStore::new();
+    store.load(interrupted).unwrap();
+    let reopened = Device::open_store(store, None).unwrap();
+    assert_eq!(reopened.state().unwrap().1, next.generation);
+    assert_eq!(reopened.native_digest(), None, "an old generation's valid module must not load");
+
+    // Caches written before the generation binding existed are untrusted.
+    let mut legacy = kept;
+    legacy.push(snapback4_device::memory::Change { s: 'm', k: "device:native:generation".into(), v: None });
+    let mut store = MemoryStore::new();
+    store.load(legacy).unwrap();
+    let reopened = Device::open_store(store, None).unwrap();
+    assert_eq!(reopened.native_digest(), None, "a pre-binding cache must be repaired from the server");
 }
 
 #[test]
