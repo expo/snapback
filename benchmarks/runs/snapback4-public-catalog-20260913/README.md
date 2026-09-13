@@ -636,6 +636,28 @@ implementation: Darwin's ordinary test profile in 0.06 s after a 7.85 s
 build, and Linux's production profile in 0.07 s after a 1m59s build.
 Reference validation passed with zero errors or unchecked references.
 
+The change landed at `a19cb33b1` and the existing publication path published
+**0.2.3** at 10:42:21 UTC. Qualification passed 152 Rust tests (the existing
+long native-job ceiling test remained ignored), 61 client tests and nine
+fixture tests, with no failed stages or JavaScript skips. The complete suite
+took 77 s, above the 60 s budget; its subsequent warm repeat passed the same
+tests in 44.05 s on the shared M5 Max Black. These are separate observations,
+and the warm result is not a timing guarantee on every host. Publication
+took 199.4 s and passed the installed-consumer proof.
+
+Both registry archives were downloaded and checked against their registry
+integrity values. The platform archive contains the qualified 7,316,416 B
+Darwin binary, SHA-256
+`04546180389dd26ad01f27276dd7271e0a8022a97eed11ab692958872fc49d8e`,
+and the tiny_http MIT notice. That actual downloaded binary checks freshly
+generated public and private schemas, including all three public queries
+and the private atomic update. The client tarball is 437,906 B and the
+platform tarball 3,517,368 B. The separately built Linux production binary
+is 7,884,352 B, SHA-256
+`dfed981a43bd72a2786c1dc6c59fc1033ad15c2402cc8f7b0c5913687fd0a1ca`.
+This release also contains main's 0.2.2 surfaces; its sizes and qualification
+do not replace the earlier comparison's pinned 0.2.1 artifact or timings.
+
 ## Simulator observation follow-up
 
 The four chat checks previously constructed and parsed every host state
