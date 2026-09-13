@@ -32,3 +32,4 @@
 {"at":"2026-09-13T04:13:23.258Z","version":"0.1.13","tarballBytes":55322,"files":33,"binaryBytes":8010496,"platform":"darwin-arm64","publish_s":94.1,"dry":false}
 {"at":"2026-09-13T04:23:38.494Z","version":"0.1.14","tarballBytes":56690,"files":33,"binaryBytes":8030240,"platform":"darwin-arm64","publish_s":78.7,"dry":false}
 {"at":"2026-09-13T04:51:55Z","package":"snapback4-expo","version":"0.1.14","tarballBytes":3312737,"files":13,"unpackedBytes":9551832,"proof":"metrics/witness.jsonl dev-client-native 2026-09-13T04:50"}
+{"at":"2026-09-13T05:49:06.874Z","version":"0.1.15","tarballBytes":56905,"files":33,"binaryBytes":8103840,"platform":"darwin-arm64","publish_s":188.3,"dry":false}
