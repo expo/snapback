@@ -1,4 +1,5 @@
 import { field, totalCompare, asString } from "./value-runtime";
+import { driveSync, type QueryWork } from "./query-work";
 import type { Value } from "./types";
 
 export function mergeRemainder(visible: Value[], returned: Value[]): Value[] {
@@ -15,18 +16,18 @@ export function mergeRemainder(visible: Value[], returned: Value[]): Value[] {
 }
 
 // @ref LLP 1010#a5-the-merged-feed — the twin advances precisely the winning stream, including two lookahead rows.
-export function mergeStreams(
-  next: Array<() => Value | null>, suffix: string[], order: "Asc" | "Desc", take: number,
+export function* mergeStreamsWork(
+  next: Array<() => QueryWork<Value | null>>, suffix: string[], order: "Asc" | "Desc", take: number,
   step: () => void, emit: (lane: number, row: Value) => void,
-): { rows: Value[]; union: number } {
+): QueryWork<{ rows: Value[]; union: number }> {
   type Head = { lane: number; row: Value; key: Value };
   const heap: Head[] = [];
   const before = (a: Head, b: Head): boolean => {
     step();
     return totalCompare(a.key, b.key) * (order === "Asc" ? 1 : -1) < 0;
   };
-  const push = (lane: number): void => {
-    const row = next[lane]!();
+  function* push(lane: number): QueryWork<void> {
+    const row = yield* next[lane]!();
     if (row === null) return;
     heap.push({ lane, row, key: { Array: suffix.map((column) => field(row, column)) } });
     let i = heap.length - 1;
@@ -36,7 +37,7 @@ export function mergeStreams(
       [heap[i], heap[parent]] = [heap[parent]!, heap[i]!]; i = parent;
     }
   };
-  next.forEach((_, lane) => push(lane));
+  for (let lane = 0; lane < next.length; lane++) yield* push(lane);
   const seen = new Set<string>();
   const rows: Value[] = [];
   while (heap.length && seen.size < take + 2) {
@@ -56,7 +57,14 @@ export function mergeStreams(
       seen.add(id);
       if (rows.length < take) { rows.push(head.row); emit(head.lane, head.row); }
     }
-    push(head.lane);
+    yield* push(head.lane);
   }
   return { rows, union: seen.size };
+}
+
+export function mergeStreams(
+  next: Array<() => Value | null>, suffix: string[], order: "Asc" | "Desc", take: number,
+  step: () => void, emit: (lane: number, row: Value) => void,
+): { rows: Value[]; union: number } {
+  return driveSync(mergeStreamsWork(next.map(pull => function* () { return pull(); }), suffix, order, take, step, emit));
 }

@@ -4,7 +4,7 @@ use super::*;
 use crate::acquisition::{self, AcquisitionAcknowledgement, AcquisitionEvent};
 
 impl Engine {
-    fn acquisition_context(&self, program: &Program, certificate: &Certificate, context: &mut Context) -> Result<(), RuntimeError> {
+    pub(super) fn acquisition_context(&self, program: &Program, certificate: &Certificate, context: &mut Context) -> Result<(), RuntimeError> {
         if self.rule_authority != RuleAuthority::StoreAuthoritative
             || !certificate.has_current_semantics() || certificate.plan_hash != digest(program)
             || certificate.schema_hash != self.hashes.schema {
@@ -72,30 +72,7 @@ impl Engine {
         let transaction = self.store.conn.transaction()?;
         let mut runner = Runner::new(&transaction, &self.schema, &self.hashes, &certificate, context,
             &self.verdicts, &self.authority_absences, self.rule_authority, seq);
-        // @ref LLP 1001#native-owner-image-pipeline — native commands retain
-        // full authoritative evidence; only the unreturned client export is absent.
-        runner.reuse_images = true;
-        runner.export_receipt = false;
-        let table = d.receipts_table().expect("canonical receipts declaration");
-        runner.acknowledgement = Some(table.clone());
-        let events = runner.context.args["events"].as_array()?.to_vec();
-        for id in events {
-            // Fixed native guards/field dispatch replace the larger generated
-            // statement path; read, membership and write helpers charge apart.
-            runner.step(12)?;
-            let event = runner.expr(&acquisition::get(&d.log, "byId", vec![Expr::Literal(id)], format!("{}.event", program.name)))?;
-            if event == Value::Null || event.field("kind")?.as_str()? == "removed" { continue; }
-            let body = runner.expr(&acquisition::get(content, "byId", vec![Expr::Literal(event.field("row")?.clone())], format!("{}.content", program.name)))?;
-            require_present(&body)?;
-            let receipt = runner.expr(&acquisition::get(&table, "byRow", vec![Expr::Literal(event.field("row")?.clone()), Expr::Input(Input::Viewer)], format!("{}.receipt", program.name)))?;
-            require_present(&receipt)?;
-            let original = runner.expr(&acquisition::get(&d.log, "byId", vec![Expr::Literal(receipt.field("id")?.clone())], format!("{}.original", program.name)))?;
-            runner.env.insert("original".into(), original);
-            runner.update(&table, receipt.field("id")?, object([("received", Value::Bool(true)), ("seq", Value::Int(seq as i64))]))?;
-        }
-        runner.check_final_constraints()?;
-        runner.assert_bounds()?;
-        if runner.missing_authority { return Err(RuntimeError::TraceSubset("native receipt lacks current authority".into())); }
+        runner.native_receipts(program, content, d)?;
         let changed = !runner.trace.writes.is_empty();
         let seq = if changed { seq } else { current_seq };
         let execution = Execution { result: Value::Null, result_provenance: ResultProvenance::None,
@@ -110,6 +87,36 @@ impl Engine {
         } else { None };
         transaction.commit()?;
         Ok(AcquisitionAcknowledgement { execution, commit })
+    }
+}
+
+impl Runner<'_> {
+    pub(super) fn native_receipts(&mut self, program: &Program, content: &str, d: &crate::delivery::Deliver) -> Result<(), RuntimeError> {
+        // @ref LLP 1001#native-owner-image-pipeline — native commands retain
+        // full authoritative evidence; only the unreturned client export is absent.
+        self.reuse_images = true;
+        self.export_receipt = false;
+        let table = d.receipts_table().expect("canonical receipts declaration");
+        self.acknowledgement = Some(table.clone());
+        let events = self.context.args["events"].as_array()?.to_vec();
+        for id in events {
+            // Fixed native guards/field dispatch replace the larger generated
+            // statement path; read, membership and write helpers charge apart.
+            self.step(12)?;
+            let event = self.expr(&acquisition::get(&d.log, "byId", vec![Expr::Literal(id)], format!("{}.event", program.name)))?;
+            if event == Value::Null || event.field("kind")?.as_str()? == "removed" { continue; }
+            let body = self.expr(&acquisition::get(content, "byId", vec![Expr::Literal(event.field("row")?.clone())], format!("{}.content", program.name)))?;
+            require_present(&body)?;
+            let receipt = self.expr(&acquisition::get(&table, "byRow", vec![Expr::Literal(event.field("row")?.clone()), Expr::Input(Input::Viewer)], format!("{}.receipt", program.name)))?;
+            require_present(&receipt)?;
+            let original = self.expr(&acquisition::get(&d.log, "byId", vec![Expr::Literal(receipt.field("id")?.clone())], format!("{}.original", program.name)))?;
+            self.env.insert("original".into(), original);
+            self.update(&table, receipt.field("id")?, object([("received", Value::Bool(true)), ("seq", Value::Int(self.seq as i64))]))?;
+        }
+        self.check_final_constraints()?;
+        self.assert_bounds()?;
+        if self.missing_authority { return Err(RuntimeError::TraceSubset("native receipt lacks current authority".into())); }
+        Ok(())
     }
 }
 

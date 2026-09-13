@@ -1496,3 +1496,12 @@ rollback, native authorization/receipt and bounded-frame controls precede the
 next full endpoint measurement. Only the unchanged full workload and all
 remaining application/runtime obligations can complete the sub-three-second
 goal; a reduced UI result alone cannot.
+
+The frozen owner implementation at `a588fc1641f23c8f341d277a3a5c8f49a39e19ef`
+passed the complete native witness in 7,494.677590 ms with the unchanged client.
+This single point remains above three seconds and does not qualify the full
+application or runtime ceiling. The exact receipt, first-use, message-hash and
+physical-reopen result is recorded in
+[LLP 1018.008.007.002 §9](./1018.008.007.002-bounded-bulk-acquisition.plan.md#9-owner-architecture-continuation-toward-the-active-goal)
+and its existing acquisition metrics; subsequent receipt-group/client work is
+outside that frozen measurement.

@@ -8,6 +8,8 @@ import type { ActualResult, CorpusCase, CorpusExpected, HydrationResult, RowReco
 export { sha256 } from "./hash";
 export { canonicalValue, rowDigest, scopedRuleHash, wireJson } from "./value-runtime";
 export { ClientStore } from "./store";
+export { executeQuery, readQueryAuthority } from './query';
+export type { QueryHost, QueryCursor, QueryDirectory, Awaitable } from './query';
 export { CURRENT_VALUE_MODEL_VERSION } from "./runner";
 export type {
   ActualResult,

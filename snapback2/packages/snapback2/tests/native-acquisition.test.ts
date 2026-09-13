@@ -37,7 +37,18 @@ function memory() {
 }
 function client(store: ReturnType<typeof memory>, native: (body: any) => any | Promise<any>, options: any = {}) {
   return new NativeAcquisitionClient({ url: 'https://native.invalid', token: 'bound-secret', principal: 'u1',
-    disk: async () => store.disk, fetch: async (url: string, init: any) => {
+    custody: {
+      peek: () => store.disk.load(),
+      async open(_name: string, program: any, state: any) {
+        // The protocol suite injects an in-memory carrier; production uses durable indexes.
+        const custody = new NativeCustody(program, state, store.disk); await custody.open();
+        return { program, get state() { return custody.state; },
+          commit: (change: any) => custody.commit(change), proof: async (owner: string) => custody.proof(owner),
+          execute: async (op: string, context: any, search: any) => custody.rows.reexecute(program.programs[op].ir, context, program.programs[op].certificate, search),
+          rows: async (table: string) => custody.rows.rows(table).map((row: any) => RowImage.wire(row)),
+          close: () => custody.close() };
+      },
+    }, fetch: async (url: string, init: any) => {
       const path = new URL(url).pathname;
       const value = path === '/api/auth/me' ? { viewer: 'u1', kind: 'user', authEpoch: 1 }
         : path === '/api/manifest' ? { generation, programGeneration: generation, channels: {}, auth: {}, ops: { [op]: { ...operation, args: fixture.program.args } } }
@@ -135,7 +146,7 @@ test('lost native success reply leaves the exact durable packet for retry after 
   });
   await c.acquire('deliveries'); assert.deepEqual(sent[0], sent[1]); assert.equal(transitions, 1); await c.close();
   c = client(store, () => assert.fail('offline reconstruction must not fetch'), { offline: true });
-  await c.initialize(); assert.equal(c.rows('messages')[0].body, 'body'); assert.equal((await c.settled()).remaining, 0); await c.close();
+  await c.initialize(); assert.equal((await c.rows('messages'))[0].body, 'body'); assert.equal((await c.settled()).remaining, 0); await c.close();
 });
 
 for (const mutation of ['principal', 'cursor', 'missing-body', 'duplicate-event', 'foreign-receipt'] as const)
@@ -171,12 +182,12 @@ test('removed body is physically erased; unavailable delivery does not erase ret
   c = client(store, body => ({ ...frame(body.after), seq: 4, rows: [{ table: 'deliveries', id: changed.id, row: changed }],
     pages: [{ after: body.after, cursor: position(changed.id, 4), next: null, exhausted: true,
       events: [{ id: changed.id, row: 'm', disposition: 'unavailable' }], receipt: receipt() }] }));
-  await c.acquire('deliveries'); assert.equal(c.rows('messages')[0].body, 'body'); await c.close();
+  await c.acquire('deliveries'); assert.equal((await c.rows('messages'))[0].body, 'body'); await c.close();
   const removed = { ...event, id: 'e'.repeat(64), seq: 5, kind: 'removed' };
   c = client(store, body => ({ ...frame(body.after), seq: 5, rows: [{ table: 'deliveries', id: removed.id, row: removed }],
     pages: [{ after: body.after, cursor: position(removed.id, 5), next: null, exhausted: true,
       events: [{ id: removed.id, row: 'm', disposition: 'removed' }], receipt: receipt() }] }));
-  await c.acquire('deliveries'); assert.deepEqual(c.rows('messages'), []); await c.close();
+  await c.acquire('deliveries'); assert.deepEqual(await c.rows('messages'), []); await c.close();
   assert.doesNotMatch([...store.saved().pages.values()].join(''), /"body":"body"/);
 });
 

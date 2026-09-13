@@ -141,7 +141,11 @@ fn project() -> ProjectJson {
 }
 
 fn fixture(count: usize, body_bytes: usize) -> State {
-    let mut state = state_with("bulk-acquisition", project());
+    fixture_project(project(), count, body_bytes)
+}
+
+fn fixture_project(project: ProjectJson, count: usize, body_bytes: usize) -> State {
+    let mut state = state_with("bulk-acquisition", project);
     let mut rows = vec![
         ("groups".into(), object([("id", Value::Id("group".into()))])),
         (
@@ -381,6 +385,88 @@ fn native_acquisition_receipt_and_page_turns_obey_the_same_unit_fairness() {
     assert_eq!(native_receipt(&mut state,&ids[1]).field("received").unwrap(),&Value::Bool(false));
     let progress = state.acquire_with_work(request,alice(),Duration::ZERO).unwrap();
     assert_eq!(native_ids(&progress).len(),2,"a receipt-free turn always completes its first bounded page");
+    drop_state(state);
+}
+
+// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// one admitted context completes the bounded group; expiry fences publication
+// before live reruns and refuses a later request under that expired bearer.
+#[test]
+fn native_receipt_group_crossing_bearer_expiry_fences_live_delivery_and_later_writes() {
+    let mut project = project();
+    project.programs.push(Program { name: "receipts.one".into(), kind: ProgramKind::Query,
+        args: BTreeMap::from([("id".into(), ArgType::Id)]), read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Get(snapback2_core::Read { site: "receipts.one".into(),
+            table: "eventsReceipts".into(), index: "byId".into(),
+            key: vec![Expr::Variable("id".into())], provenance: KeyProvenance::Arg }))] });
+    let mut state = fixture_project(project, 3, 1);
+    let now = state.now();
+    let session = state.runtime_mut().persona("alice", now).unwrap();
+    let identity = Identity::Bearer(session.token.clone());
+    let mut request = native_request(&state, Json::Null, json!([]));
+    request["authEpoch"] = json!(session.auth_epoch);
+    let ids = native_ids(&state.acquire(request.clone(), identity.clone()).unwrap());
+    assert_eq!(ids.len(), 3);
+
+    let mut subscriptions = Vec::new();
+    for observer in [identity.clone(), alice()] {
+        let (events, receiver) = sse_queue();
+        let subscribed = state.subscribe("receipts.one".into(), json!({"id":ids[0]}), observer,
+            OfflineOptions::default(), events).unwrap();
+        let initial = receiver.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!(initial.data["data"]["received"], false);
+        subscriptions.push((subscribed["id"].as_u64().unwrap(), receiver));
+    }
+    let authority = state.resolve_authority(identity.clone()).unwrap();
+    let context = state.execution_context(&authority, BTreeMap::new()).unwrap();
+    let admitted_at = context.now.unwrap();
+    assert!(admitted_at < session.expires_at);
+    let packets = ids[..2].iter().enumerate().map(|(ordinal, event)| snapback2_core::AcquisitionReceiptPacket {
+        id: format!("packet-{ordinal}"), events: vec![event.as_str().unwrap().into()],
+    }).collect::<Vec<_>>();
+    // Exercise the existing owner seams on opposite sides of expiry without a
+    // sleep, racing thread or production clock hook. The already-admitted group
+    // retains its pinned Context; after_commit samples the advanced owner clock.
+    state.clock_offset_ms = session.expires_at.saturating_sub(unix_millis());
+    assert!(state.now() >= session.expires_at);
+    let before = state.runtime().store().commit_seq().unwrap();
+    let group = state.runtime_mut().acquire_receipt_group("events", &packets, context, Duration::MAX).unwrap();
+    assert_eq!(group.outcomes.len(), 2);
+    assert!(group.outcomes.iter().all(|outcome| outcome.code.is_none()));
+    assert_eq!(group.seq, before + 1);
+    let commit = group.commit.unwrap();
+    assert_eq!(commit.at, admitted_at);
+    assert_eq!(commit.writes["eventsReceipts"], 2);
+    let invalidated = state.runtime().invalidated(&commit);
+    assert!(subscriptions.iter().all(|(id, _)| invalidated.contains(id)));
+    state.after_commit_record(commit).unwrap();
+
+    let (expired_id, expired_events) = &subscriptions[0];
+    let terminal = expired_events.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert!(terminal.terminal);
+    assert_eq!(terminal.data["code"], "E_AUTH_SESSION");
+    assert!(terminal.data.get("data").is_none());
+    assert!(!state.live.contains_key(expired_id));
+    assert!(expired_events.recv_timeout(Duration::ZERO).is_err());
+    let (current_id, current_events) = &subscriptions[1];
+    let updated = current_events.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert!(!updated.terminal);
+    assert_eq!(updated.data["data"]["received"], true);
+    let ledger = state.ledger.back().unwrap();
+    assert_eq!(ledger.seq, group.seq);
+    assert_eq!(ledger.deliveries.iter().map(|delivery| delivery.id).collect::<Vec<_>>(), vec![*current_id]);
+    assert_eq!(state.refresh_session(session.token.clone()).unwrap_err().code, "E_AUTH_SESSION");
+    request["receipts"] = json!([{"id":"later-packet","events":[ids[2]]}]);
+    assert_eq!(state.acquire(request.clone(), identity).unwrap_err().code, "E_AUTH_SESSION");
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), group.seq);
+    assert_eq!(native_receipt(&mut state, &ids[2]).field("received").unwrap(), &Value::Bool(false));
+    for id in &ids[..2] {
+        assert_eq!(native_receipt(&mut state, id).field("seq").unwrap(), &Value::Int(group.seq as i64));
+    }
+    let now = state.now();
+    let fresh = state.runtime_mut().persona("alice", now).unwrap();
+    request["authEpoch"] = json!(fresh.auth_epoch);
+    assert_eq!(state.acquire(request, Identity::Bearer(fresh.token)).unwrap()["receipts"][0]["state"], "complete");
     drop_state(state);
 }
 

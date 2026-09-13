@@ -33,6 +33,7 @@ mod unicode_tables;
 pub mod value;
 
 pub use assets::AssetKind;
+pub use acquisition::{AcquisitionReceiptGroup, AcquisitionReceiptOutcome, AcquisitionReceiptPacket};
 pub use assets_ledger::{
     ASSET_RECLAIM_GRACE_MS, AssetDelivery, AssetLedgerRow, AssetLocator, AssetReadyFacts,
     AssetReclaimPage, AssetStagingSnapshot, AssetStagingUsage, AssetState, STAGING_GLOBAL_BYTES,

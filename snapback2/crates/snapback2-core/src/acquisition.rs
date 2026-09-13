@@ -50,6 +50,25 @@ pub struct AcquisitionAcknowledgement {
     pub commit: Option<CommitRecord>,
 }
 
+#[derive(Debug)]
+pub struct AcquisitionReceiptPacket {
+    pub id: String,
+    pub events: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct AcquisitionReceiptOutcome {
+    pub id: String,
+    pub code: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct AcquisitionReceiptGroup {
+    pub outcomes: Vec<AcquisitionReceiptOutcome>,
+    pub seq: u64,
+    pub commit: Option<CommitRecord>,
+}
+
 pub(crate) fn scan(log: &str) -> Scan {
     Scan {
         site: format!("_acquire.{log}.page"), table: log.into(), index: "byRecipient".into(),
@@ -94,6 +113,18 @@ pub(crate) fn certify(schema: &Schema, ceilings: &Ceilings) -> BTreeMap<String, 
 }
 
 impl Runtime {
+    pub fn acquire_receipt_group(&mut self, log: &str, packets: &[AcquisitionReceiptPacket], context: Context,
+        max_work: std::time::Duration,
+    ) -> Result<AcquisitionReceiptGroup, RuntimeError> {
+        self.acquisition_content(log)?;
+        let (content, _, declaration) = delivery::declarations(self.generation.schema()).find(|(_, _, d)| d.log == log).unwrap();
+        if !declaration.receipts { return Err(RuntimeError::Input("this deliver log has no receipts".into())); }
+        let (program, certificate) = &self.generation.programs()[&delivery::ack_name(declaration)];
+        let result = self.engine.acquire_receipt_group(program, certificate, context, content, declaration, packets, max_work)?;
+        self.executions = self.executions.saturating_add(result.outcomes.len() as u64);
+        Ok(result)
+    }
+
     pub fn acquisition_content(&self, log: &str) -> Result<&str, RuntimeError> {
         let (content, _, _) = delivery::declarations(self.generation.schema())
             .find(|(_, _, d)| d.log == log)

@@ -67,6 +67,18 @@ export class NativeCoverage {
     for (const page of pages) copy.admit(page);
   }
 
+  /** Persist only reusable prefixes. Lost evidence requires reacquisition from
+   * the root; an empty prefix with a newly observed row likewise starts there. */
+  positions(recipient: string): Record<string, { cursor: string | null; exhausted: boolean }> {
+    const positions: Record<string, { cursor: string | null; exhausted: boolean }> = Object.create(null);
+    for (const [log, owner] of this.logs) {
+      const chain = owner.recipients.get(recipient);
+      if (chain?.intact && (chain.cursor !== null || chain.exhausted))
+        positions[log] = { cursor: chain.cursor, exhausted: chain.exhausted };
+    }
+    return positions;
+  }
+
   admit(page: NativeLogCoverage): void {
     if (!page || typeof page.log !== 'string' || typeof page.recipient !== 'string' || typeof page.exhausted !== 'boolean'
       || page.after !== null && typeof page.after !== 'string' || page.cursor !== null && typeof page.cursor !== 'string')

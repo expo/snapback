@@ -2,11 +2,28 @@
 import { sha256 } from './hash';
 import { Ordered } from './ordered';
 import { compareArrays, fieldOrNull, canonicalJson, wireJson } from './value-runtime';
-import { prefixCompare } from './index-store';
+import { components, prefixCompare } from './index-store';
+import { fail } from './errors';
 import type { HeldIndex } from './index-store';
 import type { Value } from './types';
 
 export interface DirectoryEntry { scope: Value[]; rows: Set<Value>; key: Value[]; dependency?: string }
+
+/** Both carriers admit the same compiler-provided held-search descriptor. */
+export function validateHeldDescriptor(schema: any, merge: any): any {
+  const d = merge.held_search, lane = merge.lanes?.[0];
+  if (merge.lanes.length !== 1 || !lane.source || lane.setup?.length || lane.scan.before !== null || lane.scan.range !== null
+    || d.table !== lane.scan.table || d.index !== lane.scan.index || d.order !== lane.scan.order
+    || canonicalJson(d.discovery.scan) !== canonicalJson(lane.source) || d.discovery.binding !== lane.binding
+    || canonicalJson(d.term) !== canonicalJson(lane.scan.prefix.at(-1)?.WordPrefix)) fail('E_TRACE_SUBSET', 'held search metadata does not match its merge');
+  if (components(schema, d.table, d.index).findIndex(part => 'WordPrefixes' in part) !== d.scope.length || d.suffix.at(-1) !== 'id')
+    fail('E_TRACE_SUBSET', 'invalid held search partition');
+  return d;
+}
+export function heldScopeLayout(descriptor: any): { fixed: number[]; permutation: number[] } {
+  const fixed = descriptor.scope.flatMap((s: any, i: number) => directDiscoveryField(s.value, descriptor.discovery.binding) ? [] : [i]);
+  return { fixed, permutation: [...fixed, ...descriptor.scope.map((_: any, i: number) => i).filter((i: number) => !fixed.includes(i))] };
+}
 export class ReadableDirectory {
   private entries = new Map<string, DirectoryEntry>();
   private allowed = new Ordered<Value[], DirectoryEntry>(compareArrays);
@@ -16,8 +33,8 @@ export class ReadableDirectory {
   readonly fixed: number[];
   private permutation: number[];
   constructor(readonly index: HeldIndex, readonly descriptor: any, private viewer: string, private check: (row: Value) => boolean | null) {
-    this.fixed = descriptor.scope.flatMap((s: any, i: number) => directDiscoveryField(s.value, descriptor.discovery.binding) ? [] : [i]);
-    this.permutation = [...this.fixed, ...descriptor.scope.map((_: any, i: number) => i).filter((i: number) => !this.fixed.includes(i))];
+    const layout = heldScopeLayout(descriptor);
+    this.fixed = layout.fixed; this.permutation = layout.permutation;
     for (const [scope] of index.scopes.seek(() => 0)) this.refresh(scope);
   }
   refresh(scope: Value[]): void {

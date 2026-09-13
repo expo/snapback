@@ -1,7 +1,8 @@
 import { RowImage } from './row-image';
 export { immutable } from './row-image';
-import { ReadableDirectory } from './held-directory';
-import { CoverageIndex, prepareRange } from './coverage';
+import { ReadableDirectory, validateHeldDescriptor } from './held-directory';
+import { CoverageIndex } from './coverage';
+import { driveSync, uncoveredSites } from './query-work';
 import { NativeCoverage, type NativeLogCoverage } from './native-coverage';
 export type { NativeLogCoverage } from './native-coverage';
 import { fail, EvalError } from './errors';
@@ -150,19 +151,11 @@ export class ClientStore {
     return { state: partialSites.length ? 'partial' : 'fresh', partialSites, execution };
   }
   uncoveredSites(trace: Trace, misses: string[] = [], program?: any, search?: SearchExecution, nativeViewer?: string): string[] {
-    const partial = new Set(misses);
-    for (const r of trace.ranges) {
-      const logical = prepareRange(this.schema, r, program, search);
-      if (!this.facts.covers(r, logical) && !(program?.kind === 'Query' && nativeViewer !== undefined
-        && this.native?.covers(r, logical, nativeViewer))) partial.add(r.site);
-    }
-    // @ref LLP 1012#6-reads-offline — public group exhaustion proves this read's null, not primary/rule authority.
-    for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) {
-      const table = this.schema.tables[a.table];
-      if (table.rules.read !== 'Allow' || !table.indexes[a.index].unique
-        || !this.hasCompleteRange(a.table, a.index, a.key)) partial.add(a.site);
-    }
-    return [...partial].sort();
+    return driveSync(uncoveredSites(this, this.schema, trace, misses, program, search, nativeViewer));
+  }
+  coversRange(range: TraceRange, logical: LogicalIndexAtom[], program?: any, nativeViewer?: string): boolean {
+    return this.facts.covers(range, logical) || !!(program?.kind === 'Query' && nativeViewer !== undefined
+      && this.native?.covers(range, logical, nativeViewer));
   }
   rangeStop(range: TraceRange, logical: LogicalIndexAtom[]): TraceRange['stop'] { return this.facts.stop(range, logical); }
   rows(table: string): Value[] { return [...(this.tables.get(table)?.values() ?? [])]; }
@@ -219,13 +212,8 @@ export class ClientStore {
     const visit = (value: any): void => {
       if (!value || typeof value !== 'object') return;
       if (value.held_search) {
-        const d = value.held_search, lane = value.lanes?.[0];
-        if (value.lanes.length !== 1 || !lane.source || lane.setup?.length || lane.scan.before !== null || lane.scan.range !== null
-          || d.table !== lane.scan.table || d.index !== lane.scan.index || d.order !== lane.scan.order
-          || canonicalJson(d.discovery.scan) !== canonicalJson(lane.source) || d.discovery.binding !== lane.binding
-          || canonicalJson(d.term) !== canonicalJson(lane.scan.prefix.at(-1)?.WordPrefix)) fail('E_TRACE_SUBSET', 'held search metadata does not match its merge');
+        const d = validateHeldDescriptor(this.schema, value);
         const index = this.index(d.table, d.index);
-        if (index.derived !== d.scope.length || d.suffix.at(-1) !== 'id') fail('E_TRACE_SUBSET', 'invalid held search partition');
         this.directories.set(d, new ReadableDirectory(index, d, context.viewer, row => new Runner(this, this.schema, context, null).readAuthority(d.table, row)));
       }
       for (const child of Object.values(value)) visit(child);

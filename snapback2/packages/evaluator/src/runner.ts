@@ -1,5 +1,6 @@
 import { canonicalProgramJson } from "./certificate-identity";
-import { mergeRemainder, mergeStreams } from "./merge";
+import { mergeRemainder, mergeStreamsWork } from "./merge";
+import { driveSync, driveAsync, closeCursors, read as suspend, type QueryHost, type QueryWork, type QueryCursor, type QueryDirectory } from "./query-work";
 import { DeliveryPrediction } from './delivery-prediction';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { fail, EvalError, requireRowIdentity } from "./errors";
@@ -7,7 +8,7 @@ import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
 import { sha256 } from "./hash";
 import { splitMentionTokens } from "./text";
 import { SearchExecution, normalizationSteps } from "./search-runtime";
-import { ordinaryColumns, scalarAtoms, preparePrefix, logicalKey } from "./index-store";
+import { components, ordinaryColumns, scalarAtoms, preparePrefix, logicalKey } from "./index-store";
 import type { ClientStore } from "./store";
 import {
   asArray,
@@ -52,7 +53,15 @@ type Flow =
   | { kind: "return"; value: Value };
 
 const NEXT: Flow = { kind: "next" };
+interface MergeLane {
+  scan: any; input: any; values: QueryCursor; read: any;
+  uniform: boolean; allowed: boolean | undefined; exhausted: boolean;
+  visible: Value[]; returned: Value[];
+}
 
+// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// one control/read/rule machine serves synchronous execution and suspended queries.
+// Mutation helpers retain their synchronous store and rollback boundary.
 export class Runner {
   private delivery?: DeliveryPrediction;
   private acknowledgement?: string;
@@ -64,7 +73,7 @@ export class Runner {
   readonly trace: Trace = { ranges: [], absences: [], points: [], merges: [], verdicts: [] };
   private readonly ruleMemo = new Map<string, boolean>();
   // @ref LLP 1012#6-reads-offline — schema/rule identity is immutable for one
-  // synchronous execution; never carry this canonical-hash memo across Runners.
+  // execution; never carry this canonical-hash memo across Runners.
   private readonly ruleHashes = new Map<unknown, string>();
   /** Verdicts the rule check in progress derived; committed to the trace only when the check discloses the row. */
   private pendingVerdicts: TraceVerdict[] = [];
@@ -103,7 +112,7 @@ export class Runner {
   }> = [];
 
   constructor(
-    private readonly store: ClientStore,
+    private readonly source: ClientStore | QueryHost,
     private readonly schema: any,
     context: Context,
     private readonly certificate: any,
@@ -119,11 +128,31 @@ export class Runner {
     }
   }
 
-  execute(program: any): Execution {
+  private get store(): ClientStore {
+    if (!('put' in this.source)) fail('E_INPUT', 'query host cannot execute mutations');
+    return this.source as ClientStore;
+  }
+
+  execute(program: any): Execution { return driveSync(this.executeWork(program)); }
+  executeAsync(program: any): Promise<Execution> {
+    if (program.kind !== 'Query' || this.delivery) fail('E_INPUT', 'asynchronous execution requires a query');
+    return driveAsync(this.executeWork(program));
+  }
+  private checkRule(table: string, effect: 'read' | 'insert' | 'update' | 'delete', old: Value | null, next: Value): boolean {
+    return driveSync(this.checkRuleWork(table, effect, old, next));
+  }
+  readAuthority(table: string, row: Value, scopeFields?: string[]): boolean | null {
+    return driveSync(this.readAuthorityWork(table, row, scopeFields));
+  }
+  readAuthorityAsync(table: string, row: Value, scopeFields?: string[]): Promise<boolean | null> {
+    return driveAsync(this.readAuthorityWork(table, row, scopeFields));
+  }
+
+  private *executeWork(program: any): QueryWork<Execution> {
     validateCertificate(this.schema, program, this.certificate);
     this.acknowledgement = Object.values<any>(this.schema.tables).map(t => t.deliver).find(d =>
       d?.receipts && program.name === `_delivery.${d.log}.ack`)?.log;
-    const flow = this.statements(program.body);
+    const flow = (yield* this.statementsWork(program.body));
     this.checkFinalConstraints();
     return {
       result: this.partial.size === 0 && flow.kind === "return" ? flow.value : "Null",
@@ -150,7 +179,7 @@ export class Runner {
       fail("E_STEPS", "certified step budget exceeded");
   }
 
-  private statements(statements: any[], prefix = ""): Flow {
+  private *statementsWork(statements: any[], prefix = ""): QueryWork<Flow> {
     for (const [index, statement] of statements.entries()) {
       const path = `${prefix}${index}`;
       this.step();
@@ -158,33 +187,33 @@ export class Runner {
       let flow: Flow = NEXT;
       switch (kind) {
         case "Const":
-          this.env.set(data.name, this.expr(data.value));
+          this.env.set(data.name, (yield* this.exprWork(data.value)));
           this.consts.add(data.name);
           break;
         case "Let":
-          this.env.set(data.name, this.expr(data.value));
+          this.env.set(data.name, (yield* this.exprWork(data.value)));
           break;
         case "Assign":
           if (this.consts.has(data.name))
             fail("E_INPUT", `cannot assign to const binding ${data.name}`);
-          this.env.set(data.name, this.expr(data.value));
+          this.env.set(data.name, (yield* this.exprWork(data.value)));
           break;
         case "Push": {
           const target = this.env.get(data.target);
           if (target === undefined || !isVariant(target, "Array"))
             fail("E_TYPE", "push target is not an array");
-          target.Array.push(this.expr(data.value));
+          target.Array.push((yield* this.exprWork(data.value)));
           break;
         }
         case "If": {
-          const arm = asBool(this.expr(data.condition)) ? "then" : "else";
-          flow = this.statements(data[`${arm}_body`], `${path}/${arm}/`);
+          const arm = asBool((yield* this.exprWork(data.condition))) ? "then" : "else";
+          flow = (yield* this.statementsWork(data[`${arm}_body`], `${path}/${arm}/`));
           break;
         }
         case "For": {
-          for (const value of this.domain(data.domain)) {
+          for (const value of (yield* this.domainWork(data.domain))) {
             this.env.set(data.binding, value);
-            const bodyFlow = this.statements(data.body, `${path}/body/`);
+            const bodyFlow = (yield* this.statementsWork(data.body, `${path}/body/`));
             if (bodyFlow.kind === "continue" || bodyFlow.kind === "next") continue;
             if (bodyFlow.kind === "break") break;
             flow = bodyFlow;
@@ -193,49 +222,49 @@ export class Runner {
           break;
         }
         case "Require": {
-          const value = this.expr(data.condition);
+          const value = (yield* this.exprWork(data.condition));
           if (!asBool(value))
             fail("E_REQUIRE", "program requirement failed", data.code);
           this.delivery?.require(value);
           break;
         }
         case "Check":
-          if (!asBool(this.expr(data.condition))) {
-            const { table, index } = data.current, key = data.current.key.map((value: any) => this.expr(value));
-            if (this.store.lookup(table, index, key) === null && !this.store.hasAbsence(table, index, key)) this.partial.add("missing-authority");
+          if (!asBool((yield* this.exprWork(data.condition)))) {
+            const { table, index } = data.current, key = (yield* this.expressionsWork(data.current.key));
+            if ((yield* suspend(() => this.source.lookup(table, index, key))) === null && !(yield* suspend(() => this.source.hasAbsence(table, index, key)))) this.partial.add("missing-authority");
             fail("E_REQUIRE", "the row no longer matches the update condition", "E_CONFLICT");
           }
           break;
         case "InsertIfAbsent": {
-          const row = this.expr(data.row);
+          const row = (yield* this.exprWork(data.row));
           this.env.set(data.result, this.insert(data.table, row, true) ? row : "Null");
           break;
         }
         case "Insert":
-          this.insert(data.table, this.expr(data.row));
+          this.insert(data.table, (yield* this.exprWork(data.row)));
           break;
         case "Update":
-          this.update(data.table, this.expr(data.key), this.expr(data.patch));
+          this.update(data.table, (yield* this.exprWork(data.key)), (yield* this.exprWork(data.patch)));
           break;
         case "Upsert": {
-          const key = this.expr(data.key);
-          const row = this.expr(data.row);
+          const key = (yield* this.exprWork(data.key));
+          const row = (yield* this.exprWork(data.row));
           this.validateAddressedRowId(data.table, key, row);
           if (this.store.byId(data.table, asString(key)) === null) this.insert(data.table, row);
           else this.replace(data.table, key, row);
           break;
         }
         case "Delete":
-          this.delete(data.table, asString(this.expr(data.key)));
+          this.delete(data.table, asString((yield* this.exprWork(data.key))));
           break;
         // @ref LLP 1001#8-emit-and-the-outbox — the twin does not run effects, but it must consume the authoritative outbox id.
         case "Emit":
-          this.expr(data.payload);
+          (yield* this.exprWork(data.payload));
           if (this.context.new_ids.shift() === undefined)
             fail("E_INPUT", "newId envelope exhausted");
           break;
         case "Return":
-          flow = { kind: "return", value: this.expr(data) };
+          flow = { kind: "return", value: (yield* this.exprWork(data)) };
           this.returnPath = path;
           break;
         case "Break":
@@ -252,11 +281,11 @@ export class Runner {
     return NEXT;
   }
 
-  private domain(domain: any): Value[] {
+  private *domainWork(domain: any): QueryWork<Value[]> {
     const [kind, data] = variant(domain);
     switch (kind) {
       case "Page":
-        return asArray(this.scan(data));
+        return asArray((yield* this.scanWork(data)));
       case "LiteralRange": {
         const values: Value[] = [];
         for (let value = data.start; value < data.end_exclusive; value += 1) {
@@ -270,19 +299,19 @@ export class Runner {
         return values;
       }
       case "DerivedArray": {
-        const values = asArray(this.expr(data.value));
+        const values = asArray((yield* this.exprWork(data.value)));
         if (values.length > data.max) fail("E_FANOUT", "derived array bound");
         return values;
       }
       case "Recurse":
-        return this.recurse(data);
+        return (yield* this.recurseWork(data));
       default:
         fail("E_OPAQUE", `unsupported loop domain ${kind}`);
     }
   }
 
-  private recurse(recurse: any): Value[] {
-    const queue: [Value, number][] = [[this.expr(recurse.seed), 0]];
+  private *recurseWork(recurse: any): QueryWork<Value[]> {
+    const queue: [Value, number][] = [[(yield* this.exprWork(recurse.seed)), 0]];
     const visited = new Set<string>();
     const rows: Value[] = [];
     while (queue.length > 0) {
@@ -290,13 +319,13 @@ export class Runner {
       const canonical = canonicalValue(key);
       if (depth > recurse.depth || visited.has(canonical)) continue;
       visited.add(canonical);
-      const row = this.get({
+      const row = (yield* this.getWork({
         site: recurse.site,
         table: recurse.table,
         index: recurse.index,
         key: [{ Literal: key }],
         provenance: recurse.provenance,
-      });
+      }));
       if (row === "Null") continue;
       const next = field(row, recurse.next_field);
       rows.push(row);
@@ -309,7 +338,7 @@ export class Runner {
     return rows;
   }
 
-  private expr(expression: any): Value {
+  private *exprWork(expression: any): QueryWork<Value> {
     this.step();
     const [kind, data] = variant(expression);
     switch (kind) {
@@ -322,18 +351,18 @@ export class Runner {
       case "Input":
         return this.input(data);
       case "Field":
-        return clone(field(this.expr(data.base), data.name));
+        return clone(field((yield* this.exprWork(data.base)), data.name));
       case "Array":
-        return { Array: data.map((value: any) => this.expr(value)) };
+        return { Array: (yield* this.expressionsWork(data)) };
       case "Object": {
         const row: Record<string, Value> = Object.create(null);
-        for (const key of Object.keys(data).sort(compareCodepoints)) row[key] = this.expr(data[key]);
+        for (const key of Object.keys(data).sort(compareCodepoints)) row[key] = (yield* this.exprWork(data[key]));
         return { Row: row };
       }
       case "Binary":
-        return this.binary(data);
+        return (yield* this.binaryWork(data));
       case "Unary": {
-        const value = this.expr(data.value);
+        const value = (yield* this.exprWork(data.value));
         if (data.op === "Not") return { Bool: !asBool(value) };
         if (data.op === "Neg") return int(-asInt(value));
         fail("E_OPAQUE", `unsupported unary ${data.op}`);
@@ -344,21 +373,27 @@ export class Runner {
         if (data.args.length !== expected) {
           fail("E_INPUT", `${builtinKind} requires ${expected} arguments, received ${data.args.length}`);
         }
-        return this.builtin(data.builtin, data.args.map((value: any) => this.expr(value)));
+        return this.builtin(data.builtin, (yield* this.expressionsWork(data.args)));
       }
       case "Get":
-        return this.get(data);
+        return (yield* this.getWork(data));
       case "Exists": {
-        const row = this.get(data), value = { Bool: row !== 'Null' };
+        const row = (yield* this.getWork(data)), value = { Bool: row !== 'Null' };
         return this.delivery?.point(value, data.table, row) ?? value;
       }
       case "Scan":
-        return this.scan(data);
+        return (yield* this.scanWork(data));
       case "Merge":
-        return this.merge(data);
+        return (yield* this.mergeWork(data));
       default:
         fail("E_OPAQUE", `unsupported expression ${kind}`);
     }
+  }
+
+  private *expressionsWork(expressions: any[]): QueryWork<Value[]> {
+    const values: Value[] = [];
+    for (const expression of expressions) values.push((yield* this.exprWork(expression)));
+    return values;
   }
 
   private input(input: string): Value {
@@ -382,11 +417,11 @@ export class Runner {
     }
   }
 
-  private binary(data: any): Value {
-    const left = this.expr(data.left);
+  private *binaryWork(data: any): QueryWork<Value> {
+    const left = (yield* this.exprWork(data.left));
     if (data.op === "And" && !asBool(left)) return { Bool: false };
     if (data.op === "Or" && asBool(left)) return left;
-    const right = this.expr(data.right);
+    const right = (yield* this.exprWork(data.right));
     switch (data.op) {
       case "Eq":
         return { Bool: canonicalValue(left) === canonicalValue(right) };
@@ -538,16 +573,16 @@ export class Runner {
     }
   }
 
-  private get(read: any): Value {
-    const key = read.key.map((value: any) => this.expr(value));
+  private *getWork(read: any): QueryWork<Value> {
+    const key = (yield* this.expressionsWork(read.key));
     if (read.table === "_connected") {
       this.partial.add("missing-authority");
       this.authorityMissSerial += 1;
       return "Null";
     }
-    const found = this.store.lookup(read.table, read.index, key);
+    const found = (yield* suspend(() => this.source.lookup(read.table, read.index, key)));
     if (found !== null) this.trace.examined = (this.trace.examined ?? 0) + 1;
-    const disclosed = found !== null && this.checkRule(read.table, "read", null, found);
+    const disclosed = found !== null && (yield* this.checkRuleWork(read.table, "read", null, found));
     // @ref LLP 1012#7-writes-offline — the point digest is what the program
     // observed: the wire row when disclosed, an absence when missing or hidden.
     this.trace.points.push({
@@ -572,20 +607,23 @@ export class Runner {
     return disclosed ? clone(found) : "Null";
   }
 
-  private scanInput(scan: any, scope?: Value[]): any {
+  private *scanInputWork(scan: any, scope?: Value[]): QueryWork<any> {
     validateScanCursor(this.schema, scan, this.env);
     const maxima = scan.prefix.map((key: any) => key.WordPrefix?.source_max);
-    const prefix = scan.prefix.map((key: any, at: number) => {
+    const prefix: any[] = [];
+    for (const [at, key] of scan.prefix.entries()) {
       if (Object.keys(key).length !== 1) fail("E_INPUT", "malformed index key");
-      if ("Scalar" in key) return { Scalar: scope?.[at] ?? this.expr(key.Scalar) };
-      if (!key.WordPrefix) fail("E_INPUT", "malformed index key");
-      const p = key.WordPrefix;
-      return { WordPrefix: { contract: p.contract, source: asString(this.expr(p.source)) } };
-    });
+      if ("Scalar" in key) prefix.push({ Scalar: scope?.[at] ?? (yield* this.exprWork(key.Scalar)) });
+      else {
+        if (!key.WordPrefix) fail("E_INPUT", "malformed index key");
+        const p = key.WordPrefix;
+        prefix.push({ WordPrefix: { contract: p.contract, source: asString((yield* this.exprWork(p.source))) } });
+      }
+    }
     const logical = preparePrefix(this.schema, scan.table, scan.index, prefix, maxima, this.search.atom);
-    if (this.store.missingSearchAuthority(scan.table, scan.index, logical, this.context)) this.partial.add('missing-authority');
-    let after = scan.after === null ? null : this.expr(scan.after);
-    const before = scan.before === null ? null : this.expr(scan.before);
+    if ((yield* suspend(() => this.source.missingSearchAuthority(scan.table, scan.index, logical, this.context)))) this.partial.add('missing-authority');
+    let after = scan.after === null ? null : (yield* this.exprWork(scan.after));
+    const before = scan.before === null ? null : (yield* this.exprWork(scan.before));
     if (scan.opaque_cursor && after === "Null") after = null;
     else if (scan.opaque_cursor && after !== null) {
       if (!isVariant(after, "String")) fail("E_INPUT", "opaque cursor must be a string");
@@ -593,7 +631,7 @@ export class Runner {
         table: scan.table, index: scan.index, order: scan.order, suffix: cursorSuffix(this.schema, scan),
       }, this.schema);
     }
-    const evaluatedRange = scan.range === null ? null : this.evaluateRange(scan.range);
+    const evaluatedRange = scan.range === null ? null : (yield* this.evaluateRangeWork(scan.range));
     const [boundKind, boundData] = variant(scan.take);
     const take =
       boundKind === "Literal"
@@ -604,19 +642,20 @@ export class Runner {
     return { prefix, logical, after, before, evaluatedRange, take };
   }
 
-  private scan(scan: any): Value {
-    const input = this.scanInput(scan);
+  private *scanWork(scan: any): QueryWork<Value> {
+    const input = (yield* this.scanInputWork(scan));
     const { logical, after, before, evaluatedRange, take } = input;
-    const examined = this.store.scan(
-      scan.table,
-      scan.index,
-      logical,
-      after,
-      before,
-      evaluatedRange,
-      scan.order,
-      take + 2,
-    );
+    const cursor = yield* suspend(() => this.source.seek(scan.table, scan.index, logical, after, before, evaluatedRange, scan.order));
+    const examined: Value[] = [];
+    let failing = false;
+    try {
+      while (examined.length < take + 2) {
+        const next = yield* suspend(() => cursor.next());
+        if (next.done) break;
+        examined.push(next.value);
+      }
+    } catch (error) { failing = true; throw error; }
+    finally { yield* closeCursors([cursor], failing); }
     this.trace.examined = (this.trace.examined ?? 0) + examined.length;
     // The proof belongs to this scan; point reads still evaluate their row policy.
     const readSite = this.certificate.read_sites?.find((site: any) => site.site === scan.site);
@@ -624,7 +663,8 @@ export class Runner {
       || ["Allow", "Public"].includes(variant(this.schema.tables[scan.table].rules.read)[0]);
     const uniform = readSite?.hoist === true || publicRule;
     const decidedTrue = readSite?.hoist === true && readSite.decided_true === true;
-    const visible = examined.filter((row) => decidedTrue || this.checkRule(scan.table, "read", null, row));
+    const visible: Value[] = [];
+    for (const row of examined) if (decidedTrue || (yield* this.checkRuleWork(scan.table, "read", null, row))) visible.push(row);
     const sourceExhausted = examined.length < take + 2;
     // @ref LLP 1001#3-read-and-write-states-no-silent-states — exhausting
     // held candidates cannot prove a non-uniform scan complete when exactly
@@ -633,103 +673,111 @@ export class Runner {
       || (!uniform && visible.length < take && sourceExhausted)) ? "exhausted" : "limit";
     const returned = visible.slice(0, take);
     const suffix = cursorSuffix(this.schema, scan);
-    this.recordRange(scan, input, suffix, visible, returned, visible.slice(take), stop);
+    (yield* this.recordRangeWork(scan, input, suffix, visible, returned, visible.slice(take), stop));
     return { Array: returned.map(clone) };
   }
 
-  private merge(merge: any): Value {
+  private *mergeWork(merge: any): QueryWork<Value> {
     // execute validates certificate identity before any expression can reach a merge.
     const certificate = this.certificate;
     for (const lane of merge.lanes) validateScanCursor(this.schema, lane.scan, this.env);
-    const lanes: any[] = [];
+    const lanes: MergeLane[] = [];
     const prefixes = new Set<string>();
-    const directory = merge.held_search && this.store.heldDirectory(merge.held_search);
+    const directory: QueryDirectory | undefined = merge.held_search
+      ? yield* suspend(() => this.source.heldDirectory(merge.held_search)) : undefined;
     let heldScopes: Value[][] | undefined;
     if (directory) {
       const d = merge.held_search, bound = d.discovery.scan.take;
-      const term = d.term, source = asString(this.expr(term.source));
+      const term = d.term, source = asString((yield* this.exprWork(term.source)));
       // Scope values are not manufactured here: normalize just the declared derived slot.
-      this.search.atom(this.store.index(d.table, d.index).parts[d.scope.length], { WordPrefix: { source, contract: term.contract } }, term.source_max);
+      this.search.atom(components(this.schema, d.table, d.index)[d.scope.length], { WordPrefix: { source, contract: term.contract } }, term.source_max);
       const maximum = bound.Literal ?? asInt(this.context.args[bound.Arg.name]);
       if (!Number.isSafeInteger(maximum) || maximum < 0 || (bound.Arg && maximum > bound.Arg.max)) fail("E_FANOUT", "discovery bound exceeded");
-      const selected = directory.select(directory.fixed.map((i: number) => this.expr(d.scope[i].value)), maximum);
+      const fixed = yield* this.expressionsWork(directory.fixed.map((i: number) => d.scope[i].value));
+      const selected = yield* suspend(() => directory.select(fixed, maximum));
       this.held = true;
       if (selected.missing) { this.partial.add('missing-authority'); return { Array: [] }; }
       heldScopes = selected.scopes;
       if (selected.overflow) this.trace.merges.push({ site: merge.site, deduplicated_union_len: (d.take.Literal ?? d.take.Arg.max) + 1, last_returned_suffix: null });
     }
-    for (const lane of merge.lanes) {
-      const source = heldScopes ? heldScopes.map(Array => ({ Array }) as Value) : lane.source ? asArray(this.scan(lane.source)) : ["Null" as Value];
-      const previous = this.env.get(lane.binding);
-      for (const row of source) {
-        if (lane.source && !heldScopes) this.env.set(lane.binding, row);
-        const env = lane.setup?.length ? new Map(this.env) : null;
-        const consts = lane.setup?.length ? new Set(this.consts) : null;
-        this.statements(lane.setup ?? []);
-        const input = this.scanInput(lane.scan, heldScopes ? asArray(row) : undefined);
-        if (env) { this.env.clear(); for (const [key, value] of env) this.env.set(key, value); }
-        if (consts) { this.consts.clear(); for (const key of consts) this.consts.add(key); }
-        const r = input.evaluatedRange;
-        const key = canonicalJson([logicalKey(input.logical), input.after, input.before,
-          r ? [r.gt, r.gte, r.lt, r.lte] : null]);
-        if (prefixes.has(key)) continue;
-        prefixes.add(key);
-        const read = certificate.read_sites.find((s: any) => s.site === lane.scan.site);
-        if (!read) fail("E_TRACE_SUBSET", `undeclared merge lane ${lane.scan.site}`);
-        const table = this.schema.tables[lane.scan.table];
-        const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
-          || ["Allow", "Public"].includes(variant(table.rules.read)[0]);
-        const values = this.store.seek(lane.scan.table, lane.scan.index, input.logical, input.after,
-          input.before, input.evaluatedRange, lane.scan.order);
-        lanes.push({ scan: lane.scan, input, values, read,
-          uniform: read.hoist || publicRule, allowed: publicRule ? true : undefined,
-          exhausted: false, visible: [], returned: [] });
-      }
-      if (previous !== undefined) this.env.set(lane.binding, previous); else this.env.delete(lane.binding);
-    }
-    const first = merge.lanes[0].scan;
-    // The first distinct lane evaluates the shared bound; certification prices
-    // the first static lane's maximum, also used when discovery opens no lanes.
-    const take = lanes[0]?.input.take ?? first.take.Literal ?? first.take.Arg.max;
-    const step = (): void => this.step();
-    const next = lanes.map((lane) => (): Value | null => {
-      while (!lane.exhausted && (this.trace.examined ?? 0) < certificate.max_examined) {
-        if (lane.allowed === undefined && certificate.max_rule_probes - (this.trace.rule_probes ?? 0)
-          < (lane.read.rule_probes_per_candidate ?? 0)) return null;
-        step();
-        const next = lane.values.next();
-        if (next.done) { lane.exhausted = true; return null; }
-        this.trace.examined = (this.trace.examined ?? 0) + 1;
-        const row = next.value;
-        const allowed = lane.allowed ?? this.checkRule(lane.scan.table, "read", null, row);
-        if (lane.uniform) lane.allowed = allowed;
-        if (!allowed) {
-          if (lane.uniform) { lane.exhausted = true; return null; }
-          continue;
+    let failing = false;
+    try {
+      for (const lane of merge.lanes) {
+        const source = heldScopes ? heldScopes.map(Array => ({ Array }) as Value) : lane.source ? asArray((yield* this.scanWork(lane.source))) : ["Null" as Value];
+        const previous = this.env.get(lane.binding);
+        for (const row of source) {
+          if (lane.source && !heldScopes) this.env.set(lane.binding, row);
+          const env = lane.setup?.length ? new Map(this.env) : null;
+          const consts = lane.setup?.length ? new Set(this.consts) : null;
+          (yield* this.statementsWork(lane.setup ?? []));
+          const input = (yield* this.scanInputWork(lane.scan, heldScopes ? asArray(row) : undefined));
+          if (env) { this.env.clear(); for (const [key, value] of env) this.env.set(key, value); }
+          if (consts) { this.consts.clear(); for (const key of consts) this.consts.add(key); }
+          const r = input.evaluatedRange;
+          const key = canonicalJson([logicalKey(input.logical), input.after, input.before,
+            r ? [r.gt, r.gte, r.lt, r.lte] : null]);
+          if (prefixes.has(key)) continue;
+          prefixes.add(key);
+          const read = certificate.read_sites.find((s: any) => s.site === lane.scan.site);
+          if (!read) fail("E_TRACE_SUBSET", `undeclared merge lane ${lane.scan.site}`);
+          const table = this.schema.tables[lane.scan.table];
+          const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
+            || ["Allow", "Public"].includes(variant(table.rules.read)[0]);
+          const values = (yield* suspend(() => this.source.seek(lane.scan.table, lane.scan.index, input.logical, input.after,
+            input.before, input.evaluatedRange, lane.scan.order)));
+          lanes.push({ scan: lane.scan, input, values, read,
+            uniform: read.hoist || publicRule, allowed: publicRule ? true : undefined,
+            exhausted: false, visible: [], returned: [] });
         }
-        lane.visible.push(row);
-        return row;
+        if (previous !== undefined) this.env.set(lane.binding, previous); else this.env.delete(lane.binding);
       }
-      return null;
-    });
-    const suffix = cursorSuffix(this.schema, first);
-    const result = mergeStreams(next, suffix.map((c) => c.name), first.order, take, step,
-      (lane, row) => lanes[lane].returned.push(row));
-    for (const lane of lanes) {
-      const remaining = mergeRemainder(lane.visible, lane.returned);
-      this.recordRange(lane.scan, lane.input, suffix, lane.visible, lane.returned, remaining,
-        lane.exhausted && remaining.length === 0 ? 'exhausted' : 'limit');
+      const first = merge.lanes[0].scan;
+      // The first distinct lane evaluates the shared bound; certification prices
+      // the first static lane's maximum, also used when discovery opens no lanes.
+      const take = lanes[0]?.input.take ?? first.take.Literal ?? first.take.Arg.max;
+      const step = (): void => this.step();
+      const next = lanes.map(lane => () => this.mergeNextWork(lane, certificate));
+      const suffix = cursorSuffix(this.schema, first);
+      const result = yield* mergeStreamsWork(next, suffix.map((c) => c.name), first.order, take, step,
+        (lane, row) => lanes[lane].returned.push(row));
+      for (const lane of lanes) {
+        const remaining = mergeRemainder(lane.visible, lane.returned);
+        (yield* this.recordRangeWork(lane.scan, lane.input, suffix, lane.visible, lane.returned, remaining,
+          lane.exhausted && remaining.length === 0 ? 'exhausted' : 'limit'));
+      }
+      const page: any = Object.values(this.certificate.result_pages ?? {}).find((page: any) => page.merge && page.site === merge.site);
+      this.trace.merges.push({ site: merge.site, deduplicated_union_len: result.union,
+        last_returned_suffix: page?.merge && page.site === merge.site && result.rows.length
+          ? suffix.map((c) => clone(field(result.rows.at(-1)!, c.name))) : null });
+      return { Array: result.rows.map(clone) };
+    } catch (error) { failing = true; throw error; }
+    finally { yield* closeCursors(lanes.map(lane => lane.values), failing); }
+  }
+
+  private *mergeNextWork(lane: MergeLane, certificate: any): QueryWork<Value | null> {
+    while (!lane.exhausted && (this.trace.examined ?? 0) < certificate.max_examined) {
+      if (lane.allowed === undefined && certificate.max_rule_probes - (this.trace.rule_probes ?? 0)
+        < (lane.read.rule_probes_per_candidate ?? 0)) return null;
+      this.step();
+      const next: IteratorResult<Value> = yield* suspend(() => lane.values.next());
+      if (next.done) { lane.exhausted = true; return null; }
+      this.trace.examined = (this.trace.examined ?? 0) + 1;
+      const row = next.value;
+      const allowed = lane.allowed ?? (yield* this.checkRuleWork(lane.scan.table, "read", null, row));
+      if (lane.uniform) lane.allowed = allowed;
+      if (!allowed) {
+        if (lane.uniform) { lane.exhausted = true; return null; }
+        continue;
+      }
+      lane.visible.push(row);
+      return row;
     }
-    const page: any = Object.values(this.certificate.result_pages ?? {}).find((page: any) => page.merge && page.site === merge.site);
-    this.trace.merges.push({ site: merge.site, deduplicated_union_len: result.union,
-      last_returned_suffix: page?.merge && page.site === merge.site && result.rows.length
-        ? suffix.map((c) => clone(field(result.rows.at(-1)!, c.name))) : null });
-    return { Array: result.rows.map(clone) };
+    return null;
   }
 
   /** Scans and merge lanes disclose the same immutable row/halo receipt shape. */
-  private recordRange(scan: any, input: any, suffix: ReturnType<typeof cursorSuffix>, visible: Value[],
-    returned: Value[], remaining: Value[], stop: 'limit' | 'exhausted'): void {
+  private *recordRangeWork(scan: any, input: any, suffix: ReturnType<typeof cursorSuffix>, visible: Value[],
+    returned: Value[], remaining: Value[], stop: 'limit' | 'exhausted'): QueryWork<void> {
     const { prefix, take, after, before, evaluatedRange } = input;
     for (const row of visible) this.pool(scan.table, row);
     const range: TraceRange = {
@@ -753,16 +801,16 @@ export class Runner {
       lastReturnedSuffix: returned.length === 0 ? null
         : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
     };
-    range.stop = this.store.rangeStop(range, input.logical);
+    range.stop = (yield* suspend(() => this.source.rangeStop(range, input.logical)));
     this.trace.ranges.push(range);
   }
 
-  private evaluateRange(range: any): any {
+  private *evaluateRangeWork(range: any): QueryWork<any> {
     return {
-      gt: range.gt === null ? null : this.expr(range.gt),
-      gte: range.gte === null ? null : this.expr(range.gte),
-      lt: range.lt === null ? null : this.expr(range.lt),
-      lte: range.lte === null ? null : this.expr(range.lte),
+      gt: range.gt === null ? null : (yield* this.exprWork(range.gt)),
+      gte: range.gte === null ? null : (yield* this.exprWork(range.gte)),
+      lt: range.lt === null ? null : (yield* this.exprWork(range.lt)),
+      lte: range.lte === null ? null : (yield* this.exprWork(range.lte)),
     };
   }
 
@@ -1122,33 +1170,33 @@ export class Runner {
     }
   }
 
-  readAuthority(table: string, row: Value, scopeFields?: string[]): boolean | null {
+  private *readAuthorityWork(table: string, row: Value, scopeFields?: string[]): QueryWork<boolean | null> {
     const previous = this.authorityFields; this.authorityFields = scopeFields;
-    try { const result = this.checkRule(table, 'read', null, row); return this.partial.size ? null : result; }
+    try { const result = (yield* this.checkRuleWork(table, 'read', null, row)); return this.partial.size ? null : result; }
     finally { this.authorityFields = previous; }
   }
 
-  private checkRule(
+  private *checkRuleWork(
     table: string,
     effect: "read" | "insert" | "update" | "delete",
     old: Value | null,
     next: Value,
-  ): boolean {
+  ): QueryWork<boolean> {
     // @ref LLP 1012#5-retention-revocation-and-the-fence — under `retain
     // delivered-history` a held row is readable to the twin: delivery was the
     // authorization, so the kept row renders under local evaluation too.
-    if (effect === "read" && this.store.readable(table)) return true;
+    if (effect === "read" && (yield* suspend(() => this.source.readable(table)))) return true;
     const rule = this.schema.tables[table].rules[effect];
     const authorityMissSerial = this.authorityMissSerial;
     const outer = this.pendingVerdicts;
     this.pendingVerdicts = [];
-    const allowed = this.evaluateRule(
+    const allowed = (yield* this.evaluateRuleWork(
       rule,
       this.ruleHash(rule),
       old,
       next,
       effect === "insert",
-    ) && this.authorityMissSerial === authorityMissSerial;
+    )) && this.authorityMissSerial === authorityMissSerial;
     // Only a check that disclosed its row leaves verdicts on the trace: the
     // server discards the rule inputs a hidden candidate minted, so a traced
     // verdict from a failed check would be one nothing at commit derived.
@@ -1164,13 +1212,13 @@ export class Runner {
     return allowed;
   }
 
-  private evaluateRule(
+  private *evaluateRuleWork(
     rule: any,
     ruleHash: string,
     old: Value | null,
     next: Value,
     createdAllowed: boolean,
-  ): boolean {
+  ): QueryWork<boolean> {
     const [kind, data] = variant(rule);
     switch (kind) {
       case "Public":
@@ -1183,15 +1231,13 @@ export class Runner {
       case "Ne":
         return canonicalValue(this.ruleTerm(data[0], old, next)) !== canonicalValue(this.ruleTerm(data[1], old, next));
       case "And":
-        return data.every((child: any) =>
-          this.evaluateRule(child, ruleHash, old, next, createdAllowed)
-        );
+        for (const child of data) if (!(yield* this.evaluateRuleWork(child, ruleHash, old, next, createdAllowed))) return false;
+        return true;
       case "Or":
-        return data.some((child: any) =>
-          this.evaluateRule(child, ruleHash, old, next, createdAllowed)
-        );
+        for (const child of data) if ((yield* this.evaluateRuleWork(child, ruleHash, old, next, createdAllowed))) return true;
+        return false;
       case "Not":
-        return !this.evaluateRule(data, ruleHash, old, next, createdAllowed);
+        return !(yield* this.evaluateRuleWork(data, ruleHash, old, next, createdAllowed));
       case "Exists": {
         // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — absence and authorization are authority-only.
         const key = data.key.map((term: any) => this.ruleTerm(term, old, next));
@@ -1205,7 +1251,7 @@ export class Runner {
         }
         if (!this.ruleInputIsReadable(data)) {
           // @ref LLP 1001#2-what-a-commit-records — held rows cannot replace authority-only verdicts.
-          const verdict = this.store.verdict(ruleHash, pinnedDigest, this.context);
+          const verdict = (yield* suspend(() => this.source.verdict(ruleHash, pinnedDigest, this.context)));
           if (verdict !== null) {
             this.ruleMemo.set(memoKey, verdict);
             this.pendingVerdicts.push({ rule_hash: ruleHash, inputs_digest: pinnedDigest, result: verdict });
@@ -1215,9 +1261,9 @@ export class Runner {
           this.authorityMissSerial += 1;
           return false;
         }
-        const found = this.store.lookup(data.table, data.index, key);
+        const found = (yield* suspend(() => this.source.lookup(data.table, data.index, key)));
         this.trace.rule_probes = (this.trace.rule_probes ?? 0) + 1;
-        if (found === null && !this.store.hasAbsence(data.table, data.index, key)) {
+        if (found === null && !(yield* suspend(() => this.source.hasAbsence(data.table, data.index, key)))) {
           this.partial.add(`${data.table}.${data.index}`);
           this.ruleMemo.set(memoKey, false);
           return false;

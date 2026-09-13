@@ -4,7 +4,7 @@
 // @ref LLP 1019#native-acquisition-restart — fairness separates complete units.
 use super::*;
 use serde::Deserialize;
-use snapback2_core::{ColumnType, CursorColumn, decode_cursor_for};
+use snapback2_core::{AcquisitionReceiptPacket, ColumnType, CursorColumn, decode_cursor_for};
 
 const MAX_BYTES: usize = 1_048_576;
 const ERROR_RESERVE: usize = 4096;
@@ -131,19 +131,21 @@ impl State {
                 .map_err(|_| Refusal::input("native acquisition cursor is not canonical for this log", "resume with the last committed cursor"))?;
         }
         let context = self.execution_context(&authority, BTreeMap::new())?;
-        let mut receipts = Vec::new();
-        for packet in request.receipts.iter().take(8) {
-            if !receipts.is_empty() && started.elapsed() >= max_work { break; }
-            let outcome = self.runtime_mut().acquire_receipts(&request.log, packet.events.clone(), context.clone());
-            let result = match outcome {
-                Ok(acknowledgement) => {
-                    if let Some(commit) = acknowledgement.commit { self.after_commit_record(commit)?; }
-                    json!({"id":packet.id,"state":"complete","seq":acknowledgement.execution.seq})
-                }
-                Err(error) => json!({"id":packet.id,"state":"rejected","seq":self.runtime().store().commit_seq().map_err(|e| Refusal::from_runtime(&e))?,"code":error.code()}),
-            };
-            receipts.push(result);
-        }
+        // @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+        // one explicit logical group publishes once, after all accepted packets commit.
+        let packets: Vec<_> = request.receipts.iter().take(8).map(|packet| AcquisitionReceiptPacket {
+            id: packet.id.clone(), events: packet.events.clone(),
+        }).collect();
+        let receipts: Vec<Json> = if packets.is_empty() { Vec::new() } else {
+            let group = self.runtime_mut().acquire_receipt_group(&request.log, &packets,
+                context.clone(), max_work.saturating_sub(started.elapsed()))
+                .map_err(|error| Refusal::from_runtime(&error))?;
+            if let Some(commit) = group.commit { self.after_commit_record(commit)?; }
+            group.outcomes.into_iter().map(|outcome| match outcome.code {
+                None => json!({"id":outcome.id,"state":"complete","seq":group.seq}),
+                Some(code) => json!({"id":outcome.id,"state":"rejected","seq":group.seq,"code":code}),
+            }).collect()
+        };
         let pending_receipts = receipts.len() < request.receipts.len();
         let has_receipts = !receipts.is_empty();
         let mut frame = Frame::new(json!({

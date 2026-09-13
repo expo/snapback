@@ -24078,6 +24078,414 @@
         ],
         "inferenceLimit": "No cost attribution, dominant-bottleneck finding, sub-three-second feasibility claim, or source change follows from this audit."
       }
+    },
+    "ownerArchitectureRestart": {
+      "kind": "Single complete native owner architecture candidate endpoint",
+      "date": "2026-09-12",
+      "status": "Frozen full v2 witness passes at7494.677590ms; three-second target remains unmet; no source promotion",
+      "source": {
+        "commit": "a588fc1641f23c8f341d277a3a5c8f49a39e19ef",
+        "base": "a2680554e1bd84f828d7a44ed1620d6d0e950bb8",
+        "branch": "llp-ship/acquisition-20260912/owner-architecture-restart",
+        "scope": "Immutable committed archive, independent of later live worktree changes; all1193 source files and2symlinks verified before/after release build"
+      },
+      "architecture": [
+        "Schema-aware immutable storage images retained through authoritative native reads, evidence and borrowed wire encoding.",
+        "Explicit native mode retains authoritative checks/audit/cost containment while omitting export-only ClosureReceipt construction.",
+        "Exact committed record handoff to unchanged post-commit processing; bounded encoded page response carried to HTTP.",
+        "No receipt group commit or client change in this measured owner candidate."
+      ],
+      "build": {
+        "source": "a588fc1641f23c8f341d277a3a5c8f49a39e19ef",
+        "status": "release-build-pass",
+        "handle": 10457,
+        "exitCode": 0,
+        "buildSeconds": 44.26,
+        "owner": {
+          "path": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/owner-architecture-restart-build/artifact/snapback2",
+          "bytes": 20232920,
+          "sha256": "bbd734254bf95e6c69ceb67ed3aa195e38ba812c2a4bd0576bbad86679fcfa7f",
+          "mode": "0o555"
+        },
+        "media": {
+          "path": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/owner-architecture-restart-build/artifact/snapback2-media",
+          "bytes": 1920344,
+          "sha256": "2b85bb6d20472298296cb207d4c2e48b00d7f35904a296abcfb4330f4f6a913b",
+          "mode": "0o555"
+        },
+        "oldOwnerPreserved": {
+          "path": "/home/ccheever/lanes/clique-20260909-initial/runs/20260911-bulk-acquisition/sub3-20260912/native-restart-build/artifact/snapback2",
+          "bytes": 20157912,
+          "sha256": "fab3aea600a372b41f9a250586bccd66e4ff4fbcfe286b5ba66c57eb5b441ead",
+          "mode": "0o775"
+        },
+        "sourceFilesVerifiedAfterBuild": 1193,
+        "sourceLinksVerifiedAfterBuild": 2,
+        "buildPidsGone": true,
+        "log": "/tmp/acquisition-owner-architecture-release-build-20260912.log",
+        "logSha256": "651da65c739f9c8d7fbf5182745157a6045b8705a96283bd8107d0f242bbf41d",
+        "preflight": "/tmp/acquisition-owner-architecture-full-preflight-20260912.json",
+        "preflightSha256": "995e8531484304ce75bdce9c0c67a837777ef33f61fd9e9bf3e52e32cfa6ac1e",
+        "preflightSetupNotes": [
+          "Initial scanner tried reading every process executable before comm and encountered root-owned /proc permissions; no build/browser launched by preflight.",
+          "sudo -n unavailable. Corrected read-only preflight reads globally visible comm before best-effort exe; relevant process comm or executable identities are both detected. All relevant identities absent, no unreadable comm gaps."
+        ]
+      },
+      "fixedHashes": {
+        "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+        "oracle": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+        "owner": "bbd734254bf95e6c69ceb67ed3aa195e38ba812c2a4bd0576bbad86679fcfa7f",
+        "compilerCore": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+        "browser": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+        "harness": "1c3b967d82e528a2e2e7ec805e63296f113ee20152bae07793a3bddd1c9ad1d4",
+        "clientEntry": "786986e4243c261303cd0f40ee90605dc82a8bf6f0f3511ec24e15a165d03105",
+        "compiledProject": "526a8ddf51c2cb1b15aee97bc2695538d60a78aeeb7246c948d1ab6be020cdab",
+        "app": "d3b3c37adc8e7726f0c624420955e3d75595b9922e0ef7e41e5c8028c6eddce3"
+      },
+      "unchangedClient": {
+        "filesVerified": 340,
+        "entrySha256": "786986e4243c261303cd0f40ee90605dc82a8bf6f0f3511ec24e15a165d03105",
+        "runtimeSha256": "15acc93adb38806e83d18ec55d74fb8f827f7476a5a0fa2dcec29c83a5e3c59b",
+        "runtimeGzip": 97973,
+        "ceiling": 90000,
+        "passed": false,
+        "measurementScope": "Prior canonical root measurement explicitly includes NativeAcquisitionClient; byte-identical staged SDK reused, not a newly measured current-worktree runtime"
+      },
+      "method": {
+        "oracleVersion": "native-acquisition-restart-v1",
+        "harnessVersion": "v2-verified-chromium-process-title-scanner",
+        "instrumented": false,
+        "allocation": "Exactly one full experiment after exclusive release build; no profiling/components/repetition or concurrent build/browser group",
+        "handle": 96436,
+        "exitCode": 0,
+        "clock": "Same v2 navigation through SDK/program/auth loads, actual100-conversation DOM inbox, durable native content, receipt settlement, route cut and first actual offline IR history/search. Full rows inspection and physical owner/browser stop/reopen follow timing."
+      },
+      "sample": {
+        "experiment": "sub3-20260912-owner-architecture-restart-01",
+        "primaryPass": true,
+        "gate": "PASS_EXPERIMENTAL_FULL_ENDPOINT",
+        "host": {
+          "hostname": "expose-builder-pixel-a",
+          "platform": "linux",
+          "release": "6.8.0-100-generic",
+          "node": "v24.13.1",
+          "cpus": 12,
+          "load": [
+            0.05,
+            0.2,
+            0.17
+          ]
+        },
+        "browser": "140.0.7339.186",
+        "startedAt": "2026-09-13T01:23:29.749Z",
+        "finishedAt": "2026-09-13T01:23:50.780Z",
+        "timing": {
+          "firstInboxMs": 328.6158519999999,
+          "contentMs": 4874.641170000001,
+          "receiptSettlementMs": 7471.347193,
+          "completeAcquisitionMs": 7494.677590000001,
+          "firstOfflineHistoryMs": 6.69999885559082,
+          "firstOfflineSearchMs": 2.700000762939453,
+          "physicalReopenMs": 2741.3633100000006,
+          "reopenHistoryMs": 1.5,
+          "reopenSearchMs": 2.299999237060547,
+          "scope": "Same v2 navigation through SDK/program/auth loads, actual100-conversation DOM inbox, durable native content, receipt settlement, route cut and first actual offline IR history/search. Full rows inspection and physical owner/browser stop/reopen follow timing."
+        },
+        "inboxRows": 100,
+        "firstUse": {
+          "history": {
+            "rows": 50,
+            "state": "partial",
+            "connection": "offline"
+          },
+          "search": {
+            "rows": 1,
+            "state": "held",
+            "connection": "offline"
+          },
+          "pass": true,
+          "comparison": "Exact ordered IDs/bodies match frozen oracle and previous v2 sample; actual named IR queries within clock, no rows-inspection shortcut"
+        },
+        "ownerReceipts": {
+          "sameKeys": true,
+          "total": 10008,
+          "finalReceived": 10008,
+          "falseToTrue": 5558,
+          "trueToFalse": 0,
+          "identityChanges": 0,
+          "initiallyReceived": 4450,
+          "firstSequenceChanges": 0,
+          "nonadvancingNewSequences": 0,
+          "validSequences": true,
+          "transitionsSha256": "ac88eea49f01f7b7157f883deccc2cceab9183470f108aa033fa19aa393a4a65",
+          "retainedFirstSequenceSha256": "0dff8e2c29afaace6e39b98c082198ee297cd598251222b2f93a06642cbdc936",
+          "observation": "Per-row before/after committed SQLite states. This counts changed receipt rows, not internal UPDATE statements or transport packets.",
+          "pass": true
+        },
+        "settlement": {
+          "remaining": 0,
+          "rejected": 0
+        },
+        "statusAtSettlement": {
+          "principal": "dev:alice",
+          "seq": 10365,
+          "pending": 0,
+          "rejected": 0,
+          "acquired": 10008,
+          "exhausted": true
+        },
+        "durable": {
+          "schema": [
+            {
+              "name": "meta",
+              "keyPath": null,
+              "autoIncrement": false,
+              "indexes": []
+            },
+            {
+              "name": "pages",
+              "keyPath": null,
+              "autoIncrement": false,
+              "indexes": []
+            },
+            {
+              "name": "proofs",
+              "keyPath": null,
+              "autoIncrement": false,
+              "indexes": []
+            }
+          ],
+          "tables": {
+            "conversations": 100,
+            "memberships": 100,
+            "deliveries": 10008,
+            "messages": 10008
+          },
+          "snapshots": {
+            "meta": {
+              "records": 2,
+              "serializedJsonUtf8Bytes": 399382,
+              "sha256": "ab5c6f889dae19d32d84bb1814cc70f00587fe2c8119a006d1c8d7cfa3b5bece"
+            },
+            "pages": {
+              "records": 103,
+              "serializedJsonUtf8Bytes": 8363526,
+              "sha256": "3a8c6253bc750bd7435325468fd78e881de7ff9fbc477f9c0e9466404b585ba9"
+            },
+            "proofs": {
+              "records": 3,
+              "serializedJsonUtf8Bytes": 10231,
+              "sha256": "39a4e3c20e88094f36a66f9bb36c5f1033075da03a45603945b4a803f99039e2"
+            }
+          },
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "sdkMessageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "sdkMatchesPhysical": true,
+          "matchesOwnerMessages": true,
+          "note": "Post-clock raw IndexedDB decode and SDK inspection only. Complete record hashes include metadata, but no bearer/token hash or raw state is exported. JSON bytes are not disk allocation or retained heap."
+        },
+        "reopen": {
+          "pass": true,
+          "totalMs": 2741.3633100000006,
+          "inboxRows": 100,
+          "historyMs": 1.5,
+          "searchMs": 2.299999237060547,
+          "physicalOwnerStopped": true,
+          "physicalChromiumRestart": true,
+          "sameCompletePhysicalSnapshots": true,
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "sameExactHistoryAndSearch": true
+        },
+        "stop": {
+          "status": 0,
+          "stdout": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+          "stderr": "",
+          "elapsedMs": 201.04232799999954,
+          "error": null,
+          "ownerPid": 371558,
+          "postStopProcess": null
+        },
+        "fixtureUnchanged": true,
+        "oracleUnchanged": true,
+        "errors": []
+      },
+      "singlePointComparison": {
+        "referenceExperiment": "sub3-20260912-native-architecture-restart-03",
+        "referenceSource": "a2680554e1bd84f828d7a44ed1620d6d0e950bb8",
+        "referenceRaw": "/tmp/sub3-20260912-native-architecture-restart-03.json",
+        "referenceRawSha256": "55e3b4baa33988747b7f25772783bdb51c2621c97b1facbbe525ec91a73f45d1",
+        "referenceFullMs": 8080.116027,
+        "candidateFullMs": 7494.677590000001,
+        "candidateMinusReferenceFullMs": -585.4384369999989,
+        "referenceContentMs": 5241.443168,
+        "candidateContentMs": 4874.641170000001,
+        "candidateMinusReferenceContentMs": -366.801997999999,
+        "scope": "One later candidate point versus retained earlier control, same v2 harness/client/fixture/protocol/UI; not a repeated or adjacent cohort, distribution, causal speedup qualification or sub-three-second result. Generated entry/app hashes differ with per-run owner URL. All fixed SDK inputs and compiled project hash match."
+      },
+      "protocol": {
+        "version": "native-restart-v1",
+        "ordinaryAckTerminals": "retired",
+        "retiredLegacyOracle": {
+          "total": 201,
+          "empty": 89,
+          "eightEffects": 1,
+          "fiftyEffects": 111
+        },
+        "replacement": "same frozen receipt rows: exactly 5558 initially false rows become true, all 10008 finish true, and every initially true row retains its first sequence",
+        "limitation": "Receipt-row outcomes are compared independently in SQLite after timing; this is not the same acknowledgement transport or terminal protocol."
+      },
+      "comparability": {
+        "sameFixture": true,
+        "sameBearerSetup": true,
+        "sameNavigationClockBoundary": true,
+        "sameFirstOfflineQueries": true,
+        "changed": [
+          "standalone NativeAcquisitionClient SDK",
+          "native acquisition/receipt protocol",
+          "three-store current-page carrier format",
+          "minimal plain-DOM inbox replaces React StrictMode chat template"
+        ],
+        "scope": "Full vertical candidate endpoint. Older React/legacy-protocol measurements are contextual; no matched-UI or same-protocol speedup claim. No first-use index construction or SDK hydration is moved before navigation.",
+        "omittedLegacyUI": [
+          "React/provider mounting",
+          "live subscriptions",
+          "message-preview aggregation",
+          "composer/new-conversation controls",
+          "development overlay"
+        ],
+        "durability": "Await actual IndexedDB transaction completion; default browser durability, not fsync or power-loss qualification."
+      },
+      "qualification": {
+        "subThreeSeconds": false,
+        "replicatedCohort": false,
+        "distributionOrP95": false,
+        "sameLegacyProtocolOrUi": false,
+        "promotion": false,
+        "sourceBranch": "llp-ship/acquisition-20260912/owner-architecture-restart",
+        "runtimeBytes": {
+          "gzip": 97973,
+          "ceiling": 90000,
+          "scope": "Unchanged staged NativeAcquisitionClient artifact, prior root canonical check including named client. No runtime byte exemption; source remains experimental."
+        }
+      },
+      "postflight": {
+        "pass": true,
+        "at": "2026-09-13T01:25:09.422269+00:00",
+        "host": "expose-builder-pixel-a",
+        "active": [],
+        "processReadGaps": [],
+        "recordedBuildAndPreviousPidsRemaining": [],
+        "sourceFilesVerified": 1193,
+        "sourceLinksVerified": 2,
+        "clientFilesVerified": 340,
+        "capacity": {
+          "cpus": 12,
+          "load": [
+            0.22705078125,
+            0.23681640625,
+            0.1865234375
+          ],
+          "memoryAvailableKiB": 129206732,
+          "diskAvailableBytes": 186017894400
+        },
+        "sourceFixtureOraclePriorRawPreserved": true
+      },
+      "processes": {
+        "initialPids": [
+          371605,
+          371612,
+          371613,
+          371635,
+          371637,
+          371654,
+          371687,
+          371688
+        ],
+        "betweenProcesses": [],
+        "reopenPids": [
+          372042,
+          372049,
+          372050,
+          372071,
+          372073,
+          372088,
+          372124,
+          372125
+        ],
+        "finalPids": [],
+        "checkedPids": [
+          371491,
+          371523,
+          371558,
+          371559,
+          371605,
+          371607,
+          371612,
+          371613,
+          371635,
+          371637,
+          371654,
+          371687,
+          371688,
+          371711,
+          372042,
+          372044,
+          372049,
+          372050,
+          372071,
+          372073,
+          372088,
+          372124,
+          372125
+        ],
+        "allRecordedPidsAbsent": true,
+        "method": "v2 verified Chromium executable and exact user-data-dir option boundary; actual browser close and fresh launch, then independent proc comm/exe check"
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/sub3-20260912-owner-architecture-restart-01.json",
+          "bytes": 53883,
+          "sha256": "7b7156ba4e7e616a48ec6f1934c39634513d0597b9939c384a56835482c383d1"
+        },
+        {
+          "path": "/tmp/sub3-20260912-owner-architecture-restart-01.log",
+          "bytes": 359,
+          "sha256": "aeb4137921c2ff23fa5918b73b00b703d1d3089ce39624bc00862608899f8786"
+        },
+        {
+          "path": "/tmp/acquisition-owner-architecture-postflight-20260912.json",
+          "bytes": 6484,
+          "sha256": "9b3e8eb64a710fbc5c391b12b6e265b1f7362d716c1e519480d733a28549b0e9"
+        },
+        {
+          "path": "/tmp/acquisition-owner-architecture-release-manifest-20260912.json",
+          "bytes": 1917,
+          "sha256": "be84cb04b36b045fc965f79ea833eb069b1dd915713e49986714283474c12be3"
+        },
+        {
+          "path": "/tmp/acquisition-owner-architecture-release-build-20260912.log",
+          "bytes": 2718,
+          "sha256": "651da65c739f9c8d7fbf5182745157a6045b8705a96283bd8107d0f242bbf41d"
+        },
+        {
+          "path": "/tmp/acquisition-owner-architecture-launch-01-20260912.sh",
+          "bytes": 1166,
+          "sha256": "41dcc2dd682e1aa011f36dbdba2d0eea99bd6a6eba91ab76617c44c630936309"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-v2-20260912.mjs",
+          "bytes": 36862,
+          "sha256": "1c3b967d82e528a2e2e7ec805e63296f113ee20152bae07793a3bddd1c9ad1d4"
+        },
+        {
+          "path": "/tmp/acquisition-owner-architecture-sample-20260912.json",
+          "bytes": 32035,
+          "sha256": "4525ba1b7c816f6d63a0d578e2019b8a9a6778ec6312503bd1b1024c8c786320"
+        }
+      ],
+      "decision": "Continue the active goal with the next coherent owner/client architecture. This candidate point is585.438437ms below the retained8080.116027ms same-v2 point, not a repeated distribution or component attribution. It remains4494.677590ms above3s with the reduced UI; full application and runtime qualification are outstanding."
     }
   }
 }

@@ -82,6 +82,8 @@ impl Runner<'_> {
 mod tests {
     use super::*;
     use crate::{Ceilings, Checker};
+    use crate::acquisition::AcquisitionReceiptPacket;
+    use std::time::Duration;
 
     fn fixture() -> (Engine, Schema, delivery::Deliver) {
         let f: serde_json::Value = serde_json::from_str(include_str!("../../../../corpus/deliver-ack-missing-authority.json")).unwrap();
@@ -220,6 +222,185 @@ mod tests {
         received.insert("recipient".into(), Value::Id("other".into()));
         assert!(!runner.acknowledge("deliveriesReceipts", &Value::Row(received.into())).unwrap());
         assert_eq!(runner.trace.examined, 0);
+    }
+
+    fn receipt_packets(ids: &[(&str, Vec<String>)]) -> Vec<AcquisitionReceiptPacket> {
+        ids.iter().map(|(id, events)| AcquisitionReceiptPacket { id: (*id).into(), events: events.clone() }).collect()
+    }
+
+    fn group_context() -> Context {
+        let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
+        context.now = Some(10);
+        context
+    }
+
+    fn group_fixture(maintained: bool) -> (Engine, Schema, delivery::Deliver, BTreeMap<String, String>) {
+        let (source, mut schema, d) = fixture();
+        if maintained {
+            let index = |columns: &[&str]| Index { components: columns.iter()
+                .map(|name| IndexComponent::Column((*name).into())).collect(), unique: true };
+            schema.tables.insert("receiptTotals".into(), public_table(BTreeMap::from([
+                ("id".into(), ColumnType::Id), ("recipient".into(), ColumnType::Principal), ("value".into(), ColumnType::Int),
+            ]), BTreeMap::from([("byId".into(), index(&["id"])), ("byValue".into(), index(&["value", "id"]))])));
+            schema.maintains.push(Maintain { kind: MaintainKind::Sum { of: "seq".into() },
+                source: "deliveriesReceipts".into(), by: vec!["recipient".into()], target: "receiptTotals".into(),
+                readable: Some(RuleExpr::Allow) });
+        }
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        engine.seed("memberships", source.rows("memberships").unwrap().remove(0)).unwrap();
+        let mut body = source.rows("messages").unwrap().remove(0).as_object().unwrap().clone();
+        for id in ["m", "m2", "m3", "dead"] {
+            body.insert("id".into(), Value::Id(id.into()));
+            engine.seed("messages", Value::Row(body.clone().into())).unwrap();
+        }
+        let ids = engine.rows("deliveriesReceipts").unwrap().iter().map(|row|
+            (row.field("row").unwrap().as_str().unwrap().into(), row.field("id").unwrap().as_str().unwrap().into())).collect();
+        (engine, schema, d, ids)
+    }
+
+    // @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+    // rollback is per packet, including maintenance; publication is one exact record.
+    #[test]
+    fn native_receipt_group_orders_success_refusal_success_and_preserves_first_sequences() {
+        for maintained in [false, true] {
+            let (mut engine, schema, d, ids) = group_fixture(maintained);
+            let delete = Program { name: "delete".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(),
+                read_time_granularity_ms: None, body: vec![Stmt::Delete { table: "messages".into(), key: Expr::Literal(Value::Id("dead".into())) }] };
+            let cert = Checker::new(&schema, Ceilings::default()).check(&delete).unwrap();
+            engine.execute(&delete, &cert, group_context()).unwrap();
+            let removed = engine.rows("deliveries").unwrap().into_iter()
+                .find(|row| row.field("kind").unwrap() == &Value::String("removed".into())).unwrap();
+            let packets = receipt_packets(&[
+                ("one", vec![ids["m"].clone(), ids["m"].clone()]),
+                ("refused", vec![ids["m2"].clone(), ids["dead"].clone()]),
+                ("three", vec![ids["m3"].clone()]),
+                ("duplicate", vec![ids["m"].clone(), removed.field("id").unwrap().as_str().unwrap().into(), "absent".into()]),
+            ]);
+            let program = delivery::ack_program("messages", &d);
+            let cert = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+            if maintained { assert!(cert.maintained_writes["receiptTotals"] > 0); }
+            let before = engine.store.commit_seq().unwrap();
+            let before_m2 = engine.rows("deliveriesReceipts").unwrap().into_iter()
+                .find(|r| r.field("row").unwrap() == &Value::Id("m2".into())).unwrap();
+            let group = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::MAX).unwrap();
+            assert_eq!(group.outcomes.iter().map(|o| (o.id.as_str(), o.code.as_deref())).collect::<Vec<_>>(),
+                vec![("one", None), ("refused", Some("E_RULE")), ("three", None), ("duplicate", None)]);
+            assert_eq!(group.seq, before + 1);
+            let commit = group.commit.unwrap();
+            assert_eq!(commit.writes["deliveriesReceipts"], 2);
+            assert_eq!(engine.store.commits_since(before, 10).unwrap(), vec![commit.clone()]);
+            assert!(commit.touched.iter().filter(|key| key.table == "deliveriesReceipts").all(|key| key.row_id != ids["m2"]));
+            let rows = engine.rows("deliveriesReceipts").unwrap();
+            for body in ["m", "m3"] {
+                let row = rows.iter().find(|r| r.field("row").unwrap() == &Value::Id(body.into())).unwrap();
+                assert_eq!(row.field("received").unwrap(), &Value::Bool(true));
+                assert_eq!(row.field("seq").unwrap(), &Value::Int(group.seq as i64));
+            }
+            assert!(rows.contains(&before_m2), "refused packet leaked a receipt/sequence mutation");
+            if maintained {
+                assert!(commit.writes["receiptTotals"] > 0);
+                let sum = rows.iter().map(|r| r.field("seq").unwrap().as_int().unwrap()).sum::<i64>();
+                assert_eq!(engine.rows("receiptTotals").unwrap()[0].field("value").unwrap(), &Value::Int(sum));
+            }
+            let retry = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::MAX).unwrap();
+            assert_eq!(retry.seq, group.seq);
+            assert!(retry.commit.is_none());
+            assert_eq!(engine.rows("deliveriesReceipts").unwrap(), rows);
+        }
+    }
+
+    #[test]
+    fn native_receipt_group_yields_an_unattempted_suffix_and_resumes_with_fresh_authority() {
+        let (mut engine, schema, d, ids) = group_fixture(false);
+        let program = delivery::ack_program("messages", &d);
+        let cert = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let packets = receipt_packets(&[("one", vec![ids["m"].clone()]), ("two", vec![ids["m2"].clone()])]);
+        let first = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::ZERO).unwrap();
+        assert_eq!(first.outcomes.len(), 1);
+        assert_eq!(first.outcomes[0].id, "one");
+        assert_eq!(first.commit.unwrap().writes["deliveriesReceipts"], 1);
+        engine.store.conn.execute("DELETE FROM rows WHERE table_name='memberships'", []).unwrap();
+        let departed = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets[1..], Duration::MAX).unwrap();
+        assert_eq!(departed.outcomes[0].code.as_deref(), Some("E_RULE"));
+        assert_eq!(departed.seq, first.seq);
+        assert!(departed.commit.is_none());
+        engine.seed("memberships", object([("id", Value::Id("rejoined".into())),
+            ("conversationId", Value::Id("c1".into())), ("principal", Value::Id("u1".into()))])).unwrap();
+        let retry = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::MAX).unwrap();
+        assert_eq!(retry.outcomes.len(), 2);
+        assert!(retry.outcomes.iter().all(|o| o.code.is_none()));
+        let rows = engine.rows("deliveriesReceipts").unwrap();
+        assert_eq!(rows.iter().find(|r| r.field("row").unwrap() == &Value::Id("m".into())).unwrap().field("seq").unwrap(), &Value::Int(first.seq as i64));
+        assert_eq!(rows.iter().find(|r| r.field("row").unwrap() == &Value::Id("m2".into())).unwrap().field("seq").unwrap(), &Value::Int(retry.seq as i64));
+    }
+
+    #[test]
+    fn native_receipt_group_refuses_shape_and_retained_capacity_before_writing() {
+        let (mut engine, schema, d, ids) = group_fixture(false);
+        let program = delivery::ack_program("messages", &d);
+        let cert = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let before = engine.store.commit_seq().unwrap();
+        let mut id = String::with_capacity(Ceilings::default().heap_bytes as usize);
+        id.push_str("one");
+        let packet = AcquisitionReceiptPacket { id, events: vec![ids["m"].clone()] };
+        let error = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &[packet], Duration::MAX).unwrap_err();
+        assert_eq!(error.code(), "E_BOUND", "short JSON is not a heap-capacity bound");
+        for packets in [receipt_packets(&[("same", vec![ids["m"].clone()]), ("same", vec![ids["m2"].clone()])]),
+            receipt_packets(&[("too-many-events", vec![ids["m"].clone(); 51])]),
+            (0..9).map(|i| AcquisitionReceiptPacket { id: i.to_string(), events: vec![ids["m"].clone()] }).collect()] {
+            assert_eq!(engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::MAX).unwrap_err().code(), "E_INPUT");
+        }
+        assert_eq!(engine.store.commit_seq().unwrap(), before);
+        assert!(engine.rows("deliveriesReceipts").unwrap().iter().all(|r| r.field("received").unwrap() == &Value::Bool(false)));
+    }
+
+    #[test]
+    fn native_receipt_group_retains_a_resource_limited_suffix_for_a_later_request() {
+        let (mut engine, schema, d, ids) = group_fixture(false);
+        let program = delivery::ack_program("messages", &d);
+        let cert = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let mut body = engine.rows("messages").unwrap().remove(0).as_object().unwrap().clone();
+        let mut first_events = Vec::new();
+        for i in 0..50 {
+            let id = format!("bulk{i}");
+            body.insert("id".into(), Value::Id(id.clone()));
+            engine.seed("messages", Value::Row(body.clone().into())).unwrap();
+            first_events.push(engine.rows("deliveriesReceipts").unwrap().into_iter()
+                .find(|row| row.field("row").unwrap() == &Value::Id(id.clone())).unwrap()
+                .field("id").unwrap().as_str().unwrap().to_owned());
+        }
+        let mut padded = String::with_capacity(2_250_000);
+        padded.push_str("one");
+        let packets = vec![AcquisitionReceiptPacket { id: padded, events: first_events },
+            AcquisitionReceiptPacket { id: "two".into(), events: vec![ids["m2"].clone()] }];
+        let first = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::MAX).unwrap();
+        assert_eq!(first.outcomes.len(), 1);
+        assert_eq!(first.outcomes[0].id, "one");
+        assert_eq!(first.commit.unwrap().writes["deliveriesReceipts"], 50);
+        let resumed = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets[1..], Duration::MAX).unwrap();
+        assert_eq!(resumed.outcomes[0].id, "two");
+        assert!(resumed.outcomes[0].code.is_none());
+        assert_eq!(resumed.seq, first.seq + 1);
+    }
+
+    #[test]
+    fn native_receipt_group_publishes_nothing_when_the_combined_commit_fails() {
+        let (mut engine, schema, d, ids) = group_fixture(true);
+        let program = delivery::ack_program("messages", &d);
+        let cert = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let packets = receipt_packets(&[("one", vec![ids["m"].clone()]), ("two", vec![ids["m2"].clone()])]);
+        let before = engine.store.commit_seq().unwrap();
+        let rows = engine.rows("deliveriesReceipts").unwrap();
+        let totals = engine.rows("receiptTotals").unwrap();
+        engine.store.conn.execute_batch("CREATE TRIGGER refuse_group BEFORE INSERT ON _commits WHEN NEW.kind='receipt' BEGIN SELECT RAISE(ABORT,'test commit failure'); END").unwrap();
+        assert_eq!(engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::MAX).unwrap_err().code(), "E_CONSTRAINT");
+        assert_eq!(engine.store.commit_seq().unwrap(), before);
+        assert_eq!(engine.rows("deliveriesReceipts").unwrap(), rows);
+        assert_eq!(engine.rows("receiptTotals").unwrap(), totals);
+        engine.store.conn.execute_batch("DROP TRIGGER refuse_group").unwrap();
+        let retry = engine.acquire_receipt_group(&program, &cert, group_context(), "messages", &d, &packets, Duration::MAX).unwrap();
+        assert_eq!(retry.seq, before + 1);
+        assert_eq!(retry.commit.unwrap().writes["deliveriesReceipts"], 2);
     }
 
 }
