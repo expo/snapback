@@ -69,7 +69,13 @@ impl TaskPool {
     pub fn spawn(&self, code: Box<dyn FnMut() + Send>) {
         let mut queue = self.sharing.todo.lock().unwrap();
 
-        if self.sharing.waiting_tasks.load(Ordering::Acquire) == 0 {
+        self.dispatch(&mut queue, code);
+    }
+
+    fn dispatch(&self, queue: &mut VecDeque<Box<dyn FnMut() + Send>>, code: Box<dyn FnMut() + Send>) {
+        // A notified worker remains in waiting_tasks until it reacquires
+        // the queue. Queued connections have already reserved those workers.
+        if queue.len() >= self.sharing.waiting_tasks.load(Ordering::Acquire) {
             self.add_thread(Some(code));
         } else {
             queue.push_back(code);
@@ -133,5 +139,49 @@ impl Drop for TaskPool {
             .active_tasks
             .store(999_999_999, Ordering::Release);
         self.sharing.condvar.notify_all();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+    use std::time::Instant;
+
+    #[test]
+    fn queued_connections_reserve_notified_workers() {
+        let pool = TaskPool::new();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while pool.sharing.waiting_tasks.load(Ordering::Acquire) != MIN_THREADS {
+            assert!(Instant::now() < deadline, "initial workers did not become idle");
+            thread::sleep(Duration::from_millis(1));
+        }
+        let release = Arc::new((Mutex::new(false), Condvar::new()));
+        let (started_tx, started_rx) = mpsc::channel();
+        // Hold the same lock across the burst, forcing the valid schedule in
+        // which notified workers have not reacquired it before the next accept.
+        let mut queue = pool.sharing.todo.lock().unwrap();
+        for _ in 0..MIN_THREADS + 1 {
+            let release = release.clone();
+            let started_tx = started_tx.clone();
+            pool.dispatch(&mut queue, Box::new(move || {
+                let _ = started_tx.send(());
+                let (lock, changed) = &*release;
+                let mut done = lock.lock().unwrap();
+                while !*done {
+                    done = changed.wait(done).unwrap();
+                }
+            }));
+        }
+        drop(queue);
+        let mut started = 0;
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while started < MIN_THREADS + 1 && started_rx.recv_timeout(deadline.saturating_duration_since(Instant::now())).is_ok() {
+            started += 1;
+        }
+        // Release every task even if the assertion will fail.
+        *release.0.lock().unwrap() = true;
+        release.1.notify_all();
+        assert_eq!(started, MIN_THREADS + 1, "a connection waited for another connection to close");
     }
 }

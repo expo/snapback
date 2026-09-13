@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -419,6 +419,39 @@ time-ordered 128-bit form.
   The [public-catalog record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
   measures this change and current local competitors on identical verified
   data; it is a read microbenchmark, not the independent Clique bakeoff.
+
+- **2026-09-13 — borrow values while encoding query replies.**
+  Plain wire JSON can serialize the result's existing value tree directly;
+  it need not clone strings and build another map/array tree first. Tagged
+  storage and replica forms stay unchanged. The HTTP reply retains the same
+  fields, including dependency tables and viewer identity, and excludes private
+  meter details. Encoding still stops at the 16 MiB response ceiling through
+  the bounded writer. Session resolution, metadata,
+  sequence and operation/count reads also reuse the connection's bounded
+  prepared-statement cache, rebinding and executing on every invocation.
+  Neither change stores query or authorization results. The catalog evidence
+  separates isolated encoding cost from end-to-end HTTP latency.
+
+- **2026-09-13 — chat checks share one observation of an event boundary.**
+  The four fixed chat invariants do not mutate their hosts. They share one
+  fresh diagnostic snapshot per invocation, in the original failure order,
+  and preserve the watermark checker's history across events and schema-change
+  phases. Authoritative at-most-once counts are still queried on every check.
+  Generic simulator invariants retain independent observations; no snapshot
+  survives a check or hides an engine change between phases. Fault schedules,
+  seeds, timers, persistence, trace payloads and convergence checks are unchanged.
+
+- **2026-09-13 — accepted connections reserve idle HTTP workers.**
+  A notified worker remains counted as idle until it reacquires the dispatch
+  mutex. The pool must subtract already queued connections before assigning
+  another accept to that reported capacity; otherwise long-lived keep-alive
+  connections can strand later accepts until a connection closes. The author
+  approved a minimal vendored tiny_http 0.12.0 fix, with a deterministic
+  old-fail/new-pass witness. Integration extends main's existing vendor copy
+  and preserves its bounded unread-body drain. Parsing, framing, authentication and database
+  behavior are unchanged. The dependency stays outside workspace membership;
+  its library tests run explicitly during qualification. Source and binary
+  distributions retain the upstream license notice.
 
 ## 8. Implementation map
 

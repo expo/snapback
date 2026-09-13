@@ -31,6 +31,31 @@ Evidence and the exact release pin are in
 Detailed local logs are retained under
 `.llp/ship-runs/sb4-performance-20260913/catalog-{final-suite,publish}.log`.
 
+Follow-up on 2026-09-13: the borrowed-JSON/prepared-statement candidate passed
+all assertions in 124 s, then 85 s warm. Stage timing of the warm run placed
+26.2 s in Cargo tests and 35.6 s in launching the chat check, whose own compiler
+timer reported 4.2 ms. Direct follow-up launches, including after Cargo tests,
+took milliseconds and did not reproduce that delay. It remains intermittent
+and unattributed; no macOS security settings were changed. Isolated simulator
+runs of the SQL-statement substitution alone had variable wall/CPU time, so
+that substitution is not claimed to resolve this ticket.
+
+The next candidate shares one freshly parsed diagnostic snapshot across the
+four fixed chat checks, preserving their order and watermark history. Ten
+before/after fault and day-two scenarios produced identical trace digests,
+trace lengths, final host states and reports. Timing and the complete-suite
+budget still require qualification before closure. Retained evidence includes
+`borrowed-cached-warm-suite-timing.json`, `sim-cache-comparison.json`, and
+`chat-trace-{control,shared}.txt` in the same ignored run directory.
+
+During qualification after the 0.1.16 version rebuild, another slow test
+launch was sampled for one second. The process was at `_dyld_start + 0` in
+all 893 samples, with a 96 KiB footprint and no loaded binary image list;
+its application tests had not started. This narrows that observed pause to
+process launch, without identifying the underlying macOS cause. The host
+was M5 Max Black, macOS 26.6.2 (25G83), with load averages 42.39/31.39/23.10.
+The sample is `shared-suite-sample-70679.txt` in the run directory.
+
 Resolution: restore the existing complete suite to the 60 s budget on an
 appropriately idle documented host, without dropping correctness assertions,
 raising the budget, or adding a gate. Record before/after step timings and

@@ -97,7 +97,7 @@ impl Store {
     }
 
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
-        Ok(self.conn.query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional()?)
+        Ok(self.conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
 
     pub fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
@@ -111,7 +111,7 @@ impl Store {
 
     /// The last committed sequence number.
     pub fn seq(&self) -> Result<u64, RuntimeError> {
-        Ok(self.conn.query_row("SELECT COALESCE(MAX(seq), 0) FROM _commits", [], |row| row.get::<_, i64>(0))? as u64)
+        Ok(self.conn.prepare_cached("SELECT COALESCE(MAX(seq), 0) FROM _commits")?.query_row([], |row| row.get::<_, i64>(0))? as u64)
     }
 
     /// Every row of a table, for fixtures, `data`, and tests.
@@ -125,16 +125,16 @@ impl Store {
     /// How many client-minted operation ids have been applied (sent or failed).
     /// The recorded outcome of a client-minted op, if it applied.
     pub fn applied_outcome(&self, principal: &str, id: &str) -> Result<Option<String>, RuntimeError> {
-        Ok(self.conn.query_row("SELECT outcome FROM _ops WHERE principal = ?1 AND id = ?2", params![principal, id], |row| row.get::<_, String>(0)).optional()?)
+        Ok(self.conn.prepare_cached("SELECT outcome FROM _ops WHERE principal = ?1 AND id = ?2")?.query_row(params![principal, id], |row| row.get::<_, String>(0)).optional()?)
     }
 
     pub fn applied_ops(&self) -> Result<u64, RuntimeError> {
-        Ok(self.conn.query_row("SELECT COUNT(*) FROM _ops WHERE outcome LIKE '%\"state\":\"sent\"%'", [], |row| row.get::<_, i64>(0))? as u64)
+        Ok(self.conn.prepare_cached("SELECT COUNT(*) FROM _ops WHERE outcome LIKE '%\"state\":\"sent\"%'")?.query_row([], |row| row.get::<_, i64>(0))? as u64)
     }
 
     pub fn count(&self, table: &str) -> Result<u64, RuntimeError> {
         let Some(t) = self.catalog.get(table) else { return Ok(0) };
-        Ok(self.conn.query_row("SELECT COUNT(*) FROM r WHERE t = ?1", [t], |row| row.get::<_, i64>(0))? as u64)
+        Ok(self.conn.prepare_cached("SELECT COUNT(*) FROM r WHERE t = ?1")?.query_row([t], |row| row.get::<_, i64>(0))? as u64)
     }
 
     /// What the store weighs, by part: the rows, their index entries, the

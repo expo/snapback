@@ -220,7 +220,7 @@ impl io::Write for JsonBuffer {
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
-pub(crate) fn respond(request: Request, status: u16, body: Json) {
+pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize) {
     let mut bytes = JsonBuffer(Vec::new());
     let encoded = serde_json::to_writer(&mut bytes, &body);
     drop(body);
@@ -454,7 +454,18 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     // The meter's numbers and its cut site stay off the wire: they
                     // measure hidden rows. `complete` is the one word.
-                    Ok(outcome) => respond(request, 200, json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "seq": outcome.seq, "next": outcome.next, "tables": outcome.tables, "viewer": viewer })),
+                    Ok(outcome) => {
+                        #[derive(serde::Serialize)]
+                        struct QueryReply<'a> {
+                            complete: bool,
+                            data: wire::Plain<'a>,
+                            next: &'a Option<String>,
+                            seq: u64,
+                            tables: &'a [String],
+                            viewer: &'a str,
+                        }
+                        respond(request, 200, QueryReply { complete: outcome.complete, data: wire::Plain(&outcome.data), next: &outcome.next, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer });
+                    }
                     Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
                 }
             } else {

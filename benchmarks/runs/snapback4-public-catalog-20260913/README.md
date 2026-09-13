@@ -169,6 +169,102 @@ Registry integrity:
 - Client: `sha512-6gww1IapOLZC+5paVZUqhVNmPu/pJt1zMC7IGIbjv57HTzYAHRBbWOHf5PFQzt8iWE6SY5XcJ//v0+m/acw7mw==`
 - Darwin ARM64: `sha512-iVBp4pQuV7se1vz66B5+sjkyB++TOMV8X0Xnvf4czUq4XsaOZ01jejpDPsXVlDj+ZKB/g2rFI4GClV32XcUwnQ==`
 
+## Borrowed JSON and connection dispatch experiments, trials 6–11
+
+The same instrument and Linux ARM64 VM were used for six alternating pairs,
+now with **1,000 timed samples per case**. Every run reverified all 100,000
+rows and checked every timed result. The twelve records are appended to
+`metrics/storage.jsonl` with explicit `experiment` and `variant` fields.
+These are within-Snapback experiments, not fresh competitor comparisons.
+
+Trials 6–8 compare 0.1.15 with borrowed query-reply serialization. Trial order
+was control/borrowed, borrowed/control, control/borrowed. In a separate direct
+profile of 5,000 samples after 100 warmups, encoding a 50-row page fell from
+98.750 µs p50 / 119.375 µs p95 to 14.708 / 16.084 µs. Point encoding fell from
+2.125 / 2.500 µs to 0.541 / 0.667 µs. Every encoded result was byte-identical
+to the old encoding. The profile times only encoding an already evaluated
+result, old encoding then borrowed encoding for each pair; it does not include
+network, scheduling, authorization or query work.
+The larger HTTP comparison found multi-second tails in both builds and no
+uniform p50/p95 improvement. Faster encoding alone does not resolve those tails.
+
+Source inspection isolated an inherited tiny_http 0.12.0 dispatch race: several
+accepted persistent connections can be queued against the same notified idle
+worker. Workers remain busy on their assigned keep-alive connection, leaving
+surplus accepts waiting for one to close. The candidate also counts queued
+work when reserving idle workers. A deterministic five-arrival/four-waiter
+test fails with the original predicate and passes with the fixed predicate;
+all ten tests in the prepared library copy pass. An initial short raw-socket
+burst experiment did not reproduce the stall; the forced dispatch interleaving
+and longer HTTP runs did.
+
+Trials 9–11 isolate this allocation predicate. Both variants include borrowed
+JSON and the same metadata/session prepared-statement reuse; only the fixed
+variant uses the temporary dependency override. Order was fixed/control,
+control/fixed, fixed/control. The HTTP experiment used the one-line predicate
+before extraction of the reviewed private dispatch helper and regression test.
+The fixed records correct the runner's inherited `--locked` build label: the
+actual release build used a command-line path override. Each record includes
+the binary hash and source delta from the published source pin.
+
+Medians of three per-run percentiles and throughput; latencies are milliseconds:
+
+| Case | Control p50 / p95 / RPS | Fixed pool p50 / p95 / RPS |
+|---|---:|---:|
+| Repeated point | 3.057 / 5.258 / 292.7 | 3.587 / 7.229 / 241.9 |
+| Distinct point, C1 | 3.584 / 6.908 / 252.0 | 3.294 / 5.959 / 263.3 |
+| Distinct point, C8 | 3.387 / 5.981 / 215.2 | 4.217 / 10.392 / 1528.8 |
+| Distinct point, C32 | 13.879 / 32.611 / 1579.4 | 13.194 / 36.635 / 2002.3 |
+| Distinct missing point | 2.991 / 5.773 / 292.5 | 3.157 / 5.275 / 286.2 |
+| Repeated 50-row page, C1 | 3.493 / 5.914 / 249.8 | 3.586 / 5.859 / 246.4 |
+| Repeated 50-row page, C8 | 5.433 / 14.463 / 1062.3 | 4.372 / 9.225 / 1557.4 |
+| Repeated continuation | 3.702 / 5.995 / 245.2 | 3.564 / 5.463 / 253.6 |
+
+The point-C8 controls have maxima of 4,644.890, 4,172.665 and 5,268.025 ms;
+the corresponding fixed runs have maxima of 16.750, 28.525 and 51.156 ms.
+Five of nine control cases with concurrent clients had multi-second tails;
+zero of nine fixed cases did. Across all **24,000 fixed timed requests**, no
+latency exceeded 117.959 ms and no assertion failed. This is a stall and
+throughput gain, not a uniform quantile gain. Stranded connections reduce
+effective concurrency, so apparently better control p50/p95 can coexist with
+much worse completion time. Connection expansion remains inside the measured
+interval, as it was in the original protocol.
+
+The pool change is **not yet shipped**: the author approved its reproducible
+vendored package and one new Cargo manifest on 2026-09-13. Main then landed an
+existing vendor copy with a bounded unread-body drain. The 0.1.16 integration
+adds the reviewed pool helper/test there and retains the drain fix, response
+ceiling and newly added query metadata. No second vendor copy or manifest is
+introduced. The earlier profile/HTTP experiments predate those other main
+changes and do not qualify the integrated candidate's latency. The
+[open transport issue](../../../issues/20260913-snapback4-keepalive-connection-pool-stalls.md)
+records the prepared fix, review and remaining integration qualification.
+
+## Simulator observation follow-up
+
+The four chat checks previously constructed and parsed every host state
+independently after each event. Sharing one fresh observation across these
+specific read-only checks preserves their failure order and persistent
+watermark history. Standalone and arbitrary invariants retain independent
+observations. No fault, seed, timer, persistence operation, trace payload or
+correctness check was removed.
+
+Five fault scenarios (seeds 1, 2, 3, 42 and 7) and all five day-two changes
+produced byte-identical before/after output: trace digest/length, forty final
+host states and all day-two reports. The 36,170-byte observation record's
+SHA-256 is `7aa1d5188dda02116add7dcd6d5204ee97bf6a51d868df544b1739f57fd2f664`.
+A focused regression exercises each original failure name, short-circuit
+ordering, watermark regression across calls, generation reset and engine
+changes between phases.
+
+On the shared M5 Max Black, alternating the same fourteen existing simulator
+tests gave control wall times of 20.776 and 21.130 s, versus 8.719 and 8.276 s
+with sharing. Both variants already include prepared-statement reuse; all
+assertions passed. The new regression was tested separately and excluded
+from this equal-test comparison. These timings improve the developer loop;
+they are not server request latency or a competitor measurement. Complete
+suite qualification remains separate from this isolated result.
+
 ## Work remaining
 
 The integrated measurements include main's newer SQLite dependency.

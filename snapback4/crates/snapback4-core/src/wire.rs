@@ -7,6 +7,24 @@ use crate::value::Value;
 use serde_json::{Map, Value as Json};
 use std::collections::BTreeMap;
 
+/// Serialize a borrowed value directly in its plain wire form, without
+/// allocating an intermediate JSON tree. The tagged store form is unchanged.
+pub struct Plain<'a>(pub &'a Value);
+
+impl serde::Serialize for Plain<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self.0 {
+            Value::Null => serializer.serialize_unit(),
+            Value::Bool(value) => serializer.serialize_bool(*value),
+            Value::Int(value) => serializer.serialize_i64(*value),
+            Value::String(value) | Value::Id(value) => serializer.serialize_str(value),
+            Value::Bytes(value) => serializer.serialize_str(&crate::value::encode_bytes_hex(value)),
+            Value::Array(values) => serializer.collect_seq(values.iter().map(Plain)),
+            Value::Row(fields) | Value::Map(fields) => serializer.collect_map(fields.iter().map(|(key, value)| (key, Plain(value)))),
+        }
+    }
+}
+
 pub fn to_json(value: &Value) -> Json {
     match value {
         Value::Null => Json::Null,
@@ -124,4 +142,29 @@ fn other_kind(json: &Json) -> &'static str {
 /// The plain JSON of a map of typed values.
 pub fn map_to_json(values: &BTreeMap<String, Value>) -> Map<String, Json> {
     values.iter().map(|(k, v)| (k.clone(), to_json(v))).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn borrowed_wire_encoding_matches_every_value_form() {
+        let escaped = "\"\\\n\r\t\u{0}\u{1f} café 🦀";
+        let values = Value::Array(vec![
+            Value::Null, Value::Bool(false), Value::Bool(true),
+            Value::Int(crate::value::I53_MIN), Value::Int(0), Value::Int(crate::value::I53_MAX),
+            Value::String(escaped.into()), Value::Id(escaped.into()), Value::Bytes((0..=255).collect()),
+            Value::Row(BTreeMap::from([(escaped.into(), Value::Array(vec![Value::Null]))]).into()),
+            Value::Map(BTreeMap::from([("nested".into(), Value::Row(BTreeMap::new().into()))]).into()),
+            Value::Array(vec![]),
+        ]);
+        let bytes = serde_json::to_vec(&Plain(&values)).unwrap();
+        assert_eq!(bytes, serde_json::to_vec(&to_json(&values)).unwrap());
+        let decoded: Json = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(decoded[0], Json::Null);
+        assert_eq!(decoded[6], escaped);
+        assert_eq!(decoded[8].as_str().unwrap().len(), 512);
+        assert!(decoded[9][escaped][0].is_null());
+    }
 }

@@ -62,7 +62,8 @@ pub fn open_session(store: &Store, principal: &str, kind: &str, now: i64) -> Res
 pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {
     Ok(store
         .conn()
-        .query_row("SELECT principal, kind FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2", params![digest(token), now], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+        .prepare_cached("SELECT principal, kind FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2")?
+        .query_row(params![digest(token), now], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
         .optional()?)
 }
 

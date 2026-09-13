@@ -1,4 +1,4 @@
-# tiny_http 0.12.0: bounded unread-body draining
+# tiny_http 0.12.0: bounded unread-body draining and worker reservation
 
 Source: the crates.io `tiny_http` 0.12.0 archive, from
 <https://github.com/tiny-http/tiny-http>. The original MIT and Apache-2.0
@@ -18,3 +18,13 @@ Focused unit tests cover EOF, an I/O error and a normal multi-buffer drain.
 This patch bounds drain memory; it does not introduce a socket deadline or
 change tiny_http's connection/reuse protocol. Replace it with an upstream
 release when that release contains the equivalent correction.
+
+Local change, 2026-09-13 (performance work): `src/util/task_pool.rs` reserves
+reported idle workers for already queued connections before assigning another
+accepted connection. A notified worker still counts as idle until it reacquires
+the queue lock; several accepts could otherwise reserve the same worker and
+wait for a keep-alive connection to close. The regression holds the real
+dispatch lock across five arrivals with four idle workers: the old predicate
+starts only four tasks before release, while the fixed predicate starts five.
+The helper only exposes that locked dispatch path to its unit test. Connection
+parsing, request/response framing and the bounded drain above are unchanged.

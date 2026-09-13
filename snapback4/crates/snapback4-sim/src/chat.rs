@@ -82,11 +82,8 @@ pub fn day_two(kind: DayTwo, seed: u64) -> Result<(World, Json), String> {
     // send a little, so the stream has traffic from every side.
     let scripts = vec![Script { conversation: "c1".into(), every: 200, count: 12, leave_at: None }, Script { conversation: "c1".into(), every: 300, count: 4, leave_at: None }, Script { conversation: "c1".into(), every: 500, count: 2, leave_at: None }];
     let mut world = world_with(seed, Faults::none(), scripts);
-    let on_card = OnTheCard;
-    let monotone = MonotoneWatermarks::new();
-    let once = AtMostOnce { engine: world.engine.clone() };
-    let revoked = RevokedNeverRenders;
-    let invariants: Vec<&dyn Invariant> = vec![&on_card, &monotone, &once, &revoked];
+    let checks = ChatChecks::new(world.engine.clone());
+    let invariants: Vec<&dyn Invariant> = vec![&checks];
     world.sim.run_until_checked(600, &invariants)?;
     let alice = world.clients[0].0;
     world.sim.faults.partition(alice, world.server);
@@ -158,6 +155,49 @@ fn state(sim: &Sim, host: HostId) -> Option<Json> {
     sim.state(host).and_then(|s| serde_json::from_str(&s).ok())
 }
 
+fn states(sim: &Sim) -> impl Iterator<Item = (HostId, Json)> + '_ {
+    sim.hosts().filter_map(|(host, state)| Some((host, serde_json::from_str(&state?).ok()?)))
+}
+
+// @ref LLP 3000#6-the-simulators-invariants — every chat invariant sees each event boundary.
+// These four checks only observe hosts; sharing this call's snapshot avoids
+// four serializations/parses. Generic invariants still observe independently.
+struct ChatChecks {
+    monotone: MonotoneWatermarks,
+    once: AtMostOnce,
+    checking: Cell<usize>,
+}
+
+impl ChatChecks {
+    fn new(engine: Rc<RefCell<Engine>>) -> Self {
+        Self { monotone: MonotoneWatermarks::new(), once: AtMostOnce { engine }, checking: Cell::new(0) }
+    }
+}
+
+impl Invariant for ChatChecks {
+    fn name(&self) -> String {
+        match self.checking.get() {
+            0 => OnTheCard.name(),
+            1 => self.monotone.name(),
+            2 => self.once.name(),
+            _ => RevokedNeverRenders.name(),
+        }
+    }
+
+    fn check(&self, sim: &Sim) -> Result<(), String> {
+        let snapshot: Vec<_> = states(sim).collect();
+        let view = || snapshot.iter().map(|(host, json)| (*host, json));
+        self.checking.set(0);
+        OnTheCard.check_states(view())?;
+        self.checking.set(1);
+        self.monotone.check_states(view())?;
+        self.checking.set(2);
+        self.once.check_states(view())?;
+        self.checking.set(3);
+        RevokedNeverRenders.check_states(view())
+    }
+}
+
 /// 1 and 5: every screen state is a word on the card, and no state is silent.
 pub struct OnTheCard;
 impl Invariant for OnTheCard {
@@ -165,7 +205,13 @@ impl Invariant for OnTheCard {
         "every screen state is on the card".into()
     }
     fn check(&self, sim: &Sim) -> Result<(), String> {
-        for (host, json) in sim.hosts().filter_map(|(h, s)| Some((h, serde_json::from_str::<Json>(&s?).ok()?))) {
+        self.check_states(states(sim))
+    }
+}
+impl OnTheCard {
+    fn check_states<J: std::borrow::Borrow<Json>>(&self, states: impl Iterator<Item = (HostId, J)>) -> Result<(), String> {
+        for (host, json) in states {
+            let json = json.borrow();
             if json["role"] != "replica" {
                 continue;
             }
@@ -201,7 +247,13 @@ impl Invariant for MonotoneWatermarks {
         "watermarks are monotone".into()
     }
     fn check(&self, sim: &Sim) -> Result<(), String> {
-        for (host, json) in sim.hosts().filter_map(|(h, s)| Some((h, serde_json::from_str::<Json>(&s?).ok()?))) {
+        self.check_states(states(sim))
+    }
+}
+impl MonotoneWatermarks {
+    fn check_states<J: std::borrow::Borrow<Json>>(&self, states: impl Iterator<Item = (HostId, J)>) -> Result<(), String> {
+        for (host, json) in states {
+            let json = json.borrow();
             if json["role"] != "replica" {
                 continue;
             }
@@ -239,12 +291,18 @@ impl Invariant for AtMostOnce {
         "a write applies at most once".into()
     }
     fn check(&self, sim: &Sim) -> Result<(), String> {
+        self.check_states(states(sim))
+    }
+}
+impl AtMostOnce {
+    fn check_states<J: std::borrow::Borrow<Json>>(&self, states: impl Iterator<Item = (HostId, J)>) -> Result<(), String> {
         let (messages, applied) = {
             let engine = self.engine.borrow();
             (engine.store().count("messages").unwrap_or(0), engine.store().applied_ops().unwrap_or(0))
         };
         let mut acked = 0u64;
-        for (_, json) in sim.hosts().filter_map(|(h, s)| Some((h, serde_json::from_str::<Json>(&s?).ok()?))) {
+        for (_, json) in states {
+            let json = json.borrow();
             if json["role"] == "replica" {
                 acked += json["acked"].as_object().map(|a| a.len() as u64).unwrap_or(0);
             }
@@ -266,7 +324,13 @@ impl Invariant for RevokedNeverRenders {
         "a revoked row never renders past its sequence".into()
     }
     fn check(&self, sim: &Sim) -> Result<(), String> {
-        for (host, json) in sim.hosts().filter_map(|(h, s)| Some((h, serde_json::from_str::<Json>(&s?).ok()?))) {
+        self.check_states(states(sim))
+    }
+}
+impl RevokedNeverRenders {
+    fn check_states<J: std::borrow::Borrow<Json>>(&self, states: impl Iterator<Item = (HostId, J)>) -> Result<(), String> {
+        for (host, json) in states {
+            let json = json.borrow();
             if json["role"] != "replica" {
                 continue;
             }
@@ -339,11 +403,8 @@ pub fn converged(world: &World) -> Result<(), String> {
 /// Run one seed: rough faults, kills, a leave; heal; quiesce; converge.
 pub fn run(seed: u64, sends: u32) -> Result<(Sim, u64), String> {
     let mut world = world(seed, Faults::rough(), sends, Some(1_500));
-    let on_card = OnTheCard;
-    let monotone = MonotoneWatermarks::new();
-    let once = AtMostOnce { engine: world.engine.clone() };
-    let revoked = RevokedNeverRenders;
-    let invariants: Vec<&dyn Invariant> = vec![&on_card, &monotone, &once, &revoked];
+    let checks = ChatChecks::new(world.engine.clone());
+    let invariants: Vec<&dyn Invariant> = vec![&checks];
     let kills = Cell::new(0);
     let mut t = 0;
     while t < 3_000 {
@@ -369,6 +430,64 @@ pub fn run(seed: u64, sends: u32) -> Result<(Sim, u64), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_chat_observations_keep_freshness_history_and_first_failure() {
+        use crate::world::{Ctx, Event, Host};
+        struct Observed {
+            json: Rc<RefCell<Json>>,
+            reads: Rc<Cell<u32>>,
+        }
+        impl Host for Observed {
+            fn start(&mut self, _: &mut Ctx<'_>) {}
+            fn on(&mut self, _: &mut Ctx<'_>, _: Event) {}
+            fn state(&self) -> String {
+                self.reads.set(self.reads.get() + 1);
+                self.json.borrow().to_string()
+            }
+        }
+        let json = Rc::new(RefCell::new(json!(null)));
+        let reads = Rc::new(Cell::new(0));
+        let mut sim = Sim::new(1);
+        let (observed, observed_reads) = (json.clone(), reads.clone());
+        sim.add(Box::new(move || Box::new(Observed { json: observed.clone(), reads: observed_reads.clone() })));
+        let engine = Rc::new(RefCell::new(chat_engine(&MEMBERS)));
+        let shared = ChatChecks::new(engine.clone());
+        let monotone = MonotoneWatermarks::new();
+        let once = AtMostOnce { engine: engine.clone() };
+        let separate: [&dyn Invariant; 4] = [&OnTheCard, &monotone, &once, &RevokedNeverRenders];
+        let cases = [
+            (json!({ "role": "replica", "generation": 1, "watermark": 10 }), None),
+            // An earlier failure must not record the otherwise valid watermark 100.
+            (json!({ "role": "replica", "generation": 1, "watermark": 100, "reads": { "unknown": 1 } }), Some(OnTheCard.name())),
+            (json!({ "role": "replica", "generation": 1, "watermark": 11 }), None),
+            (json!({ "role": "replica", "generation": 1, "watermark": 10 }), Some(monotone.name())),
+            (json!({ "role": "replica", "generation": 2, "watermark": 0 }), None),
+            (json!({ "role": "replica", "generation": 2, "watermark": 0, "acked": { "op": 1 } }), Some(once.name())),
+            (json!({ "role": "replica", "generation": 2, "watermark": 1, "viewer": "dev:alice", "left": [["memberships", ["c1"], 1]], "memberships": { "m": { "conversationId": "c1", "principal": "dev:alice" } } }), Some(RevokedNeverRenders.name())),
+            (json!({ "role": "replica", "generation": 2, "watermark": 1 }), None),
+        ];
+        for (state, failure) in cases {
+            *json.borrow_mut() = state;
+            let before = reads.get();
+            let actual = sim.check_all(&[&shared]);
+            assert_eq!(reads.get() - before, 1, "one observation per check, refreshed between calls");
+            assert_eq!(actual, sim.check_all(&separate), "failure name, reason, time and trace remain identical");
+            if let Some(name) = failure {
+                assert!(actual.unwrap_err().contains(&format!("invariant `{name}` violated")));
+            } else {
+                actual.unwrap();
+            }
+        }
+        // The engine can change between phases without a scheduled event.
+        engine.borrow_mut().seed(vec![("messages".into(), snapback4_core::value::object([
+            ("id", id("unexpected")), ("conversationId", id("c1")),
+            ("authorId", id(MEMBERS[0])), ("body", Value::String("seeded".into())), ("at", Value::Int(0)),
+        ]))]).unwrap();
+        let actual = sim.check_all(&[&shared]);
+        assert_eq!(actual, sim.check_all(&separate));
+        assert!(actual.unwrap_err().contains("server holds 1 messages for 0 applied sends"));
+    }
 
     #[test]
     fn day_two_additive_and_widening_keep_every_queued_write() {
