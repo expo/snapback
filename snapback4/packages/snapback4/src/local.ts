@@ -145,6 +145,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     link = "offline";
   }
   const active = new Set<Promise<unknown>>();
+  let closed = false;
+  let closing: Promise<void> | undefined;
+  const aborter = new AbortController();
   const core = await options.device.open(storeName, backend);
   try {
   await requireSyncProtocol(core);
@@ -157,26 +160,53 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // The app's native module (LLP 3000.005 §9): fetched once per digest and
   // installed on the device, which keeps it; offline, the device answers
   // native reads with the module it kept, or says it has none.
-  const installNative = async (signal?: AbortSignal) => {
-    const wanted = backend?.native?.digest;
-    if (!wanted) return;
-    const have = (await call({ op: "state" })).ok as { native?: string | null } | undefined;
-    if (have?.native === wanted) return;
+  let nativeReady = false;
+  let nativeInstall: { generation: number; promise: Promise<boolean> } | null = null;
+  const installNativeAttempt = async (signal?: AbortSignal): Promise<boolean> => {
+    const state = await call({ op: "state" });
+    if (state.denied) return false;
+    const have = state.ok as { native?: string | null } | undefined;
+    let wanted = backend?.native?.digest;
+    if (!wanted) {
+      if (!backend?.programs.some((program) => program.native)) return true;
+      // A backend restored by the device predates the server-only native
+      // descriptor. Its loaded cache is usable; a rejected cache is repaired
+      // from `/schema` once the link returns.
+      if (typeof have?.native === "string" && have.native.length > 0) return true;
+      if (link !== "online") return false;
+      try {
+        const refreshed = await loadBackend(doFetch, base, headers, signal);
+        if (Number(refreshed.generation ?? 0) !== generation) return false;
+        backend = refreshed;
+        wanted = refreshed.native?.digest;
+      } catch {
+        return false;
+      }
+    }
+    if (!wanted) return false;
+    if (have?.native === wanted) return true;
+    const targetGeneration = generation;
     try {
       const response = await doFetch(`${base}/native.wasm`, { headers, ...(signal ? { signal } : {}) });
-      if (!response.ok) return;
+      if (!response.ok) return false;
       const bytes = new Uint8Array(await response.arrayBuffer());
       let hex = "";
       for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
-      await call({ op: "install_native", wasm: hex, digest: wanted });
+      const installed = await call({ op: "install_native", wasm: hex, digest: wanted, generation: targetGeneration });
+      return !installed.denied && !closed && generation === targetGeneration && backend?.native?.digest === wanted;
     } catch {
-      // Offline or refused: the device answers with what it kept.
+      return false;
     }
   };
-  await installNative();
-  let closed = false;
-  let closing: Promise<void> | undefined;
-  const aborter = new AbortController();
+  const installNative = (signal?: AbortSignal): Promise<boolean> => {
+    if (nativeInstall?.generation === generation) return nativeInstall.promise;
+    const attempt = installNativeAttempt(signal);
+    const installing = { generation, promise: attempt };
+    nativeInstall = installing;
+    void attempt.finally(() => { if (nativeInstall === installing) nativeInstall = null; }).catch(() => {});
+    return attempt;
+  };
+  nativeReady = await installNative();
   let networkTail: Promise<unknown> = Promise.resolve();
   function network<T>(body: () => Promise<T>): Promise<T> {
     const result = networkTail.then(body);
@@ -286,8 +316,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const adopted = await call({ op: "adopt", backend: nextBackend });
             if (adopted.denied) return false;
             backend = nextBackend;
-            await installNative(aborter.signal);
             generation = Number(nextBackend.generation ?? pageGeneration);
+            nativeReady = false;
+            nativeReady = await installNative(aborter.signal);
           } catch {
             return false;
           }
@@ -409,6 +440,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
       return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables, nextExpiry };
     };
+    if (program?.native && !nativeReady) {
+      if (link === "online") nativeReady = await installNative(aborter.signal);
+      if (!nativeReady) return link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null };
+    }
     const onlineOnly = [...tables].some((t) => !schema.tables[t]?.sync);
     if (onlineOnly && link === "online") return server();
     const answer = await call({ op: "query", name: op.name, viewer: principal, args, now: Date.now() });

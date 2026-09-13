@@ -293,6 +293,59 @@ test("a refused device adopt keeps the previous backend active in JavaScript", {
   assert.equal((await write).state, "pending");
 });
 
+test("a failed native replacement falls back without a stale local answer and is retried", { timeout: 5000 }, async () => {
+  const oldBackend = {
+    generation: 1,
+    schema: { tables: {} },
+    programs: [{ name: "nativeRead", kind: "Query", args: {}, body: [], native: true }],
+    native: { digest: "1".repeat(64), jobs: [], reads: ["nativeRead"] },
+  };
+  const newBackend = { ...oldBackend, generation: 2, native: { ...oldBackend.native, digest: "2".repeat(64) } };
+  let schemas = 0, serverGeneration = 1, deviceGeneration = 1, deviceDigest = oldBackend.native.digest;
+  let installs = 0, localQueries = 0, serverQueries = 0;
+  const changePoll = deferred();
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "state") return { ok: { watermark: 0, generation: deviceGeneration, native: deviceDigest } };
+    if (request.op === "adopt") {
+      deviceGeneration = request.backend.generation;
+      deviceDigest = null;
+      return { ok: null };
+    }
+    if (request.op === "install_native") {
+      installs++;
+      assert.equal(request.generation, 2, "replacement is bound to the adopted generation");
+      if (installs < 3) return { denied: { code: "E_NATIVE", family: "native", message: "bad replacement" } };
+      deviceDigest = request.digest;
+      return { ok: { jobs: [], reads: ["nativeRead"] } };
+    }
+    if (request.op === "query") {
+      localQueries++;
+      return { ok: { data: ["local-new"], complete: true, tables: [], unknown: false, nextExpiry: null } };
+    }
+  } });
+  const client = await createLocalClient({ url: "http://native-adopt.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(schemas++ === 0 ? oldBackend : newBackend);
+    if (path === "/native.wasm") return new Response(new Uint8Array([0, 1, 2]));
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: serverGeneration, acknowledged: [] });
+    if (path === "/changes") { await held(changePoll, init?.signal); return Response.json({ seq: 0, tables: [], generation: serverGeneration }); }
+    if (path === "/q/nativeRead") { serverQueries++; return Response.json({ data: ["server-new"], complete: true, tables: [] }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+
+  serverGeneration = 2;
+  await client.sync();
+  const fallback = await client.query(query("nativeRead"), {});
+  assert.deepEqual(fallback.data, ["server-new"], "the cleared old module cannot produce a stale complete answer");
+  assert.equal(localQueries, 0);
+  assert.equal(serverQueries, 1);
+  const retried = await client.query(query("nativeRead"), {});
+  assert.deepEqual(retried.data, ["local-new"]);
+  assert.equal(installs, 3, "the failed adoption install and first fallback are retried by a later read");
+  assert.equal(localQueries, 1);
+  await client.close();
+});
+
 test("local prediction invalidation reruns only observations of written tables", { timeout: 5000 }, async () => {
   const backend = {
     generation: 1,

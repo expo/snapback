@@ -181,6 +181,18 @@ fn decoded<T: for<'de> Deserialize<'de>>(text: &str) -> Result<T, RuntimeError> 
     serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))
 }
 
+#[cfg(feature = "wasm-host")]
+fn sha256(bytes: &[u8]) -> String {
+    use sha2::Digest;
+    sha2::Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn clear_native<S: DeviceStore>(store: &mut S) -> Result<(), RuntimeError> {
+    let tx = store.transaction()?;
+    tx.delete_meta(&[NATIVE, NATIVE_DIGEST])?;
+    tx.commit()
+}
+
 impl<S: DeviceStore> Device<S> {
     /// The device over an opened store, for the backend the server sent —
     /// or, with none, for the backend kept from last time, so a device
@@ -201,14 +213,30 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(WATERMARK.to_owned(), "0".into());
         }
         store.install(&backend.schema, &metadata, reset)?;
-        let native_digest = store.meta(NATIVE_DIGEST)?;
+        if reset {
+            clear_native(&mut store)?;
+        }
+        let cached_digest = store.meta(NATIVE_DIGEST)?;
+        let cached_module = store.meta(NATIVE)?;
         #[cfg(feature = "wasm-host")]
-        let native = match store.meta(NATIVE)? {
-            // A module kept from last time that no longer loads is dropped,
-            // not fatal: the next sync installs the server's.
-            Some(hex) => snapback4_core::value::decode_bytes_hex(&hex).and_then(|bytes| snapback4_core::engine::native::Module::compile(&bytes).ok()).map(std::sync::Arc::new),
-            None => None,
+        let native = match (&cached_module, &cached_digest) {
+            (Some(hex), Some(digest)) => snapback4_core::value::decode_bytes_hex(hex)
+                .filter(|bytes| sha256(bytes) == *digest)
+                .and_then(|bytes| snapback4_core::engine::native::Module::compile(&bytes).ok())
+                .map(std::sync::Arc::new),
+            _ => None,
         };
+        #[cfg(not(feature = "wasm-host"))]
+        let valid_native = false;
+        #[cfg(feature = "wasm-host")]
+        let valid_native = native.is_some();
+        let cache_present = cached_module.is_some() || cached_digest.is_some();
+        let native_digest = if valid_native { cached_digest } else { None };
+        if !valid_native && cache_present {
+            // A partial, corrupt, mismatched or no-longer-loadable cache is
+            // absent. Do not advertise its digest and suppress repair.
+            clear_native(&mut store)?;
+        }
         Ok(Self {
             store,
             schema: backend.schema,
@@ -224,13 +252,21 @@ impl<S: DeviceStore> Device<S> {
     /// Install the app's native module the server serves at `/native.wasm`
     /// (LLP 3000.005 §9), keeping its bytes so a cold start offline has it.
     /// Returns the jobs and the reads it implements.
-    pub fn install_native(&mut self, bytes: &[u8], digest: &str) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+    pub fn install_native(&mut self, bytes: &[u8], digest: &str, generation: u64) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+        if generation != self.generation {
+            return Err(RuntimeError::Generation("the native module belongs to an obsolete backend generation".into()));
+        }
         #[cfg(feature = "wasm-host")]
         {
+            if sha256(bytes) != digest {
+                return Err(RuntimeError::Native { code: "E_NATIVE".into(), message: "the native module does not match its SHA-256 digest".into() });
+            }
             let module = snapback4_core::engine::native::Module::compile(bytes)?;
             let names = (module.jobs().to_vec(), module.reads().to_vec());
-            self.store.set_meta(NATIVE, &snapback4_core::value::encode_bytes_hex(bytes))?;
-            self.store.set_meta(NATIVE_DIGEST, digest)?;
+            let tx = self.store.transaction()?;
+            tx.set_meta(NATIVE, &snapback4_core::value::encode_bytes_hex(bytes))?;
+            tx.set_meta(NATIVE_DIGEST, digest)?;
+            tx.commit()?;
             self.native = Some(std::sync::Arc::new(module));
             self.native_digest = Some(digest.to_owned());
             Ok(names)
@@ -257,6 +293,14 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(WATERMARK.to_owned(), "0".into());
         }
         self.store.install(&backend.schema, &metadata, reset)?;
+        if reset {
+            clear_native(&mut self.store)?;
+            #[cfg(feature = "wasm-host")]
+            {
+                self.native = None;
+            }
+            self.native_digest = None;
+        }
         self.schema = backend.schema;
         self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         self.generation = backend.generation;

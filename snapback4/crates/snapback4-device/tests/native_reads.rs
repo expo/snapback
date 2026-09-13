@@ -12,6 +12,7 @@ use snapback4_core::value::Value;
 use snapback4_device::call::call;
 use snapback4_device::device::{Backend, Device};
 use snapback4_device::memory::MemoryStore;
+use snapback4_device::store::DeviceStore;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -115,7 +116,7 @@ fn the_same_module_answers_the_same_on_the_server_and_on_both_devices() {
         let before = device.call_json(json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 10 }, "now": NOW + 2_000 }));
         assert_eq!(before["ok"]["denied"]["code"], "E_NATIVE", "{label}: {before}");
         assert_eq!(before["ok"]["unknown"], true, "{label}: {before}");
-        let installed = device.call_json(json!({ "op": "install_native", "wasm": hex(module()), "digest": digest }));
+        let installed = device.call_json(json!({ "op": "install_native", "wasm": hex(module()), "digest": digest, "generation": backend.generation }));
         assert_eq!(installed["ok"]["reads"], json!(["personalize"]), "{label}: {installed}");
         assert_eq!(device.call_json(json!({ "op": "state" }))["ok"]["native"], json!(digest), "{label}");
         let read = device.call_json(json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 10 }, "now": NOW + 2_000 }));
@@ -144,7 +145,7 @@ fn a_device_keeps_the_module_across_a_reopen() {
     let digest = hex(&sha256(module()));
     let kept = {
         let mut device = snapshotted(Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap(), &mut engine);
-        device.install_native(module(), &digest).unwrap();
+        device.install_native(module(), &digest, backend.generation).unwrap();
         device.store().export()
     };
     // A cold start with no backend from the server: the kept one, and the kept module.
@@ -155,6 +156,45 @@ fn a_device_keeps_the_module_across_a_reopen() {
     let read = call(&mut device, &json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 10 }, "now": NOW + 2_000 }));
     assert!(read["ok"]["denied"].is_null(), "{read}");
     assert_eq!(read["ok"]["data"].as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn native_cache_is_bound_to_its_digest_and_backend_generation() {
+    let (_, backend, _) = server();
+    let digest = hex(&sha256(module()));
+    let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+
+    let refused = device.install_native(module(), &"0".repeat(64), backend.generation).unwrap_err();
+    assert_eq!(refused.code(), "E_NATIVE", "{refused}");
+    assert_eq!(device.native_digest(), None, "mismatched bytes must not be kept");
+
+    device.install_native(module(), &digest, backend.generation).unwrap();
+    let mut next = backend.clone();
+    next.generation += 1;
+    device.adopt(next).unwrap();
+    assert_eq!(device.native_digest(), None, "a new generation must not retain the old module");
+    let stale = device.install_native(module(), &digest, backend.generation).unwrap_err();
+    assert_eq!(stale.code(), "E_GENERATION", "an obsolete fetch must not repopulate the cleared cache");
+    let reopened = Device::open_store({
+        let mut store = MemoryStore::new();
+        store.load(device.store().export()).unwrap();
+        store
+    }, None).unwrap();
+    assert_eq!(reopened.native_digest(), None, "the old digest must be removed from durable metadata");
+}
+
+#[test]
+fn a_bad_cached_module_is_removed_instead_of_advertised() {
+    let (_, backend, _) = server();
+    let mut kept = Device::open_store(MemoryStore::new(), Some(backend)).unwrap().store().export();
+    kept.push(snapback4_device::memory::Change { s: 'm', k: "device:native".into(), v: Some("00".into()) });
+    kept.push(snapback4_device::memory::Change { s: 'm', k: "device:native:digest".into(), v: Some(hex(&sha256(&[0]))) });
+    let mut store = MemoryStore::new();
+    store.load(kept).unwrap();
+    let device = Device::open_store(store, None).unwrap();
+    assert_eq!(device.native_digest(), None);
+    assert_eq!(device.store().meta("device:native").unwrap(), None);
+    assert_eq!(device.store().meta("device:native:digest").unwrap(), None);
 }
 
 #[test]

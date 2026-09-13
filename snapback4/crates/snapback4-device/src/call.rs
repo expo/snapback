@@ -50,7 +50,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
                 // The app's module from `/native.wasm`, as hex, with the digest
                 // the server named (LLP 3000.005 §9).
                 let bytes = snapback4_core::value::decode_bytes_hex(text(request, "wasm")?).ok_or_else(|| RuntimeError::Input("wasm is the module's bytes as lowercase base16".into()))?;
-                let (jobs, reads) = device.install_native(&bytes, text(request, "digest")?)?;
+                let generation = arg(request, "generation")?.as_u64().ok_or_else(|| RuntimeError::Input("generation is an unsigned integer".into()))?;
+                let (jobs, reads) = device.install_native(&bytes, text(request, "digest")?, generation)?;
                 json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&device.sync_state()?)?,
