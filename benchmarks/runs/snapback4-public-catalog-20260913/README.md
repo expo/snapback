@@ -1399,3 +1399,235 @@ The publication took 145.4 seconds including the suite and is recorded in
 `snapback4/metrics/publish.jsonl`. The HTTP A/B above uses the separately
 bound source-built 0.2.6 variants; it does not measure this exact registry
 artifact or establish a Convex/Supabase, device, write, or durability win.
+
+### 0.2.7 concurrent-feed stack diagnostic
+
+After the reader-QPSG HTTP run, a separate symbol-retaining build of source
+`485018648782c692122788c8a094d145008c65c8` sampled the remaining feed cost on
+the M4 Pro. It used Rust 1.97.0 and the production profile with only
+`CARGO_PROFILE_PRODUCTION_STRIP=none`; its SHA-256 was
+`1c4cbde6bc694b16ef4e844777cbff407e3c99a70c082896afb6907326179c6e`.
+This was a diagnostic executable, distinct from the published CLI.
+
+The controller restored the same hash-bound 100,000-message SQLite snapshot
+and its previously issued sessions, then ran the full five-identity authorized-feed
+verifier. C1 and C8 each prepared all 1,500 actual cursor pages for the
+150-membership reader, performed 30 warmups, and ran a twelve-second rotating
+load. Every preparation and active response passed its exact ordered-row,
+viewer, completeness and terminal-cursor checks. C1 completed 2,347 active
+requests and C8 completed 6,055. Each five-second `sample` invocation, at a
+five-millisecond interval, fell entirely inside its active request window.
+The server stopped after both loads. This diagnostic did not repeat the
+earlier leave/regrant matrix or perform a new physical scan of every stored
+row; it reused the pristine fixture established by that proof.
+
+An independent review balanced the call trees and counted exclusive leaf
+observations. At C8, 2,838 of the 5,718 observations under the request handler
+were explicit mutex waits. Of all 2,842 mutex-wait observations, 2,697 had a
+SQLite page-cache fetch or unpin routine as their nearest non-pthread caller.
+C1 had no explicit mutex-wait observation under the request handler. Its
+visible query work was chiefly indexed row retrieval, JSON and cursor work.
+These are overlapping thread observations, not CPU percentages or a division
+of request latency. Idle transport/background waits and mutex-release
+syscalls were classified separately.
+
+The pinned `libsqlite3-sys` 0.38.2 build enables
+`SQLITE_ENABLE_MEMORY_MANAGEMENT`. Its bundled SQLite 3.53.2 implementation
+then places page caches in one recycling group protected by the static LRU
+mutex. This provides a concrete mechanism for the sampled contention and a
+focused experiment: separate recycling groups trade cross-connection spare
+page reuse for less shared locking. The diagnostic alone establishes neither
+an improvement nor an adopted setting.
+
+The ignored run directory retains the raw receipt, verifier output, both load
+outputs and stack files, their hashes in the storage ledger, and
+`reader-027-http-profile-review.md`. C1 precedes C8 on the same server, with
+fresh preparation for each; OS cache residency was neither reset nor
+measured. Sampling perturbs execution, and input-domain coverage over the
+whole load does not prove coverage inside the shorter sample window. No
+unsampled latency, exact published-artifact timing, comparator, device,
+write, memory-pressure or durability result follows from this diagnostic.
+
+### SQLite memory-management compile option: ARM HTTP experiment, trials 41–43
+
+Six loopback HTTP runs on the prepared Apple M4 Pro compared the exact retained 0.2.7 registry CLI (baseline SHA-256 `e54745cd668981efd3ead1dd4bad9e289f390b57d248e57d418942b6dac3476b`, 6,967,536 B) with an experimental production build of the same source `485018648782c692122788c8a094d145008c65c8`, using `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` (candidate `a5badc307698f2eb1c56ebfb4df8f618ff14ba524794d6584189e349449940d0`, 6,967,520 B). Both report version 0.2.7. The linked probes report SQLite 3.53.2, `THREADSAFE=1` and configured `cache_size=-2000` in both variants; their compile-option lists differ only by `ENABLE_MEMORY_MANAGEMENT`. This changes SQLite's optional global page-cache recycling mechanism; the configured cache size, authorization rules and query ceilings are unchanged.
+
+The frozen instrument (`ebe5b64dd15a6e16371a7449bd8ec55e6a5421ec392bec64b943472f42d616be`) and controller (`8629ad5377b3370f92809942730bf693bdc106cea600c9e9f474f140a92ecc43`) ran serial pairs B/C, C/B, B/C at trials 41, 42 and 43. Each run restored the same pristine SQLite snapshot and previously issued guest sessions, started its own server process, verified all 501 groups / 186 memberships / 100,000 messages, and exercised the original auth, cursor, ownership, own-leave and current-union checks. The separate regrant restored the physical fixture and verified the full authorized feeds with the same sessions and server. All assertions passed. The six runs contain 117,000 timed case calls (39 cases × 500 × 6), 7,020 excluded case warmups, and 33,510 separately timed traversal-page calls across 162 walks. The two 50-sample smoke runs are excluded. Formal completion was 2026-09-13 21:06:24.305Z.
+
+Full fixture proof, auth checks and initial traversals preceded the repeated cases. OS cache was retained without resets; residency was unmeasured. These are prepared working-set reads, not cold-start measurements. The candidate has lower three-run median p50 in 26/39 cases, p95 in 20/39, p99 in 18/39 and maximum in 25/39; the remaining 13, 19, 21 and 14 case medians are higher. Across the 117 paired case comparisons, p50 is lower/higher/equal in 82/34/1, p95 in 67/50/0, p99 in 65/52/0 and maximum in 68/49/0. Median throughput is higher in 26/39 cases (79/117 paired comparisons).
+
+The targeted 30- and 150-group C8 feed-first, feed-next and working-set cases improve at all four latency statistics in all 18 paired comparisons. Results elsewhere are mixed: six of seven 150-group C1 case p50 medians are higher. Trial 41 includes substantial C1 regressions that the medians alone obscure: 150-group thread-next p50 0.457 → 4.137 ms, feed-first 1.438 → 4.921 ms, feed-next 1.716 → 5.601 ms and feed-working-set 1.719 → 5.224 ms. In that trial, 150-group C8 thread-first p99 is 5.395 → 17.905 ms and maximum 6.642 → 19.438 ms. The largest case observation is 30.066 ms in baseline versus 35.283 ms in candidate, both in 150-group point-working-set C1; candidate trial 41's matched baseline is 7.090 ms. These observations are retained without attributing their cause.
+
+Every table cell below is baseline → candidate, using the median of three reported per-run statistics, not a pooled percentile over 1,500 samples. The JSON summary retains every paired result and every p50/p95/p99/maximum regression. Latencies are milliseconds; throughput is HTTP requests/second.
+
+| Case | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| groups5PointHotC1 | 0.306 → 0.307 | 0.379 → 0.380 | 0.531 → 0.570 | 3.316 → 3.248 | 3043.9 → 3023.5 |
+| groups5PointWorkingSetC1 | 0.291 → 0.304 | 0.349 → 0.357 | 0.488 → 0.536 | 3.001 → 3.190 | 3202.1 → 3049.0 |
+| groups5ThreadFirstC1 | 0.440 → 0.434 | 0.527 → 0.498 | 0.735 → 0.667 | 3.123 → 3.373 | 2109.7 → 2154.9 |
+| groups5ThreadNextC1 | 0.455 → 0.438 | 0.551 → 0.510 | 0.697 → 0.805 | 4.365 → 3.261 | 2043.9 → 2145.1 |
+| groups5FeedFirstC1 | 0.508 → 0.494 | 0.580 → 0.613 | 0.764 → 0.890 | 10.889 → 4.752 | 1822.9 → 1879.2 |
+| groups5FeedNextC1 | 0.519 → 0.525 | 0.575 → 0.588 | 0.696 → 0.726 | 3.708 → 4.011 | 1851.4 → 1826.3 |
+| groups5FeedWorkingSetC1 | 0.541 → 0.523 | 0.628 → 0.622 | 0.779 → 0.765 | 3.768 → 3.734 | 1765.4 → 1826.3 |
+| groups5PointWorkingSetC8 | 2.785 → 2.395 | 3.768 → 3.573 | 5.328 → 4.478 | 6.075 → 5.025 | 2905.3 → 3231.1 |
+| groups5ThreadFirstC8 | 4.048 → 3.902 | 5.163 → 5.171 | 6.094 → 7.252 | 7.578 → 9.574 | 1979.2 → 2036.1 |
+| groups5ThreadNextC8 | 4.013 → 3.902 | 4.990 → 5.028 | 5.503 → 5.540 | 6.369 → 5.737 | 2016.1 → 2096.6 |
+| groups5FeedFirstC8 | 3.673 → 3.515 | 4.895 → 4.904 | 5.828 → 5.860 | 6.517 → 6.379 | 2162.7 → 2248.6 |
+| groups5FeedNextC8 | 3.771 → 3.470 | 5.108 → 4.635 | 7.256 → 5.243 | 8.363 → 5.849 | 2091.6 → 2316.8 |
+| groups5FeedWorkingSetC8 | 3.836 → 3.441 | 5.488 → 4.725 | 6.130 → 5.613 | 6.854 → 6.934 | 2034.8 → 2285.3 |
+| groups30PointHotC1 | 3.094 → 3.192 | 4.218 → 3.976 | 5.848 → 5.044 | 15.565 → 18.363 | 331.1 → 343.5 |
+| groups30PointWorkingSetC1 | 3.542 → 3.321 | 4.414 → 3.967 | 5.529 → 5.225 | 18.618 → 16.990 | 289.6 → 307.2 |
+| groups30ThreadFirstC1 | 0.525 → 0.537 | 4.520 → 4.744 | 5.612 → 5.119 | 8.109 → 5.909 | 689.7 → 579.1 |
+| groups30ThreadNextC1 | 0.484 → 0.472 | 0.551 → 0.581 | 0.679 → 0.750 | 3.847 → 5.004 | 1956.6 → 1904.3 |
+| groups30FeedFirstC1 | 0.653 → 0.639 | 0.692 → 0.665 | 0.741 → 0.852 | 3.605 → 3.515 | 1475.8 → 1545.8 |
+| groups30FeedNextC1 | 0.708 → 0.688 | 0.734 → 0.722 | 0.787 → 0.804 | 8.166 → 3.314 | 1383.5 → 1397.6 |
+| groups30FeedWorkingSetC1 | 0.717 → 0.706 | 0.753 → 0.749 | 0.800 → 0.791 | 3.791 → 6.062 | 1343.4 → 1374.8 |
+| groups30PointWorkingSetC8 | 2.482 → 2.599 | 3.710 → 4.135 | 4.794 → 5.242 | 6.034 → 5.801 | 3119.0 → 2992.8 |
+| groups30ThreadFirstC8 | 3.927 → 4.163 | 5.013 → 5.537 | 5.472 → 6.014 | 5.969 → 7.076 | 2046.5 → 1958.7 |
+| groups30ThreadNextC8 | 3.907 → 3.790 | 4.966 → 4.923 | 5.499 → 5.602 | 6.445 → 6.294 | 2067.3 → 2138.2 |
+| groups30FeedFirstC8 | 4.639 → 3.597 | 6.542 → 4.705 | 7.612 → 5.597 | 7.988 → 6.964 | 1706.6 → 2235.3 |
+| groups30FeedNextC8 | 4.686 → 3.626 | 6.585 → 4.809 | 7.635 → 5.445 | 8.604 → 6.223 | 1679.4 → 2210.2 |
+| groups30FeedWorkingSetC8 | 4.788 → 3.702 | 6.861 → 4.781 | 7.938 → 5.578 | 8.249 → 6.178 | 1648.1 → 2161.5 |
+| groups150PointHotC1 | 2.961 → 3.030 | 4.146 → 3.694 | 5.187 → 4.650 | 17.753 → 14.567 | 346.1 → 363.3 |
+| groups150PointWorkingSetC1 | 3.376 → 3.444 | 4.030 → 4.261 | 5.037 → 5.784 | 8.298 → 9.852 | 300.5 → 295.4 |
+| groups150ThreadFirstC1 | 0.489 → 0.493 | 4.816 → 5.046 | 5.620 → 6.143 | 13.121 → 8.870 | 604.9 → 553.3 |
+| groups150ThreadNextC1 | 0.467 → 0.465 | 0.503 → 0.513 | 0.759 → 0.708 | 2.679 → 6.095 | 2028.0 → 2007.7 |
+| groups150FeedFirstC1 | 1.480 → 1.483 | 1.568 → 1.580 | 1.917 → 1.865 | 8.958 → 8.799 | 663.3 → 656.2 |
+| groups150FeedNextC1 | 1.752 → 1.755 | 1.826 → 1.972 | 1.951 → 2.255 | 8.431 → 7.628 | 566.7 → 556.9 |
+| groups150FeedWorkingSetC1 | 1.760 → 1.859 | 1.835 → 2.030 | 2.059 → 2.162 | 4.685 → 7.657 | 564.1 → 531.0 |
+| groups150PointWorkingSetC8 | 2.765 → 2.348 | 3.720 → 4.097 | 6.004 → 8.026 | 7.231 → 10.251 | 2795.4 → 3105.7 |
+| groups150ThreadFirstC8 | 3.966 → 3.695 | 4.886 → 4.846 | 5.433 → 5.614 | 6.642 → 6.260 | 2019.9 → 2188.1 |
+| groups150ThreadNextC8 | 3.906 → 3.834 | 4.860 → 5.069 | 5.404 → 5.500 | 5.561 → 6.424 | 2092.2 → 2106.6 |
+| groups150FeedFirstC8 | 15.958 → 5.804 | 19.032 → 7.124 | 20.714 → 7.982 | 22.352 → 8.128 | 496.3 → 1363.9 |
+| groups150FeedNextC8 | 15.759 → 6.309 | 17.659 → 8.373 | 18.783 → 9.616 | 20.808 → 10.635 | 510.0 → 1229.4 |
+| groups150FeedWorkingSetC8 | 15.860 → 6.226 | 17.645 → 7.554 | 18.721 → 8.488 | 19.804 → 8.906 | 504.7 → 1281.7 |
+
+Traversal timings are separate C1 walks before repeated cases, after the actor's leave, and after same-session regrant. They have lower median p50 in 19/27 identities, p95 in 18/27, p99 and maximum in 16/27; the other 8, 9, 11 and 11 are higher. Across 81 pairs, p50 is lower/higher in 51/30, p95 in 48/33, p99 in 46/35 and maximum in 44/37. Walk wall time is lower/higher/equal in 14/6/7 median identities and 43/22/16 pairs. Per-page timers include HTTP, JSON decoding and projection, with exact oracle checks outside each request timer; walk wall time and page throughput include those checks. First-page latency, page throughput and every individual walk are retained in the records/summary.
+
+A thread walk has four pages; outsider and empty controls have one. Their p95/p99 equal the maximum (all percentiles coincide for a one-page control); 40/50-page feed p99 is also the maximum with this instrument's percentile convention. These tails are not 500-sample repeated-case distributions. Initial and regrant 150-group feed p95/p99/maximum medians are higher, despite lower p50; the after-leave wide feed is faster. The largest individual traversal page is 24.024 ms baseline versus 20.493 ms candidate, both after-leave wide feeds in trial 43. Actors below are identified by initial membership count; the 5-group reader has four groups after leave.
+
+| Phase / reader / operation | Pages | p50 | p95 | p99 | Maximum | Walk wall ms |
+|---|---:|---:|---:|---:|---:|---:|
+| initial / 5-group reader / feed | 50 | 0.716 → 0.711 | 0.853 → 0.842 | 1.080 → 1.063 | 1.080 → 1.063 | 36.4 → 36.6 |
+| initial / 5-group reader / thread | 4 | 0.607 → 0.653 | 0.782 → 0.803 | 0.782 → 0.803 | 0.782 → 0.803 | 2.7 → 2.8 |
+| initial / 30-group reader / feed | 300 | 0.789 → 0.783 | 0.902 → 0.901 | 1.118 → 1.189 | 2.660 → 2.529 | 249.7 → 243.3 |
+| initial / 30-group reader / thread | 4 | 0.562 → 0.563 | 0.643 → 0.627 | 0.643 → 0.627 | 0.643 → 0.627 | 2.4 → 2.4 |
+| initial / 150-group reader / feed | 1500 | 1.754 → 1.742 | 1.867 → 1.875 | 2.155 → 2.192 | 10.024 → 12.263 | 2691.8 → 2644.4 |
+| initial / 150-group reader / thread | 4 | 0.583 → 0.571 | 0.748 → 0.731 | 0.748 → 0.731 | 0.748 → 0.731 | 2.5 → 2.5 |
+| initial / outsider / feed | 1 | 0.464 → 0.427 | 0.464 → 0.427 | 0.464 → 0.427 | 0.464 → 0.427 | 0.5 → 0.4 |
+| initial / empty-group reader / feed | 1 | 0.467 → 0.415 | 0.467 → 0.415 | 0.467 → 0.415 | 0.467 → 0.415 | 0.5 → 0.4 |
+| initial / empty-group reader / thread | 1 | 0.444 → 0.403 | 0.444 → 0.403 | 0.444 → 0.403 | 0.444 → 0.403 | 0.4 → 0.4 |
+| after-leave / 5-group reader / feed | 40 | 1.815 → 1.813 | 1.859 → 1.841 | 1.866 → 1.865 | 1.866 → 1.865 | 72.5 → 72.6 |
+| after-leave / 5-group reader / thread | 4 | 1.845 → 1.842 | 1.907 → 1.883 | 1.907 → 1.883 | 1.907 → 1.883 | 7.5 → 7.4 |
+| after-leave / 30-group reader / feed | 300 | 4.226 → 4.196 | 5.539 → 5.779 | 6.788 → 6.449 | 10.257 → 12.173 | 1167.3 → 1131.7 |
+| after-leave / 30-group reader / thread | 4 | 2.742 → 3.869 | 2.883 → 4.002 | 2.883 → 4.002 | 2.883 → 4.002 | 11.3 → 15.8 |
+| after-leave / 150-group reader / feed | 1500 | 5.610 → 1.857 | 6.823 → 5.916 | 8.137 → 7.555 | 18.392 → 17.381 | 8072.4 → 4564.5 |
+| after-leave / 150-group reader / thread | 4 | 2.220 → 0.601 | 2.457 → 0.788 | 2.457 → 0.788 | 2.457 → 0.788 | 9.2 → 2.7 |
+| after-leave / outsider / feed | 1 | 1.902 → 0.437 | 1.902 → 0.437 | 1.902 → 0.437 | 1.902 → 0.437 | 2.0 → 0.5 |
+| after-leave / empty-group reader / feed | 1 | 1.943 → 0.434 | 1.943 → 0.434 | 1.943 → 0.434 | 1.943 → 0.434 | 1.9 → 0.4 |
+| after-leave / empty-group reader / thread | 1 | 1.889 → 0.401 | 1.889 → 0.401 | 1.889 → 0.401 | 1.889 → 0.401 | 1.9 → 0.4 |
+| regrant / 5-group reader / feed | 50 | 0.721 → 0.714 | 0.890 → 0.842 | 1.072 → 1.105 | 1.072 → 1.105 | 37.6 → 36.7 |
+| regrant / 5-group reader / thread | 4 | 0.643 → 0.624 | 0.779 → 0.847 | 0.779 → 0.847 | 0.779 → 0.847 | 2.8 → 2.8 |
+| regrant / 30-group reader / feed | 300 | 0.806 → 0.790 | 0.922 → 0.897 | 1.020 → 1.147 | 2.551 → 2.590 | 250.0 → 245.7 |
+| regrant / 30-group reader / thread | 4 | 0.587 → 0.590 | 0.620 → 0.608 | 0.620 → 0.608 | 0.620 → 0.608 | 2.4 → 2.4 |
+| regrant / 150-group reader / feed | 1500 | 1.759 → 1.739 | 1.837 → 1.863 | 2.229 → 2.240 | 9.603 → 10.291 | 2688.3 → 2662.7 |
+| regrant / 150-group reader / thread | 4 | 0.566 → 0.582 | 0.759 → 0.756 | 0.759 → 0.756 | 0.759 → 0.756 | 2.5 → 2.6 |
+| regrant / outsider / feed | 1 | 0.444 → 0.488 | 0.444 → 0.488 | 0.444 → 0.488 | 0.444 → 0.488 | 0.5 → 0.5 |
+| regrant / empty-group reader / feed | 1 | 0.436 → 0.457 | 0.436 → 0.457 | 0.436 → 0.457 | 0.436 → 0.457 | 0.4 → 0.5 |
+| regrant / empty-group reader / thread | 1 | 0.407 → 0.430 | 0.407 → 0.430 | 0.407 → 0.430 | 0.407 → 0.430 | 0.4 → 0.4 |
+
+Qualification history is preserved: both production builds and option probes passed, while the original candidate Rust workspace run reported 237 passed / 1 failed / 1 ignored because a frontend test lacked locked Bun dependencies. After frozen installation, all 14 frontend tests passed with all 615 archived source files and both binaries unchanged. This resolves to 238 distinct candidate Rust tests passed, including the experiment-only option probe, and one existing ignored test; the corpus reported 211 passed cases and 82 named skips. The original failed exits and corrective receipts remain bound by `qualified-v2.json` (`4710463e1198f4204fbe0a613dac540b1041ab200db342c7bafc0c5a37442e3f`). This experimental qualification is not a complete publication or installed-consumer receipt.
+
+Raw controller records, their nested raw/regrant observations, all proof/log hashes, and the independent aggregation are preserved in the six annotated storage records and the ignored run's `page-cache-http-formal-summary.json`. This experiment supplies no exact-next-publication, comparator, device-throughput, write, durability, memory-pressure or universal performance claim. SQLite's changed cross-connection memory-recycling behavior was not tested under memory pressure. Any publication uses its own qualification and receipt.
+
+### Completed Office membership comparison: qualified 0.2.5, trials 24–26
+
+Nine serial runs on the Office M1 Max's ARM64 Colima VZ VM (4 CPUs, 12 GiB) compared the retained Linux production Snapback 0.2.5 binary `251e607404f3faa4e2b0fb05eb3ae42afd4aa03fe204b8532eaf0ad1afe66718` from source `9250a61ee8ad3b7a9fb899e43368e43a041e8508`, Convex CLI 1.45.0/self-host image `sha256:69885bae73766f625404a5425b22702341e89b43002f1d700864f8364be0d1f8` (server version string unknown), and Supabase CLI 2.117.0/PostgREST 16.2/Postgres 17.6.1.167 with the recorded component image digests. This measures the old qualified Linux 0.2.5 build, not 0.2.8 or the separate Durand M4 experiments. A shared version string does not establish identity with a registry platform binary.
+
+Orders were Snapback/Convex/Supabase, Convex/Supabase/Snapback, then Supabase/Snapback/Convex. The frozen instrument SHA-256 is `36f4026bcbef551d675842c760fbdc491f94e5d8b062fe8626bdf2a4cb12c39b`, controller `cd0ca16890fce049684a4f6732e3acad96b2465ab8e50b1bb8c46837754e2540`, and setup helper `47bf199de85f48117c87dcfd21f5fd2b21933e30ddbea5a7bd7447fb925bdcac`; each is bound in the retained log and records. Every backend completed all 39 cases × 500 samples in each round: **175,500 timed reads**, 10,530 excluded warmups and zero reported errors. The controller completed with exit 0 at 2026-09-13 21:20:50.445Z. All 27 public record/raw/regrant files are retained.
+
+A fresh privileged proof read all 501 groups, 186 memberships and 100,000 messages after every reset and before timing. The ordinary verifier checked exact ordered authorized unions of 1,000 / 6,000 / 30,000 / 0 / 0 messages, representative threads, timestamp ties, hidden foreign points, forged-viewer refusal, invalid/tampered/expired credentials and cross-reader cursor safety. An acknowledged own leave reduced the first union to 800, including correct old-cursor behavior and retained access for another member. Administrative regrant then restored every initial union using the same measured credentials. These checks passed in all nine runs. After leave/regrant, the proof is complete ordinary authorized-union/thread verification; no second privileged physical-database scan is claimed. There are 243 untimed walks (27 per run), plus other untimed auth/cursor/mutation checks. This frozen instrument did not measure traversal-page latencies.
+
+Snapback has lower three-run median p50 than Supabase in all 39 cases, but lower p95 in 36, p99 in 35 and maximum in 35. Against Convex, the respective counts are 21, 19, 19 and 20. All comparisons below are strict on reported values, with no ties, workload weighting or significance claim. Each aggregate is the median of three per-run statistics, not a pooled percentile over 1,500 requests. “Same round” pairs trial IDs across the rotating serial order; it does not establish a causal A/B effect.
+
+| Snapback statistic favorable | Convex: case medians / same-round comparisons | Supabase: case medians / same-round comparisons |
+|---|---:|---:|
+| Lower p50 | 21/39 · 56/117 | 39/39 · 113/117 |
+| Lower p95 | 19/39 · 55/117 | 36/39 · 107/117 |
+| Lower p99 | 19/39 · 52/117 | 35/39 · 101/117 |
+| Lower maximum | 20/39 · 54/117 | 35/39 · 101/117 |
+| Higher requests/s | 21/39 · 57/117 | 39/39 · 111/117 |
+
+Convex retains lower median p50 in 15/18 feed cases; Snapback is lower in 9/9 point and 9/12 thread cases. The largest feed gaps are the 150-group C8 cases: Snapback p50 is 6.67× / 7.46× / 10.94× Convex for first / next / working-set feeds, with p95 12.36× / 13.28× / 21.74×. Supabase has lower median p95 for all three of those wide C8 feeds. It has lower p99 and maximum for those three plus the 5-group C8 feed-next case.
+
+The 39/39 median p50 result against Supabase also contains four unfavorable individual comparisons: trial 25's 5-group feed-first C8 is 21.055 vs 16.610 ms; trial 26's 5-group feed-next C8 is 25.114 vs 15.536, 150-group feed-next C8 is 51.022 vs 39.749, and 150-group feed-working-set C8 is 44.881 vs 32.856. These are preserved along with every p95/p99/maximum and throughput loss. The largest case observation across all three rounds is 450.759 ms for Snapback (150-group feed-working-set C8, trial 25), 105.718 ms for Convex (150-group point-working-set C1, trial 25) and 1,027.657 ms for Supabase (150-group feed-next C8, trial 25). Table maximums below are medians of the three run maximums, not these overall worst observations.
+
+In every cell, values are **Snapback / Convex / Supabase**. Latencies are milliseconds; throughput is HTTP requests/second.
+
+| Case | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| groups5PointHotC1 | 3.290 / 3.711 / 6.193 | 6.822 / 6.959 / 12.799 | 10.307 / 11.090 / 22.685 | 24.570 / 25.257 / 35.524 | 245.0 / 240.9 / 132.7 |
+| groups5PointWorkingSetC1 | 3.197 / 12.109 / 7.150 | 6.191 / 28.320 / 29.340 | 9.727 / 47.884 / 48.648 | 19.486 / 63.938 / 69.217 | 279.4 / 69.7 / 96.0 |
+| groups5ThreadFirstC1 | 4.191 / 4.345 / 9.269 | 7.557 / 7.405 / 35.655 | 12.174 / 11.179 / 61.745 | 29.497 / 17.119 / 83.834 | 207.3 / 206.0 / 72.8 |
+| groups5ThreadNextC1 | 3.732 / 5.286 / 8.696 | 6.707 / 9.721 / 36.418 | 9.696 / 20.081 / 60.908 | 21.305 / 33.825 / 83.522 | 233.1 / 162.9 / 75.3 |
+| groups5FeedFirstC1 | 4.112 / 4.519 / 9.644 | 7.255 / 8.821 / 34.676 | 10.055 / 17.347 / 53.725 | 20.562 / 25.347 / 76.367 | 211.2 / 192.7 / 70.1 |
+| groups5FeedNextC1 | 3.976 / 4.073 / 9.059 | 6.322 / 7.256 / 32.324 | 8.623 / 9.749 / 50.718 | 24.730 / 27.403 / 69.317 | 232.3 / 223.7 / 78.2 |
+| groups5FeedWorkingSetC1 | 4.441 / 3.665 / 10.666 | 7.510 / 5.715 / 33.300 | 10.447 / 9.060 / 61.188 | 20.960 / 44.466 / 90.101 | 207.0 / 248.6 / 70.1 |
+| groups5PointWorkingSetC8 | 3.775 / 6.940 / 12.262 | 9.456 / 21.027 / 28.483 | 35.887 / 39.976 / 169.221 | 37.570 / 42.731 / 215.696 | 1591.8 / 915.5 / 542.8 |
+| groups5ThreadFirstC8 | 6.873 / 8.475 / 19.649 | 21.138 / 21.461 / 41.533 | 34.170 / 49.942 / 81.232 | 40.878 / 62.004 / 93.001 | 806.1 / 761.5 / 355.3 |
+| groups5ThreadNextC8 | 7.230 / 5.991 / 25.672 | 16.108 / 12.053 / 61.419 | 36.181 / 22.028 / 77.096 | 45.727 / 24.042 / 82.529 | 931.9 / 1171.0 / 274.3 |
+| groups5FeedFirstC8 | 13.549 / 5.018 / 26.759 | 38.325 / 10.896 / 65.480 | 49.331 / 24.599 / 93.911 | 65.877 / 25.919 / 138.504 | 476.5 / 1375.6 / 257.8 |
+| groups5FeedNextC8 | 16.242 / 4.887 / 17.174 | 46.964 / 10.670 / 48.131 | 76.585 / 23.651 / 65.111 | 100.826 / 24.870 / 77.791 | 383.8 / 1414.0 / 371.4 |
+| groups5FeedWorkingSetC8 | 18.587 / 5.367 / 21.628 | 50.237 / 10.093 / 65.228 | 84.018 / 26.279 / 152.682 | 109.210 / 31.216 / 157.239 | 361.2 / 1298.3 / 281.4 |
+| groups30PointHotC1 | 3.121 / 3.309 / 9.579 | 6.521 / 5.349 / 40.086 | 11.191 / 8.726 / 60.321 | 40.652 / 19.142 / 96.414 | 278.3 / 272.5 / 70.1 |
+| groups30PointWorkingSetC1 | 3.596 / 13.196 / 6.787 | 7.239 / 36.125 / 24.928 | 11.145 / 54.888 / 39.102 | 33.123 / 81.680 / 52.422 | 243.6 / 57.2 / 107.3 |
+| groups30ThreadFirstC1 | 4.411 / 4.542 / 9.845 | 8.997 / 8.578 / 35.753 | 13.417 / 11.527 / 58.980 | 32.852 / 31.679 / 100.703 | 185.6 / 199.8 / 70.1 |
+| groups30ThreadNextC1 | 3.606 / 4.824 / 10.672 | 6.502 / 11.020 / 33.682 | 9.967 / 19.448 / 60.301 | 26.909 / 46.693 / 77.673 | 243.9 / 168.6 / 69.6 |
+| groups30FeedFirstC1 | 4.460 / 4.666 / 11.244 | 7.560 / 10.100 / 30.585 | 10.909 / 18.780 / 49.220 | 19.208 / 31.479 / 84.808 | 206.4 / 185.8 / 68.5 |
+| groups30FeedNextC1 | 5.949 / 5.372 / 10.611 | 11.443 / 18.190 / 31.281 | 16.794 / 40.897 / 46.835 | 34.397 / 48.918 / 69.079 | 144.9 / 125.1 / 71.9 |
+| groups30FeedWorkingSetC1 | 6.031 / 4.893 / 13.732 | 11.910 / 8.079 / 59.232 | 23.815 / 12.746 / 86.561 | 42.209 / 35.025 / 138.101 | 144.0 / 193.3 / 47.2 |
+| groups30PointWorkingSetC8 | 3.027 / 6.018 / 17.420 | 6.459 / 19.388 / 45.558 | 21.632 / 31.803 / 67.636 | 24.236 / 48.789 / 98.710 | 2092.0 / 937.5 / 381.2 |
+| groups30ThreadFirstC8 | 7.402 / 6.097 / 19.425 | 21.461 / 15.731 / 50.136 | 39.661 / 40.300 / 87.569 | 47.558 / 46.543 / 102.331 | 852.1 / 1031.5 / 340.9 |
+| groups30ThreadNextC8 | 6.770 / 9.449 / 20.784 | 17.999 / 34.503 / 49.971 | 31.026 / 51.062 / 69.541 | 36.075 / 54.920 / 76.551 | 961.5 / 672.9 / 324.8 |
+| groups30FeedFirstC8 | 12.232 / 9.260 / 30.042 | 29.240 / 21.066 / 88.369 | 37.878 / 51.463 / 108.997 | 57.876 / 55.874 / 137.662 | 564.1 / 725.4 / 213.0 |
+| groups30FeedNextC8 | 13.501 / 5.788 / 21.381 | 32.896 / 11.162 / 47.909 | 41.756 / 42.999 / 55.941 | 55.359 / 56.570 / 69.643 | 501.9 / 1153.2 / 333.5 |
+| groups30FeedWorkingSetC8 | 14.128 / 5.834 / 33.344 | 31.089 / 27.104 / 78.058 | 44.858 / 47.261 / 97.087 | 61.307 / 57.152 / 112.737 | 496.6 / 940.6 / 214.6 |
+| groups150PointHotC1 | 2.930 / 3.794 / 6.914 | 5.431 / 6.211 / 16.689 | 9.212 / 8.415 / 28.739 | 18.542 / 19.041 / 73.545 | 287.3 / 243.8 / 118.9 |
+| groups150PointWorkingSetC1 | 3.709 / 12.937 / 7.408 | 6.347 / 39.579 / 33.829 | 8.846 / 64.476 / 49.130 | 27.028 / 100.619 / 75.381 | 255.1 / 56.5 / 85.3 |
+| groups150ThreadFirstC1 | 4.281 / 3.923 / 10.898 | 9.506 / 6.340 / 34.737 | 17.657 / 11.885 / 53.059 | 41.543 / 39.063 / 62.658 | 197.8 / 231.7 / 67.1 |
+| groups150ThreadNextC1 | 3.657 / 4.554 / 8.972 | 6.783 / 7.765 / 27.291 | 9.509 / 11.059 / 47.277 | 35.468 / 24.715 / 81.945 | 242.2 / 199.7 / 81.9 |
+| groups150FeedFirstC1 | 7.662 / 3.593 / 18.326 | 16.025 / 6.611 / 42.352 | 27.864 / 8.372 / 59.434 | 37.381 / 22.316 / 104.075 | 109.3 / 247.8 / 45.7 |
+| groups150FeedNextC1 | 8.660 / 3.991 / 19.368 | 13.292 / 7.304 / 58.923 | 15.772 / 13.628 / 83.701 | 27.056 / 31.009 / 107.580 | 106.8 / 221.2 / 38.5 |
+| groups150FeedWorkingSetC1 | 9.833 / 4.979 / 17.727 | 21.844 / 9.759 / 38.185 | 33.784 / 16.487 / 55.988 | 70.669 / 25.894 / 104.787 | 87.0 / 180.0 / 49.5 |
+| groups150PointWorkingSetC8 | 4.328 / 5.507 / 13.620 | 11.794 / 12.826 / 48.440 | 25.416 / 21.475 / 76.975 | 27.083 / 26.051 / 85.190 | 1435.5 / 1234.9 / 437.0 |
+| groups150ThreadFirstC8 | 6.134 / 6.792 / 15.107 | 15.499 / 22.246 / 31.770 | 36.687 / 35.831 / 48.014 | 38.358 / 41.222 / 55.736 | 1116.5 / 911.9 / 468.2 |
+| groups150ThreadNextC8 | 6.478 / 7.115 / 24.234 | 17.854 / 22.417 / 53.054 | 31.083 / 30.981 / 66.135 | 34.073 / 34.124 / 97.904 | 995.9 / 861.8 / 298.6 |
+| groups150FeedFirstC8 | 28.147 / 4.220 / 42.101 | 115.218 / 9.325 / 74.549 | 172.695 / 33.803 / 111.080 | 330.212 / 39.670 / 155.737 | 192.8 / 1427.8 / 176.8 |
+| groups150FeedNextC8 | 37.216 / 4.988 / 60.051 | 135.092 / 10.171 / 116.901 | 228.484 / 24.541 / 208.722 | 412.712 / 26.291 / 259.787 | 149.5 / 1379.3 / 121.8 |
+| groups150FeedWorkingSetC8 | 44.881 / 4.102 / 58.169 | 169.251 / 7.787 / 131.892 | 280.653 / 23.488 / 164.238 | 429.344 / 28.977 / 198.299 | 121.7 / 1686.1 / 120.4 |
+
+The protocol uses real native bearer authentication: copied 90-day Snapback guest sessions, Convex RS256 custom JWTs, and Supabase ES256 password-login users with RLS. Those paths have different implementation costs. Supabase login refresh occurs before timing and never between leave and regrant; the controller asserts an unchanged credential-file digest before the second verifier. The raw verify-only records retain the older instrument's `timedIdentities: 3` field, but their explicit scope and lack of measurements mean that invocation has zero timed samples.
+
+There is no harness/application result cache. Native automatic query caching remains enabled, and actual hit/eviction rates are unmeasured. Full initial traversals visit all feed/thread page arguments before repeated cases. Working-set sequences match across backends within each trial: 500 timed point inputs from domains of 1,000/6,000/30,000, and 50/300/500 unique timed feed-page inputs from domains of 50/300/1,500. The wide feed's full domain is verified outside timers. Request latency includes HTTP, JSON decoding and normalized projection; exact response assertions follow the request timer, while whole-case elapsed/RPS includes that observer and loop work. Thirty warmups per case are excluded.
+
+Snapback restores its full pristine SQLite snapshot and restarts its server before each run. Convex/Supabase retain processes and immutable message/group tables while replacing memberships. OS cache remains without resets and residency is unmeasured. The Supabase plan artifact verifies 12 executed prepared query bodies extracted from deployed SECURITY INVOKER functions under the authenticated role/claims, including indexed continuation arms. Because nested `auto_explain` was unavailable, this is body-plan evidence, not a nested stored-function trace; actual HTTP authorization and returned data are checked separately.
+
+The nine annotated storage records preserve the original controller records, embed the untouched raw instrument and separate same-session regrant records, and bind their files and common execution log by SHA-256. The ignored `membership-025-formal-summary.json` contains every backend/case median, every same-round contrast, all losses and all supporting hashes. These results do not establish an overall or current-release win, statistical significance, isolated QPSG attribution, cold-cache behavior, full Clique coverage, device/realtime throughput, materialized feed/count performance, write throughput, memory-pressure behavior or durability. Later security, independent-reader and page-cache changes require their own scoped evidence.
+
+### Publication of the page-cache policy: 0.2.8
+
+Source `8a81eb8551fb9711de91f87f199a94e03b2ed201` landed with the reviewed HTTP evidence in `a36219aa2ea9a1bbd969a24223c1fd042b188c4b`. The existing publisher now selects `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` for its full suite and production build, and records that build input. The existing store regression checks the linked SQLite options and configured cache size under that input. LLP 3000 §7 documents the cross-connection recycling tradeoff and the build command; the packaged CLI's native device RPC is included in this policy.
+
+The actual publisher completed on the prepared M4 Pro at **2026-09-13 21:33:19.388Z**: **237 Rust tests passed, one existing test ignored; 89 client and 9 fixture tests passed; zero failures in 54 s**. `RUST_TEST_THREADS=1` retains the documented Darwin file-descriptor workaround, with within-test concurrency intact and no descriptor-limit increase. This run did not remeasure the numeric descriptor limit. The suite uses default-profile test artifacts before constructing production; native SQLite/device and real native-process client checks remain included. The installed-package consumer separately passed typechecking and mock query/write checks, and its CLI version/digest matched the newly built production artifact. Publication took **140.2 s** on the prepared host.
+
+The registry's `snapback4@0.2.8` and `snapback4-darwin-arm64@0.2.8` archives have verified registry integrity and are byte-identical to the qualified tarballs. The downloaded CLI also executed `--version` successfully on the primary ARM Mac. Its build flag is unnecessary at runtime.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| CLI | 6,967,520 | `92db0d86e76a9e68859306870b45da795cc5e525f5b6519566aea6a414a369d8` |
+| Client archive | 451,044 | `3032ad0d9ed5a2728f31a73e83780e26da557a9426a5e13c15b5de3a8500e04b` |
+| ARM macOS platform archive | 3,417,449 | `c23474c59a28ec3b879a2c224652a1a1011ff1b7ff8ed760d0e3700f25cddae6` |
+
+The retained source archive is `a0ed84778c75fa0d682088fa9c6cf16578170f886a70927f17d22f185f3d3ef0`; publication log `4b46f50a1859fc453d239f0c3a9ee4a971eb95173fb54b1a2968ccfaedd00984`, with exit 0. An early preparation launch exited 2 because its helper had not finished transferring; that original failure is retained. After transfer, preparation and the exact affected store test passed against the unchanged archived source, followed by the full publisher above. The temporary remote npm credential file was removed and its cleanup receipt verified. The raw publisher record is appended to `snapback4/metrics/publish.jsonl`; `page-cache-028-publication-qualification.json` in the ignored run binds the original/corrective preparation, publication and registry receipts.
+
+The preceding HTTP timings remain bound to the same-source **0.2.7 experimental pair**. The 0.2.8 package has its own qualified source and artifact digests; this publication adds no new latency, comparator or memory-pressure measurement.

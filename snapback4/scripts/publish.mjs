@@ -13,6 +13,12 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = join(root, "packages/snapback4");
 const dry = process.argv.includes("--dry-run");
 const t0 = Date.now();
+// The packaged CLI uses independent SQLite page-cache recycling groups.
+// @ref LLP 3000#7-decisions-during-execution — qualified packaged SQLite build policy
+const sqliteBuildFlags = "-USQLITE_ENABLE_MEMORY_MANAGEMENT";
+const buildEnv = { ...process.env, LIBSQLITE3_FLAGS: sqliteBuildFlags };
+// HTTP and native-device tests must use this suite's freshly built CLI.
+delete buildEnv.SNAPBACK4_BIN;
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: ["ignore", "pipe", "inherit"], encoding: "utf8", ...opts });
 const version = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8")).version;
 
@@ -21,7 +27,7 @@ const version = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8")).vers
 // command; this gate is the durable answer).
 console.log(`== the suite`);
 try {
-  execFileSync("bash", [join(root, "scripts/test.sh")], { stdio: "inherit", cwd: root });
+  execFileSync("bash", [join(root, "scripts/test.sh")], { stdio: "inherit", cwd: root, env: buildEnv });
 } catch {
   console.error(`publish: the suite is red; snapback4@${version} is not published`);
   process.exit(1);
@@ -37,7 +43,7 @@ const platformVersion = JSON.parse(readFileSync(join(platformPkg, "package.json"
 if (platformVersion !== version) throw new Error(`snapback4-${process.platform}-${process.arch} is ${platformVersion}; the client is ${version}`);
 console.log(`== build the binary → ${platformPkg}`);
 const binaryProfile = "production";
-const built = run("cargo", ["build", "--profile", binaryProfile, "--quiet", "--message-format=json-render-diagnostics", "-p", "snapback4"], { cwd: root });
+const built = run("cargo", ["build", "--profile", binaryProfile, "--quiet", "--message-format=json-render-diagnostics", "-p", "snapback4"], { cwd: root, env: buildEnv });
 const artifact = built.trim().split("\n").map((line) => JSON.parse(line)).find((message) => message.reason === "compiler-artifact" && message.target?.name === "snapback4" && message.target.kind.includes("bin") && message.executable);
 if (!artifact) throw new Error("cargo did not report the production snapback4 binary");
 // Use Cargo's reported path, including CARGO_TARGET_DIR, rather than finding
@@ -107,7 +113,7 @@ if (dry) {
   console.log(`== npm publish ${packed.filename}`);
   run("npm", ["publish", tarball, "--access", "public"], { cwd: pkg });
 }
-const record = { at: new Date().toISOString(), version, tarballBytes, platformTarballBytes, files: packed.entryCount, binaryBytes, binarySha256, binaryVersion, binaryProfile, cargoProfile: artifact.profile, platform: `${process.platform}-${process.arch}`, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
+const record = { at: new Date().toISOString(), version, tarballBytes, platformTarballBytes, files: packed.entryCount, binaryBytes, binarySha256, binaryVersion, binaryProfile, sqliteBuildFlags, cargoProfile: artifact.profile, platform: `${process.platform}-${process.arch}`, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
 mkdirSync(join(root, "metrics"), { recursive: true });
 appendFileSync(join(root, "metrics/publish.jsonl"), JSON.stringify(record) + "\n");
 console.log(JSON.stringify(record));
