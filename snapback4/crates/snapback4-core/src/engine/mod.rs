@@ -8,6 +8,7 @@ pub mod job;
 pub mod local;
 pub mod admission;
 mod pages;
+pub use pages::returned_page_sites;
 pub mod read;
 pub mod rules;
 pub mod runner;

@@ -54,7 +54,12 @@ test("the native module follows the server, predicts, queues, and starts cold of
     let offline = false;
     const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
     const alice = await createNativeClient({ url, persona: "alice", native, dataDir: data, fetch: gated, waitSeconds: 2 });
-    const bob = await createNativeClient({ url, persona: "bob", native, dataDir: data, waitSeconds: 2 });
+    let bobCore;
+    const bobNative = { open: async (path, backend) => {
+      bobCore = await native.open(path, backend);
+      return bobCore;
+    } };
+    const bob = await createNativeClient({ url, persona: "bob", native: bobNative, dataDir: data, waitSeconds: 2 });
     open.push(alice, bob);
     // Bob's device holds the partition: the thread pages, the count is right.
     const thread = await bob.query(api.thread, { conversationId: "c1", c: null });
@@ -76,8 +81,16 @@ test("the native module follows the server, predicts, queues, and starts cold of
     const local = await alice.query(api.thread, { conversationId: "c1", c: null });
     assert.ok(isReady(local) && local.fresh === false && local.data.filter((m) => m.pending === true).length >= 5, JSON.stringify(local).slice(0, 300));
     offline = false;
-    const landed = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.filter((m) => /^q\d$/.test(m.body)).length === 5 ? r : null; }, 20_000);
+    const reconnectDeadline = Date.now() + 20_000;
+    const landed = await until(async () => { const r = await bob.query(api.thread, { conversationId: "c1", c: null }); return isReady(r) && r.data.filter((m) => /^q\d$/.test(m.body)).length === 5 ? r : null; }, Math.max(0, reconnectDeadline - Date.now()));
     assert.deepEqual(landed.data.filter((m) => /^q\d$/.test(m.body)).map((m) => m.body).reverse(), ["q0", "q1", "q2", "q3", "q4"]);
+    // A complete online query can come from the server. Wait for Bob's
+    // own committed rows before close aborts the follower's next request.
+    await until(async () => {
+      const result = await bobCore.call({ op: "query", name: "thread", viewer: "dev:bob", args: { conversationId: "c1", c: null }, now: Date.now() });
+      const rows = result.ok?.data;
+      return Array.isArray(rows) && rows.length === 37 && rows.filter((row) => /^q\d$/.test(row.body)).length === 5;
+    }, Math.max(0, reconnectDeadline - Date.now()));
     await alice.close();
     await bob.close();
     // A cold start with the server unreachable: the device opens on the backend it kept.

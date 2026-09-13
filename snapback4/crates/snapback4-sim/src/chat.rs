@@ -432,6 +432,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shared_chat_observation_detects_a_regression_at_the_next_event() {
+        use crate::world::{Ctx, Event, Host};
+        struct RegressingWatermark(u64);
+        impl Host for RegressingWatermark {
+            fn start(&mut self, ctx: &mut Ctx<'_>) { ctx.timer(1, 0); }
+            fn on(&mut self, _: &mut Ctx<'_>, _: Event) { self.0 = 1; }
+            fn state(&self) -> String {
+                json!({"role": "replica", "generation": 1, "watermark": self.0}).to_string()
+            }
+        }
+        let mut sim = Sim::new(1);
+        sim.add(Box::new(|| Box::new(RegressingWatermark(2))));
+        let checks = ChatChecks::new(Rc::new(RefCell::new(chat_engine(&MEMBERS))));
+        let invariants: [&dyn Invariant; 1] = [&checks];
+        sim.check_all(&invariants).unwrap();
+        let error = sim.run_until_checked(1, &invariants).unwrap_err();
+        assert!(error.contains("watermark went from 2 to 1"), "{error}");
+        assert!(error.contains("at t=1"), "{error}");
+    }
+
+    #[test]
     fn shared_chat_observations_keep_freshness_history_and_first_failure() {
         use crate::world::{Ctx, Event, Host};
         struct Observed {

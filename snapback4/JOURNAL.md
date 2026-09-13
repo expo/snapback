@@ -1690,3 +1690,50 @@ indexed and scanned vote updates, maintained totals, offline reopen/replay,
 durable outbox order and replacement by confirmed server images. The native
 control also checks that undeclared input fields still refuse. Verification
 and the exact local-dependency scope are recorded with the resolved ticket.
+
+## 2026-09-13 — three remaining ticket corrections (Codex)
+
+Charlie asked to resolve the remaining suite-budget, reference-ID and cursor-note
+filesystem tickets. References retain their existing typed-ID semantics: no
+implicit target lookup, no cascade. Mutations needing a visible target use an
+explicit metered `require exists`; the types/writes cards, E_INPUT explanation,
+README and Interview sketch now say so. The regression exercises the string
+`"null"`, actual JSON null, unchecked insert/update/upsert, guarded absent/hidden
+and visible targets, and target deletion without dependent cleanup.
+
+The compiler's N_NO_CURSOR note now uses the same alias/shape return-provenance
+walk as continuation ownership, in a separate mode that includes cursorless
+pages. The runtime's opaque-cursor-only plan is unchanged. Returned query pages
+receive the note; consumed loops, mutation loops and job chunks do not. Authored
+cases cover these paths, and the feeds fixture now requires zero notes.
+
+The unchanged suite on M5 Max Black took 88.409 seconds during a sharp rise in
+shared load (18.36 to 58.14), with two client failures. Sampling a fault run
+found 2,001 of 2,258 samples under invariant inspection. The simulator now builds
+one parsed host view per check pass and shares it among that pass's invariants;
+every existing predicate still runs after every event. A regression verifies
+that the next event's decreasing watermark is detected. The first affected
+simulator unit group took 10.94 seconds versus the baseline's 27.15 seconds;
+that comparison alone is not a complete-suite or controlled-host qualification.
+The existing suite prints stage durations and Cargo reports all failing targets.
+
+The client run also exposed a test race: Bob's query can fall back to the server
+before its rows are durable locally. The native e2e test now waits for its actual
+committed replica before closing, within the original reconnect deadline, and
+keeps the cold-restart assertions. Chromium discovery includes Linux paths so
+an idle fleet host can run the same React assertions during timing qualification.
+Final repeated-suite evidence follows in the closed tickets.
+
+
+## 2026-09-13 — integrating the concurrent performance landing (Codex)
+
+While the ticket fixes were being qualified, main landed the same shared-chat
+observation optimization in 4e126d206, alongside prepared statements, borrowed
+JSON encoding and the HTTP worker reservation fix. Integration keeps that
+landed ChatChecks implementation and its original simulator Invariant interface.
+The provisional generic Inspection wrapper is discarded; its event-boundary
+regression now exercises ChatChecks directly, alongside upstream's shared versus
+separate observation and first-failure checks. This preserves both regressions
+and every baseline assertion. The reference, note and native-test corrections
+are unchanged. Preliminary measurements above refer to the pre-integration
+candidate; the final ticket evidence records the integrated qualification.

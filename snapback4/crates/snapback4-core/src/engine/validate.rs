@@ -100,6 +100,7 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
         (ColumnType::Optional(_), None | Some(Value::Null)) => true,
         (ColumnType::Optional(inner), Some(value)) => fits(inner, Some(value)),
         (ColumnType::List { of, max }, Some(Value::Array(values))) => values.len() <= *max as usize && values.iter().all(|value| fits(of, Some(value))),
+        // @ref LLP 3000#7-decisions-during-execution — typed references do not imply target existence
         (ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. }, Some(Value::Id(_))) => true,
         (ColumnType::Text { max }, Some(Value::String(text))) => text.chars().count() <= *max as usize,
         (ColumnType::Bytes { max }, Some(Value::Bytes(bytes))) => bytes.len() <= *max as usize,

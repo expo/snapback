@@ -146,19 +146,14 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         notes.push(Diagnostic::new(&site, "N_NO_HORIZON", format!("table {name}: `{}` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start", sync.line()), rewrite).guide("sync"));
     }
     for bound in programs {
-        // A page returned without a cursor: when more rows exist than it
-        // holds, the card reads `complete: false` with no `next`.
-        for stmt in &bound.program.body {
-            use snapback4_core::ir::{Expr, LoopDomain, Stmt};
-            let page = match stmt {
-                Stmt::Return(Expr::Scan(scan)) => scan,
-                Stmt::Return(Expr::Merge(merge)) => match merge.lanes.first() { Some(lane) => &lane.scan, None => continue },
-                // A shape over a page lowers to a loop over the scan.
-                Stmt::For { domain: LoopDomain::Page(scan), .. } => scan,
-                _ => continue,
-            };
-            let (table, cursorless, take) = (page.table.clone(), !page.opaque_cursor, page.take.maximum());
-            if cursorless {
+        // Follow the same return/alias/shape provenance as continuations.
+        // A consumed loop is not a page the caller needs to continue.
+        let returned = snapback4_core::engine::returned_page_sites(&bound.program);
+        let mut noted = std::collections::BTreeSet::new();
+        for page in snapback4_core::ir::scans(&bound.program) {
+            let site = page.merge_site.as_ref().unwrap_or(&page.site);
+            if !page.opaque_cursor && returned.contains(site) && noted.insert(site) {
+                let (table, take) = (&page.table, page.take.maximum());
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>", bound.program.name, table)).guide("reads"));
             }
         }

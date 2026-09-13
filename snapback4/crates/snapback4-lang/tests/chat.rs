@@ -103,3 +103,62 @@ fn the_chat_api_types_are_inferred() {
     assert!(ts.contains("unsend: Mutation<{ messageId: string }, null>;"), "{ts}");
     assert!(ts.contains("export const api: Ops = {"));
 }
+
+fn page_notes(program: &str) -> Vec<snapback4_lang::Diagnostic> {
+    let schema = "table items:\n  group: int\n  n: int\n  by byGroup: group, id\n  cap 8 by group\n  read <- allow\n  update <- allow\n";
+    let bound = compile(&[("schema.q".into(), format!("{schema}\n{program}"))]);
+    assert!(bound.diagnostics.is_empty(), "{program}\n{:?}", bound.diagnostics);
+    bound.notes
+}
+
+#[test]
+fn cursor_notes_follow_returned_query_pages_through_aliases_and_shapes() {
+    let cases = [
+        ("direct", "query q():\n  return items[] first 3 by byId\n"),
+        ("implicit return", "query q():\n  items[] first 3 by byId\n"),
+        ("alias", "query q():\n  rows = items[] first 3 by byId\n  alias = rows\n  return alias\n"),
+        ("shape", "query q():\n  return items[] first 3 by byId { n }\n"),
+        ("aliased shape", "query q():\n  rows = items[] first 3 by byId\n  shaped = rows { n }\n  return shaped\n"),
+        ("helper", "fn page(): items[] first 3 by byId { n }\nquery q():\n  return page()\n"),
+        ("record", "query q():\n  rows = items[] first 3 by byId\n  return { rows }\n"),
+        ("record field", "query q():\n  holder = { rows: items[] first 3 by byId }\n  return holder.rows\n"),
+        ("same page on both branches", "query q(choice: bool):\n  rows = items[] first 3 by byId\n  if choice:\n    return rows\n  return rows\n"),
+        ("merge", "query q():\n  return merge items first 3 by byGroup:\n    [0]\n    [1]\n"),
+        ("shaped merge", "query q():\n  rows = merge items first 3 by byGroup:\n    [0]\n    [1]\n  return rows { n }\n"),
+    ];
+    for (case, program) in cases {
+        let notes = page_notes(program);
+        assert_eq!(notes.len(), 1, "{case}: {notes:?}");
+        assert_eq!(notes[0].code, "N_NO_CURSOR", "{case}");
+        assert!(notes[0].message.contains("query q returns a page of 3 items rows"), "{case}: {:?}", notes[0]);
+        assert!(notes[0].rewrite.contains("c: cursor ?"), "{case}");
+        assert_eq!(notes[0].guide, "reads", "{case}");
+    }
+    let notes = page_notes("query q(choice: bool):\n  if choice:\n    return items[] first 3 by byId\n  return items[] first 4 by byId\n");
+    assert_eq!(notes.len(), 2, "both distinct returned pages are diagnosed: {notes:?}");
+    assert!(notes.iter().any(|note| note.message.contains("page of 3 items")));
+    assert!(notes.iter().any(|note| note.message.contains("page of 4 items")));
+}
+
+#[test]
+fn consumed_pages_and_engine_owned_loops_do_not_need_caller_cursors() {
+    let cases = [
+        ("scalar aggregate", "query q():\n  return count(items[] first 3 by byId)\n"),
+        ("unused page", "query q():\n  unused = items[] first 3 by byId\n  return 0\n"),
+        ("consumed shape", "query q():\n  rows = items[] first 3 by byId { n }\n  return count(rows)\n"),
+        ("auxiliary loop", "query q():\n  for row in items[] first 3 by byId:\n    unused = row.n\n  return 0\n"),
+        ("cursor page with an auxiliary loop", "query q(c: cursor ?):\n  for row in items[] first 3 by byId:\n    unused = row.n\n  return items[] after c first 3 by byId\n"),
+        ("cursor alias", "query q(c: cursor ?):\n  rows = items[] after c first 3 by byId\n  return rows\n"),
+        ("cursor shape", "query q(c: cursor ?):\n  return items[] after c first 3 by byId { n }\n"),
+        ("cursor merge", "query q(c: cursor ?):\n  return merge items after c first 3 by byGroup:\n    [0]\n    [1]\n"),
+        ("unselected record page", "query q(c: cursor ?):\n  holder = { unused: items[] first 3 by byId, rows: items[] after c first 3 by byId }\n  return holder.rows\n"),
+        ("mutation loop", "mutation q():\n  for row in items[0] first 8 by byGroup:\n    update items[row.id] { n: row.n + 1 }\n  return 0\n"),
+        ("mutation return", "mutation q():\n  return items[0] first 8 by byGroup\n"),
+        ("job chunk", "job q():\n  chunk row in items first 3 by byId:\n    update items[row.id] { n: row.n + 1 }\n"),
+        ("job inner loop", "job q():\n  chunk row in items first 3 by byId:\n    for member in items[row.group] first 8 by byGroup:\n      update items[member.id] { n: member.n + 1 }\n"),
+    ];
+    for (case, program) in cases {
+        let notes = page_notes(program);
+        assert!(notes.is_empty(), "{case}: {notes:?}");
+    }
+}

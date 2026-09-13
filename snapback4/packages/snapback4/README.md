@@ -115,6 +115,13 @@ mutation edit(messageId: messages, body: text <=4000):
   `enum('a', 'b')`, `json <=N`, `bytes <=N`, `[type] <=N` (a list),
   `image <=N [once]` and `video <=N` (an upload the row holds — §4,
   assets); `?` after a type makes the column optional (null when absent).
+- **References** are typed IDs, without implicit target-existence checks
+  or delete cascades. The string `"null"` is an ID; JSON `null` only fits
+  an optional reference. When a mutation requires a visible target, write
+  `require exists prompts[promptId] else PROMPT_NOT_FOUND` before its
+  writes. This is a metered point read; absent and hidden targets both
+  refuse with the chosen code. Target deletion and dependent-row cleanup
+  are application policy, expressed in mutations and rules.
 - **Indexes:** `by name: cols` orders rows; `unique name: cols` also
   constrains them. A scan needs an index whose leading columns are the
   scan's prefix; a page's order is the index's remaining columns.

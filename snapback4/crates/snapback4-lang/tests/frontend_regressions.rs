@@ -445,3 +445,74 @@ await pendingStore.close();
 "#]).env("QUARRY_TEST_BACKEND", scratch.0.join("backend.json")).current_dir(workspace()).output().unwrap();
     assert!(result.status.success(), "{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
 }
+
+// @ref LLP 3000#7-decisions-during-execution — references are typed IDs; visible-target guards are explicit
+#[test]
+fn references_allow_absent_ids_and_explicit_guards_require_visible_targets() {
+    use snapback4_core::{ir::ArgType, value::object, wire};
+    let source = r#"
+table posts:
+  author: principal
+  read <- .author = viewer
+  insert <- allow
+  delete <- .author = viewer
+table votes:
+  postId: posts
+  principal: principal
+  direction: int
+  unique byPostPrincipal: postId, principal
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  update <- .principal = viewer
+mutation unchecked(postId: posts, direction: int):
+  upsert votes[postId, viewer] { direction }
+mutation checked(postId: posts, direction: int):
+  require exists posts[postId] else POST_NOT_FOUND
+  upsert votes[postId, viewer] { direction }
+mutation insertVote(postId: posts):
+  insert votes { postId, principal: viewer, direction: 1 }
+mutation changeVote(voteId: votes, postId: posts):
+  update votes[voteId] { postId }
+mutation removePost(postId: posts):
+  delete posts[postId]
+query post(postId: posts):
+  return posts[postId]
+"#;
+    let id = |s: &str| Value::Id(s.into());
+    let kind = ArgType::Ref { table: "posts".into() };
+    let missing = wire::from_json(&kind, &serde_json::json!("null")).unwrap();
+    assert_eq!(missing, id("null"));
+    assert!(wire::from_json(&kind, &serde_json::Value::Null).is_err());
+    let mut e = engine(source);
+    e.seed([
+        ("posts".into(), object([("id", id("visible")), ("author", id("dev:alice"))])),
+        ("posts".into(), object([("id", id("hidden")), ("author", id("dev:bob"))])),
+    ]).unwrap();
+    let args = |post: Value, n| vec![("postId", post), ("direction", Value::Int(n))];
+    let row = mutation(&mut e, "unchecked", &args(missing.clone(), 1));
+    assert_eq!(row.field("postId"), Ok(&missing));
+    mutation(&mut e, "unchecked", &args(missing.clone(), -1));
+    assert_eq!(e.store().rows("votes").unwrap().len(), 1, "upsert may replace a dangling reference");
+    let inserted = e.mutate("insertVote", None, context(&[("postId", id("also-absent"))]).with_ids(["vote2".into()])).unwrap();
+    let WriteState::Sent { result: inserted, .. } = inserted.state else { panic!("{inserted:?}") };
+    let vote_id = inserted.field("id").unwrap().clone();
+    mutation(&mut e, "changeVote", &[("voteId", vote_id), ("postId", id("still-absent"))]);
+    let before = e.store().rows("votes").unwrap();
+    for target in [missing.clone(), id("hidden")] {
+        let outcome = e.mutate("checked", None, context(&args(target.clone(), 1))).unwrap();
+        assert!(matches!(outcome.state, WriteState::Failed { ref why, .. } if why.code == "POST_NOT_FOUND"), "{outcome:?}");
+        assert_eq!(outcome.metered.examined, 1, "the explicit point read is metered even on a miss");
+        assert_eq!(query(&mut e, "post", &[("postId", target)]), Value::Null);
+        assert_eq!(e.store().rows("votes").unwrap(), before, "a guard refusal leaves rows intact");
+    }
+    let unguarded = e.mutate("unchecked", None, context(&args(id("visible"), 1))).unwrap();
+    let guarded = e.mutate("checked", None, context(&args(id("visible"), 1))).unwrap();
+    assert!(matches!(guarded.state, WriteState::Sent { .. }), "{guarded:?}");
+    // Compare the same upsert path after the row exists, with and without its guard.
+    let unguarded_again = e.mutate("unchecked", None, context(&args(id("visible"), 1))).unwrap();
+    assert!(matches!(unguarded.state, WriteState::Sent { .. }));
+    assert_eq!(guarded.metered.examined, unguarded_again.metered.examined + 1);
+    mutation(&mut e, "removePost", &[("postId", id("visible"))]);
+    assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))), "deleting a target does not cascade to references");
+    assert_eq!(query(&mut e, "post", &[("postId", id("visible"))]), Value::Null);
+}

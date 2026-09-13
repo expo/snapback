@@ -1,8 +1,9 @@
 //! The TS return-page analysis is held to the actual Rust implementation.
-//! Include its private module here without expanding the engine's public API.
+//! Include the module to inspect its private runtime plan.
 use snapback4_core::{Value, ir};
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 #[path = "../../snapback4-core/src/engine/pages.rs"]
 mod rust_pages;
 

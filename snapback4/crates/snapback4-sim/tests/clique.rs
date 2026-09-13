@@ -421,7 +421,7 @@ query following(c: cursor ?):
 fn a_feed_fans_out_on_write() {
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), FEED.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(!bound.notes.iter().any(|n| n.code == "N_WIDE_MERGE"), "{:?}", bound.notes);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     // 250 followers of alice: bucket 0 is the complete schema-capped
     // immediate audience; the job covers every bucket, up to the full cap.

@@ -260,7 +260,14 @@ delete t[key]                  no value
 A final write is the implicit return. Bind one to use it: `row = insert ..`.
 Writes check the rule, then unique indexes, caps, immutable columns and
 text formats; a refusal rolls the whole mutation back. Every written row
-fans out to its partitions (guide sync)."#,
+fans out to its partitions (guide sync).
+
+A reference column checks the ID value, not whether its target exists.
+When a mutation requires a visible target, guard before writing:
+  require exists prompts[promptId] else PROMPT_NOT_FOUND
+This metered point read is false for an absent or hidden row. Deleting a
+target neither deletes nor rejects rows that reference it; encode the
+application's lifecycle in its mutations and rules."#,
         "reads" => r#"# Reads
 
 t[key]                          one row by a unique key; null if absent or hidden
@@ -299,7 +306,11 @@ structural class; `snapback4 test` prints the numbers on your data."#,
 principal, id, <table> (a reference), int, time (ms), bool, decimal <s>,
 money <CUR> [s], text <=N, text M..N [format handle|url], enum('a','b'),
 json <=N, bytes <=N, image <=N [once], video <=N, [type] <=N; `?` optional.
-`viewer` is a principal. Text literals in id positions are ids. `=` and
+`viewer` is a principal. Text literals in id positions are ids. A `<table>`
+reference is a typed ID, without an implicit existence check or delete
+cascade. The string "null" is an ID; JSON null only fits an optional type.
+Use `require exists t[id] else CODE` when the target must be visible (writes).
+`=` and
 `!=` are total (null equals null); `<` and friends need present operands:
 narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`."#,
         "personas" => r#"# Personas
@@ -332,7 +343,7 @@ pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFL
 
 pub fn explain_code(code: &str) -> Option<String> {
     let text = match code {
-        "E_INPUT" => "family input — an argument or a row value does not fit its declared type. The message names the field; fix the value or the declaration.",
+        "E_INPUT" => "family input — an argument or a row value does not fit its declared type. The message names the field; fix the value or the declaration. Table references validate the ID value, not target existence: the string \"null\" is an ID, while JSON null requires an optional type. Use `require exists t[id] else CODE` for a visible-target check (guide writes).",
         "E_SCHEMA" => "family schema — the schema or the store is inconsistent. `snapback4 check` names the line.",
         "E_RULE" => "family auth — a table's insert, update or delete rule did not admit this viewer. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`.",
         "E_AUTH" => "family auth — no principal: send `x-snapback-persona` in development or a bearer token.",
