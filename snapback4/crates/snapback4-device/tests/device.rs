@@ -85,6 +85,64 @@ fn apply(device: &mut dyn AnyDevice, page: &snapback4_device::device::StreamPage
     device.call(serde_json::json!({ "op": "apply", "page": page_json(page), "first": first }))
 }
 
+fn snapshot_pages_at(
+    engine: &mut snapback4_core::Engine,
+    principal: &str,
+    limit: usize,
+    now: i64,
+) -> Vec<snapback4_device::device::StreamPage> {
+    let mut pages = Vec::new();
+    let mut after: Option<String> = None;
+    loop {
+        let (events, watermark, next) = engine
+            .snapshot_page_at(principal, after.as_deref(), limit, now)
+            .unwrap();
+        let more = next.is_some();
+        pages.push(
+            serde_json::from_value(serde_json::json!({
+                "snapshot": true,
+                "events": events.iter().map(|event| serde_json::json!({
+                    "table": event.table,
+                    "kind": event.kind.word(),
+                    "id": event.id,
+                    "data": event.data.as_ref().map(snapback4_core::wire::to_json),
+                })).collect::<Vec<_>>(),
+                "watermark": watermark,
+                "more": more,
+                "next": next,
+                "generation": engine.generation(),
+            }))
+            .unwrap(),
+        );
+        match next {
+            Some(next) => after = Some(next),
+            None => return pages,
+        }
+    }
+}
+
+fn stream_page_at(
+    engine: &mut snapback4_core::Engine,
+    principal: &str,
+    watermark: u64,
+    now: i64,
+) -> snapback4_device::device::StreamPage {
+    let page = engine.stream_at(principal, watermark, 1_000, now).unwrap();
+    serde_json::from_value(serde_json::json!({
+        "snapshot": false,
+        "events": page.events.iter().map(|event| serde_json::json!({
+            "table": event.table,
+            "kind": event.kind,
+            "id": event.id,
+            "data": event.data.as_ref().map(snapback4_core::wire::to_json),
+        })).collect::<Vec<_>>(),
+        "watermark": page.watermark,
+        "more": page.more,
+        "generation": engine.generation(),
+    }))
+    .unwrap()
+}
+
 fn state(device: &mut dyn AnyDevice) -> (u64, u64) {
     let state = ok(device.call(serde_json::json!({ "op": "state" })));
     (state["watermark"].as_u64().unwrap(), state["generation"].as_u64().unwrap())
@@ -108,6 +166,286 @@ fn query_reports_the_next_expiry_to_the_host() {
         assert_eq!(before["nextExpiry"], 4_000_000_000_000_i64, "{label}: the earliest visible expiry schedules a refresh");
         let after = query(&mut *device, "notes", "dev:alice", serde_json::json!({}), 4_000_000_001_000);
         assert_eq!(after["nextExpiry"], serde_json::Value::Null, "{label}: no future expiry is encoded as null");
+        device.close();
+    });
+}
+
+#[test]
+// @ref LLP 3000#7-decisions-during-execution — an expiring audience is a device-clock revocation; retention decides what survives it.
+fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  sync to .person\ntable temporary:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\ntable history:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  retain delivered-history\n  sync to members[.group]\nquery temporaryRows():\n  return temporary[] first 10 by byId\nquery historyRows():\n  return history[] first 10 by byId\nmutation join():\n  insert members {group: 'g', person: viewer, until: 10}\nmutation add(body: text <=10):\n  insert temporary {group: 'g', body}\n  insert history {group: 'g', body}\n";
+        let (mut engine, backend) = compile(source);
+        let write = |engine: &mut snapback4_core::Engine,
+                     op: &str,
+                     op_id: &str,
+                     now: i64,
+                     arguments: &[(&str, Value)]| {
+            let outcome = engine
+                .mutate(
+                    op,
+                    Some(op_id),
+                    context("dev:alice", arguments)
+                        .at(now)
+                        .with_ids([format!("{op_id}-temporary"), format!("{op_id}-history")]),
+                )
+                .unwrap();
+            assert!(matches!(outcome.state, WriteState::Sent { .. }));
+        };
+        write(
+            &mut engine,
+            "add",
+            "old",
+            1,
+            &[("body", Value::String("old".into()))],
+        );
+        let before_membership = engine.seq().unwrap();
+        write(&mut engine, "join", "member", 2, &[]);
+        write(
+            &mut engine,
+            "add",
+            "live",
+            4,
+            &[("body", Value::String("live".into()))],
+        );
+
+        let backend = snapback4_device::device::Backend {
+            generation: engine.generation(),
+            ..backend
+        };
+        let mut offline = host.open("expiry-offline", Some(backend.clone())).unwrap();
+        for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 5)
+            .iter()
+            .enumerate()
+        {
+            ok(apply(&mut *offline, page, index == 0));
+        }
+        let temporary_at_five = query(
+            &mut *offline,
+            "temporaryRows",
+            "dev:alice",
+            serde_json::json!({}),
+            5,
+        );
+        assert_eq!(
+            rows(&temporary_at_five).len(),
+            2,
+            "{label}: the active membership exposes both delivered rows"
+        );
+        assert_eq!(
+            temporary_at_five["nextExpiry"], 10,
+            "{label}: the audience lifetime schedules an offline refresh"
+        );
+
+        write(
+            &mut engine,
+            "add",
+            "hidden",
+            10,
+            &[("body", Value::String("hidden".into()))],
+        );
+        let temporary_offline = query(
+            &mut *offline,
+            "temporaryRows",
+            "dev:alice",
+            serde_json::json!({}),
+            20,
+        );
+        assert!(
+            rows(&temporary_offline).is_empty(),
+            "{label}: until-revoked rows disappear on the device clock without a sync"
+        );
+        assert_eq!(
+            temporary_offline["nextExpiry"],
+            serde_json::Value::Null,
+            "{label}"
+        );
+        let history_offline = query(
+            &mut *offline,
+            "historyRows",
+            "dev:alice",
+            serde_json::json!({}),
+            20,
+        );
+        let history_ids = rows(&history_offline)
+            .iter()
+            .map(|row| row["id"].as_str().unwrap())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            history_ids,
+            std::collections::BTreeSet::from(["old-history", "live-history"]),
+            "{label}: delivered history remains readable after the audience expires"
+        );
+        offline.close();
+
+        let catch_up = stream_page_at(&mut engine, "dev:alice", before_membership, 20);
+        assert!(
+            !catch_up.more,
+            "{label}: this catch-up reaches the stream head"
+        );
+        assert_eq!(
+            catch_up.events.last().map(|event| event.kind.as_str()),
+            Some("scope"),
+            "{label}: logical expiry closes the drained catch-up"
+        );
+        assert!(
+            catch_up
+                .events
+                .iter()
+                .any(|event| event.table == "temporary" && event.kind == "scope"),
+            "{label}: until-revoked content receives a terminal scope"
+        );
+        assert!(
+            catch_up
+                .events
+                .iter()
+                .all(|event| event.id != "hidden-temporary"),
+            "{label}: a commit at the expiry boundary was never authorized"
+        );
+
+        let mut caught_up = host.open("expiry-catch-up", Some(backend.clone())).unwrap();
+        ok(apply(&mut *caught_up, &catch_up, false));
+        let caught_up_query = query(
+            &mut *caught_up,
+            "temporaryRows",
+            "dev:alice",
+            serde_json::json!({}),
+            20,
+        );
+        caught_up.close();
+
+        let mut empty_snapshot = host.open("expiry-empty-snapshot", Some(backend)).unwrap();
+        for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 20)
+            .iter()
+            .enumerate()
+        {
+            ok(apply(&mut *empty_snapshot, page, index == 0));
+        }
+        let empty_snapshot_query = query(
+            &mut *empty_snapshot,
+            "temporaryRows",
+            "dev:alice",
+            serde_json::json!({}),
+            20,
+        );
+        assert_eq!(
+            caught_up_query, empty_snapshot_query,
+            "{label}: drained catch-up and a post-expiry snapshot expose the same current rows"
+        );
+        empty_snapshot.close();
+    });
+}
+
+#[test]
+// @ref LLP 3000#7-decisions-during-execution — an expiring source is absent from a maintained value on every host before sweep.
+fn expiring_maintain_sources_recompute_held_rows_without_inventing_online_counts() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table items:\n  group: text <=10\n  at: time\n  until: time ?\n  by byTime: group, at, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\n  sync public last 50 by byTime\nmaintain counts: count items by group\n  read <- allow\ntable onlineItems:\n  group: text <=10\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain onlineCounts: count onlineItems by group\n  read <- allow\nquery count():\n  return counts['g'] by byGroup\nquery onlineCount():\n  return onlineCounts['g'] by byGroup\n";
+        let (mut engine, backend) = compile(source);
+        engine
+            .seed([
+                (
+                    "items".into(),
+                    snapback4_core::value::object([
+                        ("id", id("live")),
+                        ("group", Value::String("g".into())),
+                        ("at", Value::Int(1)),
+                        ("until", Value::Null),
+                    ]),
+                ),
+                (
+                    "items".into(),
+                    snapback4_core::value::object([
+                        ("id", id("dead")),
+                        ("group", Value::String("g".into())),
+                        ("at", Value::Int(2)),
+                        ("until", Value::Int(10)),
+                    ]),
+                ),
+                (
+                    "onlineItems".into(),
+                    snapback4_core::value::object([
+                        ("id", id("online-live")),
+                        ("group", Value::String("g".into())),
+                        ("until", Value::Null),
+                    ]),
+                ),
+                (
+                    "onlineItems".into(),
+                    snapback4_core::value::object([
+                        ("id", id("online-dead")),
+                        ("group", Value::String("g".into())),
+                        ("until", Value::Int(10)),
+                    ]),
+                ),
+            ])
+            .unwrap();
+        let backend = snapback4_device::device::Backend {
+            generation: engine.generation(),
+            ..backend
+        };
+        let mut device = host.open("maintain-expiry", Some(backend)).unwrap();
+        for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 5)
+            .iter()
+            .enumerate()
+        {
+            ok(apply(&mut *device, page, index == 0));
+        }
+
+        let at_five = query(&mut *device, "count", "dev:alice", serde_json::json!({}), 5);
+        assert_eq!(
+            at_five["data"], 2,
+            "{label}: both held source rows are live"
+        );
+        assert_eq!(
+            at_five["nextExpiry"], 10,
+            "{label}: the expiring source schedules recomputation"
+        );
+        let at_twenty = query(
+            &mut *device,
+            "count",
+            "dev:alice",
+            serde_json::json!({}),
+            20,
+        );
+        assert_eq!(
+            at_twenty["data"], 1,
+            "{label}: the held expired source cannot keep the count at two"
+        );
+        assert_ne!(
+            at_twenty["data"], 2,
+            "{label}: a stored aggregate is not the current value"
+        );
+
+        let stale_online_count: snapback4_device::device::StreamPage = serde_json::from_value(serde_json::json!({
+            "snapshot": false,
+            "events": [{"table": "onlineCounts", "kind": "put", "id": "stale", "data": {"id": "stale", "group": "g", "value": 2}}],
+            "watermark": state(&mut *device).0,
+            "more": false,
+            "generation": engine.generation(),
+        })).unwrap();
+        ok(apply(&mut *device, &stale_online_count, false));
+        let online = query(
+            &mut *device,
+            "onlineCount",
+            "dev:alice",
+            serde_json::json!({}),
+            20,
+        );
+        assert_ne!(
+            online["data"], 2,
+            "{label}: an unavailable online-only source cannot turn a stored count into a current value"
+        );
+        assert_eq!(
+            online["complete"], false,
+            "{label}: the missing source coverage stays explicit"
+        );
+        assert_eq!(
+            online["unknown"], true,
+            "{label}: the host must ask the server while online"
+        );
         device.close();
     });
 }
