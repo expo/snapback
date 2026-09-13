@@ -26,12 +26,13 @@ panic = "abort"
 incremental = false
 strip = true
 
-# The shipped bytes. Small, stripped, one codegen unit.
+# The shipped server: throughput first, stripped, one codegen unit.
+# @ref LLP 3000#7-decisions-during-execution — measured production compiler trade
 [profile.production]
 inherits = "release"
 incremental = false
 lto = "fat"
 codegen-units = 1
-opt-level = "z"
+opt-level = 3
 panic = "abort"
 strip = true

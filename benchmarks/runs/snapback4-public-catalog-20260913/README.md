@@ -319,6 +319,73 @@ Registry integrity:
 - Client: `sha512-Cb+nAvlQvpNoQ7GoU9u3V/WfjJALW5CjDehjpFT5VQjn2TDz507RbKu0qpwsjg7L9RUEmfbYKuVpVOs5FIrahw==`
 - Darwin ARM64: `sha512-96bYjuhvRsjITJKbyspan21MyQpeQYAXdMY5NKwFBJzQc2llHTmDeWr8C2dEDptLfqbAH+2nBFsnh3OiqvdPZg==`
 
+## Compiler optimization comparison, trials 15–17
+
+This experiment changes only the production optimization level from `z` to
+`3` on runtime source `43569823cf89d6e685fd4cf2712a2e6b8c4cae92` (0.1.16).
+Both binaries use Cargo 1.97.0, fat LTO, one codegen unit, stripped symbols
+and abort on panic. Build selection was identical:
+`cargo build --locked --profile production -p snapback4 -p snapback4-core --bin snapback4 --example profile_production`;
+the speed build additionally used `--config 'profile.production.opt-level=3'`
+and a separate target directory. The temporary profiling example is not a
+shipped target. The size build matches the published-profile Linux hash above.
+The speed binary is 5,787,152 B, SHA-256
+`c6fd609bbcaaada6339a95c4b2abd25824701e16af71cc163766d2d624f919cb`:
+2,490,216 B (75.5%) larger than the 3,296,936 B control. Both remain below
+the recorded PocketBase server-size anchor. These are Linux executable
+sizes; they do not predict Darwin tarball or native-library size.
+
+The same eight public-read cases, 100,000 verified rows and unchanged
+instrument (`1537193e…`) ran with 1,000 timed samples per case. Order was
+z/3/Convex/Supabase, Convex/Supabase/3/z, then Supabase/z/3/Convex. The twelve
+raw records in `metrics/storage.jsonl` have `experiment: compiler-optimization`,
+`variant` and `trial: 15–17`. All 96,000 timed responses passed their
+assertions, including connection expansion. The retained public server was
+restored to the size build after the experiment.
+
+Medians of three per-run percentiles and throughput; latencies in milliseconds:
+
+| Case | Size z p50 / p95 / RPS | Speed 3 p50 / p95 / RPS | Convex p50 / p95 / RPS | Supabase p50 / p95 / RPS |
+|---|---:|---:|---:|---:|
+| Repeated point | 5.115 / 13.123 / 160.3 | 3.620 / 6.188 / 238.6 | 3.680 / 5.989 / 234.2 | 4.893 / 10.383 / 163.6 |
+| Distinct point, C1 | 4.208 / 10.196 / 204.3 | 3.065 / 5.053 / 272.5 | 8.571 / 14.574 / 105.5 | 5.076 / 9.144 / 176.1 |
+| Distinct point, C8 | 14.409 / 32.380 / 487.0 | 3.801 / 7.092 / 1857.2 | 21.225 / 40.032 / 348.9 | 10.264 / 22.990 / 660.8 |
+| Distinct point, C32 | 35.771 / 74.167 / 801.8 | 14.786 / 33.498 / 1884.3 | 78.977 / 151.031 / 367.3 | 29.594 / 57.096 / 984.8 |
+| Distinct missing point | 3.876 / 5.165 / 250.9 | 3.368 / 4.986 / 278.7 | 8.988 / 13.701 / 105.2 | 5.783 / 12.707 / 147.5 |
+| Repeated 50-row page, C1 | 5.732 / 9.493 / 150.9 | 4.381 / 5.512 / 216.6 | 4.222 / 7.162 / 212.6 | 5.418 / 6.924 / 172.4 |
+| Repeated 50-row page, C8 | 13.611 / 29.999 / 513.2 | 8.122 / 14.194 / 874.4 | 4.852 / 10.407 / 1361.4 | 11.610 / 18.800 / 655.5 |
+| Repeated continuation | 4.652 / 5.568 / 208.2 | 4.324 / 7.656 / 204.5 | 3.906 / 6.645 / 227.4 | 6.917 / 13.751 / 114.5 |
+
+The speed build has lower median p50 in all eight cases and lower p95 in
+seven compared with the size build. Continuation-page p95 rises 37.5%, and
+its throughput falls 1.8%. Shared-host variance is substantial: point-C32
+p50 is 18.084/35.771/60.493 ms for z and 14.575/14.786/51.116 ms for 3.
+Three trials do not establish precise causal percentage improvements or a
+universal regression in the exception. Maxima are 184.362 ms (z), 149.640 ms
+(3), 247.143 ms (Convex) and 321.526 ms (Supabase); there are no observed
+multi-second stalls. The speed build's aggregate p50/p95 beat Supabase in
+this batch's eight cases, while Convex still leads cached category-page and
+continuation p50. Its page-C8 throughput remains 1,361.4 versus 874.4
+requests/s. This is still a warm, local public-read comparison.
+
+An isolated profile on a separate copy of the current database used three
+alternating z/3 pairs, 100 warmups and 5,000 samples per operation. Median
+point-query p50 fell from 107.875 to 85.333 microseconds, category-query p50
+from 724.335 to 430.584, and the 51-row transactional store scan from 387.709
+to 241.917. Borrowed encoding of the same six-field category answer fell
+from 64.250 to 13.000 microseconds, with byte equality asserted against the
+earlier JSON-tree encoding on every sample. These isolate query and encoding
+costs; they do not measure the bounded HTTP writer or network path. Raw
+profile observations use `workload: catalog-core-compiler-profile` in the
+same metric file. The fresh opt3 target build took 5m57s; the z build reused
+its target. This is not a matched warm-build comparison or evidence that
+the five-minute warm-build budget passes.
+
+The production server selects level 3 on this evidence. The wasm profile
+retains z, and `build-xcframework.sh` explicitly selects z for native device
+libraries. The incremental release profile is unchanged. Qualification of
+the shipping artifact remains separate from these Linux experiment binaries.
+
 ## Simulator observation follow-up
 
 The four chat checks previously constructed and parsed every host state

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# The native module as an iOS app links it: the production profile, the
+# The native module as an iOS app links it: production with size optimization, the
 # device target, the dynamic library stripped, its text segment — one line
 # to metrics/native.jsonl beside the wasm and TypeScript numbers.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 target=${1:-aarch64-apple-ios}
-cargo build -p snapback4-device --profile production --target "$target" --quiet
+cargo build -p snapback4-device --profile production --config 'profile.production.opt-level="z"' --target "$target" --quiet
 dylib=target/$target/production/libsnapback4_device.dylib
 tmp=$(mktemp)
 cp "$dylib" "$tmp" && strip -x "$tmp"
