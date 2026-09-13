@@ -256,11 +256,15 @@ fn jobs_and_schedules_are_checked() {
     let ok = compile(CHAT.replace("mutation edit(", "job j(periodEnd: time):\n  chunk c in conversations first 10 by byId:\n    update conversations[c.id] { title: 'x' }\n\nschedule daily every 1d at 08:00: j\n\nmutation edit("));
     assert!(ok.diagnostics.is_empty(), "{:?}", ok.diagnostics);
     assert_eq!((ok.schema.schedules[0].every_ms, ok.schema.schedules[0].offset_ms), (86_400_000, 8 * 3_600_000));
-    // A synced table without a horizon is noted, with the index a horizon would name.
+    // A synced table whose groups can grow, with no horizon, is noted with
+    // the index a horizon would name; a group of one row (conversations, by
+    // its own id) or a group a cap bounds (memberships) is not.
     let bound = compile(CHAT.to_owned());
-    let horizons: Vec<&str> = bound.notes.iter().filter(|n| n.code == "N_NO_HORIZON").map(|n| n.message.as_str()).collect();
-    assert!(horizons.iter().any(|m| m.starts_with("table conversations:")) && horizons.iter().any(|m| m.starts_with("table memberships:")), "{horizons:?}");
-    assert!(!horizons.iter().any(|m| m.starts_with("table messages:") || m.starts_with("table messageCounts:")), "{horizons:?}");
+    assert!(!bound.notes.iter().any(|n| n.code == "N_NO_HORIZON"), "{:?}", bound.notes);
+    let uncapped = compile(CHAT.replace("  cap 50 by conversationId\n", ""));
+    let horizons: Vec<&str> = uncapped.notes.iter().filter(|n| n.code == "N_NO_HORIZON").map(|n| n.message.as_str()).collect();
+    assert!(horizons.iter().any(|m| m.starts_with("table memberships:")), "{horizons:?}");
+    assert!(!horizons.iter().any(|m| m.starts_with("table conversations:") || m.starts_with("table messages:") || m.starts_with("table messageCounts:")), "{horizons:?}");
     // A merge over hundreds of lanes is noted with its row count.
     let wide = compile(CHAT.replace("mutation edit(", "query everything(c: cursor ?):\n  return merge messages after c last 20 by byConvTime:\n    [m.conversationId] for m in memberships[viewer] first 500 by byPrincipalConversation\n\nmutation edit("));
     assert!(wide.diagnostics.is_empty(), "{:?}", wide.diagnostics);
@@ -351,77 +355,19 @@ fn a_new_optional_column_with_a_constraint_is_additive() {
     assert_eq!(snapback4_core::successor::worst(&steps), snapback4_core::successor::Change::Additive, "{steps:?}");
 }
 
-const FEED: &str = r#"
-use identity
-use personas alice, bob
-
-table posts:
-  authorId: principal
-  body: text <=500
-  at: time
-  by byAuthorTime: authorId, at, id
-  public 'posts are public'
-  insert <- .authorId = viewer
-
-table follows:
-  followerId: principal
-  followedId: principal
-  bucket: int
-  unique byPair: followerId, followedId
-  by byFollowed: followedId, followerId
-  by byFollowedBucket: followedId, bucket, followerId
-  cap 1000 by followedId
-  cap 200 by followedId, bucket
-  public 'follows are public'
-  insert <- .followerId = viewer
-  delete <- .followerId = viewer
-
-table feed:
-  readerId: principal
-  postId: posts
-  authorId: principal
-  at: time
-  unique byReaderPost: readerId, postId
-  by byReaderTime: readerId, at, id
-  read <- .readerId = viewer
-  insert <- .authorId = viewer
-  sync to .readerId last 200 by byReaderTime
-
-table fanouts:
-  postId: posts
-  authorId: principal
-  at: time
-  read <- deny
-  insert <- .authorId = viewer
-
-mutation createPost(body: text <=500):
-  p = insert posts { authorId: viewer, body, at: now }
-  insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
-  for f in follows[viewer, 0] first 200 by byFollowedBucket:
-    insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
-  insert fanouts { postId: p.id, authorId: viewer, at: now }
-  return { id: p.id }
-
-job fanOut():
-  chunk w in fanouts first 5 by byId:
-    for f in follows[w.authorId] first 1000 by byFollowed:
-      insert feed { readerId: f.followerId, postId: w.postId, authorId: w.authorId, at: w.at } if absent
-    delete fanouts[w.id]
-
-schedule fanOutEveryMinute every 1m: fanOut
-
-query following(c: cursor ?):
-  return feed[viewer] after c last 20 by byReaderTime { *, post: posts[.postId] }
-"#;
+/// The `feeds` card's recipe, as the card prints it.
+fn feed() -> String {
+    snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").expect("the feeds card")).remove(0)
+}
 
 /// The `feeds` card, compiled and run: the near followers' entries are
 /// written by the mutation, the far ones by the job, once each; a
 /// follower's device holds its own entries; the feed is one local page.
 #[test]
 fn a_feed_fans_out_on_write() {
-    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), FEED.to_owned())]);
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), feed())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert!(bound.notes.is_empty(), "the card compiles with no notes: {:?}", bound.notes);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     // 250 followers of alice: bucket 0 is the complete schema-capped
     // immediate audience; the job covers every bucket, up to the full cap.

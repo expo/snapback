@@ -25,7 +25,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **A TypeScript twin over the receipt design.** The TypeScript interpreter ships on the web over the replica, under the competitor-anchored budget (16,842 B gzip against 21,713); the same interpreter as wasm measured 194,465 B (2026-09-13), so wasm does not ship on the web. Native hosts (Expo, Exact2) get the Rust core as a module instead.
 - **More than one hosted target, an admin console, media transcoding or thumbnails, push, cron syntax beyond `every N at HH:MM`, vector or ranked search, federation, multi-region, device-to-device sync, at-rest encryption claims.** After the clock, on evidence.
 - **Observability beyond `why`, `trace`, `logs`, `data`.**
-- **A guide corpus.** The compiler's facts, a one-screen grammar and keyword cards, as Snapback 2; no freshness dates.
+- **A guide corpus.** The compiler's facts, one language card and keyword cards, as Snapback 2; no freshness dates. Every card's Quarry is compiled by the suite and the language card is run, so a card cannot promise a form the parser refuses.
 
 - **Union audiences.** One `sync` line per table. A read rule with a second disjunct is refused with the rewrite, never partially delivered; `retain delivered-history` covers the author who keeps their own rows. Several `sync` lines per table wait for an app that needs them.
 - **Exact horizon maintenance.** The horizon bounds acquisition (a snapshot, a bootstrap); the log never evicts or back-fills to hold a device's group at exactly N rows. A local read past the horizon says `complete: false`.

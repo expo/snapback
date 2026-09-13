@@ -75,13 +75,6 @@ pub struct ProcDecl {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Import {
-    pub name: String,
-    pub module: String,
-    pub site: Site,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Literal {
     Str(String),
     Number(String),
@@ -200,6 +193,8 @@ pub enum Stmt {
     Emit { effect: String, payload: Expr, site: Site },
     If { condition: Expr, then_body: Vec<Stmt>, else_body: Vec<Stmt>, site: Site },
     For { name: String, domain: Expr, body: Vec<Stmt>, site: Site },
+    /// `break`: the enclosing `for` or `chunk` ends.
+    Break { site: Site },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -291,7 +286,6 @@ pub struct MaintainDecl {
     pub column: Option<String>,
     pub by: Vec<String>,
     pub read: RuleDecl,
-    pub readable: Option<RuleDecl>,
     pub site: Site,
 }
 
@@ -346,11 +340,8 @@ pub struct Document {
     pub maintains: Vec<MaintainDecl>,
     pub effects: Vec<EffectDecl>,
     pub shapes: Vec<ShapeDecl>,
-    pub shape_imports: Vec<Import>,
     pub functions: Vec<FunctionDecl>,
-    pub function_imports: Vec<Import>,
     pub procs: Vec<ProcDecl>,
-    pub proc_imports: Vec<Import>,
     pub programs: Vec<ProgramDecl>,
     pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.

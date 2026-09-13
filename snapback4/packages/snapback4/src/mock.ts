@@ -123,7 +123,7 @@ export function createMockClient(options: MockOptions): MockClient {
     },
     async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
       const size = bytes instanceof Blob ? bytes.size : bytes.byteLength;
-      return { ok: true as const, asset: { id: mockId(), type: "image/png", bytes: size, width: 1, height: 1 } };
+      return { ok: true as const, asset: { id: mockId(), type: "image/png", bytes: size, width: 1, height: 1, duration: null } };
     },
     async asset(id: string) {
       return { denied: { code: "E_ASSET_UNKNOWN", family: "asset", message: `the mock holds no bytes for ${id}` } };

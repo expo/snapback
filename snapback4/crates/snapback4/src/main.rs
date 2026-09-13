@@ -4,11 +4,11 @@
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
 mod assets;
-mod guide;
 mod project;
 mod serve;
 mod verbs;
 
+use snapback4_lang::guide;
 use std::process::ExitCode;
 
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
@@ -22,7 +22,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   run <op> [json] --as <persona>   run one operation against the local store (a job runs whole, as the system)
   test [--fixture dir] [--as p]    load a fixture, run every query, print the meters
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
-  guide [keyword]                  the grammar, or one card: rules, sync, writes, reads, ...
+  guide [keyword]                  the language card, or one keyword card (guide lists them)
   data <table> [--limit N]         print rows
   doctor                           say what is and is not in place
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
@@ -55,13 +55,13 @@ fn main() -> ExitCode {
         "device" => verbs::device(&options),
         "guide" => {
             match options.positionals.first().map(String::as_str) {
-                None | Some("grammar") | Some("quarry") => println!("{}", guide::GRAMMAR),
+                None | Some("grammar") | Some("quarry") | Some("language") => println!("{}", guide::LANGUAGE),
                 Some(keyword) => match guide::card(keyword) {
                     Some(card) => println!("{card}"),
                     None => match guide::explain_code(keyword) {
                         Some(text) => println!("{text}"),
                         None => {
-                            eprintln!("no card for {keyword}; cards: rules, sync, writes, reads, shapes, bounds, types, personas, refusals, programs");
+                            eprintln!("no card for {keyword}; cards: {}", guide::KEYWORDS.join(", "));
                             return ExitCode::from(1);
                         }
                     },

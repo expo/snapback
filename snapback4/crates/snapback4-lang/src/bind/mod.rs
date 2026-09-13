@@ -137,6 +137,11 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             snapback4_core::schema::Audience::Column(column) => vec![column.clone()],
             snapback4_core::schema::Audience::Target { prefix, .. } => prefix.clone(),
         };
+        // A group of one row (the table's own id), or a group a `cap` bounds,
+        // cannot grow: nothing to horizon.
+        if prefix == ["id"] || table.constraints.iter().any(|c| matches!(c, snapback4_core::schema::Constraint::Cap { by, .. } if *by == prefix)) {
+            continue;
+        }
         let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len()).map(|(index_name, _)| index_name.clone());
         let site = catalog.site_for(&format!("tables.{name}"));
         let rewrite = match ordered {
@@ -181,6 +186,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 )
                 .guide("feeds"),
             );
+        }
+        // A job sweeps as the system principal, which every rule admits.
+        if bound.program.kind == snapback4_core::ir::ProgramKind::Job {
+            continue;
         }
         for scan in snapback4_core::ir::scans(&bound.program) {
             let Some(table) = schema.table(&scan.table) else { continue };

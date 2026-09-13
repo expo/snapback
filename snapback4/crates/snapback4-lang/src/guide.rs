@@ -1,0 +1,864 @@
+//! The guide: the language card, the keyword cards, and the refusal codes.
+//! Text a builder reads once and an agent reads on demand; no freshness
+//! dates, nothing generated (LLP 3000 §4, NOT-DOING).
+//!
+//! Every fenced ```quarry block below is compiled by `tests/guide.rs`, and
+//! the language card's block is run against the engine, so a card cannot
+//! promise a form the parser refuses. A block that declares a table compiles
+//! on its own; one that does not compiles beside the language card's schema.
+
+/// The keyword cards, in the order `snapback4 guide` lists them.
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "feeds", "bounds", "refusals", "personas"];
+
+/// The contents of every ```quarry block in a card or a README.
+pub fn quarry(text: &str) -> Vec<String> {
+    let mut blocks = Vec::new();
+    let mut current: Option<String> = None;
+    for line in text.lines() {
+        match &mut current {
+            Some(block) if line.trim_end() == "```" => {
+                blocks.push(std::mem::take(block));
+                current = None;
+            }
+            Some(block) => {
+                block.push_str(line);
+                block.push('\n');
+            }
+            None if line.trim_end() == "```quarry" => current = Some(String::new()),
+            None => {}
+        }
+    }
+    blocks
+}
+
+/// The language card's one program: every form, once.
+pub fn language() -> String {
+    quarry(LANGUAGE).into_iter().next().expect("the language card has one block")
+}
+
+pub const TEMPLATE: &str = r##"-- Your backend. `snapback4 check` compiles it; `snapback4 dev` serves it.
+use personas alice, bob
+
+table todos:
+  title: text <=200
+  done: bool
+  ownerId: principal
+  by byOwner: ownerId, id
+  cap 1000 by ownerId
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- .ownerId = viewer
+  delete <- .ownerId = viewer
+  sync to .ownerId                        -- each owner's device holds its own todos
+
+query list(c: cursor ?):
+  return todos[viewer] after c first 100 by byOwner
+
+mutation add(title: text <=200):
+  return insert todos { title, done: false, ownerId: viewer }
+
+mutation toggle(todoId: todos):
+  todo = todos[todoId] ! else NOT_FOUND
+  update todos[todo] { done: not todo.done }
+  return null
+
+mutation remove(todoId: todos):
+  delete todos[todoId]
+  return null
+"##;
+
+/// The language card: the whole grammar in one file that compiles and runs,
+/// then what is left out on purpose and the idiom for each.
+pub const LANGUAGE: &str = r##"# Quarry — the language card
+
+One file, `snapback/schema.q`, holds tables, maintains, shapes, helpers,
+programs and schedules, in any order; more `.q` files beside it are modules
+(their operations are `<module>.<name>`) sharing one namespace. Comments
+start with `--`. Blocks indent with two spaces. Everything the compiler
+accepts is below, once; the suite compiles and runs this file.
+
+```quarry
+use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
+use personas alice, bob, carol        -- a development cast: `--as alice` and the persona header act as dev:alice
+
+table rooms:
+  name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
+  ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool
+  kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
+  tags: [text <=20] <=8               -- [type] <=N: a bounded list
+  parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique `byId`
+  createdAt: time
+  by byOwner: ownerId, createdAt, id  -- `by` orders; a scan pins the leading columns and pages along the rest
+  read <- exists members[.id, viewer]                                     -- rules: allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | created t[..] | and | or | not
+  insert <- .ownerId = viewer
+  update (old, next) <- old.ownerId = viewer and next.ownerId = viewer   -- an update rule may name both images
+  delete <- deny
+  after insert <- exists members[.id, .ownerId, 'admin']                 -- a row that must exist by the end of the mutation that inserted this one
+  sync to members[.id]                -- each row reaches every principal with a members row whose roomId is this row's id
+
+table members:
+  roomId: rooms
+  principal: principal
+  role: enum('member', 'admin')
+  joinedAt: time
+  unique byRoomPrincipal: roomId, principal            -- `unique` orders and constrains
+  by byRoomPrincipalRole: roomId, principal, role
+  by byPrincipalRoom: principal, roomId, id
+  cap 100 by roomId                                    -- at most N rows per group; needs an index leading with the group
+  immutable roomId, principal                          -- columns no update may change
+  read <- exists members[.roomId, viewer]
+  insert <- exists members[.roomId, viewer, 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
+  delete <- .principal = viewer or exists members[.roomId, viewer, 'admin']
+  sync to members[.roomId]
+
+table messages:
+  roomId: rooms
+  authorId: principal
+  body: text <=4000 ?
+  photo: image <=10000000 ?           -- an upload the row holds (guide assets); `once` after the bound serves one view per principal
+  clip: video <=50000000 ?
+  editedAt: time ?
+  expiresAt: time ?
+  at: time
+  by byRoomTime: roomId, at, id
+  by byExpiresAt: expiresAt
+  immutable roomId, authorId
+  read <- exists members[.roomId, viewer]
+  insert <- .authorId = viewer and exists members[.roomId, viewer]
+  update <- .authorId = viewer
+  delete <- .authorId = viewer
+  retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
+  expire at .expiresAt                -- a row past that time is absent everywhere at once, then swept; a null time never expires
+  sync to members[.roomId] last 500 by byRoomTime     -- the horizon: a device acquires the newest N per group; older rows are online-only
+
+table posts:
+  authorId: principal
+  body: text <=500
+  score: int
+  at: time
+  by byAuthorTime: authorId, at, id
+  by byTime: at, id
+  public 'posts are public'           -- the read rule as a table line, with its reason
+  insert <- .authorId = viewer
+  update <- deny
+  delete <- .authorId = viewer
+  sync public last 200 by byTime      -- everyone holds the same rows
+
+table follows:
+  followerId: principal
+  followedId: principal
+  unique byPair: followerId, followedId
+  by byFollowed: followedId, followerId
+  cap 1000 by followerId
+  read <- .followerId = viewer        -- exactly the audience of the sync line below
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+  sync to .followerId                 -- each row reaches the principal in the column
+
+table reactions:
+  postId: posts
+  principal: principal
+  direction: int
+  unique byPostPrincipal: postId, principal
+  by byPrincipal: principal, id
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  sync to .principal last 500 by byPrincipal
+
+table profiles:
+  principal: principal
+  handle: text 3..20 format handle    -- a text format is checked on every write
+  site: text <=200 format url ?
+  unique byPrincipal: principal
+  unique byHandle: handle
+  public 'profiles are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- deny                      -- no sync line: an online-only table; its queries run on the server
+
+table ledger:
+  ownerId: principal
+  amount: money USD                   -- money CUR [scale] (2 unless given) and decimal S hold integer minor units
+  weight: decimal 2
+  note: json <=2000 ?
+  at: time
+  by byOwnerTime: ownerId, at, id
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- deny
+  delete <- deny
+
+maintain messageCounts: count messages by roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
+  read <- exists members[.roomId, viewer]
+maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an int, decimal or money column
+  read <- allow
+
+shape card = { id, name, owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
+fn isBrief(ttl: int ?): ttl != null                                  -- a helper expression, expanded where it is called
+proc stamp(roomId: rooms):                                           -- a helper block, called as a statement from a mutation or a job
+  update rooms[roomId] { createdAt: now }
+
+query room(roomId: rooms):            -- a query reads; its result type is inferred onto api.ts
+  return rooms[roomId] card           -- one row by a unique key: null when absent or hidden; then the named shape
+
+query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
+  require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
+  return messages[roomId] after c last 50 by byRoomTime { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- a page from a cursor, shaped: `*` spreads the row; a point read inside is null for a hidden row
+
+query inbox(c: cursor ?):
+  return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
+
+query following(c: cursor ?):
+  page = merge posts after c last 20 by byAuthorTime:               -- one ordered page over several prefixes of one index
+    [viewer]
+    [f.followedId] for f in follows[viewer] first 20 by byPair
+  return page { *, author: profiles[.authorId], mine: reactions[.id, viewer] }
+
+query ancestors(roomId: rooms):
+  chain = walk rooms[roomId] up .parentId depth 8                   -- the row, its parent, and so on: at most `depth` rows
+  return chain { id, name }
+
+query digest(roomId: rooms):
+  require exists members[roomId, viewer] else NOT_MEMBER
+  page = messages[roomId] last 100 by byRoomTime                     -- a page bound to a name; count, sum, slice, sort and shapes take it
+  (weeks, days) = divmod(count(page), 7)                             -- there is no `/`: divmod binds quotient and remainder at once
+  (lo, hi) = sorted(weeks, days)                                     -- two values in order
+  return { total: messageCounts[roomId], weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
+
+query mentions(body: text <=4000):
+  return tokens(body)                 -- the @mentions in a text, without the @, at most 64: a bounded list
+
+mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
+  room = insert rooms { id: new, name, ownerId: viewer, kind, tags, createdAt: now }   -- `new` mints an id; omit `id` and one is minted anyway
+  insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
+  return room card
+
+mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
+  require exists members[roomId, viewer] else NOT_MEMBER
+  row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- a conditional value: the arm not taken never runs, and `ttl` is present in the taken one
+  return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` is the value when the left is null
+
+mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?):
+  msg = messages[messageId] ! else NOT_FOUND                         -- the row, or refuse with the code; `msg` is present from here on
+  require msg.authorId = viewer else NOT_AUTHOR
+  update messages[msg] { body, editedAt: now } if .body = expected    -- a row as the key; `if` makes the update conditional: E_CONFLICT with the current row when false
+  return null                                                        -- a bare `return` is the same
+
+mutation join(roomId: rooms, principal: principal):
+  require exists members[roomId, viewer, 'admin'] else NOT_ADMIN
+  return insert members { roomId, principal, role: 'member', joinedAt: now } if absent   -- the row, or null on a unique clash
+
+mutation leave(roomId: rooms):
+  delete members[roomId = roomId, principal = viewer]                -- a key may name its columns; a full unique key names one row, NOT_FOUND when it is missing
+  return null
+
+mutation react(postId: posts, direction: int):
+  require direction = 1 or direction = -1 else BAD_DIRECTION         -- =, !=, <, <=, >, >=, +, -, *, unary -, not, and, or
+  upsert reactions[postId, viewer] { direction }                     -- insert or replace; the key names the row; a final write is the implicit return
+
+mutation post(bodies: [text <=500] <=10):
+  for body in bodies:                                                -- a loop over a bounded list; `for row in page:` and `for i in range(0, 10):` are the other domains
+    insert posts { authorId: viewer, body, score: 0, at: now }
+  return count(bodies)
+
+mutation split(total: int, people: [principal] <=8):
+  insert ledger { ownerId: viewer, amount: share(total, people, viewer), weight: 1, at: now }   -- share: one person's part of an amount split evenly, deterministically
+
+job nightly(periodStart: time, periodEnd: time):                    -- the server's own work: sweeps as the system principal, one page per commit
+  chunk r in rooms first 100 by byId:                                -- the index's columns are id or immutable, so nothing moves under the cursor
+    if r.createdAt >= periodEnd:
+      break                                                          -- ends this sweep; `return` ends the job
+    stamp(r.id)
+  chunk p in posts first 100 by byId:
+    for i in range(0, 2):                                            -- integer literals, at most 10,000 steps
+      update posts[p.id] { score: p.score + i }
+schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
+```
+
+Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
+instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
+`'text'` or `"text"` with `\n`, `\t` and `\\`, `[a, b]` (a bounded list),
+`{ a, b: c }` (an object; a bare name is `name: name`). `=` and `!=` are total
+(null equals null); `<` and friends, `+`, `-` and `*` need present operands:
+narrow with `if x != null:`, `x ! else CODE`, `x ?? default`, or `require x
+!= null else CODE`. `time - time` is an int of milliseconds; `time + int` a
+time. `count(page | list)`, `sum(page, .col)`, `sum(list)`, `min(a, b)`,
+`max(a, b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
+`tokens(text)`, `share(amount, list, member)`, `(q, r) = divmod(a, b)`,
+`(lo, hi) = sorted(a, b)`. A local binds once (`x = expr`); a program ends
+with `return [value]`, or with its last expression, or with its final write.
+
+## Left out on purpose, and the idiom
+
+- `cond ? a : b` → `a if cond else b`.
+- `/` and `%` → `(quotient, remainder) = divmod(a, b)`, so no remainder is dropped unread.
+- Reassigning a local (`n = n + 1`), accumulators → `count`, `sum`, `min`, `max` over a page or a list, a shape over a page, or a `maintain`.
+- `else if`, `elif` → nest an `if` under `else:`, or use a conditional value.
+- `while`, unbounded loops → `for` over a page, a bounded list, `range(a, b)` or `tokens(text)`; `walk` for a chain.
+- `continue` → wrap the rest of the body in `if`; `break` ends the loop.
+- `where`, filters → an index whose prefix pins the predicate; the rest belongs in the read rule.
+- `before c` → `after c`, and reverse the display order in the client.
+- String concatenation, interpolation, formatting, case → store the parts; the client formats. `slice` and `tokens` are the text operations.
+- Floats and decimal literals → `decimal S` and `money CUR S` columns hold integer minor units; number literals are integers within ±(2^53 − 1).
+- `len(x)` → `count(x)`.
+- `-> type` on a program → the result type is inferred and written to api.ts.
+- `#` and `//` comments → `--`.
+- `shape x from m`, imports → every `.q` file beside schema.q shares one namespace; declare once, use anywhere.
+- Snapback 2's `deliver`, `channel`, `cursor` declarations, `device`, `oblivious`, top-level `index` and `unique` → `sync`; presence lives in the client; indexes live in the table block.
+- `system` in a rule → `deny`; the system principal consults no rules.
+- `E_` codes in `require` → that namespace is the platform's.
+- `time + time`, `time * n` → subtract two times for an int, add an int to a time.
+- `<` on an optional value, `not a = b` → narrow first; `not` binds tightest, so write `not (a = b)` or `a != b`.
+- Writes and `new` in a query → a mutation.
+- A `for` over a page in a mutation past its cap → a mutation loops over one complete schema-capped group (`cap N by cols`, `first N`); everything wider is a job's `chunk`.
+- `effect x from m` and `emit x payload` → accepted and queued in the server's `_outbox`; nothing delivers them in this release. Write the fact to a table and let a job or a reader act on it.
+- Word search → `tokens(text)` is the @mentions of a text, not an index; search synced rows on the device, or read by a prefix index.
+
+Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, expire,
+assets, reads, shapes, writes, programs, jobs, feeds, bounds, refusals,
+personas. `snapback4 why <CODE>` explains a refusal.
+"##;
+
+pub fn card(keyword: &str) -> Option<&'static str> {
+    Some(match keyword {
+        "language" | "grammar" | "quarry" => LANGUAGE,
+        "types" => r##"# Types
+
+```quarry
+table everything:
+  who: principal                      -- the authenticated subject; `viewer` is one
+  tag: id                             -- an opaque identity
+  parent: everything ?                -- a reference to a table's row: its id
+  n: int                              -- an integer within ±(2^53 − 1); there are no floats
+  at: time                            -- milliseconds since the epoch; `now` is one
+  ok: bool
+  price: money USD                    -- money CUR [scale]: integer minor units, scale 2 unless given
+  ratio: decimal 4                    -- decimal S: an integer scaled by 10^S
+  name: text 1..80                    -- text <=N, or text M..N
+  handle: text 3..20 format handle    -- format handle | url is checked on every write
+  site: text <=200 format url ?
+  kind: enum('a', 'b')                -- a text literal in this position is a variant
+  meta: json <=4000 ?
+  raw: bytes <=1024 ?
+  photo: image <=10000000 once ?      -- an upload (guide assets); `once` serves one view per principal
+  clip: video <=50000000 ?
+  tags: [text <=20] <=8               -- a bounded list of a scalar type; `?` after the whole type, never on the element
+  unique byHandle: handle
+  read <- .who = viewer
+  insert <- .who = viewer
+  update <- deny
+  delete <- deny
+
+query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take the same types, plus `cursor ?`
+  return everything[handle]
+```
+
+`?` after a type makes it optional: null when absent, and an omitted
+optional argument reads as null. Text literals in id positions are ids. A
+`<table>` reference is a typed id, with no implicit existence check and no
+delete cascade: the string `"null"` is an id, and JSON null only fits an
+optional type; when a target must be visible, `require exists t[id] else
+CODE` before the write (guide writes). `=`
+and `!=` are total (null equals null); `<` and friends need present operands:
+narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. `time`
+arithmetic: `time - time` is an int, `time + int` a time."##,
+        "indexes" => r##"# Indexes
+
+```quarry
+table tasks:
+  ownerId: principal
+  projectId: id
+  done: bool
+  at: time
+  unique byOwnerProject: ownerId, projectId         -- `unique` orders and constrains: one row per (ownerId, projectId)
+  by byOwnerDone: ownerId, done, at, id             -- `by` orders; a scan pins a prefix and pages along the rest
+  cap 500 by ownerId                                -- a cap needs an index leading with exactly its columns
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- .ownerId = viewer
+  delete <- .ownerId = viewer
+
+query indexForms(projectId: id, c: cursor ?):
+  one = tasks[viewer, projectId]                    -- a point read is a full unique key
+  open = tasks[viewer, false] after c first 50 by byOwnerDone   -- a range is a strict prefix; a cursor needs an index ending in id, or a unique one
+  return { one, open }
+```
+
+Every table has `byId`. A point read (`t[key]`, `update`, `delete`,
+`upsert`) needs a unique index over exactly the key's columns; `exists
+t[key]` needs any index over exactly them; a page needs an index whose
+prefix is the key, and pages in the order of the remaining columns. When
+two indexes match, `by name` chooses. `expire at .col` needs an index
+leading with the column; a merge's lanes are equal-width prefixes of one
+index; a job's `chunk` sweeps an index whose columns are `id` or
+`immutable`. The diagnostic names the indexes that exist and the one to
+declare."##,
+        "rules" => r##"# Rules
+
+```quarry
+table docs:
+  ownerId: principal
+  title: text <=120
+  state: enum('draft', 'final')
+  by byOwner: ownerId, id
+  read <- .ownerId = viewer or exists editors[.id, viewer]                  -- allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | and | or | not
+  insert <- .ownerId = viewer and .state = 'draft'
+  update (old, next) <- old.ownerId = viewer and next.ownerId = viewer and old.state != 'final'   -- both images of an update
+  delete <- .ownerId = viewer
+
+table editors:
+  docId: docs
+  principal: principal
+  unique byDocPrincipal: docId, principal
+  by byPrincipalDoc: principal, docId, id
+  read <- exists editors[.docId, viewer]
+  insert <- exists docs[id = .docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
+  delete <- .principal = viewer
+```
+
+Each of `read`, `insert`, `update` and `delete` takes one rule over the row
+(`.col`), `viewer` and literals. A table without a rule for an effect denies
+it. `public 'why'` on its own line is the read rule. An `exists` probe needs
+an index over exactly the probed columns (`by index` names one when two
+match); a probe over the target's own unique key is uniform, and one verdict
+serves a whole page. `created t[..]` is valid in insert rules only. Rules
+compare with `=` and `!=` alone: a rule that varies with time is not an
+audience a partition can hold (use `expire`). A read rule that is exactly
+`exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
+sync). The system principal consults no rules, so `system` is never a rule
+word."##,
+        "sync" => r##"# Sync: the viewer's partition is the unit of sync
+
+```quarry
+table notices:
+  body: text <=500
+  at: time
+  by byTime: at, id
+  public 'notices are public'
+  insert <- deny
+  update <- deny
+  delete <- deny
+  sync public last 100 by byTime            -- everyone holds the newest 100
+
+table todos:
+  ownerId: principal
+  title: text <=200
+  by byOwner: ownerId, id
+  read <- .ownerId = viewer                 -- exactly the audience
+  insert <- .ownerId = viewer
+  update <- .ownerId = viewer
+  delete <- .ownerId = viewer
+  sync to .ownerId last 500 by byOwner      -- each row reaches the principal in the column
+
+table participants:
+  threadId: threads
+  personId: principal
+  addedBy: principal
+  unique byThreadPerson: threadId, personId
+  by byPersonThread: personId, threadId, id
+  cap 50 by threadId
+  read <- exists participants[.threadId, viewer]
+  insert <- exists participants[.threadId, viewer]
+  delete <- .personId = viewer
+  sync to participants[.threadId] by .personId   -- the target has two principal columns: name the recipient
+
+table threads:
+  subject: text <=200
+  read <- exists participants[.id, viewer]
+  insert <- allow
+  update <- deny
+  delete <- deny
+  retain delivered-history                  -- a device keeps these rows after it leaves the thread
+  sync to participants[.id] by .personId    -- each row reaches every principal with a participants row whose threadId matches
+```
+
+The read rule must be exactly the audience — `public`, `.col = viewer`, or
+`exists t[.a, .b, viewer]` — so a device never holds a row it may not read
+and never misses one it may; a second disjunct or an extra conjunct is
+refused with the rewrite. The target table needs a unique index over
+`(a, b, principal)` and an index leading with `(principal, a, b)`; when it
+has several principal columns, `by .col` names the recipient. The horizon
+`last N by index` bounds what a device acquires per group: the newest N stay
+on the device, older rows are online-only, and a local read past them is
+`complete: false`. A synced table with no horizon delivers every row of
+every group a device holds, at every cold start, as the table grows;
+`check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per
+group, or a `cap` over the group). A snapshot arrives in pages the client
+asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
+most), each applied in its own transaction. Joining a group delivers its
+rows; leaving it delivers one scope tombstone, and `retain` says whether the
+device keeps what it was given (`delivered-history`) or drops it
+(`until-revoked`, the default). What it keeps it can still read locally
+through a query without a membership `require`, while the server refuses
+the same query. A table without `sync` is online-only. A `maintain`
+grouped by the audience columns is delivered as a value row."##,
+        "expire" => r##"# Expire: a row's life ends at a time
+
+```quarry
+table stories:
+  authorId: principal
+  body: text <=500
+  expiresAt: time ?                        -- a null time never expires
+  by byAuthorTime: authorId, id
+  by byExpiresAt: expiresAt                -- the sweep finds due rows here, without a walk
+  read <- .authorId = viewer
+  insert <- .authorId = viewer
+  update <- deny
+  delete <- .authorId = viewer
+  expire at .expiresAt
+  sync to .authorId last 200 by byAuthorTime
+
+mutation postStory(body: text <=500, ttl: int ?):
+  return insert stories { authorId: viewer, body, expiresAt: now + ttl if ttl != null else null }
+```
+
+A row past the time in the column is absent — to every reader, on every
+host, before any rule — from that moment; the server's sweep deletes it
+within a second, and the deletion streams to each device holding it, so it
+leaves local stores on the next sync. Disappearing messages are one field on
+insert; there is no purge job to write. A `maintain` over an expiring table
+counts a row until the sweep removes it (exact within a second), while a
+read of the row is null at once."##,
+        "assets" => r##"# Assets: upload, place, serve
+
+```quarry
+table clips:
+  ownerId: principal
+  photo: image <=10000000 once ?           -- `once`: one view per principal, never cached
+  clip: video <=50000000 ?
+  at: time
+  by byOwnerTime: ownerId, at, id
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- deny
+  delete <- .ownerId = viewer
+  sync to .ownerId last 100 by byOwnerTime
+
+mutation sendClip(clip: video <=50000000):
+  duration = clip.duration                 -- the argument carries the facts the server sniffed: type, bytes, width, height, duration; null where the kind has none
+  require duration != null else DURATION_UNKNOWN
+  require duration <= 60000 else TOO_LONG
+  return insert clips { ownerId: viewer, clip, at: now }
+```
+
+A client uploads the bytes first (`client.upload(file)` → `{ id, type,
+bytes, width, height, duration }`; the server sniffs JPEG, PNG, WebP and
+MP4 and refuses the rest with E_ASSET_TYPE, and anything over the largest
+column's bound with E_ASSET_TOO_LARGE) and passes `{ id }` as the
+mutation's argument; the row carries the facts the server established. One
+asset, one home: the uploader's own upload, placed once (E_ASSET_UNKNOWN,
+E_ASSET_PLACED). Serving is the home row's read rule: `client.asset(id)` (a
+blob URL; `useAsset(id)` in React) or `client.assetSource(id)` (a URI and
+headers for native views) fetches `GET /assets/<id>` under the viewer's
+credentials, and a row that is deleted, whose column is cleared, that
+expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN.
+`once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and
+the bytes are never cached anywhere; the sender is never counted. Uploads
+are online only; there is nothing to queue."##,
+        "reads" => r##"# Reads
+
+```quarry
+query readForms(roomId: rooms, messageId: messages, c: cursor ?):
+  one = messages[messageId]                                  -- one row by a unique key: null if absent or hidden
+  must = messages[messageId] ! else NOT_FOUND                 -- the row, or refuse with the code
+  member = exists members[roomId, viewer]                    -- true or false; needs an index over exactly these columns
+  admin = exists members[roomId = roomId, principal = viewer, role = 'admin'] by byRoomPrincipalRole   -- named keys; `by` names the index when two match
+  oldest = messages[roomId] first 20 by byRoomTime           -- a page, ascending, from the start
+  newest = messages[roomId] after c last 20 by byRoomTime    -- a page, descending, from a cursor
+  everyone = profiles first 50 by byHandle                   -- the whole table's page: the empty prefix, spelled without brackets
+  merged = merge posts last 20 by byAuthorTime:              -- one ordered page over several prefixes of one index
+    [viewer]
+    [f.followedId] for f in follows[viewer] first 20 by byPair
+  chain = walk rooms[roomId] up .parentId depth 8            -- the row, its parent, and so on: at most 8 rows
+  return { one, must, member, admin, newest, chain }
+```
+
+The table names are the language card's. A page's read rule is checked
+once when the prefix decides it, else per row, and a page whose rule reads
+a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
+the index that would decide it). Modifiers come in one order: `after c`,
+then `first N` or `last N`, then `by index`. A page a query returns without
+a cursor cannot be continued: when more rows exist the card reads
+`complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
+page with `after c`. Uniform merge lanes with a unique index or one ending
+in `id` read one head each, then advance the winning lanes; `check` notes
+a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
+probes; a query it cuts returns what it found and `complete: false`."##,
+        "shapes" => r##"# Shapes
+
+```quarry
+shape brief = { id, body, author: .authorId }                        -- a named shape: bare columns, and `.` for the row
+
+query shapeForms(roomId: rooms, messageId: messages, c: cursor ?):
+  page = messages[roomId] after c last 20 by byRoomTime { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- over a page: `*` spreads every column; a point read inside is null for a hidden row
+  row = rooms[roomId] { id, name, tagCount: count(.tags) }           -- over a row: an object; over a nullable row: null when the row is
+  named = messages[messageId] brief                                  -- a named shape by its name
+  nested = rooms[roomId] { ...card, extra: 1 }                        -- `...name` spreads a named shape's fields
+  return { page, row, named, nested }
+```
+
+The table and shape names are the language card's. A shape over a page is
+a bounded loop; its fields are the row's columns by bare name, `*` for all
+of them, `...shape` for a named shape's fields, and `name: expr` with `.`
+as the row. A shape is the only projection: there is no `select`."##,
+        "writes" => r##"# Writes
+
+```quarry
+mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
+  a = insert messages { roomId, authorId: viewer, body, at: now }                   -- the row; the id is minted unless given (`id: new`, or one you hold)
+  b = insert reactions { postId, principal: viewer, direction: 1 } if absent        -- the row, or null on a unique clash
+  update messages[messageId] { body, editedAt: now }                                -- by id: NOT_FOUND when the row is missing
+  update messages[a] { editedAt: now } if .editedAt = null                          -- a row as the key; `if` makes it conditional: E_CONFLICT with the current row when false
+  upsert reactions[postId, viewer] { direction: -1 }                                -- insert or replace; the key names the row
+  delete reactions[postId = postId, principal = viewer]                             -- a full unique key, positional or named
+  return { a: a.id, b }
+```
+
+The table names are the language card's. A final write is the implicit
+return; bind one to use its row (`row = insert ..`). Writes check the rule,
+then unique indexes, caps, immutable columns, text formats and `after
+insert` postconditions; any refusal rolls the whole mutation back, and a
+maintained aggregate is written through its source rows. Every written row
+fans out to its partitions (guide sync). A mutation applies at most once
+per client-minted id. A reference column checks the id's shape, not that
+its target exists: when a mutation needs a visible target, guard first —
+`require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point
+read that is false for an absent or hidden row; deleting a target neither
+deletes nor refuses the rows that reference it, so a lifecycle is the
+application's, in its mutations and rules."##,
+        "programs" => r##"# Programs
+
+```quarry
+query programForms(roomId: rooms):                             -- reads only; the last expression, or `return`, is the result, typed onto api.ts
+  rooms[roomId] card
+
+mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and writes in one transaction, at most once per client-minted id
+  room = rooms[roomId] ! else NOT_FOUND
+  require room.ownerId = viewer else NOT_OWNER
+  update rooms[room] { name: title }                           -- a final write is the implicit return
+```
+
+The table names are the language card's; a `job` is `chunk row in
+t[prefix] first N by index:` sweeps (guide jobs). Operations in `schema.q`
+are called by name (`api.thread`); operations in `snapback/feed.q` are
+`api.feed.<name>`; jobs are not on api.ts. `require cond else CODE` refuses
+with the program's own code, which reaches the client as `{ code, family:
+"rule", .. }`; `CODE` is UPPER_SNAKE and never starts with `E_`. Statements
+are `x = expr`, `(a, b) = divmod(..)`, `require`, `if:`/`else:`, `for x in
+domain:`, `break`, `return`, a helper `proc` call, and a write; every other
+expression must be bound or returned. Queries cannot write or mint ids."##,
+        "jobs" => r##"# Jobs and schedules: the server's own work, on its own clock
+
+```quarry
+table invites:
+  inviteeId: principal
+  sentAt: time
+  reminded: bool
+  by byInvitee: inviteeId, id
+  read <- .inviteeId = viewer
+  insert <- deny
+  update <- deny
+  delete <- deny
+
+job remind(periodStart: time, periodEnd: time):
+  chunk i in invites first 100 by byId:                -- one page per commit, as the system principal; byId's columns cannot move
+    if i.sentAt >= periodEnd:
+      break                                            -- ends this sweep; `return` ends the job
+    if not i.reminded:
+      update invites[i.id] { reminded: true }
+schedule remindDaily every 1d at 08:00: remind          -- or `every 2m`, `every 1h`; the shortest period is 1m
+```
+
+A job is a sequence of sweeps. Each `chunk x in table[prefix] first N by
+index:` walks one index a page per commit as the system principal (every
+rule passes; validation, constraints, aggregates and partitions apply)
+under the job ceilings (guide bounds). The cursor commits with the rows, so
+a chunk is wholly done or not started and a restart resumes at the next
+one; the index's columns are `id` or `immutable`, so nothing moves under
+the cursor, and rows inserted past the key captured when the sweep began
+are not visited, so a sweep over its own table ends. A refused chunk parks
+the job with its refusal (`snapback4 doctor` lists runs). No client calls
+a job: a schedule fires it once per period boundary of the server's clock,
+exactly once across restarts, passing `periodStart` and `periodEnd` when
+the job declares them (and nothing else); a schedule first seen fires from
+its next boundary. `snapback4 run <job> '{..}'` runs one here and now."##,
+        "feeds" => r##"# Feeds: fan out on write, read one page
+
+A feed can merge followed accounts' ordered lanes. Uniform lanes with a
+unique index or one ending in id read one head each, then advance the
+winning lanes. Discovery, lookahead and expired rows still consume the
+meter; N_WIDE_MERGE describes that work. For frequent reads over many
+accounts, write each reader's entry when the post is made, sync the
+entries to the reader, and read one page:
+
+```quarry
+use identity
+use personas alice, bob
+
+table posts:
+  authorId: principal
+  body: text <=500
+  at: time
+  by byAuthorTime: authorId, at, id
+  public 'posts are public'
+  insert <- .authorId = viewer
+
+table follows:
+  followerId: principal
+  followedId: principal
+  bucket: int                     -- assigned by the app; bucket 0 receives immediate delivery
+  unique byPair: followerId, followedId
+  by byFollowed: followedId, followerId
+  by byFollowedBucket: followedId, bucket, followerId
+  cap 1000 by followedId
+  cap 200 by followedId, bucket
+  public 'follows are public'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+
+table feed:                       -- one row per reader per post
+  readerId: principal
+  postId: posts
+  authorId: principal
+  at: time
+  unique byReaderPost: readerId, postId
+  by byReaderTime: readerId, at, id
+  read <- .readerId = viewer
+  insert <- .authorId = viewer    -- the author writes their readers' entries; the job writes as the system
+  sync to .readerId last 200 by byReaderTime
+
+table fanouts:                    -- the work still to do: a post's readers outside bucket 0
+  postId: posts
+  authorId: principal
+  at: time
+  read <- deny
+  insert <- .authorId = viewer
+
+mutation createPost(body: text <=500):
+  p = insert posts { authorId: viewer, body, at: now }
+  insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
+  for f in follows[viewer, 0] first 200 by byFollowedBucket:
+    insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
+  insert fanouts { postId: p.id, authorId: viewer, at: now }
+  return { id: p.id }
+
+job fanOut():                     -- the rest, within a minute
+  chunk w in fanouts first 5 by byId:
+    for f in follows[w.authorId] first 1000 by byFollowed:
+      insert feed { readerId: f.followerId, postId: w.postId, authorId: w.authorId, at: w.at } if absent
+    delete fanouts[w.id]
+schedule fanOutEveryMinute every 1m: fanOut
+
+query following(c: cursor ?):
+  return feed[viewer] after c last 20 by byReaderTime { *, post: posts[.postId] }
+```
+
+The application assigns followers to buckets of at most 200. The mutation
+visits all of bucket 0, a complete schema-capped group; a first-200 slice
+of a larger group is refused. The job covers the whole account, capped at
+1,000 followers, under its own ceilings (5 posts × 1,000 followers a
+chunk). Larger audiences use a separate lane their readers merge on read.
+`insert ... if absent` makes the job's pass idempotent over the rows the
+mutation already wrote. The entries sync to each reader; `following` joins
+`posts`, an online-only table here, so it answers on the server — carry the
+columns the reader renders on the entry itself to answer on the device."##,
+        "bounds" => r##"# Bounds and the meter
+
+Nothing is priced at check. As a program runs, the meter counts examined
+rows, index entries, rule probes, steps, heap bytes, output bytes and rows
+written against ceilings: 8,192 rows examined, 16,384 index entries, 8,192
+rule probes, 1,000,000 steps, 16 MiB heap, 1 MiB output, 1,024 rows written
+per mutation; a job's chunk may examine 16,384 rows and write 8,192. A
+query past a ceiling returns what it found with `complete: false`; a
+mutation aborts with E_BOUND naming the meter, the ceiling and the site
+(never the count: it would measure rows the viewer may not read).
+`snapback4 check --cost` prints each site's structural class;
+`snapback4 test` prints the numbers on your data. A loop is bounded at
+compile time: a page's `first N`, a list's `<=N`, `range`'s literals,
+`walk`'s depth, `tokens`' 64; there is no unbounded loop (E_UNBOUND_LOOP)."##,
+        "refusals" => r##"# Refusals
+
+Every refusal is `{ code, family, message, site?, rewrite?, guide?, rule?,
+retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
+names a card, `rule` is the program's own code on a `require` refusal, and
+`retryable` says the same request may succeed later. The engine's families:
+input, schema, auth, rule (your `require` codes), constraint, bound, op,
+asset, prediction, generation, store; the client adds link (the server is
+unreachable) and client (the client itself refused, as after `close()`).
+`snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
+hidden row is null, and a page omits it."##,
+        "personas" => r##"# Personas
+
+`use personas alice, bob` declares a development cast. `snapback4 run send
+'{..}' --as alice` (the default persona is alice) and the
+`x-snapback-persona: alice` header in development act as `dev:alice`;
+`persona: "alice"` on the client sends the header. Personas are a
+development door, loopback only: a deployed server (`snapback4 serve`)
+takes bearer tokens (`snapback4/auth`), and a persona sent there is refused
+with E_AUTH."##,
+        _ => return None,
+    })
+}
+
+/// Every refusal code `why` explains, with its family. A program's own
+/// `require` codes are the author's and are explained by the program.
+pub const CODES: &[(&str, &str)] = &[
+    ("E_INPUT", "family input — an argument or a row value does not fit its declared type. The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
+    ("E_TYPE", "family input — a value has the wrong type for its position at run time (a Quarry program that binds cannot raise it; a seed or a wire argument can); the message names both types."),
+    ("E_OVERFLOW", "family input — integer arithmetic left ±(2^53 − 1), the value model's range. Store minor units in a decimal or money column, or narrow the operands."),
+    ("E_DIV_ZERO", "family input — divmod by zero. Check the divisor first: `require n != 0 else EMPTY`."),
+    ("E_FIELD", "family input — a field was read from a value that has none (a null row's column, a missing object field). Narrow the row first: `row ! else NOT_FOUND`."),
+    ("E_SCHEMA", "family schema — the schema or the store is inconsistent. `snapback4 check` names the line."),
+    ("E_SCHEMA_CONSTRAINT", "family schema — a declaration the compiler binds but the core refuses: a cap or an expire without its index, a maintain target without its unique group index, a sync whose aggregate would reveal rows its audience may not read. The message names the declaration; guide indexes."),
+    ("E_STRUCTURAL_FANOUT", "family schema — a mutation loops over a page that is not one complete schema-capped group (no `cap` over the pinned prefix, a `first N` under the cap, a cursor, a non-uniform read rule, or a merge). Pin a capped group with a literal bound at least its cap, or move the pass to a job's chunk."),
+    ("E_UNBOUND_SCAN", "family schema — a compiled program scans a table or index the schema no longer has. Recompile: `snapback4 check` after the schema change."),
+    ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
+    ("E_AUTH", "family auth — no principal: send `x-snapback-persona` in development or a bearer token; a persona is refused off loopback and under `serve`."),
+    ("E_CONFLICT", "family constraint — `update .. if` found the row changed; the failed write carries the current row. Read it and retry with a fresh edit. Retryable."),
+    ("E_CONSTRAINT", "family constraint — a unique index, a cap, an immutable column, a text format or an after-insert postcondition refused the write. The message names which."),
+    ("E_FANOUT", "family bound — a loop received more items than its declared bound."),
+    ("E_BOUND", "family bound — the meter cut a mutation (or a response exceeded 16 MiB): the message names the meter, the ceiling and the site, never the count (it would measure rows the viewer may not read). Read a smaller page, add an index, or move the sweep into a job."),
+    ("E_OP", "family op — no such operation, a query called as a mutation (or the reverse), a job called over the wire, or an unknown route."),
+    ("E_STORE", "family store — SQLite failed; retryable."),
+    ("E_GENERATION", "family generation — the backend the caller assumed is not the one in the store: the schema changed under a queued write (the client re-sends under the new generation), a dev store belongs to a deployment, or a release's source is not the activated backend. The message says which."),
+    ("E_JOB_GENERATION", "family generation — a queued job run found its job changed or gone since it was queued; the run is parked. Queue it again."),
+    ("E_ASSET_TYPE", "family asset — the upload's bytes are not a JPEG, PNG, WebP or MP4, the body is empty, or no column of this backend takes that kind. Declare `photo: image <=10000000` / `clip: video <=50000000` and upload a file of that kind."),
+    ("E_ASSET_TOO_LARGE", "family asset — the upload is larger than the largest column of its kind (or the column it is placed in). Downscale before uploading, or widen the column's bound."),
+    ("E_ASSET_UNKNOWN", "family asset — no asset is served under that id to this viewer: it was never uploaded, it is another uploader's unplaced upload, its home row is gone, cleared, expired or hidden from this viewer. Hidden and absent are one word on purpose."),
+    ("E_ASSET_PLACED", "family asset — the upload already belongs to a row: one asset, one home. Upload the bytes again for a second row."),
+    ("E_ASSET_VIEWED", "family asset — a `once` image was served to this principal already; the second view is refused (HTTP 410). The sender is never counted."),
+    ("E_PREDICT", "family prediction — the device could not predict this mutation locally (a read it needs is not on the device, an effect, or an id that was not fixed at submission); the write is queued without local rows and the server judges it."),
+    ("E_OFFLINE", "family link — the client could not reach the server; retryable. A local-first read still answers from the device with `fresh: false` and `since`; a write waits as `pending` and lands when the link returns."),
+    ("E_CLIENT", "family client — the client refused before asking the server: a hook used outside its provider, a session that ended, a malformed argument. The message says which."),
+    ("E_CLOSED", "family client — the client was closed while this request was in flight. The local-first client resolves such a write `pending` instead: it is queued durably and lands on the next open."),
+    ("E_NATIVE_VERSION", "family client — the native module in this build predates the JavaScript client; reloading JavaScript does not update it. Rebuild the development build with the matching snapback4-expo."),
+    ("E_QUARRY_SYNTAX", "the parser could not read this line; the rewrite is a canonical spelling. `snapback4 guide` is the language card."),
+    ("E_QUARRY_UNSUPPORTED", "a form Snapback 4 does not have; the rewrite names the one it does. The language card lists every form left out and its idiom."),
+    ("E_QUARRY_UNKNOWN", "a name is not declared; the rewrite suggests the nearest one."),
+    ("E_QUARRY_TYPE", "a value meets a declaration of another type; the message names both."),
+    ("E_QUARRY_AMBIGUOUS", "two indexes match a key; add `by index`."),
+    ("E_QUARRY_PLACEMENT", "a statement stands where it cannot: a write or `new` in a query, `break` outside a loop. The rewrite says where it belongs."),
+    ("E_QUARRY_RETAIN", "a table has more than one `retain` line, or its policy word is not `until-revoked` or `delivered-history`."),
+    ("E_SYNC", "a sync line cannot be honoured; the message names the rule term, column or index to change."),
+    ("E_UNBOUND_LOOP", "a loop has no static bound; iterate a page, a bounded list argument, `range(a, b)` or `tokens(text)`."),
+    ("E_SCHEDULE", "a schedule names something that is not a job, or a job whose arguments the clock cannot supply: a scheduled job takes `periodStart: time` and `periodEnd: time`, or nothing."),
+    ("E_JOB_CURSOR_INDEX", "a job's chunk sweeps an index a write could change under the cursor; declare its non-id columns `immutable`, or sweep by `byId`."),
+    ("E_OP_RESERVED", "refusal codes in `require .. else CODE` cannot start with E_; that namespace is the platform's."),
+    ("E_EMIT_IN_QUERY", "queries cannot emit effects; make it a mutation. Effects are queued and not delivered in this release (the language card)."),
+    ("N_NO_HORIZON", "a note, not an error — a synced table with no `last N by index` horizon delivers every row of every group a device holds, and keeps delivering as the table grows; a public table of posts, or a group's receipts, then costs every cold start all of it. Declare `sync ... last 500 by <index>` (the newest N per group; older rows stay readable online and a local read past them says `complete: false`), or bound the group with a `cap`."),
+    ("N_WIDE_MERGE", "a note, not an error — a merge visits every source lane. Uniform lanes without setup and with a non-nullable unique index or one ending in id read one head each, then advance the winning lanes; other lanes read a page each. Discovery, rule probes, lookahead, duplicates and expired rows still consume the meter. For frequent reads over many accounts, write entries per reader on the way in, sync to .reader, and read one page (guide feeds)."),
+    ("N_NO_CURSOR", "a note, not an error — a query returns a page with no cursor argument, so it cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`."),
+    ("N_NEVER_COMPLETE", "a note, not an error — a page whose read rule reads a column the scan does not pin is `complete: false` on the server whatever it finds; the note names the index that would decide it, or read the page on the device."),
+    ("NOT_FOUND", "the program's own code for a write whose row does not exist (a direct update or delete of a missing point), and the conventional code for `t[key] ! else NOT_FOUND`."),
+];
+
+/// The codes, for a listing.
+pub fn codes() -> Vec<&'static str> {
+    CODES.iter().map(|(code, _)| *code).collect()
+}
+
+pub fn explain_code(code: &str) -> Option<String> {
+    CODES.iter().find(|(name, _)| *name == code).map(|(name, text)| format!("{name}: {text}"))
+}

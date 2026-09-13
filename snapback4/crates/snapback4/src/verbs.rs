@@ -422,7 +422,7 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("cannot create {}: {error}", schema.display());
         return 2;
     }
-    std::fs::write(&schema, crate::guide::TEMPLATE).expect("write template");
+    std::fs::write(&schema, snapback4_lang::guide::TEMPLATE).expect("write template");
     let gitignore = dir.join(".gitignore");
     let existing = std::fs::read_to_string(&gitignore).unwrap_or_default();
     if !existing.contains(".snapback4/") {
@@ -437,7 +437,7 @@ pub fn why(options: &Options) -> i32 {
         eprintln!("usage: snapback4 why <E_CODE | operation | table>");
         return 2;
     };
-    if let Some(explanation) = crate::guide::explain_code(subject) {
+    if let Some(explanation) = snapback4_lang::guide::explain_code(subject) {
         println!("{explanation}");
         return 0;
     }
@@ -469,7 +469,7 @@ pub fn why(options: &Options) -> i32 {
     }
     if subject.starts_with("E_") || subject.starts_with("N_") {
         // A guessed code: name the real ones.
-        eprintln!("{subject} is not a refusal code. A unique clash, a cap, an immutable column or a text format is E_CONSTRAINT; a program's own `require .. else CODE` codes are the program's. The codes: {}", crate::guide::CODES.join(", "));
+        eprintln!("{subject} is not a refusal code. A unique clash, a cap, an immutable column or a text format is E_CONSTRAINT; a program's own `require .. else CODE` codes are the program's. The codes: {}", snapback4_lang::guide::codes().join(", "));
         return 1;
     }
     eprintln!("nothing named {subject}: not a refusal code, an operation, or a table");

@@ -5,7 +5,7 @@
 
 use super::catalog::{Catalog, TableInfo};
 use crate::ast::{self, Expr as A, Literal, ObjectField, ProgramKind, ReadExpr, ShapeField, Stmt as S, WriteOp};
-use crate::diag::{Diagnostic, Fallible, Site, ambiguous, name_rewrite, type_error, unbound_loop, unknown, unsupported};
+use crate::diag::{Diagnostic, Fallible, Site, ambiguous, name_rewrite, placement, type_error, unbound_loop, unknown, unsupported};
 use crate::print;
 use crate::types::{Ty, scalar_to_arg};
 use snapback4_core::ir::{self, BinaryOp, Bound, Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Merge, MergeLane, Order, Program, Read, Recurse, Scan, SortKey, Stmt, UnaryOp};
@@ -36,6 +36,8 @@ pub struct Binder<'a> {
     returns: Vec<Ty>,
     /// Depth of fn/proc expansion, to bound recursion.
     depth: u32,
+    /// Enclosing `for` and `chunk` bodies: where `break` may stand.
+    loops: u32,
 }
 
 /// Source names are lexical; the IR's flat environment needs a distinct
@@ -51,7 +53,7 @@ const MENTION_MAX: u32 = 64;
 
 impl<'a> Binder<'a> {
     pub fn bind(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<BoundProgram> {
-        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0 };
+        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0 };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {

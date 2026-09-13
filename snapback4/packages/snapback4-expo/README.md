@@ -6,13 +6,23 @@ answered — the same interpreter the server runs — behind one JSON call.
 `snapback4/native` is the client over it:
 
 ```ts
+import * as SQLite from "expo-sqlite";
+import { createLocalClient } from "snapback4/local";
 import { createNativeClient } from "snapback4/native";
+import { expoSqliteDriver, openSqlite } from "snapback4/replica";
 import { nativeAvailable, nativeDevice, documentDirectory } from "snapback4-expo";
 
+const safe = (name: string) => name.replace(/[^A-Za-z0-9._-]/g, "_");   // store and session names carry the URL and the viewer
+const sqliteStore = { open: async (name: string, schema: unknown) => openSqlite(expoSqliteDriver(await SQLite.openDatabaseAsync(`${safe(name)}.db`)), schema) };
 const client = nativeAvailable()
   ? await createNativeClient({ url, guest: true, sessionStore, native: nativeDevice, dataDir: documentDirectory() })
   : await createLocalClient({ url, guest: true, sessionStore, store: sqliteStore });   // Expo Go: the TypeScript tier
 ```
+
+`createNativeClient` probes the module first and rejects with
+`E_NATIVE_VERSION` when the native binary predates the JavaScript client:
+reloading JavaScript does not update the module; rebuild the development
+build.
 
 Expo Go loads no custom native code, so the module is present only in a
 development or production build: add `expo-dev-client`, then

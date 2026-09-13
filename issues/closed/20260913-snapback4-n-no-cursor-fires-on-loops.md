@@ -51,3 +51,9 @@ review reported no material findings.
 Final integrated verification: `50c8edfdc844c0530e4d548bd8e7b7500a26331c`;
 the [suite-budget closure](./20260913-snapback4-blocking-suite-over-60-seconds.md)
 records the two complete warm runs and independent review.
+
+The compiled guide (JOURNAL 2026-09-13, "the guide is compiled") adds the
+standing check: `crates/snapback4-sim/tests/clique.rs` reads the recipe from
+the `feeds` card itself, and `crates/snapback4-lang/tests/guide.rs` compiles
+every card's Quarry with no diagnostic and no note, so the note cannot
+return to a card unseen.

@@ -81,7 +81,7 @@ pub fn lex(file: &str, source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
             let site = Site::new(file, line, offset as u32 + 1);
             if c == '#' || (c == '/' && chars.get(offset + 1) == Some(&'/')) {
                 let rest: String = chars[offset + if c == '#' { 1 } else { 2 }..].iter().collect();
-                diagnostics.push(Diagnostic::new(&site, "E_QUARRY_SYNTAX", "Quarry comments start with --", format!("--{rest}")).guide("grammar"));
+                diagnostics.push(Diagnostic::new(&site, "E_QUARRY_SYNTAX", "Quarry comments start with --", format!("--{rest}")).guide("language"));
                 break;
             }
             if offset + 1 < chars.len() {

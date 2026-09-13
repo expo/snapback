@@ -31,8 +31,8 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
             Some(column) => core::MaintainKind::Sum { of: column.clone() },
             None => core::MaintainKind::Count,
         };
-        let readable = maintain.readable.as_ref().and_then(|rule| bind_rule(catalog, source, rule).ok());
-        schema.maintains.push(core::Maintain { kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable });
+        let _ = source;
+        schema.maintains.push(core::Maintain { kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
     for doc in &catalog.documents {
         for effect in &doc.effects {

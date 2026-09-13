@@ -70,10 +70,11 @@ export interface Asset {
   readonly id: string;
   readonly type: string;
   readonly bytes: number;
-  readonly width?: number | null;
-  readonly height?: number | null;
-  /** Milliseconds, for video. */
-  readonly duration?: number | null;
+  /** Present for images, null for video. */
+  readonly width: number | null;
+  readonly height: number | null;
+  /** Milliseconds, for video; null for images. */
+  readonly duration: number | null;
 }
 
 export type Uploaded = { readonly ok: true; readonly asset: Asset } | { readonly ok: false; readonly why: Refusal };

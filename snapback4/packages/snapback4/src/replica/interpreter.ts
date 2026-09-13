@@ -267,7 +267,7 @@ export class Interpreter {
         case "Update": await this.update(body.table as string, (await this.expr(body.key)) as string, (await this.expr(body.patch)) as Record<string, unknown>); break;
         case "Upsert": await this.upsert(body.table as string, (await this.expr(body.key)) as string, (await this.expr(body.row)) as Row); break;
         case "Delete": await this.delete(body.table as string, (await this.expr(body.key)) as string); break;
-        case "Emit": throw new Refused({ code: "E_PREDICT", family: "predict", message: "effects run on the server; this write is not predicted", retryable: true });
+        case "Emit": throw new Refused({ code: "E_PREDICT", family: "prediction", message: "effects run on the server; this write is not predicted", retryable: true });
         case "Return": {
           const data = await this.expr(body);
           const owner = this.pageOwners.get(site);

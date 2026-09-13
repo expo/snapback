@@ -384,7 +384,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
 name = "snapback4"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "serde",
  "serde_json",
@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-core"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "argon2",
  "getrandom",
@@ -409,7 +409,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-device"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "rusqlite",
  "serde",
@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-lang"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "serde",
  "serde_json",
@@ -430,7 +430,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-sim"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "serde_json",
  "snapback4-core",

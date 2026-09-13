@@ -99,11 +99,20 @@ impl Binder<'_> {
                 let mut body_out = Vec::new();
                 self.push_scope();
                 let binding = self.declare(name, item_ty);
+                self.loops += 1;
                 let result = self.block(body, &mut body_out, false);
+                self.loops -= 1;
                 self.pop_scope();
                 result?;
                 let _ = site;
                 out.push(Stmt::For { binding, domain: loop_domain, body: body_out });
+                Ok(())
+            }
+            S::Break { site } => {
+                if self.loops == 0 {
+                    return Err(placement(site, "break ends the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
+                }
+                out.push(Stmt::Break);
                 Ok(())
             }
             S::Expr { value, site } => {
@@ -267,9 +276,11 @@ impl Binder<'_> {
         let bindings = self.helper_arguments(name, &proc.args, args, site, out)?;
         let caller = std::mem::replace(&mut self.scopes, vec![bindings]);
         let focal = self.focal.take();
+        let loops = std::mem::take(&mut self.loops);
         self.depth += 1;
         let result = self.block(&proc.body, out, false);
         self.depth -= 1;
+        self.loops = loops;
         self.scopes = caller;
         self.focal = focal;
         result
@@ -310,7 +321,7 @@ impl Binder<'_> {
 /// branches leave no path to the following statement.
 fn exits(statements: &[Stmt]) -> bool {
     statements.iter().any(|statement| match statement {
-        Stmt::Return(_) => true,
+        Stmt::Return(_) | Stmt::Break => true,
         Stmt::Require { condition: Expr::Literal(Value::Bool(false)), .. } => true,
         Stmt::If { then_body, else_body, .. } => exits(then_body) && exits(else_body),
         _ => false,

@@ -93,18 +93,19 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
     Diagnostic::new(site, "E_SYNC", message, rewrite)
 }
 
-fn guide_for(code: &str) -> &'static str {
+/// The guide card a diagnostic points at; `language` is the language card.
+pub fn guide_for(code: &str) -> &'static str {
     match code {
-        "E_QUARRY_SYNTAX" => "grammar",
-        "E_QUARRY_UNSUPPORTED" => "grammar",
+        "E_QUARRY_SYNTAX" => "language",
+        "E_QUARRY_UNSUPPORTED" => "language",
         "E_QUARRY_TYPE" => "types",
         "E_QUARRY_AMBIGUOUS" => "indexes",
         "E_QUARRY_PLACEMENT" => "programs",
         "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN" => "bounds",
         "E_SYNC" => "sync",
         "E_SCHEMA_CONSTRAINT" => "indexes",
-        "E_EMIT_IN_QUERY" => "effects",
-        _ => "quarry",
+        "E_EMIT_IN_QUERY" => "programs",
+        _ => "language",
     }
 }
 

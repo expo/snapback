@@ -1757,3 +1757,92 @@ reference/diagnostic corrections and test robustness without a new gate,
 a larger budget or fewer assertions. Independent read-only review found no
 material issues at 50c8edfdc. The Interview sketch compiles with 12 tables,
 10 operations and zero notes; ref-check passes 471 LLPs and 8,684 references.
+## 2026-09-13 — the guide is compiled: the language card, the cards as tests, and what the docs promised that the grammar refused
+
+The author asked for a review of the Snapback 4 docs against the code —
+docs to match the code, or the code to catch up where the docs sounded
+nicer — and named the class the Clique lane paid for: a guide page can
+promise what the parser refuses (the lane lost loops to a ternary the
+guide promised, a `sum` helper, a bare `return` and division, each fixed
+forward). The fix is guide-as-tests plus one language card.
+
+**The guide is tested text.** `guide.rs` moved from the binary into
+`snapback4-lang` (`snapback4_lang::guide`), where `tests/guide.rs` can
+reach it: every ```quarry block on every card and in the package README
+is compiled with no diagnostic and no note (a block that declares a table
+stands alone; one that does not compiles beside the language card's
+schema), the language card's one program is run against the engine —
+every operation on it does what its comment says — and `init`'s template
+compiles clean. The same test scans the sources: every `E_`/`N_` code the
+engine, the compiler and the client emit must be in `guide::CODES` (the
+one table `why` reads; fourteen were unexplained — `E_OVERFLOW`,
+`E_DIV_ZERO`, `E_FIELD`, `E_STRUCTURAL_FANOUT`, `E_UNBOUND_SCAN`,
+`E_JOB_GENERATION`, `E_SCHEMA_CONSTRAINT`, `E_QUARRY_PLACEMENT`,
+`E_SCHEDULE`, `E_QUARRY_RETAIN`, `E_JOB_CURSOR_INDEX`, `E_CLIENT`,
+`E_CLOSED`, `E_NATIVE_VERSION`), every `guide("..")` a diagnostic carries
+must name a card (`indexes` is now one; `expressions` and `effects` named
+none), the bounds card's numbers are `Ceilings::default()` and
+`Ceilings::job()`, the refusals card names every family
+`RuntimeError::FAMILIES` answers, and the keyword list is one list
+(`guide::KEYWORDS`) that the language card, the README and the binary all
+print. The language card (`snapback4 guide`) is one file that exercises
+every form the parser accepts, with a comment on each, followed by what
+is left out on purpose and the idiom for it: the ternary, `/` and `%`,
+reassignment, `else if`, `while`, `continue`, `where`, `before`, string
+concatenation, floats, `len`, result annotations, other comment marks,
+imports, Snapback 2's words, `system` in a rule, `E_` codes, time
+arithmetic, `not` binding tightest, writes in queries, loops past a cap,
+effects, word search.
+
+**What the docs promised and the grammar refused, now in the grammar.**
+`break` — the README and the jobs card said it ends a sweep, the runtime
+and the job runner handled it, the parser had no such statement; it is
+one now, inside a `for` or a `chunk` (`E_QUARRY_PLACEMENT` elsewhere), and
+`continue` is refused with its idiom. **What the grammar accepted and did
+nothing with, now refused.** `shape|fn|proc x from module` parsed into
+import lists nobody read (every `.q` file shares one namespace);
+`readable <- rule` on a maintain bound into a field the engine never
+consults. Both are `E_QUARRY_UNSUPPORTED` with the rewrite. **Notes that
+fired where nothing was wrong.** `N_NO_CURSOR` follows returned-page
+provenance (landed on main the same day by another session, closing the
+ticket of LLP 3000.004; the `feeds` card compiles with zero notes, and
+`tests/clique.rs` reads the recipe from the card); `N_NEVER_COMPLETE` skips jobs, which sweep as the system; and
+`N_NO_HORIZON` skips a group that cannot grow — one row per group (a
+table synced by its own `id`) or a group a `cap` bounds — so the chat
+schema and the template compile with no note. The parser was at 1,499
+lines; its expression half is `parser/expr.rs` now.
+
+**The docs, corrected against the code** (two read-only audits, of the
+CLI and wire and of the client, each finding cited to a line). The
+client: `Link` has three states (`"signed-out"` was missing),
+`useMutation` returns `last`, `family` is an open set (`asset`,
+`prediction`, `generation`, `store`, `link`, `client` were missing; the
+TypeScript twin spelled one refusal `predict` — now `prediction`, as the
+engine does), `Refusal.rule`, a write is `pending` after four seconds
+online and at `close()` (the online tier fails it `E_CLOSED`), the
+`Asset` facts are always present (the contract's `?` is gone; the mock
+now sends `duration: null`), a `NativeOpener` returns `{ call, close }`,
+`store` is `"indexeddb"` | `"memory"` | an opener, creation rejects,
+`E_NATIVE_VERSION`, `processCore`, `useClient`, `asset()`'s `revoke`,
+`usePage` needs the cursor named `c`, the mock's `ops` shape, an
+online-only table's query runs on the server, and the Expo sample now
+sanitises the store and session names as the reference app does. The
+CLI and wire: all thirteen verbs and their flags (`deploy`, `rollback`,
+`serve`, `device`, `types`, `--version`, `data --limit`, `doctor --json`,
+`run`'s output and exit codes, `test`'s derivations), `GET /` and `GET
+/api.ts`, the paged snapshot (`after`, `limit`, `pending`), `/changes`'s
+`wait`, `/m`'s `id`, `current` and `replayed`, `/q`'s `tables` and
+`viewer`, status codes and body ceilings, the auth header rules, asset
+headers, the maintenance cadence, `serve`'s bind and symlink, the
+persona card's "(week 4)", the ceilings the bounds card omitted, the
+snapshot page sizes (the client asks for 4,000; the wire's default is
+2,000). `tokens(text)` is served — it is the @mentions of a text — where
+§8 said it was parsed and not served; `emit` is accepted and queued in
+`_outbox` with nothing delivering it, which the language card and §8 now
+say in the same words. The top README's table and the agent sheet list
+the crates and packages that exist. Published `snapback4@0.1.17` (0.1.16 was another session's, the same
+day). One flake on the way: with the machine at a load average of 20–60
+(other sessions' cargo runs), `native-e2e.test.mjs` failed fast in two of
+three group runs — 142 and 298 ms, before its server answered — and passed
+alone and in the third; no code on its path changed here.
+

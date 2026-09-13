@@ -9,9 +9,10 @@ adopted here as written; LLPs for Snapback 4 are numbered **3000 and up**
 before minting a new number).
 
 ```
-cargo build                          # the binary; no JS engine, no bootstrap, nothing outside crates.io
+cargo build                          # the binary; no JS engine, no bootstrap; crates.io plus one vendored patch (vendor/tiny_http)
 scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
-./target/debug/snapback4 --help      # init · check [--cost] · dev · run (an op, or a job as the system) · test · why · guide · data · doctor
+./target/debug/snapback4 --help      # init · check · dev · deploy · rollback · serve · run (an op, or a job as the system) · test · why · guide · data · doctor · device · types · --version
+./target/debug/snapback4 guide       # the language card; `guide <keyword>` for a card — every card's Quarry is compiled by the suite (crates/snapback4-lang/tests/guide.rs)
 cd apps/chat && ../../target/debug/snapback4 check     # compiles snapback/*.q, writes snapback/generated/api.ts
 cd apps/chat && ../../target/debug/snapback4 dev       # serves 127.0.0.1:4400; re-adopts the schema on save
 cd apps/chat && bun run dev                            # the app on the real client (?as=bob picks a persona)
@@ -28,6 +29,7 @@ node scripts/measure-client.mjs      # each client tier's bytes on the pinned to
 bash scripts/measure-wasm.sh         # the device core as wasm (crates/snapback4-device), bound and measured → metrics/wasm.jsonl
 bash scripts/build-xcframework.sh    # the device as an iOS xcframework for packages/snapback4-expo (staticlib alone, stripped; 9.1 MB)
 node loopbar/run.mjs --n 3           # the loop bar: fresh agents on the published pin build reduced Clique M1–M3 → metrics/loopbar.jsonl
+node scripts/publish.mjs             # runs the suite (refuses on red), builds the production binary, publishes snapback4 + snapback4-darwin-arm64
 ```
 
 Crates: `snapback4-core` (value model, schema with `sync`, IR, key encoding,
@@ -37,7 +39,10 @@ log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
 `snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
 world hosting the engine and a replica device), `snapback4-device` (the
 interpreter over a host's store: wasm for measurement, the native module
-for Expo and Exact2 hosts).
+for Expo and Exact2 hosts). The guide (`snapback4-lang/src/guide.rs`) is
+the language card and the keyword cards; packages: `snapback4` (the client
+and the CLI shim), `snapback4-darwin-arm64` (the binary), `snapback4-expo`
+(the Swift module over the device's C ABI).
 
 What exists, by week (LLP 3000 §5):
 
@@ -65,4 +70,5 @@ Gotchas you cannot derive from the code:
   (`by byConversationPrincipalRole: conversationId, principal, role` for
   `exists memberships[.conversationId, viewer, 'admin']`); the diagnostic
   names the indexes that exist.
-- `publish.mjs` ships the client package only until the binary does something; the platform binary packages arrive with week 2's owner. Bump `version` in `packages/snapback4/package.json` and `Cargo.toml` together.
+- `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
+- The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.
