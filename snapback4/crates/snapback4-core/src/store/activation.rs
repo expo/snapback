@@ -11,7 +11,8 @@ use std::collections::BTreeSet;
 pub(super) type Identity = (Option<String>, Option<String>, Option<String>, Option<String>);
 
 pub(super) fn identity(conn: &Connection) -> Result<Identity, RuntimeError> {
-    let get = |key| conn.query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional();
+    let mut statement = conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?;
+    let mut get = |key| statement.query_row([key], |row| row.get(0)).optional();
     Ok((get("schema_hash")?, get("activation_hash")?, get("generation")?, get("device:generation")?))
 }
 

@@ -604,6 +604,34 @@ it does not establish hosted/SDK performance, matched power-loss durability,
 or a universal platform win. The earlier restart proof is separate and
 used the recorded 0.1.16 artifact; no restart is claimed for these timed runs.
 
+## Activation identity statement reuse
+
+Every store transaction reads four persisted activation-identity keys before
+it can use its opened schema and catalog. Reusing one prepared SQL statement
+for those lookups avoids compiling the same SQL four times per transaction.
+All four reads remain inside the same transaction and observe current values;
+this changes neither the ownership boundary nor query-result caching policy.
+
+A temporary two-variant core example on the archived 0.2.1 source ran after
+the formal HTTP trials and all builds finished. It uses the same Linux VM,
+the production profile at level 3, and a disposable copy of the private
+catalog's pristine SQLite database with WAL/NORMAL. Three pairs alternate
+current/cached, cached/current, current/cached, with 100 warmups and 25,000
+samples per variant. Timing includes `BEGIN IMMEDIATE`, all four reads and
+rollback. Median per-run p50 is 7.667 µs before and 3.834 µs with reuse;
+p95 is 7.958 and 4.084 µs. Every tuple matches. Separate checks verify
+changed metadata, optional-key absence and rollback are observed freshly.
+These are isolated transaction-check measurements, not HTTP latency or
+cross-process activation timings; the savings are about four microseconds.
+
+The six observations are in `metrics/storage.jsonl` with
+`experiment: activation-identity-statement-reuse`. Temporary instrument
+SHA-256 is `cf5b8e1ad9175249cf8a0883bd6f90544287d74256d970cf80ece2906d37b2d9`;
+its executable is `e37d326f11d345af552d0278a9617acddc042d3e72b39603e0e8d1145688d153`.
+The production implementation applies that statement reuse to
+`store/activation.rs`; the existing activation regressions exercise the
+actual engine, including competing owners and A → B → A invalidation.
+
 ## Simulator observation follow-up
 
 The four chat checks previously constructed and parsed every host state
