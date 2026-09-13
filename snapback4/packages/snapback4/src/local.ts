@@ -155,9 +155,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   const replica = new Replica(store, backend.schema, {
-    async sync(from, limit) {
+    async sync(from, limit, after) {
       try {
-        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}`, { headers });
+        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}`, { headers });
         if (response.status === 503) return { denied: offline() };
         const page = (await response.json()) as StreamPage & { denied?: Refusal };
         if (page.denied) {

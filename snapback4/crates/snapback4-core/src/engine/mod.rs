@@ -605,7 +605,22 @@ impl Engine {
         Ok(count)
     }
 
-    /// The snapshot a device takes before it follows the log.
+    /// One page of the snapshot a device takes before it follows the log:
+    /// `after` is the token the previous page returned, `next` the token
+    /// for the following one (none on the last). Each page is one short
+    /// transaction; the watermark is the one the first page pinned.
+    pub fn snapshot_page(&mut self, principal: &str, after: Option<&str>, limit: usize) -> Result<(Vec<Event>, u64, Option<String>), RuntimeError> {
+        let cursor = match after {
+            Some(token) => Some(partition::SnapshotCursor::decode(token).ok_or_else(|| RuntimeError::Input("the snapshot cursor is not one this server minted".into()))?),
+            None => None,
+        };
+        let tx = self.store.transaction()?;
+        let page = partition::snapshot_page(&tx, &self.schema, principal, cursor, limit)?;
+        tx.rollback()?;
+        Ok((page.events, page.watermark, page.next.map(|next| next.encode())))
+    }
+
+    /// The whole snapshot at once (the simulator's device, tests).
     pub fn snapshot(&mut self, principal: &str) -> Result<(Vec<Event>, u64), RuntimeError> {
         let tx = self.store.transaction()?;
         let watermark = tx.next_seq()? - 1;

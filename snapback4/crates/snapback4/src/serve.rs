@@ -431,12 +431,15 @@ fn handle(mut request: Request, shared: &Shared) {
             let limit: usize = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(2_000).min(10_000);
             let mut engine = shared.engine.lock().unwrap();
             if from == 0 {
-                match engine.snapshot(&principal) {
-                    Ok((events, watermark)) => {
+                // A snapshot comes in pages: `after` is the token the previous
+                // page returned; `next` is the one for the following page.
+                let after = params.get("after").cloned();
+                match engine.snapshot_page(&principal, after.as_deref(), limit) {
+                    Ok((events, watermark, next)) => {
                         let events: Vec<Json> = events.iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
-                        respond(request, 200, json!({ "snapshot": true, "events": events, "watermark": watermark, "more": false, "generation": *shared.generation.lock().unwrap() }));
+                        respond(request, 200, json!({ "snapshot": true, "events": events, "watermark": watermark, "more": next.is_some(), "next": next, "generation": *shared.generation.lock().unwrap() }));
                     }
-                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
+                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
             } else {
                 match engine.stream(&principal, from, limit) {

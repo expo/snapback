@@ -1100,3 +1100,28 @@ row says. The mechanism held; the server's clock ticked every five
 seconds. It ticks once a second now (a quiet tick is a few index probes
 under the lock), so an expired row is swept and a schedule's job runs
 within a second of its moment. Published `snapback4@0.1.5`.
+
+## 2026-09-13 — from the full-brief lane's M8: the cold start of a large partition; 0.1.6
+
+The lane's cold-sync probe — a Node client on the memory store, the
+persona `u0500`, the full M8 scale corpus (990,355 rows, a 1.8 GB
+store) — blocked its event loop past 30 s and was stopped at 51 s and
+2.2 GB RSS; the lane recorded a capability gap and claimed no
+performance pass. Two causes, both the platform's to answer. **The
+snapshot came as one response**: the whole partition's JSON parsed at
+once, applied in one transaction. It is paged now — `GET /sync?from=0`
+returns 2,000 events and a `next` token; each page is one short
+transaction on the server and one on the device; the first page clears
+the rows, the watermark the first page pinned lands with the last, and a
+row changed or a group joined between pages arrives through the log,
+idempotently (`tests/clique.rs`: 4,500 rows in three pages, no row
+twice, a conversation joined mid-snapshot streamed after). **The
+schema had no horizons**: `sync public` on posts, follows, likes and
+feed entries, and no `last N` on messages or receipts, so every device
+held 227,699 public rows and a group's 490,000 receipts, at every cold
+start. The compiler now notes it once per table (`N_NO_HORIZON`, with
+the horizon line to add), the README and the `sync` card say what a
+horizon is for, and the README says the memory store is for tests and
+Node hosts open SQLite. This is the Snapback 2 run's "cold sync 62 s /
+748 MB" answered where it should be: at `check`, before the corpus
+exists, and on the wire, a page at a time. Published `snapback4@0.1.6`.

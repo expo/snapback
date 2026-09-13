@@ -49,7 +49,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
-    let notes = completeness_notes(&schema, &programs);
+    let notes = completeness_notes(&catalog, &schema, &programs);
     Bound { schema, programs, personas, diagnostics, notes }
 }
 
@@ -76,8 +76,28 @@ fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> 
 /// `complete: false` on the server whatever it finds (LLP 3000 §7,
 /// completeness is a class): say so at compile time, with the index that
 /// would decide it, as Snapback 2's structural facts did.
-fn completeness_notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
+fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
+    // A synced table with no horizon: every row of every group a device
+    // holds reaches it, and stays. Say so once per table, with the index a
+    // horizon would name, before the table grows.
+    for (name, table, sync) in schema.synced() {
+        if sync.horizon.is_some() || schema.maintain_for(name).is_some() {
+            continue;
+        }
+        let prefix: Vec<String> = match &sync.audience {
+            snapback4_core::schema::Audience::Public => Vec::new(),
+            snapback4_core::schema::Audience::Column(column) => vec![column.clone()],
+            snapback4_core::schema::Audience::Target { prefix, .. } => prefix.clone(),
+        };
+        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len()).map(|(index_name, _)| index_name.clone());
+        let site = catalog.site_for(&format!("tables.{name}"));
+        let rewrite = match ordered {
+            Some(index) => format!("{} last 500 by {index}", sync.line()),
+            None => format!("by by{}At: {}at, id  -- then: {} last 500 by by{}At", if prefix.is_empty() { "".to_owned() } else { "Group".to_owned() }, prefix.iter().map(|c| format!("{c}, ")).collect::<String>(), sync.line(), if prefix.is_empty() { "" } else { "Group" }),
+        };
+        notes.push(Diagnostic::new(&site, "N_NO_HORIZON", format!("table {name}: `{}` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start", sync.line()), rewrite).guide("sync"));
+    }
     for bound in programs {
         // A page returned without a cursor: when more rows exist than it
         // holds, the card reads `complete: false` with no `next`.

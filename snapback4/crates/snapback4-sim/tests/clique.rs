@@ -249,6 +249,11 @@ fn jobs_and_schedules_are_checked() {
     let ok = compile(CHAT.replace("mutation edit(", "job j(periodEnd: time):\n  chunk c in conversations first 10 by byId:\n    update conversations[c.id] { title: 'x' }\n\nschedule daily every 1d at 08:00: j\n\nmutation edit("));
     assert!(ok.diagnostics.is_empty(), "{:?}", ok.diagnostics);
     assert_eq!((ok.schema.schedules[0].every_ms, ok.schema.schedules[0].offset_ms), (86_400_000, 8 * 3_600_000));
+    // A synced table without a horizon is noted, with the index a horizon would name.
+    let bound = compile(CHAT.to_owned());
+    let horizons: Vec<&str> = bound.notes.iter().filter(|n| n.code == "N_NO_HORIZON").map(|n| n.message.as_str()).collect();
+    assert!(horizons.iter().any(|m| m.starts_with("table conversations:")) && horizons.iter().any(|m| m.starts_with("table memberships:")), "{horizons:?}");
+    assert!(!horizons.iter().any(|m| m.starts_with("table messages:") || m.starts_with("table messageCounts:")), "{horizons:?}");
 }
 
 /// M8: `sum(page, .x)` as the README spells it, on both hosts' IR; a bare
@@ -263,6 +268,48 @@ fn sum_over_a_page_and_a_bare_return() {
     assert_eq!(read.data, Value::Null);
     let bad = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.replace("mutation edit(", "query names():\n  return sum(memberships[viewer] first 50 by byPrincipalConversation, .role)\n\nmutation edit("))]);
     assert_eq!(bad.diagnostics.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), vec!["E_QUARRY_TYPE"]);
+}
+
+/// M6 at scale: a snapshot is paged; the pages' union is the whole
+/// partition, no row twice, the watermark pinned by the first page; a
+/// group joined between pages arrives through the log.
+#[test]
+fn a_snapshot_is_paged() {
+    let with = CHAT.replace("last 500 by byConvTime", "last 5000 by byConvTime");
+    let mut engine = chat_engine_from(&with, &["dev:alice", "dev:bob"]);
+    let mut rows = Vec::new();
+    for n in 0..4_500 {
+        rows.push(("messages".to_owned(), snapback4_core::value::object([("id", id(&format!("m{n:05}"))), ("conversationId", id("c1")), ("authorId", id("dev:alice")), ("body", Value::String(format!("{n}"))), ("at", Value::Int(1_000 + n))])));
+    }
+    engine.seed(rows).unwrap();
+    let (whole, watermark) = engine.snapshot("dev:bob").unwrap();
+    let mut paged = Vec::new();
+    let mut after: Option<String> = None;
+    let mut pages = 0;
+    loop {
+        let (events, w, next) = engine.snapshot_page("dev:bob", after.as_deref(), 2_000).unwrap();
+        assert_eq!(w, watermark);
+        assert!(events.len() <= 2_000);
+        pages += 1;
+        paged.extend(events);
+        if pages == 2 {
+            // Between pages, the world moves: a new conversation for bob.
+            engine.seed([("conversations".to_owned(), snapback4_core::value::object([("id", id("c2")), ("title", Value::String("Side".into())), ("creatorId", id("dev:alice"))])), ("memberships".to_owned(), snapback4_core::value::object([("id", id("mb2")), ("conversationId", id("c2")), ("principal", id("dev:bob")), ("role", Value::String("member".into())), ("joinedAt", Value::Int(9))]))]).unwrap();
+        }
+        match next {
+            Some(next) => after = Some(next),
+            None => break,
+        }
+    }
+    assert!(pages >= 3, "{pages} pages");
+    let ids = |events: &[snapback4_core::partition::Event]| events.iter().filter(|e| e.table == "messages").map(|e| e.id.clone()).collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(ids(&paged).len(), 4_500);
+    assert_eq!(ids(&paged), ids(&whole));
+    assert_eq!(paged.iter().filter(|e| e.table == "messages").count(), 4_500, "no row twice");
+    // The conversation that appeared between pages reaches bob through the log from the pinned watermark.
+    let stream = engine.stream("dev:bob", watermark, 100).unwrap();
+    assert!(stream.events.iter().any(|e| e.table == "conversations" && e.id == "c2"), "{:?}", stream.events.iter().map(|e| (&e.table, &e.id)).collect::<Vec<_>>());
+    assert!(engine.snapshot_page("dev:bob", Some("not-a-token"), 10).is_err());
 }
 
 /// M7: adding an optional column with its own constraint is additive; the

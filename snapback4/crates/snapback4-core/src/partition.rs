@@ -185,15 +185,7 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
 pub fn group_rows(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, group: &[Value]) -> Result<Vec<Value>, RuntimeError> {
     let (index_name, limit, dir) = match &sync.horizon {
         Some(horizon) => (horizon.by.clone(), horizon.last as usize, Dir::Desc),
-        None => {
-            let group_columns: Vec<String> = match &sync.audience {
-                Audience::Public => Vec::new(),
-                Audience::Column(column) => vec![column.clone()],
-                Audience::Target { prefix, .. } => prefix.clone(),
-            };
-            let index = table.indexes.iter().find(|(_, index)| index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", "))))?;
-            (index, u32::MAX as usize, Dir::Asc)
-        }
+        None => (audience_index(table_name, table, sync)?, u32::MAX as usize, Dir::Asc),
     };
     let rows = tx.scan(table_name, &index_name, group, &Bounds::default(), dir, limit)?;
     Ok(rows
@@ -218,36 +210,160 @@ fn groups_now(tx: &Tx<'_>, bound: &AudienceBinding, target: &str, principal: &st
     Ok(groups.into_iter().map(|group| serde_json::from_str(&group).expect("canonical")).collect())
 }
 
-/// Everything a principal holds right now: the snapshot a device applies
-/// before it follows the log from the returned watermark.
-pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Event>, RuntimeError> {
+/// Where a paged snapshot continues: the synced table (by position in the
+/// schema's order), the group in flight (its prefix, so a membership that
+/// changes between pages resumes at the next group in order), the last
+/// key's suffix inside it, how many of that group's rows went (against the
+/// horizon), and the watermark the first page pinned. Opaque on the wire.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SnapshotCursor {
+    pub table: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<Vec<Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after: Option<Vec<Value>>,
+    #[serde(default)]
+    pub taken: usize,
+    pub watermark: u64,
+}
+
+impl SnapshotCursor {
+    pub fn encode(&self) -> String {
+        crate::cursor::base64url_encode(canonical_json(self).as_bytes())
+    }
+
+    pub fn decode(token: &str) -> Option<Self> {
+        let bytes = crate::cursor::base64url_decode(token).ok()?;
+        serde_json::from_slice(&bytes).ok()
+    }
+}
+
+/// One page of the snapshot: events, and where the next page starts
+/// (`None` on the last).
+pub struct SnapshotPage {
+    pub events: Vec<Event>,
+    pub watermark: u64,
+    pub next: Option<SnapshotCursor>,
+}
+
+/// Everything a principal holds right now, one page at a time: the
+/// snapshot a device applies before it follows the log from the watermark
+/// the first page pinned. Each page is its own transaction, so the engine
+/// is free between pages and a device never holds more than a page in
+/// memory; a row that changes between pages reaches the device again
+/// through the log, idempotently, and a group joined or left between pages
+/// reaches it as the log's join or scope.
+pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Option<SnapshotCursor>, limit: usize) -> Result<SnapshotPage, RuntimeError> {
+    let watermark = match &cursor {
+        Some(cursor) => cursor.watermark,
+        None => tx.next_seq()? - 1,
+    };
+    let mut at = cursor.unwrap_or(SnapshotCursor { watermark, ..SnapshotCursor::default() });
+    let tables: Vec<(&str, &Table, &Sync)> = schema.synced().collect();
     let mut events = Vec::new();
-    for (table_name, table, sync) in schema.synced() {
-        match &sync.audience {
-            Audience::Public => {
-                for row in group_rows(tx, table_name, table, sync, &[])? {
-                    let id = row.field("id")?.as_str()?.to_owned();
-                    events.push(Event { partition: PUBLIC.to_owned(), table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
-                }
-            }
-            Audience::Column(_) => {
-                for row in group_rows(tx, table_name, table, sync, &[Value::Id(principal.to_owned())])? {
-                    let id = row.field("id")?.as_str()?.to_owned();
-                    events.push(Event { partition: partition_of(principal), table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
-                }
-            }
+    let limit = limit.max(1);
+    while at.table < tables.len() {
+        let (table_name, table, sync) = tables[at.table];
+        let groups: Vec<Vec<Value>> = match &sync.audience {
+            Audience::Public => vec![Vec::new()],
+            Audience::Column(_) => vec![vec![Value::Id(principal.to_owned())]],
             Audience::Target { table: target, .. } => {
                 let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
-                for group in groups_now(tx, &bound, target, principal)? {
-                    for row in group_rows(tx, table_name, table, sync, &group)? {
-                        let id = row.field("id")?.as_str()?.to_owned();
-                        events.push(Event { partition: group_partition(table_name, &group), table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
-                    }
-                }
+                groups_now(tx, &bound, target, principal)?
             }
+        };
+        // Resume at the group in flight, or at the first group after one
+        // the principal no longer holds.
+        let mut position = match &at.group {
+            Some(current) => groups.iter().position(|group| canonical_json(group) >= canonical_json(current)).unwrap_or(groups.len()),
+            None => 0,
+        };
+        if at.group.as_ref().is_some_and(|current| groups.get(position) != Some(current)) {
+            at.after = None;
+            at.taken = 0;
+        }
+        while position < groups.len() {
+            let group = &groups[position];
+            let room = limit - events.len();
+            if room == 0 {
+                at.group = Some(group.clone());
+                return Ok(SnapshotPage { events, watermark, next: Some(at) });
+            }
+            let (rows, exhausted) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room)?;
+            for (row, key) in rows {
+                let id = row.field("id")?.as_str()?.to_owned();
+                at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
+                at.taken += 1;
+                let partition = match &sync.audience {
+                    Audience::Public => PUBLIC.to_owned(),
+                    Audience::Column(_) => partition_of(principal),
+                    Audience::Target { .. } => group_partition(table_name, group),
+                };
+                events.push(Event { partition, table: table_name.to_owned(), kind: EventKind::Put, id, data: Some(row) });
+            }
+            if !exhausted {
+                at.group = Some(group.clone());
+                return Ok(SnapshotPage { events, watermark, next: Some(at) });
+            }
+            at.after = None;
+            at.taken = 0;
+            position += 1;
+        }
+        at.table += 1;
+        at.group = None;
+    }
+    Ok(SnapshotPage { events, watermark, next: None })
+}
+
+/// The whole snapshot at once, for hosts that hold it (the simulator's
+/// device, tests); a real device pages it.
+pub fn snapshot(tx: &Tx<'_>, schema: &Schema, principal: &str) -> Result<Vec<Event>, RuntimeError> {
+    let mut events = Vec::new();
+    let mut cursor = None;
+    loop {
+        let page = snapshot_page(tx, schema, principal, cursor, 10_000)?;
+        events.extend(page.events);
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => return Ok(events),
         }
     }
-    Ok(events)
+}
+
+/// A group's rows from a position: at most `room`, never past the horizon
+/// counting the `taken` rows already delivered. Returns the rows with their
+/// keys and whether the group is done.
+fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, group: &[Value], after: Option<&[Value]>, taken: usize, room: usize) -> Result<(Vec<(Value, Vec<u8>)>, bool), RuntimeError> {
+    let (index_name, remaining, dir) = match &sync.horizon {
+        Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
+        None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Asc),
+    };
+    let ask = remaining.min(room);
+    if ask == 0 {
+        return Ok((Vec::new(), true));
+    }
+    let bounds = Bounds { after: after.map(<[Value]>::to_vec), ..Bounds::default() };
+    let rows: Vec<(Value, Vec<u8>)> = tx
+        .scan(table_name, &index_name, group, &bounds, dir, ask)?
+        .into_iter()
+        .map(|(mut row, key)| {
+            materialize_optional_fields(&mut row, table);
+            (row, key)
+        })
+        .collect();
+    let exhausted = rows.len() < ask || sync.horizon.as_ref().is_some_and(|horizon| taken + rows.len() >= horizon.last as usize);
+    Ok((rows, exhausted))
+}
+
+/// The index a horizonless audience walks: the first leading with the
+/// audience's columns.
+fn audience_index(table_name: &str, table: &Table, sync: &Sync) -> Result<String, RuntimeError> {
+    let group_columns: Vec<String> = match &sync.audience {
+        Audience::Public => Vec::new(),
+        Audience::Column(column) => vec![column.clone()],
+        Audience::Target { prefix, .. } => prefix.clone(),
+    };
+    table.indexes.iter().find(|(_, index)| index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", "))))
 }
 
 /// Append a commit's events to the log. A row's events within one commit

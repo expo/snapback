@@ -248,6 +248,17 @@ The horizon `last N by index` bounds what a device acquires per group;
 older rows are online-only, and a device's read past them says
 `complete: false`. Joining a group delivers its rows; leaving it delivers
 one scope tombstone, and the table's `retain` says what the device keeps.
+A table with no horizon delivers every row of every group the device
+holds, at every cold start, as the table grows: a public table of posts,
+or a group's receipts, is soon the whole cold start. `check` notes such a
+table (`N_NO_HORIZON`); give a growing table a horizon (`last 500 by
+<index>`: the newest N per group stay on the device, the rest are online
+and a local read past them says `complete: false`). A snapshot arrives in
+pages of 2,000 events, each applied in its own transaction, so a large
+partition costs a device no more memory than one page; in Node, open the
+SQLite store (`openSqlite(nodeSqliteDriver(new DatabaseSync(path)))`) for
+anything larger than a test, since the memory store holds every row on
+the heap.
 What it keeps under `delivered-history` it can still read locally through
 a query without a membership `require` (the server refuses the same query
 once the membership is gone, so a "history" query answers on the device
