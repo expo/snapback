@@ -52,6 +52,6 @@ The assumption that `steps` contains every transition between `watermark` and `n
 
 ## Resolution — 2026-09-13
 
-Authority is reconstructed from the complete membership ledger through the transaction head rather than the truncated content page. Authorized group spans are merged before page limits; whole commits remain indivisible. The truncated-own-page regression cannot grant a later membership early, and closed joins preserve only their authorized historical images.
+Authority is reconstructed from the complete membership ledger through the transaction head rather than the truncated content page. Authorized group spans are merged before page limits; whole commits remain indivisible. The truncated-own-page regression cannot grant a later membership early. Following the concurrently landed security ruling at `867045564`, historical candidates are resolved to current readable images before serving; a closed grant does not confer retrieval after revocation. Delivered-history remains a policy for rows already acquired by the device.
 
 Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.

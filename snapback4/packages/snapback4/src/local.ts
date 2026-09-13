@@ -386,8 +386,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       const denied = (json.denied ?? json.why) as Refusal | undefined;
+      const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
       await refusedSession(denied, request.revision);
-      const obsoleteAuth = denied?.code === "E_AUTH" && !sessionDead;
       if (link !== "online") setLink("online");
       return { ok: true, json, obsoleteAuth };
     } catch {

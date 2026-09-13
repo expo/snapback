@@ -300,6 +300,93 @@ test("an online-only watch retries a stale-token refusal after rotation", async 
   }
 });
 
+test("a current-token sign-out cannot reclassify a stale write refusal", async () => {
+  const base = "https://concurrent-signout.invalid";
+  const backend = {
+    generation: 1,
+    schema: { tables: { remote: { columns: {}, indexes: {}, sync: null } } },
+    programs: [
+      { name: "send", kind: "Mutation", args: {}, body: [] },
+      { name: "remote", kind: "Query", args: {}, body: [{ table: "remote" }] },
+    ],
+  };
+  const queued = [];
+  const oldReply = deferred();
+  let oldMutationEntered = false;
+  let settlements = 0;
+  const doFetch = async (input, init = {}) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/changes") return new Promise((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true }));
+    if (path === "/auth/refresh") {
+      assert.equal(auth(init), "Bearer token-zero");
+      return Response.json({ session: session("token-one") });
+    }
+    if (path === "/m/send") {
+      assert.equal(auth(init), "Bearer token-zero");
+      oldMutationEntered = true;
+      await oldReply.promise;
+      return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "rotated token" } }, { status: 401 });
+    }
+    if (path === "/q/remote") {
+      assert.equal(auth(init), "Bearer token-one");
+      return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "current token revoked" } }, { status: 401 });
+    }
+    throw new Error(`unexpected request ${path}`);
+  };
+  const core = {
+    async call(request) {
+      switch (request.op) {
+        case "sync_state": return { ok: { watermark: 0, generation: 1, send_revision: 0, pending_ids: queued.map((entry) => entry.id) } };
+        case "state": return { ok: { watermark: 0, generation: 1, native: null } };
+        case "backend": return { ok: backend };
+        case "next_submission": return { ok: 1 };
+        case "meta": return { ok: 0 };
+        case "set_meta": return { ok: true };
+        case "apply": return { ok: { touched: [] } };
+        case "admit": queued.push(request.entry); return { ok: request.entry };
+        case "queued": return { ok: queued };
+        case "begin_send": return { ok: { send_revision: 1 } };
+        case "settle": settlements += 1; queued.splice(0, 1); return { ok: null };
+        default: return { ok: true };
+      }
+    },
+    async close() {},
+  };
+  const client = await createLocalClient({
+    url: base,
+    session: session("token-zero"),
+    device: { open: async () => core },
+    fetch: doFetch,
+    waitSeconds: 1,
+  });
+  let closed = false;
+  try {
+    const terminal = [];
+    client.onWrite((write) => terminal.push(write));
+    const writing = client.mutate({ name: "send" }, { body: "once" });
+    await until(() => oldMutationEntered, "the old-bearer mutation did not enter the transport");
+    const refreshing = client.refreshSession();
+    await until(() => client.session()?.token === "token-one", "the replacement session did not become active");
+    const refused = await client.query({ name: "remote" }, {});
+    assert.equal(refused.denied?.code, "E_AUTH", "the current bearer refusal remains authoritative");
+    assert.equal(client.session(), null);
+    assert.equal(client.link(), "signed-out");
+    oldReply.resolve();
+    await refreshing;
+    await client.close();
+    closed = true;
+    assert.equal(settlements, 0, "the stale response must not settle the durable outbox entry");
+    assert.equal(queued.length, 1, "the stale write remains durable after concurrent sign-out");
+    assert.deepEqual(terminal, []);
+    assert.equal((await writing).state, "pending");
+  } finally {
+    oldReply.resolve();
+    if (!closed) await client.close();
+  }
+});
+
 test("an authenticated change-feed refusal signs the online client out", async () => {
   let changes = 0;
   const client = createClient({

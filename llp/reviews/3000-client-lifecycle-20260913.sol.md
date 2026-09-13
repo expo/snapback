@@ -37,3 +37,17 @@ Static-only. The requested `--remerge-diff` was attempted, but Git could not cre
 The separate client implementation lane is reproducing the obsolete-bearer mutation refusal and correcting its retry behavior while preserving the durable mutation ID and outbox entry. This received finding is not a clean integration verdict.
 
 Correction: the regression reproduced the lost outbox entry before the patch. The transport now identifies an auth refusal ignored by session invalidation as obsolete, and write flushing retries before any settlement or terminal notification. The same ID is retried under the new bearer and settles once. Five session-security and ten focused lifecycle tests pass, plus typecheck/build. Final delta review follows.
+
+## Final correction review — c30a517d7 — Sol
+
+A fresh `gpt-5.6-sol` xhigh CLI session reviewed only the two final corrections statically and returned this received report. Its core correction scope had no material finding; the credential finding was reproduced and corrected below.
+
+- **Material — obsolete mutation refusal can still settle a durable write.** At `c30a517d7cbb7429295a0708bee33b51b5534a94:snapback4/packages/snapback4/src/local.ts:388-392`, staleness is inferred from global `!sessionDead`, rather than the request’s captured credential revision. If another concurrent, current-credential request ends the session before the old mutation response completes (`:302-304`), the obsolete response gets `obsoleteAuth: false`. `flushOnce` consequently bypasses the retry guard at `:723-724`, settles/removes the queued ID at `:725-729`, and emits a terminal failed write at `:730-736`.
+
+  Reproduction: start mutation M with token A; rotate successfully to token B; have a concurrent token-B request receive `E_AUTH`, ending the session; then release M’s delayed token-A `E_AUTH`. M is incorrectly settled as failed although its refusal came from the obsolete credential. This violates the correction’s durable-write guarantee.
+
+Static-only bounded review covered both predecessor-scope/live-renewal behavior and credential-rotation write/read/watch handling. No material defect found in Correction 1.
+
+### Disposition
+
+Reproduced red with mutation A delayed until a current-token B query ends the session. Staleness is now captured from the request revision or active rotation before the refusal handler can change session state. The same regression retains the durable pending entry, while current-credential E_AUTH remains authoritative. Seven session-security and ten focused lifecycle tests, typecheck and build pass.
