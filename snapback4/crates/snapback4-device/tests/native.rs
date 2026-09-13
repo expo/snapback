@@ -185,3 +185,56 @@ fn the_c_abi_round_trips_json() {
 fn page_json(page: &StreamPage) -> serde_json::Value {
     serde_json::json!({ "snapshot": page.snapshot, "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data })).collect::<Vec<_>>(), "watermark": page.watermark, "more": page.more, "next": page.next, "generation": page.generation })
 }
+
+#[test]
+fn a_wide_merge_matches_the_server_until_the_device_horizon() {
+    use snapback4_core::value::object;
+    let source = format!("{CHAT}\nquery feed(c: cursor ?):\n  return merge messages after c last 20 by byConvTime:\n    [m.conversationId] for m in memberships[viewer] first 20 by byPrincipalConversation\n");
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let programs: Vec<_> = bound.programs.iter().map(|p| p.program.clone()).collect();
+    let mut engine = Engine::memory(bound.schema.clone(), programs.clone()).unwrap();
+    let mut rows = Vec::new();
+    // Ten lanes exercise one-head refill. The first conversation exceeds
+    // its device horizon, while the others include tied timestamps.
+    for g in 0..10 {
+        let c = id(&format!("c{g}"));
+        rows.push(("conversations".to_owned(), object([("id", c.clone()), ("title", Value::String(format!("Group {g}"))), ("creatorId", id("dev:bob"))])));
+        rows.push(("memberships".to_owned(), object([("id", id(&format!("m{g}"))), ("conversationId", c.clone()), ("principal", id("dev:bob")), ("role", Value::String("admin".into())), ("joinedAt", Value::Int(1))])));
+        for n in 0..if g == 0 { 550 } else { 25 } {
+            rows.push(("messages".to_owned(), object([("id", id(&format!("msg{g}-{n:03}"))), ("conversationId", c.clone()), ("authorId", id("dev:bob")), ("body", Value::String(format!("m{n}"))), ("at", Value::Int(1_000 + n))])));
+        }
+    }
+    engine.seed(rows).unwrap();
+    let backend = Backend { generation: engine.generation(), schema: bound.schema, programs };
+    let dir = std::env::temp_dir().join(format!("sb4-device-merge-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut device = Device::open(&dir.join("bob.sqlite"), backend.clone()).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "dev:bob", 100).iter().enumerate() {
+        device.apply(page, n == 0).unwrap();
+    }
+    // Reopening also exercises the persisted native store, not a JS mirror.
+    drop(device);
+    let mut device = Device::open(&dir.join("bob.sqlite"), backend).unwrap();
+    let mut cursor: Option<String> = None;
+    let mut complete_pages = 0;
+    loop {
+        let page = device.query("feed", "dev:bob", &serde_json::json!({ "c": cursor }), 2_000).unwrap();
+        let online = engine.query("feed", Context::new("dev:bob", args(&[("c", cursor.clone().map(Value::String).unwrap_or(Value::Null))])).at(2_000)).unwrap();
+        assert!(online.complete);
+        if !page.complete {
+            assert!(complete_pages >= 24, "pages inside the held horizon are complete");
+            break;
+        }
+        assert_eq!(page.data, online.data);
+        assert_eq!(page.next, online.next);
+        if complete_pages == 0 {
+            assert!(page.metered.examined < 100, "a wide native merge reads lane heads: {:?}", page.metered);
+        }
+        complete_pages += 1;
+        assert!(complete_pages < 40, "the exhausted horizon must report incomplete");
+        cursor = Some(page.next.expect("the server continues past this page"));
+    }
+    drop(device);
+    std::fs::remove_dir_all(dir).unwrap();
+}

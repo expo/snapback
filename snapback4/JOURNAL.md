@@ -1432,3 +1432,41 @@ web and native, search, authentication, files/media and scheduled/background
 work. Record p50/p95, throughput, transferred/stored bytes and failures rather
 than treating a fast microbenchmark as whole-product evidence. Ranked/vector
 search and multi-region also remain product gaps; no blanket lead is claimed.
+
+## 2026-09-13 — repeated workload controls and the native integration
+
+The final instrument ran on both `130af1ae2` (0.1.12) and `ee57355a1`
+(the performance candidate), on the same M5 Max / Node 24.18.0. Three
+independent seeds per version at 5 and 500 conversations × 50 messages,
+2 members; 3 warmups then 20 timed samples per operation in each run.
+The table shows the median of the three per-run p50s, in milliseconds:
+
+| Workload | 0.1.12 | Candidate |
+| --- | ---: | ---: |
+| HTTP feed, 5 lanes | 1.872 | 1.854 |
+| HTTP feed, 500 lanes | 21.061, incomplete | 6.201, complete |
+| Memory feed, 500 lanes | 5.105, incomplete | 1.967, complete |
+| Node SQLite feed, 500 lanes | 23.328, incomplete | 6.659, complete |
+| Node SQLite cold sync, 27,000 events | 647.5 | 232.0 |
+
+For the wide HTTP feed the median per-run p95 was 27.335 → 7.442 ms;
+for the small HTTP feed it was 2.272 → 2.279 ms. One additional 5 × 150
+run per version checked HTTP continuation pages (1.711 → 1.624 ms p50)
+and horizon-limited replica acquisition. These shared-machine observations
+support the wide-feed and Node SQLite improvements; microsecond differences
+in ordinary reads and writes are not asserted as wins. Node SQLite was
+`:memory:`: this does not measure durable Expo storage. The 500-group inbox
+remains incomplete under its declared first-50 source limit on both versions.
+All raw runs are in `metrics/storage.jsonl`, with matching instrument and
+seed hashes across the pair. `dirty: true` includes the instrument's own
+metrics append, and on the control the copied final instrument; runtime and
+client artifact hashes identify the measured code. Candidate and control
+runs were consecutive batches, not randomized trials or hosted comparisons.
+
+Main meanwhile gained the `Rows` interpreter and native device module. The
+integration preserves its device authority and horizon checks inside every
+merge refill. A native SQLite test snapshots and reopens ten conversation
+lanes, compares complete pages and cursors with the server, checks that the
+first page examines fewer than 100 rows, and reaches `complete: false` when
+the device exhausts its 500-row horizon. It passes. The broader comparison
+goal remains open as listed in the previous entry.
