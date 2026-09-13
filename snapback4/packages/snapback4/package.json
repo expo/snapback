@@ -1,6 +1,6 @@
 {
   "name": "snapback4",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "type": "module",
   "description": "Snapback 4: the card (contract), the online and local-first clients (IndexedDB, SQLite), React hooks, sign-in, a labelled mock, and the `snapback4` CLI. LLP 3000.",
   "bin": {
@@ -46,7 +46,7 @@
     "README.md"
   ],
   "optionalDependencies": {
-    "snapback4-darwin-arm64": "0.1.13"
+    "snapback4-darwin-arm64": "0.1.14"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

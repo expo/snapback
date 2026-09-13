@@ -2,3 +2,4 @@
 {"at":"2026-09-12T12:40:00.000Z","anchors":true,"toolchain":"vite 8.3 (rolldown, oxc), react external, gzip-9","convex-react":{"version":"1.45.0","raw":85843,"gzip":21713,"brotli":18945},"powersync-web":{"versions":{"@powersync/web":"2.3.1","@powersync/react":"2.0.1"},"raw":10200700,"gzip":3697919,"brotli":2393886,"note":"includes wa-sqlite and its VFS chunks as emitted; the shipped package is what a device downloads"}}
 {"at":"2026-09-12T13:23:01.802Z","sha":"1ff36fe04d","tiers":{"online":{"raw":8576,"gzip":3218,"brotli":2866},"local-first":{"raw":51538,"gzip":14846,"brotli":13252}}}
 {"at":"2026-09-12T23:31:00.251Z","sha":"12b4cda94","tiers":{"online":{"raw":11172,"gzip":4024,"brotli":3548},"local-first":{"raw":58484,"gzip":16842,"brotli":14888}}}
+{"at":"2026-09-13T04:17:35.520Z","sha":"b777950bf","tiers":{"online":{"raw":11390,"gzip":4080,"brotli":3610},"local-first":{"raw":62765,"gzip":18062,"brotli":15938}}}

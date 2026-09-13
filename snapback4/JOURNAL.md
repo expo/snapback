@@ -1470,3 +1470,13 @@ lanes, compares complete pages and cursors with the server, checks that the
 first page examines fewer than 100 rows, and reaches `complete: false` when
 the device exhausts its 500-row horizon. It passes. The broader comparison
 goal remains open as listed in the previous entry.
+
+## 2026-09-13 — performance release qualification, 0.1.14
+
+The native tier landed as 0.1.13 during qualification; this release preserves
+it and takes the next version. The shared core also checks with SQLite
+features disabled. Client bytes: 4,080 B gzip online and 18,062 B local-first,
+within the recorded 21,713 B Convex anchor (a byte budget, not a latency
+comparison). Correction to the previous entry: the 5 × 150 fixture is below
+the 500-row horizon and checks ordinary replica acquisition; the new native
+550-row fixture is the one that proves truncation and incomplete pages.
