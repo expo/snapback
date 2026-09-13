@@ -152,3 +152,11 @@ Detailed logs, sampled stacks and monotonic stage JSON are retained under
 copy is under the same run name on expo-build-1000. Independent read-only
 review reported no material findings for the integrated source. Reference
 validation passed with 471 LLPs, 8,684 refs, zero errors and zero unchecked.
+
+## Requalification after the 36-ticket repair — 2026-09-13
+
+The enlarged suite again exceeded the budget: the exact `3d2007794` product tree passed all assertions in a controlled warm 64.04 s run. Changing only the existing runner to overlap independent Rust, fixture and client stages after their build prerequisites brought that tree to 34.34 s. Every child is waited, every failed stage is collected, and interrupt/failure statuses survive cleanup, including macOS Bash 3.2's empty-array behavior. No assertion was removed and the budget remains 60 s.
+
+Final integrated checkpoint `669dc0c0188860f60c2a8a34f09882a101a8e4f0` passed two sequential warm runs on expo-build-1000 (AMD EPYC 9454, 96 logical CPUs, 251 GiB RAM): **36.70 s and 36.50 s**. Each passed 189 Rust tests, 9 fixture tests and 77 client tests, plus the package/web/Expo checks. One predeclared 8,192-write native throughput test remains ignored with its existing reason; it is not counted as a pass. Cargo tests took 34 s, fixtures 10 s and client tests 17 s, overlapped. Node 24.13.1, Bun 1.3.14, Rust/Cargo 1.97.0 and wasm-bindgen 0.2.127; tracked files stayed clean.
+
+The local integrated run also passed every assertion in 54 s, including an 11 s wasm rebuild; its post-success cleanup warning led to the Bash correction included in both final Linux runs. Raw receipts live in `.llp/ship-runs/sb4-36-20260913/qualification/` and `/home/ccheever/lanes/sb4-36-20260913-verify-logs/`. Final raw-log SHA-256 values: `25142c96fd5fc2a6584491e2f9f2f552d9185d1ca39b5569db97e9417f882cce` and `dafc0e78456281b401793ef902d074a8b4312f73081c67c42d8ff1ef85ddfabc`.
