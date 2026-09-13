@@ -95,7 +95,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
 const harness = `
 import { StrictMode, act, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SnapbackProvider, useQuery, usePage, useMutation } from "snapback4/react";
+import { SnapbackProvider, useQuery, usePage, useMutation, useViewer, useAsset } from "snapback4/react";
 import { Composer } from "web-composer";
 import { Thread } from "expo-thread";
 import { App as WebApp } from "web-app";
@@ -113,7 +113,8 @@ const sent = id => ({ state: "sent", id, seq: 1 });
 const failed = id => ({ state: "failed", id, why: { code: "E_INPUT", family: "input", message: "message refused" } });
 
 function controlled(read = () => ready([])) {
-  const records = [], writes = [];
+  const records = [], writes = [], viewerListeners = new Set(), writeListeners = new Set();
+  let viewer = "dev:test";
   const client = {
     records, writes, closes: 0,
     observe(op, args) {
@@ -130,7 +131,15 @@ function controlled(read = () => ready([])) {
     },
     query: async (_, args) => read(args),
     mutate(_, args) { const result = deferred(); writes.push({ ...result, args }); return result.promise; },
-    link: () => "online", onLink: () => () => {}, viewer: () => "dev:test",
+    upload: async () => ({ ok: false, why: { code: "E_ASSET_UNKNOWN", family: "asset", message: "no upload" } }),
+    asset: async id => ({ denied: { code: "E_ASSET_UNKNOWN", family: "asset", message: id } }),
+    assetSource: id => ({ uri: "mock://" + id, headers: {} }),
+    link: () => "online", onLink: () => () => {},
+    viewer: () => viewer,
+    onViewer(listener) { viewerListeners.add(listener); return () => viewerListeners.delete(listener); },
+    onWrite(listener) { writeListeners.add(listener); return () => writeListeners.delete(listener); },
+    setViewer(next) { viewer = next; for (const listener of viewerListeners) listener(next); },
+    emitWrite(write) { for (const listener of writeListeners) listener(write); },
     close: async () => { client.closes++; },
   };
   return client;
@@ -204,16 +213,52 @@ const cases = {
     check(latest.inFlight, "another write still owns inFlight");
     await act(async () => { client.writes[3].resolve(sent("b")); await b; });
     check(!latest.inFlight, "last concurrent write clears inFlight");
+    let pending;
+    await act(async () => { pending = latest.run({ n: 4.5 }); client.writes[4].resolve({ state: "pending", id: "queued" }); await pending; });
+    check(latest.last.state === "pending", "durably admitted write is initially pending");
+    await act(async () => client.emitWrite(failed("queued")));
+    check(latest.last.state === "failed" && latest.last.id === "queued", "terminal settlement replaces pending state");
+    let raced;
+    await act(async () => {
+      raced = latest.run({ n: 4.75 });
+      client.emitWrite(sent("raced"));
+      client.writes[5].resolve({ state: "pending", id: "raced" });
+      await raced;
+    });
+    check(latest.last.state === "sent" && latest.last.id === "raced", "terminal settlement wins a race with the pending return");
     let obsolete;
     await act(async () => { obsolete = latest.run({ n: 5 }); });
     const replacement = controlled();
     await render(h(Probe), replacement);
-    await act(async () => { client.writes[4].resolve(sent("obsolete")); await obsolete; });
+    await act(async () => { client.writes[6].resolve(sent("obsolete")); await obsolete; });
     check(latest.last === undefined && !latest.inFlight, "old client's write does not settle into the new lifetime");
     let abandoned;
     await act(async () => { abandoned = latest.run({ n: 6 }); });
     await unmount();
     replacement.writes[0].resolve(sent("after-unmount")); await abandoned;
+  },
+  async "useViewer subscribes and useAsset has empty and failed outcomes"() {
+    const client = controlled();
+    let viewer, asset, calls = 0, revoked = 0;
+    client.asset = async id => {
+      calls++;
+      if (id === "broken") throw Error("blob construction failed");
+      return { url: "blob:" + id, type: "image/png", bytes: 1, revoke: () => { revoked++; } };
+    };
+    function Probe({ id }) { viewer = useViewer(); asset = useAsset(id); return null; }
+    await mount(h(Probe, { id: null }), client);
+    check(viewer === "dev:test" && asset.status === "empty" && calls === 0, "null asset is empty and performs no fetch");
+    await act(async () => client.setViewer(null));
+    check(viewer === null, "viewer change re-renders without another hook");
+    await render(h(Probe, { id: "broken" }), client);
+    await act(async () => {});
+    check(asset.status === "denied" && asset.why.code === "E_CLIENT", "asset rejection becomes a typed hook outcome");
+    await render(h(Probe, { id: "photo" }), client);
+    await act(async () => {});
+    check(asset.status === "ready" && asset.url === "blob:photo", "asset readiness is observed");
+    await render(h(Probe, { id: null }), client);
+    check(asset.status === "empty" && revoked === 1, "clearing the id revokes the old object URL");
+    await unmount();
   },
   async "usePage rebinds insertion, deletion and reorder boundaries and aggregates read state"() {
     const pages = new Map([[null, ready(["a", "b"], "b")], ["b", ready(["c", "d"], "d")], ["a", ready(["b", "c"], "c")], ["c", ready(["d", "e"], "e")]]);

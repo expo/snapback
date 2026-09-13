@@ -40,6 +40,289 @@ async function held(gate, signal) {
   } finally { signal?.removeEventListener("abort", abort); }
 }
 
+const emptyBackend = {
+  generation: 1,
+  schema: { tables: {} },
+  programs: [{ name: "read", kind: "Query", args: {}, body: [] }],
+};
+
+function emptyDevice(overrides = {}) {
+  let closed = 0;
+  const core = {
+    async call(request) {
+      if (overrides.call) {
+        const answer = await overrides.call(request);
+        if (answer !== undefined) return answer;
+      }
+      if (request.op === "sync_state") return { ok: { watermark: 0, generation: 1, pending_ids: [], send_revision: 0 } };
+      if (request.op === "next_submission") return { ok: 1 };
+      if (request.op === "meta") return { ok: null };
+      if (request.op === "state") return { ok: { watermark: 0, generation: 1 } };
+      if (request.op === "backend") return { ok: emptyBackend };
+      if (request.op === "apply") return { ok: { touched: [] } };
+      if (request.op === "query") return { ok: { data: [], complete: true, tables: [], unknown: false, nextExpiry: null } };
+      if (request.op === "queued") return { ok: [] };
+      if (request.op === "set_meta" || request.op === "adopt") return { ok: null };
+      throw new Error(`unexpected device call ${request.op}`);
+    },
+    async close() { closed++; await overrides.close?.(); },
+  };
+  return { opener: { open: async () => core }, core, closed: () => closed };
+}
+
+test("online reconnect requires the authenticated GET /probe contract", { timeout: 10_000 }, async () => {
+  const probes = [];
+  const recoveredChanges = deferred();
+  let recovered = false;
+  const client = createClient({ url: "http://probe.invalid", persona: "alice", waitSeconds: 0, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/probe") {
+      assert.equal(init?.method ?? "GET", "GET");
+      const gate = deferred(); probes.push(gate);
+      return await gate.promise;
+    }
+    if (!recovered) return Response.json({}, { status: 503 });
+    if (path === "/changes") {
+      await held(recoveredChanges, init?.signal);
+      return Response.json({ seq: 0, tables: [], generation: 1 });
+    }
+    return Response.json({ data: [], complete: true, seq: 0, tables: [], viewer: "dev:alice" });
+  } });
+  const observed = client.observe(query("read"), {});
+  const unsubscribe = observed.subscribe(() => {});
+  await until(() => client.link() === "offline", "failed request must take the online client offline");
+  await until(() => probes.length === 1, "offline client did not probe");
+  probes[0].resolve(Response.json({ denied: { code: "E_OP" } }, { status: 404 }));
+  await until(() => probes.length === 2, "client did not retry after a 404 probe");
+  assert.equal(client.link(), "offline", "a proxy 404 cannot claim recovery");
+  probes[1].resolve(Response.json({ ok: false }));
+  await until(() => probes.length === 3, "client did not retry after an invalid 200 probe");
+  assert.equal(client.link(), "offline", "a 200 without ok:true cannot claim recovery");
+  recovered = true;
+  probes[2].resolve(Response.json({ ok: true }));
+  await until(() => client.link() === "online", "valid probe did not restore the link");
+  unsubscribe(); observed.close(); await client.close();
+});
+
+test("online pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async () => {
+  let attempts = 0;
+  const terminal = [];
+  const client = createClient({ url: "http://write.invalid", persona: "alice", fetch: async (input) => {
+    assert.equal(new URL(input).pathname, "/m/send");
+    attempts++;
+    return attempts === 1 ? Response.json({}, { status: 503 }) : Response.json({ state: "sent", seq: 7 });
+  } });
+  const unsubscribe = client.onWrite((write) => terminal.push(write));
+  const admitted = await client.mutate(send, { conversationId: "c1", body: "queued" });
+  assert.equal(admitted.state, "pending");
+  await until(() => terminal.length === 1, "terminal write event was dropped");
+  assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7 });
+  await sleep(300);
+  assert.equal(terminal.length, 1, "one write id emitted more than one terminal outcome");
+  unsubscribe(); await client.close();
+});
+
+test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async () => {
+  const queued = [], reply = deferred(), probe = deferred();
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "backend") return { ok: emptyBackend };
+    if (request.op === "admit") { queued.push(request.entry); return { ok: request.entry }; }
+    if (request.op === "queued") return { ok: queued };
+    if (request.op === "begin_send") return { ok: { send_revision: 1 } };
+    if (request.op === "settle") { queued.splice(0, 1); return { ok: null }; }
+  } });
+  const client = await createLocalClient({ url: "http://write.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") throw new TypeError("offline at open");
+    if (path === "/m/send") return await reply.promise;
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [] });
+    if (path === "/probe") { await held(probe, init?.signal); return Response.json({ ok: true }); }
+    if (path === "/changes") { await held(probe, init?.signal); return Response.json({ seq: 7, tables: [], generation: 1 }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  const terminal = [];
+  const unsubscribe = client.onWrite((write) => terminal.push(write));
+  const admitted = await client.mutate(send, { conversationId: "c1", body: "queued" });
+  assert.equal(admitted.state, "pending");
+  reply.resolve(Response.json({ state: "sent", seq: 7 }));
+  await until(() => terminal.length === 1, "local terminal write event was dropped");
+  assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7 });
+  await sleep(50);
+  assert.equal(terminal.length, 1);
+  unsubscribe(); await client.close();
+});
+
+test("local reconnect requires the authenticated GET /probe contract", { timeout: 12_000 }, async () => {
+  const device = emptyDevice();
+  const probes = [], firstChange = deferred(), laterChange = deferred();
+  let changes = 0;
+  const client = await createLocalClient({
+    url: "http://probe.invalid", persona: "alice", device: device.opener,
+    fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/schema") return Response.json(emptyBackend);
+      if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+      if (path === "/changes") {
+        changes++;
+        if (changes === 1) return await firstChange.promise;
+        await held(laterChange, init?.signal);
+        return Response.json({ seq: 0, tables: [], generation: 1 });
+      }
+      if (path === "/probe") {
+        assert.equal(init?.method ?? "GET", "GET");
+        const gate = deferred(); probes.push(gate);
+        return await gate.promise;
+      }
+      throw new Error(`unexpected request ${path}`);
+    },
+  });
+  firstChange.resolve(Promise.reject(new TypeError("offline")));
+  await until(() => client.link() === "offline", "failed changes request must take the local client offline");
+  await until(() => probes.length === 1, "local client did not probe", 5000);
+  probes[0].resolve(Response.json({}, { status: 404 }));
+  await until(() => probes.length === 2, "local client did not retry after a 404 probe", 5000);
+  assert.equal(client.link(), "offline");
+  probes[1].resolve(Response.json({ ok: "yes" }));
+  await until(() => probes.length === 3, "local client did not retry after an invalid 200 probe", 5000);
+  assert.equal(client.link(), "offline");
+  probes[2].resolve(Response.json({ ok: true }));
+  await until(() => client.link() === "online", "valid local probe did not restore the link");
+  await client.close();
+  assert.equal(device.closed(), 1);
+});
+
+test("local startup releases a device when initialization after the protocol probe fails", async () => {
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "next_submission") throw new Error("submission metadata unavailable");
+  } });
+  await assert.rejects(createLocalClient({
+    url: "http://startup.invalid", persona: "alice", device: device.opener,
+    fetch: async (input) => new URL(input).pathname === "/schema" ? Response.json(emptyBackend) : Response.json({}),
+  }), /submission metadata unavailable/);
+  assert.equal(device.closed(), 1, "constructor owns and closes the opened device until it returns a client");
+});
+
+test("local observations skip idle sync and rerun only after a changed page is applied", { timeout: 5000 }, async () => {
+  const changes = [], log = [];
+  let syncs = 0;
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "apply") { log.push("apply"); return { ok: { touched: request.page.watermark ? ["rows"] : [] } }; }
+    if (request.op === "query") { log.push("query"); return { ok: { data: [], complete: true, tables: ["rows"], unknown: false, nextExpiry: null } }; }
+  } });
+  const backend = { generation: 1, schema: { tables: { rows: { columns: {}, indexes: {}, sync: { audience: "public" } } } }, programs: [{ name: "read", kind: "Query", args: {}, body: [{ table: "rows" }] }] };
+  const client = await createLocalClient({ url: "http://idle.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/sync") { syncs++; return Response.json({ snapshot: false, events: [], watermark: syncs - 1, more: false, generation: 1, acknowledged: [] }); }
+    if (path === "/changes") { const gate = deferred(); changes.push(gate); await held(gate, init?.signal); return gate.answer; }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  log.length = 0;
+  const observed = client.observe(query("read"), {});
+  const unsubscribe = observed.subscribe(() => {});
+  await until(() => log.filter((entry) => entry === "query").length === 1, "initial observation did not run");
+  await until(() => changes.length === 1, "follower did not start its first poll");
+  changes[0].answer = Response.json({ seq: 0, tables: [], generation: 1 }); changes[0].resolve();
+  await until(() => changes.length === 2, "idle poll did not continue");
+  assert.deepEqual(log, ["query"], "an idle poll neither applies an empty sync page nor reruns the query");
+  changes[1].answer = Response.json({ seq: 1, tables: ["rows"], generation: 1 }); changes[1].resolve();
+  await until(() => log.length === 3, "changed poll did not apply and rerun");
+  assert.deepEqual(log, ["query", "apply", "query"], "the changed page applies before its observation reruns");
+  unsubscribe(); observed.close(); await client.close();
+});
+
+test("local observations rerun when the device-reported visible lifetime expires", { timeout: 5000 }, async () => {
+  const change = deferred();
+  let queries = 0, expiresAt = 0;
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "query") {
+      queries++;
+      return { ok: { data: Date.now() < expiresAt ? ["alive"] : [], complete: true, tables: ["rows"], unknown: false, nextExpiry: Date.now() < expiresAt ? expiresAt : null } };
+    }
+  } });
+  const client = await createLocalClient({ url: "http://expiry.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(emptyBackend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  expiresAt = Date.now() + 80;
+  const observed = client.observe(query("read"), {});
+  const unsubscribe = observed.subscribe(() => {});
+  await until(() => observed.getSnapshot().data?.[0] === "alive", "pre-expiry row was not observed");
+  await until(() => queries >= 2 && observed.getSnapshot().data?.length === 0, "expiry did not rerun the observation", 1000);
+  unsubscribe(); observed.close(); await client.close();
+});
+
+test("a refused device adopt keeps the previous backend active in JavaScript", { timeout: 5000 }, async () => {
+  const oldBackend = {
+    generation: 1,
+    schema: { tables: { rows: { columns: {}, indexes: {}, sync: { audience: "public" } } } },
+    programs: [{ name: "change", kind: "Mutation", args: {}, body: [{ table: "rows" }] }],
+  };
+  const newBackend = { generation: 2, schema: { tables: {} }, programs: [] };
+  let schemas = 0, serverGeneration = 1, admitted;
+  const changePoll = deferred();
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "adopt") return { denied: { code: "E_GENERATION", family: "generation", message: "refused adopt" } };
+    if (request.op === "admit") { admitted = request.entry; return { ok: request.entry }; }
+  } });
+  const client = await createLocalClient({ url: "http://adopt.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(schemas++ === 0 ? oldBackend : newBackend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: serverGeneration, acknowledged: [] });
+    if (path === "/changes") { await held(changePoll, init?.signal); return Response.json({ seq: 0, tables: [], generation: serverGeneration }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  serverGeneration = 2;
+  await client.sync();
+  const write = client.mutate(mutation("change"), {});
+  await until(() => admitted, "mutation was not admitted");
+  assert.equal(admitted.predictable, true, "denied adopt must not route against the uninstalled backend");
+  await client.close();
+  assert.equal((await write).state, "pending");
+});
+
+test("local prediction invalidation reruns only observations of written tables", { timeout: 5000 }, async () => {
+  const backend = {
+    generation: 1,
+    schema: { tables: {
+      a: { columns: {}, indexes: {}, sync: { audience: "public" } },
+      b: { columns: {}, indexes: {}, sync: { audience: "public" } },
+    } },
+    programs: [
+      { name: "readA", kind: "Query", args: {}, body: [{ table: "a" }] },
+      { name: "readB", kind: "Query", args: {}, body: [{ table: "b" }] },
+      { name: "changeA", kind: "Mutation", args: {}, body: [{ table: "a" }] },
+    ],
+  };
+  const runs = { readA: 0, readB: 0 };
+  const change = deferred();
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "query") {
+      runs[request.name]++;
+      return { ok: { data: [], complete: true, tables: [request.name === "readA" ? "a" : "b"], unknown: false, nextExpiry: null } };
+    }
+    if (request.op === "admit") return { ok: { ...request.entry, predicted: ["a/row"] } };
+  } });
+  const client = await createLocalClient({ url: "http://invalidation.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  const a = client.observe(query("readA"), {}), b = client.observe(query("readB"), {});
+  const ua = a.subscribe(() => {}), ub = b.subscribe(() => {});
+  await until(() => runs.readA === 1 && runs.readB === 1, "initial observations did not run");
+  const write = client.mutate(mutation("changeA"), {});
+  await until(() => runs.readA === 2, "written table did not invalidate its observation");
+  assert.equal(runs.readB, 1, "unrelated observation reran for a prediction on another table");
+  ua(); ub(); a.close(); b.close(); await client.close();
+  assert.equal((await write).state, "pending");
+});
+
 const extra = `
 table gates:
   open: bool

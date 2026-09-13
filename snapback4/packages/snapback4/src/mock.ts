@@ -49,11 +49,18 @@ export function mockId(): string {
 export function createMockClient(options: MockOptions): MockClient {
   const tables = options.tables;
   let link: Link = options.link ?? "online";
+  let viewer = options.viewer;
   let seq = 0;
   let version = 0;
   let lastServer = Date.now();
   const listeners = new Set<() => void>();
   const linkListeners = new Set<(link: Link) => void>();
+  const viewerListeners = new Set<(viewer: Principal | null) => void>();
+  const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
+  const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
+    for (const listener of writeListeners) listener(write);
+    return write;
+  };
   const queue: { id: string; touched: readonly string[]; table: string; resolve: (w: Write) => void }[] = [];
   const delay = options.commitDelayMs ?? 30;
   const bump = () => { version += 1; for (const l of listeners) l(); };
@@ -63,7 +70,7 @@ export function createMockClient(options: MockOptions): MockClient {
     const fn = options.ops.queries[op.name];
     if (!fn) return { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } };
     if (link === "signed-out") return { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } };
-    const value = fn(tables, args as never, options.viewer);
+    const value = fn(tables, args as never, viewer);
     const fresh = link === "online";
     if (isPage(value)) return fresh ? { data: value.data as R, complete: true, fresh, next: value.next } : { data: value.data as R, complete: true, fresh, since: lastServer, next: value.next };
     return fresh ? { data: value as R, complete: true, fresh } : { data: value as R, complete: true, fresh, since: lastServer };
@@ -76,7 +83,9 @@ export function createMockClient(options: MockOptions): MockClient {
       if (row) delete row.pending;
     }
     lastServer = Date.now();
-    entry.resolve({ state: "sent", id: entry.id, seq });
+    const outcome = { state: "sent", id: entry.id, seq } as const;
+    entry.resolve(outcome);
+    emitWrite(outcome);
   }
 
   const client: MockClient = {
@@ -102,10 +111,13 @@ export function createMockClient(options: MockOptions): MockClient {
     async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
       const fn = options.ops.mutations[op.name];
       const id = mockId();
-      if (!fn) return { state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } };
-      if (link === "signed-out") return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } };
-      const outcome = fn(tables, args as never, options.viewer, () => id);
-      if (isRefusal(outcome)) return { state: "failed", id, why: outcome };
+      if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
+      if (link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
+      const outcome = fn(tables, args as never, viewer, () => id);
+      if (isRefusal(outcome)) {
+        const failed = { state: "failed", id, why: outcome } as const;
+        return emitWrite(failed);
+      }
       const table = op.name.split(".")[0] ?? "";
       for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
       bump();
@@ -131,11 +143,18 @@ export function createMockClient(options: MockOptions): MockClient {
     assetSource: (id: string) => ({ uri: `mock://assets/${id}`, headers: {} }),
     link: () => link,
     onLink(notify) { linkListeners.add(notify); return () => linkListeners.delete(notify); },
-    viewer: () => options.viewer,
-    async close() { listeners.clear(); linkListeners.clear(); },
+    viewer: () => viewer,
+    onViewer(notify) { viewerListeners.add(notify); return () => viewerListeners.delete(notify); },
+    onWrite(notify) { writeListeners.add(notify); return () => writeListeners.delete(notify); },
+    async close() { listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {
       link = next;
       for (const l of linkListeners) l(next);
+      const nextViewer = next === "signed-out" ? null : options.viewer;
+      if (viewer !== nextViewer) {
+        viewer = nextViewer;
+        for (const listener of viewerListeners) listener(viewer);
+      }
       if (next === "online") void client.settle();
       bump();
     },

@@ -160,18 +160,34 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
   const client = useClient();
   const [last, setLast] = useState<Write | undefined>(undefined);
   const [inFlight, setInFlight] = useState(false);
-  const lifetime = useRef({ active: true, pending: 0 });
+  const lifetime = useRef({ active: true, pending: 0, next: 0, latest: 0, ids: new Map<string, number>(), early: new Map<string, Exclude<Write, { state: "pending" }>>() });
   useEffect(() => {
     if (!lifetime.current.active) {
-      lifetime.current = { active: true, pending: 0 };
+      lifetime.current = { active: true, pending: 0, next: 0, latest: 0, ids: new Map(), early: new Map() };
       setLast(undefined);
       setInFlight(false);
     }
     const owner = lifetime.current;
-    return () => { owner.active = false; };
+    const unsubscribe = client.onWrite((write) => {
+      const run = owner.ids.get(write.id);
+      if (run == null) {
+        // Settlement can win the same turn in which mutate returns pending.
+        // Keep that terminal result until the returned id binds it to a run.
+        if (owner.pending > 0) {
+          owner.early.set(write.id, write);
+          if (owner.early.size > 256) owner.early.delete(owner.early.keys().next().value!);
+        }
+        return;
+      }
+      owner.ids.delete(write.id);
+      if (owner.active && lifetime.current === owner && run === owner.latest) setLast(write);
+    });
+    return () => { owner.active = false; unsubscribe(); };
   }, [client, op]);
   const run = useCallback(async (args: A): Promise<Write> => {
     const owner = lifetime.current;
+    const serial = ++owner.next;
+    owner.latest = serial;
     owner.pending++;
     if (owner.active) setInFlight(true);
     let outcome: Write;
@@ -181,8 +197,21 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
       // invent an operation identity or claim that this is safe to retry.
       outcome = { state: "failed", id: "", why: { code: "E_CLIENT", family: "client", message: `The client did not return a write outcome; whether it was admitted is unknown. ${error instanceof Error ? error.message : String(error)}` } };
     }
+    let visible = outcome;
+    if (outcome.id) {
+      owner.ids.set(outcome.id, serial);
+      const early = owner.early.get(outcome.id);
+      if (early) {
+        owner.early.delete(outcome.id);
+        owner.ids.delete(outcome.id);
+        visible = early;
+      } else if (outcome.state !== "pending") owner.ids.delete(outcome.id);
+    }
     owner.pending--;
-    if (owner.active && lifetime.current === owner) { setLast(outcome); setInFlight(owner.pending > 0); }
+    if (owner.active && lifetime.current === owner) {
+      if (serial === owner.latest) setLast(visible);
+      setInFlight(owner.pending > 0);
+    }
     return outcome;
   }, [client, op]);
   return { run, last, inFlight };
@@ -195,7 +224,9 @@ export function useLink(): Link {
 }
 
 export function useViewer(): Principal | null {
-  return useClient().viewer();
+  const client = useClient();
+  const subscribe = useCallback((notify: () => void) => client.onViewer(() => notify()), [client]);
+  return useSyncExternalStore(subscribe, client.viewer, client.viewer);
 }
 
 /** The session the local-first client holds, or null once it ended (after
@@ -211,7 +242,7 @@ export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, read);
 }
 
-export type AssetState = { readonly status: "loading" } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal };
+export type AssetState = { readonly status: "empty" } | { readonly status: "loading" } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal };
 
 /** The bytes of an asset a row the viewer may read holds, fetched under
  * the viewer's credentials as a blob URL for `src`. Revoked when the id
@@ -222,7 +253,10 @@ export function useAsset(id: string | null | undefined): AssetState {
   const client = useClient();
   const [state, setState] = useState<AssetState>({ status: "loading" });
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setState({ status: "empty" });
+      return;
+    }
     let live = true;
     let read: AssetRead | null = null;
     setState({ status: "loading" });
@@ -233,11 +267,13 @@ export function useAsset(id: string | null | undefined): AssetState {
         return;
       }
       setState("url" in result ? { status: "ready", url: result.url, type: result.type } : { status: "denied", why: result.denied });
+    }).catch((error) => {
+      if (live) setState({ status: "denied", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
     });
     return () => {
       live = false;
       if (read && "url" in read) read.revoke();
     };
   }, [client, id]);
-  return id ? state : { status: "loading" };
+  return id ? state : { status: "empty" };
 }

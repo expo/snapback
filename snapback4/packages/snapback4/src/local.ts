@@ -8,7 +8,7 @@
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import { createClient, mintId } from "./client.ts";
+import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, restoreSession, type Session, type SessionStore } from "./auth.ts";
@@ -55,6 +55,7 @@ interface Watch {
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
+  expiryTimer: ReturnType<typeof setTimeout> | null;
 }
 
 interface Queued {
@@ -74,22 +75,15 @@ interface Queued {
 const PAGE = 4000;
 
 async function requireSyncProtocol(core: DeviceCore): Promise<void> {
-  try {
-    // A JavaScript update can run inside an older Expo development build.
-    // Probe without sending or changing an outbox entry, even when offline.
-    const reply = await core.call({ op: "sync_state" });
-    const denied = reply?.denied as Refusal | undefined;
-    if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
-    const state = reply?.ok as Record<string, unknown> | undefined;
-    const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-    if (denied || !state || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
-      throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
-    }
-  } catch (error) {
-    // No client, follower or retry owns this handle yet. Await its release
-    // and preserve the startup diagnostic if close itself also fails.
-    try { await core.close(); } catch {}
-    throw error;
+  // A JavaScript update can run inside an older Expo development build.
+  // Probe without sending or changing an outbox entry, even when offline.
+  const reply = await core.call({ op: "sync_state" });
+  const denied = reply?.denied as Refusal | undefined;
+  if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
+  const state = reply?.ok as Record<string, unknown> | undefined;
+  const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  if (denied || !state || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+    throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
   }
 }
 
@@ -118,6 +112,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const principal: string = viewer;
   let sessionDead = false;
   const sessionListeners = new Set<(session: Session | null) => void>();
+  const viewerListeners = new Set<(viewer: Principal | null) => void>();
+  const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
+  let setLink!: (next: Link) => void;
+  const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
+    for (const listener of writeListeners) listener(write);
+    return write;
+  };
   const endSession = async () => {
     sessionDead = true;
     delete headers.authorization;
@@ -125,6 +126,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     setLink("signed-out");
     await forgetSession(base, sessions);
     for (const listener of sessionListeners) listener(null);
+    for (const listener of viewerListeners) listener(null);
   };
   const refusedSession = async (denied: unknown) => {
     if (!sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
@@ -144,6 +146,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const active = new Set<Promise<unknown>>();
   const core = await options.device.open(storeName, backend);
+  try {
   await requireSyncProtocol(core);
   if (backend) generation = Number(backend.generation ?? 0);
   else {
@@ -151,7 +154,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   }
   if (!backend) backend = (await call({ op: "backend" })).ok as BackendJson;
-  const online = createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
   let closed = false;
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
@@ -184,7 +186,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
   const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
 
-  const setLink = (next: Link) => {
+  setLink = (next: Link) => {
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
@@ -259,11 +261,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // A new generation: adopt the backend the server now serves; the
           // device drops its rows and the next round takes a snapshot.
           try {
-            backend = await loadBackend(doFetch, base, headers, aborter.signal);
+            const nextBackend = await loadBackend(doFetch, base, headers, aborter.signal);
             if (closed) return false;
-            const adopted = await call({ op: "adopt", backend });
+            const adopted = await call({ op: "adopt", backend: nextBackend });
             if (adopted.denied) return false;
-            generation = Number(backend.generation ?? pageGeneration);
+            backend = nextBackend;
+            generation = Number(nextBackend.generation ?? pageGeneration);
           } catch {
             return false;
           }
@@ -293,29 +296,50 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
       return true;
     } finally {
-      if (!closed && (touched.size > 0 || caughtUp)) for (const watch of watches.values()) if (touched.size === 0 || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
+      if (!closed && touched.size > 0) {
+        for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
+      } else if (!closed && caughtUp) {
+        for (const watch of watches.values()) {
+          if (!("data" in watch.snapshot) || watch.snapshot.fresh) continue;
+          const { since: _, ...read } = watch.snapshot;
+          watch.snapshot = { ...read, fresh: true };
+          notify(watch);
+        }
+      }
     }
   }
 
-  async function waitForChange(): Promise<void> {
+  async function probe(): Promise<void> {
+    try {
+      const response = await doFetch(`${base}/probe`, { headers, signal: aborter.signal });
+      let json: Record<string, unknown> = {};
+      try { json = (await response.json()) as Record<string, unknown>; } catch {}
+      if (closed) return;
+      await refusedSession(json.denied ?? json.why);
+      if (response.status === 200 && json.ok === true && !sessionDead) setLink("online");
+    } catch {}
+  }
+
+  async function waitForChange(): Promise<boolean> {
     if (link !== "online") {
       await new Promise((r) => setTimeout(r, 1000));
-      if (!closed && !sessionDead) await post("/q/__probe", {});
-      return;
+      if (!closed && !sessionDead) await probe();
+      return false;
     }
     try {
       const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
       if (!response.ok) throw new Error(`changes: HTTP ${response.status}`);
       const json = (await response.json()) as { seq: number; tables?: string[]; generation?: number };
-      if (json.seq > seq || (json.generation !== undefined && json.generation !== generation)) {
+      const changed = json.seq > seq || (json.generation !== undefined && json.generation !== generation);
+      if (changed) {
         seq = Math.max(seq, json.seq);
-        const touched = new Set(json.tables ?? []);
-        for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t)) || json.generation !== generation) void rerun(watch);
       }
+      return changed;
     } catch {
-      if (closed) return;
+      if (closed) return false;
       setLink("offline");
       await new Promise((r) => setTimeout(r, 1000));
+      return false;
     }
   }
 
@@ -323,8 +347,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function follow() {
     if (following) return;
     following = (async () => {
-      if (caughtUp && !closed) await waitForChange();
       while (!closed) {
+        if (caughtUp && !await waitForChange()) continue;
         let ok = false;
         try {
           ok = await syncOnce();
@@ -333,7 +357,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (closed) break;
         if (!ok) await new Promise((r) => setTimeout(r, 1000));
-        else await waitForChange();
       }
     })();
   }
@@ -347,35 +370,62 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   }
 
-  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string> }> {
+  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null }> {
     const refused = unavailable();
-    if (refused) return { read: { denied: refused }, tables: new Set() };
+    if (refused) return { read: { denied: refused }, tables: new Set(), nextExpiry: null };
     const schema = backend!.schema;
     const program = backend!.programs.find((p) => p.name === op.name);
     const tables = program && schema ? operationTables(program, schema) : new Set<string>();
-    if (partitionDenied) return { read: { denied: partitionDenied }, tables };
+    if (partitionDenied) return { read: { denied: partitionDenied }, tables, nextExpiry: null };
     const server = async () => {
-      const read = await online.query(op, args);
-      if ("denied" in read) await refusedSession(read.denied);
-      setLink(online.link());
-      return { read, tables };
+      const result = await post(`/q/${op.name}`, { args });
+      if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
+      if (!result.ok) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null };
+      const json = result.json;
+      for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
+      if (json.denied) return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null };
+      const next = (json.next as Cursor | null | undefined) ?? null;
+      const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+      return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables, nextExpiry };
     };
     const onlineOnly = [...tables].some((t) => !schema.tables[t]?.sync);
     if (onlineOnly && link === "online") return server();
     const answer = await call({ op: "query", name: op.name, viewer: principal, args, now: Date.now() });
     const unavailableWhy = unavailable();
-    if (unavailableWhy) return { read: { denied: unavailableWhy }, tables };
-    if (answer.denied) return { read: { denied: answer.denied }, tables };
-    const outcome = answer.ok as { denied?: Refusal; data?: unknown; complete?: boolean; next?: string | null; tables?: string[]; unknown?: boolean };
+    if (unavailableWhy) return { read: { denied: unavailableWhy }, tables, nextExpiry: null };
+    if (answer.denied) return { read: { denied: answer.denied }, tables, nextExpiry: null };
+    const outcome = answer.ok as { denied?: Refusal; data?: unknown; complete?: boolean; next?: string | null; tables?: string[]; unknown?: boolean; nextExpiry?: number | null };
     for (const table of outcome.tables ?? []) tables.add(table);
-    if (outcome.denied) return onlineOnly || outcome.unknown ? link === "online" ? server() : { read: { denied: offline() }, tables } : { read: { denied: outcome.denied }, tables };
+    if (outcome.denied) return onlineOnly || outcome.unknown ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null } : { read: { denied: outcome.denied }, tables, nextExpiry: null };
     if (outcome.complete === false && link === "online" && !(await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0))) return server();
     const fresh = link === "online" && caughtUp;
-    return { read: { data: outcome.data as R, complete: outcome.complete !== false && !onlineOnly, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) }, tables };
+    const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
+    return { read: { data: outcome.data as R, complete: outcome.complete !== false && !onlineOnly, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) }, tables, nextExpiry };
   }
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
+  }
+
+  function predictedTables(predicted: readonly string[]): Set<string> {
+    return new Set(predicted.map((row) => row.slice(0, row.lastIndexOf("/"))).filter(Boolean));
+  }
+
+  function rerunTables(tables: Set<string>) {
+    if (!tables.size) return;
+    for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((table) => tables.has(table))) void rerun(watch);
+  }
+
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
+    if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+    watch.expiryTimer = null;
+    if (nextExpiry == null || closed) return;
+    const delay = Math.min(Math.max(0, nextExpiry - Date.now()), 2_147_483_647);
+    watch.expiryTimer = setTimeout(() => {
+      watch.expiryTimer = null;
+      if (watches.get(watch.key) === watch) void rerun(watch);
+    }, delay);
+    (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
 
   async function rerun(watch: Watch) {
@@ -386,10 +436,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables } = await runLocal(watch.op, watch.args);
+      const { read, tables, nextExpiry } = await runLocal(watch.op, watch.args);
       if (closed) return;
       watch.tables = tables;
       watch.snapshot = read;
+      scheduleExpiry(watch, nextExpiry);
       notify(watch);
     } finally {
       watch.running = false;
@@ -462,8 +513,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) }
         : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
       if (outcome.state === "sent") await syncOnce();
+      else rerunTables(predictedTables(entry.predicted));
       settle?.(outcome);
-      for (const watch of watches.values()) void rerun(watch);
+      emitWrite(outcome);
     }
   }
 
@@ -475,7 +527,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, subscribers: new Set(), running: false, dirty: false };
+        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, subscribers: new Set(), running: false, dirty: false, expiryTimer: null };
         watches.set(key, watch);
         void rerun(watch);
       }
@@ -497,14 +549,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         },
         close() {
           for (const s of mine) own.subscribers.delete(s);
-          if (own.subscribers.size === 0) watches.delete(own.key);
+          if (own.subscribers.size === 0) {
+            watches.delete(own.key);
+            if (own.expiryTimer) clearTimeout(own.expiryTimer);
+            own.expiryTimer = null;
+          }
         },
       };
     },
     async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
       const id = mintId();
       const unavailableWhy = unavailable();
-      if (unavailableWhy) return { state: "failed", id, why: unavailableWhy };
+      if (unavailableWhy) return emitWrite({ state: "failed", id, why: unavailableWhy });
       const submission = ++submissions;
       const newIds: string[] = [];
       // The module mints ids for `new` from the ids we pass, so the server
@@ -516,13 +572,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const result = new Promise<Write>((resolve) => settled.set(id, resolve));
       try {
         const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
-        if (admitted.denied) { settled.delete(id); return { state: "failed", id, why: admitted.denied }; }
+        if (admitted.denied) { settled.delete(id); return emitWrite({ state: "failed", id, why: admitted.denied }); }
+        rerunTables(predictedTables(((admitted.ok as Queued | undefined)?.predicted) ?? []));
       } catch (error) {
         settled.delete(id);
-        return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
+        return emitWrite({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
       }
       if (closed) { settled.delete(id); return { state: "pending", id }; }
-      for (const watch of watches.values()) void rerun(watch);
       void flush();
       if (link !== "online") return { state: "pending", id };
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -545,6 +601,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return () => linkListeners.delete(listener);
     },
     viewer: () => sessionDead ? null : viewer,
+    onViewer(listener) {
+      viewerListeners.add(listener);
+      return () => viewerListeners.delete(listener);
+    },
+    onWrite(listener) {
+      writeListeners.add(listener);
+      return () => writeListeners.delete(listener);
+    },
     session: () => (sessionDead ? null : session),
     onSession(listener) {
       sessionListeners.add(listener);
@@ -563,12 +627,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       closed = true;
       aborter.abort();
       if (retry) clearTimeout(retry);
+      for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watches.clear();
       linkListeners.clear();
       sessionListeners.clear();
+      viewerListeners.clear();
+      writeListeners.clear();
       for (const [id, resolve] of settled) resolve({ state: "pending", id });
       closing = (async () => {
-        await Promise.allSettled([following, syncing, flushing, online.close(), ...active]);
+        await Promise.allSettled([following, syncing, flushing, ...active]);
         await core.close();
         settled.clear();
       })();
@@ -580,6 +647,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   follow();
   void flush();
   return client;
+  } catch (error) {
+    // Opening the device transfers its lifetime to this constructor. Until a
+    // client is returned, every later startup failure must release it here.
+    try { await core.close(); } catch {}
+    throw error;
+  }
 }
 
 async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<BackendJson> {

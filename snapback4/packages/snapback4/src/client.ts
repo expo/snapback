@@ -35,6 +35,7 @@ interface Watch {
   subscribers: Set<() => void>;
   inFlight: boolean;
   dirty: boolean;
+  expiryTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -79,6 +80,12 @@ export function createClient(options: ClientOptions): Client {
   let closing: Promise<void> | undefined;
   let seq = 0;
   const linkListeners = new Set<(link: Link) => void>();
+  const viewerListeners = new Set<(viewer: Principal | null) => void>();
+  const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
+  const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
+    for (const listener of writeListeners) listener(write);
+    return write;
+  };
   const watches = new Map<string, Watch>();
   const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; resolve: (write: Write) => void }[] = [];
 
@@ -106,6 +113,12 @@ export function createClient(options: ClientOptions): Client {
     }
   };
 
+  const setViewer = (next: Principal | null) => {
+    if (viewer === next) return;
+    viewer = next;
+    for (const listener of viewerListeners) listener(next);
+  };
+
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
   const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
@@ -128,13 +141,13 @@ export function createClient(options: ClientOptions): Client {
       if (closed) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       if (((json.denied ?? json.why) as Refusal | undefined)?.code === "E_AUTH") {
-        viewer = null;
+        setViewer(null);
         credentials = false;
         delete headers.authorization;
         delete headers["x-snapback-persona"];
         setLink("signed-out");
       }
-      else if (credentials && typeof json.viewer === "string") viewer = json.viewer as Principal;
+      else if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json };
     } catch {
@@ -143,21 +156,34 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number }> {
-    if (closed) return { read: { denied: ended() }, tables: [], seq };
-    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq };
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; nextExpiry: number | null }> {
+    if (closed) return { read: { denied: ended() }, tables: [], seq, nextExpiry: null };
+    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args });
-    if (!credentials) return { read: { denied: auth() }, tables: [], seq };
-    if (!result.ok) return { read: { denied: offline() }, tables: [], seq };
+    if (!credentials) return { read: { denied: auth() }, tables: [], seq, nextExpiry: null };
+    if (!result.ok) return { read: { denied: offline() }, tables: [], seq, nextExpiry: null };
     const json = result.json;
-    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq };
+    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq, nextExpiry: null };
     const at = Number(json.seq ?? 0);
     const next = (json.next as Cursor | null | undefined) ?? null;
-    return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables: (json.tables as string[] | undefined) ?? [], seq: at };
+    const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+    return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
   }
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
+  }
+
+  function scheduleExpiry(watch: Watch, nextExpiry: number | null) {
+    if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+    watch.expiryTimer = null;
+    if (nextExpiry == null || closed) return;
+    const delay = Math.min(Math.max(0, nextExpiry - Date.now()), 2_147_483_647);
+    watch.expiryTimer = setTimeout(() => {
+      watch.expiryTimer = null;
+      if (watches.get(watch.key) === watch) void refresh(watch);
+    }, delay);
+    (watch.expiryTimer as { unref?: () => void }).unref?.();
   }
 
   async function refresh(watch: Watch) {
@@ -168,7 +194,7 @@ export function createClient(options: ClientOptions): Client {
     }
     watch.inFlight = true;
     try {
-      const { read, tables } = await runQuery(watch.op, watch.args);
+      const { read, tables, nextExpiry } = await runQuery(watch.op, watch.args);
       if (closed) return;
       watch.tables = new Set(tables);
       if ("data" in read) {
@@ -180,6 +206,7 @@ export function createClient(options: ClientOptions): Client {
       } else {
         watch.snapshot = read;
       }
+      scheduleExpiry(watch, nextExpiry);
       notify(watch);
     } finally {
       watch.inFlight = false;
@@ -192,13 +219,29 @@ export function createClient(options: ClientOptions): Client {
 
   let polling = false;
   let generation: number | undefined;
+  async function probe() {
+    try {
+      const response = await doFetch(`${base}/probe`, { headers, signal: aborter.signal });
+      let json: Record<string, unknown> = {};
+      try { json = (await response.json()) as Record<string, unknown>; } catch {}
+      if (closed) return;
+      if ((json.denied as Refusal | undefined)?.code === "E_AUTH") {
+        setViewer(null);
+        credentials = false;
+        delete headers.authorization;
+        delete headers["x-snapback-persona"];
+        setLink("signed-out");
+      } else if (response.status === 200 && json.ok === true && credentials) setLink("online");
+    } catch {}
+  }
+
   async function poll() {
     if (polling) return;
     polling = true;
     while (!closed && watches.size > 0) {
       if (link !== "online") {
         await new Promise((r) => setTimeout(r, 1000));
-        if (!closed && credentials && link === "offline") await post("/q/__probe", {});
+        if (!closed && credentials && link === "offline") await probe();
         continue;
       }
       try {
@@ -230,14 +273,18 @@ export function createClient(options: ClientOptions): Client {
     if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
-      entry.resolve({ state: "sent", id: entry.id, seq: at });
+      const outcome = { state: "sent", id: entry.id, seq: at } as const;
+      entry.resolve(outcome);
+      emitWrite(outcome);
       for (const watch of watches.values()) void refresh(watch);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
       const why = (json.why ?? json.denied) as Refusal | undefined;
       if (!why) return false; // An unrecognized answer does not settle this id.
-      entry.resolve({ state: "failed", id: entry.id, why });
+      const outcome = { state: "failed", id: entry.id, why } as const;
+      entry.resolve(outcome);
+      emitWrite(outcome);
     }
     return true;
   }
@@ -276,7 +323,7 @@ export function createClient(options: ClientOptions): Client {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, lastServer: null, lastServerAt: 0, subscribers: new Set(), inFlight: false, dirty: false };
+        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, lastServer: null, lastServerAt: 0, subscribers: new Set(), inFlight: false, dirty: false, expiryTimer: null };
         watches.set(key, watch);
         void refresh(watch);
         void poll();
@@ -303,14 +350,18 @@ export function createClient(options: ClientOptions): Client {
         },
         close() {
           for (const s of mine) own.subscribers.delete(s);
-          if (own.subscribers.size === 0) watches.delete(own.key);
+          if (own.subscribers.size === 0) {
+            watches.delete(own.key);
+            if (own.expiryTimer) clearTimeout(own.expiryTimer);
+            own.expiryTimer = null;
+          }
         },
       };
     },
     async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
       const id = mintId();
-      if (closed) return { state: "failed", id, why: ended() };
-      if (!credentials || link === "signed-out") return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } };
+      if (closed) return emitWrite({ state: "failed", id, why: ended() });
+      if (!credentials || link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
       let settle!: (write: Write) => void;
       const settled = new Promise<Write>((resolve) => { settle = resolve; });
       const entry = { id, op: op as Mutation<unknown, unknown>, args, resolve: settle };
@@ -335,14 +386,29 @@ export function createClient(options: ClientOptions): Client {
       return () => linkListeners.delete(listener);
     },
     viewer: () => viewer,
+    onViewer(listener) {
+      viewerListeners.add(listener);
+      return () => viewerListeners.delete(listener);
+    },
+    onWrite(listener) {
+      writeListeners.add(listener);
+      return () => writeListeners.delete(listener);
+    },
     close() {
       if (closing) return closing;
       closed = true;
       aborter.abort();
       if (retry) clearTimeout(retry);
+      for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watches.clear();
       linkListeners.clear();
-      for (const entry of pending) entry.resolve({ state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } });
+      viewerListeners.clear();
+      for (const entry of pending) {
+        const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
+        entry.resolve(outcome);
+        emitWrite(outcome);
+      }
+      writeListeners.clear();
       closing = Promise.allSettled([flushing, ...requests]).then(() => { pending.length = 0; });
       return closing;
     },

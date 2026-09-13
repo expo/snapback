@@ -635,7 +635,10 @@ kept); `sessionStore`; `fetch`; `waitSeconds`. It has `query(op, args) →
 Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
 unsubscribe, close() }` (a live read; React's `useSyncExternalStore`
 shape), `mutate(op, args) → Write`, `link()`, `onLink`, `viewer()`,
-`session()`, `onSession`, `signOut()`, `sync()`, `close()`. After
+`onViewer`, `onWrite`, `session()`, `onSession`, `signOut()`, `sync()`,
+`close()`. `onWrite` reports the terminal `sent` or `failed` outcome of a
+write that first returned `pending`; it is a live-client notification, while
+the durable outbox remains the authority across a restart. After
 `signOut()` the client is closed and `session()` is null, as it is once
 the server refuses the session: anything that keeps the token — a native
 image header, a presence lease — takes it from `onSession` (`useSession`
@@ -680,7 +683,8 @@ client closes with it in flight (it lands when the link returns, and the
 row loses `pending` when it does), `sent` with the server's sequence, or
 `failed` with the refusal and its predicted rows withdrawn; the online
 client fails an in-flight write at `close()` with `E_CLOSED` instead,
-since nothing queues it. `family` is `input`, `schema`, `auth`, `rule`
+since nothing queues it. `onWrite` emits that later terminal result once for
+the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `auth`, `rule`
 (your `require` codes, with `rule` naming the code), `constraint`,
 `bound`, `op`, `asset`, `prediction`, `generation` or `store` from the
 engine, and `link` or `client` from the client itself. `isReady`,
@@ -702,7 +706,8 @@ const client = useClient();           // the provided client
 ```
 
 `useQuery` observes: it re-renders when a sync or a local prediction
-touches the query's tables. `usePage` follows `next` across pages; it
+touches the query's tables, and at the next visible `expire at` time even
+when the device is offline. `usePage` follows `next` across pages; it
 supplies the query's cursor argument itself, which must be named `c`
 (`c: cursor ?`).
 
@@ -711,8 +716,12 @@ supplies the query's cursor argument itself, which must be named `c`
 ```ts
 const uploaded = await client.upload(file);            // Blob | ArrayBuffer | Uint8Array
 if (uploaded.ok) await client.mutate(api.sendPhoto, { conversationId, photo: { id: uploaded.asset.id } });
-const photo = useAsset(message.photo?.id);             // { status: "loading" } | { status: "ready", url, type } | { status: "denied", why }
+const photo = useAsset(message.photo?.id);             // { status: "empty" | "loading" | "ready" | "denied", ... }
 ```
+
+Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
+without fetching. A client-side fetch or blob-URL failure returns a typed
+`denied` state.
 
 An `image <=N` or `video <=N` column holds an upload: the client sends
 the bytes first (`upload` → `{ ok: true, asset: { id, type, bytes, width,
@@ -850,9 +859,12 @@ PNG and `asset` is always denied.
 The client is the intended surface; the wire is plain JSON for anything
 else. `GET /` is the server's card (`{ snapback4, generation, seq, ops:
 [{ name, kind }], tables: [{ name, sync }] }`); `GET /api.ts` the
-generated TypeScript; `GET /schema` the compiled backend. `POST /q/<op>`
-with `{ "args": {..} }` answers `{ data, complete, seq, next, tables,
-viewer }` or `{ denied }`; `POST /m/<op>` with `{ "id", "args",
+generated TypeScript; `GET /schema` the compiled backend. Authenticated
+`GET /probe` answers HTTP 200 `{ ok: true }`; clients require both the status
+and body before changing an offline link back to online. `POST /q/<op>`
+with `{ "args": {..} }` answers `{ data, complete, seq, next, nextExpiry,
+tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry
+the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
 "newIds" }` answers `{ state: "sent", id, seq, result }` or `{ state:
 "failed", id, why, current? }` (a client-minted `id` makes the write
 apply at most once, and a replay adds `replayed: true`; `current` is the
