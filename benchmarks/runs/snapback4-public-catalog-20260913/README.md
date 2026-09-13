@@ -1179,3 +1179,64 @@ and remain inside traversal wall time; no cache reset is claimed.
 Convex/Supabase validation of these new opt-in modes remains pending. The
 formal 0.2.5 comparison remains bound to the unchanged original instrument
 SHA256 `36f4026bcbef551d675842c760fbdc491f94e5d8b062fe8626bdf2a4cb12c39b`.
+
+## Existence-only rule probes — unadopted native experiment
+
+An ignored candidate based on `cc72e4614bcdac59ebd09f0fc0fe3c82e2954ec9`
+uses SQLite `SELECT EXISTS` for raw rule probes on tables without expiry;
+expiring tables retain full lookup. On 2026-09-13, two native profiler
+binaries ran three counterbalanced pairs (baseline/candidate,
+candidate/baseline, baseline/candidate) on the Minisforum AMD Ryzen AI 9 HX
+370, x86_64 Linux, pinned to logical CPU 2. This is separate from the Office
+ARM64 HTTP comparison. The candidate remains unadopted pending ARM/HTTP
+evidence.
+
+Each fresh process ran nine direct core-query cases, with 100 excluded
+warmups and 5,000 timed samples per case: **270,000 timed queries plus 5,400
+warmups**. The 100,000-message fixture uses synthetic principals with
+5/30/150 groups. Rotating point domains contain 1,000/6,000/30,000 rows;
+feed domains contain 50/300/1,500 pages. Each case times
+`min(5000, domain size)` distinct inputs; hot point repeats one key. Full
+response/next-cursor oracles and all eleven outcome/control identities,
+including meters, agree across the six runs; first/terminal pages and
+empty controls also pass. Checks and hashing are outside query timers.
+
+Medians of three per-run percentiles, in microseconds:
+
+| Case | Baseline p50 / p95 | Candidate p50 / p95 | p50 reduction |
+|---|---:|---:|---:|
+| 5-group hot point | 7.194 / 7.334 | 6.783 / 6.953 | 5.71% |
+| 5-group rotating point | 8.265 / 9.979 | 7.885 / 9.658 | 4.60% |
+| 5-group rotating feed | 152.006 / 157.396 | 148.078 / 151.825 | 2.58% |
+| 30-group hot point | 7.343 / 7.534 | 6.863 / 6.994 | 6.54% |
+| 30-group rotating point | 8.626 / 10.099 | 8.075 / 9.768 | 6.39% |
+| 30-group rotating feed | 311.145 / 319.050 | 291.097 / 297.750 | 6.44% |
+| 150-group hot point | 7.274 / 7.424 | 6.723 / 6.833 | 7.57% |
+| 150-group rotating point | 8.566 / 9.869 | 8.035 / 9.438 | 6.20% |
+| 150-group rotating feed | 1127.789 / 1153.518 | 1066.194 / 1091.180 | 5.46% |
+
+All 27 paired p50 comparisons and 26 of 27 paired p95 comparisons are
+lower. The exception is trial 3's 5-group rotating point, whose p95 rises
+from 9.979 to 10.279 µs. Tails are mixed: that case's worst sample across
+the three runs increases from 41.118 to 217.569 µs. These are per-run
+summaries, not pooled percentiles or uncertainty estimates.
+
+Both variants retain QPSG, SQLite 3.53.2, `cache_size=-2000`, 4096-byte
+pages and WAL/NORMAL. SQLite files are on **tmpfs**; OS cache is retained
+without resets and residency is unmeasured. Counter deltas include warmups;
+CPU ticks and observed query-phase RSS include fixture/oracle work. Case
+write/spill deltas are zero. The six `membership-rule-existence-native-profile`
+ledger records preserve all 126 observations, including maxima and memory
+snapshots, plus exact source, patch, binary, raw-file and receipt bindings.
+There is no HTTP/comparator, device-performance, write/durability,
+production-memory or corrupted-store equivalence claim.
+
+The initial build/check script exited 101 on a new test mixing synthetic
+expiry with wall-clock deletion. Its failure is retained. A test-only
+correction then passed 85 Rust tests; the included corpus harness reported
+211 cases passed and 82 named skips. Web/Wasm compilation also passed;
+this was compilation, not device runtime qualification. The frozen runner
+recorded discovered binary hashes and checked stability before each run.
+Expected build/archive, pilot and corrected-check bindings were reconciled
+**after** timing against retained artifacts; no pre-run expected-hash check
+or timing rerun is implied.
