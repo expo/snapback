@@ -201,3 +201,19 @@ fn a_stale_engine_cannot_park_or_enqueue_a_new_owners_jobs() {
     assert!(new.run_job_chunk(1002).unwrap().is_some());assert_eq!(new.store().rows("items").unwrap()[0].field("value").unwrap(),&Value::Int(2));
     drop(new);drop(old);std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn drained_partitions_cover_successful_writes_without_viewer_events() {
+    let mut e = engine(&format!("{ITEMS}\nmutation noop():\n  return null\ntable privateRows:\n  value: int\n  insert <- allow\nmutation privateWrite():\n  insert privateRows {{value: 1}}\n  return null\n"));
+    seed(&mut e, "items", serde_json::json!([{"id":"a","body":"kept"}]));
+    let mut watermark = e.seq().unwrap();
+    for name in ["noop", "privateWrite"] {
+        let result = e.mutate(name, Some(name), ctx()).unwrap();
+        let WriteState::Sent { seq, .. } = result.state else { panic!("expected sent") };
+        let page = e.stream("dev:alice", watermark, 10).unwrap();
+        assert!(page.events.is_empty()); assert!(!page.more);
+        assert_eq!(page.watermark, seq);
+        assert_eq!(e.acknowledged("dev:alice", &[name.into()], page.watermark).unwrap()[name], seq);
+        watermark = page.watermark;
+    }
+}

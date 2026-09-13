@@ -8,7 +8,7 @@ use crate::net::Faults;
 use crate::replica::{Replica, Script};
 use crate::world::{HostId, Invariant, Sim};
 use serde_json::{Value as Json, json};
-use snapback4_core::{Engine, Value};
+use snapback4_core::{Context, Engine, Value};
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
@@ -92,6 +92,19 @@ pub fn day_two(kind: DayTwo, seed: u64) -> Result<(World, Json), String> {
     world.sim.faults.partition(alice, world.server);
     world.sim.run_until_checked(1_000, &invariants)?;
     let queued_before = state(&world.sim, alice).map(|j| j["pending"].as_array().map(|p| p.len()).unwrap_or(0)).unwrap_or(0);
+    if kind == DayTwo::Narrowing {
+        // This scenario tests a queued argument refused by a valid narrowing.
+        // Explicitly edit existing values first: adoption must never accept
+        // rows that violate the new bound or silently truncate them itself.
+        let mut engine = world.engine.borrow_mut();
+        let rows = engine.store().rows("messages").map_err(|e| e.to_string())?;
+        for row in rows {
+            let viewer = row.field("authorId").map_err(|e| e.to_string())?.as_str().map_err(|e| e.to_string())?;
+            let input = BTreeMap::from([("messageId".into(), row.field("id").map_err(|e| e.to_string())?.clone()), ("body".into(), Value::String("short".into()))]);
+            let result = engine.mutate("edit", None, Context::new(viewer, input).at(1_000)).map_err(|e| e.to_string())?;
+            if !matches!(result.state, snapback4_core::WriteState::Sent { .. }) { return Err("narrowing fixture edit was refused".into()); }
+        }
+    }
     let source = kind.schema();
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), source)]);
     if !bound.diagnostics.is_empty() {

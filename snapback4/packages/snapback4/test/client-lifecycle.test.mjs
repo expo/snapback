@@ -48,6 +48,12 @@ table gates:
 table secrets:
   body: text <=4000
   read <- allow
+  update <- allow
+mutation noChange():
+  return null
+mutation secretUpdate(secretId: secrets, body: text <=4000):
+  update secrets[secretId] { body }
+  return null
 query secret(secretId: secrets):
   return secrets[secretId] ! else NOT_FOUND
 query message(messageId: messages):
@@ -185,6 +191,147 @@ test("online watches retain their changes watermark; bare tokens clear on refusa
 });
 
 for (const tier of ["local", "native"]) {
+  test(`${tier}: no-op and nosync writes retire when the partition stream is empty`, { timeout: 12_000 }, async (t) => {
+    const f = await fixture(t);
+    let deviceStore, deviceCore;
+    const client = await f.open(tier, { wrapStore: (store) => { deviceStore = store; return store; }, wrapNative: (core) => { deviceCore = core; return core; } });
+    const queued = async () => tier === "local" ? deviceStore.read(tx => tx.side("outbox").all()) : (await deviceCore.call({ op: "queued" })).ok;
+    assert.equal((await client.mutate(mutation("noChange"), {})).state, "sent");
+    await client.sync();
+    assert.deepEqual(await queued(), [], "a commit with no row events is covered by the drained watermark");
+    assert.equal((await client.mutate(mutation("secretUpdate"), { secretId: "secret", body: "updated without sync" })).state, "sent");
+    await client.sync();
+    assert.deepEqual(await queued(), [], "a nosync-only commit does not leak a sent entry forever");
+    assert.equal((await client.query(query("secret"), { secretId: "secret" })).data.body, "updated without sync");
+  });
+
+  test(`${tier}: a write already sending when a snapshot starts is correlated after catch-up`, { timeout: 12_000 }, async (t) => {
+    const f = await fixture(t);
+    await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
+    const sending = deferred(), releaseSend = deferred(), committed = deferred(), reply = deferred();
+    const sender = await f.open(tier, { name: "snapshot-shared", fetch: async (input, init) => {
+      if (new URL(input).pathname === "/m/increment") {
+        sending.resolve(); await held(releaseSend, init.signal);
+        const response = await fetch(input, init);
+        assert.equal((await response.clone().json()).state, "sent");
+        committed.resolve(); await held(reply, init.signal);
+        return response;
+      }
+      return fetch(input, init);
+    } });
+    const counter = query("counter"), counterArgs = { counterId: "counter" };
+    const write = sender.mutate(mutation("increment"), counterArgs);
+    await sending.promise;
+    let snapshots = 0, catchups = 0, pinned;
+    const observer = await f.open(tier, { name: "snapshot-shared", fetch: async (input, init) => {
+      const url = new URL(input);
+      if (url.pathname === "/m/increment") await held(reply, init.signal);
+      if (url.pathname !== "/sync") return fetch(input, init);
+      if (catchups === 0 && url.searchParams.get("stream") !== "1") url.searchParams.set("from", "0");
+      url.searchParams.set("limit", "1");
+      const response = await fetch(url, init), page = await response.clone().json();
+      if (page.snapshot) {
+        if (snapshots++ === 0) {
+          pinned = page.watermark;
+          assert.equal(page.more, true, "the real server snapshot is paged");
+          releaseSend.resolve(); await committed.promise;
+        } else assert.equal(page.watermark, pinned);
+      } else if (url.searchParams.get("stream") === "1") {
+        catchups++;
+        assert.ok(page.watermark >= pinned);
+      }
+      return response;
+    } });
+    assert.ok(snapshots > 1);
+    assert.ok(catchups > 0, "a fuzzy snapshot must drain the ordinary stream before publication");
+    const observed = await observer.query(counter, counterArgs);
+    assert.equal(observed.data.value, 1, "a later snapshot row already contains the write, and is never predicted twice");
+    assert.equal(observed.data.pending, undefined);
+    await observer.close();
+    await sender.close();
+    assert.equal((await write).state, "pending", "the committed write keeps its ID while its full reply is unavailable");
+  });
+
+  test(`${tier}: another client sending after sync capture cannot publish an uncorrelated page`, { timeout: 12_000 }, async (t) => {
+    const f = await fixture(t);
+    await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
+    const entered = deferred(), release = deferred(), committed = deferred();
+    let holdSync = false, refuseSync = false;
+    const applyRefusals = [];
+    const observer = await f.open(tier, { name: "shared", wrapNative: (core) => ({
+      async call(request) {
+        const result = await core.call(request);
+        if (request.op === "apply" && result.denied) applyRefusals.push(result.denied);
+        return result;
+      },
+      close: () => core.close(),
+    }), fetch: async (input, init) => {
+      if (new URL(input).pathname === "/sync" && holdSync) { holdSync = false; entered.resolve(); await held(release, init.signal); }
+      return fetch(input, init);
+    } });
+    const sender = await f.open(tier, { name: "shared", fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/sync" && refuseSync) throw new TypeError("sender cannot sync");
+      if (path === "/m/increment") {
+        assert.equal((await (await fetch(input, init)).json()).state, "sent");
+        committed.resolve(); throw new TypeError("mutation reply lost");
+      }
+      return fetch(input, init);
+    } });
+    holdSync = true; refuseSync = true;
+    const sync = observer.sync().then(() => null, (error) => error);
+    await entered.promise;
+    const counter = query("counter"), counterArgs = { counterId: "counter" };
+    const write = sender.mutate(mutation("increment"), counterArgs);
+    await committed.promise;
+    release.resolve();
+    const error = await sync;
+    if (tier === "local") assert.match(error?.message ?? "", /write was sent/);
+    else assert.ok(applyRefusals.length > 0, "the native transaction rejects the stale send revision");
+    assert.equal((await observer.query(counter, counterArgs)).data.value, 1, "the prediction is retained once after rejecting the stale page");
+    await observer.sync();
+    const confirmed = await observer.query(counter, counterArgs);
+    assert.equal(confirmed.data.value, 1);
+    assert.equal(confirmed.data.pending, undefined);
+    await sender.close();
+    assert.equal((await write).state, "pending");
+  });
+
+  test(`${tier}: a sync started before admission finishes before that write can be sent`, { timeout: 12_000 }, async (t) => {
+    const f = await fixture(t);
+    await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
+    const syncEntered = deferred(), releaseSync = deferred(), committed = deferred();
+    let holdSync = false, posts = 0;
+    const client = await f.open(tier, { fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/sync" && holdSync) { holdSync = false; syncEntered.resolve(); await held(releaseSync, init.signal); }
+      if (path === "/m/increment") {
+        posts++;
+        const response = await fetch(input, init);
+        assert.equal((await response.json()).state, "sent");
+        committed.resolve();
+        throw new TypeError("reply lost after commit");
+      }
+      return fetch(input, init);
+    } });
+    holdSync = true;
+    const initial = client.sync();
+    await syncEntered.promise;
+    const counter = query("counter"), counterArgs = { counterId: "counter" };
+    const write = client.mutate(mutation("increment"), counterArgs);
+    await until(async () => (await client.query(counter, counterArgs)).data?.pending, "admission is responsive while a sync request waits");
+    assert.equal(posts, 0, "a new admission cannot race the captured pending-ID set");
+    releaseSync.resolve();
+    await initial;
+    await committed.promise;
+    await client.sync();
+    const read = await client.query(counter, counterArgs);
+    assert.equal(read.data.value, 1);
+    assert.equal(read.data.pending, undefined);
+    await client.close();
+    assert.equal((await write).state, "pending");
+  });
+
   for (const loseReply of [false, true]) {
     test(`${tier}: sync before a ${loseReply ? "lost" : "delayed"} write reply does not apply an increment twice`, { timeout: 12_000 }, async (t) => {
       const f = await fixture(t);
@@ -197,7 +344,9 @@ for (const tier of ["local", "native"]) {
           if (sends++ === 0) {
             const response = await fetch(input, init);
             assert.equal((await response.clone().json()).state, "sent");
-            entered.resolve(); await held(reply, init.signal);
+            entered.resolve();
+            if (loseReply) throw new TypeError("reply lost after the server committed");
+            await held(reply, init.signal);
             return response;
           }
           await held(laterPost, init.signal);
@@ -210,7 +359,14 @@ for (const tier of ["local", "native"]) {
       await entered.promise;
       const second = loseReply ? null : client.mutate(increment, counterArgs);
       if (second) await until(async () => (await client.query(counter, counterArgs)).data?.value === 2, "both predictions are visible");
-      await client.sync();
+      let applied = false;
+      const sync = client.sync().then(() => { applied = true; });
+      if (!loseReply) {
+        await sleep(20);
+        assert.equal(applied, false, "sync waits for the in-flight mutation request before capturing pending IDs");
+        reply.resolve();
+      }
+      await sync;
       const reflected = await client.query(counter, counterArgs);
       assert.equal(reflected.data.value, second ? 2 : 1, "the stream correlation replaces the already-committed prediction");
       assert.equal(reflected.data.pending, second ? true : undefined);
@@ -245,6 +401,8 @@ for (const tier of ["local", "native"]) {
     const transport = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
     const client = await f.open(tier, { fetch: transport });
     assert.equal((await client.query(query("message"), { messageId: "msg-a" })).data?.body, "msg-a", "a missing local row is not a final NOT_FOUND beyond the horizon");
+    assert.equal((await client.mutate(mutation("guardedEdit"), { messageId: "msg-b", gateId: "gate", body: "edited beyond the horizon" })).state, "sent", "unknown local admission rolls back prediction and reaches authority");
+    assert.equal((await f.server.query(query("message"), { messageId: "msg-b" })).data.body, "edited beyond the horizon");
     const observed = client.observe(thread, args);
     await sleep(25);
     const changedAt = Date.now();
@@ -266,24 +424,42 @@ for (const tier of ["local", "native"]) {
   test(`${tier}: population growth cannot mint new IDs during prediction replay`, { timeout: 12_000 }, async (t) => {
     const f = await fixture(t);
     await f.seed([{ table: "sources", row: { id: "source-0", owner: "dev:alice" } }]);
-    const entered = deferred(), release = deferred();
+    const entered = deferred(), release = deferred(), syncEntered = deferred(), syncRelease = deferred();
+    let holdSync = false;
     let postedIds;
-    const client = await f.open(tier, { fetch: async (input, init) => {
+    const deviceRefusals = [];
+    const client = await f.open(tier, { wrapNative: (core) => ({
+      async call(request) {
+        const result = await core.call(request);
+        if (result.denied) deviceRefusals.push({ op: request.op, denied: result.denied });
+        return result;
+      },
+      close: () => core.close(),
+    }), fetch: async (input, init) => {
+      if (new URL(input).pathname === "/sync" && holdSync) {
+        holdSync = false; syncEntered.resolve(); await held(syncRelease, init.signal);
+      }
       if (new URL(input).pathname === "/m/copySources") {
         postedIds = JSON.parse(init.body).newIds;
         entered.resolve(); await held(release, init.signal);
       }
       return fetch(input, init);
     } });
+    holdSync = true;
+    const syncing = client.sync();
+    await syncEntered.promise;
     const write = client.mutate(mutation("copySources"), {});
-    await entered.promise;
+    await until(async () => (await client.query(query("copied"), {})).data?.length === 1, "the write is admitted while sync is in flight");
     const original = await client.query(query("copied"), {});
     assert.equal(original.data.length, 1);
     assert.equal(original.data[0].pending, true);
     const originalId = original.data[0].id;
     assert.equal((await f.server.mutate(mutation("addSource"), {})).state, "sent");
-    await client.sync();
+    syncRelease.resolve();
+    await syncing;
+    await entered.promise;
     const rebased = await client.query(query("copied"), {});
+    assert.deepEqual(deviceRefusals, [], "withdrawing an expanded replay still commits the authoritative stream transaction");
     assert.deepEqual(rebased.data, [], "an attempt needing another ID withdraws the prediction and uses authority");
     assert.deepEqual(postedIds, [originalId], "the in-flight request retains exactly the admitted IDs");
     release.resolve();
@@ -365,6 +541,58 @@ for (const tier of ["local", "native"]) {
     });
   }
 }
+
+test("local backend adoption waits for the transaction using the previous index schema", { timeout: 10_000 }, async (t) => {
+  const f = await fixture(t);
+  const syncEntered = deferred(), syncRelease = deferred(), writing = deferred(), finishWrite = deferred(), loaded = deferred(), releasePost = deferred();
+  let upgrade = false, holdSync = false, holdWrite = false, currentSchema;
+  const wrapStore = (store) => ({
+    get schema() { return store.schema; },
+    setSchema(schema) { currentSchema = schema; store.setSchema(schema); },
+    read: (...params) => store.read(...params),
+    write: (body) => store.write((tx) => body({ ...tx, async put(table, row) {
+      if (holdWrite && table === "messages" && row.body === "held prediction") {
+        holdWrite = false; writing.resolve(); await finishWrite.promise;
+        assert.equal(currentSchema.tables.messages.indexes.byBody, undefined, "an old transaction retains the old schema until it finishes");
+      }
+      return tx.put(table, row);
+    } })),
+    close: () => store.close(),
+  });
+  const client = await f.open("local", { wrapStore, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/sync" && holdSync) { holdSync = false; syncEntered.resolve(); await held(syncRelease, init.signal); }
+    if (path === "/m/send") await held(releasePost, init.signal);
+    const response = await fetch(input, init);
+    if (!upgrade || !["/schema", "/sync", "/changes"].includes(path)) return response;
+    const json = await response.json();
+    json.generation += 1;
+    if (path === "/schema") {
+      json.schema.tables.messages.indexes.byBody = { components: [{ Column: "body" }, { Column: "id" }], unique: false };
+      loaded.resolve();
+    }
+    return Response.json(json, { status: response.status });
+  } });
+  try {
+    upgrade = true; holdSync = true;
+    const syncing = client.sync();
+    await syncEntered.promise;
+    holdWrite = true;
+    const write = client.mutate(send, { conversationId: "c1", body: "held prediction" });
+    await writing.promise;
+    syncRelease.resolve();
+    await loaded.promise;
+    await sleep(20);
+    assert.equal(currentSchema.tables.messages.indexes.byBody, undefined, "loading a backend does not replace a busy store's schema");
+    finishWrite.resolve();
+    await syncing;
+    assert.ok(currentSchema.tables.messages.indexes.byBody);
+    releasePost.resolve();
+    assert.equal((await write).state, "sent");
+  } finally {
+    syncRelease.resolve(); finishWrite.resolve(); releasePost.resolve();
+  }
+});
 
 test("close aborts online posts and stops admission", { timeout: 10_000 }, async (t) => {
   const f = await fixture(t);

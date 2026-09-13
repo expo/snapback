@@ -4,7 +4,7 @@
 //! with `sb4_free`, `sb4_close` closes. Every answer is `{"ok": ...}` or
 //! `{"denied": {code, family, message, ...}}` when the call itself failed;
 //! a query's or a prediction's refusal is the card's `denied` inside `ok`,
-//! as a screen reads it. Nothing panics across the boundary. Ops: state, adopt, apply, query, predict, withdraw, enqueue,
+//! as a screen reads it. Nothing panics across the boundary. Ops: state, sync_state, begin_send, adopt, apply, query, predict, withdraw, enqueue,
 //! queued, next_submission, dequeue, meta, set_meta, clear_rows.
 
 #![allow(unsafe_code)]
@@ -45,6 +45,8 @@ pub fn call(device: &mut Device, request: &Json) -> Json {
                 let (watermark, generation) = device.state()?;
                 json!({ "watermark": watermark, "generation": generation })
             }
+            "sync_state" => serde_json::to_value(device.sync_state()?).map_err(|e| RuntimeError::Store(e.to_string()))?,
+            "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
                 device.adopt(parse::<Backend>(arg(request, "backend")?)?)?;
                 Json::Null

@@ -25,11 +25,17 @@ export interface StreamPage {
   generation?: number;
   /** Pending write IDs already represented by this page's watermark. */
   acknowledged?: Record<string, number>;
+  /** Device-local receipt: sends must not advance while this page is fetched. */
+  send_revision?: number;
+  /** Keep the snapshot hidden until a drained catch-up stream is applied. */
+  stage_snapshot?: boolean;
+  /** This delta belongs to the still-hidden snapshot replacement. */
+  snapshot_catchup?: boolean;
 }
 
 export interface Transport {
   /** `GET /sync?from=W`; `from: 0` is a snapshot, paged by `after`. */
-  sync(from: number, limit: number, after?: string): Promise<StreamPage | { denied: unknown }>;
+  sync(from: number, limit: number, after?: string, stream?: boolean): Promise<StreamPage | { denied: unknown }>;
 }
 
 export interface ReplicaState {
@@ -53,6 +59,8 @@ export class Replica {
   private readonly snapshotOwner = `${Date.now()}:${Math.random()}:${Math.random()}`;
   /** Keep confirmed rows and predictions in the same commit as stream application. */
   reconcile: (tx: StoreTx, apply: () => Promise<void>, acknowledged?: Record<string, number>) => Promise<void> = (_tx, apply) => apply();
+  /** A client can order the whole round against outgoing mutation requests. */
+  coordinate: (round: () => Promise<{ touched: Set<string>; ok: boolean }>) => Promise<{ touched: Set<string>; ok: boolean }> = (round) => round();
 
   constructor(readonly store: Store, public schema: SchemaJson, private transport: Transport, public generation: number) {}
 
@@ -83,7 +91,7 @@ export class Replica {
    * applies as one transaction. Returns the tables that changed. */
   syncOnce(): Promise<{ touched: Set<string>; ok: boolean }> {
     if (this.syncing) return this.syncing;
-    const result = this.syncRound();
+    const result = this.coordinate(() => this.syncRound());
     this.syncing = result;
     void result.finally(() => { if (this.syncing === result) this.syncing = null; }).catch(() => {});
     return result;
@@ -98,8 +106,9 @@ export class Replica {
     const state = await this.state();
     let watermark = state.generation === generation ? state.watermark : 0;
     let after: string | undefined;
+    let catchingUp = false;
     const fetchPage = (cursor?: string) => {
-      const promise = this.transport.sync(watermark, PAGE, cursor);
+      const promise = this.transport.sync(watermark, PAGE, cursor, catchingUp);
       // A prefetched page may fail while this page's transaction is still
       // running. Its rejection is observed even if application aborts.
       void promise.catch(() => {});
@@ -112,13 +121,22 @@ export class Replica {
         if (this.closed || revision !== this.revision || "denied" in page) return { touched, ok: false };
         if (page.generation !== undefined && page.generation !== generation) return { touched, ok: false };
         if (page.watermark < watermark) return { touched, ok: false };
+        if (catchingUp && page.snapshot) return { touched, ok: false };
         if (page.snapshot && page.more && !page.next) return { touched, ok: false };
         const continues = page.snapshot && page.more ? page.next! : undefined;
         if (continues) inFlight = fetchPage(continues);
-        await this.apply(page, touched, after === undefined, revision);
+        await this.apply({ ...page, stage_snapshot: page.snapshot, snapshot_catchup: catchingUp }, touched, !catchingUp && after === undefined, revision);
         if (continues) { after = continues; continue; }
         after = undefined;
         watermark = page.watermark;
+        // Snapshot pages read current rows at a pinned starting watermark.
+        // Drain every intervening commit before publishing those row images
+        // or deciding which pending predictions the images already include.
+        if (page.snapshot) {
+          catchingUp = true;
+          inFlight = fetchPage();
+          continue;
+        }
         if (!page.more) {
           this.caughtUp = true;
           return { touched, ok: true };
@@ -134,9 +152,10 @@ export class Replica {
     }
   }
 
-  /** Stage snapshot pages durably without exposing half a replacement.
-   * The last page publishes rows, indexes, generation and watermark in one
-   * transaction. A failed or interrupted replacement leaves the old view. */
+  // @ref LLP 3000.001#implementation-follow-up — one confirmed base and an atomic staged replacement.
+  /** Stage snapshots and their catch-up durably without exposing half a
+   * replacement. The drained stream publishes rows, indexes, generation
+   * and watermark together. Direct snapshot callers can omit stage_snapshot. */
   async apply(page: StreamPage, touched: Set<string>, first = true, revision = this.revision): Promise<void> {
     const generation = this.generation;
     const changed = new Set<string>();
@@ -145,26 +164,47 @@ export class Replica {
         if (revision !== this.revision || (page.generation !== undefined && page.generation !== generation)) throw new Error("replica generation changed during sync");
       };
       check();
+      if (page.send_revision !== undefined && Number(await tx.getMeta("outbox:sendRevision") ?? 0) !== page.send_revision) throw new Error("a write was sent during sync; restart with its pending id");
       const storedGeneration = Number((await tx.getMeta(GENERATION)) ?? 0);
       const storedWatermark = Number((await tx.getMeta(WATERMARK)) ?? 0);
       if (storedGeneration === generation && page.watermark < storedWatermark) throw new Error("stale replica page");
-      if (page.snapshot) {
+      const replacing = page.snapshot || page.snapshot_catchup;
+      if (replacing) {
         const staged = tx.side("snapshot");
-        if (first) {
+        if (page.snapshot && first) {
           await staged.clear();
           await tx.setMeta("snapshot:watermark", page.watermark);
+          await tx.setMeta("snapshot:through", page.watermark);
+          await tx.setMeta("snapshot:catchup", false);
           await tx.setMeta("snapshot:owner", this.snapshotOwner);
+          await tx.setMeta("snapshot:sendRevision", page.send_revision ?? null);
         }
         if (await tx.getMeta("snapshot:owner") !== this.snapshotOwner) throw new Error("snapshot owner changed or its replacement already finished; restart from the first page");
-        if (await tx.getMeta("snapshot:watermark") !== page.watermark) throw new Error("snapshot watermark changed between pages");
-        for (const event of page.events) {
-          if (event.kind !== "put") throw new Error("a snapshot contains only row images");
-          await staged.put(JSON.stringify([event.table, event.id]), event);
+        if (await tx.getMeta("snapshot:sendRevision") !== (page.send_revision ?? null)) throw new Error("a write was sent during the snapshot; restart from the first page");
+        if (page.snapshot) {
+          if (page.snapshot_catchup || await tx.getMeta("snapshot:catchup")) throw new Error("snapshot catch-up has already begun");
+          if (await tx.getMeta("snapshot:watermark") !== page.watermark) throw new Error("snapshot watermark changed between pages");
+          for (const event of page.events) {
+            if (event.kind !== "put") throw new Error("a snapshot contains only row images");
+            await staged.put(JSON.stringify([event.table, event.id]), event);
+          }
+          if (page.stage_snapshot && !page.more) await tx.setMeta("snapshot:catchup", true);
+          if (page.more || page.stage_snapshot) { check(); return; }
+        } else {
+          if (first || !await tx.getMeta("snapshot:catchup")) throw new Error("snapshot catch-up requires a completed staged snapshot");
+          if (page.watermark < Number(await tx.getMeta("snapshot:through"))) throw new Error("stale snapshot catch-up page");
+          for (const event of page.events) {
+            const key = JSON.stringify([event.table, event.id]);
+            if (event.kind === "put") await staged.put(key, event);
+            else if (event.kind === "del") await staged.delete(key);
+            else await this.leaveStaged(tx, event.table, event.data as unknown[]);
+          }
+          await tx.setMeta("snapshot:through", page.watermark);
+          if (page.more) { check(); return; }
         }
-        if (page.more) { check(); return; }
       }
       await this.reconcile(tx, async () => {
-        if (page.snapshot) {
+        if (replacing) {
           await tx.clearRows();
           for (const table of Object.keys(this.schema.tables)) changed.add(table);
           let after: string | undefined;
@@ -180,6 +220,9 @@ export class Replica {
           await tx.side("snapshot").clear();
           await tx.setMeta("snapshot:owner", null);
           await tx.setMeta("snapshot:watermark", null);
+          await tx.setMeta("snapshot:through", null);
+          await tx.setMeta("snapshot:catchup", null);
+          await tx.setMeta("snapshot:sendRevision", null);
         } else {
           for (const event of page.events) {
             changed.add(event.table);
@@ -199,13 +242,37 @@ export class Replica {
     for (const table of changed) touched.add(table);
   }
 
+  private async leaveStaged(tx: StoreTx, table: string, group: unknown[]) {
+    const definition = this.schema.tables[table];
+    if (!definition || definition.leave === "delivered-history") return;
+    const prefix = this.audienceColumns(table);
+    const staged = tx.side("snapshot");
+    const tablePrefix = `${JSON.stringify([table]).slice(0, -1)},`;
+    let after: string | undefined = tablePrefix;
+    for (;;) {
+      const batch = await staged.page(after, 500);
+      for (const { key, value } of batch) {
+        if (!key.startsWith(tablePrefix)) return;
+        const event = value as StreamEvent;
+        const row = event.data as Row;
+        if (event.table === table && prefix.length === group.length && prefix.every((column, index) => (row[column] ?? null) === group[index])) await staged.delete(key);
+      }
+      if (batch.length < 500) break;
+      after = batch[batch.length - 1]!.key;
+    }
+  }
+
+  private audienceColumns(table: string): string[] {
+    const audience = this.schema.tables[table]?.sync?.audience as Record<string, unknown> | undefined;
+    return audience && typeof audience === "object" && "Target" in audience ? (audience.Target as { prefix: string[] }).prefix : audience && typeof audience === "object" && "Column" in audience ? [audience.Column as string] : [];
+  }
+
   /** A group the device left: drop its rows (`until-revoked`) or keep what
    * was delivered (`delivered-history`). */
   private async leave(tx: StoreTx, table: string, group: unknown[]) {
     const definition = this.schema.tables[table];
     if (!definition || definition.leave === "delivered-history") return;
-    const audience = definition.sync?.audience as Record<string, unknown> | undefined;
-    const prefix: string[] = audience && typeof audience === "object" && "Target" in audience ? (audience.Target as { prefix: string[] }).prefix : audience && "Column" in audience ? [audience.Column as string] : [];
+    const prefix = this.audienceColumns(table);
     // The group's rows are the prefix range of any index leading with the
     // audience columns; the horizon index does when there is one.
     const index = definition.sync?.horizon?.by ?? Object.entries(definition.indexes).find(([, i]) => prefix.every((c, n) => (i.components[n] as { Column?: string })?.Column === c))?.[0];

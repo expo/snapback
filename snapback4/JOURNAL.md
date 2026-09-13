@@ -1611,3 +1611,38 @@ on the author's behalf. Four historical Snapback 1 research working-set links
 were archived to keep `llp/current/` at 59; the review records the exact links,
 and their documents remain unchanged. Core implementation custody remains
 with the lead under LLP 3000.
+
+## 2026-09-13 — implementing the comprehensive review's corrections (Codex)
+
+Charlie asked to fix all 37 tickets from the 0.0.16 review. The implementation
+was based on 0.1.13, then integrated the concurrently landed 0.1.14 merge
+performance work, native Expo module and SQLite 0.40.2 integration. Work stayed
+in the reused fixture worktree on an owned integration branch; active sibling
+worktrees and the shared dirty root were preserved.
+
+The store now publishes schema, programs, projection, changed maintains and
+monotone generation in one checked transaction. CLI inspection attaches to
+persisted content; immutable release directories and an authoritative SQLite
+release pointer replace independently mutable activation owners. Device arms
+keep confirmed before-images and ordered durable writes, stage snapshots until
+their final transaction, guard competing snapshot/send owners, and replay
+surviving predictions after refusal or sync. Compiler corrections preserve
+lexical scope, source evaluation order, short circuiting and narrowing; device
+values preserve checked i53 arithmetic, Unicode order and typed aggregate IDs.
+HTTP admission/output, React/page lifetimes, reference-app drafts and cleanup,
+loop-bar process ownership, witness dependency resolution and publication
+artifact identity have corresponding corrections.
+
+The corpus is now an honest Rust server check: 211 passing cases and 82 named
+exclusions for source semantics outside this model. It checks retained states
+and continuations, and has no failure allowlist. Actual Rust/TypeScript
+execution probes cover value semantics and byte-identical cursors. The larger
+cross-host/physical resource questions remain explicit in Draft Research
+3000.000–3000.003; asset argument normalization and durable terminal-outcome
+discovery are among the boundaries those documents still identify.
+
+The five archived historical working-set links across this review and follow-up
+are 0329.011, 0329.014, 0329.019, 0329.021 and 0329.020. Only their current links
+were removed; documents and references remain. The last retirement makes room
+for concurrently landed 3000.004 while keeping the 59-document budget.
+Verification and independent review results follow in the closure record.

@@ -41,7 +41,6 @@ fn vector(bound: &Bound, seeds: &[(&str, Json)], name: &str, args: Json) -> Json
         match engine.mutate(name, None, context).unwrap().state {
             WriteState::Sent { result, .. } => json!({"result": wire::to_json(&result)}),
             WriteState::Failed { why, .. } => json!({"error": why.code}),
-            other => panic!("{other:?}"),
         }
     };
     json!({"name": name, "schema": bound.schema, "program": program, "args": args, "before": before,
@@ -161,7 +160,7 @@ table groups:
   sync public
 table items:
   category: text <=10
-  owner: ref groups
+  owner: groups
   amount: int
   read <- allow
   insert <- allow
@@ -175,7 +174,7 @@ maintain pairCounts: count items by category, owner
   read <- allow
 maintain sums: sum items of amount by category
   read <- allow
-mutation add(category: text <=10, owner: ref groups, amount: int):
+mutation add(category: text <=10, owner: groups, amount: int):
   insert items {id: 'new-item', category, owner, amount}
   return 0
 mutation move():
@@ -247,7 +246,7 @@ fn checked_nested_sums_arithmetic_and_negative_divisors_match_rust() {
 fn list_maintained_groups_are_rejected_at_the_authored_schema_boundary() {
     // A maintain needs a unique index over its group, and list columns are
     // deliberately not indexable. Do not prove parity using an invalid schema.
-    for kind in ["text <=10", "ref groups"] {
+    for kind in ["text <=10", "groups"] {
         let source = format!("table groups:\n  read <- allow\ntable items:\n  labels: [{kind}] <=4\n  read <- allow\nmaintain counts: count items by labels\n  read <- allow\n");
         let rejected = compile(&[("schema.q".into(), source)]);
         assert!(rejected.diagnostics.iter().any(|d| d.message.contains("cannot be indexed")), "{:?}", rejected.diagnostics);

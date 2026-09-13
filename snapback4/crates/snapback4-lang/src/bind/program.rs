@@ -218,17 +218,20 @@ impl<'a> Binder<'a> {
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl)> {
         super::validate_key_names(read)?;
         let point = mode != ReadMode::Range;
-        let mut keys = Vec::new();
+        let mut keys = Vec::<(Option<String>, Expr, Ty)>::new();
         for part in &read.keys {
             let expected_column = part.column.clone();
+            let mut setup = Vec::new();
             let (e, t) = match &expected_column {
-                Some(column) if column == "id" => self.expr_as_identity(&part.value, out, &Ty::Ref(read.table.clone()))?,
+                Some(column) if column == "id" => self.expr_as_identity(&part.value, &mut setup, &Ty::Ref(read.table.clone()))?,
                 Some(column) => match info.columns.get(column) {
-                    Some(scalar) if Ty::from_scalar(scalar).is_identity() => self.expr_as_identity(&part.value, out, &Ty::from_scalar(scalar))?,
-                    _ => self.expr(&part.value, out)?,
+                    Some(scalar) if Ty::from_scalar(scalar).is_identity() => self.expr_as_identity(&part.value, &mut setup, &Ty::from_scalar(scalar))?,
+                    _ => self.expr(&part.value, &mut setup)?,
                 },
-                None => self.expr(&part.value, out)?,
+                None => self.expr(&part.value, &mut setup)?,
             };
+            self.sequence_setup(keys.iter_mut().map(|(_, e, _)| e), setup, out);
+            let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
             keys.push((expected_column, e, t));
         }
         let named = keys.iter().all(|(c, _, _)| c.is_some()) && !keys.is_empty();
@@ -457,12 +460,15 @@ impl<'a> Binder<'a> {
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
         let result = (|| {
-            let mut exprs = BTreeMap::new();
+            let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
-            let mut add = |name: String, e: Expr, t: Ty, site: &Site| -> Fallible<()> {
-                if exprs.insert(name.clone(), e).is_some() {
+            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, site: &Site, setup: Vec<Stmt>, out: &mut Vec<Stmt>| -> Fallible<()> {
+                binder.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
+                let e = if expr::allocates(&e) { binder.snapshot(e, out) } else { e };
+                if types.contains_key(&name) {
                     return Err(unknown(site, format!("shape repeats field {name}"), "keep one"));
                 }
+                exprs.push((name.clone(), e));
                 types.insert(name, t);
                 Ok(())
             };
@@ -470,33 +476,35 @@ impl<'a> Binder<'a> {
                 match field {
                     ShapeField::Spread { site } => {
                         for (name, ty) in self.row_fields(&row_ty, site)? {
-                            add(name.clone(), ir::field(ir::var(row_var), &name), ty, site)?;
+                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, site, Vec::new(), out)?;
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {
                         let Some(shape) = self.catalog.shapes.get(name).cloned() else {
                             return Err(unknown(site, format!("unknown shape {name}"), name_rewrite(name, self.catalog.shapes.keys().map(String::as_str), None)));
                         };
-                        let (nested, nested_ty) = self.shape_object(row_var, row_ty.clone(), &shape.fields, site, out)?;
+                        let mut setup = Vec::new();
+                        let (nested, nested_ty) = self.shape_object(row_var, row_ty.clone(), &shape.fields, site, &mut setup)?;
                         if let (Expr::Object(nested_fields), Ty::Object(nested_types)) = (nested, nested_ty) {
                             for (name, e) in nested_fields {
                                 let t = nested_types[&name].clone();
-                                add(name, e, t, site)?;
+                                add(self, name, e, t, site, std::mem::take(&mut setup), out)?;
                             }
                         }
                     }
                     ShapeField::Bare { name, site } => {
                         let (e, t) = self.member(ir::var(row_var), row_ty.clone(), name, site)?;
-                        add(name.clone(), e, t, site)?;
+                        add(self, name.clone(), e, t, site, Vec::new(), out)?;
                     }
                     ShapeField::Field { name, value, site } => {
-                        let (e, t) = self.expr(value, out)?;
-                        add(name.clone(), e, t, site)?;
+                        let mut setup = Vec::new();
+                        let (e, t) = self.expr(value, &mut setup)?;
+                        add(self, name.clone(), e, t, site, setup, out)?;
                     }
                 }
             }
             let _ = site;
-            Ok((Expr::Object(exprs), Ty::Object(types)))
+            Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types)))
         })();
         self.pop_scope();
         self.focal = prior;
@@ -626,10 +634,12 @@ impl<'a> Binder<'a> {
         }
         // A row value as the key addresses the row by its id.
         if keys.len() == 1 && keys[0].column.is_none() {
-            let (e, t) = self.expr(&keys[0].value, out)?;
+            let mut row_setup = Vec::new();
+            let (e, t) = self.expr(&keys[0].value, &mut row_setup)?;
             if let Ty::Row(table) = t.required()
                 && table == info.decl.name
             {
+                out.extend(row_setup);
                 let id = self.temp("key");
                 out.push(Stmt::Let { name: id.clone(), value: ir::field(e, "id") });
                 return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false, named: Vec::new() });
@@ -658,7 +668,7 @@ impl<'a> Binder<'a> {
             }
             Some(_) => {
                 // A patch: only the named columns, each typed.
-                let mut exprs = BTreeMap::new();
+                let mut exprs = Vec::<(String, Expr)>::new();
                 let mut types = BTreeMap::new();
                 for field in fields {
                     if field.name == "id" {
@@ -668,41 +678,47 @@ impl<'a> Binder<'a> {
                         return Err(unknown(&field.site, format!("{} has no column {}", info.decl.name, field.name), name_rewrite(&field.name, info.columns.keys().map(String::as_str), None)));
                     };
                     let expected = Ty::from_scalar(scalar);
-                    let (e, t) = self.field_value(field, &expected, out)?;
+                    let mut setup = Vec::new();
+                    let (e, t) = self.field_value(field, &expected, &mut setup)?;
+                    self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                     if !t.assignable_to(&expected) {
                         return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
                     }
-                    exprs.insert(field.name.clone(), e);
+                    let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
+                    exprs.push((field.name.clone(), e));
                     types.insert(field.name.clone(), t);
                 }
-                Ok((Expr::Object(exprs), Ty::Object(types)))
+                Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types)))
             }
         }
     }
 
     fn write_row_with_id(&mut self, info: &'a TableInfo, fields: &[ObjectField], id: Expr, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        let mut exprs = BTreeMap::new();
-        exprs.insert("id".to_owned(), id);
+        let id = self.snapshot(id, out);
+        let mut exprs = vec![("id".to_owned(), id)];
         let mut given = std::collections::BTreeSet::new();
         for field in fields {
             let Some(scalar) = info.columns.get(&field.name) else {
                 return Err(unknown(&field.site, format!("{} has no column {}", info.decl.name, field.name), name_rewrite(&field.name, info.columns.keys().map(String::as_str), None)));
             };
             let expected = Ty::from_scalar(scalar);
-            let (e, t) = self.field_value(field, &expected, out)?;
+            let mut setup = Vec::new();
+            let (e, t) = self.field_value(field, &expected, &mut setup)?;
+            self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
             if !t.assignable_to(&expected) {
                 return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
             }
-            if exprs.insert(field.name.clone(), e).is_some() {
+            let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
+            if !given.insert(field.name.clone()) {
                 return Err(unknown(&field.site, format!("field {} is written twice", field.name), "keep one"));
             }
-            given.insert(field.name.clone());
+            exprs.push((field.name.clone(), e));
         }
         let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
         if !missing.is_empty() {
             return Err(type_error(site, format!("insert into {} omits required column{} {}", info.decl.name, if missing.len() == 1 { "" } else { "s" }, missing.join(", ")), format!("insert {} {{ {} }}", info.decl.name, given.iter().cloned().chain(missing.iter().map(|m| format!("{m}: <{}>", info.columns.get(*m).map(print::scalar_type).unwrap_or_default()))).collect::<Vec<_>>().join(", "))));
         }
-        Ok((Expr::Object(exprs), Ty::Row(info.decl.name.clone())))
+        Ok((Expr::Object(exprs.into_iter().collect()), Ty::Row(info.decl.name.clone())))
     }
 
     fn field_value(&mut self, field: &ObjectField, expected: &Ty, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {

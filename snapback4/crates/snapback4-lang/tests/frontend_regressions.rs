@@ -334,6 +334,7 @@ async function run(name, args = {}) {
   const result = await store[mode === 'query' ? 'read' : 'write'](tx => new Interpreter(tx, backend.schema, context, mode).run(programs[name]));
   return result.data;
 }
+
 assert.equal(await run('repeated'), 3);
 assert.equal(await run('nested', { x: 5 }), 40);
 assert.deepEqual(await run('minted'), { left: 'id1', right: 'id1' });
@@ -351,5 +352,96 @@ assert.equal(await run('narrowed', { x: null }), false);
 assert.equal(await run('narrowed', { x: 1 }), true);
 "#;
     let result = Command::new("bun").args(["--eval", code]).env("QUARRY_TEST_BACKEND", scratch.0.join("backend.json")).current_dir(workspace()).output().unwrap();
+    assert!(result.status.success(), "{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
+}
+
+
+#[test]
+fn compound_children_keep_source_order_before_later_setup_on_both_hosts() {
+    let source = r#"
+table items:
+  n: int
+  read <- allow
+  insert <- allow
+  update <- allow
+  sync public
+table pairs:
+  first: int
+  second: int
+  unique byPair: first, second
+  read <- allow
+  insert <- allow
+  sync public
+fn identity(x: int): x
+fn sameItem(x: items): x
+fn writes(): (insert items {n: 1}).n
+query pendingShape():
+  return items[] first 10 by byId {n, extra: identity(1)}
+mutation arrayOrder():
+  return [count(items[] first 10 by byId), identity(writes())]
+mutation objectOrder():
+  return {z: count(items[] first 10 by byId), a: identity(writes())}
+mutation objectIds():
+  return {z: [new], a: [new]}
+mutation minimum():
+  return min(count(items[] first 10 by byId), identity(writes()))
+mutation maximum():
+  return max(count(items[] first 10 by byId), identity((insert items {n: 0}).n))
+mutation sliceBase():
+  return slice(items[] first 10 by byId, 0, identity(writes()))
+mutation sliceStart():
+  return slice([7, 8], count(items[] first 10 by byId), identity(writes()))
+mutation shareAmount():
+  return share(count(items[] first 10 by byId), [0], identity((insert items {n: 0}).n))
+mutation shapeOrder():
+  insert items {id: 'row', n: 0}
+  return (items['row'] {z: count(items[] first 10 by byId), a: identity(writes())}).z
+mutation writeFields():
+  return (insert pairs {id: 'pair', first: count(items[] first 10 by byId), second: identity(writes())}).first
+mutation keyOrder():
+  insert pairs {id: 'pair', first: 0, second: 1}
+  return (pairs[first=count(items[] first 10 by byId), second=identity(writes())] ! else MISSING).first
+mutation writeKey():
+  update items[sameItem((insert items {id: 'target', n: 1}).id)] {n: 2}
+  return (items['target'] ! else MISSING).n
+mutation lazyContainers():
+  return [true or (max(count(items[] first 10 by byId), identity(writes())) > 0), count(items[] first 10 by byId)]
+"#;
+    let expected = serde_json::json!({
+        "arrayOrder": [0, 1], "objectOrder": {"z": 0, "a": 1}, "objectIds": {"z": ["id1"], "a": ["id2"]},
+        "minimum": 0, "maximum": 0, "sliceBase": [], "sliceStart": [7], "shareAmount": 0,
+        "shapeOrder": 1, "writeFields": 0, "keyOrder": 0, "writeKey": 2, "lazyContainers": [true, 0]
+    });
+    for (name, value) in expected.as_object().unwrap() {
+        let result = mutation(&mut engine(source), name, &[]);
+        assert_eq!(&snapback4_core::wire::to_json(&result), value, "{name}");
+    }
+    let compiled = bound(source);
+    let scratch = Scratch::new();
+    let backend = serde_json::json!({"schema": compiled.schema, "programs": compiled.programs.into_iter().map(|p| p.program).collect::<Vec<_>>(), "expected": expected});
+    std::fs::write(scratch.0.join("backend.json"), serde_json::to_vec(&backend).unwrap()).unwrap();
+    let result = Command::new("bun").args(["--eval", r#"
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { Interpreter } from './packages/snapback4/src/replica/interpreter.ts';
+import { MemoryStore } from './packages/snapback4/src/replica/store.ts';
+const backend = JSON.parse(readFileSync(process.env.QUARRY_TEST_BACKEND, 'utf8'));
+for (const [name, expected] of Object.entries(backend.expected)) {
+  const store = new MemoryStore(backend.schema);
+  let next = 0;
+  const ctx = {viewer: 'dev:alice', args: {}, now: 1, newIds: [], mint: () => `id${++next}`};
+  const program = backend.programs.find(p => p.name === name);
+  const out = await store.write(tx => new Interpreter(tx, backend.schema, ctx, 'mutation').run(program));
+  assert.deepEqual(out.data, expected, name);
+  if (name === 'lazyContainers') assert.equal((await store.read(tx => tx.scan('items', 'byId', [], {}, 'asc', 10))).length, 0);
+  await store.close();
+}
+const pendingStore = new MemoryStore(backend.schema);
+await pendingStore.write(tx => tx.put('items', {id: 'held', n: 7, pending: true}));
+const pending = await pendingStore.read(tx => new Interpreter(tx, backend.schema,
+  {viewer: 'dev:alice', args: {}, now: 1, newIds: [], mint: () => 'unused'}, 'query').run(backend.programs.find(p => p.name === 'pendingShape')));
+assert.deepEqual(pending.data, [{n: 7, extra: 1, pending: true}], 'helper-bearing projections retain pending provenance');
+await pendingStore.close();
+"#]).env("QUARRY_TEST_BACKEND", scratch.0.join("backend.json")).current_dir(workspace()).output().unwrap();
     assert!(result.status.success(), "{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
 }

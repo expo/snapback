@@ -533,6 +533,10 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
     }
     let events = expand_joins(tx, schema, page, &held)?;
     let more = has_more(tx, &own_partition, &held, next)?;
+    // A drained partition also covers commits with no events for this viewer
+    // (no-op and online-only writes). Their acknowledged outbox entries must
+    // be able to retire at the same transaction's through-watermark.
+    if !more { next = next.max(tx.next_seq()? - 1); }
     Ok(StreamPage { events, watermark: next, more })
 }
 

@@ -156,6 +156,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let changesSeq = 0;
   const online = createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
   const aborter = new AbortController();
+  let networkTail: Promise<unknown> = Promise.resolve();
+  function network<T>(body: () => Promise<T>): Promise<T> {
+    const result = networkTail.then(body);
+    networkTail = result.catch(() => {});
+    return result;
+  }
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
@@ -187,11 +193,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   const replica = new Replica(store, backend.schema, {
-    async sync(from, limit, after) {
+    async sync(from, limit, after, stream) {
       try {
         if (closed || sessionDead) return { denied: unavailable() };
-        const pending = (await queued()).slice(0, 256).map((entry) => entry.id);
-        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
+        const { pending, sendRevision } = await store.read(async (tx) => ({
+          pending: (await tx.side("outbox").all()).map((entry) => entry.value as Queued).filter((entry) => entry.sentSeq === undefined).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || a.id.localeCompare(b.id)).slice(0, 256).map((entry) => entry.id),
+          sendRevision: Number(await tx.getMeta("outbox:sendRevision") ?? 0),
+        }));
+        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}${stream ? "&stream=1" : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
         if (response.status >= 500) { setLink("offline"); return { denied: offline() }; }
         const page = (await response.json()) as StreamPage & { denied?: Refusal };
         if (closed) return { denied: unavailable() };
@@ -214,22 +223,36 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // the replica re-derive the partition on its next round.
           const next = await loadBackend(doFetch, base, headers, aborter.signal);
           if (closed) return { denied: unavailable() };
-          backend.generation = next.generation;
-          backend.schema = next.schema;
-          backend.programs = next.programs;
-          store.setSchema(next.schema);
-          await store.write((tx) => tx.setMeta(BACKEND, next));
-          replica.adopt(next.schema, next.generation);
+          const previous = backend;
+          try {
+            await store.write(async (tx) => {
+              if (closed) throw new Error("client closed during backend adoption");
+              await tx.setMeta(BACKEND, next);
+              // Existing operations finish with their own index schema;
+              // later transactions see the backend and schema together.
+              store.setSchema(next.schema);
+              backend = next;
+              replica.adopt(next.schema, next.generation);
+            });
+          } catch (error) {
+            store.setSchema(previous.schema);
+            backend = previous;
+            replica.adopt(previous.schema, previous.generation);
+            throw error;
+          }
           for (const watch of watches.values()) void rerun(watch);
           return { denied: { code: "E_GENERATION", family: "generation", message: "the backend changed; re-deriving the partition", retryable: true } };
         }
-        return page;
+        return { ...page, send_revision: sendRevision };
       } catch {
         setLink("offline");
         return { denied: offline() };
       }
     },
   }, backend.generation);
+  // Capture pending IDs and apply all pages before a later admitted write
+  // may reach the server. Otherwise its commit can appear without a match.
+  replica.coordinate = network;
 
   // Every applied batch re-runs the queries whose tables it touched.
   replica.onChange((touched) => {
@@ -265,6 +288,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const refused = unavailable();
     if (refused) return { read: { denied: refused }, tables: new Set() };
     const program = backend.programs[op.name];
+    const selectedBackend = backend;
     if (!program) return { read: { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } }, tables: new Set() };
     if (partitionDenied) return { read: { denied: partitionDenied }, tables: new Set(Object.keys(backend.schema.tables)) };
     const tables = operationTables(program, backend.schema);
@@ -279,6 +303,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let interpreter: Interpreter | undefined;
     try {
       const outcome: LocalRead = await store.read((tx) => {
+        if (backend !== selectedBackend) throw new Refused({ code: "E_GENERATION", family: "generation", message: "the backend changed before this read ran", retryable: true });
         interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint: mintId }, "query");
         return interpreter.run(program);
       });
@@ -409,7 +434,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       for (const entry of await queued()) {
         if (closed) return;
         if (entry.sentSeq !== undefined) { await replica.syncOnce(); continue; }
-        const result = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.newIds });
+        const result = await network(async () => {
+          if (closed || sessionDead) return { ok: false as const };
+          await store.write(async (tx) => tx.setMeta("outbox:sendRevision", Number(await tx.getMeta("outbox:sendRevision") ?? 0) + 1));
+          return post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.newIds });
+        });
         if (closed) return;
         if (!result.ok) { retryFlush(); return; }
         const json = result.json;
@@ -479,6 +508,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (unavailableWhy) return { state: "failed", id, why: unavailableWhy };
       const seq = ++submissions;
       const program = backend.programs[op.name];
+      const selectedBackend = backend;
       if (!program) return { state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } };
       const newIds: string[] = [];
       const mint = () => { const minted = mintId(); newIds.push(minted); return minted; };
@@ -492,6 +522,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await track((async () => {
         try {
           await store.write(async (tx) => {
+            if (backend !== selectedBackend) throw new Refused({ code: "E_GENERATION", family: "generation", message: "the backend changed before this write was admitted", retryable: true });
             const predicted = onlineOnly ? [] : await predict(tx, backend.schema, program, { viewer: principal, args: args as Record<string, unknown>, now, newIds: [], mint });
             await enqueue(tx, { id, seq, op: op.name, args, now, newIds: [...newIds], predicted, predictable: !onlineOnly });
           });

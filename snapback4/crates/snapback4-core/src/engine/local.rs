@@ -58,12 +58,11 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     validate_inputs(schema, program, &mut context.args)?;
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
-    let result = runner.run(program);
+    let result = runner.run(program).and_then(|value| { runner.check_final_exists()?; Ok(value) });
     if runner.beyond_horizon {
         return Err(RuntimeError::Prediction("this device does not hold enough rows to judge the mutation".into()));
     }
     let result = result?;
-    runner.check_final_exists()?;
     runner.charge_output(&result)?;
     Ok(Prediction { new_ids: runner.context.minted_ids.clone(), result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
 }

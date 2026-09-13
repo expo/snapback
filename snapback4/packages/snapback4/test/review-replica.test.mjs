@@ -14,6 +14,53 @@ const tick = () => new Promise(r=>setTimeout(r,0));
 const factories = {memory: async()=>new MemoryStore(schema), sqlite:()=>openSqlite(nodeSqliteDriver(new DatabaseSync(":memory:")),schema)};
 
 for (const [name, open] of Object.entries(factories)) {
+  test(`${name}: a snapshot stays hidden through catch-up puts, deletes and scope tombstones`, async()=>{
+    const store=await open();
+    const grouped={...schema.tables.t,columns:{...schema.tables.t.columns,owner:"Principal"},sync:{audience:{Column:"owner"}}};
+    const stagedSchema={tables:{...schema.tables,g:grouped,h:{...grouped,leave:"delivered-history"}}};
+    store.setSchema(stagedSchema);
+    await store.write(async tx=>{await tx.put("t",{id:"old",value:1});await tx.setMeta("watermark",5);await tx.setMeta("generation",1);});
+    const replica=new Replica(store,stagedSchema,{sync:async()=>{throw Error("unused")}},1), touched=new Set();
+    let rebases=0;
+    replica.reconcile=async(tx,apply,ack)=>{rebases++;await apply();assert.deepEqual(ack,{write:12});assert.equal(await tx.getMeta("watermark"),12);};
+    const put=(table,id,value,owner)=>({kind:"put",table,id,data:{id,value,...(owner?{owner}:{})}});
+    await replica.apply({snapshot:true,stage_snapshot:true,events:[put("t","a",12),put("t","b",10),put("g","gone",10,"alice"),put("g","kept",10,"bob"),put("h","history",10,"alice")],watermark:10,more:false},touched,true);
+    assert.equal((await store.read(tx=>tx.get("t","old"))).value,1);
+    assert.equal((await replica.state()).watermark,5);
+    const partial={snapshot:false,snapshot_catchup:true,events:[put("t","a",11),{kind:"del",table:"t",id:"b"},{kind:"scope",table:"g",id:"",data:["alice"]},{kind:"scope",table:"h",id:"",data:["alice"]}],watermark:11,more:true};
+    await replica.apply(partial,touched,false);
+    assert.equal(rebases,0,"intermediate catch-up must not replay against fuzzy row images");
+    assert.equal(touched.size,0);
+    assert.equal((await store.read(tx=>tx.get("t","old"))).value,1);
+    await assert.rejects(replica.apply({...partial,watermark:10},touched,false),/stale snapshot catch-up/);
+    const final={snapshot:false,snapshot_catchup:true,events:[put("t","a",12)],watermark:12,more:false,acknowledged:{write:12}};
+    const reopened=new Replica(store,stagedSchema,{sync:async()=>{throw Error("unused")}},1);
+    await assert.rejects(reopened.apply(final,touched,false),/owner/);
+    await replica.apply(final,touched,false);
+    assert.equal(rebases,1);
+    await store.read(async tx=>{
+      assert.equal(await tx.get("t","old"),undefined);assert.equal(await tx.get("t","b"),undefined);
+      assert.equal((await tx.get("t","a")).value,12);assert.equal(await tx.get("g","gone"),undefined);
+      assert.ok(await tx.get("g","kept"));assert.ok(await tx.get("h","history"));
+      assert.equal(await tx.getMeta("watermark"),12);assert.deepEqual(await tx.side("snapshot").all(),[]);
+    });
+    await assert.rejects(replica.apply(final,touched,false),/owner|finished/);
+    await store.close();
+  });
+  test(`${name}: another sender invalidates captured stream and snapshot receipts`,async()=>{
+    const store=await open();
+    await store.write(async tx=>{await tx.put("t",{id:"old",value:1});await tx.setMeta("watermark",1);await tx.setMeta("generation",1);await tx.setMeta("outbox:sendRevision",1);});
+    const replica=new Replica(store,schema,{sync:async()=>{throw Error("unused")}},1);
+    const page={snapshot:false,events:[{table:"t",kind:"put",id:"old",data:{id:"old",value:2}}],watermark:2,more:false,send_revision:0};
+    await assert.rejects(replica.apply(page,new Set()),/write was sent/);
+    assert.equal((await replica.state()).watermark,1);
+    assert.equal((await store.read(tx=>tx.get("t","old"))).value,1);
+    await replica.apply({...page,snapshot:true,more:true,next:"next",send_revision:1},new Set(),true);
+    await store.write(tx=>tx.setMeta("outbox:sendRevision",2));
+    await assert.rejects(replica.apply({...page,snapshot:true,send_revision:2},new Set(),false),/snapshot/);
+    assert.equal((await store.read(tx=>tx.get("t","old"))).value,1);
+    await store.close();
+  });
   test(`${name}: finalized and competing snapshot continuations cannot truncate the partition`, async()=>{
     const store=await open();
     const first=new Replica(store,schema,{sync:async()=>{throw Error("unused")}},1);
@@ -62,6 +109,19 @@ for (const [name, open] of Object.entries(factories)) {
     await replica.close();
   });
 }
+
+test("a zero-watermark snapshot explicitly requests a delta before publishing",async()=>{
+  const store=new MemoryStore(schema), calls=[];
+  const replica=new Replica(store,schema,{sync:async(from,_limit,after,stream)=>{
+    calls.push({from,after,stream});
+    assert.equal((await replica.state()).generation,0,"even the final snapshot page remains unpublished");
+    return {snapshot:!stream,events:[],watermark:0,more:false};
+  }},1);
+  assert.equal((await replica.syncOnce()).ok,true);
+  assert.deepEqual(calls,[{from:0,after:undefined,stream:false},{from:0,after:undefined,stream:true}]);
+  assert.equal((await replica.state()).generation,1);
+  await replica.close();
+});
 
 test("memory metadata writes do not clone existing replica values; touched-container rollback preserves them",async()=>{
   const store=new MemoryStore(schema);

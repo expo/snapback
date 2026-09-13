@@ -290,8 +290,12 @@ impl Runner<'_> {
                         crate::schema::RuleTerm::OldField(_) => Value::Null,
                     })
                     .collect();
-                let target_index = self.schema.table(target).and_then(|t| t.index(index)).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                if self.tx.lookup(target, index, target_index, &key)?.is_none() {
+                self.read_tables.insert(target.clone());
+                let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
+                let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
+                let found = self.tx.lookup(target, index, target_index, &key)?;
+                if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
+                if found.is_none() {
                     return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
                 }
             }

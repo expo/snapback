@@ -81,8 +81,13 @@ const fromBase64url = (text: string): Uint8Array | null => {
 };
 
 export function encodeCursor(position: CursorPosition): string {
-  const tagged = [1, position.table, position.index, position.order, position.suffix, position.values.map((v, i) => tagFor(position.suffix[i]?.kind, v))];
-  return base64url(new TextEncoder().encode(canonicalJson(tagged)));
+  // CursorColumn is a Rust struct: serde emits name before kind. Tagged
+  // value maps remain sorted, but sorting this descriptor breaks cross-host
+  // continuation because the server checks canonical bytes, not just JSON.
+  const suffix = `[${position.suffix.map((c) => `{"name":${canonicalJson(c.name)},"kind":${canonicalJson(c.kind)}}`).join(",")}]`;
+  const values = position.values.map((v, i) => tagFor(position.suffix[i]?.kind, v));
+  const encoded = `[1,${canonicalJson(position.table)},${canonicalJson(position.index)},${canonicalJson(position.order)},${suffix},${canonicalJson(values)}]`;
+  return base64url(new TextEncoder().encode(encoded));
 }
 
 export function decodeCursor(token: string): CursorPosition | null {

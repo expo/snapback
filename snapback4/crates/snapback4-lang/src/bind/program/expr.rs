@@ -14,6 +14,38 @@ impl Binder<'_> {
         self.expr(value, out)
     }
 
+    /// Strict compound children run in source order, before setup emitted by
+    /// a later child. Lexical values and their fields cannot change here;
+    /// leaving those fields in their object also preserves pending provenance.
+    pub(super) fn snapshot(&mut self, value: Expr, out: &mut Vec<Stmt>) -> Expr {
+        if matches!(value, Expr::Literal(_) | Expr::Input(Input::Viewer | Input::Now)) || lexical_value(&value) {
+            return value;
+        }
+        let name = self.temp("value");
+        out.push(Stmt::Let { name: name.clone(), value });
+        ir::var(&name)
+    }
+
+    pub(super) fn sequence_setup<'e>(&mut self, prior: impl Iterator<Item = &'e mut Expr>, setup: Vec<Stmt>, out: &mut Vec<Stmt>) {
+        if !setup.is_empty() {
+            for value in prior {
+                *value = self.snapshot(std::mem::replace(value, Expr::Literal(Value::Null)), out);
+            }
+            out.extend(setup);
+        }
+    }
+
+    fn strict_args(&mut self, args: &[A], out: &mut Vec<Stmt>) -> Fallible<Vec<(Expr, Ty)>> {
+        let mut values = Vec::<(Expr, Ty)>::new();
+        for arg in args {
+            let mut setup = Vec::new();
+            let value = self.expr(arg, &mut setup)?;
+            self.sequence_setup(values.iter_mut().map(|(e, _)| e), setup, out);
+            values.push(value);
+        }
+        Ok(values)
+    }
+
     pub fn expr(&mut self, expr: &A, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
         let site = expr.site();
         match expr {
@@ -31,8 +63,7 @@ impl Binder<'_> {
             A::Array { items, .. } => {
                 let mut exprs = Vec::new();
                 let mut item_ty: Option<Ty> = None;
-                for item in items {
-                    let (e, t) = self.expr(item, out)?;
+                for (e, t) in self.strict_args(items, out)? {
                     item_ty = Some(match item_ty {
                         Some(j) => j.join(&t),
                         None => t,
@@ -191,19 +222,25 @@ impl Binder<'_> {
     }
 
     pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        let mut exprs = BTreeMap::new();
+        let mut exprs = Vec::<(String, Expr)>::new();
         let mut types = BTreeMap::new();
         for field in fields {
+            let mut setup = Vec::new();
             let (e, t) = match &field.value {
-                Some(value) => self.expr(value, out)?,
+                Some(value) => self.expr(value, &mut setup)?,
                 None => self.name(&field.name, &field.site)?,
             };
-            if exprs.insert(field.name.clone(), e).is_some() {
+            self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
+            // Object IR stores fields by name. Minted ids still follow source
+            // field order when no child needs a statement-producing expansion.
+            let e = if allocates(&e) { self.snapshot(e, out) } else { e };
+            if types.contains_key(&field.name) {
                 return Err(unknown(&field.site, format!("duplicate field {}", field.name), "keep one"));
             }
+            exprs.push((field.name.clone(), e));
             types.insert(field.name.clone(), t);
         }
-        Ok((Expr::Object(exprs), Ty::Object(types)))
+        Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types)))
     }
 
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
@@ -397,9 +434,7 @@ impl Binder<'_> {
             }
             "slice" => {
                 arity(3, "slice(value, start, end)")?;
-                let (e, t) = self.expr(&args[0], out)?;
-                let (s, st) = self.expr(&args[1], out)?;
-                let (n, nt) = self.expr(&args[2], out)?;
+                let [(e, t), (s, st), (n, nt)]: [(Expr, Ty); 3] = self.strict_args(args, out)?.try_into().expect("checked arity");
                 if !matches!(st, Ty::Int) || !matches!(nt, Ty::Int) {
                     return Err(type_error(site, "slice positions are ints", "slice(text, 0, 80)"));
                 }
@@ -420,8 +455,7 @@ impl Binder<'_> {
             }
             "min" | "max" => {
                 arity(2, &format!("{name}(a, b)"))?;
-                let (a, at) = self.expr(&args[0], out)?;
-                let (b, bt) = self.expr(&args[1], out)?;
+                let [(a, at), (b, bt)]: [(Expr, Ty); 2] = self.strict_args(args, out)?.try_into().expect("checked arity");
                 if at.is_optional() || bt.is_optional() || !at.comparable(&bt) {
                     return Err(type_error(site, format!("{name} takes two present values of one type; got {} and {}", at.name(), bt.name()), "narrow the operands first"));
                 }
@@ -437,9 +471,7 @@ impl Binder<'_> {
             }
             "share" => {
                 arity(3, "share(amount, recipients, recipient)")?;
-                let (a, at) = self.expr(&args[0], out)?;
-                let (list, lt) = self.expr(&args[1], out)?;
-                let (r, _) = self.expr(&args[2], out)?;
+                let [(a, at), (list, lt), (r, _)]: [(Expr, Ty); 3] = self.strict_args(args, out)?.try_into().expect("checked arity");
                 if !at.is_numeric() {
                     return Err(type_error(args[0].site(), format!("share's amount must be a present number, got {}", at.name()), "share(amount, recipients, recipient)"));
                 }
@@ -478,5 +510,24 @@ impl Binder<'_> {
                 name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted"]), None),
             )),
         }
+    }
+}
+
+fn lexical_value(expr: &Expr) -> bool {
+    match expr {
+        Expr::Variable(_) => true,
+        Expr::Field { base, .. } => lexical_value(base),
+        _ => false,
+    }
+}
+
+pub(super) fn allocates(expr: &Expr) -> bool {
+    match expr {
+        Expr::Input(Input::NewId) => true,
+        Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().any(allocates),
+        Expr::Object(fields) => fields.values().any(allocates),
+        Expr::Binary { left, right, .. } => allocates(left) || allocates(right),
+        Expr::Unary { value, .. } | Expr::Field { base: value, .. } => allocates(value),
+        _ => false,
     }
 }

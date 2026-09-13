@@ -21,6 +21,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 mod predictions;
+mod snapshot;
 
 /// The compiled backend, as `GET /schema` sends it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -28,6 +29,16 @@ pub struct Backend {
     pub generation: u64,
     pub schema: Schema,
     pub programs: Vec<Program>,
+}
+
+/// One transaction's stream request inputs. A response may apply only while
+/// no other owner has started a mutation send after this capture.
+#[derive(Clone, Debug, Serialize)]
+pub struct SyncState {
+    pub watermark: u64,
+    pub generation: u64,
+    pub pending_ids: Vec<String>,
+    pub send_revision: u64,
 }
 
 /// One event of the stream or a snapshot, as `GET /sync` sends it.
@@ -43,6 +54,13 @@ pub struct StreamEvent {
 /// One page of `GET /sync`.
 #[derive(Clone, Debug, Deserialize)]
 pub struct StreamPage {
+    /// Local receipt captured before transport, not server-supplied metadata.
+    #[serde(default)]
+    pub send_revision: Option<u64>,
+    #[serde(default)]
+    pub stage_snapshot: bool,
+    #[serde(default)]
+    pub snapshot_catchup: bool,
     #[serde(default)]
     pub acknowledged: BTreeMap<String, u64>,
     pub snapshot: bool,
@@ -93,6 +111,7 @@ pub struct Predicted {
 const WATERMARK: &str = "device:watermark";
 const GENERATION: &str = "device:generation";
 const BACKEND: &str = "device:backend";
+const SEND_REVISION: &str = "device:send_revision";
 
 pub struct Device {
     store: Store,
@@ -145,7 +164,7 @@ impl Device {
     /// the generation moved.
     pub fn open(path: &Path, backend: Option<Backend>) -> Result<Self, RuntimeError> {
         let mut store = Store::open(path)?;
-        store.conn().execute_batch("CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL); CREATE TABLE IF NOT EXISTS _device_base (t TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(t, id)) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS _device_snapshot (k TEXT PRIMARY KEY, t TEXT NOT NULL, data TEXT NOT NULL);")?;
+        store.conn().execute_batch("CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL); CREATE TABLE IF NOT EXISTS _device_base (t TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(t, id)) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS _device_snapshot (k TEXT PRIMARY KEY, t TEXT NOT NULL, data TEXT NOT NULL); CREATE INDEX IF NOT EXISTS _device_snapshot_by_table ON _device_snapshot(t, k);")?;
         let backend = match backend {
             Some(backend) => {
                 backend
@@ -184,12 +203,30 @@ impl Device {
         Ok((self.meta_u64(WATERMARK)?, self.generation))
     }
 
+    /// Persist before starting a POST, so another connection cannot apply an
+    /// older sync response that omitted the operation being sent.
+    pub fn begin_send(&mut self) -> Result<u64, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let revision = tx_meta_u64(&tx, SEND_REVISION)?.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
+        tx.set_meta(SEND_REVISION, &revision.to_string())?;
+        tx.commit()?;
+        Ok(revision)
+    }
+
+    pub fn sync_state(&mut self) -> Result<SyncState, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let pending_ids = tx.conn().prepare("SELECT id FROM _device_outbox WHERE json_extract(entry, '$.sent_seq') IS NULL ORDER BY seq LIMIT 256")?.query_map([], |row| row.get(0))?.collect::<Result<Vec<String>, _>>()?;
+        let state = SyncState { watermark: tx_meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: tx_meta_u64(&tx, SEND_REVISION)? };
+        tx.rollback()?;
+        Ok(state)
+    }
+
     /// Drop every row and index entry; the outbox and the watermark reset.
     pub fn clear_rows(&mut self) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
         tx.conn().execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _device_base; DELETE FROM _device_snapshot;")?;
         tx.set_meta(WATERMARK, "0")?;
-        tx.conn().execute("DELETE FROM _meta WHERE key IN ('device:snapshot:owner', 'device:snapshot:watermark')", [])?;
+        tx.conn().execute("DELETE FROM _meta WHERE key IN ('device:snapshot:owner', 'device:snapshot:watermark', 'device:snapshot:send_revision', 'device:snapshot:through')", [])?;
         tx.commit()?;
         self.snapshot_owner = None;
         Ok(())
@@ -201,30 +238,33 @@ impl Device {
         if page.generation.is_some_and(|g| g != self.generation) { return Err(RuntimeError::Generation("stale device page".into())); }
         let owner = if page.snapshot && first { Some(format!("{}-{:x}", std::process::id(), snapback4_core::ids::seed())) } else { self.snapshot_owner.clone() };
         let tx = self.store.transaction()?;
-        let watermark: u64 = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [WATERMARK], |r| r.get::<_, String>(0)).optional()?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store("invalid device watermark".into()))).transpose()?.unwrap_or(0);
+        let send_revision = tx_meta_u64(&tx, SEND_REVISION)?;
+        if page.send_revision.is_some_and(|expected| expected != send_revision) { return Err(RuntimeError::Generation("a mutation send overlapped the sync response; retry sync".into())); }
+        let watermark = tx_meta_u64(&tx, WATERMARK)?;
         if page.watermark < watermark { return Err(RuntimeError::Generation("device watermark would move backwards".into())); }
         let mut touched = BTreeSet::new();
-        if page.snapshot {
-            if first {
+        let replacing = page.snapshot || page.snapshot_catchup;
+        if replacing {
+            if page.snapshot && first {
                 tx.conn().execute("DELETE FROM _device_snapshot", [])?;
                 tx.set_meta("device:snapshot:watermark", &page.watermark.to_string())?;
+                tx.set_meta("device:snapshot:through", &page.watermark.to_string())?;
                 tx.set_meta("device:snapshot:owner", owner.as_deref().expect("first page owner"))?;
+                tx.set_meta("device:snapshot:send_revision", &send_revision.to_string())?;
             }
             let held_owner: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'device:snapshot:owner'", [], |r| r.get(0)).optional()?;
             if owner.is_none() || held_owner != owner { return Err(RuntimeError::Generation("snapshot is finished or belongs to another device sync; restart at its first page".into())); }
-            let pinned: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'device:snapshot:watermark'", [], |r| r.get(0))?;
-            if pinned != page.watermark.to_string() { return Err(RuntimeError::Generation("snapshot watermark changed between pages".into())); }
-            for event in &page.events {
-                if event.kind != "put" { return Err(RuntimeError::Input("snapshots contain only row images".into())); }
-                let table = self.schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("unknown table {}", event.table)))?;
-                let row = wire::row_from_json(table, event.data.as_ref().ok_or_else(|| RuntimeError::Input("snapshot row is missing".into()))?).map_err(RuntimeError::Input)?;
-                if row.field("id")?.as_str()? != event.id { return Err(RuntimeError::Input("snapshot row identity does not match its event".into())); }
-                tx.conn().execute("INSERT INTO _device_snapshot(k, t, data) VALUES (?1, ?2, ?3) ON CONFLICT(k) DO UPDATE SET data = excluded.data", rusqlite::params![serde_json::to_string(&(&event.table, &event.id)).unwrap(), event.table, serde_json::to_string(&row).unwrap()])?;
-            }
-            if page.more { tx.commit()?; self.snapshot_owner = owner; return Ok(Vec::new()); }
+            if tx_meta_u64(&tx, "device:snapshot:send_revision")? != send_revision { return Err(RuntimeError::Generation("a mutation send overlapped the paged snapshot; restart at its first page".into())); }
+            if page.snapshot && tx_meta_u64(&tx, "device:snapshot:watermark")? != page.watermark { return Err(RuntimeError::Generation("snapshot watermark changed between pages".into())); }
+            if page.watermark < tx_meta_u64(&tx, "device:snapshot:through")? { return Err(RuntimeError::Generation("snapshot catch-up moved backwards".into())); }
+            snapshot::stage(&tx, &self.schema, &page.events, page.snapshot)?;
+            tx.set_meta("device:snapshot:through", &page.watermark.to_string())?;
+            // Paged snapshots read different server transactions. Keep every
+            // image private until log catch-up repairs intervening commits.
+            if page.more || (page.snapshot && page.stage_snapshot) { tx.commit()?; self.snapshot_owner = owner; return Ok(Vec::new()); }
         }
         predictions::restore(&tx, &self.schema)?;
-        if page.snapshot {
+        if replacing {
             tx.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
             touched.extend(self.schema.tables.keys().cloned());
             let mut after = String::new();
@@ -239,7 +279,7 @@ impl Device {
                 if rows.len() < 500 { break; }
             }
             tx.conn().execute("DELETE FROM _device_snapshot", [])?;
-            tx.conn().execute("DELETE FROM _meta WHERE key IN ('device:snapshot:owner', 'device:snapshot:watermark')", [])?;
+            tx.conn().execute("DELETE FROM _meta WHERE key IN ('device:snapshot:owner', 'device:snapshot:watermark', 'device:snapshot:send_revision', 'device:snapshot:through')", [])?;
         } else {
             for event in &page.events {
                 touched.insert(event.table.clone());
@@ -275,7 +315,7 @@ impl Device {
         }
         predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?;
         tx.commit()?;
-        if page.snapshot { self.snapshot_owner = None; }
+        if replacing { self.snapshot_owner = None; }
         Ok(touched.into_iter().collect())
     }
 
@@ -338,7 +378,7 @@ impl Device {
         tx.savepoint("admit")?;
         match predictions::run(&tx, &self.schema, program, &entry) {
             Ok((predicted, new_ids)) => { entry.predicted = predicted; entry.new_ids = new_ids; entry.predictable = true; tx.release("admit")?; }
-            Err(RuntimeError::Prediction(_)) => { tx.rollback_to("admit")?; tx.release("admit")?; entry.predictable = false; }
+            Err(RuntimeError::Prediction(_)) => { tx.rollback_to("admit")?; entry.predictable = false; }
             Err(error) => return Err(error),
         }
         }
@@ -442,4 +482,8 @@ fn audience_prefix(table: &Table) -> Vec<String> {
         Some(Audience::Target { prefix, .. }) => prefix.clone(),
         _ => Vec::new(),
     }
+}
+
+fn tx_meta_u64(tx: &Tx<'_>, key: &str) -> Result<u64, RuntimeError> {
+    tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get::<_, String>(0)).optional()?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store(format!("invalid device metadata {key}")))).transpose().map(|n| n.unwrap_or(0))
 }

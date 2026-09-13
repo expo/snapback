@@ -134,6 +134,12 @@ export async function createNativeClient(options: NativeOptions): Promise<Native
   let closed = false;
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
+  let networkTail: Promise<unknown> = Promise.resolve();
+  function network<T>(body: () => Promise<T>): Promise<T> {
+    const result = networkTail.then(body);
+    networkTail = result.catch(() => {});
+    return result;
+  }
   let seq = 0;
   // The submission counter is taken synchronously as each write is admitted
   // — a burst predicts concurrently and would otherwise number itself in
@@ -187,7 +193,7 @@ export async function createNativeClient(options: NativeOptions): Promise<Native
   let syncing: Promise<boolean> | null = null;
   function syncOnce(): Promise<boolean> {
     if (syncing) return syncing;
-    const result = syncRound();
+    const result = network(syncRound);
     syncing = result;
     void result.finally(() => { if (syncing === result) syncing = null; }).catch(() => {});
     return result;
@@ -199,14 +205,18 @@ export async function createNativeClient(options: NativeOptions): Promise<Native
     let watermark = state?.watermark ?? 0;
     const touched = new Set<string>();
     let after: string | undefined;
+    let catchingUp = false;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: Record<string, unknown>;
         try {
-          const pending = (await queued()).slice(0, 256).map((entry) => entry.id);
-          const response = await doFetch(`${base}/sync?from=${watermark}&limit=${PAGE}${after ? `&after=${encodeURIComponent(after)}` : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
+          const captured = await call({ op: "sync_state" });
+          if (captured.denied) return false;
+          const { pending_ids: pending, send_revision } = captured.ok as { pending_ids: string[]; send_revision: number };
+          const response = await doFetch(`${base}/sync?from=${watermark}&limit=${PAGE}${after ? `&after=${encodeURIComponent(after)}` : ""}${catchingUp ? "&stream=1" : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as Record<string, unknown>;
+          page.send_revision = send_revision;
         } catch {
           setLink("offline");
           return false;
@@ -236,9 +246,12 @@ export async function createNativeClient(options: NativeOptions): Promise<Native
           } catch {
             return false;
           }
-          watermark = 0; after = undefined; continue;
+          watermark = 0; after = undefined; catchingUp = false; continue;
         }
-        const applied = await call({ op: "apply", page, first: after === undefined });
+        if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
+        page.stage_snapshot = !!page.snapshot;
+        page.snapshot_catchup = catchingUp;
+        const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined });
         if (closed) return false;
         if (applied.denied) return false;
         for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
@@ -248,6 +261,7 @@ export async function createNativeClient(options: NativeOptions): Promise<Native
         }
         after = undefined;
         watermark = Number(page.watermark ?? watermark);
+        if (page.snapshot) { catchingUp = true; continue; }
         if (!page.more) {
           caughtUp = true;
           break;
@@ -407,7 +421,12 @@ export async function createNativeClient(options: NativeOptions): Promise<Native
     for (const entry of await queued()) {
       if (closed) return;
       if (entry.sent_seq != null) { await syncOnce(); continue; }
-      const result = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
+      const result = await network(async () => {
+        if (closed || sessionDead) return { ok: false as const };
+        const started = await call({ op: "begin_send" });
+        if (started.denied) return { ok: false as const };
+        return post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
+      });
       if (closed) return;
       if (!result.ok) { retryFlush(); return; }
       const json = result.json;

@@ -11,6 +11,32 @@ use std::collections::BTreeMap;
 
 const CHAT: &str = include_str!("../../../apps/chat/snapback/schema.q");
 
+#[test]
+fn online_only_final_insert_target_is_unknown_to_the_native_predictor() {
+    let source = "table targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  after insert <- exists targets[.name]\n  sync public\nquery rows():\n  return sources[] first 10 by byId\nmutation add(name: text <=10):\n  insert sources {name}\n  return null\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    engine.seed([("targets".into(), snapback4_core::value::object([("id", id("t")), ("name", Value::String("known".into()))]))]).unwrap();
+    let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+    let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("sb4-final-exists-{}-{nonce}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let mut device = Device::open(&dir.join("device.sqlite"), Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() {
+        assert!(page.events.iter().all(|event| event.table != "targets"));
+        device.apply(page, n == 0).unwrap();
+    }
+    let input = serde_json::json!({"name":"known"});
+    let unknown = device.predict("add", "dev:alice", &input, 1, vec!["s".into()], 1).unwrap_err();
+    assert_eq!(unknown.code(), "E_PREDICT", "an unacquired target is unknown, not a false final constraint");
+    assert!(device.query("rows", "dev:alice", &serde_json::json!({}), 1).unwrap().data.as_array().unwrap().is_empty(), "the failed prediction rolls back its inserted source");
+    let sent = engine.mutate("add", None, Context::new("dev:alice", args(&[("name", Value::String("known".into()))])).at(1).with_ids(["s".into()])).unwrap();
+    assert!(matches!(sent.state, WriteState::Sent { .. }), "the server holds the required target");
+    drop(device);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 fn id(s: &str) -> Value {
     Value::Id(s.into())
 }
@@ -251,6 +277,25 @@ fn atomic_snapshots_and_durable_rejection_rebase_preserve_confirmed_images() {
     let mut device=Device::open(&path,Some(backend)).unwrap();
     for(n,page)in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate(){device.apply(page,n==0).unwrap();}
     let watermark=device.state().unwrap().0;
+    // A different process may send a write after our HTTP request captured
+    // its pending IDs. Its durable revision invalidates that response under
+    // the same transaction that would replace confirmed rows.
+    let captured = device.sync_state().unwrap();
+    let mut sender = Device::open(&path, None).unwrap();
+    sender.begin_send().unwrap();
+    let mut stale = stream_page(&mut engine, "dev:alice", watermark);
+    stale.send_revision = Some(captured.send_revision);
+    assert!(device.apply(&stale, false).is_err());
+    assert_eq!(device.state().unwrap().0, watermark);
+    let staged = snapshot_pages(&mut engine, "dev:alice", 1);
+    device.apply(&staged[0], true).unwrap();
+    sender.begin_send().unwrap();
+    let mut continuation = staged[1].clone();
+    continuation.send_revision = Some(sender.sync_state().unwrap().send_revision);
+    assert!(device.apply(&continuation, false).is_err(), "a newer per-page capture cannot bless an older staged snapshot");
+    for (n, page) in staged.iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    drop(sender);
+
     let queue=|op:&str,seq|Queued{id:format!("w{seq}"),seq,op:op.into(),args:serde_json::json!({}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:2000,predictable:true,sent_seq:None,observed_seq:None};
     device.admit(queue("first",1)).unwrap();device.admit(queue("later",2)).unwrap();
     assert_eq!(device.query("row","dev:alice",&serde_json::json!({"id":"a"}),2000).unwrap().data.field("value").unwrap(),&Value::Int(100));
@@ -286,4 +331,51 @@ fn atomic_snapshots_and_durable_rejection_rebase_preserve_confirmed_images() {
     assert_eq!(device.queued().unwrap()[0].new_ids,ids);
     for id in ids{assert_ne!(device.query("row","dev:alice",&serde_json::json!({"id":id}),2000).unwrap().data,Value::Null);}
     drop(device);drop(sql);std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
+    let source = "table items:\n  value: int\n  read <- allow\n  update <- allow\n  sync public\nquery row(id: id):\n  return items[id] by byId\nmutation inc(id: id):\n  row = items[id] by byId\n  require row != null else MISSING\n  update items[id] {value: row.value + 1}\n  return null\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    engine.seed(["a", "z"].map(|key| ("items".into(), snapback4_core::value::object([("id",id(key)),("value",Value::Int(0))])))).unwrap();
+    let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+    let dir = std::env::temp_dir().join(format!("sb4-snapshot-catchup-{}",std::process::id())); std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("store.sqlite"); let _ = std::fs::remove_file(&path);
+    let mut device = Device::open(&path,Some(backend)).unwrap();
+    for (n,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate() { device.apply(page,n==0).unwrap(); }
+    let mut sender = Device::open(&path,None).unwrap();
+    sender.admit(Queued { id:"pending-inc".into(),seq:1,op:"inc".into(),args:serde_json::json!({"id":"z"}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:2,predictable:true,sent_seq:None,observed_seq:None }).unwrap();
+    sender.begin_send().unwrap();
+    let capture = device.sync_state().unwrap();
+    let (events,pinned,mut after) = engine.snapshot_page("dev:alice",None,1).unwrap();
+    let mut page: StreamPage = serde_json::from_value(serde_json::json!({"snapshot":true,"events":events.into_iter().map(|e|serde_json::json!({"table":e.table,"kind":e.kind.word(),"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),"watermark":pinned,"more":true,"stage_snapshot":true,"send_revision":capture.send_revision})).unwrap();
+    device.apply(&page,true).unwrap();
+    // The send began before capture; it commits between snapshot pages. A
+    // second commit changes an already-staged row, so both directions need
+    // the log before a coherent base can be published.
+    let sent = engine.mutate("inc",Some("pending-inc"),Context::new("dev:alice",args(&[("id",id("z"))])).at(2)).unwrap();
+    let WriteState::Sent { seq, .. } = sent.state else { panic!("expected sent") };
+    engine.mutate("inc",None,Context::new("dev:alice",args(&[("id",id("a"))])).at(3)).unwrap();
+    while let Some(token) = after {
+        let (events,wm,next) = engine.snapshot_page("dev:alice",Some(&token),1).unwrap();
+        page = serde_json::from_value(serde_json::json!({"snapshot":true,"events":events.into_iter().map(|e|serde_json::json!({"table":e.table,"kind":e.kind.word(),"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),"watermark":wm,"more":next.is_some(),"stage_snapshot":true,"send_revision":capture.send_revision})).unwrap();
+        device.apply(&page,false).unwrap(); after=next;
+    }
+    assert_eq!(device.query("row","dev:alice",&serde_json::json!({"id":"a"}),3).unwrap().data.field("value").unwrap(),&Value::Int(0),"the old base stays visible until catch-up drains");
+    let mut from = pinned;
+    loop {
+        let streamed = engine.stream("dev:alice",from,1).unwrap();
+        let mut page = stream_page(&mut engine,"dev:alice",from);
+        // Exercise the bounded multi-page path, not stream_page's large limit.
+        page.events = streamed.events.into_iter().map(|e|snapback4_device::native::StreamEvent { table:e.table,kind:e.kind,id:e.id,data:e.data.as_ref().map(snapback4_core::wire::to_json) }).collect();
+        page.watermark=streamed.watermark; page.more=streamed.more; page.snapshot_catchup=true; page.send_revision=Some(capture.send_revision);
+        page.acknowledged=engine.acknowledged("dev:alice",&capture.pending_ids,page.watermark).unwrap();
+        device.apply(&page,false).unwrap(); from=page.watermark; if !page.more { break; }
+    }
+    for key in ["a","z"] { assert_eq!(device.query("row","dev:alice",&serde_json::json!({"id":key}),3).unwrap().data.field("value").unwrap(),&Value::Int(1)); }
+    assert_eq!(device.queued().unwrap().len(),1,"keep retrying for the lost full mutation reply");
+    device.settle("pending-inc",Some(seq)).unwrap(); assert!(device.queued().unwrap().is_empty());
+    drop(sender);drop(device);std::fs::remove_dir_all(dir).unwrap();
 }

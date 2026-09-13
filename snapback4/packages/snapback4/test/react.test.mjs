@@ -184,7 +184,7 @@ const cases = {
     const refused = async (work) => {
       let failure;
       try { await work; } catch (error) { failure = error; }
-      check(/owner|finished/.test(failure?.message ?? ""), "a stale continuation is refused");
+      check(/owner|finished|write was sent/.test(failure?.message ?? ""), "a stale continuation is refused");
     };
     try {
       await first.apply(page("a", true), new Set(), true);
@@ -200,6 +200,9 @@ const cases = {
       const reopened = new Replica(b, schema, transport, 1);
       await refused(reopened.apply(page("h", false), new Set(), false));
       equal(await ids(), ["d", "f"], "reopening retains the last complete replacement");
+      await b.write(tx => tx.setMeta("outbox:sendRevision", 1));
+      await refused(first.apply({ ...page("i", false), snapshot: false, send_revision: 0 }, new Set()));
+      equal(await ids(), ["d", "f"], "another connection's send invalidates the pending-ID receipt");
     } finally {
       await a.close(); await b.close();
       await new Promise((resolve, reject) => { const request = indexedDB.deleteDatabase(name); request.onsuccess = resolve; request.onerror = () => reject(request.error); });

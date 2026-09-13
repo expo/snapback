@@ -264,5 +264,5 @@ verify the written review, not implementation of the findings.
   reported 39 broken references in `.llp/ship-runs/**/*.jsonl` agent
   transcripts, with zero unchecked references. Every reported error was in
   those unrelated transcripts. The existing
-  [reference-scanner ticket](../../issues/20260912-ref-check-agent-transcripts.md)
+  reference-scanner ticket `issues/20260912-ref-check-agent-transcripts.md`
   tracks this behavior; no duplicate ticket or transcript edit was made.

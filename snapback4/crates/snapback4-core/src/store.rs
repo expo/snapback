@@ -200,6 +200,7 @@ impl<'a> Tx<'a> {
         Ok(())
     }
 
+    /// Roll back the named savepoint and release it in the same operation.
     pub fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
         self.tx.execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
         Ok(())

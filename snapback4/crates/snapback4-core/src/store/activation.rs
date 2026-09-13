@@ -116,7 +116,7 @@ impl Store {
             tx.set_meta("activation_hash", hash)?;
             tx.set_meta("generation", &generation.to_string())?;
             if changed {
-                tx.tx.execute("INSERT INTO _generations(generation, schema, programs, at) VALUES (?1, ?2, ?3, ?4)", params![generation, canonical_json(schema), canonical_json(programs), crate::now_ms()])?;
+                tx.tx.execute("INSERT INTO _generations(generation, schema, programs, at) VALUES (?1, ?2, ?3, ?4)", params![i64::try_from(generation).map_err(|_| RuntimeError::Generation("generation overflow".into()))?, canonical_json(schema), canonical_json(programs), crate::now_ms()])?;
             }
         }
         let after = identity(&tx.tx)?;

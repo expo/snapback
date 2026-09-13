@@ -173,10 +173,11 @@ impl Engine {
     /// caller source. Reads of its identity and compiled content are one snapshot.
     pub fn open(mut store: Store) -> Result<Self, RuntimeError> {
         let tx = store.transaction()?;
-        let (generation, schema, programs): (u64, String, String) = tx.conn().query_row(
+        let (generation, schema, programs): (i64, String, String) = tx.conn().query_row(
             "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
             [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
             .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
+        let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         tx.rollback()?;
@@ -461,8 +462,8 @@ impl Engine {
         let tx = self.store.transaction()?;
         let mut acknowledged = BTreeMap::new();
         for id in pending {
-            let seq: Option<u64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3", rusqlite::params![principal, id, through], |row| row.get(0)).optional()?;
-            if let Some(seq) = seq { acknowledged.insert(id.clone(), seq); }
+            let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3", rusqlite::params![principal, id, through.min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
+            if let Some(seq) = seq { acknowledged.insert(id.clone(), u64::try_from(seq).map_err(|_| RuntimeError::Store("negative stored operation sequence".into()))?); }
         }
         tx.rollback()?;
         Ok(acknowledged)

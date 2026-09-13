@@ -100,8 +100,11 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                 match shared.engine.lock().unwrap().adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
                     Ok(next) => {
                         let _ = project.write_generated(&bound);
-                        *shared.bound.lock().unwrap() = bound;
+                        // Publish the advertised backend and identity together:
+                        // /schema takes these guards in the same order.
+                        let mut active = shared.bound.lock().unwrap();
                         let mut generation = shared.generation.lock().unwrap();
+                        *active = bound;
                         *generation = next;
                         println!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms", *generation, worst, started.elapsed().as_millis());
                         for step in steps {
@@ -529,7 +532,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 Ok(ids) if ids.as_ref().is_none_or(|ids| ids.len() <= 256 && ids.iter().all(|id| id.len() <= 128)) => ids.unwrap_or_default(),
                 _ => { respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync pending must contain at most 256 short ids")) })); return; }
             };
-            if from == 0 {
+            if from == 0 && params.get("stream").is_none_or(|value| value != "1") {
                 // A snapshot comes in pages: `after` is the token the previous
                 // page returned; `next` is the one for the following page.
                 let after = params.get("after").cloned();

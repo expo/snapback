@@ -26,7 +26,7 @@ pub(super) fn restore(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> 
 }
 pub(super) fn enqueue(tx: &Tx<'_>, entry: &Queued) -> Result<(), RuntimeError> {
     let json = serde_json::to_string(entry).map_err(|e| RuntimeError::Store(e.to_string()))?;
-    tx.conn().execute("INSERT INTO _device_outbox(seq, id, entry) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET entry = excluded.entry", params![entry.seq, entry.id, json])?;
+    tx.conn().execute("INSERT INTO _device_outbox(seq, id, entry) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET entry = excluded.entry", params![i64::try_from(entry.seq).map_err(|_| RuntimeError::Input("submission sequence exceeds the stored integer range".into()))?, entry.id, json])?;
     Ok(())
 }
 pub(super) fn run(tx: &Tx<'_>, schema: &Schema, program: &Program, entry: &Queued) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
@@ -50,10 +50,10 @@ pub(super) fn replay(tx: &Tx<'_>, schema: &Schema, programs: &BTreeMap<String, P
                 // An in-flight server request already owns the admitted id
                 // supply. A changed population cannot invent more stable
                 // client ids retroactively; withdraw this prediction.
-                tx.rollback_to("replay")?; tx.release("replay")?;
+                tx.rollback_to("replay")?;
                 entry.predictable = false; entry.predicted.clear(); enqueue(tx, &entry)?;
             },
-            Err(error) if error.is_refusal() => { tx.rollback_to("replay")?; tx.release("replay")?; }
+            Err(error) if error.is_refusal() => { tx.rollback_to("replay")?; }
             Err(error) => return Err(error),
         }
     }
