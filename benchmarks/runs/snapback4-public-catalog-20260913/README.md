@@ -965,3 +965,66 @@ built with the production profile at optimization level 3. The controller
 is `927314624887db2c73eab7e23aff5fc01c429eeb5fa2172479c10c1b6cb1fdec`.
 No cache setting is adopted. This is not an HTTP, comparator, device,
 write/durability or shipping-default result.
+
+## Membership execution-phase diagnostics
+
+A temporary instrumented copy of qualified 0.2.3 source `78366743b` adds
+RAII timers around existing query, merge, rule and store regions. It keeps
+the original expressions, branches, meter charges and transaction calls.
+The default SQLite cache remains -2000. An initial pilot's full outcomes,
+meters and cursors match the uninstrumented pilot over 100 warmups plus one
+measured call per case. This is a diagnostic binary, not a product change.
+
+Three fresh processes run serially at Linux virtual CPU 0. Each measures
+nine hot-point, rotating-point and rotating-feed cases with 200 samples
+after 100 warmups: **5,400 timed queries and 2,700 warmups**. Domain coverage
+is `min(200, domain size)` distinct timed inputs, with one key for hot
+points. The full fixture oracle checks every observed row and cursor,
+including untimed first/terminal pages and both empty readers. Complete
+outcome/meter hashes agree across the three instrumented runs. The
+uninstrumented equality preflight is limited to the pilot's input sequence.
+OS cache is retained without resets; residency is unmeasured.
+
+Phase counters exclude warmups and oracle/hash work. For each phase and
+run, summed nanoseconds are divided by 200 queries; the table reports the
+median of those three means. Percentage and call columns are separately
+computed medians of per-run ratios, so dividing displayed median durations
+need not reproduce the percentage. These are **overlapping inclusive
+regions**, not percentile costs or additive exclusive shares. Selected
+150-group rotating-feed observations:
+
+| Source region | Mean ms / query | Share of query total | Calls / query |
+|---|---:|---:|---:|
+| `query.total` | 20.204 | 100.00% | 1.000 |
+| `merge.initial_heads` | 16.013 | 79.13% | 1.000 |
+| `read.bounds` | 0.891 | 4.40% | 151.000 |
+| `rule.probe` | 7.721 | 38.39% | 169.300 |
+| `store.scan_keys` | 17.155 | 84.79% | 340.300 |
+| `store.step_collect_inclusive` | 16.518 | 81.63% | 340.300 |
+| `store.row_json` | 0.996 | 5.05% | 657.875 |
+| `store.prepare_bind` | 0.233 | 1.16% | 340.300 |
+
+The iteration/collection region is a concrete next inspection target. It
+includes SQLite stepping, column copies and allocations, JSON decoding,
+collection and iterator cleanup. The JSON subregion is already included;
+subtracting it does not isolate pure SQLite time. `prepare_bind` measures
+cached statement acquisition and binding, not every possible activity
+inside later iteration. The 340.3 store scans per query include 169.3 rule
+probe lookups; the separate prepared-scan count is 171, including membership
+discovery. This record establishes no more specific cause or speedup.
+
+The three `membership-execution-phase-profile` records in
+`metrics/storage.jsonl` retain all cases, phase sums, complete outcome
+hashes and storage observations. Counter bookkeeping and compiler layout
+affect absolute costs; these means cannot be compared with earlier
+uninstrumented percentiles as an optimization result. SQLite counters still
+cover whole cases including warmups, and observed query-phase process
+memory includes the parsed fixture and cloned oracle. No HTTP, comparator,
+device, write/durability or production-default claim follows.
+
+The profiler SHA-256 is
+`65bc1f4ad8ca5f6ef5830760a58fdad68e7d4e1bf284de4a2a222e6a90a2a7ed`;
+the instrumented production opt-3 binary is
+`eb17f777f4a05aa87fa274e404862bfa309a72214f049c4699cb77c72b5166a6`.
+Original and instrumented hashes for every modified core file are retained
+in each record's source bindings.
