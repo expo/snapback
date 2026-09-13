@@ -93,7 +93,10 @@ pub fn check(options: &Options) -> i32 {
         report_diagnostics(&bound, options.json);
         return 1;
     }
-    let _ = project.write_generated(&bound);
+    if let Err(error) = project.write_generated(&bound) {
+        eprintln!("cannot write generated types: {error}");
+        return 2;
+    }
     // A native job's module is built here too (LLP 3000.005): the schema's
     // Rust types written, cargo run, the module checked against the jobs.
     let native = match crate::native::build(&project, &bound) {
@@ -266,6 +269,9 @@ pub fn run(options: &Options) -> i32 {
     }
     if program.kind == ProgramKind::Job {
         // A job runs as the system principal, every chunk in turn, here.
+        if options.flags.contains_key("as") {
+            eprintln!("run: --as is ignored for a job; jobs run as the system");
+        }
         return match engine.run_job(op, args, snapback4_core::now_ms()) {
             Ok(run) => {
                 for line in engine.take_native_logs() {
@@ -329,15 +335,23 @@ pub fn data(options: &Options) -> i32 {
             return 2;
         }
     };
-    let limit: usize = options.flags.get("limit").and_then(|s| s.parse().ok()).unwrap_or(50);
-    match store.rows(table) {
-        Ok(rows) => {
-            let total = rows.len();
-            for row in rows.iter().take(limit) {
+    let limit: usize = match options.flags.get("limit") {
+        None => 50,
+        Some(text) => match text.parse() {
+            Ok(limit) => limit,
+            Err(_) => {
+                eprintln!("data: --limit must be a non-negative integer");
+                return 2;
+            }
+        },
+    };
+    match store.rows_limited(table, limit) {
+        Ok((rows, more)) => {
+            for row in &rows {
                 println!("{}", wire::to_json(row));
             }
-            if total > limit {
-                println!("… {} more (--limit {total})", total - limit);
+            if more {
+                println!("… more rows (increase --limit)");
             }
             0
         }

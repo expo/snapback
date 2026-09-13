@@ -102,6 +102,27 @@ test("rollback then deploy keeps immutable source identities and serving only at
   assert.deepEqual(state(database), before, "startup must not activate source or advance generation");
 });
 
+test("a live release refuses deploy and rollback until the server stops", { timeout: 15000 }, async (t) => {
+  const { deployment, schema, invoke, run } = fixture(t);
+  run("deploy", deployment);
+  const database = join(deployment, "store.sqlite"), before = state(database);
+  writeFileSync(schema, source.replace("return 1", "return 2"));
+  await serve(deployment, async (url) => {
+    for (const args of [["deploy", deployment], ["rollback", deployment]]) {
+      const blocked = invoke(...args);
+      assert.equal(blocked.error, undefined);
+      assert.equal(blocked.status, 1);
+      assert.match(blocked.stderr, /deployment is live/);
+      assert.deepEqual(state(database), before, "a refused activation must not move the database");
+    }
+    const backend = await (await fetch(url + "/schema", { signal: AbortSignal.timeout(2000) })).json();
+    assert.equal(backend.generation, Number(before.metadata.generation));
+    assert.deepEqual(backend.programs.find((p) => p.name === "q").body, [{ Return: { Literal: { Int: 1 } } }]);
+  });
+  run("deploy", deployment);
+  assert.equal(state(database).metadata.release, "2", "activation proceeds after the serving process releases the lock");
+});
+
 test("required pointer and ledger failures happen before database activation", { timeout: 15000 }, (t) => {
   const { deployment, schema, invoke, run } = fixture(t);
   run("deploy", deployment);
@@ -210,4 +231,32 @@ test("inspection of a new project does not initialize a store", (t) => {
   assert.notEqual(invoke("data", "items").status, 0);
   assert.notEqual(invoke("doctor", "--json").status, 0);
   assert.equal(existsSync(join(app, ".snapback4/store.sqlite")), false);
+});
+
+test("check reports generated-type write failures and data refuses malformed limits", (t) => {
+  const { app, invoke, run } = fixture(t);
+  mkdirSync(join(app, "snapback/generated/api.ts"), { recursive: true });
+  const checked = invoke("check");
+  assert.equal(checked.error, undefined);
+  assert.equal(checked.status, 2);
+  assert.match(checked.stderr, /cannot write generated types/);
+  assert.doesNotMatch(checked.stdout, /check: ok/);
+
+  rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
+  run("run", "add", "--as", "alice");
+  const limited = invoke("data", "items", "--limit", "garbage");
+  assert.equal(limited.status, 2);
+  assert.match(limited.stderr, /--limit must be a non-negative integer/);
+  const unknown = invoke("data", "nosuchtable");
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.stderr, /no table nosuchtable/);
+});
+
+test("run says when a job ignores --as and executes as the system", (t) => {
+  const { schema, invoke, run } = fixture(t);
+  writeFileSync(schema, source.replace("  insert <- allow", "  insert <- allow\n  update <- allow") + "job sweep():\n  chunk row in items first 1 by byId:\n    update items[row.id] { body: row.body }\n");
+  run("check");
+  const result = invoke("run", "sweep", "--as", "alice");
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /--as is ignored.*system/);
 });

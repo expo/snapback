@@ -1,10 +1,26 @@
 //! Immutable source releases with a database-authoritative activation pointer.
 use super::*;
-use std::path::PathBuf;
+use std::fs::File;
+use std::path::{Path, PathBuf};
 use std::io::Write;
 
 fn directory(options: &Options) -> Result<PathBuf, String> {
     options.positionals.first().map(PathBuf::from).ok_or_else(|| "a deployment directory is required".into())
+}
+
+/// `serve` holds this advisory lock for its lifetime. Activation refuses
+/// while it is held, so a successful deploy or rollback cannot leave a live
+/// process advertising old IR over a store that has moved generations.
+fn deployment_lock(dir: &Path) -> Result<File, String> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("cannot create deployment directory: {e}"))?;
+    let file = std::fs::OpenOptions::new().create(true).read(true).write(true).open(dir.join("serve.lock")).map_err(|e| format!("cannot open deployment lock: {e}"))?;
+    file.try_lock().map_err(|error| match error {
+        std::fs::TryLockError::WouldBlock => {
+            "this deployment is live; stop its `snapback4 serve` process before deploy or rollback".into()
+        }
+        std::fs::TryLockError::Error(error) => format!("cannot lock deployment: {error}"),
+    })?;
+    Ok(file)
 }
 fn current(dir: &Path) -> Result<Option<u64>, String> {
     let database = dir.join("store.sqlite");
@@ -67,6 +83,7 @@ fn report(verb: &str, result: Result<(), String>) -> i32 {
 pub fn deploy(options: &Options) -> i32 {
     report("deploy", (|| {
         let dir = directory(options)?;
+        let _deployment = deployment_lock(&dir)?;
         let project = project_or_exit();
         let bound = compile_or_exit(&project, options.json);
         std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
@@ -113,6 +130,7 @@ pub fn deploy(options: &Options) -> i32 {
 pub fn rollback(options: &Options) -> i32 {
     report("rollback", (|| {
         let dir = directory(options)?;
+        let _deployment = deployment_lock(&dir)?;
         let active = current(&dir)?.ok_or("no current release")?;
         let previous = (1..active).rev().find(|n| dir.join("releases").join(n.to_string()).join("snapback/schema.q").is_file()).ok_or("nothing to roll back to")?;
         let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
@@ -126,6 +144,7 @@ pub fn rollback(options: &Options) -> i32 {
 pub fn serve_release(options: &Options) -> i32 {
     report("serve", (|| {
         let dir = directory(options)?;
+        let _deployment = deployment_lock(&dir)?;
         let current = current(&dir)?.ok_or("no current release; deploy first")?;
         let release = Project { root: dir.join("releases").join(current.to_string()) };
         std::fs::create_dir_all(release.data_dir()).map_err(|e| e.to_string())?;
