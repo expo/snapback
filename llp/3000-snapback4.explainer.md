@@ -670,7 +670,10 @@ time-ordered 128-bit form.
 
 - **2026-09-13 — expiry review corrections.** A replacement membership
   opens its own interval even before an expired predecessor is swept; sweeping
-  that predecessor does not revoke a still-live replacement. An expiring
+  that predecessor does not revoke a still-live replacement. Catch-up across
+  an expired grant resets its until-revoked group before acquiring the new
+  grant, so deletions during the gap cannot leave stale held rows. A renewal
+  before expiry keeps the acquired horizon. An expiring
   maintained sum keeps a physical zero candidate while its source group has
   rows, because later logical expiry can make the live sum nonzero. Opening an
   older server store backfills these candidates once, from its stored backend,

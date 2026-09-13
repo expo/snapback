@@ -374,7 +374,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   };
 
-  async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+  async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
@@ -382,9 +382,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const json = (await response.json()) as Record<string, unknown>;
       if (closed) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
-      await refusedSession(json.denied ?? json.why, request.revision);
+      const denied = (json.denied ?? json.why) as Refusal | undefined;
+      await refusedSession(denied, request.revision);
+      const obsoleteAuth = denied?.code === "E_AUTH" && !sessionDead;
       if (link !== "online") setLink("online");
-      return { ok: true, json };
+      return { ok: true, json, obsoleteAuth };
     } catch {
       setLink("offline");
       return { ok: false };
@@ -707,7 +709,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!result.ok) { retryFlush(); return; }
       const json = result.json;
       const why = (json.why ?? json.denied) as Refusal | undefined;
-      if (why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+      if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
       const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? {seq: Number(json.seq ?? 0)} : {}) });
       if (applied.denied) { retryFlush(); return; }
       retryMs = 250;

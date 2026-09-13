@@ -375,6 +375,210 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
 }
 
 #[test]
+// @ref LLP 3000#7-decisions-during-execution — a later grant reacquires current rows only after an expired interval revokes rows retained on the device.
+fn a_rejoin_after_an_expired_gap_revokes_stale_device_rows_before_reacquiring_live_rows() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  delete <- allow\n  sync to members[.group]\nquery notes():\n  return notes[] first 10 by byId\nmutation join(person: principal, until: time):\n  insert members {group: 'g', person, until}\nmutation add(body: text <=10):\n  insert notes {group: 'g', body}\nmutation remove():\n  delete notes['n1']\n";
+        let (mut engine, backend) = compile(source);
+        let before_any_join = engine.seq().unwrap();
+        let write = |engine: &mut snapback4_core::Engine,
+                     op: &str,
+                     op_id: &str,
+                     viewer: &str,
+                     now: i64,
+                     arguments: &[(&str, Value)]| {
+            let context = context(viewer, arguments).at(now);
+            let context = if op == "remove" {
+                context
+            } else {
+                context.with_ids([op_id.to_owned()])
+            };
+            let outcome = engine
+                .mutate(
+                    op,
+                    Some(op_id),
+                    context,
+                )
+                .unwrap();
+            assert!(matches!(outcome.state, WriteState::Sent { .. }), "{outcome:?}");
+        };
+        write(
+            &mut engine,
+            "join",
+            "member-a",
+            snapback4_core::SYSTEM_PRINCIPAL,
+            1,
+            &[("person", id("dev:alice")), ("until", Value::Int(10))],
+        );
+        write(
+            &mut engine,
+            "add",
+            "n1",
+            "dev:alice",
+            2,
+            &[("body", Value::String("stale".into()))],
+        );
+
+        let backend = snapback4_device::device::Backend {
+            generation: engine.generation(),
+            ..backend
+        };
+        let mut held = host.open("rejoin-gap-held", Some(backend.clone())).unwrap();
+        for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 2)
+            .iter()
+            .enumerate()
+        {
+            ok(apply(&mut *held, page, index == 0));
+        }
+        let held_watermark = state(&mut *held).0;
+        assert_eq!(
+            rows(&query(&mut *held, "notes", "dev:alice", serde_json::json!({}), 2))
+                .iter()
+                .map(|row| row["id"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["n1"],
+            "{label}: the device starts with n1 under membership A"
+        );
+
+        write(&mut engine, "remove", "remove-n1", "dev:alice", 11, &[]);
+        write(
+            &mut engine,
+            "add",
+            "n2",
+            "dev:alice",
+            15,
+            &[("body", Value::String("current".into()))],
+        );
+        write(
+            &mut engine,
+            "join",
+            "member-b",
+            snapback4_core::SYSTEM_PRINCIPAL,
+            20,
+            &[("person", id("dev:alice")), ("until", Value::Int(100))],
+        );
+
+        let from_start = stream_page_at(&mut engine, "dev:alice", before_any_join, 22);
+        assert!(!from_start.events.iter().any(|event| event.table == "notes" && event.id == "n1" && event.kind == "put"), "{label}: a fresh cursor cannot acquire deleted history: {:#?}", from_start.events);
+        assert!(from_start.events.iter().any(|event| event.table == "notes" && event.id == "n2" && event.kind == "put"), "{label}: a fresh cursor acquires the current row under membership B: {:#?}", from_start.events);
+
+        let catch_up = stream_page_at(&mut engine, "dev:alice", held_watermark, 22);
+        let scope = catch_up
+            .events
+            .iter()
+            .position(|event| event.table == "notes" && event.kind == "scope")
+            .unwrap_or_else(|| panic!("{label}: the expired gap must revoke held n1 before the rejoin: {:#?}", catch_up.events));
+        let reacquired = catch_up
+            .events
+            .iter()
+            .position(|event| event.table == "notes" && event.id == "n2" && event.kind == "put")
+            .unwrap_or_else(|| panic!("{label}: membership B must acquire the current n2 row: {:#?}", catch_up.events));
+        assert!(scope < reacquired, "{label}: revocation must precede replacement-grant expansion: {:#?}", catch_up.events);
+        assert!(!catch_up.events.iter().any(|event| event.table == "notes" && event.id == "n1" && event.kind == "put"), "{label}: deleted n1 cannot be reacquired: {:#?}", catch_up.events);
+        ok(apply(&mut *held, &catch_up, false));
+        let held_read = query(&mut *held, "notes", "dev:alice", serde_json::json!({}), 22);
+        let held_ids = rows(&held_read)
+            .iter()
+            .map(|row| row["id"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(held_ids, vec!["n2"], "{label}: the gap drops stale n1 while B retains current n2");
+        held.close();
+
+        let mut fresh = host.open("rejoin-gap-fresh", Some(backend)).unwrap();
+        ok(apply(&mut *fresh, &from_start, false));
+        let fresh_read = query(&mut *fresh, "notes", "dev:alice", serde_json::json!({}), 22);
+        let fresh_ids = rows(&fresh_read)
+            .iter()
+            .map(|row| row["id"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(fresh_ids, vec!["n2"], "{label}: the fresh and already-held devices converge");
+        fresh.close();
+    });
+}
+
+#[test]
+// @ref LLP 3000#7-decisions-during-execution — extending a still-live audience is continuous authority and must preserve held rows.
+fn renewing_a_live_membership_does_not_prematurely_revoke_held_rows() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  update <- .person = viewer\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nquery notes():\n  return notes[] first 10 by byId\nmutation join(person: principal, until: time):\n  insert members {group: 'g', person, until}\nmutation renew(m: members, until: time):\n  update members[m] {until}\nmutation add(body: text <=10):\n  insert notes {group: 'g', body}\n";
+        let (mut engine, backend) = compile(source);
+        let joined = engine
+            .mutate(
+                "join",
+                Some("member-a"),
+                context(
+                    snapback4_core::SYSTEM_PRINCIPAL,
+                    &[("person", id("dev:alice")), ("until", Value::Int(10))],
+                )
+                .at(1)
+                .with_ids(["member-a".to_owned()]),
+            )
+            .unwrap();
+        assert!(matches!(joined.state, WriteState::Sent { .. }), "{joined:?}");
+        let first = engine
+            .mutate(
+                "add",
+                Some("n1"),
+                context("dev:alice", &[("body", Value::String("held".into()))])
+                    .at(2)
+                    .with_ids(["n1".to_owned()]),
+            )
+            .unwrap();
+        assert!(matches!(first.state, WriteState::Sent { .. }), "{first:?}");
+
+        let backend = snapback4_device::device::Backend {
+            generation: engine.generation(),
+            ..backend
+        };
+        let mut device = host.open("live-renewal", Some(backend)).unwrap();
+        for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 2)
+            .iter()
+            .enumerate()
+        {
+            ok(apply(&mut *device, page, index == 0));
+        }
+        let watermark = state(&mut *device).0;
+
+        let renewed = engine
+            .mutate(
+                "renew",
+                Some("renew-member-a"),
+                context(
+                    "dev:alice",
+                    &[("m", id("member-a")), ("until", Value::Int(100))],
+                )
+                .at(9),
+            )
+            .unwrap();
+        assert!(matches!(renewed.state, WriteState::Sent { .. }), "{renewed:?}");
+        let second = engine
+            .mutate(
+                "add",
+                Some("n2"),
+                context("dev:alice", &[("body", Value::String("later".into()))])
+                    .at(20)
+                    .with_ids(["n2".to_owned()]),
+            )
+            .unwrap();
+        assert!(matches!(second.state, WriteState::Sent { .. }), "{second:?}");
+
+        let catch_up = stream_page_at(&mut engine, "dev:alice", watermark, 22);
+        assert!(!catch_up.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "{label}: a renewal before the old horizon cannot evict held n1: {:#?}", catch_up.events);
+        assert!(catch_up.events.iter().any(|event| event.table == "notes" && event.id == "n2" && event.kind == "put"), "{label}: live authority continues through the renewed horizon: {:#?}", catch_up.events);
+        ok(apply(&mut *device, &catch_up, false));
+        let read = query(&mut *device, "notes", "dev:alice", serde_json::json!({}), 22);
+        let ids = rows(&read)
+            .iter()
+            .map(|row| row["id"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec!["n1", "n2"], "{label}: continuous authority retains both rows");
+        device.close();
+    });
+}
+
+#[test]
 // @ref LLP 3000#7-decisions-during-execution — delivered history retains pages received under authority; later pages recheck the audience.
 fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
     on_both(|host| {

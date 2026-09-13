@@ -408,8 +408,10 @@ fn an_expired_unswept_grant_does_not_hide_its_replacement_interval() {
     call(&mut e, "add", "content", 21, BTreeMap::new());
 
     let caught_up = e.stream_at("dev:alice", before, 100, 22).unwrap();
-    assert!(caught_up.events.iter().any(|event| event.table == "notes" && event.id == "content" && event.kind == "put"), "{:#?}", caught_up.events);
-    assert!(!caught_up.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "{:#?}", caught_up.events);
+    let replacement = caught_up.events.iter().position(|event| event.table == "members" && event.id == "new-member" && event.kind == "put").unwrap();
+    let content = caught_up.events.iter().position(|event| event.table == "notes" && event.id == "content" && event.kind == "put").unwrap();
+    assert!(caught_up.events.iter().enumerate().all(|(index, event)| event.table != "notes" || event.kind != "scope" || index < content), "the expired interval closes before the replacement's content: {:#?}", caught_up.events);
+    assert!(replacement < content, "the replacement remains live for later content: {:#?}", caught_up.events);
     let drained = caught_up.watermark;
 
     assert_eq!(e.sweep_expired(22, 100).unwrap(), 1);
@@ -418,7 +420,8 @@ fn an_expired_unswept_grant_does_not_hide_its_replacement_interval() {
         let page = e.stream_at("dev:alice", watermark, 100, 24).unwrap();
         let notes = page.events.iter().filter(|event| event.table == "notes").collect::<Vec<_>>();
         assert!(expected.iter().all(|id| notes.iter().any(|event| event.id == *id && event.kind == "put")), "watermark={watermark}: {notes:#?}");
-        assert!(!notes.iter().any(|event| event.kind == "scope"), "watermark={watermark}: {notes:#?}");
+        let first_put = page.events.iter().position(|event| event.table == "notes" && event.kind == "put").unwrap();
+        assert!(page.events.iter().enumerate().all(|(index, event)| event.table != "notes" || event.kind != "scope" || index < first_put), "no later scope may undo the replacement's rows; watermark={watermark}: {:#?}", page.events);
     }
 }
 

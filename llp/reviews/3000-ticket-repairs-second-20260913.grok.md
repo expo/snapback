@@ -83,3 +83,36 @@ Inspected at `65e2ad752`: `partition.rs`, `engine/read.rs`, `engine/local.rs`, `
 1. **Declined: proposed atomic acquisition entitlement.** The existing snapshot cursor contract explicitly rechecks current membership on each page. Its watermark pins log catch-up, not authority for the whole acquisition. Delivered-history retains delivered rows, not rows that were never acquired. The independent host lane confirmed that reading of the existing contract. A two-store regression now makes it explicit: page one acquired before expiry remains, later unacquired rows do not arrive, and post-expiry edits/new rows remain excluded. The proposed all-three-rows reproduction is retained outside the repository; no cursor clock or history replay was added.
 2. **Fixed.** Device scans over a synced table no longer infer non-uniform incompleteness merely because the expiring audience must be checked. The fully held device regression now asserts complete before and after logical expiry; horizon/meter cuts still make it incomplete.
 3. **Fixed with the declared cap contract.** A capped point returns contributions examined so far and incomplete coverage, instead of fabricating an empty group. It does not promise the full 8,193-row result after an 8,192-row ceiling. The focused regression lowers the ceiling to three, sees two contributions from five source rows and asserts the cap. No ceiling was raised. A narrow independent delta review follows these corrections.
+
+## Received narrow correction review
+
+Reviewer: independent Grok 4.6 xhigh CLI, immutable `9bf6d4a83` against `d3c682d15`, scoped to the five changed core/guide files and their immediate callers. Full received final text:
+
+**Finding:** replacement catch-up never revokes the predecessor grant, so until-revoked rows that left the group during the dead interval stay on the replica.
+
+`9bf6d4a83328a65ffc4d28f3d34ba8c9b771976c` (`engine/read.rs`, `engine/write.rs`, `engine/mod.rs`, `partition.rs`, `lang/guide.rs`).
+
+In `snapback4/crates/snapback4-core/src/partition.rs`, a replacement join now closes the prior span and opens its own (`487–494`), and sweeping an expired predecessor with a live sibling logs no `scope` (`176–198`). `expand_joins` still materializes the predecessor join (`571`: `span.from == event.seq` and the join commit is before that span’s `expiresAt`). The only synthetic revocation is appended after catch-up, and only if the **last** span is still open and already expired (`548–549`). After a live replacement that last span is B, so A’s logical end never becomes a `scope`. Default leave is until-revoked (`schema.rs` `LeavePolicy`). A replica drops those rows only on `scope` (`snapback4-sim/src/replica.rs` `149–156`).
+
+This is not “keep already delivered history,” and it is not a demand that snapshots extend expired authority. A fresh snapshot at `now` is still `groups_now` (live only). The failure is stream catch-up across a replacement, including a device that snapshotted empty, went offline, then received both joins.
+
+**Reproduction** (same membership/notes shape as `an_expired_unswept_grant_does_not_hide_its_replacement_interval`, plus `delete <- allow`):
+
+1. Watermark `before` is the seq before any join (device already snapshotted empty, or `stream_at(..., 0, ...)`).
+2. `join` `old-member` `until=10` at t=1.
+3. `add` note `n1` at t=2.
+4. `delete` `n1` at t=11 (`delete <- allow`; Alice is already logically expired).
+5. `join` `new-member` `until=100` at t=20 (unswept predecessor, same `group+person`).
+6. `stream_at("dev:alice", before, 100, 22)`.
+
+**Observed:** put of `n1` from join A’s expansion; no group `del` (commit `at=11` is not `c.at < 10`); no `notes` `scope`. Applying the page leaves `n1` on an until-revoked replica.
+
+**Expected:** A’s lifetime ends at expiry/replacement, so until-revoked rows that left before B are gone; B’s join still acquires the current group image.
+
+Online equivalence: a device that synced between t=10 and t=20 got a synthetic scope at A’s expiry and dropped `n1`. Catch-up after B never emits that revocation.
+
+No other material defect in the reviewed correction (zero-sum candidates, `Cut::Cap` partial point reads, capped scan resume-after-last-returned-row, `open()` repair from the stored backend, device completeness as horizon+meter with expiring-audience rules still evaluated).
+
+Lead follow-up: main's current-image security filter removes deleted join candidates for the before-any-join watermark. The same lifetime-gap defect still matters when a device had already acquired the row before expiry: the gap's deletion is outside the old grant and the new grant's snapshot does not include it. A regression covers both watermark positions. A new grant after an expired interval must send that interval's scope before its join expansion, while a continuous live renewal must not clear its held horizon. Correction and qualification follow.
+
+Correction qualification: the acquired-row watermark reproduced stale n1 on current security-integrated code. Grant initialization now consults the latest ledger transition before the watermark; a live renewal does not emit an ordinary scope; an expired predecessor emits its scope before the replacement's join image. Both watermark positions and a continuous live-renewal control pass on SQLite and memory. The existing replacement regression asserts scope ordering rather than forbidding the necessary earlier scope. Full focused totals are 18 device, 32 correction and 11 earlier-review passes. Final delta review follows.

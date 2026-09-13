@@ -193,7 +193,11 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
                     if replaced || count < 32 { break; }
                 }
             }
-            if !replaced {
+            // A live deadline renewal is a join transition without a
+            // revocation. If the old lifetime already ended, catch-up inserts
+            // its scope before that join; shortening to expiry still revokes.
+            let renewed = was == is && new.is_some_and(|row| !runner.context.now.is_some_and(|now| table.expired(row, now)));
+            if !replaced && !renewed {
                 runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Scope, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
             }
         }
@@ -478,7 +482,9 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64) -> R
         let fallback_expiry = || expiring.then_some(i64::MIN);
         let expiry = |event: &LogEvent| event.data.as_ref().and_then(|data| data.field("expiresAt").ok()).map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry);
         let steps = transitions.get(&key).map(Vec::as_slice).unwrap_or_default();
-        let held_at_watermark = steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope");
+        let held_at_watermark = previous.get(&key).map_or_else(
+            || steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope"),
+            |event| event.kind == "join");
         let initial_expiry = if steps.is_empty() { current.get(&key).copied().flatten() } else { previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry) };
         let mut open = held_at_watermark.then_some(Interval { from: watermark.saturating_add(1), to: None, expires_at: initial_expiry });
         let mut spans = Vec::new();
@@ -612,6 +618,14 @@ fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeM
         let Some(table) = schema.table(&event.table) else { continue };
         let Some(sync) = &table.sync else { continue };
         let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        // A catch-up spanning an expired grant and its replacement must
+        // retire the old until-revoked image before acquiring the new one.
+        // A continuous live renewal keeps its already acquired horizon.
+        let expired_predecessor = held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans| spans.iter().any(|span|
+            span.to == Some(event.seq) && span.expires_at.is_some_and(|expiry| commit_times.get(&event.seq).is_some_and(|at| *at >= expiry))));
+        if expired_predecessor {
+            out.push(LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) });
+        }
         let mut rows: Vec<Value> = tx.group_at(&group_partition(&event.table, &group), event.seq)?.into_iter().filter_map(|event| event.data).filter(|row| !table.expired(row, now)).collect();
         if let Some(horizon) = &sync.horizon {
             let index = table.index(&horizon.by).ok_or_else(|| RuntimeError::Schema(format!("missing horizon index {}", horizon.by)))?;

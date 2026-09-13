@@ -15,6 +15,7 @@ import { listEffects, mintSession, revokeSessions, runWorker } from "../dist/wor
 
 const session = (token, expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000) => ({ principal: "user:alice", kind: "user", token, expiresAt });
 const auth = (init) => new Headers(init?.headers).get("authorization");
+const deferred = () => { let resolve; const promise = new Promise((done) => { resolve = done; }); return { promise, resolve }; };
 const until = async (predicate, message) => {
   const deadline = Date.now() + 2_000;
   while (!predicate() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
@@ -145,6 +146,90 @@ test("the local client rotates near expiry and keeps every protected request on 
   assert.deepEqual(byPath("/q/remote"), ["Bearer rotated-2"]);
   assert.deepEqual(byPath("/auth/logout-all"), ["Bearer rotated-2"]);
   for (const stop of held) stop();
+});
+
+test("a stale-token mutation refusal remains durable and retries after rotation", async () => {
+  const base = "https://rotating-write.invalid";
+  const backend = {
+    generation: 1,
+    schema: { tables: {} },
+    programs: [{ name: "send", kind: "Mutation", args: {}, body: [] }],
+  };
+  const queued = [];
+  const oldReply = deferred();
+  const newReply = deferred();
+  const mutationBearers = [];
+  let settlements = 0;
+  let admittedId;
+  const doFetch = async (input, init = {}) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/changes") return new Promise((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true }));
+    if (path === "/auth/refresh") {
+      assert.equal(auth(init), "Bearer token-zero");
+      return Response.json({ session: session("token-one") });
+    }
+    if (path === "/m/send") {
+      mutationBearers.push(auth(init));
+      if (mutationBearers.length === 1) {
+        await oldReply.promise;
+        return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "rotated token" } }, { status: 401 });
+      }
+      await newReply.promise;
+      return Response.json({ state: "sent", id: queued[0].id, seq: 9 });
+    }
+    throw new Error(`unexpected request ${path}`);
+  };
+  const core = {
+    async call(request) {
+      switch (request.op) {
+        case "sync_state": return { ok: { watermark: 0, generation: 1, send_revision: 0, pending_ids: queued.map((entry) => entry.id) } };
+        case "state": return { ok: { watermark: 0, generation: 1, native: null } };
+        case "backend": return { ok: backend };
+        case "next_submission": return { ok: 1 };
+        case "meta": return { ok: 0 };
+        case "set_meta": return { ok: true };
+        case "apply": return { ok: { touched: [] } };
+        case "admit": admittedId = request.entry.id; queued.push(request.entry); return { ok: request.entry };
+        case "queued": return { ok: queued };
+        case "begin_send": return { ok: { send_revision: 1 } };
+        case "settle": settlements += 1; queued.splice(0, 1); return { ok: null };
+        default: return { ok: true };
+      }
+    },
+    async close() {},
+  };
+  const client = await createLocalClient({
+    url: base,
+    session: session("token-zero"),
+    device: { open: async () => core },
+    fetch: doFetch,
+    waitSeconds: 1,
+  });
+  try {
+    const terminal = [];
+    client.onWrite((write) => terminal.push(write));
+    const writing = client.mutate({ name: "send" }, { body: "once" });
+    await until(() => mutationBearers.length === 1, "the old-bearer mutation did not enter the transport");
+    const refreshing = client.refreshSession();
+    await until(() => client.session()?.token === "token-one", "the replacement session did not become active");
+    oldReply.resolve();
+    assert.equal((await refreshing).ok, true);
+    await until(() => mutationBearers.length === 2, "the stale refusal permanently dropped the durable write");
+    assert.deepEqual(mutationBearers, ["Bearer token-zero", "Bearer token-one"]);
+    assert.equal(queued.length, 1, "an obsolete refusal must not remove the outbox entry");
+    assert.equal(settlements, 0, "an obsolete refusal must not settle the outbox entry");
+    assert.deepEqual(terminal, [], "an obsolete refusal is not a terminal write outcome");
+    newReply.resolve();
+    assert.deepEqual(await writing, { state: "sent", id: admittedId, seq: 9 });
+    assert.equal(queued.length, 0);
+    assert.equal(settlements, 1);
+    assert.equal(terminal.length, 1);
+    assert.equal(terminal[0].state, "sent");
+  } finally {
+    await client.close();
+  }
 });
 
 test("an authenticated change-feed refusal signs the online client out", async () => {
