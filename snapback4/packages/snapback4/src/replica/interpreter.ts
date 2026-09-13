@@ -395,15 +395,12 @@ export class Interpreter {
     return null;
   }
 
-  private async scan(scan: Record<string, unknown>): Promise<unknown[]> {
+  private async prepareScan(scan: Record<string, unknown>) {
     const table = scan.table as string, index = scan.index as string;
     const prefix: unknown[] = [];
     for (const p of scan.prefix as { Scalar?: unknown }[]) prefix.push(p.Scalar === undefined ? null : await this.expr(p.Scalar));
     const definition = this.schema.tables[table];
     if (!definition) throw new Refused({ code: "E_SCHEMA", family: "schema", message: `unknown table ${table}` });
-    this.tables.add(table);
-    this.site = scan.site as string;
-    if (!definition.sync) this.beyondHorizon = true;
     const take = typeof scan.take === "object" && scan.take !== null && "Literal" in (scan.take as object) ? (scan.take as { Literal: number }).Literal : num(this.env.get((scan.take as { Arg: { name: string } }).Arg.name));
     const order = scan.order as "Asc" | "Desc";
     const bounds: Bounds = {};
@@ -422,6 +419,14 @@ export class Interpreter {
       const r = scan.range as Record<string, unknown>;
       for (const k of ["gt", "gte", "lt", "lte"] as const) if (r[k]) bounds[k] = await this.expr(r[k]);
     }
+    return { table, index, prefix, definition, take, order, bounds };
+  }
+
+  private async scan(scan: Record<string, unknown>, prepared?: Awaited<ReturnType<Interpreter["prepareScan"]>>): Promise<unknown[]> {
+    const { table, index, prefix, definition, take, order, bounds } = prepared ?? await this.prepareScan(scan);
+    this.tables.add(table);
+    this.site = scan.site as string;
+    if (!definition.sync) this.beyondHorizon = true;
     const dir = order === "Asc" ? "asc" : "desc";
     const visible: unknown[] = [];
     let lastKey: Uint8Array | null = null;
@@ -476,6 +481,21 @@ export class Interpreter {
 
   private async merge(merge: Record<string, unknown>): Promise<unknown[]> {
     const lanes = merge.lanes as Record<string, unknown>[];
+    const leading = lanes[0]?.scan as Record<string, unknown> | undefined;
+    // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
+    if (lanes.every((lane) => {
+      const scan = lane.scan as Record<string, unknown>;
+      const index = this.schema.tables[scan.table as string]?.indexes[scan.index as string];
+      const totalUnique = index?.unique && index.components.every((c) => {
+        const kind = "Column" in c ? this.schema.tables[scan.table as string]?.columns[c.Column] : undefined;
+        return kind !== undefined && !(kind && typeof kind === "object" && "Optional" in kind);
+      });
+      return !(lane.setup as unknown[] | undefined)?.length && scan.table === leading?.table && scan.index === leading?.index && scan.order === leading?.order
+        && (scan.prefix as unknown[]).length === (leading?.prefix as unknown[]).length
+        && index && (scan.prefix as unknown[]).length < index.components.length
+        && (totalUnique || (index.components.at(-1) as { Column?: string })?.Column === "id")
+        && this.visibility(scan.table as string, scan.index as string, scan.prefix as { Scalar?: unknown }[]).uniform;
+    })) return this.mergeLazy(merge);
     const first = lanes[0]?.scan as Record<string, unknown> | undefined;
     if (!first) return [];
     const table = first.table as string, index = first.index as string, order = first.order as "Asc" | "Desc";
@@ -508,6 +528,98 @@ export class Interpreter {
     const page = candidates.slice(0, take);
     if (this.pageDepth === 0 && !first.opaque_cursor && hasMore) this.pageOverflow = true;
     if (this.pageDepth === 0 && first.opaque_cursor) this.page = { table, index, order, prefixLen, next: hasMore && page.length ? page[page.length - 1]!.key : null };
+    return page.map((c) => c.row);
+  }
+
+  private async mergeLazy(merge: Record<string, unknown>): Promise<unknown[]> {
+    const lanes = merge.lanes as Record<string, unknown>[];
+    const first = lanes[0]?.scan as Record<string, unknown> | undefined;
+    if (!first) return [];
+    const table = first.table as string, index = first.index as string, order = first.order as "Asc" | "Desc";
+    const take = "Literal" in (first.take as object) ? (first.take as { Literal: number }).Literal : num(this.env.get((first.take as { Arg: { name: string } }).Arg.name));
+    const prefixLen = (first.prefix as unknown[]).length;
+    const columns = this.schema.tables[table]!.indexes[index]!.components.slice(prefixLen).map((c) => "Column" in c ? c.Column : "");
+    // Validate even when lane discovery is empty, as the server does.
+    if (first.opaque_cursor && first.after) {
+      const after = await this.expr(first.after);
+      if (after !== null && after !== undefined) {
+        const c = decodeCursor(String(after));
+        if (!c || c.table !== table || c.index !== index || c.order !== order) throw new Refused({ code: "E_INPUT", family: "input", message: "cursor: the token names another scope" });
+      }
+    }
+    type Head = { key: unknown[]; row: Row; lane: number };
+    const heap: Head[] = [];
+    const cmp = (a: Head, b: Head) => (order === "Asc" ? 1 : -1) * totalCompare(a.key, b.key) || a.lane - b.lane;
+    const push = (head: Head) => {
+      let i = heap.length;
+      heap.push(head);
+      while (i > 0) {
+        const parent = (i - 1) >> 1;
+        if (cmp(heap[parent]!, head) <= 0) break;
+        heap[i] = heap[parent]!; i = parent;
+      }
+      heap[i] = head;
+    };
+    const pop = () => {
+      const first = heap[0]!, last = heap.pop()!;
+      if (heap.length) {
+        let i = 0;
+        for (;;) {
+          let child = i * 2 + 1;
+          if (child >= heap.length) break;
+          if (child + 1 < heap.length && cmp(heap[child + 1]!, heap[child]!) < 0) child++;
+          if (cmp(last, heap[child]!) <= 0) break;
+          heap[i] = heap[child]!; i = child;
+        }
+        heap[i] = last;
+      }
+      return first;
+    };
+    const states: { scan: Record<string, unknown>; prepared: Awaited<ReturnType<Interpreter["prepareScan"]>>; rows: Row[]; done: boolean }[] = [];
+    const depth = this.pageDepth;
+    this.pageDepth++;
+    const advance = async (lane: number) => {
+      const state = states[lane]!;
+      this.step();
+      if (!state.rows.length && !state.done && !this.capped) {
+        state.rows = await this.scan(state.scan, state.prepared) as Row[];
+        state.done = state.rows.length < state.prepared.take;
+      }
+      const row = state.rows.shift();
+      if (row) push({ key: columns.map((c) => row[c] ?? null), row, lane });
+    };
+    for (const lane of lanes) {
+      const sources = lane.source ? await this.scan(lane.source as Record<string, unknown>) : [null];
+      for (const source of sources) {
+        if (lane.source) this.env.set(lane.binding as string, source);
+        const scan = lane.scan as Record<string, unknown>;
+        const prepared = await this.prepareScan(scan);
+        states.push({ scan, prepared, rows: [], done: false });
+      }
+    }
+    // Batch the few-lane case so it does not pay one SQLite call per row.
+    for (let lane = 0; lane < states.length; lane++) {
+      states[lane]!.prepared.take = states.length <= 8 ? take + 1 : 1;
+      await advance(lane);
+    }
+    const seen = new Set<string>(), page: Head[] = [];
+    let hasMore = false;
+    while (heap.length) {
+      this.step();
+      const head = pop();
+      if (!seen.has(head.row.id)) {
+        seen.add(head.row.id);
+        if (page.length === take) { hasMore = true; break; }
+        page.push(head);
+      }
+      states[head.lane]!.prepared.bounds.after = head.key;
+      await advance(head.lane);
+    }
+    this.pageDepth = depth;
+    if (depth === 0) {
+      if (first.opaque_cursor) this.page = { table, index, order, prefixLen, next: (hasMore || this.capped) && page.length ? page[page.length - 1]!.key : null };
+      else if (hasMore) this.pageOverflow = true;
+    }
     return page.map((c) => c.row);
   }
 

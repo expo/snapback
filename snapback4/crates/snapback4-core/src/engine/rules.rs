@@ -5,7 +5,7 @@
 //! analysis (LLP 2000.000 §5.1); the certificate that priced these is gone,
 //! the analysis is not.
 
-use crate::ir::{Expr, IndexKeyExpr, Input, Scan};
+use crate::ir::{Expr, IndexKeyExpr, Input, Merge, Scan};
 use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema, Table};
 use crate::value::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -23,6 +23,24 @@ pub fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
     let Some(index) = table.index(&scan.index) else { return Visibility::default() };
     let pinned: BTreeMap<&String, &Expr> = index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| component.column().zip(key.scalar())).collect();
     prefix_visibility(&scan.table, table, &table.rules.read, &pinned)
+}
+
+/// Lazy lanes need a position that identifies one row within the lane.
+/// Keep setup evaluation and non-uniform traversal in their original order.
+pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
+    let Some(first) = merge.lanes.first() else { return true };
+    merge.lanes.iter().all(|lane| {
+        let scan = &lane.scan;
+        lane.setup.is_empty() && scan.table == first.scan.table && scan.index == first.scan.index
+            && scan.order == first.scan.order && scan.prefix.len() == first.scan.prefix.len()
+            && scan_visibility(schema, scan).uniform
+            && schema.table(&scan.table).is_some_and(|table| table.index(&scan.index).is_some_and(|index| {
+                // Nullable unique keys allow multiple nulls; they are not a
+                // position from which a one-row refill can safely resume.
+                let total_unique = index.unique && index.columns().iter().all(|c| table.columns.get(c).is_some_and(|kind| !kind.is_optional()));
+                scan.prefix.len() < index.components.len() && (total_unique || index.columns().last().is_some_and(|c| c == "id"))
+            }))
+    })
 }
 
 /// The same analysis for an arbitrary pinned prefix (`sync` audiences and

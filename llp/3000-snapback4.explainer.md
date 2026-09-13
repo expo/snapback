@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -376,6 +376,23 @@ time-ordered 128-bit form.
   queries and predictions, with the JavaScript client reduced to session,
   link and transport. The conformance obligation between the two
   interpreters is then the web's alone.
+
+- **2026-09-13 — wide uniform merges read heads (performance work).**
+  A merge without per-lane setup, whose lane rules are uniform and whose
+  index ends in `id` or is unique over required columns, keeps one ordered
+  head per lane and advances only the winning lane. At eight lanes or fewer
+  it buffers a page per lane to avoid a SQLite call per returned row. Lane
+  discovery, lookahead, expired rows, duplicate rows and rule probes remain
+  metered; no ceiling changes. Non-uniform lanes, lane setup and indexes
+  without a safe resume position keep their existing scan order. Nullable
+  unique keys are not resume positions: uniqueness allows repeated nulls.
+  The Rust and device interpreters share this strategy and retain cursor
+  scope checks, deduplication and typed caps. A local page that reaches an
+  exhausted horizon still reports incomplete. The SQLite server and Node
+  replica also reuse prepared SQL statements; data and results are never
+  cached by this change. `scripts/measure-storage.mjs --workloads` records
+  HTTP and replica measurements with artifact hashes and result completeness;
+  these are within-Snapback observations, not a competitor performance claim.
 
 ## 8. Implementation map
 

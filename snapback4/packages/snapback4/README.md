@@ -164,9 +164,9 @@ columns.
   `t[prefix] first N by index` (ascending; `t first N by index` is the
   whole table's page), `t[prefix] after c last N by index` (descending,
   from a cursor), `merge t first N by index:` with
-  `[lane]` lines (one ordered page over several prefixes; a merge reads
-  one page per lane, so a feed over hundreds of followed users wants its
-  entries written on the way in, one table synced to `.reader` — `check`
+  `[lane]` lines (one ordered page over several prefixes; uniform lanes
+  with a non-nullable unique index or an index ending in `id` read one head per lane,
+  then advance the winning lanes. Other lanes read a page each. `check`
   notes a merge past 50 lanes), `walk t[seed] up .parentId depth 8`.
 - **Shapes:** `{ *, author: users[.authorId], count: counts[.conversationId] }`
   after a page or a row; `.` is the row; `*` spreads its columns; a point
@@ -272,10 +272,12 @@ run on the server.
 
 ### Feeds: fan out on write, read one page
 
-A feed over everyone the viewer follows is not a `merge` over their lanes
-(a thousand followed accounts is a thousand pages per read; `check` notes
-it, `N_WIDE_MERGE`). Write each reader's entry when the post is made,
-sync the entries to the reader, read one page on the device:
+A feed can merge the followed accounts' ordered lanes. Uniform lanes with
+seekable indexes read one head each, then advance only the winning lanes;
+lane discovery, rule probes, lookahead and expired rows still consume the
+meter (`N_WIDE_MERGE` describes the work). For frequent reads over many
+accounts, move that work to writes: write each reader's entry when the post
+is made, sync the entries to the reader, and read one page on the device:
 
 ```
 table feed:

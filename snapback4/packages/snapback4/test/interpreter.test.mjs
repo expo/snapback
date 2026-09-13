@@ -4,13 +4,77 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { MemoryStore } from "../dist/replica/store.js";
-import { Interpreter, Refused } from "../dist/replica/interpreter.js";
+import { Interpreter, Refused, totalCompare } from "../dist/replica/interpreter.js";
 import { decodeCursor } from "../dist/replica/cursor.js";
 
 const backend = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
 const programs = Object.fromEntries(backend.programs.map((p) => [p.name, p]));
 let minted = 0;
 const ctx = (viewer, args, now = 1000) => ({ viewer, args, now, newIds: [], mint: () => `M${++minted}` });
+
+function merged(order = "Desc") {
+  const scan = { table: "messages", index: "byConvTime", prefix: [{ Scalar: { Field: { base: { Variable: "member" }, name: "conversationId" } } }], take: { Literal: 20 }, order, after: { Variable: "c" }, before: null, range: null, opaque_cursor: true, site: "merge:1", provenance: "Shape", merge_site: "merge" };
+  const source = { ...scan, table: "memberships", index: "byPrincipalConversation", prefix: [{ Scalar: { Input: "Viewer" } }], take: { Literal: 1000 }, order: "Asc", after: null, opaque_cursor: false };
+  return { name: "merged", kind: "Query", args: {}, body: [{ Return: { Merge: { site: "merge", lanes: [{ scan, source, binding: "member", setup: [] }, { scan: { ...scan, prefix: [{ Scalar: { Literal: { Id: "c3" } } }] }, source: null, binding: "", setup: [] }] } } }] };
+}
+
+test("lazy merges match a sorted union across ties, overlaps and every page on memory and SQLite", async () => {
+  const { openSqlite, nodeSqliteDriver } = await import("../dist/replica/sqlite.js");
+  const { DatabaseSync } = await import("node:sqlite");
+  const schema = structuredClone(backend.schema);
+  schema.tables.messages.expire = "editedAt";
+  for (const store of [new MemoryStore(schema), await openSqlite(nodeSqliteDriver(new DatabaseSync(":memory:")), schema)]) {
+    try {
+      const expected = [];
+      await store.write(async (tx) => {
+        for (let c = 0; c < 10; c++) {
+          await tx.put("memberships", { id: `m${c}`, conversationId: `c${c}`, principal: "dev:bob", role: "member", joinedAt: c });
+          for (let n = 0; n < c * 7; n++) {
+            const row = { id: `msg${c}-${String(n).padStart(2, "0")}`, conversationId: `c${c}`, authorId: "dev:bob", body: "post", at: (n * 7 + c) % 11, photo: null, editedAt: n % 13 === 0 ? 1 : null };
+            if (row.editedAt === null) expected.push(row);
+            await tx.put("messages", row);
+          }
+        }
+      });
+      for (const order of ["Asc", "Desc"]) {
+        const program = merged(order), got = [];
+        let c = null;
+        for (let page = 0; page < 20; page++) {
+          const result = await store.read((tx) => new Interpreter(tx, schema, ctx("dev:bob", { c }), "query").run(program));
+          assert.equal(result.complete, true);
+          got.push(...result.data.map((r) => r.id));
+          c = result.next;
+          if (!c) break;
+        }
+        assert.equal(c, null, "pagination terminates");
+        assert.deepEqual(got, expected.toSorted((a, b) => (order === "Asc" ? 1 : -1) * totalCompare([a.at, a.id], [b.at, b.id])).map((r) => r.id));
+        const capped = await store.read((tx) => new Interpreter(tx, schema, ctx("dev:bob", { c: null }), "query", { examined: 10, ruleProbes: 8192, steps: 1_000_000, rowsWritten: 1024 }).run(program));
+        assert.equal(capped.complete, false);
+      }
+    } finally { await store.close(); }
+  }
+});
+
+test("an empty merge still rejects a cursor from another scope", async () => {
+  const store = await seeded();
+  const thread = await store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:bob", { conversationId: "c1", c: null }), "query").run(programs.thread));
+  const program = merged("Asc"); // thread's cursor is descending
+  program.body[0].Return.Merge.lanes.pop();
+  await store.clearRows();
+  await assert.rejects(store.read((tx) => new Interpreter(tx, backend.schema, ctx("dev:bob", { c: thread.next }), "query").run(program)), (e) => e instanceof Refused && e.refusal.code === "E_INPUT");
+});
+
+test("nullable unique merge keys keep every equal null row", async () => {
+  const schema = structuredClone(backend.schema);
+  schema.tables.messages.indexes.byConvTime = { unique: true, components: [{ Column: "conversationId" }, { Column: "editedAt" }] };
+  const store = new MemoryStore(schema);
+  await store.write(async (tx) => {
+    await tx.put("memberships", { id: "m", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 1 });
+    for (let n = 0; n < 10; n++) await tx.put("messages", { id: `m${n}`, conversationId: "c1", authorId: "dev:bob", body: "p", at: 1, editedAt: null, photo: null });
+  });
+  const result = await store.read((tx) => new Interpreter(tx, schema, ctx("dev:bob", { c: null }), "query").run(merged()));
+  assert.equal(result.data.length, 10);
+});
 
 async function seeded() {
   const store = new MemoryStore(backend.schema);

@@ -109,9 +109,21 @@ class SqliteStore implements Store {
  * for Node hosts. (`expo-sqlite` fits the same way with its async calls.) */
 export function nodeSqliteDriver(db: { exec(sql: string): void; prepare(sql: string): { run(...p: unknown[]): unknown; all(...p: unknown[]): unknown[] }; close(): void }): SqliteDriver {
   let depth = 0;
+  // Rebind stable SQL for every row and index entry instead of compiling it
+  // again. Bound the cache because callers can also use this public driver.
+  const statements = new Map<string, ReturnType<typeof db.prepare>>();
+  const prepare = (sql: string) => {
+    let statement = statements.get(sql);
+    if (!statement) {
+      statement = db.prepare(sql);
+      if (statements.size >= 64) statements.clear();
+      statements.set(sql, statement);
+    }
+    return statement;
+  };
   return {
-    async run(sql, params = []) { db.prepare(sql).run(...(params as unknown[])); },
-    async all(sql, params = []) { return db.prepare(sql).all(...(params as unknown[])) as Record<string, unknown>[]; },
+    async run(sql, params = []) { prepare(sql).run(...(params as unknown[])); },
+    async all(sql, params = []) { return prepare(sql).all(...(params as unknown[])) as Record<string, unknown>[]; },
     async transaction(body) {
       if (depth > 0) return body();
       depth++;
@@ -127,7 +139,7 @@ export function nodeSqliteDriver(db: { exec(sql: string): void; prepare(sql: str
         depth--;
       }
     },
-    async close() { db.close(); },
+    async close() { statements.clear(); db.close(); },
   };
 }
 

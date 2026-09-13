@@ -115,8 +115,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>", bound.program.name, table)).guide("reads"));
             }
         }
-        // A merge reads one page per lane: over many lanes it reads many
-        // pages, and past the examined ceiling it is cut. Say the number.
+        // Wide merges still pay for lane discovery and authorization, even
+        // when ordered heads avoid reading a full page from every lane.
         for merge in merges(&bound.program.body) {
             let take = merge.take() + 1;
             let lanes: u64 = merge.lanes.iter().map(|lane| lane.source.as_ref().map_or(1, |source| source.take.maximum())).sum();
@@ -125,11 +125,16 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             }
             let rows = lanes * take;
             let ceiling = snapback4_core::Ceilings::default().examined;
+            let work = if snapback4_core::engine::rules::lazy_merge(schema, merge) {
+                format!("up to {lanes} lanes, reading one head per lane and advancing the winning lanes; discovery, lookahead, duplicates and expired rows also consume the meter")
+            } else {
+                format!("up to {lanes} lanes, one page of {take} each — {rows} rows per read{}", if rows > ceiling { format!(", past the {ceiling} examined the meter allows, so the page is cut and `complete: false`") } else { "".into() })
+            };
             notes.push(
                 Diagnostic::new(
                     &bound.site,
                     "N_WIDE_MERGE",
-                    format!("{} {}: the merge over {} reads up to {lanes} lanes, one page of {take} each — {rows} rows per read{}", bound.program.kind.word(), bound.program.name, merge.table(), if rows > ceiling { format!(", past the {ceiling} examined the meter allows, so the page is cut and `complete: false`") } else { "".into() }),
+                    format!("{} {}: the merge over {} reads {work}", bound.program.kind.word(), bound.program.name, merge.table()),
                     "keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)",
                 )
                 .guide("feeds"),

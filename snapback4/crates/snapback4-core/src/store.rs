@@ -262,7 +262,7 @@ impl<'a> Tx<'a> {
 
     pub fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         let t = self.num(table)?;
-        let data: Option<String> = self.tx.query_row("SELECT data FROM r WHERE t = ?1 AND id = ?2", params![t, id], |row| row.get(0)).optional()?;
+        let data: Option<String> = self.tx.prepare_cached("SELECT data FROM r WHERE t = ?1 AND id = ?2")?.query_row(params![t, id], |row| row.get(0)).optional()?;
         data.map(|data| serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()
     }
 
@@ -345,7 +345,7 @@ impl<'a> Tx<'a> {
         let ti = self.num(&format!("{table}.{index_name}"))?;
         let base = key::encode(prefix);
         let hi = key::upper_bound(&base);
-        let count: i64 = self.tx.query_row("SELECT COUNT(*) FROM (SELECT 1 FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 LIMIT ?4)", params![ti, base, hi, limit as i64], |row| row.get(0))?;
+        let count: i64 = self.tx.prepare_cached("SELECT COUNT(*) FROM (SELECT 1 FROM i WHERE ti = ?1 AND k >= ?2 AND k < ?3 LIMIT ?4)")?.query_row(params![ti, base, hi, limit as i64], |row| row.get(0))?;
         Ok(count as u64)
     }
 
@@ -359,15 +359,15 @@ impl<'a> Tx<'a> {
         let mut entries = 0;
         match old {
             None => {
-                self.tx.execute("INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)", params![t, id, data])?;
+                self.tx.prepare_cached("INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)")?.execute(params![t, id, data])?;
                 for (index_name, index) in &table.indexes {
                     let ti = self.num(&format!("{table_name}.{index_name}"))?;
-                    self.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![ti, index_key(index, row, &id), id])?;
+                    self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, index_key(index, row, &id), id])?;
                     entries += 1;
                 }
             }
             Some(old) => {
-                self.tx.execute("UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2", params![t, id, data])?;
+                self.tx.prepare_cached("UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2")?.execute(params![t, id, data])?;
                 for (index_name, index) in &table.indexes {
                     let before = index_key(index, old, &id);
                     let after = index_key(index, row, &id);
@@ -375,8 +375,8 @@ impl<'a> Tx<'a> {
                         continue;
                     }
                     let ti = self.num(&format!("{table_name}.{index_name}"))?;
-                    self.tx.execute("DELETE FROM i WHERE ti = ?1 AND k = ?2", params![ti, before])?;
-                    self.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![ti, after, id])?;
+                    self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, before])?;
+                    self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, after, id])?;
                     entries += 2;
                 }
             }
@@ -387,18 +387,18 @@ impl<'a> Tx<'a> {
     pub fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
         let t = self.num(table_name)?;
         let id = old.field("id")?.as_str()?.to_owned();
-        self.tx.execute("DELETE FROM r WHERE t = ?1 AND id = ?2", params![t, id])?;
+        self.tx.prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
         let mut entries = 0;
         for (index_name, index) in &table.indexes {
             let ti = self.num(&format!("{table_name}.{index_name}"))?;
-            self.tx.execute("DELETE FROM i WHERE ti = ?1 AND k = ?2", params![ti, index_key(index, old, &id)])?;
+            self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, index_key(index, old, &id)])?;
             entries += 1;
         }
         Ok(entries)
     }
 
     pub fn next_seq(&self) -> Result<u64, RuntimeError> {
-        Ok(self.tx.query_row("SELECT COALESCE(MAX(seq), 0) + 1 FROM _commits", [], |row| row.get::<_, i64>(0))? as u64)
+        Ok(self.tx.prepare_cached("SELECT COALESCE(MAX(seq), 0) + 1 FROM _commits")?.query_row([], |row| row.get::<_, i64>(0))? as u64)
     }
 
     /// A meta key written with the transaction (a device's watermark lands
@@ -409,27 +409,23 @@ impl<'a> Tx<'a> {
     }
 
     pub fn record_commit(&self, seq: u64, at: i64, program: &str, principal: &str, kind: &str, touched: &[String], writes: u64) -> Result<(), RuntimeError> {
-        self.tx.execute(
-            "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![seq as i64, at, program, principal, kind, canonical_json(&touched), writes as i64],
+        self.tx.prepare_cached("INSERT INTO _commits(seq, at, program, principal, kind, touched, writes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![seq as i64, at, program, principal, kind, canonical_json(&touched), writes as i64],
         )?;
         Ok(())
     }
 
     /// The outcome recorded for a client-minted operation id, if it applied.
     pub fn applied(&self, principal: &str, id: &str) -> Result<Option<(u64, String)>, RuntimeError> {
-        Ok(self.tx.query_row("SELECT seq, outcome FROM _ops WHERE principal = ?1 AND id = ?2", params![principal, id], |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?))).optional()?)
+        Ok(self.tx.prepare_cached("SELECT seq, outcome FROM _ops WHERE principal = ?1 AND id = ?2")?.query_row(params![principal, id], |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?))).optional()?)
     }
 
     pub fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError> {
-        self.tx.execute("INSERT INTO _ops(principal, id, seq, outcome) VALUES (?1, ?2, ?3, ?4)", params![principal, id, seq as i64, outcome])?;
+        self.tx.prepare_cached("INSERT INTO _ops(principal, id, seq, outcome) VALUES (?1, ?2, ?3, ?4)")?.execute(params![principal, id, seq as i64, outcome])?;
         Ok(())
     }
 
     pub fn append_log(&self, partition: &str, seq: u64, ord: u32, table: &str, kind: &str, id: &str, data: Option<&str>) -> Result<(), RuntimeError> {
-        self.tx.execute(
-            "INSERT INTO _log(partition, seq, ord, t, kind, id, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![partition, seq as i64, ord as i64, table, kind, id, data],
+        self.tx.prepare_cached("INSERT INTO _log(partition, seq, ord, t, kind, id, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![partition, seq as i64, ord as i64, table, kind, id, data],
         )?;
         Ok(())
     }

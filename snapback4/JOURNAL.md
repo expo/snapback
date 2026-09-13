@@ -1375,3 +1375,60 @@ failed write with its prediction withdrawn. Published `snapback4@0.1.13`.
 Next: the Expo module (Swift over `snapback4.h`, an xcframework of the
 two iOS targets, a development build, the simulator witness on it), and
 the Exact2 host.
+
+## 2026-09-13 — common-workload performance, first measured change
+
+The author asked to make Snapback 4 faster than Convex and Supabase for
+common use cases. The starting point is `130af1ae2` / 0.1.12, not the older
+0.0.16 checkout. The existing Clique record identifies wide feeds and cold
+sync as gaps; it does not establish a performance lead across workloads.
+
+The existing storage measurement now accepts `--workloads`. It runs the
+actual release HTTP server on a temporary file-backed WAL/NORMAL store,
+then the actual replica and interpreter on MemoryStore and Node SQLite.
+It measures points, ordered thread pages and continuations, an inbox with
+joined conversations and maintained counts, a feed, sends, edits and cold
+sync. A timed refusal fails the run; row identity, ordering, pagination and
+acquired row counts are checked. Completeness is recorded, so an incomplete
+page is never presented as a successful performance comparison. Later run
+records also include binary/client/fixture/instrument hashes and the dirty
+source flag. This extends an existing instrument; no new gate or registry.
+
+The first 500-conversation × 50-message × 2-member run (25,000 messages,
+27,000 snapshot events, M5 Max Black, Node 24.18.0, 20 samples after 3 warmups)
+found the feed taking 17.643 ms median over HTTP, 4.161 ms in MemoryStore,
+and 21.403 ms on Node SQLite. All three were incomplete: discovery plus a
+page per lane reached the 8,192-row meter before reaching the newest lanes.
+
+Uniform merges now keep an ordered head per lane and advance the winners;
+eight or fewer actual lanes buffer a page each to avoid excessive SQLite
+calls. Setup, non-uniform rules and indexes without an unambiguous row
+position retain the existing scan order. Nullable unique indexes allow
+repeated nulls, so they stay on that path too. Rows, lookahead and probes
+still cost the meter. Both interpreters implement it; the compiler note and
+feed card describe it. SQL statement reuse also removes repeated preparation
+from server writes and Node replica operations.
+
+The first candidate run returned the exact complete newest 20 rows at
+5.765 ms HTTP, 1.758 ms MemoryStore and 6.383 ms Node SQLite. Node SQLite cold
+sync fell from 507.0 to 209.6 ms; bulk seed from 4,789 to 4,050 ms. These are
+initial within-Snapback measurements recorded in `metrics/storage.jsonl`,
+not a Convex/Supabase win. Node SQLite here is **in memory**, not a durable
+Expo store or device witness. Small HTTP differences are within the noise
+of this shared machine. The final repeated comparison follows separately.
+
+Validation: the entire Snapback 4 suite passed in 60 seconds; ref-check
+reported 466 LLPs, 8,673 references, no errors or unchecked references.
+Added cases compare the merge against an eager sorted union across ascending
+and descending pages, ties, overlapping and empty lanes, and nullable unique
+keys. The 500-author server test returns the actual newest page below 2,000
+examined rows. Memory and SQLite tests also cover expiry and low budgets.
+
+The full goal stays open. Owed: current Convex and Supabase runs with matched
+fixtures, indexes, authorization, durability, hardware/region and concurrency;
+small and wide feeds, point/filtered/page/join/count reads, single and batch
+writes, realtime fanout, reconnect and offline writes, cold acquisition on
+web and native, search, authentication, files/media and scheduled/background
+work. Record p50/p95, throughput, transferred/stored bytes and failures rather
+than treating a fast microbenchmark as whole-product evidence. Ranked/vector
+search and multi-region also remain product gaps; no blanket lead is claimed.

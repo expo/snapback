@@ -12,7 +12,28 @@ use crate::schema::{Effect, Index, Table, materialize_optional_fields};
 use crate::rows::{Bounds, Dir};
 use crate::value::{Value, canonical_json};
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BinaryHeap, VecDeque};
+
+struct MergeHead {
+    key: Vec<Value>,
+    row: Value,
+    lane: usize,
+    order: Order,
+}
+
+impl Ord for MergeHead {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let order = self.key.iter().zip(&other.key).find_map(|(a, b)| {
+            let c = a.total_cmp(b);
+            (c != Ordering::Equal).then_some(c)
+        }).unwrap_or_else(|| self.key.len().cmp(&other.key.len()));
+        let order = match self.order { Order::Asc => order.reverse(), Order::Desc => order };
+        order.then_with(|| other.lane.cmp(&self.lane))
+    }
+}
+impl PartialOrd for MergeHead { fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) } }
+impl PartialEq for MergeHead { fn eq(&self, other: &Self) -> bool { self.cmp(other) == Ordering::Equal } }
+impl Eq for MergeHead {}
 
 impl Probe for Runner<'_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
@@ -183,6 +204,15 @@ impl Runner<'_> {
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let bounds = self.bounds(scan, table, index)?;
         let take = self.take(&scan.take)?;
+        self.scan_prepared(scan, prefix, bounds, take)
+    }
+
+    /// Resume a merge lane using its already evaluated bounds. The original
+    /// expressions still govern uniformity; freezing them into literals would
+    /// lose facts such as a prefix pinned to `viewer`.
+    fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
+        let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         self.read_tables.insert(scan.table.clone());
         self.meter.at(&scan.site);
         if self.device && table.sync.is_none() {
@@ -293,11 +323,14 @@ impl Runner<'_> {
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
     }
 
-    /// Merge N ordered lanes into one ordered page: every lane reads
-    /// `take` rows, the union is sorted by the shared index suffix, and the
-    /// first `take` are returned. Lane discovery (`for` lanes) runs the
-    /// source scan and binds each of its rows before the lane scan.
+    /// Merge ordered lanes into a page. Seekable uniform lanes use a heap
+    /// of heads. Other lanes retain their page scan and stable union sort.
     pub(super) fn merge(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
+        // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
+        // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
+        if rules::lazy_merge(self.schema, merge) {
+            return self.merge_lazy(merge);
+        }
         let Some(first) = merge.lanes.first() else { return Ok(Vec::new()) };
         let table = self.schema.table(&first.scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", first.scan.table)))?;
         let index = table.index(&first.scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", first.scan.table, first.scan.index)))?;
@@ -371,5 +404,83 @@ impl Runner<'_> {
             self.page = Some(PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next });
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
+    }
+
+    /// One head per uniform lane, then advance only the winning lane. Each
+    /// one-row scan retains the ordinary scan's lookahead and meter checks.
+    /// Deduplicate before counting the page, including overlapping lanes.
+    fn merge_lazy(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
+        let Some(first) = merge.lanes.first() else { return Ok(Vec::new()) };
+        let table = self.schema.table(&first.scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", first.scan.table)))?;
+        let index = table.index(&first.scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", first.scan.table, first.scan.index)))?;
+        let take = self.take(&first.scan.take)?;
+        let order = first.scan.order;
+        let prefix_len = first.scan.prefix.len();
+        let columns: Vec<_> = index.columns().into_iter().skip(prefix_len).collect();
+        if first.scan.opaque_cursor
+            && let Some(after) = first.scan.after.as_deref()
+            && let Value::String(token) = self.expr(after)?
+        {
+            decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &Self::cursor_suffix(table, index, prefix_len))
+                .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+        }
+        let key_of = |row: &Value| columns.iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>();
+        let depth = self.page_depth;
+        self.page_depth += 1;
+        let mut lanes = Vec::new();
+        let mut heap = BinaryHeap::new();
+        for lane in &merge.lanes {
+            let sources = match &lane.source { Some(source) => self.scan(source)?, None => vec![Value::Null] };
+            for source_row in sources {
+                if lane.source.is_some() { self.env.insert(lane.binding.clone(), source_row); }
+                let prefix = self.prefix_values(&lane.scan)?;
+                let definition = self.schema.table(&lane.scan.table).ok_or_else(|| RuntimeError::Schema("missing merge table".into()))?;
+                let index = definition.index(&lane.scan.index).ok_or_else(|| RuntimeError::Schema("missing merge index".into()))?;
+                let bounds = self.bounds(&lane.scan, definition, index)?;
+                lanes.push((&lane.scan, prefix, bounds, VecDeque::new(), false));
+            }
+        }
+        // A small merge benefits from a page per lane: repeated one-row SQL
+        // seeks would cost more than reading those few pages in one call.
+        let batch = if lanes.len() <= 8 { take + 1 } else { 1 };
+        for (position, (scan, prefix, bounds, buffer, done)) in lanes.iter_mut().enumerate() {
+            let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch)?;
+            *done = rows.len() < batch;
+            *buffer = rows.into();
+            if let Some(row) = buffer.pop_front() {
+                self.meter.step(1)?;
+                heap.push(MergeHead { key: key_of(&row), row, lane: position, order });
+            }
+        }
+        let mut seen = BTreeSet::new();
+        let mut page = Vec::new();
+        let mut has_more = false;
+        let mut last = None;
+        while let Some(head) = heap.pop() {
+            self.meter.step(1)?;
+            if seen.insert(head.row.field("id")?.as_str()?.to_owned()) {
+                if page.len() == take { has_more = true; break; }
+                last = Some(head.key.clone());
+                page.push(head.row);
+            }
+            let (scan, prefix, bounds, buffer, done) = &mut lanes[head.lane];
+            bounds.after = Some(head.key);
+            if buffer.is_empty() && !*done && self.meter.capped_at.is_none() {
+                let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch)?;
+                *done = rows.len() < batch;
+                *buffer = rows.into();
+            }
+            if let Some(row) = buffer.pop_front() {
+                heap.push(MergeHead { key: key_of(&row), row, lane: head.lane, order });
+            }
+        }
+        self.page_depth = depth;
+        if depth == 0 {
+            if first.scan.opaque_cursor {
+                let continues = if self.meter.capped_at.is_some() || self.non_uniform { !page.is_empty() } else { has_more };
+                self.page = Some(PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next: if continues { last } else { None } });
+            } else if has_more { self.page_overflow = true; }
+        }
+        Ok(page)
     }
 }

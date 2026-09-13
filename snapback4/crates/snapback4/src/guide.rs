@@ -185,10 +185,12 @@ with `periodStart`/`periodEnd` when the job declares them (nothing else)
 — and `snapback4 run <job>` runs it here and now."#,
         "feeds" => r#"# Feeds: fan out on write, read one page
 
-A feed over everyone the viewer follows is not a merge over their lanes
-(a thousand followed accounts is a thousand pages per read — `check`
-notes it, N_WIDE_MERGE). Write each reader's entry when the post is
-made, sync the entries to the reader, and read one page on the device:
+A feed can merge followed accounts' ordered lanes. Uniform lanes with a
+unique index or one ending in id read one head each, then advance the
+winning lanes. Discovery, lookahead and expired rows still consume the
+meter; N_WIDE_MERGE describes that work. For frequent reads over many
+accounts, write each reader's entry when the post is made, sync the
+entries to the reader, and read one page on the device:
 
   table feed:                       -- one row per reader per post
     readerId: principal
@@ -337,7 +339,7 @@ pub fn explain_code(code: &str) -> Option<String> {
         "E_ASSET_PLACED" => "family asset — the upload already belongs to a row: one asset, one home. Upload the bytes again for a second row.",
         "E_ASSET_VIEWED" => "family asset — a `once` image was served to this principal already; the second view is refused (HTTP 410). The sender is never counted.",
         "N_NO_HORIZON" => "a note, not an error — a synced table with no `last N by index` horizon delivers every row of every group a device holds, and keeps delivering as the table grows; a public table of posts, or a group's receipts, then costs every cold start all of it. Declare `sync ... last 500 by <index>` (the newest N per group; older rows stay readable online and a local read past them says `complete: false`), or keep the table small by design.",
-        "N_WIDE_MERGE" => "a note, not an error — a merge reads one page per lane, so a merge whose lane source may yield hundreds of lanes reads hundreds of pages per read (the note says how many rows), and past the examined ceiling the page is cut. A feed over everyone the viewer follows wants the entries written on the way in — a table of entries per reader, synced to .reader, read as one page — or a lane count kept under 50.",
+        "N_WIDE_MERGE" => "a note, not an error — a merge visits every source lane. Uniform lanes without setup and with a non-nullable unique index or one ending in id read one head each, then advance the winning lanes; other lanes read a page each. Discovery, rule probes, lookahead, duplicates and expired rows still consume the meter. For frequent reads over many accounts, write entries per reader on the way in, sync to .reader, and read one page (guide feeds).",
         "N_NO_CURSOR" => "a note, not an error — a returned page with no cursor argument cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`.",
         "N_NEVER_COMPLETE" => "a note, not an error — a page whose read rule reads a column the scan does not pin is `complete: false` on the server whatever it finds; the note names the index that would decide it, or read the page on the device.",
         "E_QUARRY_TYPE" => "a value meets a declaration of another type; the message names both.",

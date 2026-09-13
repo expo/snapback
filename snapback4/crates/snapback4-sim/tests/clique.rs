@@ -258,7 +258,7 @@ fn jobs_and_schedules_are_checked() {
     let wide = compile(CHAT.replace("mutation edit(", "query everything(c: cursor ?):\n  return merge messages after c last 20 by byConvTime:\n    [m.conversationId] for m in memberships[viewer] first 500 by byPrincipalConversation\n\nmutation edit("));
     assert!(wide.diagnostics.is_empty(), "{:?}", wide.diagnostics);
     let note = wide.notes.iter().find(|n| n.code == "N_WIDE_MERGE").expect("a wide merge is noted");
-    assert!(note.message.contains("500 lanes") && note.message.contains("10500 rows") && note.message.contains("complete: false"), "{}", note.message);
+    assert!(note.message.contains("500 lanes") && note.message.contains("one head per lane") && !note.message.contains("10500 rows"), "{}", note.message);
 }
 
 /// M8: `sum(page, .x)` as the README spells it, on both hosts' IR; a bare
