@@ -12,6 +12,95 @@ use std::collections::BTreeMap;
 
 /// Unclaimed uploads older than this are forgotten by the sweep.
 pub const UNCLAIMED_TTL_MS: i64 = 60 * 60 * 1000;
+pub const MAX_DIMENSION: u32 = 16_384;
+pub const MAX_PIXELS: u64 = 40_000_000;
+pub const MAX_DURATION_MS: u64 = 3_600_000;
+
+/// An upload prepared under the engine guard, written without it, then
+/// committed under that same generation. Dropping an uncommitted upload
+/// cleans up its task-owned files, including failed disk writes.
+#[cfg(feature = "sqlite")]
+pub struct Upload {
+    pub(crate) asset: Asset,
+    pub(crate) path: std::path::PathBuf,
+    pub(crate) generation: u64,
+    pub(crate) committed: bool,
+    pub(crate) written: bool,
+}
+#[cfg(feature = "sqlite")]
+impl Upload {
+    pub fn write(mut self, bytes: &[u8]) -> Result<Self, RuntimeError> {
+        use std::io::Write;
+        if bytes.len() as u64 != self.asset.bytes {
+            return Err(RuntimeError::Input("upload length changed".into()));
+        }
+        let io = |e: std::io::Error| RuntimeError::Store(format!("cannot keep the upload: {e}"));
+        let staging = self.path.with_extension("part");
+        let mut file = crate::private_fs::file(&staging, true).map_err(io)?;
+        // Only remove a file after this upload actually created it.
+        self.written = true;
+        file.write_all(bytes).map_err(io)?;
+        file.sync_all().map_err(io)?;
+        std::fs::rename(staging, &self.path).map_err(io)?;
+        Ok(self)
+    }
+}
+#[cfg(feature = "sqlite")]
+impl Drop for Upload {
+    fn drop(&mut self) {
+        if self.written && !self.committed {
+            let _ = std::fs::remove_file(self.path.with_extension("part"));
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
+
+/// A bounded batch selected and made unclaimable under the engine guard.
+/// File removal is deliberately a separate operation so the HTTP host can
+/// perform it without holding the process-wide engine mutex.
+#[cfg(feature = "sqlite")]
+#[derive(Clone, Debug)]
+pub struct AssetSweep {
+    items: Vec<(String, std::path::PathBuf)>,
+}
+
+#[cfg(feature = "sqlite")]
+impl AssetSweep {
+    pub(crate) fn new(assets: &[Asset], directory: &std::path::Path) -> Self {
+        Self {
+            items: assets
+                .iter()
+                .map(|asset| (asset.id.clone(), directory.join(&asset.id)))
+                .collect(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+    pub(crate) fn ids(&self) -> impl Iterator<Item = &str> {
+        self.items.iter().map(|(id, _)| id.as_str())
+    }
+
+    pub fn remove_files(&self) -> Result<(), RuntimeError> {
+        for (_, path) in &self.items {
+            match std::fs::remove_file(path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(RuntimeError::Store(format!(
+                        "cannot remove stale asset {}: {error}",
+                        path.display()
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -95,6 +184,29 @@ pub fn asset_id(value: Option<&Value>) -> Option<&str> {
 /// What the bytes are. The kind decides which column may hold them and
 /// which ceiling applies; the dimensions and duration ride on the row.
 pub fn sniff(bytes: &[u8]) -> Result<Sniffed, RuntimeError> {
+    let facts = sniff_header(bytes)?;
+    let dimensions_bad = match (facts.width, facts.height) {
+        (Some(w), Some(h)) => {
+            w == 0
+                || h == 0
+                || w > MAX_DIMENSION
+                || h > MAX_DIMENSION
+                || u64::from(w) * u64::from(h) > MAX_PIXELS
+        }
+        _ => facts.kind == AssetKind::Image,
+    };
+    if dimensions_bad
+        || facts
+            .duration
+            .is_some_and(|d| d == 0 || d > MAX_DURATION_MS)
+        || (facts.kind == AssetKind::Video && facts.duration.is_none())
+    {
+        return Err(RuntimeError::Asset { code: "E_ASSET_BOUNDS", message: "media needs nonzero dimensions at most 16384 per side and 40 million pixels, and video needs a duration at most 3600000 ms".into() });
+    }
+    Ok(facts)
+}
+
+fn sniff_header(bytes: &[u8]) -> Result<Sniffed, RuntimeError> {
     let refuse = || RuntimeError::Asset { code: "E_ASSET_TYPE", message: "the bytes are not a JPEG, PNG, WebP or MP4".into() };
     if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
         let (width, height) = jpeg_dimensions(bytes).ok_or_else(refuse)?;
@@ -269,6 +381,23 @@ mod tests {
     }
 
     #[test]
+    fn mp4_duration_has_a_nonzero_finite_bound() {
+        for (duration, valid) in [
+            (0u32, false),
+            (3_600_000, true),
+            (3_600_001, false),
+            (u32::MAX, false),
+        ] {
+            let mut mvhd = vec![0u8; 20];
+            mvhd[12..16].copy_from_slice(&1000u32.to_be_bytes());
+            mvhd[16..20].copy_from_slice(&duration.to_be_bytes());
+            let mut bytes = boxed(b"ftyp", b"isom\x00\x00\x02\x00isomiso2");
+            bytes.extend(boxed(b"moov", &boxed(b"mvhd", &mvhd)));
+            assert_eq!(sniff(&bytes).is_ok(), valid);
+        }
+    }
+
+    #[test]
     fn other_bytes_are_refused() {
         assert!(matches!(sniff(b"hello"), Err(RuntimeError::Asset { code: "E_ASSET_TYPE", .. })));
         assert!(matches!(sniff(b"GIF89a"), Err(RuntimeError::Asset { .. })));
@@ -307,17 +436,34 @@ fn read_asset(row: &rusqlite::Row<'_>) -> rusqlite::Result<Asset> {
 }
 
 fn find(conn: &Connection, id: &str) -> Result<Option<Asset>, RuntimeError> {
-    Ok(conn.query_row(&format!("SELECT {COLUMNS} FROM _assets WHERE id = ?1"), [id], read_asset).optional()?)
+    Ok(conn.query_row(&format!("SELECT {COLUMNS} FROM _assets WHERE id = ?1"), [id], read_asset,
+            ).optional()?)
 }
 
-impl Store {
-    /// Record an upload. The bytes are the caller's to write at `asset_path`.
-    pub fn record_asset(&self, asset: &Asset) -> Result<(), RuntimeError> {
-        self.conn().execute(
+    fn stale(conn: &Connection, now: i64) -> Result<Vec<Asset>, RuntimeError> {
+        let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1) LIMIT 256"))?;
+        let rows = statement.query_map([now - UNCLAIMED_TTL_MS], read_asset)?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    fn forget(conn: &Connection, id: &str) -> Result<(), RuntimeError> {
+        conn.execute("DELETE FROM _asset_views WHERE asset = ?1", [id])?;
+        conn.execute("DELETE FROM _assets WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    fn record(conn: &Connection, asset: &Asset) -> Result<(), RuntimeError> {
+        conn.execute(
             &format!("INSERT INTO _assets({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, NULL)"),
             params![asset.id, asset.owner, asset.kind.word(), asset.content_type, asset.bytes as i64, asset.width.map(i64::from), asset.height.map(i64::from), asset.duration.map(|d| d as i64), asset.created_at],
         )?;
         Ok(())
+    }
+
+    impl Store {
+        /// Record an upload. The bytes are the caller's to write at `asset_path`.
+        pub fn record_asset(&self, asset: &Asset) -> Result<(), RuntimeError> {
+            record(self.conn(), asset)
     }
 
     pub fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> {
@@ -331,20 +477,37 @@ impl Store {
     /// Assets nobody serves any more: released by their home, or never
     /// claimed within the grace period. The sweep unlinks and forgets them.
     pub fn stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-        let mut statement = self.conn().prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1) LIMIT 256"))?;
-        let rows = statement.query_map([now - UNCLAIMED_TTL_MS], read_asset)?;
-        Ok(rows.collect::<Result<_, _>>()?)
+            stale(self.conn(), now)
     }
 
     pub fn forget_asset(&self, id: &str) -> Result<(), RuntimeError> {
-        self.conn().execute("DELETE FROM _asset_views WHERE asset = ?1", [id])?;
-        self.conn().execute("DELETE FROM _assets WHERE id = ?1", [id])?;
-        Ok(())
+            forget(self.conn(), id)
     }
 }
 
 impl Tx<'_> {
-    pub fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> {
+        pub fn record_asset(&self, asset: &Asset) -> Result<(), RuntimeError> {
+            record(self.conn(), asset)
+        }
+
+        /// Select a bounded sweep batch and close the claim race for old,
+        /// unclaimed uploads before their files are removed outside the guard.
+        pub fn stage_stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
+            let assets = stale(self.conn(), now)?;
+            for asset in &assets {
+                self.conn().execute(
+                    "UPDATE _assets SET released_at = COALESCE(released_at, ?2) WHERE id = ?1",
+                    params![asset.id, now],
+                )?;
+            }
+            Ok(assets)
+        }
+
+        pub fn forget_asset(&self, id: &str) -> Result<(), RuntimeError> {
+            forget(self.conn(), id)
+        }
+
+        pub fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> {
         find(self.conn(), id)
     }
 

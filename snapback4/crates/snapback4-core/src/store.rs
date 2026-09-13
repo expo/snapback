@@ -42,17 +42,40 @@ fn scan_sql(dir: Dir) -> &'static str {
 
 impl Store {
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
-        let conn = Connection::open(path)?;
+        let io = |e: std::io::Error| RuntimeError::Store(format!("private store: {e}"));
+        // Release links intentionally point at the one shared database.
+        let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        if let Some(parent) = real.parent().filter(|p| !p.as_os_str().is_empty()) {
+            // A store's parent is its data root (assets live beside it), so
+            // opening an existing store tightens that root as well.
+            crate::private_fs::directory(parent).map_err(io)?;
+        }
+        // SQLite's Unix VFS copies the database mode when creating WAL,
+        // journal and shared-memory files. Set it before opening SQLite;
+        // chmod only after preparation would leave a disclosure window.
+        crate::private_fs::file(&real, false).map_err(io)?;
+        for suffix in ["-wal", "-shm", "-journal"] {
+            crate::private_fs::existing_file(&PathBuf::from(format!("{}{suffix}", real.display())))
+                .map_err(io)?;
+        }
+        let conn = Connection::open(&real)?;
         conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 5000;")?;
         // A release serves the shared store through a link; the assets sit
         // beside the file itself, so every release serves the same bytes.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().map(|dir| dir.join("assets")).unwrap_or_else(|| PathBuf::from("assets"));
-        Self::prepare(conn, assets_dir)
+        let store = Self::prepare(conn, assets_dir)?;
+        for suffix in ["-wal", "-shm", "-journal"] {
+            crate::private_fs::existing_file(&PathBuf::from(format!("{}{suffix}", real.display())))
+                .map_err(io)?;
+        }
+        Ok(store)
     }
 
     pub fn memory() -> Result<Self, RuntimeError> {
-        let assets_dir = std::env::temp_dir().join(format!("snapback4-{}-{:x}", std::process::id(), crate::ids::seed()));
+        let assets_dir = std::env::temp_dir().join(format!(
+            "snapback4-{}-{}", std::process::id(), crate::ids::mint(crate::now_ms(), &mut 0)?
+        ));
         Self::prepare(Connection::open_in_memory()?, assets_dir)
     }
 
@@ -67,6 +90,11 @@ impl Store {
         // retains its parameter-expiry mask even after automatic reprepare.
         // @ref LLP 3000#7-decisions-during-execution — reuse SQLite plans across bound inputs
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
+        let io = |e: std::io::Error| RuntimeError::Store(format!("private assets: {e}"));
+        crate::private_fs::directory(&assets_dir).map_err(io)?;
+        for entry in std::fs::read_dir(&assets_dir).map_err(io)? {
+            crate::private_fs::existing_file(&entry.map_err(io)?.path()).map_err(io)?;
+        }
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);

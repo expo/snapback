@@ -104,13 +104,13 @@ impl Context {
         self.viewer == crate::SYSTEM_PRINCIPAL
     }
 
-    pub(crate) fn mint(&mut self) -> String {
+    pub(crate) fn mint(&mut self) -> Result<String, crate::RuntimeError> {
         let id = if let Some(id) = self.new_ids.pop_front() { id } else {
             if self.entropy == 0 { self.entropy = crate::ids::seed(); }
-            crate::ids::mint(self.now.unwrap_or(0), &mut self.entropy)
+            crate::ids::mint(self.now.unwrap_or(0), &mut self.entropy)?
         };
         self.minted_ids.push(id.clone());
-        id
+        Ok(id)
     }
 }
 
@@ -362,6 +362,20 @@ impl Engine {
     /// asset is nobody's to see until a row claims it (the owner may).
     pub fn store_asset(&mut self, owner: &str, bytes: &[u8], now: i64) -> Result<Asset, RuntimeError> {
         let sniffed = assets::sniff(bytes)?;
+        let upload = self.prepare_asset(owner, sniffed, bytes.len() as u64, now)?;
+        let upload = upload.write(bytes)?;
+        self.finish_asset(upload)
+    }
+
+    /// Admit an upload and reserve its identity while the engine is held.
+    /// The returned upload writes its bytes without borrowing this engine.
+    pub fn prepare_asset(
+        &mut self,
+        owner: &str,
+        sniffed: assets::Sniffed,
+        byte_count: u64,
+        now: i64,
+    ) -> Result<assets::Upload, RuntimeError> {
         let ceiling = self
             .schema
             .tables
@@ -375,30 +389,60 @@ impl Engine {
         let Some(ceiling) = ceiling else {
             return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("no column of this backend takes {} bytes; declare one (`photo: image <=10000000`)", sniffed.kind.word()) });
         };
-        if bytes.len() as u64 > u64::from(ceiling) {
-            return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("the {} is {} bytes; the largest {} column takes {ceiling}", sniffed.kind.word(), bytes.len(), sniffed.kind.word()) });
+        if byte_count > u64::from(ceiling) {
+            return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("the {} is {} bytes; the largest {} column takes {ceiling}", sniffed.kind.word(),
+                    byte_count, sniffed.kind.word()) });
         }
-        let id = crate::ids::mint(now, &mut self.entropy);
+        let id = crate::ids::mint(now, &mut self.entropy)?;
         let path = self.store.asset_path(&id);
-        let io = |error: std::io::Error| RuntimeError::Store(format!("cannot keep the upload: {error}"));
-        std::fs::create_dir_all(self.store.assets_dir()).map_err(io)?;
-        let staging = path.with_extension("part");
-        std::fs::write(&staging, bytes).map_err(io)?;
-        std::fs::rename(&staging, &path).map_err(io)?;
-        let asset = Asset { id, owner: owner.to_owned(), kind: sniffed.kind, content_type: sniffed.content_type.to_owned(), bytes: bytes.len() as u64, width: sniffed.width, height: sniffed.height, duration: sniffed.duration, created_at: now, home: None, released_at: None };
-        if let Err(error) = self.store.record_asset(&asset) {
-            let _ = std::fs::remove_file(&path);
-            return Err(error);
+        let asset = Asset { id, owner: owner.to_owned(), kind: sniffed.kind, content_type: sniffed.content_type.to_owned(), bytes: byte_count, width: sniffed.width, height: sniffed.height, duration: sniffed.duration, created_at: now, home: None, released_at: None };
+        Ok(assets::Upload {
+            asset,
+            path,
+            generation: self.generation,
+            written: false,
+            committed: false,
+        })
+    }
+
+    /// Commit a staged upload only if this engine still serves the schema
+    /// generation under which it was admitted.
+    pub fn finish_asset(&mut self, mut upload: assets::Upload) -> Result<Asset, RuntimeError> {
+        if upload.generation != self.generation {
+            return Err(RuntimeError::Generation(
+                "schema changed during upload; retry".into(),
+            ));
         }
-        Ok(asset)
+        if !upload.written {
+            return Err(RuntimeError::Input(
+                "upload bytes have not been written".into(),
+            ));
+        }
+        // Check shared-store activation too, not just this engine's identity.
+        let tx = self.store.transaction()?;
+        tx.record_asset(&upload.asset)?;
+        tx.commit()?;
+        upload.committed = true;
+        Ok(upload.asset.clone())
     }
 
     /// Whether `principal` may have the bytes of `id` now: the uploader
-    /// always; anyone else through the home row's read rule, on the row as
+    /// before placement; afterwards everyone follows the home read rule, as
     /// it stands (present, still naming the asset, not expired). A
     /// `once` image records the view; the second view is refused. Hidden,
     /// released and absent are one word.
-    pub fn asset_access(&mut self, principal: &str, id: &str, now: i64) -> Result<AssetGrant, RuntimeError> {
+    pub fn asset_access(&mut self, principal: &str, id: &str, now: i64,
+    ) -> Result<AssetGrant, RuntimeError> {
+        self.asset_access_request(principal, id, now, false)
+    }
+
+    pub fn asset_access_request(
+        &mut self,
+        principal: &str,
+        id: &str,
+        now: i64,
+        range: bool,
+    ) -> Result<AssetGrant, RuntimeError> {
         let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: "no asset is served under that id to this viewer".into() };
         let path = self.store.asset_path(id);
         let tx = self.store.transaction()?;
@@ -407,7 +451,7 @@ impl Engine {
             return Err(unknown());
         }
         let grant = |once: bool| AssetGrant { path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
-        if asset.owner == principal {
+        if asset.owner == principal && asset.home.is_none() {
             tx.rollback()?;
             return Ok(grant(false));
         }
@@ -428,6 +472,9 @@ impl Engine {
         }
         let once = matches!(table.columns.get(column).map(ColumnType::required), Some(ColumnType::Image { once: true, .. }));
         if once {
+            if range {
+                return Err(RuntimeError::Asset { code: "E_ASSET_RANGE", message: "one-view photos require a complete request without Range; the view was not consumed".into() });
+            }
             if tx.asset_viewed(id, principal)? {
                 tx.rollback()?;
                 return Err(RuntimeError::Asset { code: "E_ASSET_VIEWED", message: "this photo was for one view, and it was viewed".into() });
@@ -441,12 +488,30 @@ impl Engine {
     /// Unlink and forget the assets nobody serves any more: released by
     /// their home, or never claimed within the grace period.
     pub fn sweep_assets(&mut self, now: i64) -> Result<u64, RuntimeError> {
-        let stale = self.store.stale_assets(now)?;
-        for asset in &stale {
-            let _ = std::fs::remove_file(self.store.asset_path(&asset.id));
-            self.store.forget_asset(&asset.id)?;
+        let sweep = self.prepare_asset_sweep(now)?;
+        sweep.remove_files()?;
+        self.finish_asset_sweep(&sweep)
+    }
+
+    /// Make a bounded stale batch unclaimable. The returned file work owns
+    /// no engine borrow and should run after releasing the host mutex.
+    pub fn prepare_asset_sweep(&mut self, now: i64) -> Result<assets::AssetSweep, RuntimeError> {
+        let directory = self.store.assets_dir().to_path_buf();
+        let tx = self.store.transaction()?;
+        let stale = tx.stage_stale_assets(now)?;
+        let sweep = assets::AssetSweep::new(&stale, &directory);
+        tx.commit()?;
+        Ok(sweep)
+    }
+
+    /// Forget a prepared batch after its files have been removed.
+    pub fn finish_asset_sweep(&mut self, sweep: &assets::AssetSweep) -> Result<u64, RuntimeError> {
+            let tx = self.store.transaction()?;
+        for id in sweep.ids() {
+            tx.forget_asset(id)?;
         }
-        Ok(stale.len() as u64)
+        tx.commit()?;
+        Ok(sweep.len() as u64)
     }
 
     /// Delete the rows past their `expire` column. They were absent to

@@ -80,6 +80,9 @@ impl Schema {
             return true;
         }
         let Some(index) = table.index(index_name) else { return false };
+        if !index.is_plain() {
+            return false;
+        }
         let columns = index.columns();
         prove_probe_row_readable(&table.rules.read, table_name, index_name, &columns, key)
     }
@@ -154,7 +157,9 @@ impl Table {
     /// `expire` column, as the declaration requires.
     pub fn expiry_index(&self) -> Option<(&str, &Index)> {
         let column = self.expire.as_deref()?;
-        self.indexes.iter().find(|(_, index)| index.columns().first().map(String::as_str) == Some(column)).map(|(name, index)| (name.as_str(), index))
+        self.indexes.iter().find(|(_, index)| {
+                index.is_plain() && index.columns().first().map(String::as_str) == Some(column)
+            }).map(|(name, index)| (name.as_str(), index))
     }
 
     /// The column carrying the principal a `sync to T[...]` audience reads.
@@ -565,7 +570,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             issue(&mut issues, format!("{path}.columns.id"), "every table has an intrinsic id column".into());
         }
         match table.indexes.get(BY_ID) {
-            Some(index) if index.unique && index.columns() == ["id"] => {}
+            Some(index) if index.is_plain() && index.unique && index.columns() == ["id"] => {}
             _ => issue(&mut issues, format!("{path}.indexes.{BY_ID}"), "every table has the intrinsic unique byId index".into()),
         }
         for (name, index) in &table.indexes {
@@ -637,7 +642,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                             issue(&mut issues, cpath.clone(), format!("cap names undeclared column {column}"));
                         }
                     }
-                    if !table.indexes.values().any(|index| index.columns().starts_with(by)) {
+                    if !table.indexes.values().any(|index| index.is_plain() && index.columns().starts_with(by)) {
                         issue(&mut issues, cpath, format!("cap by {} needs an index whose leading columns are exactly those", by.join(", ")));
                     }
                 }
@@ -655,8 +660,9 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 }
                 Constraint::FinalExistsOnInsert { table: target, index, key } => {
                     match schema.table(target).and_then(|t| t.index(index)) {
-                        Some(target_index) if target_index.columns().len() == key.len() => {}
-                        Some(_) => issue(&mut issues, cpath, "after insert key arity does not match the index".into()),
+                        Some(target_index) if target_index.is_plain() && target_index.columns().len() == key.len() => {}
+                        Some(_) => issue(&mut issues, cpath,
+                        "after insert needs a plain index with matching key arity".into()),
                         None => issue(&mut issues, cpath, format!("after insert names unknown {target}.{index}")),
                     }
                 }
@@ -714,6 +720,12 @@ fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, 
             }
             match schema.table(target).and_then(|t| t.index(index)) {
                 Some(target_index) => {
+                    if !target_index.is_plain() {
+                        issues.push(SchemaIssue {
+                            path: path.to_owned(),
+                            message: format!("probe of {target}.{index} needs a plain index"),
+                        });
+                    }
                     if target_index.columns().len() != key.len() {
                         issues.push(SchemaIssue { path: path.to_owned(), message: format!("probe of {target}.{index} has {} terms; the index has {}", key.len(), target_index.columns().len()) });
                     }
@@ -828,8 +840,46 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
                     issue(issues, format!("sync to {target_name}[.{column}] names an undeclared column of {table_name}"));
                 }
             }
-            if let Err(why) = audience_binding(schema, table_name, table, sync) {
-                issue(issues, why);
+            match audience_binding(schema, table_name, table, sync) {
+                Err(why) => issue(issues, why),
+                Ok(binding) if !table.rules.read.is_uniformly_readable() => {
+                    if !grant_guard(
+                        &target.rules.insert,
+                        &binding.columns,
+                        &binding.principal,
+                        target_name,
+                        target,
+                        schema,
+                    ) {
+                        issue(
+                            issues,
+                            format!(
+                                "{target_name} grants the private audience of {table_name}: every insert rule branch needs an independent grant probe in {target_name}, binding its recipient to viewer and its group columns to this group's columns ({}), or a created probe for the new group; `.{principal} = viewer` alone lets anyone join. This also governs insert if absent and upsert",
+                                binding.columns.join(", ")
+                            ),
+                        );
+                    }
+                    let fixed = binding.columns.iter().chain(std::iter::once(&binding.principal)).all(|column|
+                        target.constraints.iter().any(|constraint| matches!(constraint, Constraint::Immutable { fields } if fields.contains(column))));
+                    if !fixed
+                        && !grant_guard(
+                            &target.rules.update,
+                            &binding.columns,
+                            &binding.principal,
+                            target_name,
+                            target,
+                            schema,
+                        )
+                    {
+                        issue(
+                            issues,
+                            format!(
+                                "{target_name} can retarget the private audience of {table_name}: make the audience columns immutable or guard every update branch with an independent grant probe"
+                            ),
+                        );
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -841,27 +891,62 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
             Audience::Column(column) => vec![column.clone()],
             Audience::Target { prefix, .. } => prefix.clone(),
         };
-        if !group.is_empty() && !table.indexes.values().any(|index| index.columns().starts_with(&group)) {
-            issue(issues, format!("{} needs an index on {table_name} leading with {} so a device can take a group's rows: `by by{}: {}, id`", sync.line(), group.join(", "), group.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>(), group.join(", ")));
+        if !group.is_empty() && !table.indexes.values().any(|index| index.is_plain() && index.columns().starts_with(&group)) {
+            issue(issues, format!("{} needs an index on {table_name} leading with {} so a device can take a group's rows: `by by{}: {}, id`", sync.line(), group.join(", "), group.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>(), group.join(", ")),
+            );
         }
     }
     if let Some(horizon) = &sync.horizon {
         match table.index(&horizon.by) {
-            None => issue(issues, format!("horizon names unknown index {table_name}.{}", horizon.by)),
+            None => issue(issues, format!("horizon names unknown index {table_name}.{}", horizon.by),
+            ),
             Some(index) => {
                 let group: Vec<String> = match &sync.audience {
                     Audience::Public => Vec::new(),
                     Audience::Column(column) => vec![column.clone()],
                     Audience::Target { prefix, .. } => prefix.clone(),
                 };
-                if !index.columns().starts_with(&group) {
-                    issue(issues, format!("horizon index {} must lead with the audience columns {}", horizon.by, group.join(", ")));
+                if !index.is_plain() || !index.columns().starts_with(&group) {
+                    issue(issues, format!(
+                            "horizon index {} must be plain and lead with the audience columns {}", horizon.by, group.join(", ")),
+                    );
                 }
                 if horizon.last == 0 {
                     issue(issues, "a horizon keeps at least one row".into());
                 }
             }
         }
+    }
+}
+
+// @ref LLP 3000#7-decisions-during-execution — every audience-granting branch requires prior authority
+fn grant_guard(
+    rule: &RuleExpr,
+    columns: &[String],
+    principal: &str,
+    audience_name: &str,
+    audience: &Table,
+    schema: &Schema,
+) -> bool {
+    let group_pinned = |key: &[RuleTerm]| {
+        !columns.is_empty() && columns.iter().all(|column|
+        key.iter().any(|term| matches!(term, RuleTerm::Field(field) | RuleTerm::NextField(field) if field == column)))
+    };
+    match rule {
+        RuleExpr::Deny => true,
+        RuleExpr::Exists { table, index, key, .. } => table == audience_name && audience.index(index).is_some_and(|index| {
+            let fields = index.columns();
+            let term = |column: &str| fields.iter().position(|field| field == column).and_then(|at| key.get(at));
+            index.is_plain() && fields.len() == key.len() && term(principal) == Some(&RuleTerm::Viewer)
+                && !columns.is_empty() && columns.iter().all(|column|
+                    matches!(term(column), Some(RuleTerm::Field(field) | RuleTerm::NextField(field)) if field == column))
+        }),
+        RuleExpr::Created { table, index, key, .. } => columns.len() == 1 && key.len() == 1 && group_pinned(key)
+            && matches!(audience.columns.get(&columns[0]), Some(ColumnType::Ref { table: group }) if group == table)
+            && schema.table(table).and_then(|table| table.index(index)).is_some_and(|index| index.unique && index.columns() == ["id"]),
+        RuleExpr::And(rules) => rules.iter().any(|rule| grant_guard(rule, columns, principal, audience_name, audience, schema)),
+        RuleExpr::Or(rules) => rules.iter().all(|rule| grant_guard(rule, columns, principal, audience_name, audience, schema)),
+        _ => false,
     }
 }
 
@@ -938,13 +1023,13 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
     };
     let mut by_group = columns.clone();
     by_group.push(principal.clone());
-    let (group_index, group_def) = target.indexes.iter().find(|(_, index)| index.columns() == by_group).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}] needs an index on {target_name} over {}", by_group.join(", ")))?;
+    let (group_index, group_def) = target.indexes.iter().find(|(_, index)| index.is_plain() && index.columns() == by_group).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}] needs an index on {target_name} over {}", by_group.join(", ")))?;
     if !group_def.unique {
         return Err(format!("the audience index {target_name}.{group_index} must be unique: with two rows for one group and principal, deleting one would revoke a group the other still grants"));
     }
     let mut by_principal = vec![principal.clone()];
     by_principal.extend(columns.iter().cloned());
-    let principal_index = target.indexes.iter().find(|(_, index)| index.columns().starts_with(&by_principal)).map(|(name, _)| name.clone()).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}] needs an index on {target_name} whose leading columns are {} so a device can find its groups", by_principal.join(", ")))?;
+    let principal_index = target.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&by_principal)).map(|(name, _)| name.clone()).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}] needs an index on {target_name} whose leading columns are {} so a device can find its groups", by_principal.join(", ")))?;
     Ok(AudienceBinding { group_index: group_index.clone(), columns, principal: principal.clone(), principal_index })
 }
 

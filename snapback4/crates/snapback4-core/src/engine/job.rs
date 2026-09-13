@@ -161,7 +161,7 @@ impl Engine {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a job", program.kind.word())));
         }
         validate_inputs(&self.schema, &program, &mut args)?;
-        let id = crate::ids::mint(now, &mut self.entropy);
+        let id = crate::ids::mint(now, &mut self.entropy)?;
         let tx = self.store.transaction()?;
         insert_job(tx.conn(), &id, name, &args, &digest(&program), now)?;
         tx.commit()?;
@@ -307,7 +307,7 @@ impl Engine {
             if program.args.contains_key("periodEnd") {
                 args.insert("periodEnd".to_owned(), Value::Int(boundary));
             }
-            let id = crate::ids::mint(now, &mut self.entropy);
+            let id = crate::ids::mint(now, &mut self.entropy)?;
             insert_job(tx.conn(), &id, &schedule.target, &args, &digest(&program), now)?;
             tx.conn().execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, boundary.to_string()])?;
             tx.commit()?;

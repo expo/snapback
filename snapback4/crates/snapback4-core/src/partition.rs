@@ -206,9 +206,17 @@ pub fn group_rows(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gro
 /// The groups a principal holds right now under one target audience, as
 /// their prefix values.
 #[cfg(feature = "sqlite")]
-fn groups_now(tx: &Tx<'_>, bound: &AudienceBinding, target: &str, principal: &str) -> Result<Vec<Vec<Value>>, RuntimeError> {
+fn groups_now(tx: &Tx<'_>,
+    schema: &Schema,
+    bound: &AudienceBinding, target: &str, principal: &str) -> Result<Vec<Vec<Value>>, RuntimeError> {
     let mut groups = BTreeSet::new();
     for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
+        if schema
+            .table(target)
+            .is_some_and(|table| table.expired(&member, crate::now_ms()))
+        {
+            continue;
+        }
         let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
         if !group.iter().any(|value| *value == Value::Null) {
             groups.insert(canonical_json(&group));
@@ -277,7 +285,7 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
             Audience::Column(_) => vec![vec![Value::Id(principal.to_owned())]],
             Audience::Target { table: target, .. } => {
                 let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
-                groups_now(tx, &bound, target, principal)?
+                groups_now(tx, schema, &bound, target, principal)?
             }
         };
         // Resume at the group in flight, or at the first group after one
@@ -302,6 +310,9 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
                 let id = row.field("id")?.as_str()?.to_owned();
                 at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                 at.taken += 1;
+                if table.expired(&row, crate::now_ms()) {
+                    continue;
+                }
                 let partition = match &sync.audience {
                     Audience::Public => PUBLIC.to_owned(),
                     Audience::Column(_) => partition_of(principal),
@@ -374,7 +385,7 @@ fn audience_index(table_name: &str, table: &Table, sync: &Sync) -> Result<String
         Audience::Column(column) => vec![column.clone()],
         Audience::Target { prefix, .. } => prefix.clone(),
     };
-    table.indexes.iter().find(|(_, index)| index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", "))))
+    table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", "))))
 }
 
 /// Append a commit's events to the log. A row's events within one commit
@@ -435,7 +446,7 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, own:
     for (table_name, _, sync) in schema.synced() {
         let Audience::Target { table: target, .. } = &sync.audience else { continue };
         let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
-        for group in groups_now(tx, &bound, target, principal)? {
+        for group in groups_now(tx, schema, &bound, target, principal)? {
             now.insert((table_name.to_owned(), canonical_json(&group)));
         }
     }
@@ -531,7 +542,42 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
             page = complete;
         }
     }
-    let events = expand_joins(tx, schema, page, &held)?;
+    let expanded = expand_joins(tx, schema, page, &held)?;
+    let mut events = Vec::with_capacity(expanded.len());
+    // @ref LLP 3000#7-decisions-during-execution — retained history is device-held; the server serves current readable images
+    // Apply to legacy logs and join expansion alike. Replacing an old put
+    // by a deletion also clears a device that caught up before the sweep.
+    let mut reader = Runner::new(
+        tx,
+        schema,
+        crate::Context::new(principal, BTreeMap::new()).at(crate::now_ms()),
+        crate::meter::Meter::new(
+            crate::meter::Ceilings::unbounded(),
+            crate::meter::Cut::Abort,
+        ),
+        0,
+    );
+    for mut event in expanded {
+        if event.kind == "put" {
+            event.data = if schema.table(&event.table).is_some() {
+                reader.fetch(&event.table, &event.id)?
+            } else {
+                None
+            };
+            if let Some(row) = &event.data {
+                // Revocation with delivered-history keeps already delivered
+                // device data. Suppress a now-hidden historical put; only an
+                // actual row removal (or its scope policy) clears that copy.
+                if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? {
+                    continue;
+                }
+            }
+            if event.data.is_none() {
+                event.kind = "del".into();
+            }
+        }
+        events.push(event);
+    }
     let more = has_more(tx, &own_partition, &held, next)?;
     // A drained partition also covers commits with no events for this viewer
     // (no-op and online-only writes). Their acknowledged outbox entries must
