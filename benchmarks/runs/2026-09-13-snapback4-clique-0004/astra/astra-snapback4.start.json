@@ -1,0 +1,36 @@
+{
+  "lane": "astra-snapback4",
+  "phase": "builder",
+  "pid": 56884,
+  "startedAt": "2026-09-13T18:30:36Z",
+  "startedEpoch": 1789324236,
+  "command": [
+    "/Users/ccheever/.volta/bin/codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "--color",
+    "never",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-C",
+    "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4",
+    "-o",
+    "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/FINAL.md",
+    "-"
+  ],
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "prompt": "/Users/ccheever/clique-sb4-20260913-full-3models/prompts/astra-snapback4.md",
+  "cwd": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4",
+  "stdout": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/astra-snapback4.ndjson",
+  "stderr": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/astra-snapback4.stderr.log",
+  "packages": {
+    "snapback4": "0.2.6",
+    "snapback4-expo": "0.2.1"
+  },
+  "detached": false
+}

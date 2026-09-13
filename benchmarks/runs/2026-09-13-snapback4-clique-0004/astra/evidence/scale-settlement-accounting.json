@@ -1,0 +1,11 @@
+{
+  "pass": true,
+  "sourceSha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+  "uniqueSettledActions": 167157,
+  "rawScaleReceipts": 255214,
+  "cachedOrIdempotentReplays": 88057,
+  "originalActionReceipts": 167157,
+  "starterReceipts": 86,
+  "at": 1789333489358,
+  "note": "Every action line has an original sent receipt; resumed cached receipts are retained and de-duplicated by source hash and line number. Entity totals are independently verified through authenticated APIs."
+}

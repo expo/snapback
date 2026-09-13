@@ -1,0 +1,602 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API session; exact driver version unavailable inside lane",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1",
+      "platform": "darwin-arm64"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-13T18:30:45.000Z",
+    "finishedAt": "2026-09-13T21:10:08.000Z"
+  },
+  "firstGreenProofAt": "2026-09-13T18:38:37.544Z",
+  "wallClock": {
+    "totalSeconds": 9563,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 3481.181,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": null,
+      "m7Session": null
+    }
+  },
+  "toolUses": null,
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "1789324576 correction-loop M1 attribution=agent-error evidence=evidence/m1-acceptance-attempt1.log reason=seed-replay-did-not-retry-documented-E_RATE_LIMIT iteration=1",
+      "evidence": "evidence/m1-acceptance-attempt1.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789325074 correction-loop M2 attribution=agent-error source=diagnostic evidence=evidence/m2-suite-attempt1.log reason=millisecond-ties-ordered-by-random-id; added-server-arrival-tiebreak",
+      "evidence": "evidence/m2-suite-attempt1.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789325132 correction-loop M2 attribution=agent-error evidence=evidence/m2-suite-attempt2.log,evidence/web-server.log reason=launcher-CI-disabled-Metro-watch-and-served-M1-bundle; restarted-with-CI-false; iteration=2-empty-string-CI-invalid",
+      "evidence": "evidence/m2-suite-attempt2.log,evidence/web-server.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789325226 correction-loop M2 attribution=agent-error source=fixture evidence=evidence/choreo-m2.jsonl reason=feed-tabs-needed-from-profile-and-thread; promoted-feed-navigation-to-shell",
+      "evidence": "evidence/choreo-m2.jsonl"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789325877 correction-loop M3 attribution=agent-error source=package-README/guide evidence=node_modules/snapback4/README.md,evidence/m3-signin-probe.log,evidence/m3-choreo-attempt2.log reason=parallel-four-client-signin-vs-bounded-Argon2-admission; added-retryable-auth-backoff",
+      "evidence": "node_modules/snapback4/README.md,evidence/m3-signin-probe.log,evidence/m3-choreo-attempt2.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789326123 correction-loop M3 attribution=agent-error evidence=evidence/choreo-m3-178932*.jsonl,evidence/m3-receipt-probe.log reason=full-navigation-race-during-member-remove; use-authenticated-platform-wire-keepalive-for-online-admin-removal",
+      "evidence": "evidence/choreo-m3-178932*.jsonl,evidence/m3-receipt-probe.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789326123 correction-loop M3 attribution=agent-error source=package-README/guide evidence=snapback/schema.q reason=upsert-replaces-profile-avatar; changed-profile-edit-to-update-preserving-avatar; repaired-fixture-avatar-with-real-upload",
+      "evidence": "snapback/schema.q"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789326281 correction-loop M3 attribution=agent-error evidence=evidence/m3-receipt-reload-probe.log,lib/device.web.ts reason=manual-WASM-URL-not-durably-available-during-reload-offline-race; cache-pinned-runtime-bytes-in-IndexedDB-before-opening-device",
+      "evidence": "evidence/m3-receipt-reload-probe.log,lib/device.web.ts"
+    },
+    {
+      "attribution": "snapback-defect",
+      "summary": "1789326707 correction-loop M4 attribution=snapback4-defect subAttribution=defect source=diagnostic evidence=evidence/m4-video-probe.log,evidence/m4-field-why.txt,evidence/m4-video-probe2.log reason=documented-id-only-video-argument-fails-local-module-mutation-prediction-with-E_FIELD-missing-duration; passing-complete-upload-asset-facts-succeeds; server-wire-id-only-succeeded-in-suite",
+      "evidence": "evidence/m4-video-probe.log,evidence/m4-field-why.txt,evidence/m4-video-probe2.log",
+      "subAttribution": "knowledge-gap"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789327809 correction-loop M6 attribution=agent-error source=diagnostic evidence=evidence/m6-check1.log,evidence/m6-check2.log,evidence/m6-check3.log reason=wrong-follow-index-name-and-unsupported-where; use-prefix-indexes-and-zero-total-deletion",
+      "evidence": "evidence/m6-check1.log,evidence/m6-check2.log,evidence/m6-check3.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789328391 correction-loop M6 attribution=agent-error source=diagnostic evidence=evidence/m6-offline-probe3.log,evidence/m6-offline-probe4.log reason=redundant-exists-message-id-check-outside-sync-horizon-made-send-unpredictable; removed-check-relying-on-platform-write-id-idempotency; device-now-predictable-true-with-message-row",
+      "evidence": "evidence/m6-offline-probe3.log,evidence/m6-offline-probe4.log"
+    },
+    {
+      "attribution": "snapback-defect",
+      "summary": "1789328498 correction-loop M6 attribution=snapback4-defect subAttribution=defect source=diagnostic evidence=evidence/m6-offline-probe4.log,evidence/m6-choreo-attempt3.log,evidence/m6-choreo-attempt4.log reason=decorated-message-shape-omits-device-pending-metadata; raw-row-query-retains-it; combine-raw-pending-with-shaped-history",
+      "evidence": "evidence/m6-offline-probe4.log,evidence/m6-choreo-attempt3.log,evidence/m6-choreo-attempt4.log",
+      "subAttribution": "defect"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-check1.log,evidence/m8-check2.log,evidence/m8-check3.log,evidence/m8-check4.log,evidence/m8-check5.log,evidence/m8-check6.log,evidence/m8-check7.log reason=module-schedule-reference,exact-sync-audience,uncapped-partial-mutation-fanout,job-only-chunk-top-level-and-null-narrowing; changed-to-root-scheduled-job-with-two-feed-lanes",
+      "evidence": "evidence/m8-check1.log,evidence/m8-check2.log,evidence/m8-check3.log,evidence/m8-check4.log,evidence/m8-check5.log,evidence/m8-check6.log,evidence/m8-check7.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-typecheck1.log,evidence/m8-typecheck2.log reason=heterogeneous-generated-feed-query-union; explicit-client-presentation-cast",
+      "evidence": "evidence/m8-typecheck1.log,evidence/m8-typecheck2.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-trending-aging.log,evidence/m8-trending-aging.json reason=synthetic-dev-seed-rank-row-needed-explicit-id; isolated-past-content-test-does-not-alter-replay-timestamps",
+      "evidence": "evidence/m8-trending-aging.log,evidence/m8-trending-aging.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-suite-attempt1.log,evidence/m8-check-final-ui.log,evidence/m8-check8.log reason=added-followers-page-needed-id-tie-break; old-generation-correctly-kept-serving-until-fixed",
+      "evidence": "evidence/m8-suite-attempt1.log,evidence/m8-check-final-ui.log,evidence/m8-check8.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789330647 correction-loop M8 attribution=agent-error source=fixture evidence=evidence/final-gallery.log,evidence/final-gallery.json reason=kit-exposes-one-gallery-container-not-one-testID-per-image; corrected-probe-selector",
+      "evidence": "evidence/final-gallery.log,evidence/final-gallery.json"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789330712 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-insights.png,app/insights.tsx,evidence/final-m8-visual-suite.log reason=visual-review-found-empty-string-React-Native-text-warning; changed-error-conditional-to-boolean",
+      "evidence": "evidence/m8-insights.png,app/insights.tsx,evidence/final-m8-visual-suite.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789331684 correction-loop attribution=agent-error source=fixture evidence=milestones.json,evidence/choreo-m5-1789327354362.jsonl,evidence/choreo-m6-1789328572585.jsonl reason=boundary-helper-had-labeled-final-green-as-first-green-for-M5/M6; restored-earliest-actual-segment-summary-times; original-M5-first-suite-bytes-not-archived-so-hash-custody-gap-recorded; latest-M5-suite-and-green-remain-hash-bound",
+      "evidence": "milestones.json,evidence/choreo-m5-1789327354362.jsonl,evidence/choreo-m6-1789328572585.jsonl"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789332097 correction-loop source=diagnostic attribution=agent-error evidence=scripts/wire.mjs,evidence/scale-personas-guide.txt reason=automatic-auth-backoff-retries-had-not-been-individually-logged; aggregate-throttling-episode-retained; added-per-retry-logging-for-subsequent-processes; running-replay-retains-original-loaded-helper",
+      "evidence": "scripts/wire.mjs,evidence/scale-personas-guide.txt"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789332901 correction-loop source=diagnostic,package-README/guide attribution=agent-error evidence=evidence/scale-browser-50pct.json,evidence/scale-startup-diagnostic.json,evidence/scale-sync-counts.json,snapback/schema.q reason=public-repost-counter-also-replicated-one-unused-original-count-per-post; split-repost-only-source-and-maintain-without-reducing-message-retention; first-probe-failure-preserved",
+      "evidence": "evidence/scale-browser-50pct.json,evidence/scale-startup-diagnostic.json,evidence/scale-sync-counts.json,snapback/schema.q"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789332901 correction-loop source=diagnostic attribution=agent-error evidence=evidence/scale-counter-filter-check.log reason=attempted-maintain-read-filter-conflicted-with-inherited-public-sync-E_SYNC; replaced-with-dedicated-repostEdges-source",
+      "evidence": "evidence/scale-counter-filter-check.log"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789333257 correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-fix-m2-suite.log,evidence/feed-scroll-diagnostic.json,snapback/schema.q,lib/posts.tsx reason=Following-pagination-failed-during-fallback/materialized-source-transition; source-change-now-remounts-page-accumulator; stable-state-scroll-diagnostic-read-50-rows",
+      "evidence": "evidence/scale-fix-m2-suite.log,evidence/feed-scroll-diagnostic.json,snapback/schema.q,lib/posts.tsx"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789333319 correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-fix-m2-suite2.log,scripts/acceptance-m2.mjs reason=Global-too-showed-10-mounted-rows; original-test-counted-final-DOM-size-of-virtualized-FlatList; corrected-to-distinct-cards-observed-during-real-scroll-exceeding-page-size; prior-cursor-transition-hypothesis-was-not-sufficient-to-explain-failure",
+      "evidence": "evidence/scale-fix-m2-suite2.log,scripts/acceptance-m2.mjs"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1789333341 correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-fix-m8-suite.log reason=ran-M8-aggregate-snapshot-test-concurrently-with-M2-writes-on-shared-main-backend; one-post-count-race; rerun-sequentially-after-M2-completes",
+      "evidence": "evidence/scale-fix-m8-suite.log"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 6757,
+    "files": 93
+  },
+  "authParity": {
+    "posture": "production-auth",
+    "notes": "Published password identity/session arm, server authorization and protected assets; local deployment."
+  },
+  "diary": "diary.md",
+  "notes": "PENDING EXTERNAL DRIVER/GRADER JOIN. No fabricated token counters, first-edit custody, terminal driver sequence, compaction timestamps, or grading scores. Green summaries and suite hashes are real. M7 is intentionally a separate later session. M5 earliest suite bytes were not archived; later passing suite is retained.",
+  "socialMessenger": {
+    "extensionVersion": 2,
+    "instrumentVersion": "social-messenger@0.3.8-m8",
+    "typingObservationBoundaryVersion": "v2",
+    "observabilityProtocol": "social-messenger-observation.v1",
+    "setup": {
+      "schemaVersion": "social-messenger.setup-identity.v1",
+      "instrumentPin": "social-messenger@0.3.8-m8",
+      "backend": {
+        "kind": "snapback",
+        "version": "0.2.6"
+      },
+      "runtime": {
+        "qualifiedBinary": {
+          "claimed": false,
+          "reason": "Public npm release; no instrument-qualified artifact claim"
+        },
+        "wrapper": {
+          "claimed": false,
+          "reason": "Public npm release; no instrument-qualified artifact claim"
+        }
+      },
+      "packageClosure": {
+        "mode": "workspace",
+        "prepack": "not-applicable",
+        "artifacts": [
+          {
+            "name": "snapback4",
+            "version": "0.2.6",
+            "sha256": "sha256:367937e9d198cfc3f1c949cd3b1de2b2e3262e9a3df085048669331c7012f097"
+          },
+          {
+            "name": "snapback4-expo",
+            "version": "0.2.1",
+            "sha256": "sha256:8b1c763ebd53d577fed529d2c403181cbbdb214cd3cbe77f60078c0b8945951c"
+          }
+        ]
+      },
+      "toolchain": {
+        "node": {
+          "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "version": "v24.18.0"
+        },
+        "bun": "1.3.12",
+        "npm": "11.12.1",
+        "playwright": "1.62.1",
+        "browser": "chromium"
+      },
+      "host": {
+        "id": "Apple-M5-Max",
+        "platform": "darwin",
+        "arch": "arm64"
+      }
+    },
+    "runScope": "full",
+    "capFamily": "gpt-frontier",
+    "deploymentPosture": "local-binary",
+    "milestones": {
+      "M1": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 472,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-13T18:38:37.544Z",
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 472,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M2": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 652,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-13T18:49:55.313Z",
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 652,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M3": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 854,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-13T19:04:51.598Z",
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 854,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M4": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 338,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-13T19:11:27.771Z",
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 338,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M5": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 588,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-13T19:22:05.700Z",
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 588,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M6": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 783,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-13T19:41:28.738Z",
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 783,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M8": {
+        "status": "green",
+        "nonGreenCause": null,
+        "authoring": {
+          "wallSeconds": 804,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": "2026-09-13T19:57:35.379Z",
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": "green"
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": 804,
+          "chargedTokens": null,
+          "flags": []
+        }
+      },
+      "M7": {
+        "status": "not-run",
+        "authoring": {
+          "wallSeconds": null,
+          "tokens": {
+            "input": null,
+            "output": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "reasoning": null
+          },
+          "firstGreenAt": null,
+          "terminalAt": null,
+          "terminalSequence": null,
+          "terminalReason": null
+        },
+        "caps": {
+          "wallCapSeconds": 14400,
+          "tokenCap": null
+        },
+        "charging": {
+          "chargedWallSeconds": null,
+          "chargedTokens": null,
+          "flags": []
+        }
+      }
+    },
+    "termination": {
+      "terminatedEarly": false,
+      "reason": null,
+      "afterMilestone": null
+    },
+    "compaction": {
+      "policy": "Harness-managed; exact policy and timestamp ledger unavailable inside lane",
+      "events": []
+    },
+    "firstProductEdit": {
+      "at": null,
+      "orientationBytes": null,
+      "orientationTokens": {
+        "input": null,
+        "output": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "reasoning": null
+      },
+      "selectedSkills": []
+    },
+    "meteringProvenance": {
+      "unavailableReason": "driver-native-meter-not-provided",
+      "sessions": [],
+      "manifestVersion": "social-messenger-metering-manifest.v1",
+      "laneRunId": "astra-clique-snapback4-full-20260913"
+    },
+    "coverageManifest": {
+      "path": "evidence/coverage-all.json",
+      "sha256": "4d890b2ef939f83f0254085333018777970e54ec0568fbc918d840a4ab7e390f",
+      "validated": true
+    },
+    "assertionManifest": {
+      "path": "instrument/schema/social-messenger/assertions.json",
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+    },
+    "clocks": {
+      "grading": {
+        "sessions": []
+      },
+      "replay": {
+        "attempted": true,
+        "wallSeconds": 3481.181,
+        "capSeconds": 14400,
+        "capFractionUsed": 0.24174868055555557,
+        "capExhausted": false,
+        "probeWallSecondsExcluded": 87.819,
+        "tokens": {
+          "input": null,
+          "output": null,
+          "cacheRead": null,
+          "cacheWrite": null,
+          "reasoning": null
+        }
+      }
+    },
+    "grading": {
+      "graderReportPath": null,
+      "graderFamily": null,
+      "sameFamilyGraded": false,
+      "graderAborts": 0,
+      "usableGradingRecord": false
+    },
+    "efficiencyScorecardEligibility": {
+      "eligible": false,
+      "correctionActionTargetEligible": false,
+      "ineligibilityReasons": [
+        "phase-usage-unavailable",
+        "orientation-evidence-unavailable",
+        "semantic-actions-non-claimed",
+        "recovery-episodes-non-claimed",
+        "restart-reseed-non-claimed",
+        "assertion-waits-non-claimed",
+        "host-load-non-claimed",
+        "api-interruptions-non-claimed"
+      ]
+    },
+    "suiteStatusLinkage": {
+      "input": {
+        "path": "evidence/suite-status.json",
+        "sha256": "sha256:d72f17753421ccebdba61ba7edaeb58333bd3a911cda61fcb2fd4a1f61e8f736"
+      },
+      "milestones": [
+        {
+          "milestone": "M1",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m1.json",
+            "sha256": "sha256:8e5b3feb9d52694ca60c3e73069915e5410ec7cce7a6be3f08e36c28e2941e31"
+          }
+        },
+        {
+          "milestone": "M2",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m2.json",
+            "sha256": "sha256:ae373826191f97624164c1c40c4a771d5de869b6b197856ebdd60186c32b91aa"
+          }
+        },
+        {
+          "milestone": "M3",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m3.json",
+            "sha256": "sha256:94e393b0a9c52850fcf908b61bbe14d0489b94d95c38860a53821ebe394748de"
+          }
+        },
+        {
+          "milestone": "M4",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m4.json",
+            "sha256": "sha256:088b1e226999da752ccfe39f52df7852979a9faea360bbd84d09f0976cc080d8"
+          }
+        },
+        {
+          "milestone": "M5",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m5.json",
+            "sha256": "sha256:5ffbb73bc57b392d89d275e64630531ddc05ce6925d1230d4416bf66ccf851a9"
+          }
+        },
+        {
+          "milestone": "M6",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m6.json",
+            "sha256": "sha256:88c23c7714422f2f6b12bf6b3eef4b8028213a2e59f8bbacacc9a9ffb416ab12"
+          }
+        },
+        {
+          "milestone": "M8",
+          "pass": true,
+          "receipt": {
+            "path": "evidence/suite-m8.json",
+            "sha256": "sha256:fb0bdf83a57f3d422b04b6367e7172f261d05313e2f28b021bab9b08ec7cdf83"
+          }
+        }
+      ]
+    }
+  }
+}

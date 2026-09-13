@@ -1,0 +1,29 @@
+{
+  "milestone": "m8",
+  "assertions": {
+    "m8-a01": {
+      "test": "m8/m8-a01",
+      "status": "pass"
+    },
+    "m8-a03": {
+      "test": "m8/m8-a03",
+      "status": "pass"
+    },
+    "m8-a04": {
+      "test": "m8/m8-a04",
+      "status": "pass"
+    },
+    "m8-a05": {
+      "test": "m8/m8-a05",
+      "status": "pass"
+    },
+    "m8-a06": {
+      "test": "m8/m8-a06",
+      "status": "pass"
+    },
+    "m8-a07": {
+      "test": "m8/m8-a07",
+      "status": "pass"
+    }
+  }
+}

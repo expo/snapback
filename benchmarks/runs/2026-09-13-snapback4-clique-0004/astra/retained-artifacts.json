@@ -1,0 +1,52 @@
+{
+  "capturedAtEpoch": 1789334269,
+  "lane": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4",
+  "files": [
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/evidence/scale-settle.jsonl",
+      "bytes": 86362169,
+      "sha256": "10df17aac755eaab35f3bd07203263d743809301fe0b8a5bed1c577362ea001c"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/evidence/server-cleanup.json",
+      "bytes": 4984,
+      "sha256": "8efe2756b64762e5b186af470debf24e775458eff47b4e38d506fade06c3bbaf"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/artifacts/m1-ios/_expo/static/js/ios/entry-437356f8040b50dc729edeb4ba79b81b.hbc",
+      "bytes": 2587886,
+      "sha256": "dc2e1eebddf336ac47ab1157b829c7613c53cf0d9ed0d1041cd0e1f4ea4ebdd3"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/artifacts/m2-ios/_expo/static/js/ios/entry-c159edece9adcc1c3f54e4b2e29c5176.hbc",
+      "bytes": 2677756,
+      "sha256": "0b6a6b172d50d00977fd3b97accdaf8f552eeca3e184330a4e3595e3bdd1e6b5"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/artifacts/m3-ios/_expo/static/js/ios/entry-ba7974d98088827fa08dab52e999734a.hbc",
+      "bytes": 2703367,
+      "sha256": "cbe998f89520aaf17a9525ffac1480c148e53204aa5e1b00f0c0162373cdb903"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/artifacts/m4-ios/_expo/static/js/ios/entry-e54ec434a18a6ee67e0cf8b6010d6829.hbc",
+      "bytes": 2710985,
+      "sha256": "a29956ae217d9549b504b2cae9ecab68e5c534c0ef172fb8e3a83a0d4a5d5a90"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/artifacts/m5-ios/_expo/static/js/ios/entry-e67fd219c6a7b9276be80b9ca58bad2d.hbc",
+      "bytes": 2718787,
+      "sha256": "5ca35b59752d0e3b69828adfdb100e530a50a2f26ce3a91e5da2dfc3fd45557e"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/artifacts/m6-ios/_expo/static/js/ios/entry-710a0655d0e499d4655a92a5685a0ed4.hbc",
+      "bytes": 2780146,
+      "sha256": "c0a9836cd7bcd7c308b69d991239185e0c4c4004bf5f38c7e536566ba80a2135"
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/artifacts/m8-ios/_expo/static/js/ios/entry-565881964ec53d3696b484f2110196d4.hbc",
+      "bytes": 2789855,
+      "sha256": "a2c3e4fe5f1659a42c00a55bc4873879732263073a9473786765a63148267cb6"
+    }
+  ],
+  "note": "Raw settlement stream, cleanup receipt and native bundles retained externally; no runtime execution claim is inferred from bundle hashes."
+}

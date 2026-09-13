@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "clique-builder-raw-log-references.v1",
+  "capturedAt": "2026-09-13T21:11:52.979842Z",
+  "lane": "astra-snapback4",
+  "logs": [
+    {
+      "stream": "stdout",
+      "packetRelativePath": "logs/astra-snapback4.ndjson",
+      "sha256": "817a5971bdf6b2540c508c89e66a18378c06a732593a4d2e0c2a565ac9f1cbca",
+      "bytes": 2468890,
+      "copiedIntoSnapshot": false
+    },
+    {
+      "stream": "stderr",
+      "packetRelativePath": "logs/astra-snapback4.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "copiedIntoSnapshot": false
+    }
+  ]
+}

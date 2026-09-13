@@ -1,0 +1,25 @@
+{
+  "milestone": "m6",
+  "assertions": {
+    "m6-a08": {
+      "test": "m6/m6-a08",
+      "status": "pass"
+    },
+    "m6-a09": {
+      "test": "m6/m6-a09",
+      "status": "pass"
+    },
+    "m6-a10": {
+      "test": "m6/m6-a10",
+      "status": "pass"
+    },
+    "m6-a11": {
+      "test": "m6/m6-a11",
+      "status": "pass"
+    },
+    "m6-a13": {
+      "test": "m6/m6-a13",
+      "status": "pass"
+    }
+  }
+}

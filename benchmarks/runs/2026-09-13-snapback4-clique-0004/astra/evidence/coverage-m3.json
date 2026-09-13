@@ -1,0 +1,33 @@
+{
+  "milestone": "m3",
+  "assertions": {
+    "m3-a03": {
+      "test": "m3/m3-a03",
+      "status": "pass"
+    },
+    "m3-a04": {
+      "test": "m3/m3-a04",
+      "status": "pass"
+    },
+    "m3-a05": {
+      "test": "m3/m3-a05",
+      "status": "pass"
+    },
+    "m3-a10": {
+      "test": "m3/m3-a10",
+      "status": "pass"
+    },
+    "m3-a11": {
+      "test": "m3/m3-a11",
+      "status": "pass"
+    },
+    "m3-a14": {
+      "test": "m3/m3-a14",
+      "status": "pass"
+    },
+    "m3-a15": {
+      "test": "m3/m3-a15",
+      "status": "pass"
+    }
+  }
+}

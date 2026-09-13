@@ -1,0 +1,129 @@
+[
+  {
+    "attribution": "agent-error",
+    "summary": "1789324576 correction-loop M1 attribution=agent-error evidence=evidence/m1-acceptance-attempt1.log reason=seed-replay-did-not-retry-documented-E_RATE_LIMIT iteration=1",
+    "evidence": "evidence/m1-acceptance-attempt1.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789325074 correction-loop M2 attribution=agent-error source=diagnostic evidence=evidence/m2-suite-attempt1.log reason=millisecond-ties-ordered-by-random-id; added-server-arrival-tiebreak",
+    "evidence": "evidence/m2-suite-attempt1.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789325132 correction-loop M2 attribution=agent-error evidence=evidence/m2-suite-attempt2.log,evidence/web-server.log reason=launcher-CI-disabled-Metro-watch-and-served-M1-bundle; restarted-with-CI-false; iteration=2-empty-string-CI-invalid",
+    "evidence": "evidence/m2-suite-attempt2.log,evidence/web-server.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789325226 correction-loop M2 attribution=agent-error source=fixture evidence=evidence/choreo-m2.jsonl reason=feed-tabs-needed-from-profile-and-thread; promoted-feed-navigation-to-shell",
+    "evidence": "evidence/choreo-m2.jsonl"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789325877 correction-loop M3 attribution=agent-error source=package-README/guide evidence=node_modules/snapback4/README.md,evidence/m3-signin-probe.log,evidence/m3-choreo-attempt2.log reason=parallel-four-client-signin-vs-bounded-Argon2-admission; added-retryable-auth-backoff",
+    "evidence": "node_modules/snapback4/README.md,evidence/m3-signin-probe.log,evidence/m3-choreo-attempt2.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789326123 correction-loop M3 attribution=agent-error evidence=evidence/choreo-m3-178932*.jsonl,evidence/m3-receipt-probe.log reason=full-navigation-race-during-member-remove; use-authenticated-platform-wire-keepalive-for-online-admin-removal",
+    "evidence": "evidence/choreo-m3-178932*.jsonl,evidence/m3-receipt-probe.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789326123 correction-loop M3 attribution=agent-error source=package-README/guide evidence=snapback/schema.q reason=upsert-replaces-profile-avatar; changed-profile-edit-to-update-preserving-avatar; repaired-fixture-avatar-with-real-upload",
+    "evidence": "snapback/schema.q"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789326281 correction-loop M3 attribution=agent-error evidence=evidence/m3-receipt-reload-probe.log,lib/device.web.ts reason=manual-WASM-URL-not-durably-available-during-reload-offline-race; cache-pinned-runtime-bytes-in-IndexedDB-before-opening-device",
+    "evidence": "evidence/m3-receipt-reload-probe.log,lib/device.web.ts"
+  },
+  {
+    "attribution": "snapback-defect",
+    "summary": "1789326707 correction-loop M4 attribution=snapback4-defect subAttribution=defect source=diagnostic evidence=evidence/m4-video-probe.log,evidence/m4-field-why.txt,evidence/m4-video-probe2.log reason=documented-id-only-video-argument-fails-local-module-mutation-prediction-with-E_FIELD-missing-duration; passing-complete-upload-asset-facts-succeeds; server-wire-id-only-succeeded-in-suite",
+    "evidence": "evidence/m4-video-probe.log,evidence/m4-field-why.txt,evidence/m4-video-probe2.log",
+    "subAttribution": "knowledge-gap"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789327809 correction-loop M6 attribution=agent-error source=diagnostic evidence=evidence/m6-check1.log,evidence/m6-check2.log,evidence/m6-check3.log reason=wrong-follow-index-name-and-unsupported-where; use-prefix-indexes-and-zero-total-deletion",
+    "evidence": "evidence/m6-check1.log,evidence/m6-check2.log,evidence/m6-check3.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789328391 correction-loop M6 attribution=agent-error source=diagnostic evidence=evidence/m6-offline-probe3.log,evidence/m6-offline-probe4.log reason=redundant-exists-message-id-check-outside-sync-horizon-made-send-unpredictable; removed-check-relying-on-platform-write-id-idempotency; device-now-predictable-true-with-message-row",
+    "evidence": "evidence/m6-offline-probe3.log,evidence/m6-offline-probe4.log"
+  },
+  {
+    "attribution": "snapback-defect",
+    "summary": "1789328498 correction-loop M6 attribution=snapback4-defect subAttribution=defect source=diagnostic evidence=evidence/m6-offline-probe4.log,evidence/m6-choreo-attempt3.log,evidence/m6-choreo-attempt4.log reason=decorated-message-shape-omits-device-pending-metadata; raw-row-query-retains-it; combine-raw-pending-with-shaped-history",
+    "evidence": "evidence/m6-offline-probe4.log,evidence/m6-choreo-attempt3.log,evidence/m6-choreo-attempt4.log",
+    "subAttribution": "defect"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-check1.log,evidence/m8-check2.log,evidence/m8-check3.log,evidence/m8-check4.log,evidence/m8-check5.log,evidence/m8-check6.log,evidence/m8-check7.log reason=module-schedule-reference,exact-sync-audience,uncapped-partial-mutation-fanout,job-only-chunk-top-level-and-null-narrowing; changed-to-root-scheduled-job-with-two-feed-lanes",
+    "evidence": "evidence/m8-check1.log,evidence/m8-check2.log,evidence/m8-check3.log,evidence/m8-check4.log,evidence/m8-check5.log,evidence/m8-check6.log,evidence/m8-check7.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-typecheck1.log,evidence/m8-typecheck2.log reason=heterogeneous-generated-feed-query-union; explicit-client-presentation-cast",
+    "evidence": "evidence/m8-typecheck1.log,evidence/m8-typecheck2.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-trending-aging.log,evidence/m8-trending-aging.json reason=synthetic-dev-seed-rank-row-needed-explicit-id; isolated-past-content-test-does-not-alter-replay-timestamps",
+    "evidence": "evidence/m8-trending-aging.log,evidence/m8-trending-aging.json"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789329511 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-suite-attempt1.log,evidence/m8-check-final-ui.log,evidence/m8-check8.log reason=added-followers-page-needed-id-tie-break; old-generation-correctly-kept-serving-until-fixed",
+    "evidence": "evidence/m8-suite-attempt1.log,evidence/m8-check-final-ui.log,evidence/m8-check8.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789330647 correction-loop M8 attribution=agent-error source=fixture evidence=evidence/final-gallery.log,evidence/final-gallery.json reason=kit-exposes-one-gallery-container-not-one-testID-per-image; corrected-probe-selector",
+    "evidence": "evidence/final-gallery.log,evidence/final-gallery.json"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789330712 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/m8-insights.png,app/insights.tsx,evidence/final-m8-visual-suite.log reason=visual-review-found-empty-string-React-Native-text-warning; changed-error-conditional-to-boolean",
+    "evidence": "evidence/m8-insights.png,app/insights.tsx,evidence/final-m8-visual-suite.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789331684 correction-loop attribution=agent-error source=fixture evidence=milestones.json,evidence/choreo-m5-1789327354362.jsonl,evidence/choreo-m6-1789328572585.jsonl reason=boundary-helper-had-labeled-final-green-as-first-green-for-M5/M6; restored-earliest-actual-segment-summary-times; original-M5-first-suite-bytes-not-archived-so-hash-custody-gap-recorded; latest-M5-suite-and-green-remain-hash-bound",
+    "evidence": "milestones.json,evidence/choreo-m5-1789327354362.jsonl,evidence/choreo-m6-1789328572585.jsonl"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789332097 correction-loop source=diagnostic attribution=agent-error evidence=scripts/wire.mjs,evidence/scale-personas-guide.txt reason=automatic-auth-backoff-retries-had-not-been-individually-logged; aggregate-throttling-episode-retained; added-per-retry-logging-for-subsequent-processes; running-replay-retains-original-loaded-helper",
+    "evidence": "scripts/wire.mjs,evidence/scale-personas-guide.txt"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789332901 correction-loop source=diagnostic,package-README/guide attribution=agent-error evidence=evidence/scale-browser-50pct.json,evidence/scale-startup-diagnostic.json,evidence/scale-sync-counts.json,snapback/schema.q reason=public-repost-counter-also-replicated-one-unused-original-count-per-post; split-repost-only-source-and-maintain-without-reducing-message-retention; first-probe-failure-preserved",
+    "evidence": "evidence/scale-browser-50pct.json,evidence/scale-startup-diagnostic.json,evidence/scale-sync-counts.json,snapback/schema.q"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789332901 correction-loop source=diagnostic attribution=agent-error evidence=evidence/scale-counter-filter-check.log reason=attempted-maintain-read-filter-conflicted-with-inherited-public-sync-E_SYNC; replaced-with-dedicated-repostEdges-source",
+    "evidence": "evidence/scale-counter-filter-check.log"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789333257 correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-fix-m2-suite.log,evidence/feed-scroll-diagnostic.json,snapback/schema.q,lib/posts.tsx reason=Following-pagination-failed-during-fallback/materialized-source-transition; source-change-now-remounts-page-accumulator; stable-state-scroll-diagnostic-read-50-rows",
+    "evidence": "evidence/scale-fix-m2-suite.log,evidence/feed-scroll-diagnostic.json,snapback/schema.q,lib/posts.tsx"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789333319 correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-fix-m2-suite2.log,scripts/acceptance-m2.mjs reason=Global-too-showed-10-mounted-rows; original-test-counted-final-DOM-size-of-virtualized-FlatList; corrected-to-distinct-cards-observed-during-real-scroll-exceeding-page-size; prior-cursor-transition-hypothesis-was-not-sufficient-to-explain-failure",
+    "evidence": "evidence/scale-fix-m2-suite2.log,scripts/acceptance-m2.mjs"
+  },
+  {
+    "attribution": "agent-error",
+    "summary": "1789333341 correction-loop attribution=agent-error source=diagnostic evidence=evidence/scale-fix-m8-suite.log reason=ran-M8-aggregate-snapshot-test-concurrently-with-M2-writes-on-shared-main-backend; one-post-count-race; rerun-sequentially-after-M2-completes",
+    "evidence": "evidence/scale-fix-m8-suite.log"
+  }
+]

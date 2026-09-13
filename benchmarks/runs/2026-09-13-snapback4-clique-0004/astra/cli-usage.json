@@ -1,0 +1,16 @@
+{
+  "lane": "astra-snapback4",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/astra-snapback4.ndjson",
+  "sourceSha256": "817a5971bdf6b2540c508c89e66a18378c06a732593a4d2e0c2a565ac9f1cbca",
+  "event": "turn.completed",
+  "usage": {
+    "input_tokens": 50054731,
+    "cached_input_tokens": 48964608,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 239379,
+    "reasoning_output_tokens": 110954
+  },
+  "interpretation": "CLI-reported counters copied verbatim after exit. Cached-input and reasoning-output counters are retained separately as reported; no cost or additional total is inferred. This is not a reconstruction of missing protocol native-ledger or driver boundary receipts."
+}

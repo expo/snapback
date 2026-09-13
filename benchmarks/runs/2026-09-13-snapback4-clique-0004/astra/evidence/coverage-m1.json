@@ -1,0 +1,33 @@
+{
+  "milestone": "m1",
+  "assertions": {
+    "m1-a01": {
+      "test": "m1/m1-a01",
+      "status": "pass"
+    },
+    "m1-a02": {
+      "test": "m1/m1-a02",
+      "status": "pass"
+    },
+    "m1-a03": {
+      "test": "m1/m1-a03",
+      "status": "pass"
+    },
+    "m1-a04": {
+      "test": "m1/m1-a04",
+      "status": "pass"
+    },
+    "m1-a08": {
+      "test": "m1/m1-a08",
+      "status": "pass"
+    },
+    "m1-a10": {
+      "test": "m1/m1-a10",
+      "status": "pass"
+    },
+    "m1-a11": {
+      "test": "m1/m1-a11",
+      "status": "pass"
+    }
+  }
+}

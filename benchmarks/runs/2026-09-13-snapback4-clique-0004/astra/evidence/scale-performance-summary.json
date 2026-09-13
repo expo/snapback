@@ -1,0 +1,108 @@
+{
+  "qualifiedUniformCodeComparison": false,
+  "initialTimeoutRetained": "evidence/scale-browser-50pct-attempt1.json",
+  "implementationChangedAfter10pct": true,
+  "pass": false,
+  "checks": [
+    {
+      "name": "history-page50/page1",
+      "numeratorMs": 3.2054169999901205,
+      "denominatorMs": 2.560750000004191,
+      "ratio": 1.2517492921936442,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "following-500/5",
+      "numeratorMs": 4.259250000002794,
+      "denominatorMs": 195.66095799999312,
+      "ratio": 0.02176852267074632,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "celebrity-follower/5-follow",
+      "numeratorMs": 139.09704100003,
+      "denominatorMs": 195.66095799999312,
+      "ratio": 0.7109085145133293,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "search-full/10pct",
+      "numeratorMs": 13.817707999958657,
+      "denominatorMs": 14.327624999918044,
+      "ratio": 0.9644102215152683,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "search-midcurve",
+      "values": [
+        14.327624999918044,
+        12.82020800000464,
+        13.817707999958657
+      ],
+      "interpolated50pctBoundMs": 14.100995222158316,
+      "pass": true
+    },
+    {
+      "name": "insights-full/10pct",
+      "numeratorMs": 1.0196250000153668,
+      "denominatorMs": 1.1565829999744892,
+      "ratio": 0.8815839416953706,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "insights-midcurve",
+      "values": [
+        1.1565829999744892,
+        1.4397089999984019,
+        1.0196250000153668
+      ],
+      "interpolated50pctBoundMs": 1.0957127777704347,
+      "pass": false
+    },
+    {
+      "name": "trending-full/10pct",
+      "numeratorMs": 1.8519159999559633,
+      "denominatorMs": 2.2524170000106096,
+      "ratio": 0.8221905623813176,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "trending-midcurve",
+      "values": [
+        2.2524170000106096,
+        2.1059170000007725,
+        1.8519159999559633
+      ],
+      "interpolated50pctBoundMs": 2.074416555541878,
+      "pass": false
+    },
+    {
+      "name": "celebrity-write/5-follower-write",
+      "ratio": 1.4929572368806021,
+      "limit": 3,
+      "pass": true
+    },
+    {
+      "name": "50-member-send-render-without-timeout",
+      "pass": true,
+      "p95": 231.9720840000009,
+      "ackP95": 535.4290829999991
+    },
+    {
+      "name": "100-conversation-cold-sync",
+      "pass": true,
+      "coldStartMs": [
+        10100.797500000335,
+        14276.962458999995,
+        21446.106624999957
+      ]
+    }
+  ],
+  "note": "Local published degradation predicates, not hidden rotated grader probes. 20 sequential samples after 3 warmups. Absolute calibrated ceilings were not supplied; no O5 numerical grade claimed."
+}
