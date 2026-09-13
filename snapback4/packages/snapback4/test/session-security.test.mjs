@@ -232,6 +232,74 @@ test("a stale-token mutation refusal remains durable and retries after rotation"
   }
 });
 
+test("an online-only watch retries a stale-token refusal after rotation", async () => {
+  const base = "https://rotating-watch.invalid";
+  const backend = {
+    generation: 1,
+    schema: { tables: { remote: { columns: {}, indexes: {}, sync: null } } },
+    programs: [{ name: "remote", kind: "Query", args: {}, body: [{ table: "remote" }] }],
+  };
+  const oldReply = deferred();
+  const queryBearers = [];
+  const doFetch = async (input, init = {}) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/changes") return new Promise((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true }));
+    if (path === "/auth/refresh") return Response.json({ session: session("token-one") });
+    if (path === "/q/remote") {
+      queryBearers.push(auth(init));
+      if (queryBearers.length === 1) {
+        await oldReply.promise;
+        return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "rotated token" } }, { status: 401 });
+      }
+      return Response.json({ data: "current", complete: true, seq: 0, tables: ["remote"], viewer: "user:alice" });
+    }
+    throw new Error(`unexpected request ${path}`);
+  };
+  const core = {
+    async call(request) {
+      switch (request.op) {
+        case "sync_state": return { ok: { watermark: 0, generation: 1, send_revision: 0, pending_ids: [] } };
+        case "state": return { ok: { watermark: 0, generation: 1, native: null } };
+        case "backend": return { ok: backend };
+        case "next_submission": return { ok: 1 };
+        case "meta": return { ok: 0 };
+        case "set_meta": return { ok: true };
+        case "apply": return { ok: { touched: [] } };
+        case "queued": return { ok: [] };
+        default: return { ok: true };
+      }
+    },
+    async close() {},
+  };
+  const client = await createLocalClient({
+    url: base,
+    session: session("token-zero"),
+    device: { open: async () => core },
+    fetch: doFetch,
+    waitSeconds: 1,
+  });
+  try {
+    const snapshots = [];
+    const watch = client.observe({ name: "remote" }, {});
+    const unsubscribe = watch.subscribe(() => snapshots.push(watch.getSnapshot()));
+    await until(() => queryBearers.length === 1, "the old-bearer watch did not enter the transport");
+    assert.equal((await client.refreshSession()).ok, true);
+    assert.equal(client.session()?.token, "token-one");
+    oldReply.resolve();
+    await until(() => watch.getSnapshot().data === "current", "the watch remained denied after credential rotation");
+    assert.equal(queryBearers[0], "Bearer token-zero");
+    assert.ok(queryBearers.length >= 2);
+    assert.ok(queryBearers.slice(1).every((bearer) => bearer === "Bearer token-one"));
+    assert.equal(snapshots.some((snapshot) => snapshot.denied?.code === "E_AUTH"), false, "an obsolete refusal must not become the live snapshot");
+    unsubscribe();
+    watch.close();
+  } finally {
+    await client.close();
+  }
+});
+
 test("an authenticated change-feed refusal signs the online client out", async () => {
   let changes = 0;
   const client = createClient({

@@ -360,6 +360,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (priorSync) try { await priorSync; } catch {}
         if (!closed && !sessionDead && credentialRevision === refreshedRevision) {
           try { await syncOnce(); } catch {}
+          if (!closed && !sessionDead && credentialRevision === refreshedRevision && link === "online") {
+            for (const watch of watches.values()) void rerun(watch);
+          }
         }
       }
       scheduleRefresh();
@@ -579,15 +582,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const tables = program && schema ? operationTables(program, schema) : new Set<string>();
     if (partitionDenied) return { read: { denied: partitionDenied }, tables, nextExpiry: null };
     const server = async () => {
-      const result = await post(`/q/${op.name}`, { args });
-      if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
-      if (!result.ok) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null };
-      const json = result.json;
-      for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
-      if (json.denied) return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null };
-      const next = (json.next as Cursor | null | undefined) ?? null;
-      const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-      return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables, nextExpiry };
+      while (true) {
+        const result = await post(`/q/${op.name}`, { args });
+        if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
+        if (!result.ok) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null };
+        if (result.obsoleteAuth) {
+          const rotation = refreshing;
+          if (rotation) try { await rotation; } catch {}
+          const unavailableWhy = unavailable();
+          if (unavailableWhy) return { read: { denied: unavailableWhy } as Read<R>, tables, nextExpiry: null };
+          continue;
+        }
+        const json = result.json;
+        for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
+        if (json.denied) return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null };
+        const next = (json.next as Cursor | null | undefined) ?? null;
+        const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+        return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables, nextExpiry };
+      }
     };
     if (program?.native && !nativeReady) {
       if (link === "online") nativeReady = await installNative(aborter.signal);

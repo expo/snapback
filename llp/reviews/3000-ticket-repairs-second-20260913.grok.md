@@ -116,3 +116,61 @@ No other material defect in the reviewed correction (zero-sum candidates, `Cut::
 Lead follow-up: main's current-image security filter removes deleted join candidates for the before-any-join watermark. The same lifetime-gap defect still matters when a device had already acquired the row before expiry: the gap's deletion is outside the old grant and the new grant's snapshot does not include it. A regression covers both watermark positions. A new grant after an expired interval must send that interval's scope before its join expansion, while a continuous live renewal must not clear its held horizon. Correction and qualification follow.
 
 Correction qualification: the acquired-row watermark reproduced stale n1 on current security-integrated code. Grant initialization now consults the latest ledger transition before the watermark; a live renewal does not emit an ordinary scope; an expired predecessor emits its scope before the replacement's join image. Both watermark positions and a continuous live-renewal control pass on SQLite and memory. The existing replacement regression asserts scope ordering rather than forbidding the necessary earlier scope. Full focused totals are 18 device, 32 correction and 11 earlier-review passes. Final delta review follows.
+
+## Received final integration review
+
+A fresh independent Grok 4.6 xhigh CLI reviewed immutable `d8cdc6c81` and returned the following full static review. It was mutually blind with the Sol integration review and independently identified the same obsolete-bearer write failure, plus its online-only observation variant. The separate client lane is correcting the read retry/observation lifecycle; this is not a clean integration verdict.
+
+**Finding:** after session rotation, a stale `E_AUTH` is ignored for session liveness but still settles the local outbox as a terminal write failure (and can stick an online-only observe).
+
+Rotation deletes the old bearer (`identity.rs` 131–133) and bumps `credentialRevision` (`local.ts` 327–347). `refusedSession` (302–303) correctly ignores `E_AUTH` unless the snapshot revision is still current, which is why a delayed `/changes` 401 cannot kill the replacement session.
+
+`post()` still returns that denial as a successful protocol result:
+
+```377:387:snapback4/packages/snapback4/src/local.ts
+      const request = requestCredentials();
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers: request.headers, body: JSON.stringify(body), signal: aborter.signal });
+      ...
+      await refusedSession(json.denied ?? json.why, request.revision);
+      if (link !== "online") setLink("online");
+      return { ok: true, json };
+```
+
+`flushOnce` then treats any non-retryable denial as a judged failure. `E_AUTH` is not retryable. `settle` without `seq` deletes the outbox row (`device.rs` 589–596), `onWrite` emits `failed`, and the mutation never ran.
+
+```709:722:snapback4/packages/snapback4/src/local.ts
+      const why = (json.why ?? json.denied) as Refusal | undefined;
+      if (why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+      const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? {seq: Number(json.seq ?? 0)} : {}) });
+      ...
+      emitWrite(outcome);
+```
+
+`refreshCurrent` waits for `syncing` (359–362) but not `flushing`. `/auth/refresh` is not on `network()`. The merge dropped the per-revision online client and kept this single outbox flush, so credential snapshots and `onWrite` do not coexist.
+
+**Reproduction**
+
+1. Local client, live session, at least one admitted outbox mutation.
+2. Overlap `POST /m/...` (headers snapshotted at `local.ts:380`) with `refreshSession()` / the near-expiry timer (`local.ts:313–316`).
+3. Server deletes bearer A, returns 401 `E_AUTH` for that POST; `refusedSession` no-ops on the stale revision.
+4. `flushOnce` settles without `seq`. Device outbox row is gone. `onWrite` is `failed`. Same principal on bearer B; a retry would have applied.
+
+Same hole on reads: `evaluateLocal`’s server path (`local.ts:579–585`) stores that `E_AUTH` on the watch. Successful rotation calls `setLink("online")` which is a no-op if already online (353–355), so an in-flight online-only observe can stay denied while `session()` is live.
+
+**Fix:** if `denied.code === "E_AUTH"` and `request.revision !== credentialRevision` (or `rotating`), return `{ ok: false }` from `post` so flush retries with the new bearer; do not `settle` without `seq`. After a successful rotation, rerun watches.
+
+---
+
+Other scoped intersections were inspected at `d8cdc6c81` and did not show a material integration defect:
+
+- Partition `stream`: interval reconstruction + virtual clock, then current `fetch`/`check_rule`; unreadable historical puts suppressed (no del); missing current rows become del; synthetic scope on drained catch-up.
+- `snapshot_page` / `groups_now(..., now)` rechecks per page; expired groups are not resumed from the cursor.
+- `asset_access_request`: Range/read rule, no `once` consume; host `respond_checked` + `ExactReader` finalizer after a successful full transfer; `_transfer` serializes `(id, principal)`.
+- `insert_mode` / `check_constraints`: `live_lookup` + `visible_collision` preserves hidden `E_RULE`; expired ids can be replaced.
+- `_asset_gc` reservation in `stage_stale_assets` / `claim_asset`; ordinary `release_asset` still allows a move until GC reserves.
+- Scan meter cut keeps the observed partial aggregate and key, `complete` is false, continuation is emitted.
+- `respond_checked` poisons sequential writers before the current writer drops.
+- Admission, HTTP phase timeouts, and auth rate/KDF slots remain on the security path.
+- Ceilings were not changed by the resolutions.
+
+Static review only; no tests were run.
