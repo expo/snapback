@@ -87,7 +87,6 @@ impl Runner<'_> {
         self.read_tables.insert(maintain.source.clone());
         if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) {
             self.beyond_horizon = true;
-            return Ok(Some(row));
         }
         let group = crate::schema::maintained_key(&row, &maintain.by);
         let (index, prefix) = source.indexes.iter().find(|(_, index)| index.word_component().is_none() && index.columns().starts_with(&maintain.by))
@@ -132,6 +131,18 @@ impl Runner<'_> {
         }
     }
 
+    /// Delivered rows are authoritative except when a temporary audience
+    /// can end on the device's clock without a server commit. Retained
+    /// history stays readable; until-revoked content rechecks that audience.
+    fn trust_synced_read(&self, table: &Table) -> bool {
+        self.device && table.sync.as_ref().is_some_and(|sync| {
+            table.leave == crate::schema::LeavePolicy::DeliveredHistory || match &sync.audience {
+                crate::schema::Audience::Target { table, .. } => self.schema.table(table).is_none_or(|target| target.expire.is_none()),
+                _ => true,
+            }
+        })
+    }
+
     /// Whether the viewer may `effect` the row. The system principal is the
     /// store's owner and passes every rule; validation and constraints
     /// still run for it.
@@ -143,7 +154,7 @@ impl Runner<'_> {
         // A device holds a synced table's rows because the server delivered
         // each under the read rule and withdraws what it revokes; what
         // `retain delivered-history` kept stays readable here (LLP 3000 §7).
-        if self.device && effect == Effect::Read && table.sync.is_some() {
+        if effect == Effect::Read && self.trust_synced_read(table) {
             return Ok(true);
         }
         let rule = table.rules.for_effect(effect).clone();
@@ -406,7 +417,7 @@ impl Runner<'_> {
             Order::Desc => Dir::Desc,
         };
         let visibility = rules::scan_visibility(self.schema, scan);
-        let always_visible = (self.device && table.sync.is_some()) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let always_visible = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !visibility.uniform && !always_visible {
             self.non_uniform = true;
         }

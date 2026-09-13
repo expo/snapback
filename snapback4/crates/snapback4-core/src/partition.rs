@@ -482,7 +482,11 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64) -> R
 pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, limit: usize, now: i64) -> Result<StreamPage, RuntimeError> {
     let limit = limit.max(1);
     let head = tx.next_seq()?.saturating_sub(1);
-    if watermark >= head { return Ok(StreamPage { events: Vec::new(), watermark: head, more: false }); }
+    let expiring_audience = schema.synced().any(|(_, _, sync)| match &sync.audience {
+        Audience::Target { table, .. } => schema.table(table).is_some_and(|target| target.expire.is_some()),
+        _ => false,
+    });
+    if watermark >= head && !expiring_audience { return Ok(StreamPage { events: Vec::new(), watermark, more: false }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
@@ -505,8 +509,19 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
     }
     let mut next = page.last().map_or(watermark, |event| event.seq);
     let more = !tx.read_log_spans(&spans, next, None, 1)?.is_empty();
-    let events = expand_joins(tx, schema, page, &held, now)?;
-    if !more { next = next.max(tx.next_seq()? - 1); }
+    let mut events = expand_joins(tx, schema, page, &held, now)?;
+    if !more {
+        next = next.max(head);
+        // Logical expiry is a revocation even before the physical sweep
+        // logs a scope. Append it after catch-up so retention sees the last
+        // authorized image and until-revoked rows leave the replica.
+        for ((table, group), spans) in &held {
+            if spans.last().is_some_and(|span| span.to.is_none() && span.expires_at.is_some_and(|at| at <= now)) {
+                let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                events.push(LogEvent { seq: next, ord: u32::MAX, table: table.clone(), kind: "scope".into(), id: group.clone(), data: Some(Value::Array(group_values)) });
+            }
+        }
+    }
     Ok(StreamPage { events, watermark: next, more })
 }
 
