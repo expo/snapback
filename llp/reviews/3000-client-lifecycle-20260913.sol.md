@@ -9,3 +9,15 @@ Inspected: `50f933e80` against `cca6a2d0b`, JavaScript client/local/React/contra
 - **P2 — failed session cleanup suppresses viewer notification.** Local invalidation clears the in-memory viewer but awaits `SessionStore.delete()` before listeners. A rejecting custom store prevents `onViewer`, leaving the hook stale. Notify the in-memory transition regardless of persistence cleanup.
 
 Implementation was assigned to the separate client lane. Qualification and disposition follow in the journal.
+
+## Follow-up review — 2026-09-13
+
+Reviewer: Codex gpt-5.6-sol, xhigh, host lane.
+Revision: `bfff6c24f` against `ff50eb1ae`.
+Method: fresh read-only static review; no JavaScript build or test execution was claimed for this follow-up. The reviewer wrote none of the JavaScript changes.
+
+Scope: `packages/snapback4/src/client.ts`, `local.ts`, `react.tsx`, `contract.ts`, `mock.ts`, and `packages/snapback4/test/client-lifecycle.test.mjs`. The revision changed only `client.ts`, `local.ts`, and the lifecycle test; the unchanged React, contract, and mock surfaces were inspected as lifecycle context. Native Rust cache edits were excluded.
+
+Checks: traced pending-to-terminal mutation settlement through an authentication refusal, including the in-flight head and never-sent tail; traced raw and React observation ownership through unsubscribe, close, an in-flight response, dirty rerun, and expiry scheduling; traced session/viewer notification ordering when persistent session deletion rejects; traced generation adoption through device replacement, whole-watch invalidation, native-install failure, server fallback, and a later retry. The added focused regressions cover the four previously reproduced sequences.
+
+**Verdict: NO MATERIAL FINDING.** The four reported lifecycle defects are addressed in the reviewed revision. No further change is requested from this review; qualification and author disposition remain separate.
