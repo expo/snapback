@@ -536,8 +536,11 @@ host, before any rule — from that moment; the server's sweep deletes it
 within a second, and the deletion streams to each device holding it, so it
 leaves local stores on the next sync. Disappearing messages are one field on
 insert; there is no purge job to write. A `maintain` over an expiring table
-counts a row until the sweep removes it (exact within a second), while a
-read of the row is null at once."##,
+reads its live source group under the read meter; index the grouping columns
+to avoid walking unrelated groups. A partial device counts only held live
+sources and says `complete: false`. A meter cut returns the contribution
+examined so far, also incomplete. A zero sum keeps its group while sources
+remain, because one signed contribution can expire before another."##,
         "assets" => r##"# Assets: upload, place, serve
 
 ```quarry

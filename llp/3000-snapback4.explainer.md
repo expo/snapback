@@ -604,6 +604,21 @@ time-ordered 128-bit form.
   number of groups. The client observes auth and terminal mutation changes,
   and visible-query lifetimes schedule reruns even on an idle commit stream.
 
+- **2026-09-13 — expiry review corrections.** A replacement membership
+  opens its own interval even before an expired predecessor is swept; sweeping
+  that predecessor does not revoke a still-live replacement. An expiring
+  maintained sum keeps a physical zero candidate while its source group has
+  rows, because later logical expiry can make the live sum nonzero. Opening an
+  older server store backfills these candidates once, from its stored backend,
+  in a logged transaction. Reads recompute live contributions under the meter;
+  a capped point returns the contribution examined so far with incomplete
+  coverage, and a capped nonempty scan resumes after its last returned row.
+  Fully held device scans still use horizon and meter for completeness while
+  rechecking expiring audiences. Paged snapshots recheck authority on each
+  page: their watermark pins catch-up, not membership across the acquisition.
+  Delivered history retains rows already delivered; a membership expiring
+  between pages does not entitle the device to acquire the remaining rows.
+
 - **2026-09-13 — the device-side twin: native reads (author: "seems like
   device-side twin over the same Rows trait is the next native-module
   step"; [LLP 3000.005 §9](./3000.005-native-jobs.rfc.md)).** `query

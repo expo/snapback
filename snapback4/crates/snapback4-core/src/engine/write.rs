@@ -311,7 +311,10 @@ impl Runner<'_> {
                 self.read_tables.insert(target.clone());
                 let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
                 let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = self.live_lookup(target, index, target_index, &key)?;
+                let found = match self.live_lookup(target, index, target_index, &key)? {
+                    Some(row) => self.live_aggregate(target, row)?,
+                    None => None,
+                };
                 if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
                 if found.is_none() {
                     return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
@@ -386,8 +389,8 @@ impl Runner<'_> {
                 }
             }
             for (key, change) in changes {
-                if change != 0 {
-                    self.apply_aggregate(&maintain, key, change)?;
+                if change != 0 || self.live_sum(&maintain) {
+                    self.apply_aggregate(&maintain, key, change, None)?;
                 }
             }
         }
@@ -428,14 +431,38 @@ impl Runner<'_> {
             }
         }
         for (_, (key, change)) in totals {
-            if change != 0 {
-                self.apply_aggregate(maintain, key, change)?;
+            if change != 0 || self.live_sum(maintain) {
+                self.apply_aggregate(maintain, key, change, Some(true))?;
             }
         }
         Ok(())
     }
 
-    fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128) -> Result<(), RuntimeError> {
+    fn live_sum(&self, maintain: &Maintain) -> bool {
+        matches!(maintain.kind, MaintainKind::Sum { .. }) && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some())
+    }
+
+    /// A zero sum is still a group while source rows remain: one signed
+    /// contribution may expire before the other. Keep its candidate row so
+    /// a scan, snapshot and offline replica can discover the later live sum.
+    fn aggregate_source_present(&mut self, maintain: &Maintain, key: &[Value]) -> Result<bool, RuntimeError> {
+        let source = self.schema.table(&maintain.source).expect("validated");
+        let (index, prefix) = source.indexes.iter().find(|(_, index)| index.word_component().is_none() && index.columns().starts_with(&maintain.by))
+            .map(|(name, _)| (name.as_str(), key)).unwrap_or(("byId", &[]));
+        let mut bounds = Bounds::default();
+        loop {
+            let rows = self.tx.scan(&maintain.source, index, prefix, &bounds, Dir::Asc, 256)?;
+            let count = rows.len();
+            for (row, stored) in rows {
+                self.meter.charge(MeterKind::Examined, 1)?;
+                bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(prefix.len()).collect());
+                if maintained_key(&row, &maintain.by) == key { return Ok(true); }
+            }
+            if count < 256 { return Ok(false); }
+        }
+    }
+
+    fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128, source_present: Option<bool>) -> Result<(), RuntimeError> {
         let id = maintained_id(&key);
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         let existing = self.tx.get(&maintain.target, &id)?;
@@ -444,7 +471,11 @@ impl Runner<'_> {
         if !(I53_MIN as i128..=I53_MAX as i128).contains(&next) {
             return Err(ValueError::Overflow(next).into());
         }
-        if next == 0 {
+        let keep_zero = next == 0 && self.live_sum(maintain) && match source_present {
+            Some(present) => present,
+            None => self.aggregate_source_present(maintain, &key)?,
+        };
+        if next == 0 && !keep_zero {
             if let Some(existing) = existing {
                 let entries = self.tx.delete(&maintain.target, &target, &existing)?;
                 self.meter.charge(MeterKind::IndexEntries, entries)?;

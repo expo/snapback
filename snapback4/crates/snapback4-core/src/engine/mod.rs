@@ -231,6 +231,10 @@ impl Engine {
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         tx.rollback()?;
+        // Upgrade derived candidates from older binaries using the stored
+        // backend, never a caller's source. The repair logs its row changes.
+        let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") { generation }
+            else { Self::activate(&mut store, &schema, &programs, None)? };
         Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
     }
 
@@ -354,11 +358,16 @@ impl Engine {
                 }
                 tx.set_meta("release", &release.to_string())?;
             }
-            if !changed { return Ok(()); }
             use rusqlite::OptionalExtension;
+            let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
+            if !changed && !repair_live_sums { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
-            let rebuild: Vec<_> = schema.maintains.iter().filter(|m| previous.as_ref().is_none_or(|old| !old.maintains.contains(m))).collect();
+            let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
+                (changed && previous.as_ref().is_none_or(|old| !old.maintains.contains(m) || old.table(&m.source).and_then(|s| s.expire.as_ref()) != schema.table(&m.source).and_then(|s| s.expire.as_ref())))
+                    || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
+            }).collect();
+            tx.set_meta("live_sum_candidates", "1")?;
             if rebuild.is_empty() { return Ok(()); }
             let now = crate::now_ms();
             let seq = tx.next_seq()?;

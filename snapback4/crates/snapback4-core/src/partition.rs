@@ -19,7 +19,6 @@ use crate::error::{MeterKind, RuntimeError};
 #[cfg(feature = "sqlite")]
 use crate::schema::Table;
 use crate::schema::{Audience, AudienceBinding, Schema, Sync, audience_binding, materialize_optional_fields};
-#[cfg(feature = "sqlite")]
 use crate::rows::{Bounds, Dir};
 #[cfg(feature = "sqlite")]
 use crate::store::{LogEvent, Tx};
@@ -175,7 +174,28 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
         // authority: a group's interval is `[join, leave)`, so the same
         // commit's join and scope deliver nothing.
         if let Some((partition, group)) = &was {
-            runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Scope, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
+            // Sweeping an expired predecessor must not revoke the live
+            // replacement admitted under the same logical unique key.
+            let mut replaced = false;
+            if old.is_some_and(|row| runner.context.now.is_some_and(|now| table.expired(row, now))) {
+                let bound = binding(schema, &content_name, &sync).expect("validated audience");
+                let mut key = group.clone();
+                key.push(old.unwrap().field(&bound.principal)?.clone());
+                let mut bounds = Bounds::default();
+                loop {
+                    let rows = runner.tx.scan(table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)?;
+                    let count = rows.len();
+                    for (candidate, stored) in rows {
+                        runner.meter.charge(MeterKind::Examined, 1)?;
+                        bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
+                        if !runner.context.now.is_some_and(|now| table.expired(&candidate, now)) { replaced = true; break; }
+                    }
+                    if replaced || count < 32 { break; }
+                }
+            }
+            if !replaced {
+                runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Scope, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
+            }
         }
         if let Some((partition, group)) = &is {
             runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Join, id: canonical_json(group), data: Some(crate::value::object([("expiresAt", expiry(new))])) });
@@ -438,7 +458,9 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64) -> R
             let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
             if group.contains(&Value::Null) { continue; }
             let expiry = schema.table(target).and_then(|table| table.expire.as_ref()).and_then(|column| member.field(column).ok()).and_then(|value| value.as_int().ok());
-            current.insert((table_name.to_owned(), canonical_json(&group)), expiry);
+            current.entry((table_name.to_owned(), canonical_json(&group))).and_modify(|held: &mut Option<i64>| {
+                *held = match (*held, expiry) { (Some(a), Some(b)) => Some(a.max(b)), _ => None };
+            }).or_insert(expiry);
         }
     }
     // @ref LLP 3000#7 — a content page cannot establish authority from a truncated ledger.
@@ -458,21 +480,29 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64) -> R
         let steps = transitions.get(&key).map(Vec::as_slice).unwrap_or_default();
         let held_at_watermark = steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope");
         let initial_expiry = if steps.is_empty() { current.get(&key).copied().flatten() } else { previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry) };
-        let mut open = held_at_watermark.then_some((watermark.saturating_add(1), initial_expiry));
+        let mut open = held_at_watermark.then_some(Interval { from: watermark.saturating_add(1), to: None, expires_at: initial_expiry });
         let mut spans = Vec::new();
         for event in steps {
-            match (event.kind.as_str(), open) {
-                ("join", None) => open = Some((event.seq, expiry(event))),
-                ("scope", Some((from, expires_at))) => {
-                    spans.push(Interval { from, to: Some(event.seq), expires_at });
-                    open = None;
+            match event.kind.as_str() {
+                "join" => {
+                    // A new live row may replace an expired grant before
+                    // the old row is swept. Each join owns its own lifetime.
+                    if let Some(mut prior) = open.take() {
+                        prior.to = Some(event.seq);
+                        spans.push(prior);
+                    }
+                    open = Some(Interval { from: event.seq, to: None, expires_at: expiry(event) });
+                }
+                "scope" => {
+                    if let Some(mut prior) = open.take() {
+                        prior.to = Some(event.seq);
+                        spans.push(prior);
+                    }
                 }
                 _ => {}
             }
         }
-        if let Some((from, expires_at)) = open {
-            spans.push(Interval { from, to: None, expires_at });
-        }
+        if let Some(open) = open { spans.push(open); }
         if !spans.is_empty() { out.insert(key, spans); }
     }
     Ok(out)

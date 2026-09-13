@@ -44,7 +44,10 @@ impl Probe for Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
-        let found = self.live_lookup(table, index, index_def, key)?;
+        let found = match self.live_lookup(table, index, index_def, key)? {
+            Some(row) => self.live_aggregate(table, row)?,
+            None => None,
+        };
         if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
         Ok(found.is_some_and(|row| {
             let live = !self.expired(definition, &row);
@@ -93,19 +96,21 @@ impl Runner<'_> {
             .map(|(name, _)| (name.as_str(), group.clone())).unwrap_or(("byId", Vec::new()));
         let mut bounds = Bounds::default();
         let mut total = 0_i128;
-        loop {
+        let mut any = false;
+        'sources: loop {
             let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 256)?;
             let count = rows.len();
             for (candidate, key) in rows {
-                if !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
+                if !self.meter.charge(MeterKind::Examined, 1)? { break 'sources; }
                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
                 if self.expired(source, &candidate) || crate::schema::maintained_key(&candidate, &maintain.by) != group { continue; }
+                any = true;
                 self.note_expiry(source, &candidate);
                 total += match &maintain.kind { crate::schema::MaintainKind::Count => 1, crate::schema::MaintainKind::Sum { of } => i128::from(candidate.field(of)?.as_int()?) };
             }
             if count < 256 { break; }
         }
-        if total == 0 { return Ok(None); }
+        if !any { return Ok(None); }
         if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
             return Err(crate::value::ValueError::Overflow(total).into());
         }
@@ -201,7 +206,9 @@ impl Runner<'_> {
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
-        if !self.meter.charge(MeterKind::Examined, 1)? {
+        // An expiring lookup already charged its live candidate while
+        // passing expired siblings. A miss still costs one point read.
+        if (table.expire.is_none() || found.is_none()) && !self.meter.charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
@@ -418,7 +425,7 @@ impl Runner<'_> {
         };
         let visibility = rules::scan_visibility(self.schema, scan);
         let always_visible = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
-        if !visibility.uniform && !always_visible {
+        if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true;
         }
         let mut visible: Vec<Value> = Vec::new();
@@ -476,7 +483,12 @@ impl Runner<'_> {
                 }
                 if allowed {
                     self.note_expiry(table, &row);
-                    let Some(row) = self.live_aggregate(&scan.table, row)? else { continue; };
+                    let aggregate = self.live_aggregate(&scan.table, row)?;
+                    if self.meter.capped_at.is_some() {
+                        capped = true;
+                        break 'outer;
+                    }
+                    let Some(row) = aggregate else { continue; };
                     if visible.len() == take {
                         has_more = true;
                         break 'outer;
