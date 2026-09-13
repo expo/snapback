@@ -24,7 +24,7 @@ fn the_chat_schema_compiles_and_runs() {
     }
     assert!(bound.diagnostics.is_empty(), "the chat schema binds without diagnostics");
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["thread", "inbox", "invite", "leave", "send", "edit", "unsend"]);
+    assert_eq!(names, ["thread", "inbox", "invite", "leave", "send", "sendPhoto", "edit", "unsend"]);
     let messages = &bound.schema.tables["messages"];
     assert!(messages.sync.is_some(), "messages sync to memberships");
     assert!(bound.schema.tables["messageCounts"].sync.is_some(), "the count inherits the audience");

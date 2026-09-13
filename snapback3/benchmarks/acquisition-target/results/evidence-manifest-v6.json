@@ -1,0 +1,124 @@
+{
+  "recordedAt": "2026-09-12T20:52:13Z",
+  "scope": "Public acquisition-target harness and compact results through excluded candidate v6. Private browser profiles, IndexedDB, and full page-evidence streams remain on the EPYC path named by each result.",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "1d45733f32c4acf943c1ed510f353d67612892ddbdca1683b139cf862e7e9202",
+      "bytes": 19634
+    },
+    {
+      "path": "qualification-plan.md",
+      "sha256": "bae6806c2dbd98e188177147008c4a3a75f4b608c4bbda230751d9825b69cf75",
+      "bytes": 6025
+    },
+    {
+      "path": "app-acquire.ts",
+      "sha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+      "bytes": 12415
+    },
+    {
+      "path": "retained-serial-walker.ts",
+      "sha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4",
+      "bytes": 2876
+    },
+    {
+      "path": "build-shell.mjs",
+      "sha256": "c32d57ee33fc5d6d887d634526296745eb27b11219ab775ad651dd50c6d50025",
+      "bytes": 2210
+    },
+    {
+      "path": "controller.mjs",
+      "sha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+      "bytes": 22164
+    },
+    {
+      "path": "pairs.mjs",
+      "sha256": "49386dae77905b92eddbe7ea9b9714978b0047d6e19e00cecea616893e98e82e",
+      "bytes": 6336
+    },
+    {
+      "path": "results/baseline-preflight.json",
+      "sha256": "eab8cb465ff3a4c66065516257f476dec808c8929b3135c3bd9333d50d07c098",
+      "bytes": 1964
+    },
+    {
+      "path": "results/candidate-v1.json",
+      "sha256": "f8f030ee9195bc54c3d6a22b916160ecd8f5e416879f387eda77d6f00641cab4",
+      "bytes": 9329
+    },
+    {
+      "path": "results/candidate-v2.json",
+      "sha256": "3c0efcb1e9046e426f5bcb674f92c576667f529a2e166bab9f871f09ac0c2f28",
+      "bytes": 5758
+    },
+    {
+      "path": "results/candidate-v3-diagnostic.json",
+      "sha256": "1f29d4eec793980f7985edae1070b5c93db4fdd0362c254a311ac12c969a2b25",
+      "bytes": 2478
+    },
+    {
+      "path": "results/candidate-v3-harness-preflight.json",
+      "sha256": "d2f6263d8f551189a69591bd6d744db1f514295c976e4d01bd49589faf311ca2",
+      "bytes": 4145
+    },
+    {
+      "path": "results/candidate-v4-first.json",
+      "sha256": "af9322e03999dcd89730afb44ac17a84b5b658e641eaa379a4be4b429475e042",
+      "bytes": 5137
+    },
+    {
+      "path": "results/candidate-v5-100k-oracle.json",
+      "sha256": "1753e8880d9e0ef4233fd1126fc6e2f0757a7880ca57711c1c63c5968f65ce48",
+      "bytes": 4133
+    },
+    {
+      "path": "results/candidate-v5-first.json",
+      "sha256": "05344e22ed0b2c40c158d77aa111b7a8440cf38351a53709bafb4bbfe5facdd4",
+      "bytes": 2341
+    },
+    {
+      "path": "results/candidate-v5-pairs-diagnostic.json",
+      "sha256": "9824ac9435923ba0aca02aecdfa8531b07ecb7db6380a6bae13df443ec9e9970",
+      "bytes": 69283
+    },
+    {
+      "path": "results/candidate-v5-shaped-network.json",
+      "sha256": "dd988646aa8c9ea4c425a8d329d93012303d5a2039c435b1dc306fd32eea0968",
+      "bytes": 2888
+    },
+    {
+      "path": "results/candidate-v6-100k.json",
+      "sha256": "3c9ab76e02219ab31cd66431ee4a79c3fec51170d2971d7dcc2a897354313204",
+      "bytes": 5522
+    },
+    {
+      "path": "results/candidate-v6-first.json",
+      "sha256": "3b62dfdb69681a9fdb178960b077c67d339d400ea978a9caf7441006826dc034",
+      "bytes": 4245
+    },
+    {
+      "path": "results/candidate-v6-pairs-final.json",
+      "sha256": "15838ab130fc35935725e388b37e91966b952023eb4299752596ae16f7a101b5",
+      "bytes": 66983
+    },
+    {
+      "path": "results/candidate-v6-shaped-network.json",
+      "sha256": "7481437dcbf5ec86f25e03a0e2713ea7a275758714d52acc071dde0288f0489c",
+      "bytes": 4781
+    },
+    {
+      "path": "results/cleanup-receipt-v6.json",
+      "sha256": "e9f1f6223b9e8b2037ff4fb03f49de84b6cc2860ca0e3ebc01bf84d6750080c8",
+      "bytes": 917
+    },
+    {
+      "path": "results/variants.json",
+      "sha256": "995537f04e3f6cadce6ef571977fd21682624cf3345867eb6807127773e5c32b",
+      "bytes": 4190
+    }
+  ],
+  "historicalSnapshot": true,
+  "supersededBy": "evidence-manifest-v8.json",
+  "note": "These hashes record the v6 collection boundary. Later exclusion-status annotations and v7/v8 additions can make current path bytes differ; use the v8 manifest for the final current tree."
+}

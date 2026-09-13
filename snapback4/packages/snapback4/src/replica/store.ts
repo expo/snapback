@@ -19,6 +19,8 @@ export interface TableJson {
   indexes: Record<string, { components: ({ Column: string } | { WordPrefixes: unknown })[]; unique: boolean }>;
   sync?: { audience: unknown; horizon?: { last: number; by: string } | null } | null;
   leave?: "until-revoked" | "delivered-history";
+  /** The time column that ends a row's life; a row past it is absent here too. */
+  expire?: string | null;
 }
 
 export interface Bounds {

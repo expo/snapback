@@ -23,14 +23,16 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **An embedded JS engine for effects, until measured.** The four reference effects are measured on the builder's Node, an embedded engine and a hosted isolate first (LLP 2000.000 §10).
 - **Committed generated code; an auth mode; a supervised bundler.** As Snapback 2 (`rules/NOT-DOING.md`): types by inference, personas not modes, `SNAPBACK_URL` is the client contract.
 - **A TypeScript twin over the receipt design.** If a TypeScript interpreter ships on web it is rebuilt over the replica and held under the competitor-anchored budget.
-- **More than one hosted target, an admin console, media beyond one photo path, push, cron syntax, vector or ranked search, federation, multi-region, device-to-device sync, at-rest encryption claims.** After the clock, on evidence.
+- **More than one hosted target, an admin console, media transcoding or thumbnails, push, cron syntax beyond `every N at HH:MM`, vector or ranked search, federation, multi-region, device-to-device sync, at-rest encryption claims.** After the clock, on evidence.
 - **Observability beyond `why`, `trace`, `logs`, `data`.**
 - **A guide corpus.** The compiler's facts, a one-screen grammar and keyword cards, as Snapback 2; no freshness dates.
 
 - **Union audiences.** One `sync` line per table. A read rule with a second disjunct is refused with the rewrite, never partially delivered; `retain delivered-history` covers the author who keeps their own rows. Several `sync` lines per table wait for an app that needs them.
 - **Exact horizon maintenance.** The horizon bounds acquisition (a snapshot, a bootstrap); the log never evicts or back-fills to hold a device's group at exactly N rows. A local read past the horizon says `complete: false`.
 
-- **Time in rules.** A read rule compares with `=` and `!=` only; `.expiresAt > now` is not a rule, because a rule that varies with time is not an audience a partition can hold. Ephemeral rows are filtered in queries today; the shape that closes the Clique lane's M5 gap is an `expires .col` clause on `sync` that the stream, the snapshot and the device's reads all honour. After the clock.
+- **Time in rules.** A read rule compares with `=` and `!=` only; `.expiresAt > now` is not a rule, because a rule that varies with time is not an audience a partition can hold. A row's life ends by the table line `expire at .col` instead: absent to every reader on every host from that time, swept by the server, the deletion streamed (see Moves).
+- **A jobs framework.** No priorities, worker pools, retry policies or dead letters: one FIFO of runs, one chunk at a time, a refused chunk parked with its refusal. Missed period boundaries while a server is down fire once on return, not once per missed period.
+- **Asset processing.** No transcoding, thumbnails, rungs or HEIC: the bytes are served as uploaded; JPEG, PNG, WebP and MP4 only; dimensions and duration read from the header.
 
 ## Process not doing
 
@@ -52,4 +54,4 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 
 ## Moves
 
-(none yet)
+- **2026-09-12 — expiry, assets and jobs move onto the doing-list** (author: "complete snapback4 to the point where the entire clique benchmark can be run"). What it unblocks: the struck half of the Clique brief (M4 media, M5 view-once and expiry with no client open, M8's scheduled digest). Taken off in the same change: the "one photo path" and "cron syntax" exclusions above narrow to transcoding and to cron beyond `every N [at HH:MM]`; the "time in rules" exclusion stands, answered by `expire at .col` rather than a rule.

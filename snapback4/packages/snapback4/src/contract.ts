@@ -63,11 +63,41 @@ export interface Observed<T> {
   close(): void;
 }
 
+/** An upload the server recorded: the facts it established, and the id a
+ * row's `image`/`video` column takes (`{ id }` is enough; the server fills
+ * the rest on the row). */
+export interface Asset {
+  readonly id: string;
+  readonly type: string;
+  readonly bytes: number;
+  readonly width?: number | null;
+  readonly height?: number | null;
+  /** Milliseconds, for video. */
+  readonly duration?: number | null;
+}
+
+export type Uploaded = { readonly ok: true; readonly asset: Asset } | { readonly ok: false; readonly why: Refusal };
+
+/** The bytes of an asset, fetched under the viewer's credentials: a blob
+ * URL to put in `src`, and `revoke()` when the screen is done with it. A
+ * one-view photo comes back `denied` with `E_ASSET_VIEWED` the second time. */
+export type AssetRead =
+  | { readonly url: string; readonly type: string; readonly bytes: number; readonly revoke: () => void }
+  | { readonly denied: Refusal };
+
 /** The whole client, as a screen sees it. Everything else is `why`. */
 export interface Client {
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
   mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write>;
+  /** Send the bytes of a photo or video; place `asset.id` in a mutation's
+   * `image`/`video` argument. Online only: an upload waits for no link. */
+  upload(bytes: Blob | ArrayBuffer | Uint8Array): Promise<Uploaded>;
+  /** The bytes of an asset a row the viewer may read holds, as a blob URL. */
+  asset(id: string): Promise<AssetRead>;
+  /** Where the bytes are and the headers that fetch them, for native image
+   * and video views that take a URI with headers. */
+  assetSource(id: string): { uri: string; headers: Record<string, string> };
   link(): Link;
   onLink(notify: (link: Link) => void): () => void;
   viewer(): Principal | null;

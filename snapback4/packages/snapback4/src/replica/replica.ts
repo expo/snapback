@@ -20,12 +20,14 @@ export interface StreamPage {
   events: StreamEvent[];
   watermark: number;
   more: boolean;
+  /** A snapshot's next page, when `more`. */
+  next?: string | null;
   generation?: number;
 }
 
 export interface Transport {
-  /** `GET /sync?from=W`; `from: 0` is a snapshot. */
-  sync(from: number, limit: number): Promise<StreamPage | { denied: unknown }>;
+  /** `GET /sync?from=W`; `from: 0` is a snapshot, paged by `after`. */
+  sync(from: number, limit: number, after?: string): Promise<StreamPage | { denied: unknown }>;
 }
 
 export interface ReplicaState {
@@ -36,7 +38,7 @@ export interface ReplicaState {
 /** The meta keys the replica keeps. */
 const WATERMARK = "watermark";
 const GENERATION = "generation";
-const PAGE = 2000;
+const PAGE = 4000;
 
 export class Replica {
   private listeners = new Set<(touched: Set<string>) => void>();
@@ -79,30 +81,49 @@ export class Replica {
       await this.store.write(async (tx) => { await tx.setMeta(WATERMARK, 0); await tx.setMeta(GENERATION, this.generation); });
       watermark = 0;
     }
-    for (let pages = 0; pages < 1_000; pages++) {
-      const page = await this.transport.sync(watermark, PAGE);
+    // A snapshot arrives in pages too: the first clears the rows, each
+    // applies in its own transaction, and the watermark the first pinned
+    // is written with the last, so a device never holds more than a page
+    // in memory and a cold start interrupted midway starts over.
+    // The next page is fetched while this one applies, so the server's
+    // walk and the device's writes overlap.
+    let after: string | undefined;
+    let inFlight = this.transport.sync(watermark, PAGE, after);
+    for (let pages = 0; pages < 100_000; pages++) {
+      const page = await inFlight;
       if (this.closed) return { touched, ok: false };
       if ("denied" in page) return { touched, ok: false };
       if (page.watermark < watermark) return { touched, ok: false }; // never move backwards
-      await this.apply(page, touched);
+      const first = after === undefined;
+      const continues = page.snapshot && page.more && page.next ? page.next : undefined;
+      if (continues) inFlight = this.transport.sync(watermark, PAGE, continues);
+      await this.apply(page, touched, first);
+      if (continues) {
+        after = continues;
+        continue;
+      }
+      after = undefined;
       watermark = page.watermark;
       if (!page.more) break;
+      inFlight = this.transport.sync(watermark, PAGE, undefined);
     }
     this.caughtUp = true;
     if (touched.size > 0) for (const listener of this.listeners) listener(touched);
     return { touched, ok: true };
   }
 
-  /** Apply one page atomically: rows, tombstones and the watermark together. */
-  async apply(page: StreamPage, touched: Set<string>): Promise<void> {
-    if (page.snapshot) {
+  /** Apply one page atomically: rows, tombstones and the watermark together.
+   * A snapshot's first page clears the rows; its watermark lands with its
+   * last page, so an interrupted snapshot is taken again from the start. */
+  async apply(page: StreamPage, touched: Set<string>, first = true): Promise<void> {
+    if (page.snapshot && first) {
       // A snapshot is the whole partition: clear, then load. Predicted rows
       // are re-applied from the outbox by the client, not kept here.
       await this.store.clearRows();
       for (const table of Object.keys(this.schema.tables)) touched.add(table);
     }
     await this.store.write(async (tx) => {
-      if (page.snapshot) await tx.setMeta(WATERMARK, 0);
+      if (page.snapshot && first) await tx.setMeta(WATERMARK, 0);
       for (const event of page.events) {
         touched.add(event.table);
         switch (event.kind) {
@@ -115,7 +136,7 @@ export class Replica {
           case "scope": await this.leave(tx, event.table, event.data as unknown[]); break;
         }
       }
-      await tx.setMeta(WATERMARK, page.watermark);
+      if (!(page.snapshot && page.more)) await tx.setMeta(WATERMARK, page.watermark);
       await tx.setMeta(GENERATION, this.generation);
     });
   }

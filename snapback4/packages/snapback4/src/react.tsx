@@ -2,7 +2,7 @@
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Write } from "./contract.ts";
+import type { AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { isReady } from "./contract.ts";
 
 const ClientContext = createContext<Client | null>(null);
@@ -102,4 +102,35 @@ export function useLink(): Link {
 
 export function useViewer(): Principal | null {
   return useClient().viewer();
+}
+
+export type AssetState = { readonly status: "loading" } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal };
+
+/** The bytes of an asset a row the viewer may read holds, fetched under
+ * the viewer's credentials as a blob URL for `src`. Revoked when the id
+ * changes or the screen unmounts. A one-view photo is fetched once per
+ * mount: a screen that shows it again is `denied` with `E_ASSET_VIEWED`,
+ * which is the feature. Pass `null` to show nothing. */
+export function useAsset(id: string | null | undefined): AssetState {
+  const client = useClient();
+  const [state, setState] = useState<AssetState>({ status: "loading" });
+  useEffect(() => {
+    if (!id) return;
+    let live = true;
+    let read: AssetRead | null = null;
+    setState({ status: "loading" });
+    void client.asset(id).then((result) => {
+      read = result;
+      if (!live) {
+        if ("url" in result) result.revoke();
+        return;
+      }
+      setState("url" in result ? { status: "ready", url: result.url, type: result.type } : { status: "denied", why: result.denied });
+    });
+    return () => {
+      live = false;
+      if (read && "url" in read) read.revoke();
+    };
+  }, [client, id]);
+  return id ? state : { status: "loading" };
 }

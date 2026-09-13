@@ -17,6 +17,11 @@ The initial experiment uses independently acquired query resources sharing
 authorized facts. A complete resource remains useful when a neighboring
 resource is unknown. Durable operations own their retry identity and terminal
 receipt, so applications do not coordinate ID grants or transport retries.
+`client.acquire({ id, revision, root, expand })` now owns complete offline
+page chains, grouped transport and persistence, cancellation, and resumption.
+Ordinary queries use the acquired evidence through the same client. The
+[acquisition experiment](benchmarks/acquisition-target/README.md) records
+source-bound measurements and remaining qualification work.
 
 The first working slice is [Commonroom](examples/chat/README.md): a responsive
 chat app with membership authorization, live messages, unread state, conditional
@@ -82,10 +87,10 @@ This remains an experimental candidate. Runtime admission supports persisted
 Quarry queries and mutations. Effects, jobs, schedules, channels, connected
 presence, clock-driven live queries, and media are refused until their runtime
 slices exist. Mutation timestamps work. Native clients, hosted deployment,
-backup/restore tooling, automatic cache eviction, and complete offline dataset
-acquisition remain work to do. Inherited compiler exports do not imply those
-capabilities are served. No comparative performance win or production readiness
-is claimed.
+backup/restore tooling, and automatic cache eviction remain work to do. Inherited compiler exports do not imply those
+capabilities are served. The acquisition experiment compares the new SDK path
+with the prior Snapback3 serial walker at a fixed scope. A whole-product win
+over Snapback2 or Snapback4 and production readiness remain unproven.
 
 Commonroom can reopen with the network disconnected after a successful first
 online visit installs its application shell. The service worker caches only
@@ -95,7 +100,7 @@ Updates wait for older tabs to close and preserve saved drafts.
 The first build experience and scoped measurements are recorded in
 [Diary 0120](../diaries/0120-snapback3-commonroom.diary.md).
 The [response to the completed Snapback 2 wave](../llp/2000-snapback3.rfc.md#14-response-to-the-completed-snapback-2-diagnostic-wave)
-separates demonstrated client behavior from unmeasured acquisition, inherited
+separates demonstrated client behavior from the original acquisition failures, inherited
 storage costs, and remaining authoring work.
 
 MIT licensed; see [LICENSE](LICENSE).

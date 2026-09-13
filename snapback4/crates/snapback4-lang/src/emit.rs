@@ -36,7 +36,9 @@ pub fn typescript(bound: &Bound) -> String {
             let short = program.program.name.rsplit('.').next().unwrap_or(&program.program.name);
             let kind = match program.program.kind {
                 ProgramKind::Query => "Query",
-                _ => "Mutation",
+                ProgramKind::Mutation => "Mutation",
+                // A job is the server's to run (a schedule, `snapback4 run`); no client calls it.
+                ProgramKind::Job => continue,
             };
             out.push_str(&format!("{indent}{}: {kind}<{}, {}>;\n", property(short), args_ts(&program.args), ty_ts(&program.result)));
         }
@@ -55,7 +57,8 @@ pub fn typescript(bound: &Bound) -> String {
             let short = program.program.name.rsplit('.').next().unwrap_or(&program.program.name);
             let kind = match program.program.kind {
                 ProgramKind::Query => "query",
-                _ => "mutation",
+                ProgramKind::Mutation => "mutation",
+                ProgramKind::Job => continue,
             };
             out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: \"{}\" }},\n", property(short), program.program.name));
         }

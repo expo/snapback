@@ -7,9 +7,10 @@
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { mintId } from "./client.ts";
+import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { Interpreter, Refused, type LocalRead, type ProgramJson } from "./replica/interpreter.ts";
 import { Replica, type StreamPage } from "./replica/replica.ts";
-import { MemoryStore, openIndexedDb, type Row, type SchemaJson, type Store } from "./replica/store.ts";
+import { MemoryStore, openIndexedDb, type Row, type SchemaJson, type Store, type StoreTx } from "./replica/store.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, restoreSession, type Session, type SessionStore } from "./auth.ts";
 
 export interface LocalOptions {
@@ -63,6 +64,8 @@ interface Watch {
 
 interface Queued {
   id: string;
+  /** The device's submission order: the outbox flushes by it. */
+  seq?: number;
   op: string;
   args: unknown;
   newIds: string[];
@@ -154,9 +157,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   const replica = new Replica(store, backend.schema, {
-    async sync(from, limit) {
+    async sync(from, limit, after) {
       try {
-        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}`, { headers });
+        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}`, { headers });
         if (response.status === 503) return { denied: offline() };
         const page = (await response.json()) as StreamPage & { denied?: Refusal };
         if (page.denied) {
@@ -254,8 +257,23 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // ----- the outbox -----
 
+  /** The meta key of the outbox's submission counter. */
+  const OUTBOX_SEQ = "outbox:seq";
+
+  /** Every queued write in the order it was submitted on this device. */
   async function queued(): Promise<Queued[]> {
-    return store.read(async (tx) => (await tx.side("outbox").all()).map((e) => e.value as Queued).sort((a, b) => (a.id < b.id ? -1 : 1)));
+    return store.read(async (tx) => (await tx.side("outbox").all()).map((e) => e.value as Queued).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || (a.id < b.id ? -1 : 1)));
+  }
+
+  // The submission counter is taken synchronously as each write is
+  // admitted — twenty writes in one burst predict concurrently and would
+  // otherwise number themselves in the order their predictions finished —
+  // and persisted with the entry, so the order survives a restart.
+  let submissions = Number((await store.read((tx) => tx.getMeta(OUTBOX_SEQ))) ?? 0);
+
+  async function enqueue(tx: StoreTx, entry: Queued): Promise<void> {
+    await tx.setMeta(OUTBOX_SEQ, submissions);
+    await tx.side("outbox").put(entry.id, entry);
   }
 
   let flushing = false;
@@ -351,6 +369,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
       const id = mintId();
+      const seq = ++submissions;
       const program = backend.programs[op.name];
       if (!program) return { state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } };
       const newIds: string[] = [];
@@ -363,13 +382,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint }, "mutation");
           await interpreter.run(program);
           predicted = interpreter.writes.map((w) => `${w.table}/${w.row.id}`);
-          await tx.side("outbox").put(id, { id, op: op.name, args, newIds: [...newIds], predicted } satisfies Queued);
+          await enqueue(tx, { id, seq, op: op.name, args, newIds: [...newIds], predicted });
         });
       } catch (error) {
         if (!(error instanceof Refused)) throw error;
         if (error.refusal.code === "E_PREDICT") {
           // Not predictable here: queue it without local rows.
-          await store.write((tx) => tx.side("outbox").put(id, { id, op: op.name, args, newIds: [], predicted: [] } satisfies Queued));
+          await store.write((tx) => enqueue(tx, { id, seq, op: op.name, args, newIds: [], predicted: [] }));
         } else refused = error.refusal;
       }
       if (refused) return { state: "failed", id, why: refused };
@@ -380,6 +399,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const first = await Promise.race([outcome, new Promise<Write>((resolve) => setTimeout(() => resolve({ state: "pending", id }), 4_000))]);
       return first;
     },
+    async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
+      // An upload is bytes on the server; there is nothing to queue.
+      if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
+      const uploaded = await uploadAsset(base, headers, doFetch, bytes);
+      if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
+      return uploaded;
+    },
+    asset: (id: string) => fetchAsset(base, headers, doFetch, id),
+    assetSource: (id: string) => assetSource(base, headers, id),
     link: () => link,
     onLink(listener: (link: Link) => void) {
       linkListeners.add(listener);

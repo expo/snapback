@@ -1,0 +1,97 @@
+{
+  "status": "first-diagnostic-pass",
+  "qualificationMember": false,
+  "candidate": "v4",
+  "runtimeOverrideGuard": "The diagnostic predates the explicit SNAPBACK3_WORKER removal and packaged-worker PID/hash custody added for the final pairs; it is not used as a qualification trial.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-13-candidate-v4-first",
+  "primaryElapsedMs": 2824.4938400000005,
+  "targetMs": 3000,
+  "timerBoundary": "Before browser navigation through app/SDK load, fixture persona auth, acquisition completion, first SDK-forced-offline history, and React acquired-page busy search/render. Owner and fixture readiness occur before the clock; browser network remains enabled.",
+  "acquisition": {
+    "mode": "public-sdk-acquire",
+    "reactPaintAfterAuthAtMs": 391.40000009536743,
+    "completedAtMs": 2479.600000143051,
+    "firstOfflineSdkQueryCompletedAtMs": 2491.5,
+    "responses": 12,
+    "responsePageCounts": [2, 32, 32, 32, 11, 6, 6, 6, 6, 5, 5, 8],
+    "encodedBytes": 251081,
+    "decodedBytes": 3253707,
+    "summedResponseWallMs": 423.830000218004
+  },
+  "firstUsefulDom": {
+    "meaning": "A nonzero viewport DOM box with visible CSS, followed by an animation frame; not a compositor paint measure.",
+    "inboxFromOuterStartMs": 426.403076171875,
+    "inboxVisibleRows": 50,
+    "historyFromOuterStartMs": 2757.003173828125,
+    "historyVisibleRows": 200
+  },
+  "searchControl": {
+    "scope": "first acquired messages.page only",
+    "properSubsetTerm": "00001",
+    "expectedIds": ["mg0001-00001"],
+    "observedIds": ["mg0001-00001"],
+    "negativeRendered": 0,
+    "busyRestoredRows": 200
+  },
+  "audit": {
+    "conversations": 100,
+    "messages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "seq": 1,
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2"
+  },
+  "physicalReopen": {
+    "elapsedMs": 1453.9538760000005,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "shellCacheName": "snapback3-acquisition-target-70b5660d6ca49e5d9bcc42bd",
+    "auditMessages": 10000,
+    "auditPages": 151,
+    "auditChains": 101,
+    "seq": 1,
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2"
+  },
+  "inputs": {
+    "sourceDirectory": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v4-source",
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v4/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageSourceSha256": "2368dfca2407c3c3368efdea6eff07527a679ff52b34f61992ee117aea3c8eed",
+    "packageArchiveSha256": "233237fccc3fb98fce48aab77c1c4beccba261a75952baf61299ea6383ec70fa",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "sourceFilesManifestSha256": "dcfe86d1e7ea2d7b9ac4493d31f8351f6fc2d5b7b96c99f8a7c7f8bd3c9a2799",
+    "acquireHarnessSha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+    "retainedWalkerSha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4",
+    "controllerSha256": "2f37a10e46463e98b5801170744249824f9b0c8b08a958efe688be7199880389",
+    "bundleSha256": "f37686e1133fa47ea5082bbc7edeb3b56d72536539fb074de3501611aabea529",
+    "appClientSha256": "85d46218c7624043ad592df92c90abf1923df2bf6674379c42cec32d434098d6",
+    "schemaSha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017"
+  },
+  "rawSha256": {
+    "summary.json": "bc293ddc693674e07664ef327fb4071b1260886c798f7d1c097c655589f345da",
+    "metadata.json": "85290518ed6a81bcff357a37b62dfb5835ed6f733ea4ebc4bb8a7e293d4f3270",
+    "run-01/result.json": "d85ca90b0e8c93f6f1d64a06a2d787b9be14025b87752a6434baad9859d43e29",
+    "cleanup-receipt.json": "cedc7818b866b17ca5845718c2bd48d36e736a28153eadd83875ca7dd596ebef"
+  },
+  "custody": {
+    "owner": {"pid": 1976429, "startTick": "160226131", "cleaned": true},
+    "chromium": {"pid": 1976444, "startTick": "160226471"},
+    "reopenedChromium": {"pid": 1976544, "startTick": "160226856"},
+    "ports54924And54925FreeAfter": true
+  },
+  "preservedPreparationFailures": [
+    {
+      "kind": "snapshot-destination",
+      "effect": "An extra task-owned path was created beside the v4 snapshot and removed before the correct snapshot; no build or browser started.",
+      "remote": "/home/ccheever/snapback3-acquisition-20260912/target/results/v4-snapshot-attempt-1-failure.json",
+      "sha256": "37df8b3b0413c092ec34a123af307ea92ccdd546c2afc38c3d92877cb8b3aecd"
+    },
+    {
+      "kind": "missing-cargo-path",
+      "effect": "The first package command stopped at spawn cargo ENOENT before compilation or package output; the successful retry used explicit toolchain paths.",
+      "remote": "/home/ccheever/snapback3-acquisition-20260912/target/results/v4-package-attempt-1-failure.json",
+      "sha256": "d0683740087d6226b0ac1130c3c6c21abc676da489c38dbd967ac16ab9c6a2fe"
+    }
+  ]
+}

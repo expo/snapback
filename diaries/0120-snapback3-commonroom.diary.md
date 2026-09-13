@@ -363,3 +363,96 @@ passes into a full Clique score.
 After the benchmark, Charlie explicitly asked us to try reaching sub-three-second
 acquisition. That is the next implementation task under LLP 2000 §16, with the
 fixed package and collected run retained as the baseline.
+
+## 2026-09-12: first acquisition speed experiment
+
+The browser can persist the exact 10,000 full message objects, build simple
+history/search indexes and answer local queries in about 1.36 seconds in a
+small diagnostic. The full-row digest survived readback in all three fresh
+profiles. Authentication, query evidence, the SDK evaluator and the application
+were deliberately outside that timer. This is useful headroom evidence, not a
+fast Snapback3 result. An earlier tuple experiment also exposed evaluation
+friction: its first communicated timer included the later audit, and a draft
+mistakenly described a field from the later migration schema. The final record
+binds the actual copied schema and preserves both cohorts and corrections.
+
+The first implementation gives acquisition a public SDK owner instead of
+requiring another application page walker. Its retained dataset is separate
+from the live screen's changing snapshot. That separation has made authority
+rules more explicit: a newer known commit must suspend old evidence, including
+after immediate offline reopening, while retaining physical history for
+revalidation. Simply keeping old rows queryable would conceal a possible
+revocation. Integration review also caught a concrete mismatch between repeated
+page revalidation keys and the owner's unique-key request contract before the
+production app run. Mock client tests alone would not have qualified that path.
+
+The third integrated candidate completed three fresh application endpoints in
+2.617, 2.823 and 2.896 seconds. Each retained the exact 10,000 full message rows
+through all 151 SDK pages, including physical browser reopening with the
+network offline and only static shell assets cached. The application declares
+the inbox and its message page chains through its existing client; it no longer
+owns the traversal loop. This is implementation-team adaptation of the fixed
+app, not a fresh outside-builder result.
+
+Review remains necessary even when the timing and ordinary reopen pass. Fresh
+independent Sol and Grok reviews found that a denial for one dataset could
+delete another dataset's durable checkpoint. They also identified failure paths
+where withdrawn authority could be restored after a failed storage write, and
+where a rejected mutation receipt advanced the known sequence without
+withdrawing acquired readiness. Repairs and targeted controls precede the
+final timing cohort. A fast happy path does not establish the complete product
+contract.
+
+The first ten-pair cohort on candidate v5 reached a 2.865-second median for the
+whole 10k application endpoint, compared with 6.949 seconds for the fixed serial
+walker under the same harness. Two of the ten candidate runs still exceeded
+three seconds. All exact-content audits and strict physical offline reopens
+passed. A full 100k account also passed in 21.970 seconds; a separate simulated
+50ms/10Mbit-down/5Mbit-up condition took 5.476 seconds for 10k. These results
+belong to v5 and remain separate from later qualification. The initial summary
+said three v5 runs exceeded three seconds; a coordinator recalculation corrected
+that count to two. The per-trial timings and their median were unchanged.
+
+Further review found two lifecycle races outside that happy path: immediate
+reopen could load old authority before a failed withdrawal's cleanup completed,
+and cancelling while invalidation persisted could be overwritten by a captured
+automatic restart. The SDK now owns the shared-adapter persistence barrier and
+checks current handle state at both restart boundaries. Focused reproductions
+failed first, then passed with the fixes. The final optimization reuses owned
+decoded envelopes across repeated walks, while checking every row binding and
+manifest lifetime. It simplifies repeated internal work without adding another
+application cache or reader. V6's ten-pair result was effectively unchanged at
+2.866 seconds, versus 7.073 seconds for the matched serial walker. There is no
+isolated measured speedup to attribute to this representation cache.
+
+Lifecycle review was more demanding than the timed happy path. A held resource
+could retain a withdrawn declaration; ready cancellation could retain its RAM
+pool; and a delayed old cancellation could affect a successor declaration.
+Repairing the durable guard also exposed a memory-adapter notification mismatch:
+a refused cleanup preserved storage but still withdrew a subscribed successor's
+live data. Another public API check showed that mutating the caller's declaration
+could redirect cancellation to a sibling dataset. The SDK now owns declarations,
+withdraws acquired-origin resources with their dataset, and uses matching
+checkpoint conditions for durable changes and notifications. Regression tests
+exercise held values and subscribed clients, rather than checking storage alone.
+V8 passes 83 focused SDK tests with 338 assertions. Both review families
+accepted the final repair delta; all nine real IndexedDB groups and five
+foreground/recovery controls passed on its exact package.
+
+The application now declares an offline dataset through `client.acquire()` and
+awaits its durable completion, replacing the serial walker and in-flight
+readiness loop. This is implementation-team evidence about the supported path;
+the outside Astra builder has not been rerun on it. The broader product concern
+remains: v8 needed 23.825 seconds for 100k messages and 5.421 seconds for 10k
+under the shaped network. Application code and manifest transfer accounted for
+about 1.94MB of that run's 2.191MB encoded responses. Reducing startup transfer,
+whole-corpus storage work and retained-version growth remains useful work.
+
+The final v8 cohort met the declared 10k target: 2.807 seconds median across
+ten candidate trials, versus 6.875 seconds for ten matched serial trials. Every
+trial passed exact message field/ID/content checks and full physical offline
+reopen. One candidate trial exceeded three seconds (range 2.461–3.046 seconds).
+The first inbox was visible in a median of 435ms; physical offline reopen,
+including its full audit, took a median of 1.477 seconds. This is a useful
+measured improvement at a fixed scope, with every earlier failed candidate
+retained. It does not establish the broader product or builder comparison.

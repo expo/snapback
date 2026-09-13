@@ -90,6 +90,11 @@ mutation send(conversationId: conversations, body: text <=4000):
   row = insert messages { conversationId, authorId: viewer, body, at: now }
   return { id: row.id }
 
+mutation sendPhoto(conversationId: conversations, photo: image <=5000000, body: text <=4000 ?):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  row = insert messages { conversationId, authorId: viewer, body, photo, at: now }
+  return { id: row.id }
+
 mutation edit(messageId: messages, body: text <=4000):
   msg = messages[messageId] ! else NOT_FOUND
   require msg.authorId = viewer else NOT_AUTHOR

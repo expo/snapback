@@ -72,8 +72,10 @@ const summary = useQuery(api.conversations.unread, { conversationId });
 const unread = summary.complete ? summary.data?.unread : undefined;
 ```
 
-`complete` describes that query result, including its requested page, at `seq`.
-It does not mean the whole table is downloaded. `fresh` describes current server
+`complete` describes the server's completeness classification at `seq`.
+A bounded page can have useful `data` and a `next` cursor while `complete` is
+false. Render that page and follow its cursor; waiting for the same capped page
+to become complete will not download the rest. `fresh` describes current server
 confirmation. Cached offline data can be complete and stale. A missing count is
 unknown; render that state instead of turning it into zero. Resources from
 different sequences do not establish a common snapshot.
@@ -93,6 +95,65 @@ out-of-order manifest replies.
 Headless applications use `client.watch(op, args)` and its `subscribe`,
 `getSnapshot`, and `refresh` methods, or await `client.query(op, args)` for one
 result. React renders that same store; it has no separate cache.
+
+## Acquire a dataset for offline use
+
+Declare the paginated dataset on the same client that serves the screen. This
+example acquires Commonroom's complete conversation list and each conversation's
+message history:
+
+```ts
+import { api, pages } from 'snapback3/client';
+
+const history = client.acquire({
+  id: 'room-history',
+  revision: '1',
+  root: pages(api.conversations.list, { c: null }),
+  expand: entries => entries.flatMap(({ conversation }) => conversation ? [
+    pages(api.messages.page, { conversationId: conversation.id, c: null },
+      { key: conversation.id }),
+  ] : []),
+});
+
+await history.completed;
+```
+
+The SDK follows opaque cursors, groups authorized reads and storage writes,
+and retains durable progress. Completion includes local query evidence and
+indexes. Ordinary `watch` and `query` calls then use the acquired data offline;
+the application does not need another reader, cache or page accumulator.
+`pages` accepts certified queries that return lists; a record containing a page
+array is not a supported acquisition result. Time-dependent and connected queries
+cannot declare a durable offline dataset.
+
+Use a stable `id` and change `revision` when the dataset definition or `expand`
+logic changes. Registration captures the declaration and its root arguments;
+changing the original object later does not change an existing handle. The
+captured `expand` function should derive the same dataset for a given revision.
+The SDK checks the root and derived declarations when resuming.
+An explicitly changed declaration withdraws its previous scope even when the
+replacement cannot finish offline. Other datasets keep their own identity.
+
+The handle exposes `getSnapshot()` and `subscribe()` for progress and current
+availability. `completed` is the current acquisition cycle's promise. Transient
+connection failures keep that promise pending and resume automatically after
+reconnect. `cancel()` rejects it with `S3_ACQUISITION_CANCELLED`; awaiting
+`history.resume()` starts a new cycle after cancellation or a terminal error.
+Cancellation also withdraws a ready dataset and any displayed resources that
+depend on it; resume revalidates before making it available again.
+Repeated resume calls during acquisition join the same work. A sealed handle
+cannot resume under a different account or generation.
+
+A known newer commit suspends old evidence while the SDK revalidates it;
+retained history is not discarded for every ordinary write. Account changes, denial and accepted generation changes
+withdraw the previous authority. A failed authority withdrawal seals this
+client and attempts to remove the matching durable session. If storage refuses
+every write, durable erasure cannot be guaranteed. Clients reusing one custom
+storage adapter wait for its pending withdrawal and cleanup before restoring.
+Separate adapter instances must provide their normal change notifications.
+A saved dataset can restore after process reopen, subject to the same authority
+and sequence checks. The application shell must separately be available offline
+as described below.
 
 ## Save an operation once
 

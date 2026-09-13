@@ -40,16 +40,64 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
-    let notes = completeness_notes(&schema, &programs);
+    let mut schema = schema;
+    for doc in &catalog.documents {
+        for decl in &doc.schedules {
+            match bind_schedule(decl, &programs) {
+                Ok(schedule) => schema.schedules.push(schedule),
+                Err(diagnostic) => diagnostics.push(diagnostic),
+            }
+        }
+    }
+    let notes = completeness_notes(&catalog, &schema, &programs);
     Bound { schema, programs, personas, diagnostics, notes }
+}
+
+/// A schedule fires a job; the job may take the period it covers, as
+/// `periodStart: time` and `periodEnd: time`, and nothing else.
+fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> Result<snapback4_core::schema::Schedule, Diagnostic> {
+    use snapback4_core::ir::{ArgType, ProgramKind};
+    let rewrite = format!("job {}(periodStart: time, periodEnd: time):\n  chunk p in profiles first 100 by byId:\n    ...", decl.target);
+    let Some(target) = programs.iter().find(|p| p.program.name == decl.target) else {
+        return Err(crate::diag::unknown(&decl.site, format!("schedule {} names no job {}", decl.name, decl.target), rewrite));
+    };
+    if target.program.kind != ProgramKind::Job {
+        return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} names {}, which is a {}; a schedule fires a job", decl.name, decl.target, target.program.kind.word()), rewrite));
+    }
+    for (name, kind) in &target.program.args {
+        if !(matches!(name.as_str(), "periodStart" | "periodEnd") && *kind == ArgType::Time) {
+            return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} fires {}, whose argument {name} the clock cannot supply; a scheduled job takes periodStart: time and periodEnd: time, or nothing", decl.name, decl.target), rewrite));
+        }
+    }
+    Ok(snapback4_core::schema::Schedule { name: decl.name.clone(), every_ms: decl.every_ms, offset_ms: decl.offset_ms, target: decl.target.clone() })
 }
 
 /// A scan whose read rule reads a column the prefix does not pin is
 /// `complete: false` on the server whatever it finds (LLP 3000 §7,
 /// completeness is a class): say so at compile time, with the index that
 /// would decide it, as Snapback 2's structural facts did.
-fn completeness_notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
+fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
+    // A synced table with no horizon: every row of every group a device
+    // holds reaches it, and stays. Say so once per table, with the index a
+    // horizon would name, before the table grows.
+    for (name, table, sync) in schema.synced() {
+        if sync.horizon.is_some() || schema.maintain_for(name).is_some() {
+            continue;
+        }
+        let prefix: Vec<String> = match &sync.audience {
+            snapback4_core::schema::Audience::Public => Vec::new(),
+            snapback4_core::schema::Audience::Column(column) => vec![column.clone()],
+            snapback4_core::schema::Audience::Target { prefix, .. } => prefix.clone(),
+        };
+        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len()).map(|(index_name, _)| index_name.clone());
+        let site = catalog.site_for(&format!("tables.{name}"));
+        let rewrite = match ordered {
+            Some(index) => format!("{} last 500 by {index}", sync.line()),
+            None => format!("by by{}At: {}at, id  -- then: {} last 500 by by{}At", if prefix.is_empty() { "".to_owned() } else { "Group".to_owned() }, prefix.iter().map(|c| format!("{c}, ")).collect::<String>(), sync.line(), if prefix.is_empty() { "" } else { "Group" }),
+        };
+        notes.push(Diagnostic::new(&site, "N_NO_HORIZON", format!("table {name}: `{}` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start", sync.line()), rewrite).guide("sync"));
+    }
     for bound in programs {
         // A page returned without a cursor: when more rows exist than it
         // holds, the card reads `complete: false` with no `next`.
@@ -66,6 +114,26 @@ fn completeness_notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnos
             if cursorless {
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>", bound.program.name, table)).guide("reads"));
             }
+        }
+        // A merge reads one page per lane: over many lanes it reads many
+        // pages, and past the examined ceiling it is cut. Say the number.
+        for merge in merges(&bound.program.body) {
+            let take = merge.take() + 1;
+            let lanes: u64 = merge.lanes.iter().map(|lane| lane.source.as_ref().map_or(1, |source| source.take.maximum())).sum();
+            if lanes <= 50 {
+                continue;
+            }
+            let rows = lanes * take;
+            let ceiling = snapback4_core::Ceilings::default().examined;
+            notes.push(
+                Diagnostic::new(
+                    &bound.site,
+                    "N_WIDE_MERGE",
+                    format!("{} {}: the merge over {} reads up to {lanes} lanes, one page of {take} each — {rows} rows per read{}", bound.program.kind.word(), bound.program.name, merge.table(), if rows > ceiling { format!(", past the {ceiling} examined the meter allows, so the page is cut and `complete: false`") } else { "".into() }),
+                    "keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page",
+                )
+                .guide("reads"),
+            );
         }
         for scan in snapback4_core::ir::scans(&bound.program) {
             let Some(table) = schema.table(&scan.table) else { continue };
@@ -94,4 +162,40 @@ fn completeness_notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnos
         }
     }
     notes
+}
+
+/// Every merge a program's body evaluates.
+fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Merge> {
+    use snapback4_core::ir::{Expr, Stmt};
+    fn in_expr<'a>(expr: &'a Expr, out: &mut Vec<&'a snapback4_core::ir::Merge>) {
+        match expr {
+            Expr::Merge(merge) => out.push(merge),
+            Expr::Field { base, .. } => in_expr(base, out),
+            Expr::Array(items) | Expr::Builtin { args: items, .. } => items.iter().for_each(|item| in_expr(item, out)),
+            Expr::Object(fields) => fields.values().for_each(|item| in_expr(item, out)),
+            Expr::Binary { left, right, .. } => {
+                in_expr(left, out);
+                in_expr(right, out);
+            }
+            Expr::Unary { value, .. } => in_expr(value, out),
+            _ => {}
+        }
+    }
+    fn in_stmts<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a snapback4_core::ir::Merge>) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => in_expr(value, out),
+                Stmt::If { condition, then_body, else_body } => {
+                    in_expr(condition, out);
+                    in_stmts(then_body, out);
+                    in_stmts(else_body, out);
+                }
+                Stmt::For { body, .. } => in_stmts(body, out),
+                _ => {}
+            }
+        }
+    }
+    let mut out = Vec::new();
+    in_stmts(stmts, &mut out);
+    out
 }

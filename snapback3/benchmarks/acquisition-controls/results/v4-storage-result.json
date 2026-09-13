@@ -1,0 +1,43 @@
+{
+  "test": "snapback3-real-indexeddb-acquisition-storage",
+  "startedAt": "2026-09-12T20:04:36.068Z",
+  "host": "expose-builder-pixel",
+  "platform": "linux",
+  "node": "v24.13.1",
+  "port": 54926,
+  "browserExecutable": "/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
+  "dist": "/home/ccheever/snapback3-acquisition-20260912/storage-controls-v4-attempt2/package/dist",
+  "sdkSourceHashes": {
+    "snapback3/packages/snapback3/src/client.ts": "8bb66126a9ca03c3c9492e83b0fb6dbfff74eb14f4a08400ba2c85848f9c7223",
+    "snapback3/packages/snapback3/src/resource/acquisition.ts": "99fd5a3d50d28241637df65333d4d80116bdea2ca0c0a402d8624c6d137b1f1b",
+    "snapback3/packages/snapback3/src/resource/storage.ts": "cf1869bbe3eae7c2afdd67d9d245fb35b192e3d2368c725dfcdb93b92b52f90a",
+    "snapback3/packages/snapback3/src/resource/types.ts": "6899cbdcfb4fb0a4dfb056a3da74ed2ea87155a7ec827b9b1bde6e078a97c46c",
+    "snapback3/scripts/test-acquisition-storage.mjs": "214b6208aa53e5539b7ac0fcb6befcf6cbc41bbb48a6e1f1b91a5d3549aad960"
+  },
+  "checks": [
+    "v1-upgrade-preserved-frame-and-operation",
+    "atomic-acquisition-batch-close-reopen",
+    "authority-floor-rejection-and-whole-transaction-rollback",
+    "generation-and-session-replacement-clear-acquisitions",
+    "two-adapters-two-pages-serialized-without-loss",
+    "conditional-session-clear-guards-newer-and-erases-matching-authority"
+  ],
+  "browser": {
+    "version": "151.0.7922.34",
+    "rootPid": 1980911,
+    "rootStartTicks": "160239437",
+    "rootCommand": [
+      "/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --snapback3-storage-control=54926 --user-data-dir=/tmp/playwright_chromiumdev_profile-rZtUXS --remote-debugging-pipe --no-startup-window --noerrdialogs --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl"
+    ],
+    "rootCleaned": true
+  },
+  "result": "passed",
+  "error": null,
+  "finishedAt": "2026-09-12T20:04:36.409Z",
+  "sdkBundleHash": "6070cc33032d0040a089a0383bf781d6bbddc80e1192ab05aa128fe9409430cb",
+  "packageArtifact": {
+    "path": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v4/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "sha256": "233237fccc3fb98fce48aab77c1c4beccba261a75952baf61299ea6383ec70fa"
+  },
+  "note": "The preserved v1 operation is validated byte-for-byte as adapter state; this control does not execute or recover it."
+}

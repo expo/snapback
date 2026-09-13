@@ -1,0 +1,1712 @@
+{
+  "status": "diagnostic-performance-pass-excluded",
+  "qualificationMember": false,
+  "criterion": "Observed performance criterion: all 10 candidate and all 10 baseline trials passed the harness and candidate primary median was below 3000 ms. Subsequent SDK lifecycle P1 findings exclude v6 from final qualification.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/qualification-v6-pairs-final-20260912T2035Z",
+  "rawPlanSha256": "fd09880bd296d1d7907aaaffe3d53d93e4a41165e5051582d8becc7666eb70f1",
+  "rawSummarySha256": "5b355c5da7bed685bff2bf7e604c6a6fbb18f3563a2ed5448f42534d7ad175ad",
+  "inputs": {
+    "candidatePackage": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v6/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "candidatePackageSha256": "fcc08d11c34a7619c4c62a31512b71138978bd862c5bf6fb8b4c64dc460b3d3b",
+    "candidatePackageSourceSha256": "f2df8a3252437d9de36807d1c2444642441cb128f070c23b4078ac295108e25a",
+    "candidateNativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "candidateSourceFilesManifestSha256": "7f99ef5a5c5d0a2dbaf5aa816b12a4610056c62bda9301bf888f343b8145608d",
+    "baselinePackageSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "baselineSourceCommit": "409954115f151a72dd95e897c5f00f36877f11e0",
+    "retainedWalkerSha256": "15c84e41c0d4ea595e991922fc6f06fdca5ab30f115b91d36dfb4761ec351fa4",
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "pairsRunnerSha256": "49386dae77905b92eddbe7ea9b9714978b0047d6e19e00cecea616893e98e82e"
+  },
+  "interpretation": {
+    "candidateTrialsAbove3000": 3,
+    "candidateFailures": 0,
+    "baselineFailures": 0,
+    "populationP95Claim": false,
+    "everyTrialBelow3000Claim": false,
+    "historical33SecondRatioClaim": false,
+    "cacheOptimizationSpeedupClaim": false,
+    "cacheOptimizationNote": "V6 and v5 medians are effectively equal; decoded-envelope reuse is structural and has no isolated attributed speedup here.",
+    "messageDigestScope": "canonicalRowsSha256 and idsSha256 bind message rows only. Conversation identity is separately bound by the g0001..g0100 set digest.",
+    "reviewStatus": "unqualified-superseded-by-v8",
+    "performanceTimeGoalObserved": true
+  },
+  "createdAt": "2026-09-12T20:34:59.322Z",
+  "finishedAt": "2026-09-12T20:38:43.141Z",
+  "baseline": {
+    "successful": 10,
+    "failed": 0,
+    "medianMs": 7072.5475865,
+    "minMs": 6922.572480999999,
+    "maxMs": 7190.155877
+  },
+  "candidate": {
+    "successful": 10,
+    "failed": 0,
+    "medianMs": 2866.2760289999997,
+    "minMs": 2494.3261079999997,
+    "maxMs": 3117.52852
+  },
+  "candidateMetrics": {
+    "firstInboxMs": {
+      "median": 436.5496826171875,
+      "min": 377.210205078125,
+      "max": 450.095947265625,
+      "values": [
+        377.210205078125,
+        394.994384765625,
+        430.7880859375,
+        433.330322265625,
+        434.94580078125,
+        438.153564453125,
+        439.04833984375,
+        439.6357421875,
+        441.1767578125,
+        450.095947265625
+      ]
+    },
+    "firstHistoryMs": {
+      "median": 2799.5712890625,
+      "min": 2385.045654296875,
+      "max": 2997.6357421875,
+      "values": [
+        2385.045654296875,
+        2725.653564453125,
+        2766.910400390625,
+        2793.076904296875,
+        2798.6943359375,
+        2800.4482421875,
+        2808.18798828125,
+        2969.130126953125,
+        2984.2958984375,
+        2997.6357421875
+      ]
+    },
+    "innerAcquisitionMs": {
+      "median": 2149.75,
+      "min": 1728.2000000476837,
+      "max": 2335.300000190735,
+      "values": [
+        1728.2000000476837,
+        2054.5999999046326,
+        2133.0,
+        2139.2999999523163,
+        2139.5,
+        2160.0,
+        2179.2000000476837,
+        2321.100000143051,
+        2325.7000000476837,
+        2335.300000190735
+      ]
+    },
+    "firstOfflineSdkMs": {
+      "median": 11.550000071525574,
+      "min": 11.099999904632568,
+      "max": 12.899999856948853,
+      "values": [
+        11.099999904632568,
+        11.399999856948853,
+        11.399999856948853,
+        11.5,
+        11.5,
+        11.600000143051147,
+        11.700000047683716,
+        11.800000190734863,
+        12.5,
+        12.899999856948853
+      ]
+    },
+    "heapUsedBeforeAudit": {
+      "median": 65478216.0,
+      "min": 56201840,
+      "max": 85177900,
+      "values": [
+        56201840,
+        56319904,
+        56399576,
+        57127648,
+        63378056,
+        67578376,
+        67601984,
+        67693128,
+        67990320,
+        85177900
+      ]
+    },
+    "auditElapsedMs": {
+      "median": 282.2999999523163,
+      "min": 278.19999980926514,
+      "max": 293.89999985694885,
+      "values": [
+        278.19999980926514,
+        280.59999990463257,
+        280.89999985694885,
+        281.7000000476837,
+        282,
+        282.59999990463257,
+        282.90000009536743,
+        285.39999985694885,
+        286.40000009536743,
+        293.89999985694885
+      ]
+    },
+    "reopenElapsedMs": {
+      "median": 1464.7193914999998,
+      "min": 1421.3671810000005,
+      "max": 1530.6966429999993,
+      "values": [
+        1421.3671810000005,
+        1442.2230899999995,
+        1450.4903219999997,
+        1460.1583449999998,
+        1463.3602110000002,
+        1466.0785719999994,
+        1483.5198929999997,
+        1485.261668000001,
+        1489.3578850000004,
+        1530.6966429999993
+      ]
+    },
+    "reopenAuditElapsedMs": {
+      "median": 185.40000009536743,
+      "min": 182.69999980926514,
+      "max": 188.09999990463257,
+      "values": [
+        182.69999980926514,
+        183.59999990463257,
+        183.90000009536743,
+        184.20000004768372,
+        185.30000019073486,
+        185.5,
+        186,
+        186.70000004768372,
+        186.70000004768372,
+        188.09999990463257
+      ]
+    },
+    "reopenFirstOfflineUseMs": {
+      "median": 744.0000001192093,
+      "min": 715.2000000476837,
+      "max": 793.2000000476837,
+      "values": [
+        743.1000001430511,
+        747,
+        717.2000000476837,
+        727.2000000476837,
+        723.0999999046326,
+        761.5,
+        793.2000000476837,
+        744.9000000953674,
+        715.2000000476837,
+        756.5
+      ]
+    }
+  },
+  "conversationIds": {
+    "expected": "g0001..g0100",
+    "sha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6",
+    "allPrimaryAndReopenMatch": true
+  },
+  "trials": [
+    {
+      "name": "01-pair-01-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 6967.5015109999995,
+      "firstInboxMs": 415.588134765625,
+      "firstHistoryMs": 6900.18798828125,
+      "innerAcquisitionMs": 6302.699999809265,
+      "firstOfflineSdkMs": 4.5,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 98865240,
+      "auditElapsedMs": 169.90000009536743,
+      "reopenElapsedMs": 1362.2421110000014,
+      "reopenAuditElapsedMs": 119.5,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2036330,
+        "startTick": "160421767",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:12.283Z"
+      },
+      "worker": {
+        "pid": 2036493,
+        "startTick": "160422060",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:12.284Z"
+      },
+      "raw": {
+        "summarySha256": "00e6d47fc44b91bfff53c78106e3df4c11ca7620d960bbd49978e78db64a6540",
+        "resultSha256": "d2b4825aa6df9a6be021da057c56c49d8d6b2f2d803e799fdf53d8cded0f5275",
+        "cleanupSha256": "4da976d3274884792088a6889407aa8cf3bf70199ef44998069b1f1580096872",
+        "workerCleanupSha256": "8d6a34e2b3a149837293f99910fe2ec9c922c27cab59dd6cbdf23dda43cc7571"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "02-pair-01-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 2494.3261079999997,
+      "firstInboxMs": 434.94580078125,
+      "firstHistoryMs": 2385.045654296875,
+      "innerAcquisitionMs": 1728.2000000476837,
+      "firstOfflineSdkMs": 11.800000190734863,
+      "acquireResponses": 10,
+      "acquireEncodedBytes": 249608,
+      "heapUsedBeforeAudit": 57127648,
+      "auditElapsedMs": 281.7000000476837,
+      "reopenElapsedMs": 1466.0785719999994,
+      "reopenAuditElapsedMs": 185.30000019073486,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2036895,
+        "startTick": "160423067",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:21.163Z"
+      },
+      "worker": {
+        "pid": 2036909,
+        "startTick": "160423364",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:21.164Z"
+      },
+      "raw": {
+        "summarySha256": "c5b2b40613546cdcfbe37a94f2fa25d1b083201ddeaba44d61b28e3dddc5ff94",
+        "resultSha256": "6a3c1cd57b25bd95310286f6c4992f17263e6a6ad06c683e97d2584b3e4db796",
+        "cleanupSha256": "6785dd71fffd1e7d5e1de78b3a19599de3cf763686d6b59230483dd8abbeb8f5",
+        "workerCleanupSha256": "9717299c02542e28a0d967acda0263dfa8106cb5531cc5d30bf4d8164bf93b66"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "03-pair-02-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 3086.1379329999995,
+      "firstInboxMs": 433.330322265625,
+      "firstHistoryMs": 2969.130126953125,
+      "innerAcquisitionMs": 2321.100000143051,
+      "firstOfflineSdkMs": 12.5,
+      "acquireResponses": 14,
+      "acquireEncodedBytes": 252630,
+      "heapUsedBeforeAudit": 56201840,
+      "auditElapsedMs": 286.40000009536743,
+      "reopenElapsedMs": 1463.3602110000002,
+      "reopenAuditElapsedMs": 183.59999990463257,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2037265,
+        "startTick": "160423954",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:30.546Z"
+      },
+      "worker": {
+        "pid": 2037311,
+        "startTick": "160424253",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:30.547Z"
+      },
+      "raw": {
+        "summarySha256": "773b05e12948a9e7e7cf2d05ef93f8cbd8d3a8986a701e23284f15b4d7a96330",
+        "resultSha256": "42933adc0f93d27bfc321c9796f90e081542540a07a9aa4efc693f3f9fb74331",
+        "cleanupSha256": "cdacc4c7e1889c22a964cc27ceee9aaea7927c642280cdca212d52603e38c8f8",
+        "workerCleanupSha256": "a7f5e3ec4529d16314051a247ddf0e59d810886ab75ac9b36e33ec349d21c2d5"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "04-pair-02-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7150.802539,
+      "firstInboxMs": 437.30615234375,
+      "firstHistoryMs": 7084.906005859375,
+      "innerAcquisitionMs": 6441.0,
+      "firstOfflineSdkMs": 4.5,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 129889100,
+      "auditElapsedMs": 179.90000009536743,
+      "reopenElapsedMs": 1410.0882290000009,
+      "reopenAuditElapsedMs": 120.59999990463257,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2037698,
+        "startTick": "160424892",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:43.760Z"
+      },
+      "worker": {
+        "pid": 2037874,
+        "startTick": "160425185",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:43.760Z"
+      },
+      "raw": {
+        "summarySha256": "298004804ae5b5904ba9514d0588dd3448e767f86e07288153287cbb3799d84f",
+        "resultSha256": "9315f816243bdab583b8fee2ec3872829ff9a6191937b83f901a7bb06226b77f",
+        "cleanupSha256": "2e3b475ea55304358f3bd670eedef07df15b309b5c165c0eadc9f030b90cd595",
+        "workerCleanupSha256": "744e73fcc05719636153f527db1be0477d99fceb9617cd3f616ca28fe4b6db71"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "05-pair-03-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 6922.572480999999,
+      "firstInboxMs": 398.31396484375,
+      "firstHistoryMs": 6854.81396484375,
+      "innerAcquisitionMs": 6241.099999904633,
+      "firstOfflineSdkMs": 4.3999998569488525,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 102355744,
+      "auditElapsedMs": 168.69999980926514,
+      "reopenElapsedMs": 1387.6113569999998,
+      "reopenAuditElapsedMs": 114.09999990463257,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2038230,
+        "startTick": "160426215",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:56.793Z"
+      },
+      "worker": {
+        "pid": 2038254,
+        "startTick": "160426506",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:35:56.794Z"
+      },
+      "raw": {
+        "summarySha256": "56b128a51828b73c9572c31fd05eb3943e28c89b5989075d45029ba48a86de7e",
+        "resultSha256": "82e078f67194245fb9577f11af8ce428f2db8d3166d3f90892beeefe7b9329b7",
+        "cleanupSha256": "c102408e3e82b887a6bd8b3bb1c2edf8cefdebaa8df02d93713b468f8c3644da",
+        "workerCleanupSha256": "0b3b32c33f69d4141b2e6221e9ab1b85205757184f813812f74e23767a7aca72"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "06-pair-03-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 2870.3774479999997,
+      "firstInboxMs": 439.04833984375,
+      "firstHistoryMs": 2800.4482421875,
+      "innerAcquisitionMs": 2139.2999999523163,
+      "firstOfflineSdkMs": 12.899999856948853,
+      "acquireResponses": 13,
+      "acquireEncodedBytes": 251710,
+      "heapUsedBeforeAudit": 85177900,
+      "auditElapsedMs": 285.39999985694885,
+      "reopenElapsedMs": 1421.3671810000005,
+      "reopenAuditElapsedMs": 188.09999990463257,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2038777,
+        "startTick": "160427519",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:05.825Z"
+      },
+      "worker": {
+        "pid": 2038798,
+        "startTick": "160427807",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:05.825Z"
+      },
+      "raw": {
+        "summarySha256": "d1945483b2cca618c22486ce1cb9bd2e6a431dae4b262e67c22abaeba0d553cc",
+        "resultSha256": "173fc2d4df79e163b5513e72ec1573981290385c2facd8f968ca022abef7aca3",
+        "cleanupSha256": "e764eee14a63e4683bf90e8b618d8118232694c61e6e498205ef1916ff5e6efa",
+        "workerCleanupSha256": "2b140142af7020649bf3da249d329a8f354f351974bbb2037d12184aa2db231a"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "07-pair-04-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 3101.856417,
+      "firstInboxMs": 450.095947265625,
+      "firstHistoryMs": 2984.2958984375,
+      "innerAcquisitionMs": 2325.7000000476837,
+      "firstOfflineSdkMs": 11.399999856948853,
+      "acquireResponses": 14,
+      "acquireEncodedBytes": 252517,
+      "heapUsedBeforeAudit": 56399576,
+      "auditElapsedMs": 282,
+      "reopenElapsedMs": 1442.2230899999995,
+      "reopenAuditElapsedMs": 186.70000004768372,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2039163,
+        "startTick": "160428418",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:15.241Z"
+      },
+      "worker": {
+        "pid": 2039182,
+        "startTick": "160428715",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:15.241Z"
+      },
+      "raw": {
+        "summarySha256": "19ea57af66f6d786a340c4e9d6ed7d16b215277c4145db8864d2f7bfd544132a",
+        "resultSha256": "81d0a38a6e90ac285165b51a7f10e746f39fb5e78820306f5ab89dea7f0bfb85",
+        "cleanupSha256": "f1ca3427cf9f34ab097405a35c0c6945f0c1c10be4a031cc459dff9f2192dbc0",
+        "workerCleanupSha256": "fa594ecbadc6c731c2a386d993d80636f9fc75230cf968d3ba30eb0a905ae908"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "08-pair-04-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7119.161767,
+      "firstInboxMs": 410.545166015625,
+      "firstHistoryMs": 7039.2451171875,
+      "innerAcquisitionMs": 6452.099999904633,
+      "firstOfflineSdkMs": 4.200000047683716,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 106836328,
+      "auditElapsedMs": 161,
+      "reopenElapsedMs": 1345.0797500000008,
+      "reopenAuditElapsedMs": 112.10000014305115,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2039534,
+        "startTick": "160429362",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:28.412Z"
+      },
+      "worker": {
+        "pid": 2039553,
+        "startTick": "160429657",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:28.413Z"
+      },
+      "raw": {
+        "summarySha256": "aa44405375fd1c16d0cbc0f8ff6655a672ed052b7029d62bb70fb28f17ca3648",
+        "resultSha256": "b1b0fe3c84eac9857a353bdf25e15895dfca4abaaa406e80c6f6ee7e6205a28a",
+        "cleanupSha256": "7a5cb4c495c1db97f96b371802924fb4a557cfe617fc547958d6abadca1afc31",
+        "workerCleanupSha256": "1e3d598a26567e11feb551c096ed654fc3f9ee82fcd93808e99269020e5d4202"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "09-pair-05-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7177.626569,
+      "firstInboxMs": 403.955322265625,
+      "firstHistoryMs": 7099.35546875,
+      "innerAcquisitionMs": 6490.400000095367,
+      "firstOfflineSdkMs": 4.299999952316284,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 94472044,
+      "auditElapsedMs": 164.79999995231628,
+      "reopenElapsedMs": 1354.682288,
+      "reopenAuditElapsedMs": 117.79999995231628,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2040057,
+        "startTick": "160430680",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:41.667Z"
+      },
+      "worker": {
+        "pid": 2040076,
+        "startTick": "160430974",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:41.667Z"
+      },
+      "raw": {
+        "summarySha256": "19d77532cf5f370789e4893cd2584c60538d375e5933b55d32ad1476edfac664",
+        "resultSha256": "1bba843ed7f040773b7e64dfef804f8f292e3b0cde72452566bce0fc9b129bb8",
+        "cleanupSha256": "a348199676bdb404387f8f2c9d6ea9684e68f23986a6a0857b8451d2119792e6",
+        "workerCleanupSha256": "0dbcc6354f56e70598c843ba47a47e0933216bb6fb2ef20cb633b5b14b175d31"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "10-pair-05-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 2862.17461,
+      "firstInboxMs": 394.994384765625,
+      "firstHistoryMs": 2798.6943359375,
+      "innerAcquisitionMs": 2179.2000000476837,
+      "firstOfflineSdkMs": 11.099999904632568,
+      "acquireResponses": 14,
+      "acquireEncodedBytes": 252624,
+      "heapUsedBeforeAudit": 63378056,
+      "auditElapsedMs": 282.59999990463257,
+      "reopenElapsedMs": 1460.1583449999998,
+      "reopenAuditElapsedMs": 183.90000009536743,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2040499,
+        "startTick": "160432006",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:50.899Z"
+      },
+      "worker": {
+        "pid": 2040536,
+        "startTick": "160432304",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:50.900Z"
+      },
+      "raw": {
+        "summarySha256": "0c57abaa994cd04c6b79d137b9234f5ac7e34b150d3f531efbe3a019712633b0",
+        "resultSha256": "4cfc7e691e8376f966ab3325fe16c17800af0ee1e83064a4e788d40cc37d0496",
+        "cleanupSha256": "0b1f9fe902a2cbaba950d03d21cb49d17b2814d2d78eb548fb286b786701bf1a",
+        "workerCleanupSha256": "5a5092af4322f9ad97c1ba15d904d946e4591b850001c5161a538ab39f6ef11e"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "11-pair-06-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 2793.455826,
+      "firstInboxMs": 438.153564453125,
+      "firstHistoryMs": 2725.653564453125,
+      "innerAcquisitionMs": 2054.5999999046326,
+      "firstOfflineSdkMs": 11.5,
+      "acquireResponses": 13,
+      "acquireEncodedBytes": 251695,
+      "heapUsedBeforeAudit": 67601984,
+      "auditElapsedMs": 282.90000009536743,
+      "reopenElapsedMs": 1489.3578850000004,
+      "reopenAuditElapsedMs": 184.20000004768372,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2040898,
+        "startTick": "160432928",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:59.984Z"
+      },
+      "worker": {
+        "pid": 2040922,
+        "startTick": "160433222",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:36:59.984Z"
+      },
+      "raw": {
+        "summarySha256": "570138295a8320a7fabce1ab6c2b58bb3f4ff85b7dcfde3f115e3b90a7eb3c54",
+        "resultSha256": "88fc0dbd1f6ba6e1e969ec0c22da3e0ea93d9f3e62a8a8ca2722743c5653d3ec",
+        "cleanupSha256": "7b7b033533d83d96b782792e1b4729a5b418000de227c8194fa126bad1b2b47a",
+        "workerCleanupSha256": "4db6dee855d738c60b3e662ba0d1574be8c5bcb5d33a4252454cabdc2c10a653"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "12-pair-06-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7010.343032,
+      "firstInboxMs": 448.06884765625,
+      "firstHistoryMs": 6930.06884765625,
+      "innerAcquisitionMs": 6302.099999904633,
+      "firstOfflineSdkMs": 4.3999998569488525,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 125315360,
+      "auditElapsedMs": 182.79999995231628,
+      "reopenElapsedMs": 1405.2827720000005,
+      "reopenAuditElapsedMs": 112.10000014305115,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2041130,
+        "startTick": "160433836",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:13.088Z"
+      },
+      "worker": {
+        "pid": 2041309,
+        "startTick": "160434122",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:13.088Z"
+      },
+      "raw": {
+        "summarySha256": "3ca39632d84c07ea35832f87207a6661629a530ca8dd44f04a26e19ece94cce8",
+        "resultSha256": "5c2bb344714e8d3dca5664db57d460bf4155b9a509625a76c8c728ae9165d8d8",
+        "cleanupSha256": "f2277e261a582f2aa5f2224ad096dfaef0741407f22b0d3e5ae42bb86863ae67",
+        "workerCleanupSha256": "d43138338a4211f11200940b27377c959a5c071eb6488b16c98fe5c7a598354f"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "13-pair-07-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7013.416454,
+      "firstInboxMs": 441.834716796875,
+      "firstHistoryMs": 6947.134765625,
+      "innerAcquisitionMs": 6319.100000143051,
+      "firstOfflineSdkMs": 4.400000095367432,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 92641108,
+      "auditElapsedMs": 160.09999990463257,
+      "reopenElapsedMs": 1350.7092200000006,
+      "reopenAuditElapsedMs": 115.89999985694885,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2041522,
+        "startTick": "160435148",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:26.206Z"
+      },
+      "worker": {
+        "pid": 2041538,
+        "startTick": "160435447",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:26.206Z"
+      },
+      "raw": {
+        "summarySha256": "da2c67f10c6d2b2cae372bf476a6c2b357c8f128f7a4bccbe187ece1bdbe3ae7",
+        "resultSha256": "1007c1126d709fdb15337fcb30af79598a03ed290068b8fc84edc828dd60a35e",
+        "cleanupSha256": "dc794f50025718884bcf12593e4457e5cb3883175561dfe3af6c119796996f2d",
+        "workerCleanupSha256": "7969427073cac9996c378488e429ca3acd3c2ff43110bd32a15aff6cfa987a15"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "14-pair-07-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 3117.52852,
+      "firstInboxMs": 439.6357421875,
+      "firstHistoryMs": 2997.6357421875,
+      "innerAcquisitionMs": 2335.300000190735,
+      "firstOfflineSdkMs": 11.600000143051147,
+      "acquireResponses": 14,
+      "acquireEncodedBytes": 252637,
+      "heapUsedBeforeAudit": 56319904,
+      "auditElapsedMs": 293.89999985694885,
+      "reopenElapsedMs": 1530.6966429999993,
+      "reopenAuditElapsedMs": 186,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2042007,
+        "startTick": "160436458",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:35.790Z"
+      },
+      "worker": {
+        "pid": 2042021,
+        "startTick": "160436759",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:35.791Z"
+      },
+      "raw": {
+        "summarySha256": "c03432f90d7659695078da58a17414389c6cbdc8ff73910670d59bbdc69afcd5",
+        "resultSha256": "72141f16c2d669c1a037b5bda8b6247c624767fb088146e0367bc9a5a7c48512",
+        "cleanupSha256": "8e215f7673ce743e4a3dee1a100b009e416452671ddec342f2bb3faa68fdc8cd",
+        "workerCleanupSha256": "e1733a3b2fab7a7f5dbd5eb51e697f04f15afea2f8c5def695aa1af23a8bb96c"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "15-pair-08-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 2833.8983000000003,
+      "firstInboxMs": 377.210205078125,
+      "firstHistoryMs": 2766.910400390625,
+      "innerAcquisitionMs": 2160.0,
+      "firstOfflineSdkMs": 11.399999856948853,
+      "acquireResponses": 13,
+      "acquireEncodedBytes": 251775,
+      "heapUsedBeforeAudit": 67578376,
+      "auditElapsedMs": 280.59999990463257,
+      "reopenElapsedMs": 1483.5198929999997,
+      "reopenAuditElapsedMs": 186.70000004768372,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2042228,
+        "startTick": "160437417",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:44.899Z"
+      },
+      "worker": {
+        "pid": 2042243,
+        "startTick": "160437711",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:44.900Z"
+      },
+      "raw": {
+        "summarySha256": "6ba85eced815bbcb72c96aa22faf49a28ce355b13b1957e9c920805ed121a0cd",
+        "resultSha256": "19f08f23a1fad2b8447abd8b1e1f27d4cc69aa32ed81f9118dba667d34bbe90a",
+        "cleanupSha256": "33593940a13750dc3ddc8f4aac8903433911544ae673bd93e03732522abd2150",
+        "workerCleanupSha256": "fd6b2174411d02b82c609e5fb1706ff07f6d56f3ffd1b558de7cdc8ea61be790"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "16-pair-08-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7090.6780180000005,
+      "firstInboxMs": 435.814697265625,
+      "firstHistoryMs": 7024.314697265625,
+      "innerAcquisitionMs": 6374.900000095367,
+      "firstOfflineSdkMs": 4.599999904632568,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 129490480,
+      "auditElapsedMs": 179.39999985694885,
+      "reopenElapsedMs": 1354.3879959999995,
+      "reopenAuditElapsedMs": 116.29999995231628,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2042436,
+        "startTick": "160438327",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:58.089Z"
+      },
+      "worker": {
+        "pid": 2042450,
+        "startTick": "160438629",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:37:58.090Z"
+      },
+      "raw": {
+        "summarySha256": "87ee47177d8759455c707fc81942ebdefdd71524e1f2f2446636173807f15b07",
+        "resultSha256": "87b7c0f6abba1b647816e2b7130194ed1c1ef296d82991502b9137535f8fe314",
+        "cleanupSha256": "d2da641ce8a4c32b2a397f94c4241cb0c5984d1537c5b92f4abecf6b95d49248",
+        "workerCleanupSha256": "eb75f651ce2cf32f910ee77fde105f5e10721b90781f033b28824b4b1e2abc0b"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "17-pair-09-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7190.155877,
+      "firstInboxMs": 428.070556640625,
+      "firstHistoryMs": 7125.37060546875,
+      "innerAcquisitionMs": 6474.099999904633,
+      "firstOfflineSdkMs": 4.5,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 107574928,
+      "auditElapsedMs": 179.5,
+      "reopenElapsedMs": 1363.192508,
+      "reopenAuditElapsedMs": 112.20000004768372,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2042807,
+        "startTick": "160439647",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:11.388Z"
+      },
+      "worker": {
+        "pid": 2042821,
+        "startTick": "160439947",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:11.389Z"
+      },
+      "raw": {
+        "summarySha256": "c01aa01792cb17fae9558dd3926eaf74849a0cb663860d3af0cf0427eb2f624a",
+        "resultSha256": "feab7fa6c804256f4ffebdde4db7fe8f2b693d57e1b2884695a5e96205b0b6c3",
+        "cleanupSha256": "5acb4c82f91f0f27a41a9c88d5b2a9ddfc90935137d31f417e36dad0605df7d8",
+        "workerCleanupSha256": "4a21e2031730e735e31569b1f25423e84c71c3310ae67ca24dc96e95e17f6d3c"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "18-pair-09-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 2861.3605420000004,
+      "firstInboxMs": 441.1767578125,
+      "firstHistoryMs": 2793.076904296875,
+      "innerAcquisitionMs": 2133.0,
+      "firstOfflineSdkMs": 11.700000047683716,
+      "acquireResponses": 13,
+      "acquireEncodedBytes": 251717,
+      "heapUsedBeforeAudit": 67990320,
+      "auditElapsedMs": 278.19999980926514,
+      "reopenElapsedMs": 1450.4903219999997,
+      "reopenAuditElapsedMs": 185.5,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2043046,
+        "startTick": "160440977",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:20.604Z"
+      },
+      "worker": {
+        "pid": 2043213,
+        "startTick": "160441277",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:20.604Z"
+      },
+      "raw": {
+        "summarySha256": "1e874cf921666141d079101dcede3cf6e41e7c704c1101f6ae6ab8fa9177570c",
+        "resultSha256": "7c48f460d6a7eb32212c4bfc1a7087864754309900497a0a735e1f729ccb0747",
+        "cleanupSha256": "4d8b729e3e8e2f26b9dedbae86c47457ebdb3128eaceaf3a0bd92297e0d4d541",
+        "workerCleanupSha256": "61c102231cce47e854f3662c5cb61fe73337d39e8192eb6e51ff0cc8b5675e27"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "19-pair-10-candidate",
+      "variant": "candidate",
+      "primaryElapsedMs": 2875.471847,
+      "firstInboxMs": 430.7880859375,
+      "firstHistoryMs": 2808.18798828125,
+      "innerAcquisitionMs": 2139.5,
+      "firstOfflineSdkMs": 11.5,
+      "acquireResponses": 13,
+      "acquireEncodedBytes": 251756,
+      "heapUsedBeforeAudit": 67693128,
+      "auditElapsedMs": 280.89999985694885,
+      "reopenElapsedMs": 1485.261668000001,
+      "reopenAuditElapsedMs": 182.69999980926514,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2043426,
+        "startTick": "160441898",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:29.937Z"
+      },
+      "worker": {
+        "pid": 2043440,
+        "startTick": "160442201",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:29.938Z"
+      },
+      "raw": {
+        "summarySha256": "ed2e2b3933a1a7bc948c6c14e73c7a81a748134d7d8f0cc604f1233692ed3821",
+        "resultSha256": "a6322885d21937dd93e26693793e6c921bab122ba4053175bd7d6b8002692940",
+        "cleanupSha256": "a1cc6217c65ed7b183fe338c9666bb67b36ae6b3ebfdc7c65a7df8c8944d9437",
+        "workerCleanupSha256": "f7679fc2cf70443748f49c6a4288a6736f3adf6e55e6915b1203d20273ac34bd"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    },
+    {
+      "name": "20-pair-10-baseline",
+      "variant": "baseline",
+      "primaryElapsedMs": 7054.417154999999,
+      "firstInboxMs": 445.6767578125,
+      "firstHistoryMs": 6983.376708984375,
+      "innerAcquisitionMs": 6368.0,
+      "firstOfflineSdkMs": 4.400000095367432,
+      "acquireResponses": 0,
+      "acquireEncodedBytes": 0,
+      "heapUsedBeforeAudit": 131782228,
+      "auditElapsedMs": 172.59999990463257,
+      "reopenElapsedMs": 1344.7055240000009,
+      "reopenAuditElapsedMs": 117,
+      "auditPass": true,
+      "reopenPass": true,
+      "owner": {
+        "pid": 2043810,
+        "startTick": "160442831",
+        "port": 54924,
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:43.085Z"
+      },
+      "worker": {
+        "pid": 2043833,
+        "startTick": "160443128",
+        "path": "/home/ccheever/snapback3-acquisition-20260912/target/baseline-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:38:43.085Z"
+      },
+      "raw": {
+        "summarySha256": "f1ad9eb94d9e542dc48b91f918787bdc62007f610a3f9f147d352744a7cfe6ca",
+        "resultSha256": "f48e95580487829c55a5020f71fa2b5c8def885e8c9f22977693961c347eb683",
+        "cleanupSha256": "13851be4704e72de6b26a647ca04d45becebdd31379148210d03ec3e529413b1",
+        "workerCleanupSha256": "207a09fa04ec85f77170458068c44cb9e9ced065d09b18d69239a04fb5b76665"
+      },
+      "actualPrimaryAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      },
+      "actualReopenAudit": {
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "pages": 151,
+        "chains": 101,
+        "completePages": 101,
+        "incompletePages": 50,
+        "completeFinalPages": 101,
+        "seq": 1,
+        "observedFieldSets": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "conversationIdsCount": 100,
+        "conversationIdsSha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+      }
+    }
+  ],
+  "reason": "Subsequent final-v6 review found three SDK lifecycle P1 defects. V6 is preserved measured evidence; v8 or later requires a new final qualification cohort."
+}

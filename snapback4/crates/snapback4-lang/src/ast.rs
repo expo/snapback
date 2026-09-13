@@ -176,13 +176,15 @@ pub enum Expr {
     ShapeUse { base: Box<Expr>, name: String, site: Site },
     Shape { base: Box<Expr>, fields: Vec<ShapeField>, site: Site },
     Walk { table: String, seed: Box<Expr>, column: String, depth: u32, site: Site },
+    /// `a if cond else b`: one of two values, the other never evaluated.
+    If { then: Box<Expr>, condition: Box<Expr>, otherwise: Box<Expr>, site: Site },
     Write { op: WriteOp, table: String, keys: Vec<KeyPart>, fields: Vec<ObjectField>, if_absent: bool, condition: Option<Box<Expr>>, site: Site },
 }
 
 impl Expr {
     pub fn site(&self) -> &Site {
         match self {
-            Expr::Name { site, .. } | Expr::Focal { site } | Expr::Literal { site, .. } | Expr::Array { site, .. } | Expr::Object { site, .. } | Expr::Unary { site, .. } | Expr::Binary { site, .. } | Expr::Member { site, .. } | Expr::Call { site, .. } | Expr::Exists { site, .. } | Expr::Created { site, .. } | Expr::Assert { site, .. } | Expr::ShapeUse { site, .. } | Expr::Shape { site, .. } | Expr::Walk { site, .. } | Expr::Write { site, .. } => site,
+            Expr::Name { site, .. } | Expr::Focal { site } | Expr::Literal { site, .. } | Expr::Array { site, .. } | Expr::Object { site, .. } | Expr::Unary { site, .. } | Expr::Binary { site, .. } | Expr::Member { site, .. } | Expr::Call { site, .. } | Expr::Exists { site, .. } | Expr::Created { site, .. } | Expr::Assert { site, .. } | Expr::ShapeUse { site, .. } | Expr::Shape { site, .. } | Expr::Walk { site, .. } | Expr::If { site, .. } | Expr::Write { site, .. } => site,
             Expr::Read(read) => &read.site,
             Expr::Merge(merge) => &merge.site,
         }
@@ -274,6 +276,8 @@ pub struct TableDecl {
     pub caps: Vec<CapDecl>,
     pub final_exists: Vec<(Expr, Site)>,
     pub retain: Option<(String, Site)>,
+    /// `expire at .column`: the time column that ends a row's life.
+    pub expire: Option<(String, Site)>,
     pub public: Option<(String, Site)>,
     pub sync: Option<SyncDecl>,
     pub site: Site,
@@ -314,6 +318,19 @@ pub struct ProgramDecl {
     pub site: Site,
 }
 
+/// `schedule name every 2m [at 08:00]: job` — the owner's clock fires a
+/// job once per period, with the period it covers as `periodStart` and
+/// `periodEnd` when the job declares them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScheduleDecl {
+    pub name: String,
+    pub every_ms: u64,
+    /// The offset of the period boundary within the period (`at 08:00`).
+    pub offset_ms: u64,
+    pub target: String,
+    pub site: Site,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EffectDecl {
     pub name: String,
@@ -335,6 +352,7 @@ pub struct Document {
     pub procs: Vec<ProcDecl>,
     pub proc_imports: Vec<Import>,
     pub programs: Vec<ProgramDecl>,
+    pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.
     pub personas: Vec<String>,
 }

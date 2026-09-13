@@ -160,7 +160,7 @@ fn encoded_len(bytes: usize) -> usize {
     bytes.div_ceil(3) * 4
 }
 
-fn base64url_encode(bytes: &[u8]) -> String {
+pub(crate) fn base64url_encode(bytes: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut output = String::with_capacity(encoded_len(bytes.len()));
     for chunk in bytes.chunks(3) {
@@ -179,7 +179,7 @@ fn base64url_encode(bytes: &[u8]) -> String {
     output
 }
 
-fn base64url_decode(token: &str) -> Result<Vec<u8>, CursorError> {
+pub(crate) fn base64url_decode(token: &str) -> Result<Vec<u8>, CursorError> {
     if token.is_empty() || token.len() % 4 == 1 || !token.is_ascii() {
         return Err(CursorError::Base64);
     }

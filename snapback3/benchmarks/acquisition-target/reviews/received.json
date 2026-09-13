@@ -1,0 +1,136 @@
+{
+  "reviewsActuallyReceived": [
+    {
+      "artifact": "owner-r1/sol-review.md",
+      "family": "Sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "sha256": "7397570e6a5d3a772871a612102c26ffa7e2ea295723b0c601da0c47ec8ace5b",
+      "inputs": "owner-r1/inputs.json",
+      "inputsSha256": "0a32a0dbe734d7af5643b06d853d5fea7c1b4e5de6b9df344ea8aa94922d1d7e",
+      "limitations": "Reviewer subsequently repaired its canonical continuation finding; final artifact includes disposition."
+    },
+    {
+      "artifact": "owner-r1/grok-review.md",
+      "family": "Grok",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "sha256": "ba3741d8ed5afeb0314a7520c06cb36f6053dfeff5ad4218698b4beb01f0a512",
+      "inputs": "owner-r1/inputs.json",
+      "inputsSha256": "0a32a0dbe734d7af5643b06d853d5fea7c1b4e5de6b9df344ea8aa94922d1d7e",
+      "limitations": "Owner review before canonical-continuation repair; no tests run by reviewer."
+    },
+    {
+      "artifact": "sdk-r1/sol-review.md",
+      "family": "Sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "sha256": "148bfc5ef603bf44284e028dbcc9f7abb452265af2e1a6bdebc7b0b8e11cd2c4",
+      "inputs": "sdk-r1/inputs.json",
+      "inputsSha256": "c5d6a6596d7ced498db8e1e9deaa1572f5a2ca4cef97cfcd6a43e93cbd53d2a2",
+      "limitations": "Initial SDK integration review; reviewer later implemented fixes, not independent final qualification."
+    },
+    {
+      "artifact": "sdk-r2/grok-review.md",
+      "family": "Grok",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "sha256": "005c4443bb5886231b832419019706026a70e97ba752f6dd8c94fabb4bbe66bb",
+      "inputs": "sdk-r2/inputs.json",
+      "inputsSha256": "bfa1b2d9bea1297867ff8fe89bec504bd6eb63a648ea40e28a4c81d508751acf",
+      "limitations": "Frozen v2 SDK before current-cycle recovery and hash/schema preparation optimizations; findings require source-specific disposition."
+    },
+    {
+      "artifact": "sdk-r3/sol-review.md",
+      "family": "Sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "sha256": "ed705377d2eae91219aa06e920ace8875fb0a1f937c67bc695e3ddb68ba53d73",
+      "inputs": "sdk-r3/inputs.json",
+      "inputsSha256": "5c239e784ded259131b72215c716886583a1b65b81c1114a5152f6550d703b88",
+      "limitations": "Fresh independent CLI review of frozen v3 source; changes required. No tests run by reviewer."
+    },
+    {
+      "artifact": "final-v4/sol-review.md",
+      "family": "Sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "sha256": "6fa667b749b197f7d40a646890dc96f0903634af8a302388a76d34b35803f673",
+      "inputs": "final-v4/inputs.json",
+      "inputsSha256": "d6e5093f617d0c0f37d386a75ddcbc729ada4c1f5e82821b66b288a729aa2cd8",
+      "limitations": "Fresh mutually blind final-v4 source review; changes required. Reviewer did not run tests. V5/v6 repairs need delta review."
+    },
+    {
+      "artifact": "final-v4/grok-review.md",
+      "family": "Grok",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "sha256": "4585bddf932c465e2534dbc90e80bdc608833cae168a4ed5bfa8103bc8e1547d",
+      "inputs": "final-v4/inputs.json",
+      "inputsSha256": "d6e5093f617d0c0f37d386a75ddcbc729ada4c1f5e82821b66b288a729aa2cd8",
+      "limitations": "Fresh mutually blind final-v4 source review; changes required. Reviewer did not run tests. V5/v6 repairs need delta review."
+    },
+    {
+      "artifact": "final-v6/sol-review.md",
+      "family": "Sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "sha256": "4302f403de11e9555a89041ae234d0b84063d263b43781324c275d962ee46339",
+      "inputs": "final-v6/inputs.json",
+      "inputsSha256": "994bb1b4127fbac0994bd20deb84a192279e90fd332b09398d7cc4550a6a30e3",
+      "limitations": "Mutually blind boundedv4tov6delta review, ownfamily priorfindings only; no testsrun byreviewer. V7 repairs pending."
+    },
+    {
+      "artifact": "final-v6/grok-review.md",
+      "family": "Grok",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "sha256": "81c3d70653edfc29c5ad883f36871323026ef90851b25a67656013af591ca154",
+      "inputs": "final-v6/inputs.json",
+      "inputsSha256": "994bb1b4127fbac0994bd20deb84a192279e90fd332b09398d7cc4550a6a30e3",
+      "limitations": "Mutually blind bounded v4 to v6 delta review, own-family prior findings only; no tests run. Withdrawal/cancel repairs require v7 disposition."
+    },
+    {
+      "artifact": "final-v7/sol-review.md",
+      "family": "Sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "sha256": "c858da72b2bed49c6dfcf3ab45f17d74ec842276dc23e1e972544ac7004980b2",
+      "inputs": "final-v7/inputs.json",
+      "inputsSha256": "ae0086654affa8c832abc65e9c45449e4d943b1e4e4a8dd7a2d5b2e81e9c283e",
+      "limitations": "Mutually blind v6 to v7 delta review using own-family prior context. No tests run by reviewer. Both found memory-adapter successor notification defect; v8 repair and review pending."
+    },
+    {
+      "artifact": "final-v7/grok-review.md",
+      "family": "Grok",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "sha256": "f5dd62ae2f3d3dd89cfed3cf5ce19ab3ffd1409b70b44d7ab6db4f96555378bd",
+      "inputs": "final-v7/inputs.json",
+      "inputsSha256": "ae0086654affa8c832abc65e9c45449e4d943b1e4e4a8dd7a2d5b2e81e9c283e",
+      "limitations": "Mutually blind v6 to v7 delta review using own-family prior context. No tests run by reviewer. Both found memory-adapter successor notification defect; v8 repair and review pending."
+    },
+    {
+      "artifact": "final-v8/sol-review.md",
+      "family": "Sol",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "sha256": "5cca528097985cadacb1a7dd96e0147204d126e54efdd9e479ec9ab2b2f4391c",
+      "inputs": "final-v8/inputs.json",
+      "inputsSha256": "c76ab914e0b536cc6daa612d72326c0aa1c8834987f93d97a42b656a34fca2a4",
+      "limitations": "Actual approve/accept verdict for bounded v7 to v8 delta. Own-family continuation, mutually blind; reviewer did not run tests. This is source review, not browser qualification."
+    },
+    {
+      "artifact": "final-v8/grok-review.md",
+      "family": "Grok",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "sha256": "5e2d57ccc02c7bed3ed18c6b5133b0b70dfdcbc6b3123842abaa56c05fcc8f86",
+      "inputs": "final-v8/inputs.json",
+      "inputsSha256": "c76ab914e0b536cc6daa612d72326c0aa1c8834987f93d97a42b656a34fca2a4",
+      "limitations": "Actual approve/accept verdict for bounded v7 to v8 delta. Own-family continuation, mutually blind; reviewer did not run tests. This is source review, not browser qualification."
+    }
+  ],
+  "rawProviderStreams": "Private; not publication artifacts or review verdicts.",
+  "finalQualification": "Final v8: both bounded source delta reviews approve/accept; all declared browser, storage and foreground controls passed on the exact package. See ../coordinator-audit.json and ../validation.json. Broader product, scaling and network limits remain explicit."
+}

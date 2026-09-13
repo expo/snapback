@@ -1,0 +1,138 @@
+{
+  "status": "complete",
+  "claim": "fixture-only compact representation/transfer/IndexedDB lower-bound diagnostic; not product qualification",
+  "host": "EPYC expose-builder-pixel",
+  "actor": "u0500",
+  "fixture": {
+    "conversations": 100,
+    "messages": 10000,
+    "uniqueMessageIds": 10000,
+    "publicSdkPreparationPages": 151,
+    "publicSdkInboxPages": 2,
+    "publicSdkMessagePages": 149,
+    "expectedAndObservedIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "schemaQSha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017",
+    "compiledProjectJsonSha256": "a0f2972d79f536ca569c0203b3d044e52a59eb0f25fab74577d75b5b7b560063"
+  },
+  "primaryLosslessRowCohort": {
+    "remoteRunJson": "/home/ccheever/snapback3-acquisition-20260912/floor/lossless-cohort/private-results/run.json",
+    "runJsonSha256": "16ab23d20e2954f48fba6e89f2057c97780589e7944992fda90d79f867e22e2b",
+    "representation": "complete public SDK message and conversation objects, stored without adding or removing row properties",
+    "observedMessageKeys": ["conversationId", "edited", "id", "replyTo", "senderId", "serverTimestamp", "text", "tombstone"],
+    "fullMessageRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "fullRowReadbackDigestMatchedEachRepetition": true,
+    "compactPayload": {
+      "rawJsonBytes": 1916522,
+      "gzipBytes": 93198,
+      "gzipRatio": 0.04862871388901353,
+      "sha256": "ca9d902f318ecbeb08b45ea3e9dbdebf999649b1e24c2ad0b1d90c3761107981"
+    },
+    "measurementBoundary": {
+      "clockStart": "immediately before browser page navigation",
+      "clockEnd": "after index creation, 11 bounded transactions, same-page IndexedDB connection close/reopen, first direct local history query, and first direct local exact-term search query",
+      "compactRequestsPerRepetition": 1,
+      "allNetworkRequestsPerRepetition": 2,
+      "networkEncodedBytesPerRepetition": 100401,
+      "indexedDbMessageBatchSize": 1000,
+      "indexedDbTransactionCount": 11,
+      "durabilityHint": "relaxed",
+      "authenticationIncluded": false,
+      "fullRowAuditIncluded": false,
+      "browserPhysicallyReopened": false,
+      "browserNetworkForcedOffline": false
+    },
+    "repetitions": [
+      {
+        "repetition": 1,
+        "beforePageLoadThroughPrimaryCompleteMs": 1358.300048828125,
+        "scriptStartThroughPrimaryCompleteMs": 1341.0,
+        "indexedDbPersistenceAndIndexMs": 1293.3999998569489,
+        "heapUsedBeforeValidationAuditBytes": 8143927,
+        "excludedFullRowAuditMs": 161.59999990463257
+      },
+      {
+        "repetition": 2,
+        "beforePageLoadThroughPrimaryCompleteMs": 1231.199951171875,
+        "scriptStartThroughPrimaryCompleteMs": 1215.7999999523163,
+        "indexedDbPersistenceAndIndexMs": 1176.2000000476837,
+        "heapUsedBeforeValidationAuditBytes": 6994715,
+        "excludedFullRowAuditMs": 133.09999990463257
+      },
+      {
+        "repetition": 3,
+        "beforePageLoadThroughPrimaryCompleteMs": 1413.599853515625,
+        "scriptStartThroughPrimaryCompleteMs": 1402.8000001907349,
+        "indexedDbPersistenceAndIndexMs": 1357.3999998569489,
+        "heapUsedBeforeValidationAuditBytes": 8111363,
+        "excludedFullRowAuditMs": 148.0
+      }
+    ],
+    "summary": {
+      "beforePageLoadThroughPrimaryCompleteMedianMs": 1358.300048828125,
+      "beforePageLoadThroughPrimaryCompleteRangeMs": [1231.199951171875, 1413.599853515625],
+      "indexedDbPersistenceAndIndexMedianMs": 1293.3999998569489,
+      "heapUsedBeforeValidationAuditRangeBytes": [6994715, 8143927]
+    },
+    "validationEachRepetition": {
+      "freshBrowserAndStorage": true,
+      "messageRows": 10000,
+      "uniqueMessageIds": 10000,
+      "historyIndexKeys": 10000,
+      "conversationKeys": 100,
+      "firstLocalHistoryCount": 40,
+      "firstLocalSearchCount": 20,
+      "fullRowDigestMatch": true
+    }
+  },
+  "preservedTupleCohorts": [
+    {
+      "name": "tuple-object-store-audit",
+      "remoteRunJson": "/home/ccheever/snapback3-acquisition-20260912/floor/preliminary-success-object-store-audit/run.json",
+      "runJsonSha256": "07330b2d8b48f74f006d8c0168e672cfd12ac28592bb1b7484a73f71cad110d8",
+      "executedRunMjsSha256": "e94f024f4fb886c08dcbf90ea5e64720eafc400bcc68ded3b5028c39ecf379a9",
+      "executedFloorHtmlSha256": "d7864eae3beb634de42c2c0bfb1f37a46298fb605970893ccaaa8c1691b0fafa",
+      "beforeLoadThroughPrimaryMs": [945.199951171875, 816.300048828125, 937.699951171875],
+      "beforeLoadThroughPostAuditObservationMs": [1024.1871769999998, 854.9392269999998, 994.9395719999993],
+      "audit": "10,000 object-store keys only"
+    },
+    {
+      "name": "tuple-history-index-audit",
+      "remoteRunJson": "/home/ccheever/snapback3-acquisition-20260912/floor/private-results/run.json",
+      "runJsonSha256": "938b6eb90875b5a962f5066b3e94a55e860904e95efde4e36a77d113a1398f0a",
+      "executedRunMjsSha256": "c2accb106d4d2397f6a3cdc7ba47b0cbde2781e96dbf38e0528ef447fb8487bf",
+      "executedFloorHtmlSha256": "e187c0cc3d8484bdcdc1f5ce4b101fe19607de878a322de47753b86a434ffd10",
+      "beforeLoadThroughPrimaryMs": [887.199951171875, 938.39990234375, 808.300048828125],
+      "beforeLoadThroughPostAuditObservationMs": [975.6642249999995, 1020.6081870000007, 891.5175600000002],
+      "audit": "10,000 object-store keys and 10,000 history-index keys"
+    }
+  ],
+  "tupleToLosslessChange": {
+    "tuplePayloadRawBytes": 1027386,
+    "tuplePayloadGzipBytes": 84481,
+    "tupleFields": ["id", "conversationId", "senderId", "text", "serverTimestamp", "replyTo", "edited", "tombstone"],
+    "losslessPayloadRawBytes": 1916522,
+    "losslessPayloadGzipBytes": 93198,
+    "explanation": "The tuple cohorts explicitly selected eight known fields and normalized nullable/boolean values. The lossless cohort serializes the public SDK row objects directly, stores raw message rows unchanged, moves regex token data to a separate object store, and audits a canonical full-row digest. The copied fixture schema has exactly the seven declared fields plus implicit id, and the observed public SDK rows expose those same eight keys."
+  },
+  "separatePhysicalBrowserReopenControl": {
+    "basedOn": "tuple-history-index-audit repetition 1 profile",
+    "includedInAnyFloorTiming": false,
+    "lightPageLoadedOnlineAfterBrowserReopen": true,
+    "networkSetOfflineBeforeIndexedDbQueries": true,
+    "queryAndFullHistoryIndexAuditMs": 128.10000014305115,
+    "historyIndexKeys": 10000,
+    "conversationKeys": 100,
+    "exactIdDigestMatch": true,
+    "offlineFirstShellReopenQualified": false
+  },
+  "preservedLosslessHarnessFailure": {
+    "remoteRunJson": "/home/ccheever/snapback3-acquisition-20260912/floor/lossless-cohort/attempt-1-postrun-field-name-assertion/run.json",
+    "runJsonSha256": "61a7caa1814e23b810aac2dfc14d2ca2c72e1b03b042497d82ef7ebfca862028",
+    "failure": "post-measurement harness assertion used tuple audit field name messageKeys instead of lossless field name messageRows; no repetition was admitted to the cohort"
+  },
+  "cleanup": {
+    "port54920Free": true,
+    "port54921Free": true,
+    "ownedExternalProcessesPresent": []
+  }
+}

@@ -4,9 +4,10 @@
 
 use super::runner::Runner;
 use super::validate::validate_row;
+use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
-use crate::schema::{Constraint, Effect, Maintain, MaintainKind, maintained_id, maintained_key, materialize_optional_fields};
+use crate::schema::{ColumnType, Constraint, Effect, Maintain, MaintainKind, Table, maintained_id, maintained_key, materialize_optional_fields};
 use crate::store::{Bounds, Dir, index_values};
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json};
 use std::collections::BTreeMap;
@@ -28,6 +29,7 @@ impl Runner<'_> {
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name)?;
+        let row = self.with_asset_facts(table_name, row)?;
         validate_row(self.schema, table_name, &row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
@@ -82,6 +84,7 @@ impl Runner<'_> {
     }
 
     fn replace(&mut self, table_name: &str, old: Value, new: Value) -> Result<(), RuntimeError> {
+        let new = self.with_asset_facts(table_name, new)?;
         validate_row(self.schema, table_name, &new)?;
         if !self.check_rule(table_name, Effect::Update, Some(&old), &new)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Update });
@@ -106,6 +109,89 @@ impl Runner<'_> {
         let entries = self.tx.delete(table_name, &table, &old)?;
         self.meter.charge(MeterKind::IndexEntries, entries)?;
         self.row_changed(table_name, Some(&old), None, Origin::Source)
+    }
+
+    /// Remove a row the engine itself retires (an expired one): no rule and
+    /// no constraint stands between the engine and its own sweep, while
+    /// aggregates and partition events apply as for any delete.
+    pub(super) fn remove(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
+        let entries = self.tx.delete(table_name, &table, old)?;
+        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        self.row_changed(table_name, Some(old), None, Origin::Source)
+    }
+
+    /// An `image`/`video` column names an upload by id; the row carries the
+    /// facts the server established about it (type, bytes, dimensions,
+    /// duration), never the client's word for them. The upload must be the
+    /// writer's own and of the column's kind and size. The system principal
+    /// may name an asset that was never uploaded: a fixture's placeholder,
+    /// metadata only, never served.
+    fn with_asset_facts(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        if !table.columns.values().any(|kind| matches!(kind.required(), ColumnType::Image { .. } | ColumnType::Video { .. })) {
+            return Ok(row);
+        }
+        let mut fields = row.as_object()?.clone();
+        for (column, kind) in &table.columns {
+            let (wanted, max) = match kind.required() {
+                ColumnType::Image { max, .. } => (AssetKind::Image, *max),
+                ColumnType::Video { max } => (AssetKind::Video, *max),
+                _ => continue,
+            };
+            let Some(id) = asset_id(fields.get(column)).map(str::to_owned) else { continue };
+            let Some(asset) = self.tx.asset(&id)? else {
+                if self.context.is_system() {
+                    // A fixture's placeholder: keep it, in the asset shape.
+                    let mut map = fields.get(column).and_then(|value| value.as_object().ok()).cloned().unwrap_or_default();
+                    for fact in crate::assets::FACTS {
+                        map.entry(fact.to_owned()).or_insert(Value::Null);
+                    }
+                    fields.insert(column.clone(), Value::Map(map.into()));
+                    continue;
+                }
+                return Err(RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("{table_name}.{column} names an upload {id} that is not yours or does not exist; upload the bytes first (POST /assets) and place the id it returns") });
+            };
+            if asset.owner != self.context.viewer && !self.context.is_system() {
+                return Err(RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("{table_name}.{column} names an upload {id} that is not yours or does not exist; upload the bytes first (POST /assets) and place the id it returns") });
+            }
+            if asset.kind != wanted {
+                return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{table_name}.{column} takes {} and {id} is {}", wanted.word(), asset.kind.word()) });
+            }
+            if asset.bytes > u64::from(max) {
+                return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("{table_name}.{column} takes at most {max} bytes; {id} is {}", asset.bytes) });
+            }
+            fields.insert(column.clone(), asset.column_value());
+        }
+        Ok(Value::Row(fields.into()))
+    }
+
+    /// One asset, one home: the column that now names an upload claims it
+    /// for this row; the one it no longer names releases it, and the bytes
+    /// are served no more. Part of every physical row change.
+    fn place_assets(&mut self, table_name: &str, table: &Table, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+        let now = self.context.now.unwrap_or(0);
+        let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned();
+        for (column, kind) in &table.columns {
+            if !matches!(kind.required(), ColumnType::Image { .. } | ColumnType::Video { .. }) {
+                continue;
+            }
+            let before = asset_id(old.and_then(|old| old.field(column).ok())).map(str::to_owned);
+            let after = asset_id(new.and_then(|new| new.field(column).ok())).map(str::to_owned);
+            if before == after {
+                continue;
+            }
+            if let Some(released) = before {
+                self.tx.release_asset(&released, now)?;
+            }
+            if let Some(claimed) = after {
+                if self.context.is_system() && self.tx.asset(&claimed)?.is_none() {
+                    continue;
+                }
+                self.tx.claim_asset(&claimed, &self.context.viewer, table_name, &id, column)?;
+            }
+        }
+        Ok(())
     }
 
     /// Programs never write a maintained target; the engine does.
@@ -230,6 +316,7 @@ impl Runner<'_> {
         }
         partition::row_changed(self, table_name, old, new)?;
         if origin == Origin::Source {
+            self.place_assets(table_name, &table, old, new)?;
             self.maintain(table_name, old, new)?;
         }
         Ok(())

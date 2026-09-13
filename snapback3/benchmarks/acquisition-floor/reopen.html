@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Snapback3 acquisition floor physical reopen control</title>
+<script>
+const request = value => new Promise((resolve, reject) => {
+  value.onsuccess = () => resolve(value.result);
+  value.onerror = () => reject(value.error);
+});
+const transactionDone = tx => new Promise((resolve, reject) => {
+  tx.oncomplete = resolve;
+  tx.onerror = () => reject(tx.error);
+  tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'));
+});
+const openDatabase = () => new Promise((resolve, reject) => {
+  const opening = indexedDB.open('snapback3-acquisition-floor', 1);
+  opening.onsuccess = () => resolve(opening.result);
+  opening.onerror = () => reject(opening.error);
+});
+const digestIds = async ids => {
+  const bytes = new TextEncoder().encode(JSON.stringify([...ids].sort()));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+};
+window.reopenPageReady = true;
+window.runOfflineControl = async () => {
+  const started = performance.now();
+  if (navigator.onLine) throw new Error('browser network was not offline before IndexedDB query');
+  const db = await openDatabase();
+  const tx = db.transaction(['messages', 'conversations', 'meta'], 'readonly');
+  const done = transactionDone(tx);
+  const messages = tx.objectStore('messages');
+  const range = IDBKeyRange.bound(['g0001', Number.MIN_SAFE_INTEGER, ''], ['g0001', Number.MAX_SAFE_INTEGER, '\uffff']);
+  const [history, search, historyIndexKeys, conversationKeys, meta] = await Promise.all([
+    request(messages.index('byConversationTime').getAll(range, 40)),
+    request(messages.index('bySearchTerm').getAll('busy', 20)),
+    request(messages.index('byConversationTime').getAllKeys()),
+    request(tx.objectStore('conversations').getAllKeys()),
+    request(tx.objectStore('meta').get('complete'))
+  ]);
+  await done;
+  db.close();
+  const digest = await digestIds(historyIndexKeys);
+  return {
+    elapsedMs: performance.now() - started,
+    navigatorOnline: navigator.onLine,
+    historyCount: history.length,
+    historyFirstId: history[0]?.id,
+    historyLastId: history.at(-1)?.id,
+    searchCount: search.length,
+    historyIndexKeys: historyIndexKeys.length,
+    historyIndexIdsSha256: digest,
+    conversationKeys: conversationKeys.length,
+    expectedIdsSha256: meta?.expectedIdsSha256,
+    exactDigestMatch: digest === meta?.expectedIdsSha256
+  };
+};
+</script>

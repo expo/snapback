@@ -10,11 +10,11 @@
 **Battery gate:** `scripts-test-inventory`
 **Failure signature:** `sha256:50d16e00f97eefe8cc42cf55cad91c3aff127b449f9dcd174632902eb3b1ea8d`
 **First observed run:** `local.20260829T223616Z.81cc759a07a7`
-**Last observed run:** `local.20260912T132006Z.195ccc9b90d5`
-**Last processed run:** `local.20260912T132006Z.195ccc9b90d5`
+**Last observed run:** `local.20260912T231718Z.9e930482fe75`
+**Last processed run:** `local.20260912T231718Z.9e930482fe75`
 **Detected at revision:** `81cc759a07a706300e471f106fe41dc761c39474`
-**Last observed revision:** `195ccc9b90d5816f4cdc6145b29b5215bd348579`
-**Consecutive red runs:** `36`
+**Last observed revision:** `9e930482fe7538d1a5dc3bda71dcfd870744790e`
+**Consecutive red runs:** `37`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

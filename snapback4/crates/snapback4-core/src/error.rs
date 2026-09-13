@@ -109,6 +109,8 @@ pub enum RuntimeError {
     UnknownOp(String),
     #[error("E_AUTH: {0}")]
     Auth(String),
+    #[error("{code}: {message}")]
+    Asset { code: &'static str, message: String },
     #[error("E_GENERATION: {0}")]
     Generation(String),
     #[error("E_STORE: {0}")]
@@ -135,6 +137,7 @@ impl RuntimeError {
             Self::Bound { .. } => "E_BOUND".into(),
             Self::UnknownOp(_) => "E_OP".into(),
             Self::Auth(_) => "E_AUTH".into(),
+            Self::Asset { code, .. } => (*code).into(),
             Self::Generation(_) => "E_GENERATION".into(),
             Self::Sql(_) | Self::Store(_) => "E_STORE".into(),
         }
@@ -149,6 +152,7 @@ impl RuntimeError {
             Self::Conflict { .. } | Self::Constraint(_) => "constraint",
             Self::Fanout | Self::Bound { .. } => "bound",
             Self::UnknownOp(_) => "op",
+            Self::Asset { .. } => "asset",
             Self::Generation(_) => "generation",
             Self::Sql(_) | Self::Store(_) => "store",
         }
@@ -196,6 +200,10 @@ impl RuntimeError {
                 refusal.guide = Some("writes".into());
             }
             Self::Sql(_) | Self::Store(_) => refusal.retryable = true,
+            Self::Asset { message, .. } => {
+                refusal.message = message.clone();
+                refusal.guide = Some("assets".into());
+            }
             _ => {}
         }
         refusal

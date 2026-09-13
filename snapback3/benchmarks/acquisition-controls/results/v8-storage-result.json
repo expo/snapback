@@ -1,0 +1,46 @@
+{
+  "test": "snapback3-real-indexeddb-acquisition-storage",
+  "startedAt": "2026-09-12T21:13:16.749Z",
+  "host": "expose-builder-pixel",
+  "platform": "linux",
+  "node": "v24.13.1",
+  "port": 54926,
+  "browserExecutable": "/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
+  "dist": "/home/ccheever/snapback3-acquisition-20260912/storage-controls-v8-attempt-01/package/dist",
+  "sdkSourceHashes": {
+    "snapback3/packages/snapback3/src/client.ts": "de9f1441744b2774d475ad47263ead06b0cf77789d16dcd783d89fd9d0940ad2",
+    "snapback3/packages/snapback3/src/resource/acquisition.ts": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+    "snapback3/packages/snapback3/src/resource/storage.ts": "f6c37ba1044464424ec49d1e5c0606a8d027c39605a1216aeee7dc3d8578700c",
+    "snapback3/packages/snapback3/src/resource/types.ts": "d934bf6db72b46cfd8a4bd276bbed6229bd8074ef20334e22a5c86d61214e5a1",
+    "snapback3/scripts/test-acquisition-storage.mjs": "6a3160cd78091849994009a390605c1040dbe4203c6620e41ec8550478996e3c"
+  },
+  "checks": [
+    "v1-upgrade-preserved-frame-and-operation",
+    "atomic-acquisition-batch-close-reopen",
+    "authority-floor-rejection-and-whole-transaction-rollback",
+    "generation-and-session-replacement-clear-acquisitions",
+    "two-adapters-two-pages-serialized-without-loss",
+    "conditional-acquisition-cancel-requires-exact-checkpoint",
+    "conditional-acquisition-cancel-requires-current-session-token",
+    "conditional-cancellation-and-session-clear-guard-successor",
+    "conditional-session-clear-guards-newer-and-erases-matching-authority"
+  ],
+  "browser": {
+    "version": "151.0.7922.34",
+    "rootPid": 2099147,
+    "rootStartTicks": "160651505",
+    "rootCommand": [
+      "/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --snapback3-storage-control=54926 --user-data-dir=/tmp/playwright_chromiumdev_profile-DRtyjx --remote-debugging-pipe --no-startup-window --noerrdialogs --ozone-platform=headless --ozone-override-screen-size=800,600 --use-angle=swiftshader-webgl"
+    ],
+    "rootCleaned": true
+  },
+  "result": "passed",
+  "error": null,
+  "finishedAt": "2026-09-12T21:13:17.128Z",
+  "sdkBundleHash": "8ce8a9037a253cdbfd5344e6c7e9b92838f43ad7267781292bbe3167c9faf934",
+  "packageArtifact": {
+    "path": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v8/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "sha256": "6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562"
+  },
+  "note": "The preserved v1 operation is validated byte-for-byte as adapter state; this control does not execute or recover it."
+}

@@ -1,0 +1,98 @@
+{
+  "recordedAt": "2026-09-12T21:31:40.923478+00:00",
+  "sourceInputManifest": "reviews/final-v8/inputs.json",
+  "sourceInputManifestSha256": "c76ab914e0b536cc6daa612d72326c0aa1c8834987f93d97a42b656a34fca2a4",
+  "results": [
+    {
+      "scope": "SDK acquisition/resource/manifest/cache",
+      "command": "bun test tests/acquisition-client.test.ts tests/resource-client.test.ts tests/manifest-custody.test.ts tests/acquisition-envelope-cache.test.ts",
+      "passed": 83,
+      "failed": 0,
+      "assertions": 338,
+      "executor": "coordinator"
+    },
+    {
+      "scope": "public absence and Commonroom drafts",
+      "command": "bun test tests/public-empty-read.test.ts examples/chat/tests",
+      "passed": 5,
+      "failed": 0,
+      "assertions": 9,
+      "executor": "coordinator"
+    },
+    {
+      "scope": "Node owner/project/HTTP",
+      "command": "bun test packages/snapback3/tests/node-http.test.ts packages/snapback3/tests/node-worker.test.ts packages/snapback3/tests/node-project.test.ts",
+      "passed": 16,
+      "failed": 0,
+      "executor": "coordinator",
+      "binding": "Node/worker source files unchanged through v8"
+    },
+    {
+      "scope": "Rust acquisition protocol",
+      "passed": 4,
+      "failed": 0,
+      "executor": "implementation lane",
+      "sourceSha256": "3a5f354bca9d84767667520e02719c263a0e3dd7b34155a4a852a0989dd84340"
+    },
+    {
+      "scope": "typed guide acquisition example",
+      "command": "./snapback3/node_modules/.bin/tsc -p .llp/ship-runs/snapback3-acquisition-20260912/guide-check/tsconfig.json",
+      "passed": true,
+      "executor": "coordinator"
+    },
+    {
+      "scope": "SDK/compiler type/build check",
+      "command": "bun run check",
+      "passed": true,
+      "executor": "implementation lane"
+    },
+    {
+      "scope": "tracked scoped whitespace",
+      "command": "git diff --check -- snapback3 llp/2000-snapback3.rfc.md diaries/0120-snapback3-commonroom.diary.md",
+      "passed": true,
+      "executor": "coordinator"
+    }
+  ],
+  "repositoryChecks": [
+    {
+      "command": "./ref-check --verbose",
+      "exitCode": 1,
+      "introducedErrors": 0,
+      "inheritedErrors": 19,
+      "explanation": "The same 19 inherited false path references in ignored earlier clique-tickets-20260911 review logs; exact error set matches the earlier check. No introduced product/reference error.",
+      "outputSha256": "e96277b5607b03c82bcab76c850597a2f9bd0e0a91dcc69bf75768f4c8edb5e6"
+    },
+    {
+      "command": "node scripts/check-inventories.mjs",
+      "exitCode": 1,
+      "introducedErrors": 0,
+      "explanation": "Inherited root scripts/caps.test.mjs inventory drift and missing Snapback1 dependency imports; independent Snapback3 workspace does not import or repair them.",
+      "outputSha256": "ba6489389222d0e6955c893681e942bd67902f58687116365dbbf0d3d0879242"
+    }
+  ],
+  "limits": "Scoped affected checks, not full Snapback1/2/4 proof or complete Clique benchmark. Browser/storage/foreground proof recorded separately.",
+  "affectedLlpAudit": {
+    "checkedAt": "2026-09-12T21:22:42.806560+00:00",
+    "documents": [
+      "llp/2000-snapback3.rfc.md",
+      "snapback3/guide.md",
+      "snapback3/README.md",
+      "diaries/0120-snapback3-commonroom.diary.md"
+    ],
+    "scope": "Public acquisition declaration, lifecycle, authority and retained storage, bounded owner transport, benchmark interpretation. Existing source references still apply; source remains under 1500 lines. Final numerical report updates follow frozen source review and do not change reviewed implementation bytes.",
+    "status": "Passed at the affected scope; final result text reconciled with v8 execution records."
+  },
+  "browserEvidence": {
+    "packageSha256": "6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562",
+    "cohort": "results/candidate-v8-pairs-final.json",
+    "coordinatorAudit": "coordinator-audit.json",
+    "storage": "../acquisition-controls/results/v8-storage-result.json",
+    "foreground": "../acquisition-controls/results/v8-foreground-summary.json",
+    "candidateTrialsPassed": 10,
+    "baselineTrialsPassed": 10,
+    "realIndexedDbGroupsPassed": 9,
+    "foregroundScenariosPassed": 5,
+    "full100k": "results/candidate-v8-100k.json",
+    "shaped10k": "results/candidate-v8-shaped-network.json"
+  }
+}

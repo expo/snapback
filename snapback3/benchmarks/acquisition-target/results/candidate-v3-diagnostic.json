@@ -1,0 +1,44 @@
+{
+  "status": "diagnostic-superseded-before-qualification",
+  "candidate": {
+    "sourceSha256": "13667c50beda3c9a5a89177eb634a879cc25c6343b07a4bcce93f6c450297590",
+    "sourceFileManifestSha256": "74910f4372a439309cc47d28e63f61fd621f0ecf3468e69d3268b8657e58c95f",
+    "packageSha256": "aa5253e0ce1eb1a663abfd4f95a78381a5cb8fa206672ccd2a8bd2428594539d",
+    "nativeSha256": "cd00c5214f176d11e9d296b7499ca1fb70edb80f99c272da29c6a2a29a309367",
+    "appAcquireSha256": "df7b93b721121317c0418ae1192ea8ecea31766b0d5b2156bb9bbc018933d1d1",
+    "appBundleSha256": "732783e74755250f4db8450c985084d7d80f8510e8b39ec72b752e4c59f53ce0",
+    "serviceWorkerSha256": "22689d450f2f7a193e411847cf32aa1e09db4e7005f5072f1b7c1fce94c22405",
+    "shellCacheName": "snapback3-acquisition-target-302acc39a16420db52f21f76"
+  },
+  "primaryElapsedMs": [2616.558195, 2822.713015, 2896.353625],
+  "medianPrimaryElapsedMs": 2822.713015,
+  "rangePrimaryElapsedMs": 279.79543,
+  "acquisitionElapsedMs": [1878.2, 2136.7, 2168.9],
+  "acquireRequests": [13, 16, 16],
+  "acquireWallMs": [327.129, 464.509, 466.364],
+  "storageWritesAfterAcquisitionStart": [18, 21, 20],
+  "storageWallMsAfterAcquisitionStart": [684.0, 760.4, 747.0],
+  "correctness": {
+    "everyTrial": true,
+    "messages": 10000,
+    "pages": 151,
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "strictPhysicalOfflineFullAuditEveryTrial": true
+  },
+  "rawSummarySha256": {
+    "attempt-08": "28edbf33f34cb4d3f22d67a7d0858ddc9dc69a1fefdcbb921100cda8382ebea8",
+    "attempt-09": "c4d29f536fe8c873f95bcc6067518df112cc714a5e30108391c8b42b02f4ba31",
+    "attempt-10": "8260599e6433483457d4681482a6fe7c251cd1bbfa6d7d788814bafd5506fb6e"
+  },
+  "rawEvidenceManifest": {
+    "path": "/home/ccheever/snapback3-acquisition-20260912/target/results/candidate-v3-diagnostic-evidence.sha256",
+    "sha256": "6976985470c0498fb822e1a90895f81529a177c52cefb0fcba35050e1faea40e"
+  },
+  "limitations": [
+    "Independent review found safety defects after these diagnostics, so candidate v3 was not admitted to final qualification.",
+    "The primary search used busy and rendered all 200 first-page rows. The proper-subset/negative post-timer search control was added afterward and first passed in the baseline preflight.",
+    "These are three diagnostics, not the required ten alternating pairs, and no p95 is claimed."
+  ]
+}
+

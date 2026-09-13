@@ -242,6 +242,20 @@ pub fn run(options: &Options) -> i32 {
             return 2;
         }
     };
+    if program.kind == ProgramKind::Job {
+        // A job runs as the system principal, every chunk in turn, here.
+        return match engine.run_job(op, args, snapback4_core::now_ms()) {
+            Ok(run) => {
+                let body = json!({ "job": run.name, "id": run.id, "state": run.state, "chunks": run.chunks, "rowsWritten": run.rows_written, "error": run.error });
+                println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
+                if run.state == snapback4_core::JobState::Done { 0 } else { 1 }
+            }
+            Err(error) => {
+                eprintln!("{op}: {error}");
+                1
+            }
+        };
+    }
     let context = Context::new(persona_principal(&persona), args);
     if program.kind == ProgramKind::Query {
         match engine.query(op, context) {
@@ -310,6 +324,10 @@ pub fn data(options: &Options) -> i32 {
     }
 }
 
+fn human_period(ms: u64) -> String {
+    if ms % 86_400_000 == 0 { format!("{}d", ms / 86_400_000) } else if ms % 3_600_000 == 0 { format!("{}h", ms / 3_600_000) } else { format!("{}m", ms / 60_000) }
+}
+
 fn human(bytes: u64) -> String {
     match bytes {
         b if b >= 1 << 20 => format!("{:.1} MB", b as f64 / (1 << 20) as f64),
@@ -338,6 +356,15 @@ pub fn doctor(options: &Options) -> i32 {
                     if let Ok(sizes) = engine.store().sizes() {
                         storage = Some(sizes);
                         lines.push(format!("storage   rows {} ({} rows) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));
+                    }
+                    for schedule in &bound.schema.schedules {
+                        let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
+                        lines.push(format!("schedule  {} every {}{} → {}; {}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02}", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target, match last { Some(at) => format!("last boundary {at}"), None => "not yet started (a running server starts it)".into() }));
+                    }
+                    if let Ok(runs) = engine.jobs(5) {
+                        for run in runs {
+                            lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{}{}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
+                        }
                     }
                 }
                 Err(error) => {
@@ -419,6 +446,9 @@ pub fn why(options: &Options) -> i32 {
         match &table.sync {
             Some(sync) => println!("  {} — a device holds these rows; {}", sync.line(), match &sync.audience { Audience::Public => "everyone holds the same partition".to_owned(), Audience::Column(c) => format!("each row reaches the principal in .{c}"), Audience::Target { table, principal, .. } => format!("each row reaches every principal in {table}.{principal} whose group matches") }),
             None => println!("  online-only — no sync line; reads go to the server"),
+        }
+        if let Some(column) = &table.expire {
+            println!("  expire at .{column} — a row past it is absent to every reader, then swept; null never expires");
         }
         for (name, index) in &table.indexes {
             println!("  {} {name}: {}", if index.unique { "unique" } else { "by" }, index.columns().join(", "));

@@ -6,6 +6,7 @@
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
+import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -38,8 +39,15 @@ interface Watch {
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-/** A time-ordered 128-bit id: 48 bits of milliseconds, 80 bits of entropy, 26 base32 digits. */
+let lastMinted = 0;
+
+/** A time-ordered 128-bit id: 48 bits of milliseconds, 80 bits of entropy,
+ * 26 base32 digits. Ids minted by one process strictly increase: two in one
+ * millisecond take successive milliseconds, so their order is the order
+ * they were minted in, not the order of their entropy. */
 export function mintId(now = Date.now()): string {
+  now = Math.max(now, lastMinted + 1);
+  lastMinted = now;
   const bytes = new Uint8Array(10);
   if (typeof crypto !== "undefined" && crypto.getRandomValues) crypto.getRandomValues(bytes);
   else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
@@ -262,6 +270,14 @@ export function createClient(options: ClientOptions): Client {
       // Durable admission on this device: the write waits for the link.
       return { state: "pending", id };
     },
+    async upload(bytes) {
+      if (!viewer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
+      const uploaded = await uploadAsset(base, headers, doFetch, bytes);
+      if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
+      return uploaded;
+    },
+    asset: (id) => fetchAsset(base, headers, doFetch, id),
+    assetSource: (id) => assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {
       linkListeners.add(listener);

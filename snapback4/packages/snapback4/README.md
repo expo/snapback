@@ -112,8 +112,9 @@ mutation edit(messageId: messages, body: text <=4000):
 - **Types:** `principal`, `id`, `<table>` (a reference to that table's
   id), `int`, `time` (milliseconds), `bool`, `decimal <scale>`,
   `money <CUR> [scale]`, `text <=N`, `text M..N [format handle|url]`,
-  `enum('a', 'b')`, `json <=N`, `bytes <=N`, `[type] <=N` (a list);
-  `?` after a type makes the column optional (null when absent).
+  `enum('a', 'b')`, `json <=N`, `bytes <=N`, `[type] <=N` (a list),
+  `image <=N [once]` and `video <=N` (an upload the row holds — §4,
+  assets); `?` after a type makes the column optional (null when absent).
 - **Indexes:** `by name: cols` orders rows; `unique name: cols` also
   constrains them. A scan needs an index whose leading columns are the
   scan's prefix; a page's order is the index's remaining columns.
@@ -132,16 +133,25 @@ mutation edit(messageId: messages, body: text <=4000):
 - **Sync** (§3) and **retain**: `retain until-revoked` (the default: a
   device drops a group's rows when it leaves the group) or
   `retain delivered-history` (it keeps what it was given).
+- **Expire:** `expire at .expiresAt` (a `time ?` column with an index
+  leading with it, `by byExpiresAt: expiresAt`). A row past that time is
+  absent to every reader on every host from that moment, before any rule;
+  the server sweeps it within seconds and the deletion streams to each
+  device holding it. A null time never expires. Disappearing messages
+  are one field on insert, `expiresAt: now + ttl if ttl != null else
+  null` with `ttl: int ?`; nothing else to write.
 
 ### Maintains
 
 `maintain counts: count messages by conversationId` (or `maintain totals:
 sum posts of score by authorId`) keeps an aggregate table the engine
-writes: columns are the `by` columns and `value`, the id is the group's
-canonical key, programs read it by group (`counts[conversationId]`,
-`counts[.conversationId]` in a shape).
-It takes its own `read` rule and inherits the source's `sync` when it
-groups by the audience columns.
+writes. A program reads it by group and gets **the number**:
+`counts[conversationId]` and `counts[.conversationId]` in a shape are an
+`int`, 0 when the group has no row. (On the wire and on a device the
+table's rows are `{ id, <by columns>, value }` with the group's canonical
+key as the id; that shape only matters to sync.) It takes its own `read`
+rule and inherits the source's `sync` when it groups by the audience
+columns.
 
 ### Queries and mutations
 
@@ -151,8 +161,10 @@ groups by the audience columns.
   hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`,
   `t[prefix] first N by index` (ascending), `t[prefix] after c last N by
   index` (descending, from a cursor), `merge t first N by index:` with
-  `[lane]` lines (one ordered page over several prefixes), `walk t[seed]
-  up .parentId depth 8`.
+  `[lane]` lines (one ordered page over several prefixes; a merge reads
+  one page per lane, so a feed over hundreds of followed users wants its
+  entries written on the way in, one table synced to `.reader` — `check`
+  notes a merge past 50 lanes), `walk t[seed] up .parentId depth 8`.
 - **Shapes:** `{ *, author: users[.authorId], count: counts[.conversationId] }`
   after a page or a row; `.` is the row; `*` spreads its columns; a point
   read inside a shape is null for a hidden row. `shape card = { .. }`
@@ -166,11 +178,42 @@ groups by the audience columns.
   immutables and text formats; any refusal rolls the whole mutation back.
 - **Statements:** `x = expr`, `require cond else CODE`, `if:` / `else:`,
   `for x in page:`, `return`. Values: `viewer`, `now`, `new` (an id),
-  `count(page)`, `sum(page, .x)`, `slice`, `min`, `max`, `a ?? b`.
+  `count(page)`, `sum(page, .x)` (a field over a page or list; `sum(list)`
+  over numbers), `slice`, `min`, `max`, `a ?? b`, `a if cond else b`
+  (the arm not taken is never evaluated; `x != null` as the condition
+  narrows `x` in the taken arm). There is no `/`: `(quotient, remainder)
+  = divmod(a, b)` binds both at once, so a remainder is never dropped
+  unread. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need
   present operands — narrow with `if x != null:` or `x ! else CODE`.
 - **Refusals** a program raises with `require .. else CODE` reach the
   client as `{ code: "CODE", family: "rule", .. }`.
+
+### Jobs and schedules
+
+```
+job digest(periodStart: time, periodEnd: time):
+  chunk p in profiles first 100 by byId:
+    ... a mutation's body with p bound; reads and writes as the system ...
+schedule daily every 1d at 08:00: digest        -- or: every 2m
+```
+
+A job is the server's own work: a sequence of sweeps, each `chunk x in
+table[prefix] first N by index:` walking one index a page per commit as
+the system principal (every rule passes; validation, constraints,
+aggregates and partitions apply) under the job ceilings. The cursor
+commits with the rows, so a chunk is wholly done or not started and a
+restart resumes at the next one; the index's columns are `id` or
+`immutable`, so nothing moves under the cursor, and rows inserted past
+the key captured when the sweep began are not visited. `break` ends the
+sweep, `return` the job; a refused chunk parks the job with its refusal
+(`snapback4 doctor` lists runs). No client calls a job. A schedule fires
+it once per period boundary of the server's clock (`every 2m`, `every
+1h`, `every 1d at 08:00`), exactly once per boundary across restarts,
+passing `periodStart` and `periodEnd` when the job declares them (and
+nothing else); a schedule first seen fires from its next boundary.
+`snapback4 run <job> '{..}'` runs one here and now. Jobs are not on
+`api.ts`.
 
 ### The meter
 
@@ -207,6 +250,17 @@ The horizon `last N by index` bounds what a device acquires per group;
 older rows are online-only, and a device's read past them says
 `complete: false`. Joining a group delivers its rows; leaving it delivers
 one scope tombstone, and the table's `retain` says what the device keeps.
+A table with no horizon delivers every row of every group the device
+holds, at every cold start, as the table grows: a public table of posts,
+or a group's receipts, is soon the whole cold start. `check` notes such a
+table (`N_NO_HORIZON`); give a growing table a horizon (`last 500 by
+<index>`: the newest N per group stay on the device, the rest are online
+and a local read past them says `complete: false`). A snapshot arrives in
+pages of 2,000 events, each applied in its own transaction, so a large
+partition costs a device no more memory than one page; in Node, open the
+SQLite store (`openSqlite(nodeSqliteDriver(new DatabaseSync(path)))`) for
+anything larger than a test, since the memory store holds every row on
+the heap.
 What it keeps under `delivered-history` it can still read locally through
 a query without a membership `require` (the server refuses the same query
 once the membership is gone, so a "history" query answers on the device
@@ -284,6 +338,33 @@ const viewer = useViewer();           // the principal, or null
 `useQuery` observes: it re-renders when a sync or a local prediction
 touches the query's tables. `usePage` follows `next` across pages.
 
+### Assets
+
+```ts
+const uploaded = await client.upload(file);            // Blob | ArrayBuffer | Uint8Array
+if (uploaded.ok) await client.mutate(api.sendPhoto, { conversationId, photo: { id: uploaded.asset.id } });
+const photo = useAsset(message.photo?.id);             // { status: "loading" } | { status: "ready", url, type } | { status: "denied", why }
+```
+
+An `image <=N` or `video <=N` column holds an upload: the client sends
+the bytes first (`upload` → `{ id, type, bytes, width, height,
+duration }`; the server sniffs JPEG, PNG, WebP and MP4 and refuses the
+rest with `E_ASSET_TYPE`, and anything over the largest column's bound
+with `E_ASSET_TOO_LARGE`), then places `{ id }` in the mutation. Inside
+the mutation the argument already carries the facts the server
+established (`require clip.duration <= 60000 else TOO_LONG`; every key
+is present, null where the kind has none), and the row carries them. One asset, one home: your own
+upload, placed once (`E_ASSET_UNKNOWN`, `E_ASSET_PLACED`). Serving is
+the home row's read rule: `client.asset(id)` fetches the bytes under the
+viewer's credentials and returns a blob URL (`useAsset` in React;
+`client.assetSource(id)` gives a URI and headers for native image and
+video views); a row that is deleted, whose column is cleared, that
+expired, or that the viewer may not read answers `E_ASSET_UNKNOWN`. A
+column declared `image <=N once` serves one view per principal: the
+second is `E_ASSET_VIEWED`, and the bytes are never cached anywhere
+(the sender is never counted). Uploads are online only; there is
+nothing to queue.
+
 ### Sign-in (`snapback4/auth`)
 
 `guest(url)`, `signup(url, email, password)`, `login(url, email,
@@ -332,8 +413,8 @@ flips the link.
   diagnostic with its site and rewrite; `--cost` adds each site's
   structural class.
 - **`snapback4 why <E_CODE | op | table>`**, **`data <table>`**,
-  **`doctor`**, **`guide [keyword]`** (cards: rules, sync, writes, reads,
-  shapes, bounds, types, personas, refusals).
+  **`doctor`**, **`guide [keyword]`** (cards: rules, sync, expire, assets,
+  jobs, writes, reads, shapes, bounds, types, personas, refusals).
 
 ### The wire
 
@@ -343,7 +424,9 @@ seq, next }` or `{ denied }`; `POST /m/<op>` with `{ "id", "args",
 "newIds" }` answers `{ state: "sent", seq, result }` or `{ state:
 "failed", why }` (a client-minted `id` makes the write apply at most
 once); `GET /sync?from=W` streams the partition; `GET /changes?since=S`
-long-polls for commits; `GET /schema` is the compiled backend;
+long-polls for commits; `POST /assets` (the file's bytes as the body)
+answers `{ asset }`, `GET /assets/<id>` serves them (404 hidden or gone,
+410 viewed; `Range` works); `GET /schema` is the compiled backend;
 `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
 (`{ "email", "password" }`) answer `{ "session": { principal, kind, token,
 expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout` with the
@@ -384,10 +467,10 @@ through `nodeSqliteDriver`.)
 
 ## 8. Not in this release
 
-Word search (`tokens()` and word-prefix indexes are parsed, not served),
-scheduled jobs, effects (server-side side effects to third parties),
-assets (`image`/`video` columns type-check and store metadata; there is
-no upload or serving path), platform binaries other than darwin-arm64
-(build from source with `cargo build --release -p snapback4` and set
-`SNAPBACK4_BIN`). If the package cannot express something, the
+Word search (`tokens()` and word-prefix indexes are parsed, not served:
+search over synced rows on the device, or by a prefix index), effects
+(server-side side effects to third parties: write the fact to a table
+and let a job or a reader act on it), platform binaries other than
+darwin-arm64 (build from source with `cargo build --release -p snapback4`
+and set `SNAPBACK4_BIN`). If the package cannot express something, the
 diagnostic names the term; record the gap and move on.

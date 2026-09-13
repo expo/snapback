@@ -945,3 +945,240 @@ finding with its fix — is `benchmarks/runs/2026-09-12-snapback4-clique-0002/`;
 the loop bar's is beside it. LLP 3000 §5's fourth week is delivered:
 Expo, deploy, day two, the loop bar (met on 0.0.11), the Clique hub run
 and its record. What remains on the clock is fix-forward from evidence.
+
+## 2026-09-12 — the whole brief: expiry, assets, jobs and schedules; 0.1.0
+
+The author: "complete snapback4 to the point where the entire clique
+benchmark can be run … take whatever you want from snapback1 or 2 or 3."
+The run on 0.0.2 struck media and scheduled work; the three things it
+struck are one release, each the smallest word that closes its half of
+the brief, and each carried from Snapback 2 where Snapback 2 had it right.
+
+- **`expire at .column`** (a table line; a `time ?` column with an index
+  leading with it, the rewrite names the index). A row past that time is
+  absent to every reader on every host from that moment — before any
+  rule, in points, scans, merges, `exists` probes, and the row a mutation
+  would update or delete — and the server's sweep deletes it within
+  seconds (one commit per pass, bounded), so the deletion streams to
+  every device holding it and it leaves local stores and local search on
+  the next sync. A null time never expires; the system principal sees no
+  more than anyone, so an expired row contributes to nothing a job
+  computes. This is the M5 answer NOT-DOING deferred as "time in rules":
+  not a rule (a rule that varies with time is no audience a partition can
+  hold) but a lifetime, and the device mirrors it on its own clock while
+  the server's word is authoritative. Disappearing messages are
+  `expiresAt: now + ttl` on insert; nothing else to write.
+- **Assets** (LLP 1006's shape, the byte sniffers ported from Snapback 2's
+  media crate onto slices). `POST /assets` takes the bytes, sniffs JPEG,
+  PNG, WebP and MP4 (dimensions from the header, duration from `mvhd`),
+  bounds them by the largest column of that kind in the schema, keeps
+  them beside the store (`assets/` next to the database, so every release
+  serves the same bytes), and records them under the uploader. An
+  `image`/`video` column names an upload by id; on the write the engine
+  replaces the client's map with the facts the server established and
+  claims the asset for the row — one asset, one home, the uploader's own
+  — and releases the one a column stops naming. `GET /assets/<id>` is the
+  home row's read rule, run on the row as it stands: present, still
+  naming the asset, not expired, readable by this viewer; a `once` image
+  records one view per principal and refuses the second with 410
+  `E_ASSET_VIEWED`, `Cache-Control: no-store`; the uploader is never
+  counted. Hidden, released and absent are one word, `E_ASSET_UNKNOWN`,
+  on purpose. Released and abandoned uploads leave the disk once a
+  minute. On the client: `upload(bytes)`, `asset(id)` (a blob URL fetched
+  under the viewer's credentials, so no token ever sits in an `<img
+  src>`), `assetSource(id)` for native views, `useAsset(id)` in React
+  (revoked on unmount; a second mount of a one-view photo is `denied`,
+  which is the feature). Uploads are online only; there is nothing to
+  queue. The system principal may name an asset that was never uploaded
+  (a fixture's placeholder): metadata only, never served.
+- **Jobs and schedules** (LLP 1016 §4 D2–D5, the sweep as Snapback 2
+  built it, without the operator console). `job name(args):` is a
+  sequence of `chunk x in table[prefix] first N by index:` sweeps; each
+  chunk is one page through the body as the system principal under the
+  job ceilings, its cursor committed with the rows it wrote, so a chunk
+  is wholly done or not started and a restart resumes at the next one.
+  The index's columns are `id` or `immutable` (`E_JOB_CURSOR_INDEX`,
+  rewrite `immutable <cols>`), so nothing moves under the cursor; the
+  upper key is captured when the sweep begins, so a sweep over its own
+  table ends. `break` ends the sweep, `return` the job; a refused chunk
+  parks the run with its refusal; a run queued under one program parks
+  with `E_JOB_GENERATION` when the program changes. No client calls a job
+  (`E_OP` at the wire; jobs are not on `api.ts`). `schedule name every
+  2m|1h|1d [at HH:MM]: job` fires once per period boundary of the
+  server's clock, the boundary committed in one transaction with the job
+  row, so a restart never fires twice for one period; a schedule first
+  seen starts from its next boundary; a boundary crossed while the
+  server was down fires once on return; `periodStart`/`periodEnd` are
+  supplied when the job declares them and nothing else may be declared
+  (`E_SCHEDULE`). `snapback4 run <job>` runs one whole, now; `doctor`
+  lists schedules and the last runs. The server's maintenance thread
+  (every five seconds: the expiry sweep, due schedules, queued chunks
+  one at a time with the engine free between them, and once a minute the
+  asset sweep) is the only clock.
+- Tests: `tests/clique.rs` (expiry absent then swept; the asset flow with
+  `once` and release; a two-sweep job and a parked run; a schedule's
+  boundaries; the compiler's refusals), the sniffers' unit tests, the
+  device's expiry filter, and an end-to-end upload → `sendPhoto` →
+  serve → unsend on a live `dev`. The chat schema gains `sendPhoto`.
+- What is deliberately smaller than Snapback 2: no rungs, thumbnails or
+  HEIC; no `_timers` table (a schedule's state is one meta key); no job
+  console; missed boundaries fire once, not once per period. Recorded
+  in NOT-DOING's Moves.
+- `snapback4@0.1.0`: the first release that carries the whole brief.
+
+## 2026-09-12 — from the full-brief lane's M1: the four workers; 0.1.1
+
+Thirty-nine minutes into the full-brief run the lane recorded a
+`snapback4-defect`: the backend accepted TCP but `/schema` "timed out"
+once two clients were writing profiles (`evidence/backend-hang.txt`: the
+answer came after 2.0 s, past the lane's own budget). Reproduced here in
+one line: four `GET /changes?wait=15` long polls, then `/schema` waits
+14.5 s. The wire had a pool of four worker threads, and every connected
+device keeps one long poll open, so the fifth request of any kind —
+another device's bootstrap, a write, a probe — waited for a poll to time
+out. This is the same shape as the struck run's d-04 ("live updates
+intermittently past the harness's 10 s budget"), which the grader read
+as host load. Fix: one thread per request, no pool; a waiting poll holds
+nothing but its thread, and the engine serializes behind its own lock as
+before. Twelve polls open, `/schema` and a query answer in milliseconds.
+Published `snapback4@0.1.1`; the lane stays on its 0.1.0 pin and the
+record reads the defect against main.
+
+## 2026-09-12 — from the full-brief lane's M2: the facts arrive before the program; 0.1.2
+
+Two lines from the lane's M2. **A video argument carried only the id, so
+`require clip.duration <= 60000` raised `E_FIELD` inside the mutation**:
+the facts the server sniffed were put on the row at the write, after the
+program had already read the argument. Now an `image`/`video` argument
+that names the writer's own upload carries the server's facts before the
+program runs (`type`, `bytes`, `width`, `height`, `duration`, every key
+present and null where the kind has none, on the argument and on the
+row alike; a fixture's placeholder keeps the same shape), so the 60 s
+bound is one `require` and the client needs to send nothing but `{ id }`.
+Test: `tests/clique.rs`, a clip of 4.5 s sent and one of 120 s refused
+with the author's code. **The README said a `maintain` was read "by
+group" and described the row**, and the lane expected a row where the
+read is the number; it is the number (0 when the group has no row), and
+the README now says so, the row shape being sync's business. Published
+`snapback4@0.1.2`.
+
+## 2026-09-12 — from the full-brief lane's M5: the card promised a form the grammar lacked; 0.1.3
+
+The `expire` card said disappearing messages were "`now + ttl if ttl`
+on insert". The lane wrote exactly that and `check` refused it,
+`E_QUARRY_SYNTAX`: the phrase was prose in the shape of code, and Quarry
+had no conditional value at all — this session had hit the same wall
+writing the expiry test and stepped around it with a second mutation
+instead of noticing what that meant. A `snapback4-defect`, rightly.
+Quarry now has `a if cond else b`, below every operator, the arm not
+taken never evaluated (lowered to a temporary assigned in one arm of an
+`if`, so both hosts run it unchanged) and `x != null` narrowing `x` in
+the taken arm; the card and the README say the true line,
+`expiresAt: now + ttl if ttl != null else null` with `ttl: int ?`, and
+the expiry test sends through exactly it. Published `snapback4@0.1.3`.
+
+## 2026-09-12 — from the full-brief lane's M8: three more words the README owed; 0.1.4
+
+The lane's M8 line, a knowledge gap attributed to the package: the
+README's `sum(page, .x)` was refused (the binder knew only `sum(list)`,
+and nothing in Quarry made a list of numbers from a page); a bare
+`return` was refused; and division was found only through its
+diagnostic. Now `sum(page, .x)` is real — a loop pushing each row's field
+into a list, then the sum, the same IR on both hosts, `E_QUARRY_TYPE`
+with `?? 0` as the rewrite for an optional field — a bare `return` is
+`return null`, and the README says there is no `/`: `(quotient,
+remainder) = divmod(a, b)` binds both so no remainder goes unread.
+Published `snapback4@0.1.4`.
+
+## 2026-09-12 — from the full-brief lane's M8: the clock ticks once a second; 0.1.5
+
+The lane's unattended digest proof asserted 1.5 s after the two-minute
+boundary and found nothing; its restarted backend then logged
+`schedule daily fired` and `job digest done: 5 chunks, 17 rows written`
+for that same boundary — once, as the boundary committed with the job
+row says. The mechanism held; the server's clock ticked every five
+seconds. It ticks once a second now (a quiet tick is a few index probes
+under the lock), so an expired row is swept and a schedule's job runs
+within a second of its moment. Published `snapback4@0.1.5`.
+
+## 2026-09-13 — from the full-brief lane's M8: the cold start of a large partition; 0.1.6
+
+The lane's cold-sync probe — a Node client on the memory store, the
+persona `u0500`, the full M8 scale corpus (990,355 rows, a 1.8 GB
+store) — blocked its event loop past 30 s and was stopped at 51 s and
+2.2 GB RSS; the lane recorded a capability gap and claimed no
+performance pass. Two causes, both the platform's to answer. **The
+snapshot came as one response**: the whole partition's JSON parsed at
+once, applied in one transaction. It is paged now — `GET /sync?from=0`
+returns 2,000 events and a `next` token; each page is one short
+transaction on the server and one on the device; the first page clears
+the rows, the watermark the first page pinned lands with the last, and a
+row changed or a group joined between pages arrives through the log,
+idempotently (`tests/clique.rs`: 4,500 rows in three pages, no row
+twice, a conversation joined mid-snapshot streamed after). **The
+schema had no horizons**: `sync public` on posts, follows, likes and
+feed entries, and no `last N` on messages or receipts, so every device
+held 227,699 public rows and a group's 490,000 receipts, at every cold
+start. The compiler now notes it once per table (`N_NO_HORIZON`, with
+the horizon line to add), the README and the `sync` card say what a
+horizon is for, and the README says the memory store is for tests and
+Node hosts open SQLite. This is the Snapback 2 run's "cold sync 62 s /
+748 MB" answered where it should be: at `check`, before the corpus
+exists, and on the wire, a page at a time. Published `snapback4@0.1.6`.
+
+## 2026-09-13 — from the full-brief lane's M8 closure: the outbox in submission order; 0.1.7
+
+The lane's last attributed line: queued writes did not always flush in
+the order they were submitted, and it re-ordered them itself through the
+client's `fetch` and `store` seams. True: the outbox flushed by id, and an
+id is 48 bits of milliseconds then 80 of entropy, so two writes in one
+millisecond flushed in the order of their entropy. Now an id minted by
+one process strictly increases (two in one millisecond take successive
+milliseconds), and the outbox carries its own submission sequence, kept
+in the store's meta and flushed by, so the order survives a restart and
+a clock that steps back. Test: twenty sends in one offline burst reach
+the other device in the order they were sent. Published `snapback4@0.1.7`.
+
+## 2026-09-13 — the full-brief Clique run: every milestone green on 0.1.0
+
+The lane (`~/clique-sb4-20260912-full`, Astra medium, `snapback4@0.1.0`
+pinned, nothing struck) ended at 7,002 s of wall clock with M1, M2, M3,
+M4, M5, M6 and M8 green: 654, 607, 716, 151, 673, 1,180 and 2,945 s of
+closure wall in turn (the struck run on 0.0.2: 7,725 s to M8 with media
+and scheduled work removed). Media messages, avatars, view-once photos,
+asset revocation, server-enforced expiry with no client open, and the
+scheduled digest under the two-minute config all passed the frozen suite
+and the two-client choreography; the scale replay settled 167,157
+actions in 512 s and verified against the invariant manifest. Of 31
+recorded correction events the lane attributed 20 to itself, 4 to the
+environment, 4 as ambiguous and 3 to the package; every package line is
+answered above, in 0.1.1 through 0.1.7, and the record reads each
+against main. The lane declares one protocol deviation: its last
+diagnosis read the installed package's `dist/local.js`, not a source
+checkout, and it says so.
+
+What it did not claim: the scale envelope's O5. Cold sync of `u0500`
+over the full corpus on the memory store blocked Node past 30 s (0.1.6:
+the snapshot is paged and `check` notes a table with no horizon; the
+lane's schema had none), and the wide-follow probe — the following feed
+for a user who follows 500 against one who follows 5 — measured 19.2×
+where the envelope allows 3×. That ratio is the shape of `merge` over
+500 lanes, each lane read one page deep; the feed the brief describes
+wants a fan-out-on-write table or a bounded lane count, and the
+package's notes should say so at `check` when a merge's lane source is
+unbounded in practice. Open, for the next slice. The 60-second video
+bound the lane checked on the client is one `require` on the server
+since 0.1.2. Grading and M7 follow.
+
+## 2026-09-13 — the wide merge, named at `check`; 0.1.8
+
+The lane's following feed was `merge feedEntries … [f.followed] for f in
+follows[viewer] first 1000 by byFollower`: a thousand lanes, a page of 21
+each, 21,000 rows per read — past the 8,192 the meter allows, so cut, and
+19× the five-lane read. The design the brief's envelope wants is the
+entries written on the way in, one table per reader synced to `.reader`,
+read as one page; nothing said so before the run. `check` now notes a
+merge whose lanes may exceed fifty, with the row count and, when it is
+past the ceiling, that the page is cut (`N_WIDE_MERGE`); the README and
+the `reads` explanation carry the fan-out-on-write shape. Published
+`snapback4@0.1.8`.

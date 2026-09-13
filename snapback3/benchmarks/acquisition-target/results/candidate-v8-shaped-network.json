@@ -1,0 +1,116 @@
+{
+  "status": "qualification-shaped-control-pass",
+  "qualificationMember": true,
+  "reason": "The exact v8 package passes the separately predeclared shaped-network correctness control; this timing is not folded into the loopback 3-second target.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-24-shaped-final-v8",
+  "condition": {
+    "method": "Chrome CDP Network.emulateNetworkConditions",
+    "offline": false,
+    "latencyMs": 50,
+    "downloadBytesPerSecond": 1250000,
+    "downloadMbitPerSecond": 10,
+    "uploadBytesPerSecond": 625000,
+    "uploadMbitPerSecond": 5,
+    "connectionType": "wifi"
+  },
+  "primaryElapsedMs": 5420.685579,
+  "firstUsefulInboxMs": 2342.339599609375,
+  "firstUsefulHistoryMs": 5351.839599609375,
+  "acquisitionCompletedPageMarkMs": 5077.700000047684,
+  "network": {
+    "allRequests": 21,
+    "allEncodedBytes": 2191127,
+    "appBundleEncodedBytes": 1391777,
+    "manifestEncodedBytes": 544162,
+    "authEncodedBytes": 503,
+    "acquireResponses": 15,
+    "acquireEncodedBytes": 253259,
+    "acquireDecodedBytes": 3255169,
+    "responsePages": 151,
+    "responseContinuations": 81
+  },
+  "heapBeforeAudit": {
+    "usedBytes": 68436576,
+    "totalBytes": 112873472,
+    "embedderHeapUsedBytes": 11220656,
+    "backingStorageBytes": 2131271
+  },
+  "correctness": {
+    "conversations": 100,
+    "uniqueConversations": 100,
+    "messages": 10000,
+    "uniqueMessages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "completeFinalPages": 101,
+    "incompleteIntermediatePages": 50,
+    "seq": 1,
+    "messageFields": [
+      "conversationId",
+      "edited",
+      "id",
+      "replyTo",
+      "senderId",
+      "serverTimestamp",
+      "text",
+      "tombstone"
+    ],
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "digestScope": "Both digests bind message rows. Conversation full fields are not hashed.",
+    "conversationIdSet": {
+      "expected": "g0001 through g0100",
+      "count": 100,
+      "sha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+    },
+    "properSubsetSearch": true,
+    "negativeSearchZero": true
+  },
+  "physicalReopen": {
+    "elapsedMs": 1314.6666939999996,
+    "firstOfflineUseElapsedMs": 694.5,
+    "fullAuditElapsedMs": 185.19999980926514,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "fullAuditMatchesPrimary": true
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v8/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "6eb3ca7780286a861d8e79e0f6e1322c37734036add5078011c6c05a72c44562",
+    "packageSourceSha256": "70eb6314b7d61fa1527bf86c3ac3919f25cc2073a32ede5b15f55ab9084b2d9f",
+    "packageReportSha256": "eb780dee4df26b3ca72ee9652b2f04f127f17baafd435df2218455284b6d3da4",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "sourceFilesManifestSha256": "5a03c78be80116d39c012ea660c3469a020ad6603250bf4f19589a1a46a21ecd",
+    "clientTsSha256": "de9f1441744b2774d475ad47263ead06b0cf77789d16dcd783d89fd9d0940ad2",
+    "storageTsSha256": "f6c37ba1044464424ec49d1e5c0606a8d027c39605a1216aeee7dc3d8578700c",
+    "typesTsSha256": "d934bf6db72b46cfd8a4bd276bbed6229bd8074ef20334e22a5c86d61214e5a1",
+    "acquisitionTsSha256": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+    "acquisitionClientTestSha256": "b1ad6a59841e25bc4e515e38996ff4c487969e2a255de6e9162d593834073039",
+    "packagedWorkerOverrideRemoved": true,
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "appAcquireSha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+    "appBundleSha256": "10da8b6fb481316df596e35014fb0b538273cf669a5da340827badf98eea359f"
+  },
+  "rawSha256": {
+    "summary.json": "e60eb665d211962fe138d64bce8d8e7919dcd74778d9140f48fa8b026a71d678",
+    "metadata.json": "982673f85b20464bf4304e33ae9eeaf0c1f24a77f1d4a674582a3526e647d6ed",
+    "run-01/result.json": "2965927f1ef2d3b0d808c98fb521f425a6555eef11d5227aba0c43c777fc53f0",
+    "cleanup-receipt.json": "a141e0cfc472529392cfd3850339a684e6de8f0be4c753e273149200c1a6fcf1",
+    "worker-cleanup-receipt.json": "218c8213c8f994ed217e30175580bea0378d2e25403bc539a89abd7b24b58f57"
+  },
+  "cleanup": {
+    "owner": {
+      "pid": 2119345,
+      "startTick": "160704930",
+      "cleaned": true
+    },
+    "worker": {
+      "pid": 2119390,
+      "startTick": "160705228",
+      "cleaned": true
+    },
+    "port": 54924,
+    "portFree": true
+  },
+  "limitations": "This browser-level model adds fixed latency and throughput caps. It does not model WAN routes, loss, jitter, server contention, or a remote owner."
+}

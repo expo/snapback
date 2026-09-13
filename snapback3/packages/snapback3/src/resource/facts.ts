@@ -1,6 +1,6 @@
 import { ClientStore } from '../../../evaluator/src/store.js';
 import { queryState, validateCertificate } from '../../../evaluator/src/runner.js';
-import { canonicalJson, schemaDigest, validateInputs, valueFromWire, wireJson } from '../../../evaluator/src/value-runtime.js';
+import { canonicalJson, prepareSchema, validateInputs, valueFromWire, wireJson } from '../../../evaluator/src/value-runtime.js';
 import { isSha256, sha256 } from '../../../evaluator/src/hash.js';
 import type { Context, Value } from '../../../evaluator/src/types.js';
 import { expandRows, ownDeliveryEnvelope, prepareClosureReceipt, type DeliveryEnvelopeV1 } from './protocol.js';
@@ -9,11 +9,15 @@ import { rowKey } from './storage.js';
 import { SnapbackError, type Args, type FramePatch, type Manifest, type ResourceSnapshot, type Session, type StoredResource } from './types.js';
 
 export function validateManifest(input: Manifest): Manifest {
-  const manifest = ownJson(input);
-  if (!isSha256(manifest.generation) || !isSha256(manifest.schemaHash)
-    || !Number.isSafeInteger(manifest.seq) || manifest.seq < 0
-    || schemaDigest(manifest.schema) !== manifest.schemaHash)
+  const isolated = ownJson(input);
+  if (!isSha256(isolated.generation) || !isSha256(isolated.schemaHash)
+    || !Number.isSafeInteger(isolated.seq) || isolated.seq < 0)
     throw new SnapbackError('S3_PROTOCOL', 'The server manifest has an invalid identity.');
+  const schema = prepareSchema(isolated.schema, isolated.schemaHash);
+  if (!schema) throw new SnapbackError('S3_PROTOCOL', 'The server manifest has an invalid identity.');
+  // Keep the evaluator's exact validated immutable schema object: cloning this
+  // assembled manifest again would discard its module-private hash custody.
+  const manifest = Object.freeze({ ...isolated, schema });
   for (const [name, program] of Object.entries(manifest.programs)) {
     if (program.ir.name !== name || program.ir.kind.toLowerCase() !== program.kind.toLowerCase()
       || program.planHash !== program.certificate.plan_hash)

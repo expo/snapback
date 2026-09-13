@@ -1,0 +1,101 @@
+{
+  "status": "diagnostic-pass-excluded",
+  "qualificationMember": false,
+  "reason": "All measured performance and harness correctness controls passed, but subsequent final-v6 review found three SDK lifecycle P1 defects. V6 is preserved measured evidence and is not final qualification; v8 or later must be requalified.",
+  "remoteRaw": "/home/ccheever/snapback3-acquisition-20260912/target/results/attempt-18-candidate-v6-first",
+  "primaryElapsedMs": 3107.43629,
+  "firstUsefulInboxMs": 434.25537109375,
+  "firstUsefulHistoryMs": 2998.055419921875,
+  "acquisitionCompletedPageMarkMs": 2716.7999999523163,
+  "network": {
+    "allRequests": 20,
+    "allEncodedBytes": 2188875,
+    "acquireResponses": 14,
+    "acquireEncodedBytes": 252616,
+    "acquireDecodedBytes": 3254581,
+    "responsePages": 151,
+    "responseContinuations": 80
+  },
+  "heapBeforeAudit": {
+    "usedBytes": 56981844,
+    "totalBytes": 134893568,
+    "embedderHeapUsedBytes": 8760072,
+    "backingStorageBytes": 2077212
+  },
+  "correctness": {
+    "conversations": 100,
+    "uniqueConversations": 100,
+    "messages": 10000,
+    "uniqueMessages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "completeFinalPages": 101,
+    "incompleteIntermediatePages": 50,
+    "seq": 1,
+    "messageFields": [
+      "conversationId",
+      "edited",
+      "id",
+      "replyTo",
+      "senderId",
+      "serverTimestamp",
+      "text",
+      "tombstone"
+    ],
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "digestScope": "Both digests bind message rows. Conversation full fields are not hashed.",
+    "conversationIdSet": {
+      "expected": "g0001 through g0100",
+      "count": 100,
+      "sha256": "96a40dc40356ae3a0023f6ff37eab81492f1bf55dbe552981750b4e24dbe3ba6"
+    }
+  },
+  "physicalReopen": {
+    "elapsedMs": 1441.1541239999997,
+    "firstOfflineUseElapsedMs": 717,
+    "fullAuditElapsedMs": 185.70000004768372,
+    "navigationStatus": 200,
+    "mainResponseFromServiceWorker": true,
+    "fullAuditMatchesPrimary": true
+  },
+  "inputs": {
+    "packageArchive": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v6/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+    "packageArchiveSha256": "fcc08d11c34a7619c4c62a31512b71138978bd862c5bf6fb8b4c64dc460b3d3b",
+    "packageSourceSha256": "f2df8a3252437d9de36807d1c2444642441cb128f070c23b4078ac295108e25a",
+    "nativeSha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "packageJsonSha256": "b7cdf33f91591e8b5e57eace358e1e73c907f8288bff8e72148a693a0242eb59",
+    "source": {
+      "clientTsSha256": "05e6374c9575d6099a67e4926e2f830a7e19c7d788937e780af1b27f5cdccaab",
+      "acquisitionTsSha256": "5de8e5cdf29bb8f603813839a85bf8b13df6876e2d887d9d30facffbeaf01e56",
+      "acquisitionClientTestSha256": "3670f0f41d7a706bc1a9caaa01fb7ded50576dde497c21ac7bb45146f1ac979a",
+      "envelopeCacheTestSha256": "18cf5b2ad20f2cc4879fae5f030e4a399b7e84a9a0f097c67fe37a9915325096",
+      "sourceFilesManifestSha256": "7f99ef5a5c5d0a2dbaf5aa816b12a4610056c62bda9301bf888f343b8145608d"
+    },
+    "packagedWorkerOverrideRemoved": true,
+    "controllerSha256": "6f15d8afa91a408f4827fb5f546e843e8d9d9eb51e66bd2b03ce347e32804f41",
+    "appAcquireSha256": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+    "appBundleSha256": "b891ac686feca1e0e3826b4c7f49a1a9eb2f7f2f9f909ceab5b6497a9c56737b"
+  },
+  "rawSha256": {
+    "summary.json": "0cd0c96249e6c1e0af16bb41ca55b257c18dc184ff16da6dc4526905ab55f741",
+    "metadata.json": "243f4ee45a91e5059d5320e0dc32f4098fc8dde8d80ab9e12b9b2e4d3fde936b",
+    "run-01/result.json": "35cfbe7bb68d89777878cc1b062a57d256806165672da30fdf01ee0b9727f231",
+    "cleanup-receipt.json": "04e01e22eb84cab67ae60dfbc576029626ac1093ca2d6399bff14c398c4dc807",
+    "worker-cleanup-receipt.json": "6e3dc94a0bcab6407bac9c53ec9825d0a7aa25f3126295468f275ec062cf1002"
+  },
+  "cleanup": {
+    "owner": {
+      "pid": 2030895,
+      "startTick": "160404017",
+      "cleaned": true
+    },
+    "worker": {
+      "pid": 2031088,
+      "startTick": "160404310",
+      "cleaned": true
+    },
+    "port": 54924,
+    "portFree": true
+  }
+}

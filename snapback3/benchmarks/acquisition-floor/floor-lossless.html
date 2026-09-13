@@ -1,0 +1,132 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Snapback3 lossless-row compact acquisition floor</title>
+<pre id="status">running</pre>
+<script type="module">
+const state = window.floorResult = { status: 'running', timeOrigin: performance.timeOrigin, phases: {} };
+const mark = name => state.phases[name] = performance.now();
+const request = value => new Promise((resolve, reject) => {
+  value.onsuccess = () => resolve(value.result);
+  value.onerror = () => reject(value.error);
+});
+const transactionDone = tx => new Promise((resolve, reject) => {
+  tx.oncomplete = resolve;
+  tx.onerror = () => reject(tx.error);
+  tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'));
+});
+const tokenize = value => [...new Set(String(value).toLocaleLowerCase('en-US').match(/[\p{L}\p{N}_]+/gu) ?? [])];
+const openDatabase = () => new Promise((resolve, reject) => {
+  const opening = indexedDB.open('snapback3-acquisition-floor-lossless', 1);
+  opening.onupgradeneeded = () => {
+    const db = opening.result;
+    const messages = db.createObjectStore('messages', { keyPath: 'id' });
+    messages.createIndex('byConversationTime', ['conversationId', 'serverTimestamp', 'id']);
+    const search = db.createObjectStore('searchDocuments', { keyPath: 'id' });
+    search.createIndex('bySearchTerm', 'terms', { multiEntry: true });
+    db.createObjectStore('conversations', { keyPath: 'id' });
+    db.createObjectStore('meta', { keyPath: 'key' });
+  };
+  opening.onsuccess = () => resolve(opening.result);
+  opening.onerror = () => reject(opening.error);
+});
+const digestRows = async rows => {
+  const canonical = JSON.stringify([...rows].sort((a, b) => a.id.localeCompare(b.id)));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
+try {
+  mark('scriptStart');
+  mark('fetchStart');
+  const response = await fetch('/compact.json');
+  if (!response.ok) throw new Error(`compact fetch ${response.status}`);
+  mark('responseHeaders');
+  const encoded = await response.arrayBuffer();
+  mark('bodyDecoded');
+  const jsonText = new TextDecoder().decode(encoded);
+  mark('textDecoded');
+  const payload = JSON.parse(jsonText);
+  mark('jsonParsed');
+  if (payload.version !== 2 || payload.actor !== 'u0500' || payload.representation !== 'lossless-public-sdk-rows') throw new Error('wrong lossless payload identity');
+  let db = await openDatabase();
+  mark('databaseOpened');
+  const batchSize = 1000;
+  let transactionCount = 0;
+  for (let offset = 0; offset < payload.messages.length; offset += batchSize) {
+    const tx = db.transaction(['messages', 'searchDocuments'], 'readwrite', { durability: 'relaxed' });
+    const messages = tx.objectStore('messages');
+    const search = tx.objectStore('searchDocuments');
+    for (const row of payload.messages.slice(offset, offset + batchSize)) {
+      messages.put(row);
+      search.put({ id: row.id, terms: tokenize(row.text) });
+    }
+    await transactionDone(tx);
+    transactionCount++;
+  }
+  {
+    const tx = db.transaction(['conversations', 'meta'], 'readwrite', { durability: 'relaxed' });
+    for (const row of payload.conversations) tx.objectStore('conversations').put(row);
+    tx.objectStore('meta').put({ key: 'complete', actor: payload.actor, messageCount: payload.messages.length, conversationCount: payload.conversations.length, expectedIdsSha256: payload.expectedIdsSha256, expectedFullRowsSha256: payload.expectedFullRowsSha256 });
+    await transactionDone(tx);
+    transactionCount++;
+  }
+  mark('persistenceComplete');
+  db.close();
+  mark('databaseConnectionClosed');
+  db = await openDatabase();
+  mark('databaseConnectionReopened');
+  const firstConversationId = payload.conversations[0].id;
+  const firstMessageText = payload.messages.find(row => row.conversationId === firstConversationId)?.text ?? '';
+  const firstSearchTerm = tokenize(firstMessageText)[0];
+  const historyTx = db.transaction('messages', 'readonly');
+  const historyDone = transactionDone(historyTx);
+  const historyRange = IDBKeyRange.bound([firstConversationId, Number.MIN_SAFE_INTEGER, ''], [firstConversationId, Number.MAX_SAFE_INTEGER, '\uffff']);
+  const history = await request(historyTx.objectStore('messages').index('byConversationTime').getAll(historyRange, 40));
+  await historyDone;
+  mark('firstLocalHistoryComplete');
+  const searchTx = db.transaction('searchDocuments', 'readonly');
+  const searchDone = transactionDone(searchTx);
+  const search = await request(searchTx.objectStore('searchDocuments').index('bySearchTerm').getAll(firstSearchTerm, 20));
+  await searchDone;
+  mark('firstLocalSearchComplete');
+  state.primaryComplete = performance.now();
+  state.heapBeforeValidationAudit = performance.memory ? {
+    usedJSHeapSize: performance.memory.usedJSHeapSize,
+    totalJSHeapSize: performance.memory.totalJSHeapSize,
+    jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
+  } : null;
+  mark('validationAuditStart');
+  const auditTx = db.transaction(['messages', 'conversations', 'meta'], 'readonly');
+  const auditDone = transactionDone(auditTx);
+  const [messageRows, historyIndexKeys, conversationKeys, meta] = await Promise.all([
+    request(auditTx.objectStore('messages').getAll()),
+    request(auditTx.objectStore('messages').index('byConversationTime').getAllKeys()),
+    request(auditTx.objectStore('conversations').getAllKeys()),
+    request(auditTx.objectStore('meta').get('complete'))
+  ]);
+  await auditDone;
+  const observedFullRowsSha256 = await digestRows(messageRows);
+  mark('validationAuditComplete');
+  db.close();
+  state.status = 'complete';
+  state.payload = { messageCount: payload.messages.length, conversationCount: payload.conversations.length, rawJsonBytes: encoded.byteLength };
+  state.persistence = { batchSize, transactionCount, rawMessagesUnchanged: true, separateRegexSearchDocuments: true };
+  state.firstLocalHistory = { conversationId: firstConversationId, count: history.length, firstId: history[0]?.id, lastId: history.at(-1)?.id };
+  state.firstLocalSearch = { term: firstSearchTerm, count: search.length, ids: search.map(row => row.id) };
+  state.audit = {
+    messageRows: messageRows.length,
+    uniqueMessageIds: new Set(messageRows.map(row => row.id)).size,
+    historyIndexKeys: historyIndexKeys.length,
+    conversationKeys: conversationKeys.length,
+    observedFullRowsSha256,
+    expectedFullRowsSha256: payload.expectedFullRowsSha256,
+    fullRowDigestMatches: observedFullRowsSha256 === payload.expectedFullRowsSha256,
+    metadata: meta
+  };
+  document.querySelector('#status').textContent = 'complete';
+} catch (error) {
+  state.status = 'failed';
+  state.error = String(error?.stack ?? error);
+  document.querySelector('#status').textContent = state.error;
+}
+</script>

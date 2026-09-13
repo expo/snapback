@@ -1,0 +1,845 @@
+{
+  "test": "snapback3-acquisition-foreground-write-and-interruption-controls",
+  "startedAt": "2026-09-12T20:33:25.291Z",
+  "finishedAt": "2026-09-12T20:34:28.620Z",
+  "host": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "candidateApp": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app",
+  "fixtureApp": "/home/ccheever/snapback3-acquisition-20260912/target/fixture-source",
+  "packageArtifact": "/home/ccheever/snapback3-acquisition-20260912/target/packages-v6/snapback3-0.0.1-experimental.0-linux-x64.tgz",
+  "controllerSha256": "884f8860b78da12fdcd50bec6b04262538d917bc552b2fd6d49e4782f24460ee",
+  "packageSha256": "fcc08d11c34a7619c4c62a31512b71138978bd862c5bf6fb8b4c64dc460b3d3b",
+  "packagedWorker": {
+    "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+    "realpath": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+    "sha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+    "snapback3WorkerOverrideRemoved": true
+  },
+  "inputHashes": {
+    "appAcquire": "eedb9a530efe3a2ca11d824981decf6603163feadbe81d33ce08e3afcd19acf7",
+    "appChat": "e9d8d1b9543b2546637a2f3a5007af1730b7a267528dde836fb24a76c26dd4cb",
+    "appClient": "85d46218c7624043ad592df92c90abf1923df2bf6674379c42cec32d434098d6",
+    "schema": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017",
+    "database": "bab06bf6e4c0c1260719185a14e46f0c1a26dd9dc46783289b8df20e34be8d3f",
+    "databaseWal": {
+      "present": true,
+      "sha256": "e968da22f641a7645d80f5f0d012297951b86871ef714c790a50b108459fb8ed"
+    },
+    "seed": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2",
+    "qualification": "9009f5c91796019818378299cf01b8369197a1d4f43ec14f668df4f32759ba63",
+    "distIndex": "ee91e9ee88e53b120133ff102fdc41c1c6b0f9ff388667185e6253bec0df7bd6",
+    "distServiceWorker": "c9f07e451b3b0f3afd9ca415952af64fef0fda2c31e84fba36d9341ab9a1fc20",
+    "packageJson": "56bdaa9c4e132db98221bc1c63a7ac001eccb00504cfc9b97b7f305a7c0463da",
+    "clientBundle": "ab9a2086176b611bb2031b40f261c746cb564d563c2dc91f61d70ba57ba41272"
+  },
+  "expectedShellCacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+  "result": "passed",
+  "cleanup": {
+    "browsersCleaned": true,
+    "ownersCleaned": true,
+    "proxyClosed": true,
+    "ownerPortFree": true,
+    "recipientPortFree": true
+  },
+  "browserProcesses": [
+    {
+      "pid": 2033373,
+      "startTick": "160412802",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-early/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:33:38.136Z"
+    },
+    {
+      "pid": 2033666,
+      "startTick": "160413642",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-early/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:33:39.661Z"
+    },
+    {
+      "pid": 2033775,
+      "startTick": "160414152",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-middle/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:33:51.838Z"
+    },
+    {
+      "pid": 2034101,
+      "startTick": "160415012",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-middle/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:33:53.340Z"
+    },
+    {
+      "pid": 2034353,
+      "startTick": "160415538",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-late/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:34:05.335Z"
+    },
+    {
+      "pid": 2034670,
+      "startTick": "160416362",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-late/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:34:06.837Z"
+    },
+    {
+      "pid": 2034773,
+      "startTick": "160416892",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-lost-reply/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:34:19.300Z"
+    },
+    {
+      "pid": 2035196,
+      "startTick": "160417759",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/send-lost-reply/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:34:20.744Z"
+    },
+    {
+      "pid": 2035350,
+      "startTick": "160418282",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/interrupted-prefix-resume/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:34:25.486Z"
+    },
+    {
+      "pid": 2035444,
+      "startTick": "160418377",
+      "profile": "/home/ccheever/snapback3-acquisition-20260912/controls/v6-final-guarded-attempt-01/work/interrupted-prefix-resume/browser-profile",
+      "cleaned": true,
+      "cleanedAt": "2026-09-12T20:34:28.458Z"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "send-early",
+      "threshold": 1,
+      "success": true,
+      "owner": {
+        "pid": 2033349,
+        "startTick": "160412470",
+        "port": 54928,
+        "worker": {
+          "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "realpath": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "sha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+          "snapback3WorkerOverrideRemoved": true,
+          "pid": 2033372,
+          "startTick": "160412768",
+          "cleaned": true
+        },
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:33:39.763Z"
+      },
+      "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+      "foregroundBefore": {
+        "historyStatus": "History unknown",
+        "search": "busy",
+        "renderedMessages": 200
+      },
+      "send": {
+        "threshold": 1,
+        "messageId": "control-send-early-1789245211010",
+        "text": "Snapback acquisition send-early send-early-1789245211010"
+      },
+      "acquisition": {
+        "trigger": {
+          "at": 1284,
+          "status": "acquiring",
+          "pages": 2,
+          "chains": 1,
+          "seq": 1,
+          "threshold": 1,
+          "fractionOfFinalPages": 0.013245033112582781
+        },
+        "operation": {
+          "id": "e86c4046-83e1-4e05-be42-9c77de10b7b3",
+          "messageId": "control-send-early-1789245211010",
+          "status": "committed",
+          "durableAt": 1292.5,
+          "settledAt": 1499,
+          "observedAt": 1668.2999999523163,
+          "latency": {
+            "durableMs": 8.400000095367432,
+            "settledMs": 214.90000009536743,
+            "observedMs": 384.2000000476837
+          },
+          "receipt": {
+            "intent": "e86c4046-83e1-4e05-be42-9c77de10b7b3",
+            "state": "committed",
+            "seq": 2
+          }
+        },
+        "completion": {
+          "at": 4158.5,
+          "id": "clique-u0500-full-history",
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        },
+        "handle": {
+          "at": 4778.599999904633,
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        }
+      },
+      "lostReplies": [],
+      "recipient": {
+        "occurrenceCount": 1,
+        "totalRows": 10001,
+        "row": {
+          "conversationId": "g0001",
+          "edited": false,
+          "id": "control-send-early-1789245211010",
+          "replyTo": null,
+          "senderId": "dev:u0500",
+          "serverTimestamp": 1789245211345,
+          "text": "Snapback acquisition send-early send-early-1789245211010",
+          "tombstone": false
+        }
+      },
+      "reopen": {
+        "navigationStatus": 200,
+        "navigationFromServiceWorker": true,
+        "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+        "restored": {
+          "status": "offline",
+          "principal": {
+            "id": "dev:u0500",
+            "kind": "persona",
+            "name": "u0500"
+          },
+          "pending": [],
+          "error": {
+            "name": "SnapbackError"
+          }
+        },
+        "audit": {
+          "messages": 10001,
+          "uniqueMessages": 10001,
+          "conversations": 100,
+          "uniqueConversations": 100,
+          "chains": 101,
+          "pages": 152,
+          "completeFinalPages": 101,
+          "commonSeq": 2,
+          "sequences": [
+            2
+          ],
+          "baselineIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+          "baselineRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+          "fields": [
+            "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+          ],
+          "extraRowIds": [
+            "control-send-early-1789245211010"
+          ]
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "send-middle",
+      "threshold": 75,
+      "success": true,
+      "owner": {
+        "pid": 2033761,
+        "startTick": "160413830",
+        "port": 54928,
+        "worker": {
+          "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "realpath": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "sha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+          "snapback3WorkerOverrideRemoved": true,
+          "pid": 2033774,
+          "startTick": "160414125",
+          "cleaned": true
+        },
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:33:53.493Z"
+      },
+      "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+      "foregroundBefore": {
+        "historyStatus": "History unknown",
+        "search": "busy",
+        "renderedMessages": 200
+      },
+      "send": {
+        "threshold": 75,
+        "messageId": "control-send-middle-1789245224426",
+        "text": "Snapback acquisition send-middle send-middle-1789245224426"
+      },
+      "acquisition": {
+        "trigger": {
+          "at": 1376.3999998569489,
+          "status": "acquiring",
+          "pages": 98,
+          "chains": 101,
+          "seq": 1,
+          "threshold": 75,
+          "fractionOfFinalPages": 0.6490066225165563
+        },
+        "operation": {
+          "id": "135f97c4-e112-41fd-9383-b97720ae0530",
+          "messageId": "control-send-middle-1789245224426",
+          "status": "committed",
+          "durableAt": 1382.7999999523163,
+          "settledAt": 1611.8999998569489,
+          "observedAt": 1817.0999999046326,
+          "latency": {
+            "durableMs": 5.1000001430511475,
+            "settledMs": 234.20000004768372,
+            "observedMs": 439.40000009536743
+          },
+          "receipt": {
+            "intent": "135f97c4-e112-41fd-9383-b97720ae0530",
+            "state": "committed",
+            "seq": 2
+          }
+        },
+        "completion": {
+          "at": 3971,
+          "id": "clique-u0500-full-history",
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        },
+        "handle": {
+          "at": 4533.599999904633,
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        }
+      },
+      "lostReplies": [],
+      "recipient": {
+        "occurrenceCount": 1,
+        "totalRows": 10001,
+        "row": {
+          "conversationId": "g0001",
+          "edited": false,
+          "id": "control-send-middle-1789245224426",
+          "replyTo": null,
+          "senderId": "dev:u0500",
+          "serverTimestamp": 1789245224929,
+          "text": "Snapback acquisition send-middle send-middle-1789245224426",
+          "tombstone": false
+        }
+      },
+      "reopen": {
+        "navigationStatus": 200,
+        "navigationFromServiceWorker": true,
+        "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+        "restored": {
+          "status": "offline",
+          "principal": {
+            "id": "dev:u0500",
+            "kind": "persona",
+            "name": "u0500"
+          },
+          "pending": [],
+          "error": {
+            "name": "SnapbackError"
+          }
+        },
+        "audit": {
+          "messages": 10001,
+          "uniqueMessages": 10001,
+          "conversations": 100,
+          "uniqueConversations": 100,
+          "chains": 101,
+          "pages": 152,
+          "completeFinalPages": 101,
+          "commonSeq": 2,
+          "sequences": [
+            2
+          ],
+          "baselineIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+          "baselineRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+          "fields": [
+            "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+          ],
+          "extraRowIds": [
+            "control-send-middle-1789245224426"
+          ]
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "send-late",
+      "threshold": 130,
+      "success": true,
+      "owner": {
+        "pid": 2034193,
+        "startTick": "160415210",
+        "port": 54928,
+        "worker": {
+          "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "realpath": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "sha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+          "snapback3WorkerOverrideRemoved": true,
+          "pid": 2034347,
+          "startTick": "160415503",
+          "cleaned": true
+        },
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:34:06.939Z"
+      },
+      "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+      "foregroundBefore": {
+        "historyStatus": "History unknown",
+        "search": "busy",
+        "renderedMessages": 200
+      },
+      "send": {
+        "threshold": 130,
+        "messageId": "control-send-late-1789245238239",
+        "text": "Snapback acquisition send-late send-late-1789245238239"
+      },
+      "acquisition": {
+        "trigger": {
+          "at": 1862,
+          "status": "acquiring",
+          "pages": 134,
+          "chains": 101,
+          "seq": 1,
+          "threshold": 130,
+          "fractionOfFinalPages": 0.8874172185430463
+        },
+        "operation": {
+          "id": "ee246d70-9654-4a53-8239-b6d82f4903e6",
+          "messageId": "control-send-late-1789245238239",
+          "status": "committed",
+          "durableAt": 1876.6000001430511,
+          "settledAt": 2132.800000190735,
+          "observedAt": 2378.300000190735,
+          "latency": {
+            "durableMs": 14.299999952316284,
+            "settledMs": 270.5,
+            "observedMs": 516
+          },
+          "receipt": {
+            "intent": "ee246d70-9654-4a53-8239-b6d82f4903e6",
+            "state": "committed",
+            "seq": 2
+          }
+        },
+        "completion": {
+          "at": 3756,
+          "id": "clique-u0500-full-history",
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        },
+        "handle": {
+          "at": 4321.900000095367,
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        }
+      },
+      "lostReplies": [],
+      "recipient": {
+        "occurrenceCount": 1,
+        "totalRows": 10001,
+        "row": {
+          "conversationId": "g0001",
+          "edited": false,
+          "id": "control-send-late-1789245238239",
+          "replyTo": null,
+          "senderId": "dev:u0500",
+          "serverTimestamp": 1789245239356,
+          "text": "Snapback acquisition send-late send-late-1789245238239",
+          "tombstone": false
+        }
+      },
+      "reopen": {
+        "navigationStatus": 200,
+        "navigationFromServiceWorker": true,
+        "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+        "restored": {
+          "status": "offline",
+          "principal": {
+            "id": "dev:u0500",
+            "kind": "persona",
+            "name": "u0500"
+          },
+          "pending": [],
+          "error": {
+            "name": "SnapbackError"
+          }
+        },
+        "audit": {
+          "messages": 10001,
+          "uniqueMessages": 10001,
+          "conversations": 100,
+          "uniqueConversations": 100,
+          "chains": 101,
+          "pages": 152,
+          "completeFinalPages": 101,
+          "commonSeq": 2,
+          "sequences": [
+            2
+          ],
+          "baselineIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+          "baselineRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+          "fields": [
+            "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+          ],
+          "extraRowIds": [
+            "control-send-late-1789245238239"
+          ]
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "send-lost-reply",
+      "threshold": 75,
+      "success": true,
+      "owner": {
+        "pid": 2034759,
+        "startTick": "160416556",
+        "port": 54928,
+        "worker": {
+          "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "realpath": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "sha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+          "snapback3WorkerOverrideRemoved": true,
+          "pid": 2034772,
+          "startTick": "160416857",
+          "cleaned": true
+        },
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:34:20.896Z"
+      },
+      "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+      "foregroundBefore": {
+        "historyStatus": "History unknown",
+        "search": "busy",
+        "renderedMessages": 200
+      },
+      "send": {
+        "threshold": 75,
+        "messageId": "control-send-lost-reply-1789245251794",
+        "text": "Snapback acquisition send-lost-reply send-lost-reply-1789245251794"
+      },
+      "acquisition": {
+        "trigger": {
+          "at": 1268.4000000953674,
+          "status": "acquiring",
+          "pages": 98,
+          "chains": 101,
+          "seq": 1,
+          "threshold": 75,
+          "fractionOfFinalPages": 0.6490066225165563
+        },
+        "operation": {
+          "id": "b15ecd43-5aef-49ac-8238-c2e8ff2acd5f",
+          "messageId": "control-send-lost-reply-1789245251794",
+          "status": "committed",
+          "durableAt": 1275.4000000953674,
+          "settledAt": 1594.5,
+          "observedAt": 1592.6000001430511,
+          "latency": {
+            "durableMs": 6.599999904632568,
+            "settledMs": 325.69999980926514,
+            "observedMs": 323.7999999523163
+          },
+          "receipt": {
+            "intent": "b15ecd43-5aef-49ac-8238-c2e8ff2acd5f",
+            "state": "committed",
+            "seq": 2
+          }
+        },
+        "completion": {
+          "at": 4250.100000143051,
+          "id": "clique-u0500-full-history",
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        },
+        "handle": {
+          "at": 4850,
+          "status": "ready",
+          "pages": 152,
+          "chains": 101,
+          "seq": 2
+        }
+      },
+      "lostReplies": [
+        {
+          "droppedAt": "2026-09-12T20:34:12.270Z",
+          "status": 200,
+          "encoding": null,
+          "encodedBytes": 583,
+          "encodedSha256": "c86d4f5176c3f051db24cf624c8243ea793c2c7c40340b07fecab7a73288e314",
+          "request": {
+            "op": "messages.send",
+            "intent": "b15ecd43-5aef-49ac-8238-c2e8ff2acd5f"
+          },
+          "response": {
+            "intent": "b15ecd43-5aef-49ac-8238-c2e8ff2acd5f",
+            "state": "committed",
+            "seq": 2
+          }
+        }
+      ],
+      "recipient": {
+        "occurrenceCount": 1,
+        "totalRows": 10001,
+        "row": {
+          "conversationId": "g0001",
+          "edited": false,
+          "id": "control-send-lost-reply-1789245251794",
+          "replyTo": null,
+          "senderId": "dev:u0500",
+          "serverTimestamp": 1789245252262,
+          "text": "Snapback acquisition send-lost-reply send-lost-reply-1789245251794",
+          "tombstone": false
+        }
+      },
+      "reopen": {
+        "navigationStatus": 200,
+        "navigationFromServiceWorker": true,
+        "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+        "restored": {
+          "status": "offline",
+          "principal": {
+            "id": "dev:u0500",
+            "kind": "persona",
+            "name": "u0500"
+          },
+          "pending": [],
+          "error": {
+            "name": "SnapbackError"
+          }
+        },
+        "audit": {
+          "messages": 10001,
+          "uniqueMessages": 10001,
+          "conversations": 100,
+          "uniqueConversations": 100,
+          "chains": 101,
+          "pages": 152,
+          "completeFinalPages": 101,
+          "commonSeq": 2,
+          "sequences": [
+            2
+          ],
+          "baselineIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+          "baselineRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+          "fields": [
+            "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+          ],
+          "extraRowIds": [
+            "control-send-lost-reply-1789245251794"
+          ]
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "interrupted-prefix-resume",
+      "threshold": 30,
+      "success": true,
+      "owner": {
+        "pid": 2035326,
+        "startTick": "160417951",
+        "port": 54928,
+        "worker": {
+          "path": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "realpath": "/home/ccheever/snapback3-acquisition-20260912/target/candidate-v6-app/node_modules/snapback3/dist/native/linux-x64/snapback3-worker",
+          "sha256": "8790d8a7a4b0c979921f05321ff0fb6b97beb0693509215f7bb6221a3e48a7e6",
+          "snapback3WorkerOverrideRemoved": true,
+          "pid": 2035349,
+          "startTick": "160418245",
+          "cleaned": true
+        },
+        "cleaned": true,
+        "cleanedAt": "2026-09-12T20:34:28.611Z"
+      },
+      "cacheName": "snapback3-acquisition-target-aebc2041c86c975844045e2a",
+      "prefix": {
+        "handle": {
+          "at": 591,
+          "status": "error",
+          "pages": 34,
+          "chains": 101,
+          "seq": 1,
+          "error": "S3_NETWORK"
+        },
+        "lastProgress": {
+          "at": 591,
+          "status": "error",
+          "pages": 34,
+          "chains": 101,
+          "seq": 1,
+          "error": "S3_NETWORK"
+        }
+      },
+      "restored": {
+        "status": "online",
+        "principal": {
+          "id": "dev:u0500",
+          "kind": "persona",
+          "name": "u0500"
+        },
+        "pending": []
+      },
+      "resumeNetwork": [
+        {
+          "at": 1604184.412837,
+          "expectedSeq": 1,
+          "chains": 34,
+          "phase": "validation"
+        },
+        {
+          "at": 1604184.443826,
+          "expectedSeq": 1,
+          "chains": 2,
+          "phase": "validation"
+        },
+        {
+          "at": 1604184.498951,
+          "expectedSeq": 1,
+          "chains": 64,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604184.547391,
+          "expectedSeq": 1,
+          "chains": 38,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604184.566052,
+          "expectedSeq": 1,
+          "chains": 6,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604184.710177,
+          "expectedSeq": 1,
+          "chains": 1,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604184.864694,
+          "expectedSeq": 1,
+          "chains": 1,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604185.040706,
+          "expectedSeq": 1,
+          "chains": 1,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604185.308715,
+          "expectedSeq": 1,
+          "chains": 1,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604185.558909,
+          "expectedSeq": 1,
+          "chains": 1,
+          "phase": "traverse"
+        },
+        {
+          "at": 1604185.86538,
+          "expectedSeq": 1,
+          "chains": 64,
+          "phase": "validation"
+        },
+        {
+          "at": 1604185.903496,
+          "expectedSeq": 1,
+          "chains": 64,
+          "phase": "validation"
+        },
+        {
+          "at": 1604185.944163,
+          "expectedSeq": 1,
+          "chains": 64,
+          "phase": "validation"
+        },
+        {
+          "at": 1604185.991145,
+          "expectedSeq": 1,
+          "chains": 64,
+          "phase": "validation"
+        },
+        {
+          "at": 1604186.019355,
+          "expectedSeq": 1,
+          "chains": 64,
+          "phase": "validation"
+        },
+        {
+          "at": 1604186.038105,
+          "expectedSeq": 1,
+          "chains": 40,
+          "phase": "validation"
+        },
+        {
+          "at": 1604186.055134,
+          "expectedSeq": 1,
+          "chains": 8,
+          "phase": "validation"
+        }
+      ],
+      "resumed": {
+        "handle": {
+          "at": 2510.7999999523163,
+          "status": "ready",
+          "pages": 151,
+          "chains": 101,
+          "seq": 1
+        },
+        "completion": {
+          "at": 2510.7999999523163,
+          "id": "clique-u0500-full-history",
+          "status": "ready",
+          "pages": 151,
+          "chains": 101,
+          "seq": 1
+        }
+      },
+      "offlineAudit": {
+        "messages": 10000,
+        "uniqueMessages": 10000,
+        "conversations": 100,
+        "uniqueConversations": 100,
+        "chains": 101,
+        "pages": 151,
+        "completeFinalPages": 101,
+        "commonSeq": 1,
+        "sequences": [
+          1
+        ],
+        "baselineIdsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+        "baselineRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+        "fields": [
+          "conversationId,edited,id,replyTo,senderId,serverTimestamp,text,tombstone"
+        ],
+        "extraRowIds": []
+      },
+      "error": null
+    }
+  ]
+}

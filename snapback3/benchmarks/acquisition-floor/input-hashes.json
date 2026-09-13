@@ -1,0 +1,40 @@
+{
+  "snapback3Package": {
+    "version": "0.0.1-experimental.0",
+    "platformSourceCommit": "409954115f151a72dd95e897c5f00f36877f11e0",
+    "archiveSha256": "719eba5bfaffeebf117ca3e10d60d830da2ca4ca735693ea0e46f0d6317fcb4e",
+    "verifiedPayloadFiles": 108,
+    "installedClientMjsSha256": "d4385e49591a449c3d2fdca8c2dc7c8752e79e8cb21ec69f59c6ce7437fb5628"
+  },
+  "fixture": {
+    "profileInputSourceManifestSha256": "0c7209793b26dc00f634e57c7eeb2c57e4685a587322e8be94486357239605b3",
+    "seedTsSha256": "e037a99d4cabdb496004c92939c602b2781187b4b0af6ac4e6a3f5c29371c3e2",
+    "schemaQSha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017",
+    "compiledProjectJsonSha256": "a0f2972d79f536ca569c0203b3d044e52a59eb0f25fab74577d75b5b7b560063",
+    "expectedU0500IdsFileSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "expectedU0500SortedIdsJsonSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac"
+  },
+  "tupleHistoryIndexAuditScripts": {
+    "runMjsSha256": "c2accb106d4d2397f6a3cdc7ba47b0cbde2781e96dbf38e0528ef447fb8487bf",
+    "extractHtmlSha256": "545138c9e8ecf0c9814141415fd559925c851a407f18a09597e2b0f5dc6d154c",
+    "floorHtmlSha256": "e187c0cc3d8484bdcdc1f5ce4b101fe19607de878a322de47753b86a434ffd10"
+  },
+  "privateEvidence": {
+    "remoteDirectory": "/home/ccheever/snapback3-acquisition-20260912/floor/private-results",
+    "runJsonSha256": "938b6eb90875b5a962f5066b3e94a55e860904e95efde4e36a77d113a1398f0a",
+    "compactJsonSha256": "6d84f19dd6f07cb0280b2b14abfb5a2a402572d581b564198c5141d263d2f3c4",
+    "reopenControlJsonSha256": "9abb7238a152b830c074a83200f544c02994b69e2e3b2f49df42a83d0f3ddb35"
+  },
+  "physicalReopenControlScripts": {
+    "reopenHtmlSha256": "3eddaf245855cd77119516c94f5b3ce44c677b9eeb95e7e6c6ad8a545d53a042",
+    "reopenControlMjsSha256": "07750ba559b812cb77fae0a48cfabfbd5eb2a014535544b89b6a37f788b64bff"
+  },
+  "losslessCohort": {
+    "executedRunMjsSha256": "12ff2363d7f44e55c184e94e9e4523b9704a21c2f3651faa10ff5e468b686cd3",
+    "floorLosslessHtmlSha256": "94ff1586e27d34c7d53e6c697862e044ecb501a4ec0269586121130baaa5ade1",
+    "runJsonSha256": "16ab23d20e2954f48fba6e89f2057c97780589e7944992fda90d79f867e22e2b",
+    "compactJsonSha256": "ca9d902f318ecbeb08b45ea3e9dbdebf999649b1e24c2ad0b1d90c3761107981",
+    "canonicalFullSdkMessageRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "failedAttemptRunJsonSha256": "61a7caa1814e23b810aac2dfc14d2ca2c72e1b03b042497d82ef7ebfca862028"
+  }
+}

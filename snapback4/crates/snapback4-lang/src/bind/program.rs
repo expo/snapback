@@ -74,6 +74,10 @@ impl<'a> Binder<'a> {
         if failed {
             return None;
         }
+        if decl.kind == ProgramKind::Job && let Err(diagnostic) = stable_chunks(catalog, decl, &body) {
+            diagnostics.push(diagnostic);
+            return None;
+        }
         let result = binder.returns.iter().fold(None, |joined: Option<Ty>, ty| Some(match joined { Some(j) => j.join(ty), None => ty.clone() })).unwrap_or(Ty::Null);
         let full_name = if module == "schema" { decl.name.clone() } else { format!("{module}.{}", decl.name) };
         let kind = match decl.kind {
@@ -429,6 +433,32 @@ impl<'a> Binder<'a> {
                 }
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
+            A::If { then, condition, otherwise, .. } => {
+                let (cond, cond_ty) = self.expr(condition, out)?;
+                if !cond_ty.is_bool() {
+                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), "compare the value: `x if ttl != null else y`"));
+                }
+                // Each arm binds under its narrowing and runs only when taken.
+                let temp = self.temp("if");
+                let mut then_out = Vec::new();
+                self.push_scope();
+                self.narrow(condition, true);
+                let then_bound = self.expr(then, &mut then_out);
+                self.pop_scope();
+                let (then_expr, then_ty) = then_bound?;
+                let mut else_out = Vec::new();
+                self.push_scope();
+                self.narrow(condition, false);
+                let else_bound = self.expr(otherwise, &mut else_out);
+                self.pop_scope();
+                let (else_expr, else_ty) = else_bound?;
+                then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
+                else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
+                out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
+                out.push(Stmt::If { condition: cond, then_body: then_out, else_body: else_out });
+                let ty = if then_ty == Ty::Null { else_ty.optional() } else if else_ty == Ty::Null { then_ty.optional() } else { then_ty.join(&else_ty) };
+                Ok((ir::var(&temp), ty))
+            }
             A::Member { base, name, .. } => {
                 let (e, t) = self.expr(base, out)?;
                 self.member(e, t, name, site)
@@ -658,6 +688,33 @@ impl<'a> Binder<'a> {
                     return Err(type_error(args[0].site(), format!("count takes a bounded list or page, got {}", t.name()), if matches!(t.required(), Ty::Text(_)) { "for a text length use slice, or store the length" } else { "count a page or a bounded list" }));
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![e] }, Ty::Int))
+            }
+            "sum" if args.len() == 2 => {
+                // `sum(page, .x)`: the rows' field, summed — a loop that
+                // pushes each projection, then the sum of the list.
+                let (source, source_ty) = self.expr(&args[0], out)?;
+                let (domain, item_ty) = match (&source, &source_ty) {
+                    (Expr::Scan(scan), Ty::Page(table, _)) => (LoopDomain::Page(scan.clone()), Ty::Row(table.clone())),
+                    (_, Ty::Collection(item, max)) | (_, Ty::List(item, max)) => (LoopDomain::DerivedArray { value: source.clone(), max: *max, bound_source: "sum".into() }, item.as_ref().clone()),
+                    (_, other) => return Err(type_error(args[0].site(), format!("sum takes a page or a bounded list, got {}", other.name()), "sum(t[prefix] first 50 by index, .amount)")),
+                };
+                let list = self.temp("sum");
+                let item = self.temp("row");
+                out.push(Stmt::Let { name: list.clone(), value: Expr::Array(Vec::new()) });
+                let mut body = Vec::new();
+                self.push_scope();
+                self.declare(&item, item_ty.clone());
+                let saved = self.focal.replace((item.clone(), item_ty));
+                let projected = self.expr(&args[1], &mut body);
+                self.focal = saved;
+                self.pop_scope();
+                let (projection, projection_ty) = projected?;
+                if !projection_ty.is_numeric() {
+                    return Err(type_error(args[1].site(), format!("sum adds numbers; .{} is {}", print::expression(&args[1]).trim_start_matches('.'), projection_ty.name()), if projection_ty.required().is_numeric() { format!("{} ?? 0", print::expression(&args[1])) } else { "name a numeric field: sum(page, .amount)".into() }));
+                }
+                body.push(Stmt::Push { target: list.clone(), value: projection });
+                out.push(Stmt::For { binding: item, domain, body });
+                Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![ir::var(&list)] }, projection_ty))
             }
             "sum" => {
                 arity(1, "sum(list)")?;
@@ -1407,4 +1464,25 @@ fn title(value: &str) -> String {
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
         None => String::new(),
     }
+}
+
+/// A sweep continues across commits from a cursor, so no write may move an
+/// unvisited row across it: every column of the chunk's index is `id` or
+/// declared `immutable` (LLP 1016 §4 D2).
+fn stable_chunks(catalog: &Catalog, decl: &ast::ProgramDecl, body: &[Stmt]) -> Fallible<()> {
+    for (stmt, chunk) in body.iter().zip(&decl.body) {
+        let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt else { continue };
+        let Some(info) = catalog.tables.get(&scan.table) else { continue };
+        let Some(index) = info.indexes.iter().find(|index| index.name == scan.index) else { continue };
+        let immutable: Vec<&str> = info.decl.immutable.iter().flat_map(|(columns, _)| columns.iter().map(String::as_str)).collect();
+        let moving: Vec<&str> = index.columns.iter().map(String::as_str).filter(|column| *column != "id" && !immutable.contains(column)).collect();
+        if !moving.is_empty() {
+            let site = match chunk {
+                S::For { site, .. } => site.clone(),
+                _ => decl.site.clone(),
+            };
+            return Err(Diagnostic::new(&site, "E_JOB_CURSOR_INDEX", format!("chunk over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or sweep by byId", moving.join(", "), scan.table)).guide("jobs"));
+        }
+    }
+    Ok(())
 }

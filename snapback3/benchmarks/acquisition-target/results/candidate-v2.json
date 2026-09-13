@@ -1,0 +1,56 @@
+{
+  "status": "diagnostic-over-target",
+  "date": "2026-09-12",
+  "candidate": {
+    "sourceSha256": "5e41879e7770e91878d5ad05fbe2eed5e0e07b8f9a275437b02bf045a666e003",
+    "sourceFileManifestSha256": "9e6738857ec5f7b2b2e8b329b01ccaa04f2ff419acc3ec96dc277c963f9038bc",
+    "nativeSha256": "cd00c5214f176d11e9d296b7499ca1fb70edb80f99c272da29c6a2a29a309367",
+    "packageSha256": "89667a4ce89a23d3a9ed7423b2779e028d3d6f4d99340b6798d0d4453aec57a8",
+    "packageBytes": 4616294,
+    "appFileManifestSha256": "03e74b7e6f7f0b2256b69ec8bd60fbe97e4ff0a8b1938aab198c5b78bfd38d2c",
+    "appBundleSha256": "510cf42e9ad092ff6090c7c8567a2c9cd39e08aa1d42c943a8e33f740dde8720",
+    "compiledProjectSha256": "a0f2972d79f536ca569c0203b3d044e52a59eb0f25fab74577d75b5b7b560063",
+    "schemaSha256": "4577c483eae67e8a1a7a096ad37c022806a61ab8552cf2d43f9a3e32d8f04017",
+    "appAcquireSha256": "df7b93b721121317c0418ae1192ea8ecea31766b0d5b2156bb9bbc018933d1d1",
+    "serviceWorkerSha256": "e8c7cf13bb2d98515154bc171ba1825f19d7ac7cbc3c5f6b79d892019bed25f5",
+    "shellCacheName": "snapback3-acquisition-target-fc0a1732181431f47a4f4798",
+    "handedOffSourceFiles": {
+      "client.ts": "6377765494e22379de3c8027d319704d6f4e73b15f7c47fce5873f48741fd4e0",
+      "resource/acquisition.ts": "5c2078f082a1b444b9fe0cc944ca46f1802dc61a1dbcbcc69943704bd756482a",
+      "resource/storage.ts": "cd673983349aeb73bd296f9ed0d6821eb45298280bb453a9856655038d1a6724",
+      "resource/types.ts": "89dc64e140966795ec8fdaad9f2d25e1668573f0b73696d2586be5ff9de53217",
+      "worker/protocol.rs": "9307fa74ad3436fdd7e6f543e0b5deaf89ec65ef4ad61f92d3af2ea75102f022"
+    }
+  },
+  "primaryElapsedMs": [3001.08625, 3317.919989, 3072.469228],
+  "medianPrimaryElapsedMs": 3072.469228,
+  "rangePrimaryElapsedMs": 316.833739,
+  "allBelow3000": false,
+  "trialDetails": [
+    { "name": "attempt-05-candidate-v2", "phasesMs": { "load": 224.5, "ready": 57.5, "auth": 81.6, "paint": 19.5, "acquisition": 2264.2, "offline": 12.3, "reactSearchRender": 341.18625 }, "acquire": { "requests": 15, "wallMs": 409.586, "encodedBytes": 255253, "decodedBytes": 3269570 }, "storage": { "writes": 19, "wallMs": 748.8 }, "heapUsedBytes": 86994828 },
+    { "name": "attempt-06-candidate-v2", "phasesMs": { "load": 225.5, "ready": 76.5, "auth": 84.1, "paint": 18.7, "acquisition": 2547.9, "offline": 12.2, "reactSearchRender": 352.619989 }, "acquire": { "requests": 17, "wallMs": 541.056, "encodedBytes": 256796, "decodedBytes": 3270444 }, "storage": { "writes": 21, "wallMs": 820.5 }, "heapUsedBytes": 54897296 },
+    { "name": "attempt-07-candidate-v2", "phasesMs": { "load": 237.5, "ready": 54.6, "auth": 81.6, "paint": 4.1, "acquisition": 2329.0, "offline": 12.1, "reactSearchRender": 353.169228 }, "acquire": { "requests": 16, "wallMs": 446.177, "encodedBytes": 255875, "decodedBytes": 3270007 }, "storage": { "writes": 21, "wallMs": 789.1 }, "heapUsedBytes": 56833584 }
+  ],
+  "bindingCorrectness": {
+    "everyTrial": true,
+    "conversations": 100,
+    "messages": 10000,
+    "pages": 151,
+    "chains": 101,
+    "idsSha256": "ba91d208c55f77a1a4b792e2eb09407fe774a9814b1358981bbad7950ec984ac",
+    "canonicalRowsSha256": "86cc3d45609124219c7a74101015da00a96568e06d9b1341b418129fed5a38f2",
+    "strictShellOfflineReopen": "Every trial loaded the same content-bound allowlisted shell in actual browser network-offline mode, restored dev:u0500, and queried/digested all 151 pages through ordinary SDK resources."
+  },
+  "rawArtifactSha256": {
+    "attempt-05": { "summary": "88c0321386fe163762c3a13a26d2beb7991cd8b4def1f07db3a2d7f57b5a1d82", "metadata": "e15c43c5b864bd338f01d05f422ce56d73b02e91f22280dfb2510a2b404587ec", "result": "f2705c6bc71dbdeb605889e3ca630fc304fdd75763016b2cad38ccd181d77c82", "cleanup": "6301f9e2d40a33df56a86edcf0f37cb4e043633f340b8a18d2fa6449556ac012", "owner": "681dfed42c682844b581b49cb8178e66fc63abc579a788f7d6946cf3f6fd5b48", "chromium": "41f9fa53deb27e8d432556d993982e5d9a5a2fb80e2496d857ebddfbf78367ac" },
+    "attempt-06": { "summary": "fb7867003af0c550c9daf69b3b201a2b4a06b8a457c97051c513db1ad5b56044", "metadata": "8638eb1856042cbd9445eb36715ed426a7266f352c6d9e0ee88623a96b32cf99", "result": "177364f908ced76f6c9107f53c9444c4adca71cf4ee8f9c4a14ead2b26db7783", "cleanup": "83b4110e44cc21a8fcbfad464bc0afb8c066973b2464ad7b03cfe64801436d08", "owner": "dd5ca5f065ce9c5e31c7830b59edfdbeb41bfe3b9a5bbe43d7680c85278a7432", "chromium": "2de06dccd7c3a1d1e9b86836e220d94d42c1ad4c17c266cb07d1116422355b0c" },
+    "attempt-07": { "summary": "b5dbe9a1f243f22f48df793ca7a14e7fe6e49a6752672595818547fe031c72e0", "metadata": "afe76ffae434de99f5477408bff9be6c1721e926648c3b9ecc1b68f84ff14a60", "result": "bc7cb3ae12ac85738bb9a963ca0593238fbaa9dc0550ed8fd7aa9a21db6a3f7c", "cleanup": "341fb7ce6776824cceb3d96c839ba9fffc70bdefdd873ce57b3c66051d44e389", "owner": "1fced9eb807f804740e36d6bd9e170e63d724c78649832f3b394e669865d9737", "chromium": "52b7925a226d5013e611f6ab05b8e1899932bc64425ffc21f83332c550af5910" }
+  },
+  "remoteEvidence": {
+    "root": "/home/ccheever/snapback3-acquisition-20260912/target/results",
+    "manifest": "candidate-v2-evidence.sha256",
+    "manifestSha256": "4510ed1a492722cce92a25af56e5cd91efd1c370b6eb753ca988e39a159285db"
+  },
+  "preservedBuildFailure": "The first package build began before copied Unicode inputs were visible and failed in snapback3-core's Unicode build script. Its terminal stderr was not redirected to a durable raw log. Unicode inputs and SHA256SUMS then verified and the one retry produced the identified package.",
+  "interpretation": "V2 removed the validation pass seen in v1. The complete endpoint remained over the strict 3-second target in all three diagnostics. These are not the required ten alternating qualification pairs, and no p95 is claimed."
+}
