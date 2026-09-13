@@ -19,7 +19,9 @@ cleanup() {
   rm -rf "$parallel_dir"
   exit "$status"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 run() {
   local name="$1" elapsed=$SECONDS
@@ -83,8 +85,9 @@ child_pids+=("$!")
 ) &
 child_pids+=("$!")
 
-for pid in "${child_pids[@]}"; do
-  wait "$pid" || true
+for index in "${!child_pids[@]}"; do
+  wait "${child_pids[$index]}" || true
+  unset 'child_pids[index]'
 done
 child_pids=()
 
