@@ -546,6 +546,8 @@ async function measurePrivateCatalog() {
   const backend = option("--private-catalog");
   assert.ok(["snapback4", "convex", "supabase"].includes(backend));
   const count = catalogSize(), samples = Number(option("--samples", 500)), trial = Number(option("--trial", 0));
+  // Opt-in extension; all existing cases and checks still run unchanged.
+  const writeRead = process.argv.includes("--private-write-read");
   assert.ok(count >= 20000 && count % 200 === 0, "private pagination needs equally sized owners and at least two category pages");
   assert.ok(Number.isSafeInteger(samples) && samples >= 50 && samples <= 10000 && 2 * (samples + 30) <= count / 2 - 200);
   assert.ok(Number.isSafeInteger(trial) && trial >= 0 && trial <= 1000);
@@ -620,6 +622,11 @@ async function measurePrivateCatalog() {
   const expected = n => ({ ...catalogRow(n), revision: expectedRevisions.get(catalogRow(n).sku) ?? 0 });
   const ownerNumber = (actor, position) => Math.floor(position / 100) * 200 + actor * 100 + position % 100;
   const categoryPage = (actor, category, start = 0) => Array.from({ length: Math.min(50, count / 200 - start) }, (_, n) => expected(category + actor * 100 + (start + n) * 200));
+  // Two owners, one category each, cycling only rows returned on its first page.
+  const writeReadTarget = n => {
+    const actor = n % 2, position = Math.floor(n / 2) % 50;
+    return { actor, position, row: 7 + actor * 100 + position * 200 };
+  };
   const shuffle = size => {
     const values = Uint32Array.from({ length: size }, (_, n) => n); let state = 42;
     for (let n = size - 1; n > 0; n--) { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; const j = state % (n + 1); [values[n], values[j]] = [values[j], values[n]]; }
@@ -658,12 +665,19 @@ async function measurePrivateCatalog() {
     for (let caseIndex = 0; caseIndex < 2; caseIndex++) for (let n = 0; n < samples + 30; n++) {
       expectedRevisions.set(catalogRow(ownerNumber(n % 2, writes[caseIndex * (samples + 30) + n])).sku, 1);
     }
+    let firstWriteRead;
+    if (writeRead) for (let n = 0; n < samples + 30; n++) {
+      const sku = catalogRow(writeReadTarget(n).row).sku, revision = (expectedRevisions.get(sku) ?? 0) + 1;
+      expectedRevisions.set(sku, revision);
+      if (n === 0) firstWriteRead = { sku, revision };
+    }
     const before = await verify();
     assert.deepEqual(await bump(otherSku, prefix + "-first"), { state: "sent", result: { sku: ownSku, revision: 1 } });
     assert.deepEqual(await bump(otherSku, prefix + "-first", 1), { state: "sent", result: { sku: otherSku, revision: 1 } });
     assert.deepEqual(await bump(ownSku, prefix + "-failed"), { state: "failed", code: "NOT_FOUND" });
+    if (writeRead) assert.deepEqual(await bump(otherSku, prefix + "-write-read-0"), { state: "sent", result: firstWriteRead });
     const after = await verify(); assert.deepEqual(after, before);
-    console.log(JSON.stringify({ at: new Date().toISOString(), workload: "private-catalog-restart-replay", backend, trial, samples, rows: count, before, after, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), scope: "untimed state/replay check; the orchestrator must record the actual restart separately; no power-loss durability claim" }));
+    console.log(JSON.stringify({ at: new Date().toISOString(), workload: "private-catalog-restart-replay", backend, trial, samples, ...(writeRead ? { writeReadPairs: samples + 30 } : {}), rows: count, before, after, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), scope: "untimed state/replay check; the orchestrator must record the actual restart separately; no power-loss durability claim" }));
     return;
   }
   const measurements = {};
@@ -758,9 +772,59 @@ async function measurePrivateCatalog() {
     const started = performance.now(), r = await bump(sku, prefix + "-fresh-" + caseIndex + "-" + n, actor), ms = performance.now() - started;
     assert.deepEqual(r, sent(sku, 1), "a timed fresh write must update a distinct owned row exactly once"); expectedRevisions.set(sku, 1); return ms;
   });
+  if (writeRead) {
+    const name = "privateWriteThenCategoryC1", warmups = 30, args = { category: "c007", c: null };
+    // Prime native query caches. Each following bump changes a returned revision,
+    // so serving that prior page unchanged cannot satisfy the exact-row oracle.
+    for (const actor of [0, 1]) {
+      const page = await query("category", args, actor);
+      assert.deepEqual(page.data, categoryPage(actor, 7)); assert.ok(page.next != null);
+    }
+    const pairs = [], writes = [], reads = [], firstReceipts = [];
+    let started;
+    for (let n = 0; n < samples + warmups; n++) {
+      if (n === warmups) started = performance.now();
+      const { actor, position, row } = writeReadTarget(n), sku = catalogRow(row).sku;
+      const revision = (expectedRevisions.get(sku) ?? 0) + 1, wanted = categoryPage(actor, 7);
+      assert.equal(wanted[position].sku, sku); wanted[position] = { ...wanted[position], revision };
+      const begin = performance.now();
+      const written = await bump(sku, prefix + "-write-read-" + n, actor);
+      const acknowledged = performance.now();
+      const page = await query("category", args, actor);
+      const finished = performance.now();
+      // Exact receipt/page assertions and state bookkeeping are outside these intervals.
+      assert.deepEqual(written, sent(sku, revision), "write/read pair did not acknowledge its fresh increment");
+      assert.deepEqual(page.data, wanted, "post-write category page was stale or otherwise incorrect");
+      assert.ok(page.next != null, "the first category page must remain continuable");
+      expectedRevisions.set(sku, revision);
+      if (n < 2) firstReceipts[actor] = sent(sku, revision);
+      if (n >= warmups) { pairs.push(finished - begin); writes.push(acknowledged - begin); reads.push(finished - acknowledged); }
+    }
+    const elapsedMs = performance.now() - started;
+    const latency = times => {
+      times.sort((a, b) => a - b);
+      const p = x => +times[Math.ceil(times.length * x) - 1].toFixed(3);
+      return { p50Ms: p(.5), p95Ms: p(.95), p99Ms: p(.99), maxMs: p(1) };
+    };
+    measurements[name] = { samples, sampleUnit: "acknowledged mutation then category-read pair", concurrency: 1, warmups,
+      ...latency(pairs), components: { mutationAck: latency(writes), categoryRead: latency(reads) },
+      elapsedMs: +elapsedMs.toFixed(1), pairsPerSecond: +(samples * 1000 / elapsedMs).toFixed(1),
+      httpRequestsPerSecond: +(samples * 2 * 1000 / elapsedMs).toFixed(1), timedHttpRequests: samples * 2, warmupHttpRequests: warmups * 2, errors: 0,
+      scope: "pair/component latency includes HTTP JSON, adapter normalization and envelope checks; exact receipt/page oracles and bookkeeping are outside; throughput includes the whole timed loop; component percentiles are independent summaries of the same pairs; native query caches enabled, one returned row incremented before every read; two requests, not one atomic transaction" };
+    console.error(backend + " " + name + ": " + JSON.stringify(measurements[name]));
+    // Changed-payload retries of the first pair per owner must leave final state unchanged.
+    for (const actor of [0, 1]) assert.deepEqual(await bump(actor === 0 ? otherSku : ownSku, prefix + "-write-read-" + actor, actor), firstReceipts[actor]);
+  }
   const final = await verify();
   const metadata = process.env.SB4_CATALOG_METADATA ? JSON.parse(readFileSync(process.env.SB4_CATALOG_METADATA, "utf8")) : {};
   const out = { at: new Date().toISOString(), workload: "private-catalog", backend, trial, rows: count, initial, final, measurements, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), node: process.version, host: `${platform()}-${arch()} ${cpus()[0].model}`, transport: "loopback HTTP; real owner credentials; two owners plus authenticated outsider; no SDK retry wrapper", durability: "default-mode acknowledgement latency; no matched power-loss-durable write claim", auth: { identities: 3, timedIdentities: 2, ...authChecks, expiredTokenChecked: !!credentials.expiredToken, public: credentials.publicMetadata ?? {} }, correctness: { fullPartitionsBeforeAndAfter: true, foreignRowsHidden: true, foreignCursorNoLeak: true, unauthenticatedPrivateDataHidden: true, malformedTamperedAuthRefused: true, immutablePatchRefused: backend === "supabase" ? true : null, ownerArgumentForgeryRefused: true, freshAndFailedReplay: true, contendedDistinctIds: 8, concurrentSameId: 8, processRestartTested: false }, metadata };
+  if (writeRead) {
+    out.extension = { name: "write-then-category-C1", targetCategory: "c007", targetRowDomain: 100,
+      timedUniqueTargetRows: Math.min(samples, 100), warmupUniqueTargetRows: 30, totalUniqueTargetRows: Math.min(samples + 30, 100), timedPairs: samples, warmupPairs: 30,
+      primeReads: 2, replayChecks: 2, operationIds: "private-catalog-<trial>-write-read-<warmup-or-sample-index>",
+      scope: "two owners alternate; target position cycles within the first 50 rows; prior fresh-write revisions and warmup increments remain in the final full-fixture oracle" };
+    out.correctness.acknowledgedWriteThenRead = true;
+  }
   console.log(JSON.stringify(out));
 }
 
@@ -1076,10 +1140,15 @@ async function measureMembership() {
   const groups = credentials.sessions.map((_, actor) => new Set(seed.memberships.filter(m => m.readerSlot === actor).map(m => m.groupKey)));
   const oracle = actor => seed.messages.filter(r => groups[actor].has(r.groupKey)).sort(compare);
   const feedPages = [], threadPages = [];
-  const walk = async (name, base, actor, wanted, retain) => {
-    const size = name === "feed" ? 20 : 50, pages = []; let c = null, position = 0;
+  const timeTraversals = process.argv.includes("--membership-traversal-timing"), traversalMeasurements = [];
+  const walk = async (name, base, actor, wanted, retain, phase) => {
+    const size = name === "feed" ? 20 : 50, pages = [], times = [];
+    let c = null, position = 0; const walkStarted = timeTraversals ? performance.now() : 0;
     do {
-      const args = { ...base, c }, answer = await query(name, args, actor), expected = wanted.slice(position, position + size);
+      const args = { ...base, c }, started = timeTraversals ? performance.now() : 0;
+      const answer = await query(name, args, actor);
+      if (timeTraversals) times.push(performance.now() - started);
+      const expected = wanted.slice(position, position + size);
       assert.deepEqual(answer.data, expected, "membership traversal returned missing, duplicate, foreign or misordered rows");
       position += expected.length;
       assert.equal(answer.next != null, position < wanted.length, "continuation must reflect another authorized row");
@@ -1087,17 +1156,28 @@ async function measureMembership() {
       c = answer.next;
     } while (c != null);
     assert.equal(position, wanted.length);
+    if (timeTraversals) {
+      const elapsedMs = performance.now() - walkStarted, firstMs = times[0]; times.sort((a, b) => a - b);
+      const p = x => +times[Math.ceil(times.length * x) - 1].toFixed(3);
+      const record = { phase, actor, operation: name, rows: wanted.length, pages: pages.length,
+        samples: times.length, concurrency: 1, warmups: 0, firstMs: +firstMs.toFixed(3), p50Ms: p(.5),
+        p95Ms: p(.95), p99Ms: p(.99), maxMs: p(1), elapsedMs: +elapsedMs.toFixed(1),
+        pagesPerSecond: +(times.length * 1000 / elapsedMs).toFixed(1), errors: 0 };
+      traversalMeasurements.push(record);
+      console.error(backend + " traversal " + phase + " actor" + actor + " " + name + ": " + JSON.stringify(record));
+    }
     if (retain) retain.push(...pages);
     return { rows: wanted.length, pages: pages.length, sha256: createHash("sha256").update(wanted.map(r => JSON.stringify(r)).join("\n") + "\n").digest("hex") };
   };
   const verify = async (retain = false) => {
+    const phase = process.argv.includes("--membership-verify-only") ? "verify-only" : retain ? "initial" : "after-leave";
     const feeds = [];
     for (let actor = 0; actor < 5; actor++) {
-      const wanted = oracle(actor), feed = []; feeds.push(await walk("feed", {}, actor, wanted, retain ? feed : null));
+      const wanted = oracle(actor), feed = []; feeds.push(await walk("feed", {}, actor, wanted, retain ? feed : null, phase));
       if (retain) feedPages[actor] = feed;
       if (groups[actor].size) {
         const groupKey = [...groups[actor]][0], thread = [];
-        await walk("thread", { groupKey }, actor, wanted.filter(r => r.groupKey === groupKey), retain ? thread : null);
+        await walk("thread", { groupKey }, actor, wanted.filter(r => r.groupKey === groupKey), retain ? thread : null, phase);
         if (retain) threadPages[actor] = thread;
       }
     }
@@ -1147,11 +1227,12 @@ async function measureMembership() {
   const out = { at: new Date().toISOString(), workload: "membership-feed", backend, trial, populatedGroups: 500, emptyGroups: 1, rows: seed.messages.length,
     degrees: [5, 30, 150], initial, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"),
     node: process.version, host: `${platform()}-${arch()} ${cpus()[0].model}`, transport: "loopback HTTP; real bearer credentials; no SDK retry wrapper",
-    auth: { identities: 5, timedIdentities: 3, anonymous: { status: anonymous.status, outcome: anonymous.ok ? "hidden" : "refused" }, expiredTokenChecked: true, threadDenials: denials, public: credentials.publicMetadata ?? {} },
+    auth: { identities: 5, timedIdentities: timeTraversals ? 5 : 3, ...(timeTraversals ? { traversalTimedIdentities: 5, caseTimedIdentities: process.argv.includes("--membership-verify-only") ? 0 : 3 } : {}), anonymous: { status: anonymous.status, outcome: anonymous.ok ? "hidden" : "refused" }, expiredTokenChecked: true, threadDenials: denials, public: credentials.publicMetadata ?? {} },
     correctness: { completeAuthorizedFeedTraversals: true, completeRepresentativeThreads: true, timestampTieOrder: true, foreignPointHidden: true, outsiderAndEmptyReader: true, foreignCursorNoLeak: true, invalidAuthRefused: true, forgedViewerRefused: true },
-    cachePosture: "no harness or application result cache; native automatic query caching retained; timed page arguments were visited in untimed correctness traversal; working-set cases cycle real keys/cursors", metadata };
+    cachePosture: "no harness or application result cache; native automatic query caching retained; timed page arguments were visited in " + (timeTraversals ? "" : "untimed ") + "correctness traversal; working-set cases cycle real keys/cursors", metadata,
+    ...(timeTraversals ? { traversalMeasurements, traversalTimingScope: "HTTP plus JSON/projection latency per page; exact oracle checks follow each timer; traversal wall time and page throughput include those checks; no excluded warmups or OS/result-cache reset is implied; controller must describe fixture and cache history" } : {}) };
   if (process.argv.includes("--membership-verify-only")) {
-    console.log(JSON.stringify({ ...out, workload: "membership-feed-verify", scope: "untimed restored membership and same-session access verification; no timed samples or revocation" })); return;
+    console.log(JSON.stringify({ ...out, workload: "membership-feed-verify", scope: timeTraversals ? "complete membership/access verification with per-page HTTP timings; no repeated case samples or revocation in this invocation" : "untimed restored membership and same-session access verification; no timed samples or revocation" })); return;
   }
   const measurements = {};
   const run = async (name, concurrency, spec) => {
