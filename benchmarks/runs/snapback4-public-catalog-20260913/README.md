@@ -771,8 +771,21 @@ at C1, then point working sets, first/next thread pages, first/next feed
 pages and feed working sets at C1/C8. Page arguments were visited during
 untimed correctness traversal; working sets cycle real keys and cursors,
 so they are not an uncached-work claim. Every timed response is checked.
-Qualification is in progress; this protocol establishes no performance
-result or comparative win.
+All three smoke runs passed: 39 cases × 50 samples × 3 backends =
+5,850 timed calls, plus warmups and complete authorization, pagination and
+same-session revoke/regrant checks. These trial-1000 records are tagged
+`membership-feed-smoke` in `metrics/storage.jsonl`; they qualify the fixture
+and instrument, not a repeated comparative result. The measured Snapback
+binary is the retained production 0.2.3 artifact described above. The
+Convex and Supabase image digests remain attached to their records.
+
+The remote artifacts show completion by 2026-09-13 12:05:23 UTC. The
+original SSH log stream stopped advancing after 11:51:37; later process
+and artifact inspection confirmed completion. Re-running the controller
+validated all three saved records and returned exit 0 without repeating
+timings. The interrupted SSH client's exit 255 is not a backend failure or
+a successful measurement exit. These observations establish no formal
+comparative win; repeated trials remain next.
 
 ## Simulator observation follow-up
 
