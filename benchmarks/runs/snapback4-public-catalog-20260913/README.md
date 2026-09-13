@@ -711,6 +711,69 @@ Control and candidate example binaries are respectively
 Both use the production profile at level 3 on the same ARM64 Linux VM;
 the records retain each variant's actual read-source hash.
 
+## Membership-gated feed protocol
+
+The existing instrument now supports `--membership-init NEW_DIRECTORY` and
+`--membership snapback4|convex|supabase`. This is a separate live-membership
+fixture: 100,000 immutable messages in 500 populated groups, plus one empty
+group. Five real identities cover readers with 5, 30 and 150 memberships,
+an outsider, and an empty-group reader. The measured readers can see 1,000,
+6,000 and 30,000 messages; their overlapping unions cover 34,000 distinct
+messages. Privileged, untimed full-table digests match on all three backends,
+including the other 66,000 messages. The message digest is
+`91e37b68d13e112eb0ab9faf9078d95eaadcc8d784d984916e833103c1f73675`.
+
+All backends project `{messageKey, groupKey, at, body}` and order by the
+same required `(at, messageKey)` suffix. Logical ASCII keys avoid native
+ID ordering differences; timestamps deliberately tie within and across
+groups. Membership discovery uses `(memberId, groupKey)`, while message
+access probes `(groupKey, memberId)`. Each request resolves current
+membership from the database. Counts, joins and materialized per-reader
+feeds are separate future cases.
+
+Snapback uses ordinary guest sessions, a unique-key point read, a
+membership-gated 50-row thread and a 20-row `merge`. Its existing
+500-lane discovery bound produces the documented wide-merge advisory;
+no resource ceiling changes. Convex retains the configured real JWT
+provider and uses indexed lazy iterators with a small heap. Continuation
+seeks the remaining equal-time keys before earlier timestamps; a lone
+`at < cursor.at` range would omit ties. These are ordinary query functions,
+including the backend's automatic query cache.
+[Convex indexed reads](https://docs.convex.dev/database/reading-data/indexes/),
+[ordered iterators](https://docs.convex.dev/api/interfaces/server.OrderedQuery).
+
+Supabase uses ordinary Auth sessions, RLS and `SECURITY INVOKER` RPCs.
+Feed selection joins the caller's memberships to indexed per-group
+`LATERAL` queries with 21-row lookahead, then takes the global page. First
+and continuation reads use disjoint `UNION ALL` arms: the continuation
+arm exposes a bare composite index bound. An earlier `cursor IS NULL OR
+tuple < cursor` spelling was removed during review because a generic plan
+could scan newer prefixes. Twelve executed prepared-body plans, extracted
+from the deployed functions under the authenticated role and fixture claims
+with generic parameters, confirm active composite index seeks and inactive
+opposite branches. First-feed scans read 21 rows per membership lane. The
+Postgres image refused nested `auto_explain`, so these are query-body plans;
+the thread plan excludes its preceding membership requirement. Actual RPC
+authorization and results are checked separately through HTTP.
+[PostgreSQL lateral queries](https://www.postgresql.org/docs/17/queries-table-expressions.html#QUERIES-LATERAL),
+[Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security).
+
+The adapter checks complete authorized feed traversals and representative
+threads, exact full-row equality, ties, empty readers, missing/foreign
+points, invalid and expired authentication, forged viewers and cursor
+reuse. After timing, an acknowledged leave must hide the revoked group's
+rows immediately, including with old cursors, while another member keeps
+access. The controller must then regrant and repeat full verification
+without replacing the measured sessions.
+
+There are 39 read cases: for each membership degree, one repeated point
+at C1, then point working sets, first/next thread pages, first/next feed
+pages and feed working sets at C1/C8. Page arguments were visited during
+untimed correctness traversal; working sets cycle real keys and cursors,
+so they are not an uncached-work claim. Every timed response is checked.
+Qualification is in progress; this protocol establishes no performance
+result or comparative win.
+
 ## Simulator observation follow-up
 
 The four chat checks previously constructed and parsed every host state
