@@ -43,16 +43,27 @@ than fully decoding every frame or pixel.
 ## Executed validation
 
 The initial integrated candidate passed `snapback4/scripts/test.sh` with zero
-failures in 52 seconds, including all Rust workspaces, the WebAssembly build,
-package type/build checks, fixtures, the host boundary suite, the simulation
-security suite, both device stores, and 66 client tests. After self-review added
-the strict credential parsing, pre-wait authentication, logout admission, and
-native-sidecar regression, these focused checks also passed:
+failures in 52 seconds. After self-review added strict credential parsing,
+pre-wait authentication, logout admission, and a native-sidecar regression,
+these focused checks passed:
 
 - `cargo test -p snapback4 --bin snapback4` — 23 passed.
 - `cargo test -p snapback4-device --test native` — 4 passed.
 - `cargo test -p snapback4-lang --test guide` — 8 passed.
 
-The final exact-commit suite and independent remediation verdict are appended
-after the candidate is frozen. No live DNS-rebinding browser, production TLS
-terminator, Windows ACL, or production deployment qualification is claimed.
+After rebasing onto `origin/main`, exact content candidate
+`74b4d31a5351e9698df42a601ed9610019b2d5c1` passed:
+
+- `snapback4/scripts/test.sh` — zero failures in 64 seconds, covering every
+  Rust workspace, the WebAssembly build, package type/build checks, fixtures,
+  host and simulation security regressions, both device stores, and all 66
+  client tests.
+- `./ref-check --verbose` — 472 LLP documents and 8,719 references in 22,160
+  files, with zero errors and zero unchecked.
+- `node scripts/check-inventories.mjs` — no introduced red. Its script-test,
+  demo-catalog, guide-manifest, and diagnostics-projection failures reproduced
+  unchanged on a detached pristine `origin/main` worktree.
+
+An independent remediation verdict is appended after review. No live
+DNS-rebinding browser, production TLS terminator, Windows ACL, or production
+deployment qualification is claimed.
