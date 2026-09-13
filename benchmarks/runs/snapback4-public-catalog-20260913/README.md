@@ -1718,3 +1718,77 @@ All 39 later-0.2.8 case medians follow. Latencies are milliseconds; maximum is t
 Each Snapback run restored the full pristine SQLite snapshot and restarted the server; the earlier comparators retained their processes and immutable tables while memberships were restored. Native query caching remains enabled with unmeasured hit rates. Untimed traversals warmed page arguments; OS cache was retained without resets and residency was unmeasured. Existing copied 90-day guest sessions were used, rather than newly issued seven-day sessions. Per-request timers include HTTP/JSON/projection; exact oracle assertions follow those timers, while case wall time/RPS include assertions and loop overhead. Working-set samples retain the earlier input selection but do not cover every wide-domain input.
 
 The record does not claim a current cross-backend controlled win, full Clique comparison, isolated optimization effect, cross-machine result, device/realtime result, write throughput, memory-pressure behavior or durability equivalence. The ledger annotations retain each complete original record, raw instrument/regrant objects and exact file/provenance hashes.
+
+### MEMSTATUS-default HTTP experiment (2026-09-13, Durand)
+
+The experimental candidate lowers p50 in all 54 matched C8 case pairs, but has substantial C1 regressions. For 150-group thread-first C1, p50 rises in every pair: **0.662→1.322, 0.512→2.738 and 3.968→4.165 ms**. Its case-median p50 rises from 0.662 to 2.738 ms. Trial 43 also raises 5-group thread-first C1 from 0.431 to 4.289 ms and 30-group from 0.513 to 4.143 ms. All observations remain included; a separate transport hypothesis does not explain or exclude these regressions.
+
+Both variants use the unchanged 0.2.8 source `8a81eb855` on the prepared Durand M4 Pro. Baseline SHA `92db0d86e76a9e68859306870b45da795cc5e525f5b6519566aea6a414a369d8` matches the published macOS CLI. Candidate SHA `93fa3b165949db5dcef3ef6ebdf4cb54642a4932b4ffe9e8360b364f6e5c1cbf` adds only `-DSQLITE_DEFAULT_MEMSTATUS=0` beside the adopted `-USQLITE_ENABLE_MEMORY_MANAGEMENT`; both binaries are 6,967,520 bytes. Linked production probes differ only by DEFAULT_MEMSTATUS=0, retaining THREADSAFE=1, configured cache -2000 and zero default heap limits. Global memory accounting/heap-limit functionality is disabled in the candidate; this is an experimental artifact, not a new published or adopted policy.
+
+Six fresh-server runs used orders B/C, C/B, B/C in trials 41–43. All finished with exit 0 by 22:19:54 UTC: 117,000 repeated-case calls, 7,020 excluded case warmups, and 33,510 separately timed traversal pages. All exact-output/auth/ownership/current-union checks and full physical proofs before timing, after leave and after same-session regrant passed. The two 50-sample smoke runs are excluded. Build qualification passed 238 Rust tests (237 product tests plus one experiment probe), with one existing ignored native ceiling/rollback test; both separate production probes also passed.
+
+| Candidate result | Case medians / 39 | Matched case pairs / 117 |
+|---|---:|---:|
+| Lower p50 | 27 | 83 |
+| Lower p95 | 27 | 83 |
+| Lower p99 | 23 (one tie) | 71 (one tie) |
+| Lower maximum | 24 | 65 |
+| Higher RPS | 27 | 84 |
+
+All 18 C8 case p50/p95 medians are lower, while 12 of 21 C1 case p50 medians are higher. C8 tails remain mixed: one of 54 p95 pairs, 11 p99 pairs and 15 maximum pairs are higher. The wide C8 feed working set moves from 6.058 / 7.452 to 4.856 / 5.906 ms median p50/p95. Its three pairs improve, while first-feed C8 p99/max pairs in trials 42 and 43 regress. The largest repeated-case observation is 32.472 ms baseline and 35.162 ms candidate.
+
+The large thread-first C1 case retains all three pairs below (milliseconds, B→C):
+
+| Trial | p50 | p95 | p99 | Maximum |
+|---|---:|---:|---:|---:|
+| 41 | 0.662→1.322 | 4.906→4.734 | 5.409→6.882 | 14.255→35.162 |
+| 42 | 0.512→2.738 | 4.809→4.122 | 5.731→5.296 | 17.335→15.681 |
+| 43 | 3.968→4.165 | 5.570→5.104 | 8.782→6.494 | 18.080→11.655 |
+
+All repeated-case values below are medians of three reported per-run statistics. Each cell is **baseline / candidate**; latencies are milliseconds, maximum is median per-run maximum, and RPS is completed requests/second. These are not pooled percentiles or statistical-significance claims.
+
+| Case | p50 B/C | p95 B/C | p99 B/C | Max B/C | RPS B/C |
+|---|---:|---:|---:|---:|---:|
+| `groups5PointHotC1` | 0.297 / 0.284 | 0.357 / 0.343 | 0.455 / 0.471 | 3.537 / 6.598 | 3142.6 / 3257.1 |
+| `groups5PointWorkingSetC1` | 0.287 / 0.276 | 0.350 / 0.329 | 0.463 / 0.463 | 3.186 / 3.395 | 3258.4 / 3376.1 |
+| `groups5ThreadFirstC1` | 0.431 / 0.432 | 0.513 / 0.554 | 0.661 / 0.734 | 3.475 / 3.462 | 2155.2 / 2130.6 |
+| `groups5ThreadNextC1` | 0.437 / 0.420 | 0.526 / 0.504 | 0.735 / 0.720 | 3.433 / 3.507 | 2146.1 / 2224.9 |
+| `groups5FeedFirstC1` | 0.482 / 0.537 | 0.560 / 0.624 | 0.758 / 0.812 | 3.518 / 14.965 | 1928.7 / 1700.1 |
+| `groups5FeedNextC1` | 0.525 / 0.550 | 0.552 / 0.698 | 0.608 / 1.171 | 3.799 / 3.850 | 1853.9 / 1764.1 |
+| `groups5FeedWorkingSetC1` | 0.528 / 0.551 | 0.617 / 0.637 | 0.752 / 0.750 | 11.470 / 3.419 | 1748.6 / 1744.8 |
+| `groups5PointWorkingSetC8` | 2.286 / 2.073 | 3.432 / 2.672 | 4.109 / 3.449 | 5.280 / 4.981 | 3325.4 / 4264.3 |
+| `groups5ThreadFirstC8` | 3.846 / 2.666 | 4.953 / 3.303 | 5.531 / 4.111 | 6.151 / 5.778 | 2121.0 / 3277.4 |
+| `groups5ThreadNextC8` | 3.736 / 2.613 | 4.832 / 3.334 | 5.409 / 3.988 | 6.039 / 5.829 | 2174.9 / 3265.2 |
+| `groups5FeedFirstC8` | 3.418 / 2.637 | 4.710 / 3.342 | 7.611 / 4.105 | 7.943 / 5.596 | 2287.8 / 3329.5 |
+| `groups5FeedNextC8` | 3.409 / 2.725 | 4.684 / 3.470 | 5.639 / 8.552 | 6.395 / 10.639 | 2331.8 / 3050.4 |
+| `groups5FeedWorkingSetC8` | 3.392 / 2.695 | 4.554 / 3.170 | 5.544 / 3.563 | 6.148 / 4.032 | 2355.6 / 3293.3 |
+| `groups30PointHotC1` | 3.323 / 3.342 | 4.037 / 3.997 | 5.002 / 7.419 | 16.122 / 15.966 | 336.2 / 315.5 |
+| `groups30PointWorkingSetC1` | 3.353 / 3.253 | 4.076 / 4.208 | 5.251 / 7.389 | 20.913 / 15.738 | 313.7 / 311.6 |
+| `groups30ThreadFirstC1` | 0.513 / 0.748 | 4.803 / 4.453 | 5.758 / 5.592 | 7.708 / 9.819 | 593.3 / 496.9 |
+| `groups30ThreadNextC1` | 0.483 / 0.540 | 0.567 / 0.644 | 0.668 / 0.820 | 3.754 / 15.018 | 1961.7 / 1767.2 |
+| `groups30FeedFirstC1` | 0.641 / 0.643 | 0.682 / 0.745 | 0.732 / 0.931 | 3.403 / 3.960 | 1524.8 / 1493.2 |
+| `groups30FeedNextC1` | 0.701 / 0.709 | 0.741 / 0.748 | 0.775 / 0.771 | 6.728 / 2.912 | 1381.1 / 1398.7 |
+| `groups30FeedWorkingSetC1` | 0.710 / 0.733 | 0.746 / 0.772 | 0.807 / 0.821 | 3.424 / 14.402 | 1383.0 / 1288.1 |
+| `groups30PointWorkingSetC8` | 2.418 / 2.018 | 3.928 / 2.376 | 4.755 / 4.436 | 4.971 / 4.762 | 3170.1 / 4286.4 |
+| `groups30ThreadFirstC8` | 3.741 / 2.728 | 5.007 / 3.597 | 6.786 / 6.255 | 7.866 / 7.899 | 2199.0 / 3100.2 |
+| `groups30ThreadNextC8` | 3.684 / 2.772 | 4.837 / 3.336 | 6.335 / 4.558 | 7.161 / 5.130 | 2212.2 / 3072.4 |
+| `groups30FeedFirstC8` | 3.372 / 2.085 | 4.604 / 3.687 | 5.247 / 6.724 | 6.209 / 8.262 | 2336.7 / 3475.5 |
+| `groups30FeedNextC8` | 3.579 / 2.275 | 4.723 / 3.523 | 5.295 / 4.083 | 5.685 / 4.991 | 2254.0 / 3416.2 |
+| `groups30FeedWorkingSetC8` | 3.491 / 2.197 | 4.534 / 3.095 | 5.037 / 3.831 | 5.658 / 4.150 | 2274.6 / 3492.5 |
+| `groups150PointHotC1` | 2.769 / 2.849 | 3.788 / 3.527 | 4.271 / 4.299 | 17.065 / 16.970 | 368.0 / 379.0 |
+| `groups150PointWorkingSetC1` | 3.420 / 3.291 | 4.014 / 3.959 | 4.549 / 4.884 | 16.098 / 18.513 | 294.3 / 318.6 |
+| `groups150ThreadFirstC1` | 0.662 / 2.738 | 4.906 / 4.734 | 5.731 / 6.494 | 17.335 / 15.681 | 500.7 / 415.7 |
+| `groups150ThreadNextC1` | 0.472 / 0.465 | 0.504 / 0.568 | 0.780 / 0.767 | 2.669 / 12.423 | 2046.1 / 2040.8 |
+| `groups150FeedFirstC1` | 1.457 / 1.442 | 1.696 / 1.721 | 2.091 / 1.977 | 9.557 / 8.694 | 661.2 / 666.2 |
+| `groups150FeedNextC1` | 1.725 / 1.695 | 1.769 / 1.939 | 1.813 / 2.125 | 9.327 / 9.234 | 571.4 / 575.0 |
+| `groups150FeedWorkingSetC1` | 1.743 / 1.693 | 1.943 / 1.837 | 2.281 / 1.971 | 7.270 / 7.924 | 564.6 / 582.5 |
+| `groups150PointWorkingSetC8` | 2.584 / 1.994 | 3.856 / 2.297 | 4.584 / 3.997 | 5.088 / 4.813 | 3042.5 / 4146.7 |
+| `groups150ThreadFirstC8` | 3.785 / 2.679 | 4.987 / 3.274 | 5.472 / 3.990 | 6.484 / 5.253 | 2147.1 / 3293.2 |
+| `groups150ThreadNextC8` | 3.835 / 2.609 | 5.045 / 3.307 | 6.232 / 3.976 | 7.501 / 5.986 | 2114.9 / 3277.3 |
+| `groups150FeedFirstC8` | 5.862 / 4.088 | 7.796 / 5.638 | 8.925 / 8.181 | 9.892 / 8.656 | 1337.0 / 1886.6 |
+| `groups150FeedNextC8` | 6.078 / 4.774 | 7.705 / 5.802 | 8.802 / 6.260 | 10.351 / 7.217 | 1288.3 / 1669.4 |
+| `groups150FeedWorkingSetC8` | 6.058 / 4.856 | 7.452 / 5.906 | 8.007 / 6.414 | 8.825 / 6.721 | 1308.5 / 1651.8 |
+
+Traversal timing is separate: 27 initial/after-leave/regrant identities, repeated in each trial, total 162 walks. Candidate medians are lower for p50/p95/p99/max in 26/22/22/21 of 27; corresponding pairs are lower in 58/56/55/51 of 81. The sole median p50 regression is reader 0’s four-page thread after leave (1.831→1.847 ms). Thread walks contain four pages and empty/outsider controls one, so their tail percentiles have very small samples. Every traversal regression remains in the summary, including candidate’s worst page observation of 24.790 ms versus baseline’s 23.776 ms. Walk wall time and page throughput include oracle checks; per-page HTTP/JSON/projection timers end before those checks.
+
+Each process restores the same pristine SQLite/session snapshot. Previously issued seven-day guest sessions are unchanged through leave/regrant; no refresh or process restart occurs between those operations. Full proofs and initial traversals warm repeated cases; native caches remain as implemented, and OS cache is retained without resets or measured residency. Results are scoped to this loopback macOS experiment. They do not establish a comparator, cross-machine, device, write, memory-pressure, durability, universal or eventual-publication win. The raw-preserving ledger bundle retains every case, traversal, proof, paired loss and exact artifact/controller binding.
