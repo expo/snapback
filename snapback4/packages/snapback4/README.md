@@ -161,8 +161,10 @@ columns.
   hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`,
   `t[prefix] first N by index` (ascending), `t[prefix] after c last N by
   index` (descending, from a cursor), `merge t first N by index:` with
-  `[lane]` lines (one ordered page over several prefixes), `walk t[seed]
-  up .parentId depth 8`.
+  `[lane]` lines (one ordered page over several prefixes; a merge reads
+  one page per lane, so a feed over hundreds of followed users wants its
+  entries written on the way in, one table synced to `.reader` — `check`
+  notes a merge past 50 lanes), `walk t[seed] up .parentId depth 8`.
 - **Shapes:** `{ *, author: users[.authorId], count: counts[.conversationId] }`
   after a page or a row; `.` is the row; `*` spreads its columns; a point
   read inside a shape is null for a hidden row. `shape card = { .. }`

@@ -261,7 +261,7 @@ Operations in schema.q are called by name (`api.thread`); operations in
 /// A refusal code, explained.
 /// Every refusal code `why` explains; a program's own `require` codes are
 /// the author's and are explained by the program.
-pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFLICT", "E_CONSTRAINT", "E_FANOUT", "E_BOUND", "E_OP", "E_STORE", "E_GENERATION", "E_OFFLINE", "E_PREDICT", "E_QUARRY_SYNTAX", "E_TYPE", "E_ASSET_TYPE", "E_ASSET_TOO_LARGE", "E_ASSET_UNKNOWN", "E_ASSET_PLACED", "E_ASSET_VIEWED", "N_NEVER_COMPLETE", "N_NO_CURSOR", "N_NO_HORIZON"];
+pub const CODES: &[&str] = &["E_INPUT", "E_SCHEMA", "E_RULE", "E_AUTH", "E_CONFLICT", "E_CONSTRAINT", "E_FANOUT", "E_BOUND", "E_OP", "E_STORE", "E_GENERATION", "E_OFFLINE", "E_PREDICT", "E_QUARRY_SYNTAX", "E_TYPE", "E_ASSET_TYPE", "E_ASSET_TOO_LARGE", "E_ASSET_UNKNOWN", "E_ASSET_PLACED", "E_ASSET_VIEWED", "N_NEVER_COMPLETE", "N_NO_CURSOR", "N_NO_HORIZON", "N_WIDE_MERGE"];
 
 pub fn explain_code(code: &str) -> Option<String> {
     let text = match code {
@@ -286,6 +286,7 @@ pub fn explain_code(code: &str) -> Option<String> {
         "E_ASSET_PLACED" => "family asset — the upload already belongs to a row: one asset, one home. Upload the bytes again for a second row.",
         "E_ASSET_VIEWED" => "family asset — a `once` image was served to this principal already; the second view is refused (HTTP 410). The sender is never counted.",
         "N_NO_HORIZON" => "a note, not an error — a synced table with no `last N by index` horizon delivers every row of every group a device holds, and keeps delivering as the table grows; a public table of posts, or a group's receipts, then costs every cold start all of it. Declare `sync ... last 500 by <index>` (the newest N per group; older rows stay readable online and a local read past them says `complete: false`), or keep the table small by design.",
+        "N_WIDE_MERGE" => "a note, not an error — a merge reads one page per lane, so a merge whose lane source may yield hundreds of lanes reads hundreds of pages per read (the note says how many rows), and past the examined ceiling the page is cut. A feed over everyone the viewer follows wants the entries written on the way in — a table of entries per reader, synced to .reader, read as one page — or a lane count kept under 50.",
         "N_NO_CURSOR" => "a note, not an error — a returned page with no cursor argument cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`.",
         "N_NEVER_COMPLETE" => "a note, not an error — a page whose read rule reads a column the scan does not pin is `complete: false` on the server whatever it finds; the note names the index that would decide it, or read the page on the device.",
         "E_QUARRY_TYPE" => "a value meets a declaration of another type; the message names both.",

@@ -1169,3 +1169,16 @@ package's notes should say so at `check` when a merge's lane source is
 unbounded in practice. Open, for the next slice. The 60-second video
 bound the lane checked on the client is one `require` on the server
 since 0.1.2. Grading and M7 follow.
+
+## 2026-09-13 — the wide merge, named at `check`; 0.1.8
+
+The lane's following feed was `merge feedEntries … [f.followed] for f in
+follows[viewer] first 1000 by byFollower`: a thousand lanes, a page of 21
+each, 21,000 rows per read — past the 8,192 the meter allows, so cut, and
+19× the five-lane read. The design the brief's envelope wants is the
+entries written on the way in, one table per reader synced to `.reader`,
+read as one page; nothing said so before the run. `check` now notes a
+merge whose lanes may exceed fifty, with the row count and, when it is
+past the ceiling, that the page is cut (`N_WIDE_MERGE`); the README and
+the `reads` explanation carry the fan-out-on-write shape. Published
+`snapback4@0.1.8`.
