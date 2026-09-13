@@ -1480,3 +1480,13 @@ within the recorded 21,713 B Convex anchor (a byte budget, not a latency
 comparison). Correction to the previous entry: the 5 × 150 fixture is below
 the 500-row horizon and checks ordinary replica acquisition; the new native
 550-row fixture is the one that proves truncation and incomplete pages.
+
+## 2026-09-13 — performance update shipped
+
+Landed through `99919c432`; the full integrated suite passed in 56 s and
+reference validation found no errors. The publication path repeated the
+suite (51 s), passed its installed-consumer proof, and published 0.1.14 in
+78.7 s; both npm packages were verified in the registry. An additional
+six-run-per-variant HTTP worker-reuse experiment found no reliable read
+improvement in alternating controls, so that production change was discarded.
+Its raw timings remain in `metrics/storage.jsonl`; no thread-pool win is claimed.
