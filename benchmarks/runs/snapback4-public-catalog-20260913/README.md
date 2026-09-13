@@ -631,6 +631,10 @@ its executable is `e37d326f11d345af552d0278a9617acddc042d3e72b39603e0e8d1145688d
 The production implementation applies that statement reuse to
 `store/activation.rs`; the existing activation regressions exercise the
 actual engine, including competing owners and A → B → A invalidation.
+All thirteen existing `review_corrections` tests passed on the 0.2.3
+implementation: Darwin's ordinary test profile in 0.06 s after a 7.85 s
+build, and Linux's production profile in 0.07 s after a 1m59s build.
+Reference validation passed with zero errors or unchecked references.
 
 ## Simulator observation follow-up
 
