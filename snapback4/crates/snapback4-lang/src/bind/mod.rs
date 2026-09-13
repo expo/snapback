@@ -130,9 +130,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     &bound.site,
                     "N_WIDE_MERGE",
                     format!("{} {}: the merge over {} reads up to {lanes} lanes, one page of {take} each — {rows} rows per read{}", bound.program.kind.word(), bound.program.name, merge.table(), if rows > ceiling { format!(", past the {ceiling} examined the meter allows, so the page is cut and `complete: false`") } else { "".into() }),
-                    "keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page",
+                    "keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)",
                 )
-                .guide("reads"),
+                .guide("feeds"),
             );
         }
         for scan in snapback4_core::ir::scans(&bound.program) {

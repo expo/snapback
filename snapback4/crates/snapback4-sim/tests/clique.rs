@@ -343,3 +343,92 @@ fn a_new_optional_column_with_a_constraint_is_additive() {
     let steps = snapback4_core::successor::classify(&bound.schema, &next.schema);
     assert_eq!(snapback4_core::successor::worst(&steps), snapback4_core::successor::Change::Additive, "{steps:?}");
 }
+
+const FEED: &str = r#"
+use identity
+use personas alice, bob
+
+table posts:
+  authorId: principal
+  body: text <=500
+  at: time
+  by byAuthorTime: authorId, at, id
+  public 'posts are public'
+  insert <- .authorId = viewer
+
+table follows:
+  followerId: principal
+  followedId: principal
+  unique byPair: followerId, followedId
+  by byFollowed: followedId, followerId
+  public 'follows are public'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+
+table feed:
+  readerId: principal
+  postId: posts
+  authorId: principal
+  at: time
+  unique byReaderPost: readerId, postId
+  by byReaderTime: readerId, at, id
+  read <- .readerId = viewer
+  insert <- .authorId = viewer
+  sync to .readerId last 200 by byReaderTime
+
+table fanouts:
+  postId: posts
+  authorId: principal
+  at: time
+  read <- deny
+  insert <- .authorId = viewer
+
+mutation createPost(body: text <=500):
+  p = insert posts { authorId: viewer, body, at: now }
+  insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
+  for f in follows[viewer] first 200 by byFollowed:
+    insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
+  insert fanouts { postId: p.id, authorId: viewer, at: now }
+  return { id: p.id }
+
+job fanOut():
+  chunk w in fanouts first 5 by byId:
+    for f in follows[w.authorId] first 1000 by byFollowed:
+      insert feed { readerId: f.followerId, postId: w.postId, authorId: w.authorId, at: w.at } if absent
+    delete fanouts[w.id]
+
+schedule fanOutEveryMinute every 1m: fanOut
+
+query following(c: cursor ?):
+  return feed[viewer] after c last 20 by byReaderTime { *, post: posts[.postId] }
+"#;
+
+/// The `feeds` card, compiled and run: the near followers' entries are
+/// written by the mutation, the far ones by the job, once each; a
+/// follower's device holds its own entries; the feed is one local page.
+#[test]
+fn a_feed_fans_out_on_write() {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), FEED.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(!bound.notes.iter().any(|n| n.code == "N_WIDE_MERGE"), "{:?}", bound.notes);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    // 250 followers of alice: 200 near, 50 far.
+    engine.seed((0..250).map(|n| ("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("f{n:03}"))), ("followerId", id(&format!("dev:u{n:03}"))), ("followedId", id("dev:alice"))])))).unwrap();
+    let posted = engine.mutate("createPost", Some("p1"), Context::new("dev:alice", args(&[("body", Value::String("hello".into()))])).at(1_000).with_ids(["post1".to_owned()])).unwrap();
+    assert!(matches!(posted.state, WriteState::Sent { .. }), "{:?}", posted.state);
+    assert_eq!(engine.store().rows("feed").unwrap().len(), 201, "the author and the near 200");
+    assert_eq!(engine.store().rows("fanouts").unwrap().len(), 1);
+    let run = engine.run_job("fanOut", BTreeMap::new(), 2_000).unwrap();
+    assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
+    assert_eq!(engine.store().rows("feed").unwrap().len(), 251, "the far 50, none twice");
+    assert_eq!(engine.store().rows("fanouts").unwrap().len(), 0);
+    // A far follower's device holds exactly its own entry; the feed is one page.
+    let (events, _) = engine.snapshot("dev:u249").unwrap();
+    assert_eq!(holdings(&events)["feed"].len(), 1);
+    let read = engine.query("following", Context::new("dev:u249", BTreeMap::new()).at(3_000)).unwrap();
+    assert!(read.complete);
+    assert_eq!(read.data.as_array().unwrap()[0].field("post").unwrap().field("body").unwrap(), &Value::String("hello".into()));
+    // The schedule fires the job from the server's clock.
+    engine.fire_schedules(60_000).unwrap();
+    assert_eq!(engine.fire_schedules(120_000).unwrap(), vec!["fanOutEveryMinute".to_owned()]);
+}

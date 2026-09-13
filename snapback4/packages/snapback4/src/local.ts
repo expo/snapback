@@ -35,8 +35,13 @@ export interface LocalOptions {
 export type LocalClient = Client & {
   readonly replica: Replica;
   sync(): Promise<void>;
-  /** The session this device holds, or null once the server has refused it. */
+  /** The session this device holds, or null once it ended: after `signOut()`,
+   * or once the server refused it. Anything that keeps the token (a native
+   * image header, a presence lease) takes it from `onSession`/`useSession`
+   * and stops when it is null; a token read after sign-out is null. */
   session(): Session | null;
+  /** Told when the session ends (null) — sign-out, or the server's refusal. */
+  onSession(notify: (session: Session | null) => void): () => void;
   /** End the session on the server and forget it here; the client closes. */
   signOut(): Promise<void>;
 };
@@ -100,11 +105,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const principal: string = viewer;
   let sessionDead = false;
   let partitionDenied: Refusal | null = null;
+  const sessionListeners = new Set<(session: Session | null) => void>();
+  const endSession = async () => {
+    sessionDead = true;
+    await forgetSession(base, sessions);
+    for (const listener of sessionListeners) listener(null);
+  };
   const refusedSession = async (denied: unknown) => {
-    if (session && !sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") {
-      sessionDead = true;
-      await forgetSession(base, sessions);
-    }
+    if (session && !sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
   };
 
   // The store opens before the network is asked: a device that starts
@@ -415,10 +423,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     viewer: () => viewer,
     session: () => (sessionDead ? null : session),
+    onSession(listener: (session: Session | null) => void) {
+      sessionListeners.add(listener);
+      return () => sessionListeners.delete(listener);
+    },
     async signOut() {
       if (session && !sessionDead) await logout(base, session.token, doFetch);
-      await forgetSession(base, sessions);
-      sessionDead = true;
+      if (!sessionDead) await endSession();
       await client.close();
     },
     async close() {
@@ -426,6 +437,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       aborter.abort();
       watches.clear();
       linkListeners.clear();
+      sessionListeners.clear();
       await replica.close();
     },
   };

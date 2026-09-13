@@ -270,6 +270,48 @@ once the membership is gone, so a "history" query answers on the device
 and is empty online). A table without `sync` is online-only: its queries
 run on the server.
 
+### Feeds: fan out on write, read one page
+
+A feed over everyone the viewer follows is not a `merge` over their lanes
+(a thousand followed accounts is a thousand pages per read; `check` notes
+it, `N_WIDE_MERGE`). Write each reader's entry when the post is made,
+sync the entries to the reader, read one page on the device:
+
+```
+table feed:
+  readerId: principal
+  postId: posts
+  authorId: principal
+  at: time
+  unique byReaderPost: readerId, postId
+  by byReaderTime: readerId, at, id
+  read <- .readerId = viewer
+  insert <- .authorId = viewer
+  sync to .readerId last 200 by byReaderTime
+
+mutation createPost(body: text <=500):
+  p = insert posts { authorId: viewer, body, at: now }
+  insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
+  for f in follows[viewer] first 200 by byFollowed:
+    insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
+  insert fanouts { postId: p.id, authorId: viewer, at: now }
+  return { id: p.id }
+
+job fanOut():
+  chunk w in fanouts first 5 by byId:
+    for f in follows[w.authorId] first 1000 by byFollowed:
+      insert feed { readerId: f.followerId, postId: w.postId, authorId: w.authorId, at: w.at } if absent
+    delete fanouts[w.id]
+schedule fanOutEveryMinute every 1m: fanOut
+```
+
+The near followers get their entry in the mutation (at most 1,024 rows
+per mutation: 200 here), the rest within a minute from the job under its
+own ceilings, `if absent` making the job's pass idempotent over what the
+mutation wrote; an account past the job's bound is the one lane its
+readers merge on read, which is what a celebrity is. The whole card:
+`snapback4 guide feeds`.
+
 ## 4. The client
 
 ```ts
@@ -295,8 +337,12 @@ returns; only a device that has never synced needs the server to open. Its optio
 `waitSeconds`. It has `query(op, args) → Read`, `observe(op, args) →
 { getSnapshot(), subscribe(listener) → unsubscribe, close() }` (a live
 read; React's `useSyncExternalStore` shape), `mutate(op, args) → Write`,
-`link()`, `onLink`, `viewer()`, `session()`, `signOut()`, `sync()`,
-`replica`, `close()`. The online client takes `url` with `persona`,
+`link()`, `onLink`, `viewer()`, `session()`, `onSession`, `signOut()`,
+`sync()`, `replica`, `close()`. After `signOut()` the client is closed
+and `session()` is null, as it is once the server refuses the session:
+anything that keeps the token — a native image header, a presence lease
+— takes it from `onSession` (`useSession` in React) and stops when it is
+null, so nothing reads a token after sign-out. The online client takes `url` with `persona`,
 `session` or `token`, and has the same card without a store.
 
 ### The card
@@ -328,7 +374,7 @@ down (it lands when it returns), `sent` with the server's sequence, or
 ### React
 
 ```tsx
-import { SnapbackProvider, useQuery, usePage, useMutation, useLink, useViewer } from "snapback4/react";
+import { SnapbackProvider, useQuery, usePage, useMutation, useLink, useViewer, useSession, useAsset } from "snapback4/react";
 
 <SnapbackProvider client={client}>...</SnapbackProvider>
 const inbox = useQuery(api.inbox, {});                              // Read<Rows["memberships"][]>
@@ -336,6 +382,7 @@ const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId 
 const send = useMutation(api.send);   // send.run(args) → Write; send.inFlight
 const link = useLink();               // "online" | "offline"
 const viewer = useViewer();           // the principal, or null
+const session = useSession();         // the local client's session, null once it ended
 ```
 
 `useQuery` observes: it re-renders when a sync or a local prediction
@@ -467,6 +514,17 @@ const client = await createLocalClient({
 
 `snapback4/react` works unchanged. (`node:sqlite` fits the same driver
 through `nodeSqliteDriver`.)
+
+**Proving it on the device.** The package's own simulator witness
+(`witness/expo.mjs` in the repository, run in Expo Go on a booted iOS
+simulator against a real `snapback4 dev`) records, on the SQLite store: a
+cold sync, local reads and a send, a reopen that finds the rows, a cold
+start with the server unreachable that opens on what the store holds and
+answers with `fresh: false`, and two writes composed offline that survive
+a restart of the app still offline and flush in order on reconnect. An
+app proves the same the same way: gate the client's `fetch` option to
+model the link (the server never has to die), close and reopen the
+client to model a restart, and read the outcomes off the card.
 
 ## 8. Not in this release
 

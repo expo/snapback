@@ -3,6 +3,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Session } from "./auth.ts";
 import { isReady } from "./contract.ts";
 
 const ClientContext = createContext<Client | null>(null);
@@ -102,6 +103,19 @@ export function useLink(): Link {
 
 export function useViewer(): Principal | null {
   return useClient().viewer();
+}
+
+/** The session the local-first client holds, or null once it ended (after
+ * `signOut()`, or once the server refused it); re-renders when it ends. A
+ * screen that keeps the token — a native image header, a presence lease —
+ * takes it from here and stops when it is null, so nothing reads a token
+ * after sign-out. On a client without sessions (the online tier, a mock)
+ * it is null. */
+export function useSession(): Session | null {
+  const client = useClient() as Client & Partial<{ session(): Session | null; onSession(notify: (session: Session | null) => void): () => void }>;
+  const subscribe = useCallback((notify: () => void) => (client.onSession ? client.onSession(() => notify()) : () => {}), [client]);
+  const read = useCallback(() => (client.session ? client.session() : null), [client]);
+  return useSyncExternalStore(subscribe, read, read);
 }
 
 export type AssetState = { readonly status: "loading" } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal };

@@ -176,7 +176,12 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     // The next start restores the same principal without asking anyone.
     const again = await createLocalClient({ url: url2, store: "memory", sessionStore: sessions, waitSeconds: 1 });
     assert.equal(again.viewer(), principal);
+    // Sign-out tells whoever holds the token that it ended, before the client closes.
+    const ended = [];
+    again.onSession((s) => ended.push(s));
     await again.signOut();
+    assert.deepEqual(ended, [null]);
+    assert.equal(again.session(), null);
     // Signed out: no session to restore, and the old token is dead on the server.
     await assert.rejects(createLocalClient({ url: url2, store: "memory", sessionStore: sessions, waitSeconds: 1 }), /no session/);
     const dead = await fetch(`${url2}/q/inbox`, { method: "POST", headers: { authorization: `Bearer ${first.session()?.token ?? "x"}`, "content-type": "application/json" }, body: "{}" }).then((r) => r.json());

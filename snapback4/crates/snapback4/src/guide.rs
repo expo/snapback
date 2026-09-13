@@ -183,6 +183,55 @@ visited, so a sweep over its own table ends. `break` ends the sweep,
 per period boundary of the server's clock — exactly once across restarts,
 with `periodStart`/`periodEnd` when the job declares them (nothing else)
 — and `snapback4 run <job>` runs it here and now."#,
+        "feeds" => r#"# Feeds: fan out on write, read one page
+
+A feed over everyone the viewer follows is not a merge over their lanes
+(a thousand followed accounts is a thousand pages per read — `check`
+notes it, N_WIDE_MERGE). Write each reader's entry when the post is
+made, sync the entries to the reader, and read one page on the device:
+
+  table feed:                       -- one row per reader per post
+    readerId: principal
+    postId: posts
+    authorId: principal
+    at: time
+    unique byReaderPost: readerId, postId
+    by byReaderTime: readerId, at, id
+    read <- .readerId = viewer
+    insert <- .authorId = viewer    -- the author writes their readers' entries; the job writes as the system
+    sync to .readerId last 200 by byReaderTime
+
+  table fanouts:                    -- the work still to do: a post's readers past the first 200
+    postId: posts
+    authorId: principal
+    at: time
+    read <- deny
+    insert <- .authorId = viewer
+
+  mutation createPost(body: text <=500):
+    p = insert posts { authorId: viewer, body, at: now }
+    insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
+    for f in follows[viewer] first 200 by byFollowed:       -- the near followers, now
+      insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
+    insert fanouts { postId: p.id, authorId: viewer, at: now }
+    return { id: p.id }
+
+  job fanOut():                     -- the rest, within a minute
+    chunk w in fanouts first 5 by byId:
+      for f in follows[w.authorId] first 1000 by byFollowed:
+        insert feed { readerId: f.followerId, postId: w.postId, authorId: w.authorId, at: w.at } if absent
+      delete fanouts[w.id]
+  schedule fanOutEveryMinute every 1m: fanOut
+
+  query following(c: cursor ?):
+    return feed[viewer] after c last 20 by byReaderTime { *, post: posts[.postId] }
+
+The bounds are the design: a mutation writes at most 1,024 rows, so the
+near followers are 200 and the job takes the rest a page at a time under
+its own ceilings (5 posts × 1,000 followers a chunk); an account past
+1,000 followers is a lane its readers merge on read (`[.celebrity]`),
+which is what a celebrity is. `insert ... if absent` makes the job's pass
+idempotent over the rows the mutation already wrote."#,
         "writes" => r#"# Writes
 
 insert t { fields }            -> the row (id minted unless given)

@@ -1236,3 +1236,35 @@ the range parser's stop words, so a cursor is a cursor; and
 `scripts/publish.mjs` now runs the suite itself and refuses to publish
 over a red one, so the gate is in the script and not in the hand that
 types the chain.
+
+## 2026-09-13 — what the run said to do next: feeds, the sign-out contract, native proof; 0.1.12
+
+Three things the full-brief run named, done. **The feed.** A `feeds`
+card and a README section give the fan-out-on-write shape the O5 miss
+wanted: one `feed` row per reader per post, `unique` by reader and post,
+`sync to .readerId last 200`, the near 200 followers written by the
+mutation (a mutation writes at most 1,024 rows), the rest by a `fanOut`
+job a schedule fires every minute, five posts a chunk with `if absent`
+making its pass idempotent over what the mutation wrote, an account past
+the job's bound being the one lane its readers merge, which is what a
+celebrity is; the read is one local page. Compiled and run in
+`tests/clique.rs`: 250 followers, 201 rows from the mutation, 251 after
+the job, none twice, a far follower's device holding exactly its own
+entry. `N_WIDE_MERGE` now points at the card. **The sign-out contract.**
+The grade's d-01 was the app reading `client.session().token` in an
+effect's cleanup after `signOut()`, when the session is null. The client
+gains `onSession` and the React arm `useSession`: whoever keeps the
+token — a native image header, a presence lease — takes it from there
+and stops when it is null, and the README says so; the e2e test asserts
+the listener hears the end before the client closes. **Native proof.**
+The simulator witness now proves, on the real SQLite store in Expo Go,
+what O4 found undemonstrated: a cold start with the server unreachable
+opens in 2 ms on what the store holds and answers the thread with
+`fresh: false`; two writes composed offline are `pending` after the app
+restarts still offline, in order, and land in order on reconnect (the
+whole scenario: cold sync 199 ms for 303 rows, reopen 10 ms). The README
+tells an app how to prove the same with the client's `fetch` gate. One
+trap on the way: `expo start --localhost` binds Metro to `::1` alone and
+Expo Go, dialing 127.0.0.1, "could not connect"; the witness names the
+packager host as 127.0.0.1 instead and picks its own simulator by
+`WITNESS_UDID` when several are booted. Published `snapback4@0.1.12`.

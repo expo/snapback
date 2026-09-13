@@ -13,7 +13,10 @@ const timeoutMs = Number(process.env.WITNESS_TIMEOUT_MS ?? 600_000);
 const metroPort = 8091;
 const device = execSync("xcrun simctl list devices booted -j", { encoding: "utf8" });
 const booted = JSON.parse(device);
-const udid = Object.values(booted.devices).flat().find((d) => d.state === "Booted")?.udid;
+// Several simulators may be booted (other lanes keep their own): WITNESS_UDID
+// names ours; otherwise the first booted iPhone that is not another lane's.
+const candidates = Object.values(booted.devices).flat().filter((d) => d.state === "Booted");
+const udid = process.env.WITNESS_UDID ?? (candidates.find((d) => /^iPhone/.test(d.name)) ?? candidates[0])?.udid;
 if (!udid) throw new Error("no booted iOS simulator: `xcrun simctl boot 'iPhone 17 Pro'` first");
 
 const dev = await devServer({ seed: [
@@ -42,7 +45,7 @@ try {
 const metro = spawn("npx", ["expo", "start", "--port", String(metroPort), "--ios", "--clear"], {
   cwd: app,
   detached: true,
-  env: { ...process.env, CI: "1", EXPO_PUBLIC_SNAPBACK_URL: dev.api, EXPO_PUBLIC_WITNESS_URL: "http://127.0.0.1:4498", EXPO_NO_TELEMETRY: "1" },
+  env: { ...process.env, CI: "1", EXPO_PUBLIC_SNAPBACK_URL: dev.api, EXPO_PUBLIC_WITNESS_URL: "http://127.0.0.1:4498", EXPO_NO_TELEMETRY: "1", REACT_NATIVE_PACKAGER_HOSTNAME: "127.0.0.1" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let metroLog = "";
@@ -56,11 +59,16 @@ const onLog = (d) => {
 metro.stdout.on("data", onLog);
 metro.stderr.on("data", onLog);
 
-const out = { at: new Date().toISOString(), witness: "expo-go-sqlite", simulator: udid, seeded: dev.seeded };
+const out = { at: new Date().toISOString(), witness: "expo-go-sqlite", simulator: udid, seeded: dev.seeded, proves: ["cold sync into SQLite", "local reads and a send", "a reopen finds the rows", "a cold start offline answers from the store", "writes composed offline survive a restart and flush in order"] };
 try {
   const result = await Promise.race([report, bundlingFailed, new Promise((_, reject) => setTimeout(() => reject(new Error(`no report within ${timeoutMs} ms\n${metroLog.slice(-2000)}`)), timeoutMs))]);
   Object.assign(out, result);
-  out.ok = result.first?.threadRows === 50 && result.first?.threadComplete === true && result.first?.count === 300 && result.first?.write === "sent" && result.second?.reopenedRows >= 300;
+  const native = result.native ?? {};
+  out.ok = result.first?.threadRows === 50 && result.first?.threadComplete === true && result.first?.count === 300 && result.first?.write === "sent" && result.second?.reopenedRows >= 300
+    && native.coldLink === "offline" && native.coldThreadRows === 50 && native.coldFresh === false
+    && native.queued === "pending" && native.queuedSecond === "pending"
+    && JSON.stringify(native.pendingAfterRestart) === JSON.stringify(["composed offline, second", "composed offline"])
+    && JSON.stringify(native.landedOrder) === JSON.stringify(["composed offline", "composed offline, second"]);
 } catch (error) {
   out.ok = false;
   out.error = String(error.message ?? error);

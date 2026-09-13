@@ -5,6 +5,16 @@ import { isReady } from "snapback4/contract";
 import { api } from "../../chat/snapback/generated/api";
 import { openClient } from "./client";
 
+async function until<T>(check: () => Promise<T | null>, ms = 20_000): Promise<T | null> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const value = await check();
+    if (value) return value;
+    if (Date.now() > deadline) return null;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
 export async function runWitness(reportUrl: string): Promise<void> {
   const report: Record<string, unknown> = { platform: "ios-simulator" };
   try {
@@ -35,6 +45,42 @@ export async function runWitness(reportUrl: string): Promise<void> {
     const again_thread = await again.query(api.thread, { conversationId: "c1" });
     await again.close();
     report.second = { reopenMs, reopenedRows: rows, threadRows: isReady(again_thread) ? again_thread.data.length : -1 };
+    // Native proof of the M6/M8 behaviours, on the real SQLite store: the
+    // link is a fetch this app gates, so the server never has to die.
+    // (a) A cold start with the server unreachable opens on what the
+    // store holds and answers from it.
+    let offline = true;
+    const gated: typeof fetch = (input, init) => (offline ? Promise.reject(new TypeError("offline")) : fetch(input, init));
+    const t2 = Date.now();
+    const cold = await openClient({ persona: "bob", guest: false, fetch: gated });
+    const coldMs = Date.now() - t2;
+    const coldThread = await cold.query(api.thread, { conversationId: "c1" });
+    // (b) A write composed offline is queued durably: it survives a restart
+    // of the app still offline, and flushes in order on reconnect.
+    const queued = await cold.mutate(api.send, { conversationId: "c1", body: "composed offline" });
+    const queuedSecond = await cold.mutate(api.send, { conversationId: "c1", body: "composed offline, second" });
+    await cold.close();
+    const restarted = await openClient({ persona: "bob", guest: false, fetch: gated });
+    const stillPending = await restarted.query(api.thread, { conversationId: "c1" });
+    const pendingRows = isReady(stillPending) ? stillPending.data.filter((m) => m.pending === true).map((m) => m.body) : [];
+    offline = false;
+    const landedOrder = await until(async () => {
+      const r = await restarted.query(api.thread, { conversationId: "c1" });
+      if (!isReady(r)) return null;
+      const mine = r.data.filter((m) => typeof m.body === "string" && m.body.startsWith("composed offline") && !m.pending);
+      return mine.length === 2 ? mine.map((m) => m.body).reverse() : null;
+    });
+    await restarted.close();
+    report.native = {
+      coldMs,
+      coldLink: cold.link(),
+      coldThreadRows: isReady(coldThread) ? coldThread.data.length : -1,
+      coldFresh: isReady(coldThread) ? coldThread.fresh : null,
+      queued: queued.state,
+      queuedSecond: queuedSecond.state,
+      pendingAfterRestart: pendingRows,
+      landedOrder,
+    };
   } catch (error) {
     report.error = String((error as Error).message ?? error);
   }
