@@ -18,7 +18,7 @@ native = ["snapback4-core/sqlite", "dep:rusqlite", "wasm-host"]
 # The web keeps its wasm without the host: with it the device's wasm is
 # 647,583 B gzip against 312,924 (measured 2026-09-13); a web device answers
 # a native read by saying it has no module, and the client asks the server.
-web = ["dep:wasm-bindgen"]
+web = ["dep:wasm-bindgen", "snapback4-core/web"]
 
 [dependencies]
 snapback4-core = { path = "../snapback4-core", default-features = false }

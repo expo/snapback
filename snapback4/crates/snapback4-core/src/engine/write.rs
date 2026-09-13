@@ -39,7 +39,11 @@ impl Runner<'_> {
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
-                if self.live_lookup(table_name, name, index, &key)?.is_some() {
+                if key.iter().any(|value| *value == Value::Null) {
+                    continue;
+                }
+                if let Some(existing) = self.live_lookup(table_name, name, index, &key)? {
+                    self.visible_collision(table_name, &existing, Effect::Insert)?;
                     return Ok(false);
                 }
             }
@@ -47,6 +51,7 @@ impl Runner<'_> {
         let id = row.field("id")?.as_str()?.to_owned();
         if let Some(existing) = self.tx.get(table_name, &id)? {
             if !self.expired(&table, &existing) {
+                self.visible_collision(table_name, &existing, Effect::Insert)?;
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
             self.remove(table_name, &existing)?;
@@ -226,6 +231,7 @@ impl Runner<'_> {
                 if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
                     && existing.field("id")?.as_str()? != id
                 {
+                    self.visible_collision(table_name, &existing, effect)?;
                     return Err(RuntimeError::Constraint(format!("{table_name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
                 }
             }
@@ -262,7 +268,7 @@ impl Runner<'_> {
                     if !moved {
                         continue;
                     }
-                    let index_name = table.indexes.iter().find(|(_, index)| index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
+                    let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
                     self.meter.charge(MeterKind::IndexEntries, 1)?;
                     let count = if table.expire.is_none() {
                         self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
@@ -287,6 +293,26 @@ impl Runner<'_> {
                     }
                 }
             }
+        }
+        Ok(())
+    }
+
+    // @ref LLP 3000#7-decisions-during-execution — hidden collisions use the ordinary write-rule refusal
+    fn visible_collision(
+        &mut self,
+        table: &str,
+        row: &Value,
+        effect: Effect,
+    ) -> Result<(), RuntimeError> {
+        let mut image = row.clone();
+        let definition = self.schema.table(table).expect("validated");
+        materialize_optional_fields(&mut image, definition);
+        let expired = definition.expired(&image, self.context.now.unwrap_or(0));
+        if expired || !self.check_rule(table, Effect::Read, None, &image)? {
+            return Err(RuntimeError::Rule {
+                table: table.to_owned(),
+                effect,
+            });
         }
         Ok(())
     }

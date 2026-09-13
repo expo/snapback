@@ -348,7 +348,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
     match op {
         "now" => Ok(json!(runner.context.now)),
         "viewer" => Ok(json!(runner.context.viewer)),
-        "mint" => Ok(json!(runner.context.mint())),
+        "mint" => Ok(json!(runner.context.mint()?)),
         "get" => {
             let table = text_field(request, "table", op)?;
             let id = text_field(request, "id", op)?;
@@ -429,7 +429,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
             let table = table_of(runner.schema, table_name)?;
             let mut json = request.get("row").cloned().ok_or_else(|| RuntimeError::Input(format!("native {op} needs row")))?;
             if json.get("id").is_none_or(|id| id.is_null() || id.as_str() == Some("")) {
-                let id = runner.context.mint();
+                let id = runner.context.mint()?;
                 json.as_object_mut().ok_or_else(|| RuntimeError::Input("a row is an object".into()))?.insert("id".into(), Json::String(id));
             }
             let row = typed_row(table, table_name, &json)?;

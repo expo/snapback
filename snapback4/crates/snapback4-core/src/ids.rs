@@ -5,14 +5,20 @@
 
 const ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-/// Mint one id at `now_ms` with the caller's entropy state.
-pub fn mint(now_ms: i64, state: &mut u64) -> String {
+/// Every new id uses OS entropy, or Web Crypto in a browser. Prediction
+/// replay reuses the ids recorded at admission; it never regenerates them.
+// @ref LLP 3000#7-decisions-during-execution — all minted ids carry fresh cryptographic entropy
+pub fn mint(now_ms: i64, _state: &mut u64) -> Result<String, crate::RuntimeError> {
     let time = (now_ms.max(0) as u128) & ((1u128 << 48) - 1);
-    let entropy = (u128::from(xorshift(state)) << 16) ^ u128::from(xorshift(state) & 0xFFFF);
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes[6..])
+        .map_err(|e| crate::RuntimeError::Store(format!("entropy: {e}")))?;
+    let entropy = u128::from_be_bytes(bytes);
     let value = (time << 80) | (entropy & ((1u128 << 80) - 1));
-    encode(value)
+    Ok(encode(value))
 }
 
+#[cfg(test)]
 fn xorshift(state: &mut u64) -> u64 {
     let mut x = *state;
     if x == 0 {
@@ -47,7 +53,7 @@ pub fn minted_at(id: &str) -> Option<i64> {
     Some((value >> 80) as i64)
 }
 
-/// Entropy for a process: the clock, the pid and the address of a stack slot.
+/// A process seed for deterministic evaluator bookkeeping, never id entropy.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn seed() -> u64 {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1);
@@ -55,9 +61,8 @@ pub fn seed() -> u64 {
     nanos ^ (std::process::id() as u64).rotate_left(32) ^ (&local as *const u8 as u64)
 }
 
-/// On the web there is no clock or pid to ask without the host: a counter
-/// and a stack address, distinct per call; a device's ids take their
-/// entropy from the host in any case (`Context::with_entropy`).
+/// Web bookkeeping has no host clock or pid. Minting ignores this seed
+/// and asks Web Crypto for fresh bytes.
 #[cfg(target_arch = "wasm32")]
 pub fn seed() -> u64 {
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -73,13 +78,28 @@ mod tests {
     #[test]
     fn ids_sort_by_time_and_carry_it() {
         let mut state = 7;
-        let a = mint(1_000, &mut state);
-        let b = mint(2_000, &mut state);
-        let c = mint(2_000, &mut state);
+        let a = mint(1_000, &mut state).unwrap();
+        let b = mint(2_000, &mut state).unwrap();
+        let c = mint(2_000, &mut state).unwrap();
         assert!(a < b);
         assert_ne!(b, c);
         assert_eq!(minted_at(&a), Some(1_000));
         assert_eq!(minted_at(&c), Some(2_000));
         assert_eq!(a.len(), 26);
+    }
+
+    #[test]
+    fn observing_an_id_does_not_predict_the_next() {
+        let a = mint(1_000, &mut 7).unwrap();
+        let b = mint(2_000, &mut 7).unwrap();
+        let bits = a.bytes().fold(0u128, |v, b| {
+            (v << 5) | ALPHABET.iter().position(|x| *x == b).unwrap() as u128
+        });
+        let mut recovered = (bits >> 16) as u64;
+        xorshift(&mut recovered);
+        let predicted = (u128::from(xorshift(&mut recovered)) << 16)
+            | u128::from(xorshift(&mut recovered) & 0xffff);
+        assert_ne!(b, encode((2_000u128 << 80) | predicted));
+        assert_ne!(mint(1_000, &mut 7).unwrap(), a);
     }
 }

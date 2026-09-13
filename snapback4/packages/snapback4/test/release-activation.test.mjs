@@ -13,7 +13,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
-const source = `use personas alice
+const source = `use identity guests
+use personas alice
 table items:
   body: text <=100
   read <- allow
@@ -64,7 +65,12 @@ async function serve(deployment, inspect) {
     const deadline = Date.now() + 3000;
     while (!url && child.exitCode == null && Date.now() < deadline) await delay(10);
     assert.ok(url, log || "release server did not listen");
-    await inspect(url);
+    const anonymous = await fetch(url + "/schema", { signal: AbortSignal.timeout(2000) });
+    assert.equal(anonymous.status, 401);
+    assert.equal((await anonymous.json()).denied?.code, "E_AUTH");
+    const signedIn = await (await fetch(url + "/auth/guest", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
+    assert.ok(signedIn.session?.token, JSON.stringify(signedIn));
+    await inspect(url, { authorization: `Bearer ${signedIn.session.token}` });
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
     await exited;
@@ -92,8 +98,8 @@ test("rollback then deploy keeps immutable source identities and serving only at
   assert.match(readFileSync(join(deployment, "releases/1/snapback/schema.q"), "utf8"), /return 1/);
   // A crashed pointer-copy update cannot override the database's current release.
   writeFileSync(join(deployment, "current"), "1\n");
-  await serve(deployment, async (url) => {
-    const response = await fetch(url + "/schema", { signal: AbortSignal.timeout(2000) });
+  await serve(deployment, async (url, headers) => {
+    const response = await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(2000) });
     const backend = await response.json();
     assert.equal(backend.generation, 4);
     assert.deepEqual(backend.programs.map((p) => p.name).sort(), ["add", "q"]);
@@ -107,7 +113,7 @@ test("a live release refuses deploy and rollback until the server stops", { time
   run("deploy", deployment);
   const database = join(deployment, "store.sqlite"), before = state(database);
   writeFileSync(schema, source.replace("return 1", "return 2"));
-  await serve(deployment, async (url) => {
+  await serve(deployment, async (url, headers) => {
     for (const args of [["deploy", deployment], ["rollback", deployment]]) {
       const blocked = invoke(...args);
       assert.equal(blocked.error, undefined);
@@ -115,7 +121,7 @@ test("a live release refuses deploy and rollback until the server stops", { time
       assert.match(blocked.stderr, /deployment is live/);
       assert.deepEqual(state(database), before, "a refused activation must not move the database");
     }
-    const backend = await (await fetch(url + "/schema", { signal: AbortSignal.timeout(2000) })).json();
+    const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(2000) })).json();
     assert.equal(backend.generation, Number(before.metadata.generation));
     assert.deepEqual(backend.programs.find((p) => p.name === "q").body, [{ Return: { Literal: { Int: 1 } } }]);
   });
@@ -203,8 +209,8 @@ test("legacy pointer deployments upgrade through deploy, never implicit serving"
   const upgraded = state(database);
   assert.equal(upgraded.metadata.release, "2");
   assert.equal(upgraded.metadata.generation, "2");
-  await serve(deployment, async (url) => {
-    const backend = await (await fetch(url + "/schema", { signal: AbortSignal.timeout(2000) })).json();
+  await serve(deployment, async (url, headers) => {
+    const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(2000) })).json();
     assert.equal(backend.generation, 2);
   });
   assert.deepEqual(state(database), upgraded);

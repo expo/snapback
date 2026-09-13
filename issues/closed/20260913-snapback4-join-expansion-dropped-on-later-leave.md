@@ -50,3 +50,7 @@ Additionally, if a user joins, leaves, and joins again, `held.get(...)` contains
 Historical join expansion now uses the row images present at the join commit, including when a later leave closes the interval. Same-commit grant/revoke remains empty, and edits or new rows after leave are excluded. The closed-membership regression passes with page limits 1 and 1000.
 
 Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.
+
+### Subsequent security integration
+
+The concurrently landed security ruling at `867045564` restricts server catch-up to current readable images. Historical join intervals are still reconstructed even when a later leave closes them, but a revoked viewer cannot newly retrieve the candidate body. Delivered-history preserves rows already acquired on the device. This policy supersedes this ticket's expectation of newly delivering history after revocation; interval reconstruction, live rejoining and pagination remain repaired.

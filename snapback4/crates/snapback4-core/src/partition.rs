@@ -398,7 +398,7 @@ fn audience_index(table_name: &str, table: &Table, sync: &Sync) -> Result<String
         Audience::Column(column) => vec![column.clone()],
         Audience::Target { prefix, .. } => prefix.clone(),
     };
-    table.indexes.iter().find(|(_, index)| index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", "))))
+    table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", "))))
 }
 
 /// Append a commit's events to the log. A row's events within one commit
@@ -552,13 +552,50 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
             }
         }
     }
+    let expanded = events;
+    let mut events = Vec::with_capacity(expanded.len());
+    // @ref LLP 3000#7-decisions-during-execution — retained history is device-held; the server serves current readable images
+    // Apply to legacy logs and join expansion alike. Replacing an old put
+    // by a deletion also clears a device that caught up before the sweep.
+    let mut reader = Runner::new(
+        tx,
+        schema,
+        crate::Context::new(principal, BTreeMap::new()).at(now),
+        crate::meter::Meter::new(
+            crate::meter::Ceilings::unbounded(),
+            crate::meter::Cut::Abort,
+        ),
+        0,
+    );
+    for mut event in expanded {
+        if event.kind == "put" {
+            event.data = if schema.table(&event.table).is_some() {
+                reader.fetch(&event.table, &event.id)?
+            } else {
+                None
+            };
+            if let Some(row) = &event.data {
+                // Revocation with delivered-history keeps already delivered
+                // device data. Suppress a now-hidden historical put; only an
+                // actual row removal (or its scope policy) clears that copy.
+                if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? {
+                    continue;
+                }
+            }
+            if event.data.is_none() {
+                event.kind = "del".into();
+            }
+        }
+        events.push(event);
+    }
     Ok(StreamPage { events, watermark: next, more })
 }
 
 /// A join acquires the images that existed at its own commit, even if a
-/// later commit ended the membership. Never substitute current images:
-/// those can contain changes made after the member left. A same-commit
-/// grant and revocation conveys no authority. Joins never reach a device.
+/// later commit ended the membership. The stream then checks these candidates
+/// against current visibility: retained history is a device-held policy, not
+/// permission to retrieve revoked or replaced images. A same-commit grant and
+/// revocation conveys no authority. Joins never reach a device.
 #[cfg(feature = "sqlite")]
 fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<Vec<LogEvent>, RuntimeError> {
     let commit_times = tx.commit_times(&page.iter().map(|event| event.seq).collect::<Vec<_>>())?;

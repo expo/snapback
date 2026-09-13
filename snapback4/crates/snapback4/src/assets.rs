@@ -4,7 +4,7 @@
 //! served once per principal and never cached anywhere; a deleted, cleared
 //! or expired home stops the bytes at the server.
 
-use crate::serve::{Shared, lock, principal_of, refusal_json, respond};
+use crate::serve::{Shared, cors, lock, principal_of, refusal_json, respond};
 use serde_json::json;
 use snapback4_core::error::Refusal;
 use std::io::{self, Read as _, Seek, SeekFrom};
@@ -14,6 +14,16 @@ use tiny_http::{Header, Request, Response};
 /// refused before the schema is consulted.
 pub const UPLOAD_CEILING: usize = 64 << 20;
 
+pub struct UploadPermit<'a>(&'a std::sync::atomic::AtomicUsize);
+pub fn admit(shared: &Shared) -> Option<UploadPermit<'_>> {
+    use std::sync::atomic::Ordering;
+    shared.uploads.fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < 2).then_some(n + 1)).ok()?;
+    Some(UploadPermit(&shared.uploads))
+}
+impl Drop for UploadPermit<'_> {
+    fn drop(&mut self) { self.0.fetch_sub(1, std::sync::atomic::Ordering::Release); }
+}
+
 pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     let principal = match principal_of(&request, shared) {
         Ok(principal) => principal,
@@ -22,7 +32,15 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     if body.is_empty() {
         return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_TYPE", "asset", "the upload is empty: POST the file's bytes as the body").guide("assets")) }));
     }
-    let stored = lock(&shared.engine).store_asset(&principal, &body, snapback4_core::now_ms());
+    let stored = (|| {
+        let sniffed = snapback4_core::assets::sniff(&body)?;
+        let upload = lock(&shared.engine).prepare_asset(&principal, sniffed, body.len() as u64, snapback4_core::now_ms())?;
+        #[cfg(test)] crate::serve::test_work(&shared.upload_work);
+        let upload = upload.write(&body)?;
+        // Logout while disk I/O was in flight cannot publish a new asset.
+        principal_of(&request, shared).map_err(|_| snapback4_core::RuntimeError::Auth("sign in again".into()))?;
+        lock(&shared.engine).finish_asset(upload)
+    })();
     match stored {
         Ok(asset) => respond(request, 200, json!({ "asset": { "id": asset.id, "type": asset.content_type, "bytes": asset.bytes, "width": asset.width, "height": asset.height, "duration": asset.duration } })),
         Err(error) => {
@@ -41,13 +59,15 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "no asset is served under that id to this viewer").guide("assets")) }));
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
-    let granted = lock(&shared.engine).asset_access(&principal, id, snapback4_core::now_ms());
+    let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
+    let granted = lock(&shared.engine).asset_access_request(&principal, id, snapback4_core::now_ms(), range_requested);
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
             let refusal = error.refusal();
             let status = match refusal.code.as_str() {
                 "E_ASSET_VIEWED" => 410,
+                "E_ASSET_RANGE" => 416,
                 "E_ASSET_UNKNOWN" => 404,
                 _ if refusal.retryable => 503,
                 _ => 500,
@@ -59,25 +79,32 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")) }));
     };
     let total = grant.bytes;
-    let range_header = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("range"));
-    if grant.once && range_header.is_some() {
-        return respond(request, 416, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a one-view photo must be fetched as one complete response; retry without Range").guide("assets")) }));
+    let range = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("range"))
+        .map(|h| byte_range(h.value.as_str(), total)).unwrap_or(ByteRange::Ignore);
+    if range == ByteRange::Unsatisfiable {
+        let mut response = Response::empty(416);
+        response.add_header(Header::from_bytes("Content-Range", format!("bytes */{total}")).unwrap());
+        response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
+        response.add_header(Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap());
+        for header in cors(&request) { response.add_header(header); }
+        let _ = request.respond(response);
+        return;
     }
-    let range = range_header.and_then(|h| byte_range(h.value.as_str(), total));
     let mut headers = vec![
         Header::from_bytes("Content-Type", grant.content_type.as_str()).unwrap(),
-        Header::from_bytes("Accept-Ranges", "bytes").unwrap(),
-        Header::from_bytes("Cache-Control", if grant.once { "private, no-store" } else { "private, max-age=31536000, immutable" }).unwrap(),
+        Header::from_bytes("Accept-Ranges", if grant.once { "none" } else { "bytes" }).unwrap(),
+        Header::from_bytes("Cache-Control", "private, no-store").unwrap(),
         Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
-        Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap(),
         Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges").unwrap(),
     ];
+    headers.extend(cors(&request));
     let (status, start, length) = match range {
-        Some((start, end)) => {
+        ByteRange::Satisfiable(start, end) => {
             headers.push(Header::from_bytes("Content-Range", format!("bytes {start}-{end}/{total}")).unwrap());
             (206, start, end - start + 1)
         }
-        None => (200, 0, total),
+        ByteRange::Ignore => (200, 0, total),
+        ByteRange::Unsatisfiable => unreachable!("handled above"),
     };
     if start > 0 && file.seek(SeekFrom::Start(start)).is_err() {
         return respond(request, 500, json!({ "denied": refusal_json(&Refusal::new("E_STORE", "store", "cannot read the bytes")) }));
@@ -117,18 +144,54 @@ impl<R: io::Read> io::Read for ExactReader<R> {
     }
 }
 
-/// One `bytes=a-b` range, clamped; anything else is the whole file.
-fn byte_range(header: &str, total: u64) -> Option<(u64, u64)> {
-    let spec = header.trim().strip_prefix("bytes=")?;
-    let (start, end) = spec.split_once('-')?;
-    if total == 0 {
-        return None;
-    }
-    let (start, end) = match (start.trim().parse::<u64>().ok(), end.trim().parse::<u64>().ok()) {
-        (Some(start), Some(end)) => (start, end.min(total - 1)),
-        (Some(start), None) => (start, total - 1),
-        (None, Some(suffix)) => (total.saturating_sub(suffix), total - 1),
-        (None, None) => return None,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ByteRange {
+    Ignore,
+    Unsatisfiable,
+    Satisfiable(u64, u64),
+}
+
+/// One `bytes=a-b` range, clamped. A valid interval outside the file is
+/// distinguished from malformed syntax so the former receives HTTP 416.
+fn byte_range(header: &str, total: u64) -> ByteRange {
+    let Some((unit, spec)) = header.trim().split_once('=') else { return ByteRange::Ignore; };
+    if !unit.eq_ignore_ascii_case("bytes") || spec.contains(',') { return ByteRange::Ignore; }
+    let Some((start, end)) = spec.split_once('-') else { return ByteRange::Ignore; };
+    if end.contains('-') { return ByteRange::Ignore; }
+    let parse = |part: &str| -> Result<Option<u64>, ()> {
+        let part = part.trim();
+        if part.is_empty() { Ok(None) } else { part.parse().map(Some).map_err(|_| ()) }
     };
-    (start <= end && start < total).then_some((start, end))
+    let (start, end) = match (parse(start), parse(end)) {
+        (Ok(start), Ok(end)) if start.is_some() || end.is_some() => (start, end),
+        _ => return ByteRange::Ignore,
+    };
+    match (start, end) {
+        (Some(start), end) => {
+            if total == 0 || start >= total { return ByteRange::Unsatisfiable; }
+            let end = end.unwrap_or(total - 1).min(total - 1);
+            if start > end { ByteRange::Unsatisfiable } else { ByteRange::Satisfiable(start, end) }
+        }
+        (None, Some(0)) => ByteRange::Unsatisfiable,
+        (None, Some(suffix)) if total > 0 => ByteRange::Satisfiable(total.saturating_sub(suffix), total - 1),
+        (None, Some(_)) => ByteRange::Unsatisfiable,
+        (None, None) => ByteRange::Ignore,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn byte_ranges_distinguish_invalid_and_unsatisfiable_requests() {
+        assert_eq!(byte_range("bytes=1-3", 10), ByteRange::Satisfiable(1, 3));
+        assert_eq!(byte_range("bytes=8-30", 10), ByteRange::Satisfiable(8, 9));
+        assert_eq!(byte_range("bytes=-3", 10), ByteRange::Satisfiable(7, 9));
+        assert_eq!(byte_range("bytes=10-20", 10), ByteRange::Unsatisfiable);
+        assert_eq!(byte_range("bytes=7-3", 10), ByteRange::Unsatisfiable);
+        assert_eq!(byte_range("bytes=-0", 10), ByteRange::Unsatisfiable);
+        assert_eq!(byte_range("bytes=wat", 10), ByteRange::Ignore);
+        assert_eq!(byte_range("items=1-3", 10), ByteRange::Ignore);
+    }
 }

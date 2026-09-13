@@ -157,6 +157,14 @@ fn an_asset_is_served_by_its_home_rows_read_rule() {
     assert_eq!(engine.asset_access("dev:bob", &asset.id, 1_006).unwrap_err().code(), "E_ASSET_VIEWED");
     assert_eq!(engine.asset_access("dev:mallory", &asset.id, 1_006).unwrap_err().code(), "E_ASSET_UNKNOWN");
     assert!(engine.asset_access("dev:alice", &asset.id, 1_007).unwrap().once, "a placed upload also limits its owner to one completed view");
+    engine.record_asset_view("dev:alice", &asset.id, 1_007).unwrap();
+    assert_eq!(
+        engine
+            .asset_access("dev:alice", &asset.id, 1_008)
+            .unwrap_err()
+            .code(),
+        "E_ASSET_VIEWED"
+    );
     // A video: the mutation reads the server's facts from an argument that
     // carried only the id, and the row keeps every fact key.
     let mut mp4 = boxed_ftyp();
@@ -171,13 +179,11 @@ fn an_asset_is_served_by_its_home_rows_read_rule() {
     let long = engine.store_asset("dev:alice", &boxed_ftyp_with(120_000), 1_007).unwrap();
     let refused = engine.mutate("sendClip", Some("v2"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("clip", photo(&long.id))])).at(1_007).with_ids(["clip2".to_owned()])).unwrap();
     assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "TOO_LONG"), "{:?}", refused.state);
-    // A recognized MP4 can lack duration metadata. It cannot satisfy a
-    // duration limit until the application has a known duration to compare.
-    let unknown = engine.store_asset("dev:alice", &boxed(b"ftyp", b"isom\x00\x00\x02\x00isomiso2"), 1_007).unwrap();
-    assert_eq!(unknown.duration, None);
-    let refused = engine.mutate("sendClip", Some("v3"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("clip", photo(&unknown.id))])).at(1_007).with_ids(["clip3".to_owned()])).unwrap();
-    assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "DURATION_UNKNOWN"), "{:?}", refused.state);
-    assert!(!engine.store().rows("messages").unwrap().iter().any(|m| m.field("id").unwrap() == &id("clip3")));
+    // Unknown duration is rejected at upload admission, before clients decode.
+    assert_eq!(
+        engine.store_asset("dev:alice", &boxed(b"ftyp", b"isom\x00\x00\x02\x00isomiso2"), 1_007).unwrap_err().code(),
+        "E_ASSET_BOUNDS"
+    );
     let stored = engine.store().rows("messages").unwrap().into_iter().find(|m| m.field("id").unwrap() == &id("clip1")).unwrap();
     assert_eq!(stored.field("clip").unwrap().field("duration").unwrap(), &Value::Int(4_500));
     assert_eq!(stored.field("clip").unwrap().field("width").unwrap(), &Value::Null);
@@ -424,7 +430,7 @@ table memberships:
   unique byConversationPrincipal: conversationId, principal
   by byPrincipalConversation: principal, conversationId, id
   read <- exists memberships[.conversationId, viewer]
-  insert <- allow
+  insert <- exists memberships[.conversationId, viewer] or created conversations[.conversationId]
   sync to memberships[.conversationId]
 
 table messages:
@@ -600,7 +606,7 @@ table memberships:
   by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
-  insert <- allow
+  insert <- exists memberships[.conversationId, viewer] or created conversations[.conversationId]
   sync to memberships[.conversationId]
 
 table messages:

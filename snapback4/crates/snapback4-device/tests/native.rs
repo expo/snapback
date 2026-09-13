@@ -25,6 +25,31 @@ fn native_device_read_transactions_do_not_reserve_the_writer() {
     reader.rollback().unwrap();
 }
 
+#[cfg(unix)]
+#[test]
+fn native_device_store_and_sidecars_are_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let source = "table items:\n  value: int\n  read <- allow\n  sync public\n";
+    let (_, backend) = compile(source);
+    let host = Sqlite::new("private-store");
+    let path = host.path("device");
+    std::fs::set_permissions(&host.dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(&path, []).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    let device = Device::open(&path, Some(backend)).unwrap();
+    assert_eq!(std::fs::metadata(&host.dir).unwrap().permissions().mode() & 0o777, 0o700);
+    for private in [
+        path.clone(),
+        std::path::PathBuf::from(format!("{}-wal", path.display())),
+        std::path::PathBuf::from(format!("{}-shm", path.display())),
+    ] {
+        assert_eq!(std::fs::metadata(private).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    drop(device);
+}
+
 #[test]
 fn a_competing_sender_invalidates_a_stale_sync_and_a_failing_store_keeps_the_partition() {
     let source = "table items:\n  group: text <=10\n  value: int\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public\nmaintain sums: sum items of value by group\n  read <- allow\nquery row(id: id):\n  return items[id] by byId\nquery total():\n  return sums['g'] by byGroup\nmutation first():\n  update items['a'] {value: 99}\n  delete items['b']\n";

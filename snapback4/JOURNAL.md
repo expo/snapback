@@ -2200,3 +2200,62 @@ The exact integrated checkpoint `669dc0c01` passes the complete existing suite t
 Independent Sol and Grok reviews of `65e2ad752` found six actionable boundary defects. Replacement grants now own their interval before an old membership is swept, and sweeping the old grant preserves the replacement. Expiring sums retain zero-valued candidates while source rows remain; opening a legacy server store repairs missing candidates once without changing its backend generation. Meter cuts preserve scan continuation and return observed partial maintained contributions; visible expiring point reads charge once. Fully held device scans remain complete while checking their expiring audience.
 
 The four Sol findings were first reproduced red. The resulting focused targets pass: 31 correction tests, 11 earlier review tests, 16 device tests across SQLite and memory, and 11 guide tests. Grok's proposed all-pages snapshot history guarantee was declined after reading the existing cursor contract: membership is rechecked per page and delivered-history covers acquired rows. A deterministic two-store test retains the first delivered page, excludes unacquired rows after expiry, and denies post-expiry writes. No client-supplied cursor clock can extend authority. Received findings and dispositions are retained under `llp/reviews/`; final whole-suite qualification follows.
+
+## 2026-09-13 — the security boundary: local development, bounded host work, rotated sessions
+
+The first dedicated security review found twelve holes and the integration
+pass added three adjacent ones. The development door now belongs to a literal
+loopback request: loopback peer and `Host`, absent or matching local `Origin`,
+one unambiguous credential, reflected origin. The release host defaults to
+`127.0.0.1`; exposing its cleartext socket takes an explicit flag and warning,
+with the supported deployment contract a same-host TLS proxy that cannot reach
+the development persona door. The catalog, module, generated API, and change
+feed all require a live session, including both sides of a long-poll wait.
+
+The process has finite admission now: connections, short workers, waiters,
+headers, bodies, writes, idle time, password work, password attempts, and
+uploads each have a bound. Protected bodies are authenticated before they are
+buffered. Argon2, staged upload writes, and asset-file deletion happen outside
+the engine mutex; password and upload commits recheck the authority they began
+with. Store parents and asset directories are owner-only on Unix, as are the
+database, SQLite sidecars, staged files, and final bytes. Other platforms fail
+closed until they can make the same custody promise.
+
+The rule boundary also became closed under the less obvious paths. Hidden id
+and unique collisions use the generic rule refusal, including if-absent and
+upsert. Partition catch-up reconstructs the current readable image rather than
+replaying a deleted or since-hidden one. Minted IDs use OS randomness on native
+targets and Web Crypto in the browser. Audience insertion must follow an
+existing grant or a group created in the same mutation, must use the actual
+recipient slot and plain group index, and cannot later rewrite its group or
+recipient columns without an equivalent guard.
+
+Ordinary sessions now live seven days, rotate atomically through refresh, can
+all be revoked for an account, and are pruned through an expiry index. The web
+client keeps them in memory unless the application explicitly opts into the
+page-readable local-storage adapter; it refreshes before the final day and
+rejects stale-token races. Media facts have dimension and duration ceilings.
+Once-view accounting includes the uploader after placement and refuses ranges
+before consuming a view; ordinary unsatisfiable ranges return 416, and every
+asset response is private and `no-store`. The exact checks and independent
+review for the integrated result live in the 2026-09-13 security remediation
+record beside LLP 3000.
+
+## 2026-09-13 — effect claims close the wait boundary
+
+The independent remediation review found one remaining authorization gap in
+the long effect-claim path: a service session was checked before waiting, but
+could be revoked or expire before the next claim attempt. The claim loop now
+reauthenticates at every attempt, including every wake, before it can observe
+or lease newly available work. A deterministic host regression revokes the
+service token exactly at that boundary and requires `E_AUTH`.
+
+## 2026-09-13 — security integration during ticket qualification
+
+The repair checkpoint `9bf6d4a83` passed the complete suite locally in 48 s and on the controlled Linux host in 36.59 s (197 Rust, 9 fixture, 81 client passes; one predeclared ignored test). Main meanwhile advanced through `867045564` with separately reviewed security hardening and SQLite plan reuse; npm 0.2.5 was occupied. This delivery integrates that content and reserves 0.2.6 for the client/platform, while the rebuilt Expo module remains 0.2.1.
+
+The security ruling narrows server history: a stream cannot recover deleted, expired, replaced or currently hidden content from an old watermark. Join candidates and grant intervals remain reconstructed correctly, but serving resolves candidates to current readable images. Delivered-history retains an already acquired device copy, without granting retrieval after revocation. This supersedes the earlier ticket pass's historical-body acquisition expectation for a closed membership; live rejoining, whole-commit pagination and expiry boundaries remain covered. One-view authorization remains separate from delivery: the uploader follows the placed row's rule, Range is refused, and the host records a view only after a complete successful transfer. An xcframework build interrupted by the merge failed on conflict markers and is discarded; the final merged core will be rebuilt.
+
+The asset merge regression reproduced a released upload being reclaimed between collection preparation and file removal. Collection now writes a durable internal `_asset_gc` reservation in its preparation transaction; claiming a reserved asset refuses while ordinary release still permits a move. Restarted collection can retry the reserved row, and forgetting the asset removes the marker. This composes outside-lock file removal with the ticket's release/reclaim behavior.
+
+The narrow Sol correction review found that a capped aggregate scan discarded a partial contribution that the corresponding point read retained. A five-source group under an examined ceiling of three reproduced an empty page instead of the observed count two. The scan now returns that partial row with incomplete coverage and a cursor after it, while preserving the existing two-group continuation regression.

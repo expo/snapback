@@ -151,7 +151,7 @@ impl Runner<'_> {
     /// Whether the viewer may `effect` the row. The system principal is the
     /// store's owner and passes every rule; validation and constraints
     /// still run for it.
-    pub(super) fn check_rule(&mut self, table_name: &str, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
+    pub(crate) fn check_rule(&mut self, table_name: &str, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
         if self.context.is_system() {
             return Ok(true);
         }
@@ -175,7 +175,7 @@ impl Runner<'_> {
     }
 
     /// A row by id, materialized, without a rule check.
-    pub(super) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+    pub(crate) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         let found = self.tx.get(table_name, id)?;
         if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
@@ -485,6 +485,12 @@ impl Runner<'_> {
                     self.note_expiry(table, &row);
                     let aggregate = self.live_aggregate(&scan.table, row)?;
                     if self.meter.capped_at.is_some() {
+                        // The aggregate carries the live contribution observed
+                        // before this cut, just as a maintained point read does.
+                        if let Some(row) = aggregate && visible.len() < take {
+                            visible.push(row);
+                            keys.push(key.clone());
+                        }
                         capped = true;
                         break 'outer;
                     }

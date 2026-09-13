@@ -326,25 +326,25 @@ fn expired_rows_are_absent_to_uniqueness_caps_final_exists_and_maintains() {
 }
 
 #[test]
-fn expired_memberships_bound_stream_history_before_the_sweep() {
-    let mut e=engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  update <- allow\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join():\n  insert members {group: 'g',person: viewer,until: 10}\nmutation renew(m: members):\n  update members[m] {until: 30}\nmutation add(body: text <=10):\n  insert notes {group: 'g',body}\n");
+// @ref LLP 3000#7-decisions-during-execution — revoked authority cannot retrieve server history; a scope still revokes held rows.
+fn expired_memberships_suppress_server_history_before_the_sweep() {
+    let mut e=engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  update <- .person = viewer\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join(person: principal):\n  insert members {group: 'g',person,until: 10}\nmutation renew(m: members):\n  update members[m] {until: 30}\nmutation add(body: text <=10):\n  insert notes {group: 'g',body}\n");
     let call=|e:&mut Engine,op:&str,id:&str,at:i64,args:BTreeMap<String,Value>| {
         let w=e.mutate(op,Some(id),Context::new("dev:alice",args).at(at).with_ids([id.into()])).unwrap();
         assert!(matches!(w.state,WriteState::Sent{..}),"{w:?}");
     };
     call(&mut e,"add","old",1,BTreeMap::from([("body".into(),Value::String("old".into()))]));
     let before=e.seq().unwrap();
-    call(&mut e,"join","member",2,BTreeMap::new());
+    let joined_outcome=e.mutate("join",Some("member"),Context::new(snapback4_core::SYSTEM_PRINCIPAL,BTreeMap::from([("person".into(),Value::Id("dev:alice".into()))])).at(2).with_ids(["member".into()])).unwrap();
+    assert!(matches!(joined_outcome.state,WriteState::Sent{..}),"{joined_outcome:?}");
     let joined=e.seq().unwrap();
     call(&mut e,"add","live",9,BTreeMap::from([("body".into(),Value::String("live".into()))]));
     call(&mut e,"add","hidden",10,BTreeMap::from([("body".into(),Value::String("hidden".into()))]));
     assert!(e.snapshot_at("dev:alice",20).unwrap().0.is_empty());
     for start in [before,joined] {
         let page=e.stream_at("dev:alice",start,100,20).unwrap();
-        let ids=page.events.iter().filter(|event|event.table=="notes").map(|event|event.id.as_str()).collect::<Vec<_>>();
-        assert!(ids.contains(&"live"),"{ids:?}");
-        assert!(!ids.contains(&"hidden"),"{ids:?}");
-        assert_eq!(ids.contains(&"old"),start==before);
+        assert!(!page.events.iter().any(|event|event.table=="notes" && event.kind=="put"),"{:?}",page.events);
+        assert!(page.events.iter().any(|event|event.table=="notes" && event.kind=="scope"),"{:?}",page.events);
     }
     // Renew before expiry: the original deadline must not silently persist.
     let mut e2=e;
@@ -377,18 +377,18 @@ fn emit_only_job_chunks_commit_work_for_the_effect_worker() {
 
 #[test]
 fn a_legacy_grant_cannot_borrow_a_later_rejoins_lifetime() {
-    let mut e=engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join(until: time):\n  insert members {group: 'g',person: viewer,until}\nmutation add():\n  insert notes {group: 'g',body: 'gap'}\n");
-    let call=|e:&mut Engine,op:&str,id:&str,at:i64,args:BTreeMap<String,Value>| {
-        let w=e.mutate(op,Some(id),Context::new("dev:alice",args).at(at).with_ids([id.into()])).unwrap();
+    let mut e=engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join(person: principal,until: time):\n  insert members {group: 'g',person,until}\nmutation add():\n  insert notes {group: 'g',body: 'gap'}\n");
+    let call=|e:&mut Engine,op:&str,id:&str,viewer:&str,at:i64,args:BTreeMap<String,Value>| {
+        let w=e.mutate(op,Some(id),Context::new(viewer,args).at(at).with_ids([id.into()])).unwrap();
         let WriteState::Sent{seq,..}=w.state else {panic!("{w:?}")}; seq
     };
-    let old=call(&mut e,"join","old",1,BTreeMap::from([("until".into(),Value::Int(10))]));
+    let old=call(&mut e,"join","old",snapback4_core::SYSTEM_PRINCIPAL,1,BTreeMap::from([("person".into(),Value::Id("dev:alice".into())),("until".into(),Value::Int(10))]));
     // The former ledger shape stored only the group array as data.
     let legacy = canonical_json(&Value::Array(vec![Value::String("g".into())]));
     e.store().conn().execute("UPDATE _log SET data = ?1 WHERE kind = 'join' AND seq = ?2",[legacy, old.to_string()]).unwrap();
-    let gap=call(&mut e,"add","gap",15,BTreeMap::new());
+    let gap=call(&mut e,"add","gap","dev:alice",15,BTreeMap::new());
     e.sweep_expired(20,100).unwrap();
-    let rejoin=call(&mut e,"join","new",21,BTreeMap::from([("until".into(),Value::Int(100))]));
+    let rejoin=call(&mut e,"join","new",snapback4_core::SYSTEM_PRINCIPAL,21,BTreeMap::from([("person".into(),Value::Id("dev:alice".into())),("until".into(),Value::Int(100))]));
     let page=e.stream_at("dev:alice",0,100,22).unwrap();
     assert!(!page.events.iter().any(|event|event.table=="notes" && event.seq==gap));
     assert!(page.events.iter().any(|event|event.id=="gap" && event.seq==rejoin),"the new grant independently acquires history");
@@ -396,14 +396,15 @@ fn a_legacy_grant_cannot_borrow_a_later_rejoins_lifetime() {
 
 #[test]
 fn an_expired_unswept_grant_does_not_hide_its_replacement_interval() {
-    let mut e = engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join(until: time):\n  insert members {group: 'g',person: viewer,until}\nmutation add():\n  insert notes {group: 'g',body: 'live'}\n");
+    let mut e = engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join(person: principal,until: time):\n  insert members {group: 'g',person,until}\nmutation add():\n  insert notes {group: 'g',body: 'live'}\n");
     let before = e.seq().unwrap();
     let call = |e: &mut Engine, op: &str, id: &str, at: i64, args: BTreeMap<String, Value>| {
-        let outcome = e.mutate(op, Some(id), Context::new("dev:alice", args).at(at).with_ids([id.into()])).unwrap();
+        let viewer = if op == "join" { snapback4_core::SYSTEM_PRINCIPAL } else { "dev:alice" };
+        let outcome = e.mutate(op, Some(id), Context::new(viewer, args).at(at).with_ids([id.into()])).unwrap();
         assert!(matches!(outcome.state, WriteState::Sent { .. }), "{outcome:?}");
     };
-    call(&mut e, "join", "old-member", 1, BTreeMap::from([("until".into(), Value::Int(10))]));
-    call(&mut e, "join", "new-member", 20, BTreeMap::from([("until".into(), Value::Int(100))]));
+    call(&mut e, "join", "old-member", 1, BTreeMap::from([("person".into(), Value::Id("dev:alice".into())), ("until".into(), Value::Int(10))]));
+    call(&mut e, "join", "new-member", 20, BTreeMap::from([("person".into(), Value::Id("dev:alice".into())), ("until".into(), Value::Int(100))]));
     call(&mut e, "add", "content", 21, BTreeMap::new());
 
     let caught_up = e.stream_at("dev:alice", before, 100, 22).unwrap();
@@ -535,4 +536,26 @@ fn a_capped_maintained_point_returns_the_observed_partial_count() {
     assert_eq!(outcome.data, Value::Int(2), "one candidate and two observed source rows: {outcome:?}");
     assert!(!outcome.complete, "{outcome:?}");
     assert!(matches!(outcome.capped_at, Some((snapback4_core::error::MeterKind::Examined, _))), "{outcome:?}");
+}
+
+#[test]
+fn a_capped_maintained_scan_returns_the_observed_partial_count_and_cursor() {
+    let mut e = engine("table items:\n  group: text <=10\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain counts: count items by group\n  read <- allow\nquery page(c: cursor ?):\n  return counts after c first 2 by byGroup\n");
+    seed(&mut e, "items", serde_json::json!((0..5).map(|n| serde_json::json!({
+        "id": format!("item-{n}"),
+        "group": "g",
+        "until": null
+    })).collect::<Vec<_>>()));
+    let mut ceilings = e.ceilings();
+    ceilings.examined = 3;
+    e.set_ceilings(ceilings);
+
+    let outcome = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();
+    let rows = outcome.data.as_array().unwrap();
+    assert_eq!(rows.len(), 1, "the partially observed aggregate remains usable: {outcome:?}");
+    assert_eq!(rows[0].field("group"), Ok(&Value::String("g".into())), "{outcome:?}");
+    assert_eq!(rows[0].field("value"), Ok(&Value::Int(2)), "one candidate and two observed source rows: {outcome:?}");
+    assert!(!outcome.complete, "{outcome:?}");
+    assert!(matches!(outcome.capped_at, Some((snapback4_core::error::MeterKind::Examined, _))), "{outcome:?}");
+    assert!(outcome.next.is_some(), "the capped page must resume after g: {outcome:?}");
 }

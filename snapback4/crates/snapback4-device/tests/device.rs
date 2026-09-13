@@ -201,7 +201,7 @@ fn a_zero_sum_can_become_nonzero_on_the_device_clock() {
 fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
     on_both(|host| {
         let label = host.label();
-        let source = "table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  sync to .person\ntable temporary:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\ntable history:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  retain delivered-history\n  sync to members[.group]\nquery temporaryRows():\n  return temporary[] first 10 by byId\nquery historyRows():\n  return history[] first 10 by byId\nmutation join():\n  insert members {group: 'g', person: viewer, until: 10}\nmutation add(body: text <=10):\n  insert temporary {group: 'g', body}\n  insert history {group: 'g', body}\n";
+        let source = "table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  sync to .person\ntable temporary:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\ntable history:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  retain delivered-history\n  sync to members[.group]\nquery temporaryRows():\n  return temporary[] first 10 by byId\nquery historyRows():\n  return history[] first 10 by byId\nmutation join(person: principal):\n  insert members {group: 'g', person, until: 10}\nmutation add(body: text <=10):\n  insert temporary {group: 'g', body}\n  insert history {group: 'g', body}\n";
         let (mut engine, backend) = compile(source);
         let write = |engine: &mut snapback4_core::Engine,
                      op: &str,
@@ -227,7 +227,14 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
             &[("body", Value::String("old".into()))],
         );
         let before_membership = engine.seq().unwrap();
-        write(&mut engine, "join", "member", 2, &[]);
+        let joined = engine.mutate(
+            "join",
+            Some("member"),
+            context(snapback4_core::SYSTEM_PRINCIPAL, &[("person", id("dev:alice"))])
+                .at(2)
+                .with_ids(["member".to_owned()]),
+        ).unwrap();
+        assert!(matches!(joined.state, WriteState::Sent { .. }));
         write(
             &mut engine,
             "add",
@@ -372,7 +379,7 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
 fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
     on_both(|host| {
         let label = host.label();
-        let source = "table subscriptions:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists subscriptions[.group, viewer]\n  insert <- allow\n  update <- allow\n  retain delivered-history\n  sync to subscriptions[.group]\nquery notes():\n  return notes[] first 10 by byId\nmutation join():\n  insert subscriptions {group: 'g', person: viewer, until: 10}\nmutation add(body: text <=10):\n  insert notes {group: 'g', body}\nmutation edit():\n  update notes['n1'] {body: 'changed'}\n";
+        let source = "table subscriptions:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists subscriptions[.group, viewer]\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists subscriptions[.group, viewer]\n  insert <- allow\n  update <- allow\n  retain delivered-history\n  sync to subscriptions[.group]\nquery notes():\n  return notes[] first 10 by byId\nmutation join(person: principal):\n  insert subscriptions {group: 'g', person, until: 10}\nmutation add(body: text <=10):\n  insert notes {group: 'g', body}\nmutation edit():\n  update notes['n1'] {body: 'changed'}\n";
         let (mut engine, backend) = compile(source);
         for (number, now) in [(1, 1), (2, 2), (3, 3)] {
             let outcome = engine
@@ -393,7 +400,7 @@ fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
             .mutate(
                 "join",
                 Some("join"),
-                context("dev:alice", &[])
+                context(snapback4_core::SYSTEM_PRINCIPAL, &[("person", id("dev:alice"))])
                     .at(4)
                     .with_ids(["subscription".to_owned()]),
             )

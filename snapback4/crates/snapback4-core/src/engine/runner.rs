@@ -239,7 +239,7 @@ impl<'a> Runner<'a> {
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
-                    let id = self.context.mint();
+                    let id = self.context.mint()?;
                     self.outbox.push((id, effect.clone(), payload));
                     Flow::Next
                 }
@@ -384,7 +384,7 @@ impl<'a> Runner<'a> {
             Input::Viewer => Ok(Value::Id(self.context.viewer.clone())),
             Input::Now => self.context.now.map(Value::Int).ok_or_else(|| RuntimeError::Input("now is not pinned in a query".to_owned())),
             Input::NewId => {
-                let id = self.context.mint();
+                let id = self.context.mint()?;
                 crate::value::validate_identities(&Value::Id(id.clone()))?;
                 Ok(Value::Id(id))
             }

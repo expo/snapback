@@ -152,7 +152,9 @@ mutation edit(messageId: messages, body: text <=4000):
   only: true when this mutation inserted the probed row), `and`, `or`,
   `not`. `update (old, next) <- old.x = next.x` names both images. A table
   with no rule for an effect denies it. Rules compare with `=` and `!=`
-  only; the system principal consults no rules.
+  only; the system principal consults no rules. A unique-key or id collision
+  with a row the writer cannot read returns the generic `E_RULE`, including
+  insert-if-absent and upsert; only a readable collision names its key.
 - **Sync** (§3) and **retain**: `retain until-revoked` (the default: a
   device drops a group's rows when it leaves the group) or
   `retain delivered-history` (it keeps what it was given).
@@ -386,11 +388,13 @@ table conversations:
 table memberships:
   conversationId: conversations
   principal: principal
+  role: enum('member', 'admin')
   unique byConversationPrincipal: conversationId, principal
+  by byConversationPrincipalRole: conversationId, principal, role
   by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
-  insert <- allow
+  insert <- exists memberships[.conversationId, viewer, 'admin'] or created conversations[.conversationId]
   sync to memberships[.conversationId]
 
 table messages:
@@ -455,7 +459,7 @@ table memberships:
   by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
-  insert <- allow
+  insert <- exists memberships[.conversationId, viewer]
 
 table messages:
   conversationId: id
@@ -532,7 +536,11 @@ The read rule must be exactly the audience — `public`, `.col = viewer` or
 and never misses one it may. A second disjunct or an extra conjunct is a
 compile error with the rewrite. The target table needs a unique index
 over `(a, b, principal)` and an index leading with `(principal, a, b)`.
-The horizon `last N by index` bounds what a device acquires per group;
+Every insert-rule branch on that audience table must prove the caller already
+has the matching grant, or that the mutation created the referenced group;
+`.principal = viewer` alone is a self-grant and fails `check`. Audience group
+and recipient columns must be immutable or guarded on update. This also covers
+insert-if-absent and upsert. The horizon `last N by index` bounds what a device acquires per group;
 older rows are online-only, and a device's read past them says
 `complete: false`. Joining a group delivers its rows; leaving it delivers
 one scope tombstone, and the table's `retain` says what the device keeps.
@@ -661,21 +669,30 @@ synced needs the server to open. The client itself is the session, the
 link, the transport and the observation of reads: about seventeen
 kilobytes over a device of three hundred. Its options: `url`; `device`;
 one of `persona` (development), `session` (from `snapback4/auth`, kept
-and restored by the client), or `guest: true` (mint one when none is
-kept); `sessionStore`; `fetch`; `waitSeconds`. It has `query(op, args) →
-Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
+and restored for this JavaScript runtime by default), or `guest: true`
+(mint one when none is kept); `sessionStore`; `fetch`; `waitSeconds`. It
+has `query(op, args) → Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
 unsubscribe, close() }` (a live read; React's `useSyncExternalStore`
 shape), `mutate(op, args) → Write`, `link()`, `onLink`, `viewer()`,
-`onViewer`, `onWrite`, `session()`, `onSession`, `signOut()`, `sync()`,
+`onViewer`, `onWrite`, `session()`, `onSession`, `refreshSession()`,
+`logoutAll()`, `signOut()`, `sync()`,
 `close()`. `onWrite` reports the terminal `sent` or `failed` outcome of a
 write that first returned `pending`; it is a live-client notification, while
-the durable outbox remains the authority across a restart. After
+the durable outbox remains the authority across a restart. A restored or
+provided session within 24 hours of
+expiry rotates before the protected backend is fetched; a running client
+schedules the same rotation. A successful rotation replaces the stored
+session and the Authorization bearer before `onSession` receives it. After
 `signOut()` the client is closed and `session()` is null, as it is once
 the server refuses the session: anything that keeps the token — a native
 image header, a presence lease — takes it from `onSession` (`useSession`
 in React) and stops when it is null, so nothing reads a token after
-sign-out. The online client takes `url` with `persona`, `session` or
-`token`, and has the same card without a device.
+sign-out. `logoutAll()` does the same after the server confirms every
+session for the principal was revoked; an offline refusal leaves this
+session in place so the operation can be retried. The online client takes
+`url` with `persona`, `session` or `token`, and has the same card without a
+device; applications that keep its session use `refreshSession(url,
+token)` and replace the online client with the returned session.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
@@ -758,7 +775,10 @@ An `image <=N` or `video <=N` column holds an upload: the client sends
 the bytes first (`upload` → `{ ok: true, asset: { id, type, bytes, width,
 height, duration } }` or `{ ok: false, why }`; the server sniffs JPEG,
 PNG, WebP and MP4 and refuses the rest with `E_ASSET_TYPE`, and anything
-over the largest column's bound with `E_ASSET_TOO_LARGE`), then places
+over the largest column's bound with `E_ASSET_TOO_LARGE`). Images must have
+nonzero dimensions, at most 16,384 pixels per side and 40 million pixels
+total; video must have a positive duration of at most one hour
+(`E_ASSET_BOUNDS`). It then places
 `{ id }` in the mutation. Inside the mutation the argument already
 carries the facts the server established, and the row carries them.
 Every fact key is present; `width` and `height` are null for video,
@@ -773,22 +793,34 @@ revokes on unmount; `client.assetSource(id)` gives `{ uri, headers }`
 for native image and video views); a row that is deleted, whose column
 is cleared, that expired, or that the viewer may not read answers
 `E_ASSET_UNKNOWN`. A column declared `image <=N once` serves one view per
-principal: the second is `E_ASSET_VIEWED`, and the bytes are never cached
-anywhere (the sender is never counted). Uploads are online only; there is
-nothing to queue.
+principal after placement, including the uploader; an unplaced owner preview
+is exempt. The second is `E_ASSET_VIEWED`. Range is refused before consuming a
+once view (`E_ASSET_RANGE`); ordinary unsatisfiable ranges return 416. Every
+asset response is `private, no-store`, and at most two uploads write at once
+outside the engine mutex. Uploads are online only; there is nothing to queue.
 
 ### Sign-in (`snapback4/auth`)
 
 `guest(url)`, `signup(url, email, password)`, `login(url, email,
-password)` return `{ ok: true, session }` or `{ ok: false, why }`
-(each takes an optional final `fetch`); `logout(url, token)` ends one. A
-session is `{ principal, kind: "guest" | "user", token, expiresAt }`;
-pass it to `createLocalClient({ url, session })` once and the client
-keeps it (`localStorage` on the web, falling back to memory when it
-throws; memory otherwise; or the `sessionStore` you pass — three methods
-`get`, `set`, `delete`; `expo-secure-store` fits, with the key made
-filesystem-safe as in §7). A password is eight characters or more. The
-schema opts in with `use identity` (guests and password accounts),
+password)` and `refreshSession(url, token)` return `{ ok: true, session
+}` or `{ ok: false, why }` (each takes an optional final `fetch`). Refresh
+atomically invalidates the presented token, so adopt the returned session;
+the local client does this through its method and `onSession` lifecycle.
+`logout(url, token)` ends one session; `logoutAll(url, token)` confirms
+`{ ok: true, revoked }` after ending every session for the principal. A
+session is `{ principal, kind, token, expiresAt }` (`kind` is `"guest"` or
+`"user"` for built-in identity, or the application kind a service minted);
+pass it to `createLocalClient({ url, session })` once and the client keeps
+it in memory by default. Memory prevents another page script from reading
+the bearer out of browser storage, and means a reload must sign in again or
+receive the session from the application. For continuity, pass a
+`sessionStore` with async `get`, `set`, `delete`; `expo-secure-store` fits,
+with the key made filesystem-safe as in §7. `localStorageSessionStore()` is
+an explicit web opt-in when persistence across reloads is worth making the
+bearer readable to every script on the page. Ordinary guest and password
+sessions last seven days. Signup passwords are 8–1,024 UTF-8 bytes and login
+passwords at most 1,024; attempts and concurrent Argon2 work are bounded by the
+host. The schema opts in with `use identity` (guests and password accounts),
 `use identity guests` or `use identity password`; without it the `/auth`
 routes refuse with `E_AUTH`. `snapback4 dev` also admits personas;
 `snapback4 serve` (a release) admits tokens only.
@@ -888,9 +920,11 @@ PNG and `asset` is always denied.
 ### The wire
 
 The client is the intended surface; the wire is plain JSON for anything
-else. `GET /` is the server's card (`{ snapback4, generation, seq, ops:
+else. The server card and compiled metadata require a live principal.
+`GET /` is the server's card (`{ snapback4, generation, seq, ops:
 [{ name, kind }], tables: [{ name, sync }] }`); `GET /api.ts` the
-generated TypeScript; `GET /schema` the compiled backend. Authenticated
+generated TypeScript; `GET /schema` the compiled backend; `GET
+/native.wasm` the native module when the backend has one. Authenticated
 `GET /probe` answers HTTP 200 `{ ok: true }`; clients require both the status
 and body before changing an offline link back to online. `POST /q/<op>`
 with `{ "args": {..} }` answers `{ data, complete, seq, next, nextExpiry,
@@ -907,16 +941,21 @@ acknowledged }`, continued with `after=<next>` (`limit` up to 10,000;
 queued writes the server has applied; `GET /sync?from=W` (or `stream=1`)
 is the stream from a watermark: `{ snapshot: false, events: [{ seq,
 table, kind, id, data }], watermark, more, generation, acknowledged }`.
-`GET /changes?since=S&wait=N` answers `{ seq, tables, generation }` when
-a commit lands or after N seconds (25 at most; 0 answers at once; at most
-500 commits are summarised; no credentials needed). `POST /assets` (the
+`GET /changes?since=S&wait=N` requires the same principal and answers
+`{ seq, tables, generation }` when a commit lands or after N seconds (25
+at most; 0 answers at once; at most
+500 commits are summarised). `POST /assets` (the
 file's bytes as the body, 64 MiB at most) answers `{ asset }`; `GET
 /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
-works; `Cache-Control: private, no-store` for `once`, else immutable).
+works on ordinary assets, returns 416 when unsatisfiable, and is refused on
+view-once assets; every response uses `Cache-Control: private, no-store`).
 `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
 (`{ "email", "password" }`) answer `{ "session": { principal, kind,
 token, expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout`
-with the bearer token answers `{ "ok": true }`. With a service token:
+with the bearer token answers `{ "ok": true }`; `POST /auth/refresh`
+returns a replacement session and invalidates that bearer; `POST
+/auth/logout-all` revokes every session for its principal and answers
+`{ "ok": true, "revoked": N }`. With a service token:
 `POST /auth/session` (`{ "principal", "kind"?, "days"? }`) mints a session
 for an account the application authenticated, `POST /auth/revoke`
 (`{ "principal" }`) ends every session of one and answers `{ "revoked" }`,
@@ -953,10 +992,14 @@ chunks each tick, and sweeps unplaced assets once a minute.
 - **`snapback4 rollback <dir> [--allow-destructive]`** moves `current`
   back, classifying the change the same way.
 - **`snapback4 serve <dir> [--port N] [--bind H]`** runs the current
-  release on the shared store on `0.0.0.0:4400`, tokens only (a persona is
-  refused `E_AUTH`; so is `/seed`). It symlinks the release's store to
-  the directory's, so the filesystem must support symlinks. TLS is a
-  proxy's job.
+  release on the shared store on `127.0.0.1:4400`, tokens only (a persona
+  is refused `E_AUTH`; so is `/seed`). A non-loopback literal bind requires
+  `--i-understand-cleartext` and prints a warning because the socket is HTTP.
+  Put a TLS proxy on the same host in front of the loopback listener: preserve
+  `Authorization` and `Origin`, strip `x-snapback-persona`, restrict direct
+  backend access, and rate-limit by the real client address. The binary does
+  not trust forwarded address or scheme headers. It symlinks the release's
+  store to the directory's, so the filesystem must support symlinks.
 
 ## 7. Expo
 

@@ -6,7 +6,7 @@ pub(crate) use self::refined_tcp_stream::ConnectionAbort;
 pub use self::refined_tcp_stream::RefinedTcpStream;
 pub(crate) use self::sequential::SequentialWriterAbort;
 pub use self::sequential::{SequentialReader, SequentialReaderBuilder};
-pub use self::sequential::{SequentialWriter, SequentialWriterBuilder};
+pub use self::sequential::SequentialWriterBuilder;
 pub use self::task_pool::TaskPool;
 
 use std::str::FromStr;

@@ -444,8 +444,10 @@ serves a whole page. `created t[..]` is valid in insert rules only. Rules
 compare with `=` and `!=` alone: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
-sync). The system principal consults no rules, so `system` is never a rule
-word."##,
+sync). A collision on a hidden unique key or id returns the ordinary E_RULE
+write refusal, including insert-if-absent and upsert; only a readable
+collision may disclose the key or make insert-if-absent return null. The
+system principal consults no rules, so `system` is never a rule word."##,
         "sync" => r##"# Sync: the viewer's partition is the unit of sync
 
 ```quarry
@@ -496,7 +498,12 @@ The read rule must be exactly the audience — `public`, `.col = viewer`, or
 and never misses one it may; a second disjunct or an extra conjunct is
 refused with the rewrite. The target table needs a unique index over
 `(a, b, principal)` and an index leading with `(principal, a, b)`; when it
-has several principal columns, `by .col` names the recipient. The horizon
+has several principal columns, `by .col` names the recipient. Every insert
+rule branch must also prove the caller already has that audience grant, for
+example `exists participants[.threadId, viewer]`, or that this mutation
+created the group. `.personId = viewer` alone is refused because it would
+let anyone join. Audience keys are immutable or guarded on update. These
+checks also cover insert-if-absent and upsert. The horizon
 `last N by index` bounds what a device acquires per group: the newest N stay
 on the device, older rows are online-only, and a local read past them is
 `complete: false`. A synced table with no horizon delivers every row of
@@ -566,7 +573,10 @@ mutation sendClip(clip: video <=50000000):
 A client uploads the bytes first (`client.upload(file)` → `{ id, type,
 bytes, width, height, duration }`; the server sniffs JPEG, PNG, WebP and
 MP4 and refuses the rest with E_ASSET_TYPE, and anything over the largest
-column's bound with E_ASSET_TOO_LARGE) and passes `{ id }` as the
+column's bound with E_ASSET_TOO_LARGE). Images must be nonzero, at most
+16,384 pixels on either side and at most 40 million pixels total; video must
+have a positive duration no longer than one hour (E_ASSET_BOUNDS). The client
+passes `{ id }` as the
 mutation's argument; the row carries the facts the server established. One
 asset, one home: the uploader's own upload, placed once (E_ASSET_UNKNOWN,
 E_ASSET_PLACED). Serving is the home row's read rule: `client.asset(id)` (a
@@ -575,8 +585,12 @@ headers for native views) fetches `GET /assets/<id>` under the viewer's
 credentials, and a row that is deleted, whose column is cleared, that
 expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN.
 `once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and
-the bytes are never cached anywhere; the sender is never counted. Uploads
-are online only; there is nothing to queue."##,
+the uploader is counted after placement; before placement the uploader may
+preview. A Range request against a once asset is refused before consuming a
+view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
+asset response is `private, no-store`, so a browser must reauthorize each
+viewer. At most two uploads run at once, and their disk writes happen outside
+the engine mutex. Uploads are online only; there is nothing to queue."##,
         "reads" => r##"# Reads
 
 ```quarry
@@ -1165,9 +1179,30 @@ hidden row is null, and a page omits it."##,
 '{..}' --as alice` (the default persona is alice) and the
 `x-snapback-persona: alice` header in development act as `dev:alice`;
 `persona: "alice"` on the client sends the header. Personas are a
-development door, loopback only: a deployed server (`snapback4 serve`)
-takes bearer tokens (`snapback4/auth`), and a persona sent there is refused
-with E_AUTH."##,
+development door: the socket peer, `Host`, and optional browser `Origin` must
+all be literal loopback/local http(s) values. Foreign, opaque, malformed and
+duplicate Origins are refused before routing, and CORS reflects only an
+admitted local Origin. A deployed server (`snapback4 serve`) refuses personas
+and seed, defaults to `127.0.0.1`, and requires
+`--i-understand-cleartext` for a non-loopback HTTP bind. Put a TLS terminator
+in front, preserve `Authorization` and `Origin`, strip persona headers, and
+rate-limit there by the actual client address; the binary trusts only its
+socket peer.
+
+`GET /auth/config` is the small public advertisement for guest/password
+support. Catalog, schema, generated API, native module and changes require a
+live principal. Signup accepts 8–1,024 password bytes and login at most 1,024;
+password hashing is limited to two concurrent slots outside the engine mutex.
+Guest, login and signup share 30 attempts per socket peer per minute, while
+login and signup also share 10 per normalized email per minute
+(E_RATE_LIMIT). Unknown emails perform the same Argon2 verification work.
+
+Ordinary guest and password sessions last seven days. `refreshSession`
+atomically exchanges a live token; `logoutAll` revokes every session for the
+principal. The client refreshes near expiry and uses an in-memory session
+store by default. `localStorageSessionStore()` is an explicit compatibility
+choice whose token can be read by same-origin script; native apps should pass
+their secure store."##,
         _ => return None,
     })
 }
@@ -1184,7 +1219,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SCHEMA_CONSTRAINT", "family schema — a declaration the compiler binds but the core refuses: a cap or an expire without its index, a maintain target without its unique group index, a sync whose aggregate would reveal rows its audience may not read. The message names the declaration; guide indexes."),
     ("E_STRUCTURAL_FANOUT", "family schema — a mutation loops over a page that is not one complete schema-capped group (no `cap` over the pinned prefix, a `first N` under the cap, a cursor, a non-uniform read rule, or a merge). Pin a capped group with a literal bound at least its cap, or move the pass to a job's chunk."),
     ("E_UNBOUND_SCAN", "family schema — a compiled program scans a table or index the schema no longer has. Recompile: `snapback4 check` after the schema change."),
-    ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
+    ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer, or a constraint collided only with a hidden row. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
     ("E_AUTH", "family auth — no principal, a session that is not live, or the wrong kind at a door: send `x-snapback-persona` in development or a bearer token (a persona is refused off loopback and under `serve`); claiming effects and minting sessions take a service token (`snapback4 token --service <name>`), never a user's (guide services)."),
     ("E_CONFLICT", "family constraint — `update .. if` found the row changed; the failed write carries the current row. Read it and retry with a fresh edit. Retryable."),
     ("E_CONSTRAINT", "family constraint — a unique index, a cap, an immutable column, a text format or an after-insert postcondition refused the write. The message names which."),
@@ -1198,7 +1233,10 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_ASSET_TOO_LARGE", "family asset — the upload is larger than the largest column of its kind (or the column it is placed in). Downscale before uploading, or widen the column's bound."),
     ("E_ASSET_UNKNOWN", "family asset — no asset is served under that id to this viewer: it was never uploaded, it is another uploader's unplaced upload, its home row is gone, cleared, expired or hidden from this viewer. Hidden and absent are one word on purpose."),
     ("E_ASSET_PLACED", "family asset — the upload already belongs to a row: one asset, one home. Upload the bytes again for a second row."),
-    ("E_ASSET_VIEWED", "family asset — a `once` image was served to this principal already; the second view is refused (HTTP 410). The sender is never counted."),
+    ("E_ASSET_BOUNDS", "family asset — media dimensions or duration are invalid, missing for video, or exceed the limits on the assets card. Resize or shorten the source before uploading."),
+    ("E_ASSET_RANGE", "family asset — a once asset requires a whole-file request without Range. The rejected range did not consume a view."),
+    ("E_RATE_LIMIT", "family auth — bounded identity, upload, or HTTP admission is full. Retry later; see the personas and assets cards."),
+    ("E_ASSET_VIEWED", "family asset — a `once` asset was served to this principal already; the second view is refused (HTTP 410). The uploader is counted after placement; an unplaced preview is not."),
     ("E_EFFECT_UNKNOWN", "family schema — no effect is queued under that id on this server (HTTP 404): it was never emitted here, or `doctor` shows it under another id. A worker settles only what it claimed (guide effects)."),
     ("E_EFFECT_LEASE", "family schema — the effect is not running under this worker's claim: another worker holds it, its lease expired and it was queued again, or it is already settled. Claim it again (`POST /effects/claim`) before settling; two workers never hold one effect (guide effects)."),
     ("E_PREDICT", "family prediction — the device could not predict this mutation locally (a read it needs is not on the device, or an id that was not fixed at submission); the write is queued without local rows and the server judges it. An `emit` predicts nothing and needs nothing: the server keeps the effect when the write lands."),

@@ -246,28 +246,29 @@ fn m3_e_bound_names_the_ceiling_not_the_count() {
 }
 
 #[test]
-fn a_closed_membership_acquires_only_its_join_time_history() {
+// @ref LLP 3000#7-decisions-during-execution — a revoked grant cannot retrieve server history, while its scope still reaches held replicas.
+fn a_closed_membership_suppresses_join_time_history() {
     let mut engine = chat_engine(&["dev:alice"]);
     sent(&mut engine, "before", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("before join".into()))], &["old"]);
     let from = engine.seq().unwrap();
-    let join = sent(&mut engine, "invite", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
+    sent(&mut engine, "invite", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
     sent(&mut engine, "leave", "dev:bob", "leave", &[("conversationId", id("c1"))], &[]);
     sent(&mut engine, "edit-after-leave", "dev:alice", "edit", &[("messageId", id("old")), ("body", Value::String("private edit after leave".into()))], &[]);
     sent(&mut engine, "after", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("private new row".into()))], &["new"]);
     for limit in [1, 1000] {
         let mut watermark = from;
         let mut messages = Vec::new();
+        let mut scoped = false;
         loop {
             let page = engine.stream("dev:bob", watermark, limit).unwrap();
+            scoped |= page.events.iter().any(|event| event.table == "messages" && event.kind == "scope");
             messages.extend(page.events.into_iter().filter(|e| e.table == "messages" && e.kind == "put"));
             assert!(page.watermark >= watermark);
             watermark = page.watermark;
             if !page.more { break; }
         }
-        assert_eq!(messages.len(), 1, "{messages:?}");
-        assert_eq!(messages[0].id, "old");
-        assert_eq!(messages[0].seq, join);
-        assert_eq!(messages[0].data.as_ref().unwrap().field("body").unwrap(), &Value::String("before join".into()));
+        assert!(messages.is_empty(), "revoked authority retrieved server history: {messages:?}");
+        assert!(scoped, "the revocation must still withdraw held messages");
     }
 }
 

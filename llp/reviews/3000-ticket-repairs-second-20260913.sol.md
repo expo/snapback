@@ -20,3 +20,13 @@ Static review only; no repository edits or test execution.
 ## Lead disposition
 
 All four findings reproduced against old code and are corrected. Each replacement join opens its own lifetime; sweeping a predecessor checks for a live replacement. Zero-valued expiring sums retain candidates while source rows remain, including a one-time logged repair when an old server store opens. Scan cuts during live aggregate recomputation retain continuation after the last visible row. An expiring point candidate is charged once. Regression coverage includes rejoin through sweep and drained catch-up, zero sums on both device stores, legacy repair idempotence and deletion of the final source, and the meter boundaries. A narrow independent delta review follows these corrections.
+
+## Received narrow correction review
+
+Reviewer: independent Codex gpt-5.6-sol xhigh CLI session, static only. Reviewed `9bf6d4a83` against `d3c682d15` in the five changed core/guide files and immediate callers. Full received verdict:
+
+- **P1 — Capped aggregate scans discard observed partial contributions.** [read.rs](/Users/ccheever/projects/snapback-worktrees/sb4-36-delivery/snapback4/crates/snapback4-core/src/engine/read.rs:487) breaks before adding the partial aggregate returned by `live_aggregate`. Reproduction: create one expiring-source count group with five live rows, scan the maintained table with an `examined` ceiling of 3. After charging the aggregate candidate and observing two sources, the third source caps the meter and `live_aggregate` returns `value: 2`; lines 487–490 discard it, producing `data: []` and `next: None`. The capped read should return the observed `{group: "g", value: 2}` contribution, marked incomplete, with continuation after that returned row.
+
+Reviewed `9bf6d4a83` against `d3c682d15` in the requested five-file scope. Static review only.
+
+Lead disposition: reproduced red with five live source rows and examined ceiling three. The scan now keeps the observed partial aggregate and its key before stopping, matching the maintained point's cap behavior; it remains incomplete and carries a continuation. The earlier two-group continuation case remains covered. This is an additional correction, not a clean whole-review claim.

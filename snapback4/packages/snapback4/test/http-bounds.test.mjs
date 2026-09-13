@@ -89,6 +89,13 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.equal(admitted.status, 200);
       assert.deepEqual(await admitted.json(), { ok: true });
     });
+    await t.test("catalog, generated API, native module, and change activity refuse anonymous callers", async () => {
+      for (const path of ["/", "/schema", "/api.ts", "/native.wasm", "/changes?since=0&wait=0"]) {
+        const response = await fetch(url + path, { signal: AbortSignal.timeout(500) });
+        assert.equal(response.status, 401, `${path} must require a principal`);
+        assert.equal((await response.json()).denied?.code, "E_AUTH");
+      }
+    });
     await t.test("declared/chunked oversize, truncation and invalid UTF-8 do not execute a write", async () => {
       const oversizedHeader = await raw(`GET / HTTP/1.1\r\nHost: localhost\r\nX-Oversized: ${"x".repeat(8193)}\r\nConnection: close\r\n\r\n`);
       assert.match(oversizedHeader, /^HTTP\/1.1 431/m);
@@ -128,7 +135,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
 
       const ranged = await fetch(`${url}/assets/${id}`, { headers: { ...headers, range: "bytes=0-0" }, signal: AbortSignal.timeout(3000) });
       assert.equal(ranged.status, 416);
-      assert.equal((await ranged.json()).denied?.code, "E_INPUT");
+      assert.equal((await ranged.json()).denied?.code, "E_ASSET_RANGE");
 
       await new Promise((resolve, reject) => {
         const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port) });
@@ -169,15 +176,15 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     });
     await t.test("eight idle polls leave health/schema/query work free and commits wake subscribers", async () => {
       const controllers = Array.from({ length: 8 }, () => new AbortController());
-      const polls = controllers.map((controller) => fetch(url + "/changes?since=99999999&wait=1", { signal: controller.signal }).then((response) => response.json()).catch(() => null));
+      const polls = controllers.map((controller) => fetch(url + "/changes?since=99999999&wait=1", { headers, signal: controller.signal }).then((response) => response.json()).catch(() => null));
       try {
         await sleep(80);
         const started = Date.now();
-        for (const path of ["/", "/schema"]) assert.equal((await fetch(url + path, { signal: AbortSignal.timeout(500) })).status, 200);
+        for (const path of ["/", "/schema"]) assert.equal((await fetch(url + path, { headers, signal: AbortSignal.timeout(500) })).status, 200);
         await ping();
         assert.ok(Date.now() - started < 500, "ordinary work must not await the long-poll interval");
-        const { seq } = await (await fetch(url)).json();
-        const wake = fetch(url + `/changes?since=${seq}&wait=2`).then((response) => response.json());
+        const { seq } = await (await fetch(url, { headers })).json();
+        const wake = fetch(url + `/changes?since=${seq}&wait=2`, { headers }).then((response) => response.json());
         await sleep(30);
         const write = await (await post("/m/add", "{}")).json();
         const notified = await wake;
