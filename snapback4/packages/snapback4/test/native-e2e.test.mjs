@@ -70,7 +70,8 @@ test("the native module follows the server, predicts, queues, and starts cold of
     assert.equal(sent.state, "sent", JSON.stringify(sent));
     const seen = await until(() => { const r = bobThread.getSnapshot(); return isReady(r) && r.data[0]?.body === "hello from the module" ? r : null; });
     assert.equal(seen.data[0].pending, undefined, "the server's image carries no pending");
-    assert.equal((await bob.query(api.inbox, {})).data[0].count, 31);
+    // The count is a maintained row of its own: wait for it as for the message.
+    await until(async () => (await bob.query(api.inbox, {})).data[0]?.count === 31 ? true : null);
     // Offline: a burst queues durably in order and renders pending; it flushes in order on reconnect.
     offline = true;
     await until(async () => { await alice.mutate(api.send, { conversationId: "c1", body: "probe" }); return alice.link() === "offline"; });
