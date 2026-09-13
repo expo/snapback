@@ -326,4 +326,3 @@ fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
         }
     }
 }
-
