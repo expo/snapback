@@ -231,7 +231,7 @@ impl<S: DeviceStore> Device<S> {
     /// What a sync request is made from: the watermark, the generation,
     /// the writes sent but not yet seen, and the send revision.
     pub fn sync_state(&mut self) -> Result<SyncState, RuntimeError> {
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let mut pending_ids = Vec::new();
         for entry in tx.outbox_entries()? {
             let queued: Queued = decoded(&entry)?;
@@ -395,7 +395,7 @@ impl<S: DeviceStore> Device<S> {
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             let context = Context::new(viewer, typed_args(&program, args)?).at(now);
-            let tx = self.store.transaction()?;
+            let tx = self.store.read_transaction()?;
             let (result, coverage) = local::query_with_coverage(&tx, &self.schema, &program, context, Ceilings::default());
             unknown = coverage;
             tx.rollback()?;
@@ -494,7 +494,7 @@ impl<S: DeviceStore> Device<S> {
 
     /// Every queued write in submission order.
     pub fn queued(&mut self) -> Result<Vec<Queued>, RuntimeError> {
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let entries = tx.outbox_entries()?.iter().map(|entry| decoded(entry)).collect::<Result<Vec<Queued>, _>>()?;
         tx.rollback()?;
         Ok(entries)
@@ -502,7 +502,7 @@ impl<S: DeviceStore> Device<S> {
 
     /// The next submission number: after everything queued or ever admitted.
     pub fn next_submission(&mut self) -> Result<u64, RuntimeError> {
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let next = tx.outbox_max_seq()?.max(meta_u64(&tx, SUBMISSION)?) + 1;
         tx.rollback()?;
         Ok(next)

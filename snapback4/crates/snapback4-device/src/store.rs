@@ -21,6 +21,11 @@ pub trait DeviceStore {
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError>;
+    /// A consistent read that does not need to reserve a writer. Memory has
+    /// one transaction kind; native SQLite overrides this with `DEFERRED`.
+    fn read_transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
+        self.transaction()
+    }
 }
 
 /// One transaction: everything below commits or rolls back together.

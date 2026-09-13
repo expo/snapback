@@ -37,6 +37,9 @@ impl DeviceStore for Store {
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
         Store::transaction(self)
     }
+    fn read_transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
+        Store::read_transaction(self)
+    }
 }
 
 impl DeviceTx for Tx<'_> {

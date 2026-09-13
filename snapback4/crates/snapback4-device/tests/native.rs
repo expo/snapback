@@ -9,6 +9,21 @@ use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::value::Value;
 use snapback4_device::device::{Backend, Queued, StreamEvent, StreamPage};
 use snapback4_device::native::Device;
+use snapback4_device::store::{DeviceStore, DeviceTx};
+
+#[test]
+fn native_device_read_transactions_do_not_reserve_the_writer() {
+    let host = Sqlite::new("read-transaction");
+    let path = host.path("store");
+    let mut store = snapback4_core::store::Store::open(&path).unwrap();
+    let reader = <snapback4_core::store::Store as DeviceStore>::read_transaction(&mut store).unwrap();
+    assert!(reader.meta("missing").unwrap().is_none());
+
+    let writer = rusqlite::Connection::open(&path).unwrap();
+    writer.busy_timeout(std::time::Duration::ZERO).unwrap();
+    writer.execute_batch("BEGIN IMMEDIATE; ROLLBACK;").expect("a native device read must not reserve SQLite's writer lock");
+    reader.rollback().unwrap();
+}
 
 #[test]
 fn a_competing_sender_invalidates_a_stale_sync_and_a_failing_store_keeps_the_partition() {
