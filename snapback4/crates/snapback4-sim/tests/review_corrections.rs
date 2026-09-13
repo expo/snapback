@@ -393,3 +393,71 @@ fn a_legacy_grant_cannot_borrow_a_later_rejoins_lifetime() {
     assert!(!page.events.iter().any(|event|event.table=="notes" && event.seq==gap));
     assert!(page.events.iter().any(|event|event.id=="gap" && event.seq==rejoin),"the new grant independently acquires history");
 }
+
+#[test]
+fn an_expired_unswept_grant_does_not_hide_its_replacement_interval() {
+    let mut e = engine("table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists members[.group, viewer]\n  insert <- allow\n  sync to members[.group]\nmutation join(until: time):\n  insert members {group: 'g',person: viewer,until}\nmutation add():\n  insert notes {group: 'g',body: 'live'}\n");
+    let before = e.seq().unwrap();
+    let call = |e: &mut Engine, op: &str, id: &str, at: i64, args: BTreeMap<String, Value>| {
+        let outcome = e.mutate(op, Some(id), Context::new("dev:alice", args).at(at).with_ids([id.into()])).unwrap();
+        assert!(matches!(outcome.state, WriteState::Sent { .. }), "{outcome:?}");
+    };
+    call(&mut e, "join", "old-member", 1, BTreeMap::from([("until".into(), Value::Int(10))]));
+    call(&mut e, "join", "new-member", 20, BTreeMap::from([("until".into(), Value::Int(100))]));
+    call(&mut e, "add", "content", 21, BTreeMap::new());
+
+    let page = e.stream_at("dev:alice", before, 100, 22).unwrap();
+    assert!(page.events.iter().any(|event| event.table == "notes" && event.id == "content" && event.kind == "put"), "{:#?}", page.events);
+    assert!(!page.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "{:#?}", page.events);
+}
+
+#[test]
+fn expired_sources_reconstitute_an_absent_zero_sum_for_point_and_scan_reads() {
+    let mut e = engine("table items:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain sums: sum items of amount by group\n  read <- allow\nquery point():\n  return sums['g'] by byGroup\nquery scan():\n  return sums[] first 10 by byGroup\n");
+    seed(&mut e, "items", serde_json::json!([
+        {"id":"live","group":"g","amount":5,"until":null},
+        {"id":"expired","group":"g","amount":-5,"until":2000}
+    ]));
+    assert!(e.store().rows("sums").unwrap().is_empty(), "the physical zero aggregate should be absent");
+
+    let point = e.query("point", ctx().at(3000)).unwrap().data;
+    let scan = e.query("scan", ctx().at(3000)).unwrap().data;
+    let scan_is_live_sum = scan.as_array().is_ok_and(|rows| {
+        rows.len() == 1
+            && rows[0].field("group") == Ok(&Value::String("g".into()))
+            && rows[0].field("value") == Ok(&Value::Int(5))
+    });
+    assert_eq!((point == Value::Int(5), scan_is_live_sum), (true, true), "point={point:?}, scan={scan:?}");
+}
+
+#[test]
+fn a_capped_aggregate_scan_returns_a_cursor_from_its_last_visible_group() {
+    let mut e = engine("table items:\n  group: text <=10\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain counts: count items by group\n  read <- allow\nquery page(c: cursor ?):\n  return counts after c first 2 by byGroup\n");
+    seed(&mut e, "items", serde_json::json!([
+        {"id":"a","group":"A","until":null},
+        {"id":"b","group":"B","until":null}
+    ]));
+    let mut ceilings = e.ceilings();
+    ceilings.examined = 3;
+    e.set_ceilings(ceilings);
+    let outcome = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();
+    let rows = outcome.data.as_array().unwrap();
+    assert_eq!(rows.len(), 1, "{outcome:?}");
+    assert_eq!(rows[0].field("group").unwrap(), &Value::String("A".into()));
+    assert!(outcome.next.is_some(), "the capped page must resume after A: {outcome:?}");
+    assert!(!outcome.complete, "{outcome:?}");
+}
+
+#[test]
+fn an_expiring_point_read_charges_its_live_row_once() {
+    let mut e = engine("table notes:\n  body: text <=10\n  until: time ?\n  by byExpiry: until\n  expire at .until\n  read <- allow\nquery q():\n  return notes['live'] by byId\n");
+    seed(&mut e, "notes", serde_json::json!([{"id":"live","body":"kept","until":2000}]));
+    let mut ceilings = e.ceilings();
+    ceilings.examined = 1;
+    e.set_ceilings(ceilings);
+
+    let outcome = e.query("q", ctx()).unwrap();
+    assert_eq!(outcome.data.field("body"), Ok(&Value::String("kept".into())), "{outcome:?}");
+    assert!(outcome.complete, "{outcome:?}");
+    assert_eq!(outcome.metered.examined, 1, "{outcome:?}");
+}
