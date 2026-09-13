@@ -406,7 +406,10 @@ time-ordered 128-bit form.
 
 - **2026-09-13 — reuse SQLite plans across bound inputs.**
   Every SQLite store enables the query planner stability guarantee before
-  preparing cached store statements. The server and native device use fixed
+  preparing cached store statements, including independent read-only
+  connections created for HTTP queries and sync. This setting belongs to
+  each connection; a reader cannot inherit it from the writer it detached
+  from. The server and native device use fixed
   indexed application reads; rebinding a key or limit must not repeatedly
   compile that statement. With bundled SQLite 3.53.2, the membership diagnostic found one
   automatic reprepare per indexed read even with the statement cache; fresh
@@ -414,7 +417,9 @@ time-ordered 128-bit form.
   option after caching statements is insufficient because existing VDBEs
   retain their parameter-expiry masks. SQLite schema changes still invalidate
   plans; transaction boundaries, activation checks, rules and ceilings remain
-  in force. Every invocation reads current rows, with no result or authority
+  in force. Independent readers retain their current snapshot across a
+  concurrent commit and see the new rows in their next transaction. Every
+  invocation reads its transaction's rows, with no result or authority
   cache. QPSG trades parameter-sensitive planning for plan reuse, so other SQL
   shapes still need their own measurements. The
   [membership record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)

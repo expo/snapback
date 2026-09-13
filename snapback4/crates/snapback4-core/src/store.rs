@@ -161,6 +161,10 @@ impl Store {
         let path = self.conn.path().filter(|path| !path.is_empty())
             .ok_or_else(|| RuntimeError::Store("an in-memory store has no independent reader".into()))?;
         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        // This connection skips prepare's schema writes but needs the same
+        // planning policy before any statements are cached.
+        // @ref LLP 3000#7-decisions-during-execution — reuse SQLite plans across bound inputs
+        conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         Ok(Self { conn, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), identity: self.identity.clone() })
     }
@@ -625,6 +629,74 @@ mod tests {
             assert_eq!(tx.conn().prepare_cached(scan_sql(Dir::Asc)).unwrap().get_status(RePrepare), refreshed);
             tx.rollback().unwrap();
         }
+        std::fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn independent_readers_reuse_plans_and_refresh_snapshots() {
+        use rusqlite::StatementStatus::{RePrepare, Run};
+        let path = std::env::temp_dir().join(format!("snapback4-reader-plans-{}-{:x}", std::process::id(), crate::ids::seed()));
+        std::fs::create_dir(&path).unwrap();
+        let schema = schema();
+        let table = &schema.tables["m"];
+        let mut writer = Store::open(&path.join("store.sqlite")).unwrap();
+        writer.install(&schema).unwrap();
+        let write = writer.transaction().unwrap();
+        for n in 0..10 {
+            write.put("m", table, &row(&format!("m{n}"), if n % 2 == 0 { "a" } else { "b" }, n), None).unwrap();
+        }
+        write.commit().unwrap();
+        let mut reader = writer.reader().unwrap();
+        let bounds = Bounds { gte: Some(Value::Int(2)), lt: Some(Value::Int(9)), ..Bounds::default() };
+        let tx = reader.read_transaction().unwrap();
+        for dir in [Dir::Asc, Dir::Desc] {
+            tx.scan("m", "byConvAt", &[Value::Id("a".into())], &Bounds::default(), dir, 1).unwrap();
+            {
+                let statement = tx.conn().prepare_cached(scan_sql(dir)).unwrap();
+                statement.reset_status(RePrepare);
+                statement.reset_status(Run);
+            }
+            for group in ["a", "b", "missing"] {
+                for limit in [0, 1, 3, 100] {
+                    let mut numbers: Vec<_> = (2..9).filter(|n| group == if n % 2 == 0 { "a" } else { "b" }).collect();
+                    if dir == Dir::Desc { numbers.reverse(); }
+                    let expected: Vec<_> = numbers.into_iter().take(limit).map(|n| {
+                        let id = format!("m{n}");
+                        let row = row(&id, group, n);
+                        let key = crate::rows::index_key(&table.indexes["byConvAt"], &row, &id);
+                        (row, key)
+                    }).collect();
+                    assert_eq!(tx.scan("m", "byConvAt", &[Value::Id(group.into())], &bounds, dir, limit).unwrap(), expected);
+                }
+            }
+            let statement = tx.conn().prepare_cached(scan_sql(dir)).unwrap();
+            assert_eq!(statement.get_status(Run), 12);
+            assert_eq!(statement.get_status(RePrepare), 0, "independent readers must reuse bound scan plans");
+        }
+        let read = |tx: &Tx<'_>| tx.scan("m", "byConvAt", &[Value::Id("a".into())], &bounds, Dir::Asc, 100).unwrap();
+        let original = read(&tx);
+        // A concurrent commit changes the next snapshot, not this one.
+        let write = writer.transaction().unwrap();
+        write.put("m", table, &row("m5", "a", 5), Some(&row("m5", "b", 5))).unwrap();
+        write.delete("m", table, &row("m6", "a", 6)).unwrap();
+        write.commit().unwrap();
+        assert_eq!(read(&tx), original);
+        tx.commit().unwrap();
+        let tx = reader.read_transaction().unwrap();
+        let changed = read(&tx);
+        let ids: Vec<_> = changed.iter().map(|(r, _)| r.field("id").unwrap().as_str().unwrap()).collect();
+        assert_eq!(ids, ["m2", "m4", "m5", "m8"]);
+        assert_eq!(tx.conn().prepare_cached(scan_sql(Dir::Asc)).unwrap().get_status(RePrepare), 0);
+        tx.commit().unwrap();
+        writer.conn().execute_batch("CREATE TABLE _reader_plan_change (value INTEGER)").unwrap();
+        let tx = reader.read_transaction().unwrap();
+        assert_eq!(read(&tx), changed);
+        let refreshed = tx.conn().prepare_cached(scan_sql(Dir::Asc)).unwrap().get_status(RePrepare);
+        assert!(refreshed > 0, "schema changes still invalidate a reader's plan");
+        assert_eq!(read(&tx), changed);
+        assert_eq!(tx.conn().prepare_cached(scan_sql(Dir::Asc)).unwrap().get_status(RePrepare), refreshed);
+        tx.commit().unwrap();
+        drop(reader);
+        drop(writer);
         std::fs::remove_dir_all(path).unwrap();
     }
 }
