@@ -20,6 +20,33 @@ use std::sync::OnceLock;
 const SCHEMA: &str = include_str!("../../../native-fixtures/rescore/schema.q");
 const NOW: i64 = 1_789_300_000_000;
 
+struct RejectPostAdoptTransactions {
+    inner: MemoryStore,
+    installs: usize,
+}
+
+impl DeviceStore for RejectPostAdoptTransactions {
+    type Tx<'a> = <MemoryStore as DeviceStore>::Tx<'a>;
+
+    fn install(&mut self, schema: &snapback4_core::schema::Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), snapback4_core::error::RuntimeError> {
+        self.inner.install(schema, metadata, reset)?;
+        self.installs += 1;
+        Ok(())
+    }
+    fn meta(&self, key: &str) -> Result<Option<String>, snapback4_core::error::RuntimeError> {
+        self.inner.meta(key)
+    }
+    fn set_meta(&mut self, key: &str, value: &str) -> Result<(), snapback4_core::error::RuntimeError> {
+        self.inner.set_meta(key, value)
+    }
+    fn transaction(&mut self) -> Result<Self::Tx<'_>, snapback4_core::error::RuntimeError> {
+        if self.installs >= 2 {
+            return Err(snapback4_core::error::RuntimeError::Store("post-adopt transaction rejected".into()));
+        }
+        self.inner.transaction()
+    }
+}
+
 /// The fixture module, built once for wasm (see `snapback4-sim/tests/native.rs`).
 fn module() -> &'static [u8] {
     static MODULE: OnceLock<Vec<u8>> = OnceLock::new();
@@ -228,6 +255,24 @@ fn an_interrupted_adopt_and_a_legacy_cache_fail_closed_on_reopen() {
     store.load(legacy).unwrap();
     let reopened = Device::open_store(store, None).unwrap();
     assert_eq!(reopened.native_digest(), None, "a pre-binding cache must be repaired from the server");
+}
+
+#[test]
+fn adopt_needs_no_fallible_cache_cleanup_after_install() {
+    let (_, backend, _) = server();
+    let digest = hex(&sha256(module()));
+    let store = RejectPostAdoptTransactions { inner: MemoryStore::new(), installs: 0 };
+    let mut device = Device::open_store(store, Some(backend.clone())).unwrap();
+    device.install_native(module(), &digest, backend.generation).unwrap();
+    let mut next = backend;
+    next.generation += 1;
+
+    device.adopt(next.clone()).unwrap();
+    assert_eq!(device.state().unwrap().1, next.generation);
+    assert_eq!(device.native_digest(), None);
+    for key in ["device:native", "device:native:digest", "device:native:generation"] {
+        assert_eq!(device.store().inner.meta(key).unwrap().as_deref(), Some(""), "{key} is invalidated in the install transaction");
+    }
 }
 
 #[test]

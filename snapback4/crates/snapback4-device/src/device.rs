@@ -194,6 +194,12 @@ fn clear_native<S: DeviceStore>(store: &mut S) -> Result<(), RuntimeError> {
     tx.commit()
 }
 
+fn invalidate_native(metadata: &mut BTreeMap<String, String>) {
+    metadata.insert(NATIVE.to_owned(), String::new());
+    metadata.insert(NATIVE_DIGEST.to_owned(), String::new());
+    metadata.insert(NATIVE_GENERATION.to_owned(), String::new());
+}
+
 impl<S: DeviceStore> Device<S> {
     /// The device over an opened store, for the backend the server sent —
     /// or, with none, for the backend kept from last time, so a device
@@ -212,11 +218,9 @@ impl<S: DeviceStore> Device<S> {
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
+            invalidate_native(&mut metadata);
         }
         store.install(&backend.schema, &metadata, reset)?;
-        if reset {
-            clear_native(&mut store)?;
-        }
         let cached_digest = store.meta(NATIVE_DIGEST)?;
         let cached_module = store.meta(NATIVE)?;
         let cached_generation = store.meta(NATIVE_GENERATION)?;
@@ -294,10 +298,10 @@ impl<S: DeviceStore> Device<S> {
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
+            invalidate_native(&mut metadata);
         }
         self.store.install(&backend.schema, &metadata, reset)?;
         if reset {
-            clear_native(&mut self.store)?;
             #[cfg(feature = "wasm-host")]
             {
                 self.native = None;
