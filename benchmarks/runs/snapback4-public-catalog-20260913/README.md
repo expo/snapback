@@ -383,9 +383,26 @@ its target. This is not a matched warm-build comparison or evidence that
 the five-minute warm-build budget passes.
 
 The production server selects level 3 on this evidence. The wasm profile
-retains z, and `build-xcframework.sh` explicitly selects z for native device
-libraries. The incremental release profile is unchanged. Qualification of
-the shipping artifact remains separate from these Linux experiment binaries.
+retains z, and both `build-xcframework.sh` and `measure-native.sh` explicitly
+select z for native device libraries. The incremental release profile is
+unchanged. Qualification of the shipping artifact remains separate from
+these Linux experiment binaries.
+
+The integrated 0.1.18 candidate (`68fc5371f`, over the published 0.1.17)
+passed the existing publication dry run: 136 Rust tests, 96 client tests and
+nine fixture-wrapper tests, with no failures or harness skips, followed by
+the installed-package typecheck and query/write/offline-admission checks.
+The suite took 776 seconds on the shared Mac; sampled processes paused at
+`_dyld_start` before test code. This is not a 60-second loop-budget pass or
+an underlying OS-cause diagnosis. The complete dry run took 1,027.3 seconds.
+The installed production Darwin executable is 5,491,680 B, SHA-256
+`d0205dd042499e886cc4c3eeb0408a1f9c117953abfc66e62a6890eb23095203`;
+its Cargo record confirms optimization level 3. The separately built Linux
+executable is 5,787,152 B, SHA-256
+`d1fc80e3dc977d022e43c12dc7cc60b7f741c470f04e6e4c3f5ff41b45f7a7be`.
+Both actual executables compile the generated public and private catalog
+fixtures without problems. These checks qualify the new artifacts; the
+historical timings above remain bound to their recorded 0.1.16 binaries.
 
 ## Private catalog extension and correctness smokes
 
@@ -465,14 +482,18 @@ and does not restart a process itself. It cannot establish power-loss
 durability, SDK retry behavior or immediate logout equivalence.
 
 The restart checks passed for all three backends at 09:24–09:26 UTC after
-graceful restarts of the recorded Snapback process, the owned Convex backend
-container and the owned PostgreSQL container. Each check reverified all
+SIGTERM and relaunch of the recorded Snapback process, and
+`docker restart --time 30` of the owned Convex and PostgreSQL containers.
+Each check reverified all
 100,000 rows, replayed the three outcomes above and reverified the same
 `acd0715b…` full-state hash. Raw records use
 `workload: private-catalog-restart-replay`, retain the actual before/after
 process or container start identities, and name the extended instrument hash
 `71b0810d3b648116bd9f10bfb5d28f5ce0cedad68bb502d365a7d1f028acc992`.
-No process-kill, machine-crash or power-loss fault was injected.
+The original event labels called these graceful; the metric records correct
+that description while preserving the original labels. Shutdown completion
+and possible Docker escalation were not recorded. No machine-crash or
+power-loss fault was injected.
 
 ## Simulator observation follow-up
 
