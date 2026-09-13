@@ -31,6 +31,25 @@ impl Project {
         self.schema_dir().join("generated")
     }
 
+    /// The app's native crate (LLP 3000.005), when it has one.
+    pub fn native_dir(&self) -> PathBuf {
+        self.schema_dir().join("native")
+    }
+
+    pub fn native_manifest(&self) -> PathBuf {
+        self.native_dir().join("Cargo.toml")
+    }
+
+    /// The built module, beside the generated types.
+    pub fn native_module(&self) -> PathBuf {
+        self.generated_dir().join("native.wasm")
+    }
+
+    /// The schema's Rust types for the native crate to include.
+    pub fn native_types(&self) -> PathBuf {
+        self.generated_dir().join("native.rs")
+    }
+
     pub fn data_dir(&self) -> PathBuf {
         self.root.join(".snapback4")
     }
@@ -56,20 +75,32 @@ impl Project {
         names.into_iter().map(|name| Ok((name.clone(), std::fs::read_to_string(self.schema_dir().join(&name))?))).collect()
     }
 
-    /// The newest modification time among the sources, for the watcher.
+    /// The newest modification time among the sources — the `.q` files and
+    /// the native crate's manifest and `src/` — for the watcher.
     pub fn sources_stamp(&self) -> u128 {
-        std::fs::read_dir(self.schema_dir())
-            .map(|entries| {
-                entries
-                    .flatten()
-                    .filter(|e| e.file_name().to_string_lossy().ends_with(".q"))
-                    .filter_map(|e| e.metadata().ok().and_then(|m| m.modified().ok()))
-                    .filter_map(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|d| d.as_nanos())
-                    .max()
-                    .unwrap_or(0)
-            })
-            .unwrap_or(0)
+        fn newest(dir: &Path, keep: &dyn Fn(&Path) -> bool, depth: u8) -> u128 {
+            std::fs::read_dir(dir)
+                .map(|entries| {
+                    entries
+                        .flatten()
+                        .map(|e| e.path())
+                        .map(|path| {
+                            if path.is_dir() && depth > 0 {
+                                newest(&path, keep, depth - 1)
+                            } else if keep(&path) {
+                                path.metadata().ok().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_nanos()).unwrap_or(0)
+                            } else {
+                                0
+                            }
+                        })
+                        .max()
+                        .unwrap_or(0)
+                })
+                .unwrap_or(0)
+        }
+        let quarry = newest(&self.schema_dir(), &|path| path.extension().is_some_and(|x| x == "q"), 0);
+        let native = newest(&self.native_dir(), &|path| path.extension().is_some_and(|x| x == "rs" || x == "toml"), 6);
+        quarry.max(native)
     }
 
     pub fn compile(&self) -> std::io::Result<Bound> {

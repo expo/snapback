@@ -19,6 +19,7 @@ cd apps/chat && bun run dev                            # the app on the real cli
 bun run --cwd packages/snapback4 typecheck   # the contract, the client and the hooks typecheck
 cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
 cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
+cargo test -p snapback4-sim --test native   # native jobs: builds native-fixtures/rescore for wasm32-unknown-unknown (cold ~20 s, then cached under target/native-fixture) and runs it
 node witness/idb.mjs                 # the Chromium witness: the local-first client on IndexedDB (needs Chrome)
 node witness/expo.mjs                # the simulator witness: the client on expo-sqlite in Expo Go (booted iOS simulator)
 WITNESS_DEV_CLIENT=1 node witness/expo.mjs   # the same witness on the Rust module in a development build (apps/chat-expo: bun run ios:dev first)
@@ -72,3 +73,4 @@ Gotchas you cannot derive from the code:
   names the indexes that exist.
 - `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
 - The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.
+- Native jobs (LLP 3000.005) need `rustup target add wasm32-unknown-unknown`; the suite's fixture build fails loudly without it. The guest SDK `crates/snapback4-native` is a path dependency until it is published; an app's `snapback/native/Cargo.toml` names it by path.

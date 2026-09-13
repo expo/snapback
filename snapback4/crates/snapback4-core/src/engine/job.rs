@@ -206,6 +206,14 @@ impl Engine {
             tx.commit()?;
             return self.job(&head.run.id);
         };
+        if program.native {
+            let id = head.run.id.clone();
+            #[cfg(feature = "native")]
+            native_chunk(tx, &self.schema, self.native.as_deref(), &mut self.native_logs, head, &program, now)?;
+            #[cfg(not(feature = "native"))]
+            native_chunk(tx, head, &program, now)?;
+            return self.job(&id);
+        }
         let sweeps: Vec<(&str, &Scan, &[Stmt])> = program.body.iter().filter_map(|stmt| match stmt { Stmt::For { binding, domain: LoopDomain::Page(scan), body } => Some((binding.as_str(), scan, body.as_slice())), _ => None }).collect();
         let sweep = head.run.sweep as usize;
         if sweep >= sweeps.len() {
@@ -306,4 +314,62 @@ impl Engine {
         }
         Ok(fired)
     }
+}
+
+/// One chunk of a native job (LLP 3000.005): the module runs once with
+/// the state it returned last time, inside one transaction under the job
+/// ceilings; its rows and events commit with the state, a refusal parks
+/// it, a trap parks it with the reason. Over the engine's fields, not the
+/// engine, because the transaction borrows its store.
+#[cfg(feature = "native")]
+fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut Vec<String>, head: Head, program: &crate::ir::Program, now: i64) -> Result<(), RuntimeError> {
+    use super::native::{self, Step};
+    tx.savepoint("job_chunk")?;
+    let seq = tx.next_seq()?;
+    let mut context = Context::system().at(now);
+    context.args = head.args.clone();
+    let runner = Runner::new(&tx, schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+    let state: Option<serde_json::Value> = head.cursor.as_deref().and_then(|bytes| serde_json::from_slice(bytes).ok());
+    let outcome = match module {
+        Some(module) => native::run_chunk(module, runner, &program.name, &head.args, state, now),
+        None => native::missing(runner, &program.name),
+    };
+    logs.extend(outcome.logs.iter().map(|line| format!("{}: {line}", program.name)));
+    match outcome.step {
+        Ok(step) => {
+            if outcome.rows_written > 0 || !outcome.events.is_empty() {
+                tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &outcome.tables, outcome.rows_written)?;
+                partition::append(&tx, seq, &outcome.events)?;
+                for (id, effect, payload) in &outcome.outbox {
+                    tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5)", params![id, seq as i64, effect, canonical_json(payload), now])?;
+                }
+            }
+            let (state, cursor) = match step {
+                Step::Done => (JobState::Done, None),
+                Step::Again(state) => (JobState::Running, Some(encode_bytes_hex(state.to_string().as_bytes()))),
+            };
+            tx.conn().execute(
+                "UPDATE _jobs SET state = ?2, cursor = ?3, chunks = chunks + 1, rows_written = rows_written + ?4, updated_at = ?5 WHERE id = ?1",
+                params![head.run.id, state.word(), cursor, outcome.rows_written as i64, now],
+            )?;
+            tx.commit()
+        }
+        Err(error) if error.is_refusal() => {
+            tx.rollback_to("job_chunk")?;
+            let refusal = error.refusal();
+            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("{}: {}", refusal.code, refusal.message), now])?;
+            tx.commit()
+        }
+        Err(error) => {
+            tx.rollback()?;
+            Err(error)
+        }
+    }
+}
+
+/// Built without native jobs: a native job parks, saying so.
+#[cfg(not(feature = "native"))]
+fn native_chunk(tx: crate::store::Tx<'_>, head: Head, program: &crate::ir::Program, now: i64) -> Result<(), RuntimeError> {
+    tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("E_NATIVE: job {} is native and this server was built without native jobs", program.name), now])?;
+    tx.commit()
 }

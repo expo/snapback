@@ -47,11 +47,17 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
-    let engine = match &mode {
+    let mut engine = match &mode {
         Mode::Dev { fresh: true, .. } => Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())),
         Mode::Dev { .. } => project.open_engine(&bound),
         Mode::Release { expected } => project.open_release_engine(&bound, *expected),
     }.map_err(|e| e.to_string())?;
+    // A native job's module (LLP 3000.005): built by `check`, in `dev` also
+    // here so a fresh clone serves without a separate step.
+    if dev {
+        crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
+    }
+    crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()) });
@@ -95,11 +101,24 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
         let started = Instant::now();
         match project.compile() {
             Ok(bound) if bound.diagnostics.is_empty() => {
+                let rebuilt = match crate::native::build(&project, &bound) {
+                    Ok(built) => built,
+                    Err(problem) => {
+                        eprintln!("snapback4 dev: {problem}\nsnapback4 dev: serving the previous generation");
+                        continue;
+                    }
+                };
                 let steps = snapback4_core::successor::classify(&shared.bound.lock().unwrap().schema, &bound.schema);
                 let worst = snapback4_core::successor::worst(&steps);
                 match shared.engine.lock().unwrap().adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
                     Ok(next) => {
                         let _ = project.write_generated(&bound);
+                        if let Some(built) = &rebuilt {
+                            match crate::native::install(&mut shared.engine.lock().unwrap(), &project) {
+                                Ok(_) => println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", ")),
+                                Err(problem) => eprintln!("snapback4 dev: {problem}"),
+                            }
+                        }
                         // Publish the advertised backend and identity together:
                         // /schema takes these guards in the same order.
                         let mut active = shared.bound.lock().unwrap();
@@ -164,6 +183,9 @@ fn maintain(shared: Arc<Shared>) {
                 Ok(None) => break,
                 Ok(Some(run)) => {
                     bump_seq(&shared);
+                    for line in shared.engine.lock().unwrap().take_native_logs() {
+                        println!("snapback4: native {line}");
+                    }
                     match run.state {
                         snapback4_core::JobState::Done => println!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
                         snapback4_core::JobState::Parked => eprintln!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or("")),

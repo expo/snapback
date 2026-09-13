@@ -1,0 +1,11 @@
+[package]
+name = "snapback4-native"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "The guest side of a Snapback 4 native job (LLP 3000.005): the app's own Rust, compiled to wasm, reading and writing the store through the engine's own operations under the job's meter."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

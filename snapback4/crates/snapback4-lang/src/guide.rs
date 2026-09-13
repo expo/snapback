@@ -8,7 +8,7 @@
 //! on its own; one that does not compiles beside the language card's schema.
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "feeds", "bounds", "refusals", "personas"];
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "bounds", "refusals", "personas"];
 
 /// The contents of every ```quarry block in a card or a README.
 pub fn quarry(text: &str) -> Vec<String> {
@@ -275,6 +275,7 @@ job nightly(periodStart: time, periodEnd: time):                    -- the serve
     for i in range(0, 2):                                            -- integer literals, at most 10,000 steps
       update posts[p.id] { score: p.score + i }
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
+job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 ```
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
@@ -317,8 +318,8 @@ with `return [value]`, or with its last expression, or with its final write.
 - Word search → `tokens(text)` is the @mentions of a text, not an index; search synced rows on the device, or read by a prefix index.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, expire,
-assets, reads, shapes, writes, programs, jobs, feeds, bounds, refusals,
-personas. `snapback4 why <CODE>` explains a refusal.
+assets, reads, shapes, writes, programs, jobs, native, feeds, bounds,
+refusals, personas. `snapback4 why <CODE>` explains a refusal.
 "##;
 
 pub fn card(keyword: &str) -> Option<&'static str> {
@@ -641,7 +642,8 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
 ```
 
 The table names are the language card's; a `job` is `chunk row in
-t[prefix] first N by index:` sweeps (guide jobs). Operations in `schema.q`
+t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
+own Rust, hosted as wasm (guide native). Operations in `schema.q`
 are called by name (`api.thread`); operations in `snapback/feed.q` are
 `api.feed.<name>`; jobs are not on api.ts. `require cond else CODE` refuses
 with the program's own code, which reaches the client as `{ code, family:
@@ -684,6 +686,62 @@ a job: a schedule fires it once per period boundary of the server's clock,
 exactly once across restarts, passing `periodStart` and `periodEnd` when
 the job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now."##,
+        "native" => r##"# Native jobs: the app's Rust, hosted as wasm, metered like a job
+
+```quarry
+job rescore(): native                    -- the body is snapback/native/, in Rust
+schedule rescoreEvery every 5m: rescore  -- fired like any job
+```
+
+`snapback/native/` is a Cargo package the app owns (`crate-type =
+["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native`).
+`snapback4 check` writes `snapback/generated/native.rs` — a constant per
+table, index and maintain, a `serde` struct per table — builds the package
+for wasm32-unknown-unknown into `snapback/generated/native.wasm`, and
+refuses if a declared job is not one the module implements. `dev` rebuilds
+on save; `deploy` ships the module with the release; `run <job>` runs it
+here; `doctor` says whether the module and the toolchain are in place.
+
+```rust
+// snapback/native/src/lib.rs
+use snapback4_native::{Chunk, Ctx, Next, Order, Result, from_row, json, row_of};
+mod schema { include!("../../generated/native.rs"); }
+use schema::*;
+snapback4_native::jobs! { rescore }
+
+fn rescore(ctx: &Ctx, chunk: &Chunk) -> Result<Next> {
+    let page = ctx.scan(tables::POSTS, indexes::posts::BY_ID, &[], Order::Asc, 100, chunk.state.as_ref())?;
+    for row in page.rows {
+        let post: Posts = from_row(row)?;
+        let votes = ctx.maintained(maintains::POST_SCORE, &[json!(post.id)])?;
+        let age_hours = (chunk.now - post.at) as f64 / 3_600_000.0;
+        let score = (votes as f64 * 10.0 - age_hours.powf(1.5)).round() as i64;
+        ctx.upsert_by(tables::RANKED, indexes::ranked::BY_POST, &[json!(post.id)], row_of(&Ranked { id: String::new(), post_id: post.id, score, at: post.at })?)?;
+    }
+    Ok(match page.next { Some(state) => Next::Again(state), None => Next::Done })
+}
+```
+
+One chunk per call, one transaction per chunk, under the job ceilings
+(guide bounds): the job returns `Next::Again(state)` to be called again with
+that state after the chunk commits — a scan's `next` is the natural state,
+so a crash resumes at the next page as a Quarry `chunk` resumes by its
+cursor — or `Next::Done`. Every `Ctx` read and write is the interpreter's
+own on the chunk's transaction (`get`, `lookup`, `maintained`, `scan`,
+`mint`, `insert`, `insert_if_absent`, `update`, `upsert`, `upsert_by`,
+`delete`): rules pass for the system, validation, constraints, maintains
+and partition events apply, the meter counts, and so the ordinary query and
+`sync` serve what the job wrote. The first refusal — a bound, a constraint,
+a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic
+parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of
+fuel per chunk (about 90,000 per host call) is the step ceiling, so the row
+ceilings bind first. The module imports one host function and nothing
+else: no clock, no randomness, no network — `chunk.now` is the host's — so
+a native job runs under the simulator like any job. Quarry still declares
+the table, its rules and its `sync`; a query or mutation cannot be native,
+because a device predicts Quarry and the certificate reads it. Anything
+that needs the network stays outside and writes into a table the job
+reads (LLP 3000.005)."##,
         "feeds" => r##"# Feeds: fan out on write, read one page
 
 A feed can merge followed accounts' ordered lanes. Uniform lanes with a
@@ -847,6 +905,10 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_JOB_CURSOR_INDEX", "a job's chunk sweeps an index a write could change under the cursor; declare its non-id columns `immutable`, or sweep by `byId`."),
     ("E_OP_RESERVED", "refusal codes in `require .. else CODE` cannot start with E_; that namespace is the platform's."),
     ("E_EMIT_IN_QUERY", "queries cannot emit effects; make it a mutation. Effects are queued and not delivered in this release (the language card)."),
+    ("E_NATIVE", "family schema — `native` on a query or mutation (only a job can be native: a device predicts Quarry, not wasm); a native job declared with no snapback/native/Cargo.toml; a job the module does not implement (the message lists what it does); a module that does not load; a native job run with no module installed (`snapback4 check` builds it). guide native."),
+    ("E_NATIVE_TOOLCHAIN", "family store — cargo is not on PATH, or the wasm32-unknown-unknown target is not installed; the rewrite is the rustup line. A native job is Rust compiled to wasm by `snapback4 check`."),
+    ("E_NATIVE_BUILD", "family schema — `cargo build` of snapback/native failed; the message is the tail of its output. Build it by hand with the rewrite to see everything."),
+    ("E_NATIVE_TRAP", "family native — the module trapped in a chunk: a panic (its text follows), an unreachable, an out-of-bounds memory access. The chunk rolled back and the job is parked; fix the module, `snapback4 check`, and queue the job again."),
     ("N_NO_HORIZON", "a note, not an error — a synced table with no `last N by index` horizon delivers every row of every group a device holds, and keeps delivering as the table grows; a public table of posts, or a group's receipts, then costs every cold start all of it. Declare `sync ... last 500 by <index>` (the newest N per group; older rows stay readable online and a local read past them says `complete: false`), or bound the group with a `cap`."),
     ("N_WIDE_MERGE", "a note, not an error — a merge visits every source lane. Uniform lanes without setup and with a non-nullable unique index or one ending in id read one head each, then advance the winning lanes; other lanes read a page each. Discovery, rule probes, lookahead, duplicates and expired rows still consume the meter. For frequent reads over many accounts, write entries per reader on the way in, sync to .reader, and read one page (guide feeds)."),
     ("N_NO_CURSOR", "a note, not an error — a query returns a page with no cursor argument, so it cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`."),

@@ -2,6 +2,9 @@
 //! the row types, every operation's argument and result types, and the
 //! `api` object the app imports. Built, never committed.
 
+pub mod rust;
+pub use rust::rust;
+
 use crate::bind::{Bound, BoundProgram};
 use crate::types::Ty;
 use snapback4_core::ir::ProgramKind;

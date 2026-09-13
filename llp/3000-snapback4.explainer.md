@@ -6,8 +6,8 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
-**Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
+**Revised:** 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
 
@@ -489,6 +489,22 @@ time-ordered 128-bit form.
   the suite is red. Forms the docs promised and the parser refused were
   added (`break`); forms the parser accepted and did nothing with were
   refused with their rewrite (`from` imports, `readable` on a maintain).
+- **2026-09-13 — native jobs: the app's Rust in the data plane, hosted as
+  wasm, metered like a job (author: "write up an LLP about this and then
+  implement"; [LLP 3000.005](./3000.005-native-jobs.rfc.md)).** `job
+  name(): native` is a job whose body is the app's crate under
+  `snapback/native/`, built to wasm by `check`, hosted by the engine one
+  chunk per commit under the job ceilings and a fuel ceiling, its reads
+  and writes the interpreter's own so rules' companions and the log apply
+  and the ordinary query serves what it wrote; it returns `again` with a
+  state of its choosing to be called again after the commit, `done` to
+  end; the first refusal parks it, a trap parks it with the panic's text.
+  Quarry still declares the table, its rules and its `sync`; the module
+  imports one host function and nothing else, so it runs under the
+  simulator. Hosted with `wasmi`, optional (an app without the crate never
+  pays for it), the guest SDK a path crate until published. Answers LLP
+  2000.000 §10's effects-host question for compute over the store only;
+  the network stays outside.
 
 ## 8. Implementation map
 
@@ -521,6 +537,8 @@ carries the chronology. After week four, 2026-09-12 (0.1.0):
 | `crates/snapback4-device` | the device in Rust: `rows::Rows` over the core's SQLite, the stream applied with the watermark, the outbox, `engine::local` queries and pending predictions, a generation change, one JSON call over a C ABI (`include/snapback4.h`), against a real engine in `tests/native.rs`; 1.7 MB linked on iOS; the same interpreter as wasm for the web measured at 194 KB gzip, so the web keeps TypeScript | the native landing |
 
 | `packages/snapback4-expo`, `apps/chat-expo/src/client.ts`, `witness/expo.mjs` (`WITNESS_DEV_CLIENT=1`) | the Expo module: Swift over the C ABI, the Rust library as a 9.1 MB xcframework (staticlib alone, stripped; 3.3 MB on npm), `nativeAvailable()` choosing the tier at import; the simulator witness on a development build passes the five proofs on the module (303 rows synced in 31 ms, reopen 6 ms, cold start offline 2 ms) → `metrics/witness.jsonl` `dev-client-native`; `snapback4-expo@0.1.14` on npm | the Expo module landing |
+
+| `crates/snapback4-core/src/engine/native.rs`, `crates/snapback4-native`, `crates/snapback4/src/native.rs`, `native-fixtures/rescore`, `crates/snapback4-sim/tests/native.rs` | native jobs (LLP 3000.005): the wasm host over the chunk's `Runner` (get, lookup, scan, mint, insert, insert-if-absent, update, upsert, delete, log, now), one chunk per call with the module's state in the job row, fuel per chunk, refusals and traps parking the job; the guest SDK (`Ctx`, `Chunk`, `Next`, `jobs!`, `from_row`/`row_of`); `check` writing `native.rs` and building `native.wasm`, `dev` rebuilding on save, `deploy` shipping the module, `doctor` and `check --cost` reporting it; the fixture: Interview's rescore in Rust with a float exponent, resumed across three chunks, plus a write past the ceiling and a panic, each parked with its reason | the native-jobs landing |
 
 Not in slice one by decision: effects execution, word search
 (`NOT-DOING.md`).

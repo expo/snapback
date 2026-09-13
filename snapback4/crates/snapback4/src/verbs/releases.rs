@@ -94,6 +94,13 @@ pub fn deploy(options: &Options) -> i32 {
             if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
             std::fs::write(path, text).map_err(|e| e.to_string())?;
         }
+        // A native job's module is built from the project and travels with
+        // the release beside its source (LLP 3000.005).
+        if let Some(built) = crate::native::build(&project, &bound).map_err(|p| p.to_string())? {
+            let generated = stage.join("snapback").join("generated");
+            std::fs::create_dir_all(&generated).map_err(|e| e.to_string())?;
+            std::fs::copy(&built.path, generated.join("native.wasm")).map_err(|e| e.to_string())?;
+        }
         let staged_bound = bound_at(stage.clone())?;
         if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
         std::fs::rename(&stage, &final_dir).map_err(|e| e.to_string())?;

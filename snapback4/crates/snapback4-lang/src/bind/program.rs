@@ -72,6 +72,12 @@ impl<'a> Binder<'a> {
             args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
             arg_types.push((arg.name.clone(), ty));
         }
+        if decl.native {
+            // The body is the app's Rust (LLP 3000.005): nothing to bind, the
+            // module is checked against the declaration by `check`.
+            let full_name = super::operation_name(module, &decl.name);
+            return Some(BoundProgram { program: Program { name: full_name, kind: ir::ProgramKind::Job, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, module: module.to_owned(), args: arg_types, result: Ty::Null, site: decl.site.clone() });
+        }
         let mut body = Vec::new();
         let mut failed = false;
         let count = decl.body.len();
@@ -98,7 +104,7 @@ impl<'a> Binder<'a> {
             ProgramKind::Mutation => ir::ProgramKind::Mutation,
             ProgramKind::Job => ir::ProgramKind::Job,
         };
-        Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body }, module: module.to_owned(), args: arg_types, result, site: decl.site.clone() })
+        Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body, native: false }, module: module.to_owned(), args: arg_types, result, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {

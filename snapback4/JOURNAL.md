@@ -1845,4 +1845,50 @@ day). One flake on the way: with the machine at a load average of 20–60
 (other sessions' cargo runs), `native-e2e.test.mjs` failed fast in two of
 three group runs — 142 and 298 ms, before its server answered — and passed
 alone and in the third; no code on its path changed here.
+## 2026-09-13 — native jobs: the app's Rust in the data plane, hosted as wasm, metered like a job; LLP 3000.005
+
+The author, after the feeds document: *what if we let you write Rust
+programs that could access the database and generate a feed that the
+normal Snapback live query could serve — would that be crazy?* Not crazy;
+then "write up an LLP about this and then implement." Both done tonight:
+[LLP 3000.005](../llp/3000.005-native-jobs.rfc.md) and the code. `job
+name(): native` is a job whose body is the app's crate under
+`snapback/native/`, which `check` builds to `snapback/generated/native.wasm`
+after writing `native.rs` — a constant per table, index and maintain and a
+`serde` struct per table — and refuses if a declared job is not one the
+module implements. The engine hosts it with `wasmi`: one chunk per call,
+one transaction per chunk under `Ceilings::job()`, the module's one import
+`sb4_call` dispatching to the chunk's own `Runner` (get, lookup, scan,
+mint, insert, insert-if-absent, update, upsert, delete, log, now) so
+rules' companions, maintains and the partition log apply and the meter
+counts; the module returns `again` with a state of its own — a scan's
+`next` — that commits with the chunk in the job row and comes back next
+turn, or `done`; the first refusal parks the job, a trap parks it as
+`E_NATIVE_TRAP` with the panic's text (the SDK's hook sends it through
+`log` before the abort). No unsafe code in the core: the wasmi `Store<T>`
+takes the borrowed runner as `T`, and a chunk-per-call shape means no
+transaction outlives an instantiation. Fuel: measured on the fixture, one
+host call costs about 90,000 units (JSON each way, interpreted); 8,192
+inserts spent 750 M, a 100-post rescore 46 M; the ceiling is 2 G so the
+row ceilings bind first (`SNAPBACK4_FUEL_PROBE=1` prints a chunk's fuel
+and wall time). The guest SDK `crates/snapback4-native` (`Ctx`, `Chunk`,
+`Next`, `jobs!`, `from_row`/`row_of`) is a path dependency until
+published — the author's decision 2 in the document. The fixture
+`native-fixtures/rescore` is Interview's rescore in Rust with a float
+exponent, plus `overflow` (9,000 inserts → parked `E_BOUND`, the chunk
+rolled back) and `boom` (a panic → parked with its text);
+`crates/snapback4-sim/tests/native.rs` builds it for wasm inside the test
+(cold ~20 s, then cached) and proves the scores, the query serving them,
+the public partition holding them, three chunks resuming by state over
+250 posts, the schedule firing it, and a parse refusal of `native` on a
+mutation. On the CLI, the LLP 3000.004 sketch with the job native: `check`
+13.1 s cold and 95 ms warm (a 105,000 B module), `run rescore` three rows,
+`home` in score order with `seen` and `mine`, `doctor` naming the job,
+the module and the toolchain, `deploy` shipping `native.wasm` in the
+release and `serve` loading it. `parser.rs` split (`parser/programs.rs`)
+to stay under the line budget. The `feeds` card's twin `native` card,
+four codes (`E_NATIVE`, `E_NATIVE_TOOLCHAIN`, `E_NATIVE_BUILD`,
+`E_NATIVE_TRAP`), the README section, the Moves line in `NOT-DOING.md`.
+Not done: the SDK on crates.io; the same Rust over the device's `Rows`;
+a binary protocol should the JSON per call ever be the cost.
 

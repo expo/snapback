@@ -94,12 +94,26 @@ pub fn check(options: &Options) -> i32 {
         return 1;
     }
     let _ = project.write_generated(&bound);
+    // A native job's module is built here too (LLP 3000.005): the schema's
+    // Rust types written, cargo run, the module checked against the jobs.
+    let native = match crate::native::build(&project, &bound) {
+        Ok(built) => built,
+        Err(problem) => {
+            if options.json {
+                println!("{}", json!({ "ok": false, "problems": [{ "code": problem.code, "message": problem.message, "rewrite": problem.rewrite, "guide": "native" }] }));
+            } else {
+                eprintln!("{problem}\n");
+                eprintln!("check: 1 problem");
+            }
+            return 1;
+        }
+    };
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
-        println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0);
+        println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         for note in &bound.notes {
             println!("note: {note}\n");
         }
@@ -116,6 +130,10 @@ pub fn check(options: &Options) -> i32 {
 /// instead of a price (LLP 2000.000 §6).
 fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name)];
+    if program.native {
+        lines.push(format!("    native: the module's reads and writes go through the host, metered per chunk under the job ceilings ({} rows examined, {} written), {} fuel per chunk", snapback4_core::Ceilings::job().examined, snapback4_core::Ceilings::job().rows_written, snapback4_core::engine::native::FUEL_PER_CHUNK));
+        return lines.join("\n");
+    }
     let sites = ir::read_sites(program);
     if sites.is_empty() {
         lines.push("    reads nothing".into());
@@ -242,10 +260,17 @@ pub fn run(options: &Options) -> i32 {
             return 2;
         }
     };
+    if let Err(problem) = crate::native::install(&mut engine, &project) {
+        eprintln!("{problem}");
+        return 2;
+    }
     if program.kind == ProgramKind::Job {
         // A job runs as the system principal, every chunk in turn, here.
         return match engine.run_job(op, args, snapback4_core::now_ms()) {
             Ok(run) => {
+                for line in engine.take_native_logs() {
+                    eprintln!("native {line}");
+                }
                 let body = json!({ "job": run.name, "id": run.id, "state": run.state, "chunks": run.chunks, "rowsWritten": run.rows_written, "error": run.error });
                 println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
                 if run.state == snapback4_core::JobState::Done { 0 } else { 1 }
@@ -346,22 +371,43 @@ pub fn doctor(options: &Options) -> i32 {
         return 1;
     };
     lines.push(format!("project   {}", project.root.display()));
-    let personas = match project.compile() {
+    let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));
-            bound.personas
+            let native = crate::native::declared(&bound);
+            (bound.personas, native)
         }
         Ok(bound) => {
             ok = false;
             lines.push(format!("schema    {} problem{} (`snapback4 check`)", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
-            bound.personas
+            let native = crate::native::declared(&bound);
+            (bound.personas, native)
         }
         Err(error) => {
             ok = false;
             lines.push(format!("schema    FAIL {error}"));
-            Vec::new()
+            (Vec::new(), Vec::new())
         }
     };
+    if !native_jobs.is_empty() {
+        // A native job's module and toolchain (LLP 3000.005).
+        let module = project.native_module();
+        let built = match std::fs::metadata(&module) {
+            Ok(meta) => format!("module {} ({})", module.display(), human(meta.len())),
+            Err(_) => {
+                ok = false;
+                "module not built (`snapback4 check` builds snapback/native)".to_owned()
+            }
+        };
+        let toolchain = match crate::native::toolchain() {
+            Ok(version) => version,
+            Err(why) => {
+                ok = false;
+                why
+            }
+        };
+        lines.push(format!("native    {} declared: {}; {built}; {toolchain}", if native_jobs.len() == 1 { "job" } else { "jobs" }, native_jobs.join(", ")));
+    }
     // Source diagnostics and persisted backend health are independent. Even
     // broken or destructive edits must leave the active generation usable.
     match project.open_store() {

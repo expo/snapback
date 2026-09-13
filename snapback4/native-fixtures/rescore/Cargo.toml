@@ -1,0 +1,23 @@
+# The LLP 3000.005 fixture: a native module as an app would write one.
+# Its own workspace, so the repository's workspace does not build it for the
+# host; `crates/snapback4-sim/tests/native.rs` builds it for wasm.
+[package]
+name = "sb4-fixture-rescore"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+snapback4-native = { path = "../../crates/snapback4-native" }
+
+[workspace]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

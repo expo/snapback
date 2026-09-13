@@ -309,6 +309,9 @@ pub struct ProgramDecl {
     pub name: String,
     pub args: Vec<ArgDecl>,
     pub body: Vec<Stmt>,
+    /// `job name(): native` — the body is the app's Rust in `snapback/native/`,
+    /// compiled to wasm and hosted by the engine (LLP 3000.005).
+    pub native: bool,
     pub site: Site,
 }
 

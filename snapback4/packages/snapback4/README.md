@@ -278,6 +278,67 @@ job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 Jobs are not on `api.ts`.
 
+### Native jobs
+
+```quarry
+job rescore(): native                    -- the body is snapback/native/, in Rust
+schedule rescoreEvery every 5m: rescore  -- fired like any job
+```
+
+A job whose body is not Quarry but the app's own Rust (LLP 3000.005), for
+the scoring half of a feed and anything else that wants floats, vectors,
+real loops and a typed schema without putting them into Quarry.
+`snapback/native/` is a Cargo package the app owns — `crate-type =
+["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native` —
+and `snapback4 check` writes `snapback/generated/native.rs` (a constant
+per table, index and maintain; a `serde` struct per table), builds the
+package for `wasm32-unknown-unknown` into `snapback/generated/native.wasm`
+(cold about ten seconds, then a cargo no-op), and refuses if a declared
+job is not one the module implements. `dev` rebuilds on every save under
+`snapback/`; `deploy` ships the module with the release; `run <job>` runs
+it here; `doctor` says whether the module and the toolchain are in place.
+
+```rust
+// snapback/native/src/lib.rs
+use snapback4_native::{Chunk, Ctx, Next, Order, Result, from_row, json, row_of};
+mod schema { include!("../../generated/native.rs"); }
+use schema::*;
+snapback4_native::jobs! { rescore }
+
+fn rescore(ctx: &Ctx, chunk: &Chunk) -> Result<Next> {
+    let page = ctx.scan(tables::POSTS, indexes::posts::BY_ID, &[], Order::Asc, 100, chunk.state.as_ref())?;
+    for row in page.rows {
+        let post: Posts = from_row(row)?;
+        let votes = ctx.maintained(maintains::POST_SCORE, &[json!(post.id)])?;
+        let age_hours = (chunk.now - post.at) as f64 / 3_600_000.0;
+        let score = (votes as f64 * 10.0 - age_hours.powf(1.5)).round() as i64;
+        ctx.upsert_by(tables::RANKED, indexes::ranked::BY_POST, &[json!(post.id)], row_of(&Ranked { id: String::new(), post_id: post.id, score, at: post.at })?)?;
+    }
+    Ok(match page.next { Some(state) => Next::Again(state), None => Next::Done })
+}
+```
+
+One chunk per call, one transaction per chunk, under the job ceilings: the
+job returns `Next::Again(state)` to be called again with that state after
+the chunk commits — a scan's `next` is the natural state, so a crash
+resumes at the next page as a Quarry `chunk` resumes by its cursor — or
+`Next::Done`. Every `Ctx` read and write is the interpreter's own on the
+chunk's transaction (`get`, `lookup`, `maintained`, `scan`, `mint`,
+`insert`, `insert_if_absent`, `update`, `upsert`, `upsert_by`, `delete`):
+rules pass for the system, validation, constraints, maintains and
+partition events apply, the meter counts, and so the ordinary query and
+`sync` serve what the job wrote. The first refusal — a bound, a
+constraint, a bad value — parks the job with it (`doctor` lists runs); a
+panic parks it as `E_NATIVE_TRAP` with the panic's text; 2,000,000,000
+units of fuel per chunk (about 90,000 per host call) is the step ceiling,
+so the row ceilings bind first. The module imports one host function and
+nothing else: no clock, no randomness, no network — `chunk.now` is the
+host's — and a native job therefore runs under the simulator like any
+job. Quarry still declares the table, its rules and its `sync`; a query
+or mutation cannot be native, because a device predicts Quarry and the
+certificate reads it. Anything that needs the network stays outside and
+writes into a table the job reads.
+
 ### The meter
 
 Nothing is priced at compile time. As a program runs, the meter counts
@@ -620,8 +681,8 @@ PNG and `asset` is always denied.
   store, its size, schedules and their last boundary, the last job runs;
   **`guide [keyword]`** prints the language card (`snapback4 guide`, or
   `guide language`) or one card: language, types, indexes, rules, sync,
-  expire, assets, reads, shapes, writes, programs, jobs, feeds, bounds,
-  refusals, personas (`guide <E_CODE>` explains a code); **`--version`**
+  expire, assets, reads, shapes, writes, programs, jobs, native, feeds,
+  bounds, refusals, personas (`guide <E_CODE>` explains a code); **`--version`**
   prints the binary's version, which equals the package's. Every flag may
   be spelled `--flag=value`.
 

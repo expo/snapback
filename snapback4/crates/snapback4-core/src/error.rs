@@ -117,6 +117,10 @@ pub enum RuntimeError {
     Prediction(String),
     #[error("E_GENERATION: {0}")]
     Generation(String),
+    /// A native job's own refusal, or its trap (LLP 3000.005): the code is
+    /// the module's word or `E_NATIVE_TRAP`.
+    #[error("{code}: {message}")]
+    Native { code: String, message: String },
     #[cfg(feature = "sqlite")]
     #[error("E_STORE: {0}")]
     Sql(#[from] rusqlite::Error),
@@ -146,6 +150,7 @@ impl RuntimeError {
             Self::Asset { code, .. } => (*code).into(),
             Self::Prediction(_) => "E_PREDICT".into(),
             Self::Generation(_) => "E_GENERATION".into(),
+            Self::Native { code, .. } => code.clone(),
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "E_STORE".into(),
             Self::Store(_) => "E_STORE".into(),
@@ -167,6 +172,7 @@ impl RuntimeError {
             Self::Asset { .. } => "asset",
             Self::Prediction(_) => "prediction",
             Self::Generation(_) => "generation",
+            Self::Native { .. } => "native",
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "store",
             Self::Store(_) => "store",
@@ -228,6 +234,10 @@ impl RuntimeError {
             Self::Asset { message, .. } => {
                 refusal.message = message.clone();
                 refusal.guide = Some("assets".into());
+            }
+            Self::Native { message, .. } => {
+                refusal.message = message.clone();
+                refusal.guide = Some("native".into());
             }
             _ => {}
         }
