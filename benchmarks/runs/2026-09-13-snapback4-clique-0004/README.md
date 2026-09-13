@@ -10,7 +10,7 @@ The repairs landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`.
 The publisher reran the full suite in 30 seconds: 236 Rust, 9 fixture and
 89 client passes, zero failures and one declared ignored test. Its installed
 consumer checks passed. `release-qualification.json` retains the package,
-binary and raw-log digests. The builder reports M1 and M2 green; independent grading has not started.
+binary and raw-log digests. The builder reports M1–M4 green; independent grading has not started.
 
 ## Frozen run
 
@@ -38,14 +38,16 @@ grader behavior across runs.
 
 ## Results
 
-Astra reports M1 and M2 green and is building M3. These are builder outcomes; the
+Astra reports M1–M4 green and is building M5. These are builder outcomes; the
 independent grade remains pending. Grok, Muse, scoring and M7 have not started.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | builder green | running | pending | pending | pending | pending | running | pending | pending | pending | pending |
+| Astra medium | builder green | builder green | builder green | builder green | running | pending | pending | running | pending | pending | pending | pending |
 | Grok 4.6 xhigh | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
 | Muse Spark 1.3 xhigh | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
+
+The Astra M4 builder reproduced a new [video prediction defect](../../../issues/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.
 
 The frozen assertion manifest contains 119 unique IDs: 101 for M1–M7 and 18
 for M8. The frozen report schema accepts the 101-ID set, so each independent
