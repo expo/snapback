@@ -263,6 +263,10 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
             temporary_at_five["nextExpiry"], 10,
             "{label}: the audience lifetime schedules an offline refresh"
         );
+        assert_eq!(
+            temporary_at_five["complete"], true,
+            "{label}: a fully held membership makes the local result complete"
+        );
 
         write(
             &mut engine,
@@ -360,6 +364,150 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
             "{label}: drained catch-up and a post-expiry snapshot expose the same current rows"
         );
         empty_snapshot.close();
+    });
+}
+
+#[test]
+// @ref LLP 3000#7-decisions-during-execution — delivered history retains pages received under authority; later pages recheck the audience.
+fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table subscriptions:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  read <- .person = viewer\n  insert <- allow\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists subscriptions[.group, viewer]\n  insert <- allow\n  update <- allow\n  retain delivered-history\n  sync to subscriptions[.group]\nquery notes():\n  return notes[] first 10 by byId\nmutation join():\n  insert subscriptions {group: 'g', person: viewer, until: 10}\nmutation add(body: text <=10):\n  insert notes {group: 'g', body}\nmutation edit():\n  update notes['n1'] {body: 'changed'}\n";
+        let (mut engine, backend) = compile(source);
+        for (number, now) in [(1, 1), (2, 2), (3, 3)] {
+            let outcome = engine
+                .mutate(
+                    "add",
+                    Some(&format!("add-{number}")),
+                    context(
+                        "dev:alice",
+                        &[("body", Value::String(format!("note-{number}")))],
+                    )
+                    .at(now)
+                    .with_ids([format!("n{number}")]),
+                )
+                .unwrap();
+            assert!(matches!(outcome.state, WriteState::Sent { .. }));
+        }
+        let joined = engine
+            .mutate(
+                "join",
+                Some("join"),
+                context("dev:alice", &[])
+                    .at(4)
+                    .with_ids(["subscription".to_owned()]),
+            )
+            .unwrap();
+        assert!(matches!(joined.state, WriteState::Sent { .. }));
+
+        let backend = snapback4_device::device::Backend {
+            generation: engine.generation(),
+            ..backend
+        };
+        let mut device = host.open("paged-history-expiry", Some(backend)).unwrap();
+
+        let (events, pinned_watermark, next) = engine
+            .snapshot_page_at("dev:alice", None, 1, 9)
+            .unwrap();
+        let first: snapback4_device::device::StreamPage =
+            serde_json::from_value(serde_json::json!({
+                "snapshot": true,
+                "events": events.iter().map(|event| serde_json::json!({
+                    "table": event.table,
+                    "kind": event.kind.word(),
+                    "id": event.id,
+                    "data": event.data.as_ref().map(snapback4_core::wire::to_json),
+                })).collect::<Vec<_>>(),
+                "watermark": pinned_watermark,
+                "more": next.is_some(),
+                "next": next,
+                "generation": engine.generation(),
+            }))
+            .unwrap();
+        assert!(first.more, "{label}: the snapshot spans pages");
+        assert_eq!(
+            first
+                .events
+                .iter()
+                .map(|event| (event.table.as_str(), event.id.as_str()))
+                .collect::<Vec<_>>(),
+            [("notes", "n1")],
+            "{label}: the first page delivers one history row before expiry"
+        );
+        ok(apply(&mut *device, &first, true));
+
+        let edited = engine
+            .mutate("edit", Some("edit"), context("dev:bob", &[]).at(11))
+            .unwrap();
+        assert!(matches!(edited.state, WriteState::Sent { .. }));
+        let added = engine
+            .mutate(
+                "add",
+                Some("late-add"),
+                context(
+                    "dev:bob",
+                    &[("body", Value::String("late".into()))],
+                )
+                .at(11)
+                .with_ids(["n4".to_owned()]),
+            )
+            .unwrap();
+        assert!(matches!(added.state, WriteState::Sent { .. }));
+
+        let mut cursor = first.next.clone();
+        while let Some(after) = cursor {
+            let (events, watermark, next) = engine
+                .snapshot_page_at("dev:alice", Some(&after), 1, 11)
+                .unwrap();
+            assert_eq!(
+                watermark, pinned_watermark,
+                "{label}: every page retains the first page's watermark"
+            );
+            let page: snapback4_device::device::StreamPage =
+                serde_json::from_value(serde_json::json!({
+                    "snapshot": true,
+                    "events": events.iter().map(|event| serde_json::json!({
+                        "table": event.table,
+                        "kind": event.kind.word(),
+                        "id": event.id,
+                        "data": event.data.as_ref().map(snapback4_core::wire::to_json),
+                    })).collect::<Vec<_>>(),
+                    "watermark": watermark,
+                    "more": next.is_some(),
+                    "next": next,
+                    "generation": engine.generation(),
+                }))
+                .unwrap();
+            cursor = page.next.clone();
+            ok(apply(&mut *device, &page, false));
+        }
+
+        let catch_up = stream_page_at(&mut engine, "dev:alice", pinned_watermark, 11);
+        assert!(!catch_up.more, "{label}: catch-up reaches the stream head");
+        ok(apply(&mut *device, &catch_up, false));
+
+        let answer = query(
+            &mut *device,
+            "notes",
+            "dev:alice",
+            serde_json::json!({}),
+            11,
+        );
+        let notes = rows(&answer)
+            .iter()
+            .map(|row| {
+                (
+                    row["id"].as_str().unwrap().to_owned(),
+                    row["body"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(
+            notes,
+            std::collections::BTreeMap::from([("n1".to_owned(), "note-1".to_owned())]),
+            "{label}: only history delivered before expiry remains, without the later edit or insert"
+        );
+        device.close();
     });
 }
 
