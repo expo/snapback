@@ -490,6 +490,8 @@ Draft Research. They remain review findings and proposals; the core owner
 retains implementation custody under §1 decision 4.
 
 The author subsequently requested implementation of the 37 concrete tickets.
+All 37 are now closed; the [correction qualification record](./reviews/3000-review-corrections-20260913.md)
+contains the executed checks, independent reviews and remaining research scope.
 Their resolution records and the children's `Implementation follow-up`
 sections describe the delivered boundaries: transactional semantic activation,
 confirmed-base replay and atomic snapshot ownership, bounded admission/output,

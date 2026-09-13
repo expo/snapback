@@ -4,8 +4,9 @@
 **Requested by:** Charlie Cheever
 **Scope:** Architecture, correctness, performance and ergonomics across the entire `snapback4/` project. The author's updated instruction assigns security holes to another model; this record makes no security assessment.
 **Baseline:** repository commit `d6c803878a5432cce5f045777786a049972d3d70`; Snapback 4 Git tree `cf0a13dca32b3e1721d1d947a3f82c262a0807f0`; package/crate version 0.0.16.
-**Method:** One reviewer, source inspection plus independent executable probes; no delegated or second-family review is represented.
-**Artifacts:** Four Draft Research LLPs; 37 open filesystem tickets (23 P1, 14 P2). This is a review and triage record, not a product-code fix or a promotion decision.
+**Method (original review):** One reviewer, source inspection plus independent executable probes; no delegated or second-family review is represented.
+**Artifacts at review time:** Four Draft Research LLPs; 37 filesystem tickets (23 P1, 14 P2).
+**Resolution follow-up (2026-09-13):** All 37 tickets are closed with individual resolution and regression pointers. See the [corrections, qualification and independent review record](./3000-review-corrections-20260913.md). The assessment and examples below describe the 0.0.16 review baseline.
 
 ## Assessment
 
@@ -126,43 +127,43 @@ an exact total implementation order.
 
 | ID | Priority | Finding and filesystem ticket | Evidence |
 |---|---|---|---|
-| R01 | P1 | [Validate stored rows before accepting schema narrowing](../../issues/20260912-snapback4-schema-narrowing-validation.md) | Reproduced |
-| R02 | P1 | [Apply the declared row projection when columns or tables are removed](../../issues/20260912-snapback4-schema-row-projection.md) | Execution + trace |
-| R03 | P1 | [Publish schema, programs, derived state and generation together](../../issues/20260912-snapback4-schema-generation-atomicity.md) | Execution + trace |
-| R04 | P1 | [Keep release identities immutable and propagate activation I/O failures](../../issues/20260912-snapback4-release-identity-and-io.md) | Execution + trace |
-| R05 | P1 | [Replace snapshot rows and their watermark in one transaction](../../issues/20260912-snapback4-snapshot-replacement-atomicity.md) | Reproduced |
-| R06 | P1 | [Serialize or compare-and-apply overlapping sync responses](../../issues/20260912-snapback4-concurrent-sync-regression.md) | Reproduced |
-| R07 | P1 | [Isolate unrelated asynchronous SQLite transactions](../../issues/20260912-snapback4-sqlite-transaction-isolation.md) | Execution + trace |
-| R08 | P2 | [Make MemoryStore honor the store transaction contract](../../issues/20260912-snapback4-memory-store-rollback.md) | Reproduced |
-| R09 | P1 | [Preserve timestamp bits and durable outbox admission order](../../issues/20260912-snapback4-operation-id-and-outbox-order.md) | Execution + trace |
-| R10 | P1 | [Restore confirmed state when a predicted write is refused](../../issues/20260912-snapback4-rejected-prediction-restoration.md) | Reproduced |
-| R11 | P1 | [Resume pending writes after transient HTTP failures](../../issues/20260912-snapback4-outbox-retry-after-503.md) | Reproduced |
-| R12 | P1 | [Return and preserve dependencies for online live queries](../../issues/20260912-snapback4-online-observation-invalidation.md) | Reproduced |
-| R13 | P1 | [Keep read dependencies when a local query refuses](../../issues/20260912-snapback4-denied-observation-recovery.md) | Reproduced |
-| R14 | P1 | [Run operations outside replica coverage on the server](../../issues/20260912-snapback4-online-only-operation-routing.md) | Execution + trace |
-| R15 | P1 | [Do not infer complete absence from a truncated partition](../../issues/20260912-snapback4-horizon-completeness.md) | Execution + trace |
-| R16 | P1 | [Preserve the server value model in client arithmetic, ordering and aggregate keys](../../issues/20260912-snapback4-client-value-semantics.md) | Reproduced |
-| R17 | P1 | [Stop oversized query output before returning it](../../issues/20260912-snapback4-query-output-budget.md) | Reproduced |
-| R18 | P1 | [Bound HTTP admission and release the engine before network response work](../../issues/20260912-snapback4-http-body-and-response-bounds.md) | Source trace |
-| R19 | P1 | [Keep idle changes polls from occupying every HTTP worker](../../issues/20260912-snapback4-long-poll-worker-starvation.md) | Measured |
-| R20 | P1 | [Give inlined helpers fresh lexical bindings](../../issues/20260912-snapback4-helper-binding-hygiene.md) | Reproduced |
-| R21 | P1 | [Keep right-hand lowering inside short-circuit branches](../../issues/20260912-snapback4-short-circuit-lowering.md) | Reproduced |
-| R22 | P2 | [Reject duplicate named index keys without panicking](../../issues/20260912-snapback4-duplicate-named-key-diagnostic.md) | Reproduced |
-| R23 | P2 | [Check operation uniqueness after module qualification](../../issues/20260912-snapback4-module-operation-names.md) | Reproduced |
-| R24 | P2 | [Escape literals and property names in generated TypeScript](../../issues/20260912-snapback4-typescript-literal-escaping.md) | Reproduced |
-| R25 | P1 | [Reject unsupported JSON numbers instead of replacing them with zero](../../issues/20260912-snapback4-json-number-decoding.md) | Reproduced |
-| R26 | P1 | [Keep sibling created facts when one inserted row is updated](../../issues/20260912-snapback4-created-facts-after-update.md) | Reproduced |
-| R27 | P2 | [Assert retained result states and distinguish intentional corpus exclusions](../../issues/20260912-snapback4-corpus-state-and-skip-coverage.md) | Source trace |
-| R28 | P2 | [Make React hook resources survive Strict Mode setup and cleanup](../../issues/20260912-snapback4-react-strict-mode-lifecycle.md) | Reproduced |
-| R29 | P2 | [Reconcile live page boundaries when earlier pages change](../../issues/20260912-snapback4-live-pagination-boundaries.md) | Reproduced |
-| R30 | P2 | [Limit loop-bar cleanup to recorded process ownership](../../issues/20260912-snapback4-loopbar-owned-process-cleanup.md) | Source trace |
-| R31 | P2 | [Honor the documented bare-token client option](../../issues/20260912-snapback4-bare-token-client-authentication.md) | Reproduced |
-| R32 | P1 | [Diagnose unrepresentable rule literals instead of compiling them as zero](../../issues/20260912-snapback4-numeric-rule-literal-decoding.md) | Execution + trace |
-| R33 | P2 | [Keep null narrowing inside the control-flow branch that proves it](../../issues/20260912-snapback4-branch-local-null-narrowing.md) | Reproduced |
-| R34 | P2 | [Resolve witness tools from the Snapback 4 workspace](../../issues/20260912-snapback4-witness-workspace-dependencies.md) | Source trace |
-| R35 | P2 | [Preserve reference-app drafts and show failed writes](../../issues/20260912-snapback4-reference-composer-draft-loss.md) | Source trace |
-| R36 | P2 | [Align the distributed binary with the profile used for shipped-size claims](../../issues/20260912-snapback4-publication-build-profile.md) | Source trace |
-| R37 | P2 | [Close clients that finish opening after their component unmounts](../../issues/20260912-snapback4-reference-client-open-cleanup.md) | Source trace |
+| R01 | P1 | [Validate stored rows before accepting schema narrowing](../../issues/closed/20260912-snapback4-schema-narrowing-validation.md) | Reproduced |
+| R02 | P1 | [Apply the declared row projection when columns or tables are removed](../../issues/closed/20260912-snapback4-schema-row-projection.md) | Execution + trace |
+| R03 | P1 | [Publish schema, programs, derived state and generation together](../../issues/closed/20260912-snapback4-schema-generation-atomicity.md) | Execution + trace |
+| R04 | P1 | [Keep release identities immutable and propagate activation I/O failures](../../issues/closed/20260912-snapback4-release-identity-and-io.md) | Execution + trace |
+| R05 | P1 | [Replace snapshot rows and their watermark in one transaction](../../issues/closed/20260912-snapback4-snapshot-replacement-atomicity.md) | Reproduced |
+| R06 | P1 | [Serialize or compare-and-apply overlapping sync responses](../../issues/closed/20260912-snapback4-concurrent-sync-regression.md) | Reproduced |
+| R07 | P1 | [Isolate unrelated asynchronous SQLite transactions](../../issues/closed/20260912-snapback4-sqlite-transaction-isolation.md) | Execution + trace |
+| R08 | P2 | [Make MemoryStore honor the store transaction contract](../../issues/closed/20260912-snapback4-memory-store-rollback.md) | Reproduced |
+| R09 | P1 | [Preserve timestamp bits and durable outbox admission order](../../issues/closed/20260912-snapback4-operation-id-and-outbox-order.md) | Execution + trace |
+| R10 | P1 | [Restore confirmed state when a predicted write is refused](../../issues/closed/20260912-snapback4-rejected-prediction-restoration.md) | Reproduced |
+| R11 | P1 | [Resume pending writes after transient HTTP failures](../../issues/closed/20260912-snapback4-outbox-retry-after-503.md) | Reproduced |
+| R12 | P1 | [Return and preserve dependencies for online live queries](../../issues/closed/20260912-snapback4-online-observation-invalidation.md) | Reproduced |
+| R13 | P1 | [Keep read dependencies when a local query refuses](../../issues/closed/20260912-snapback4-denied-observation-recovery.md) | Reproduced |
+| R14 | P1 | [Run operations outside replica coverage on the server](../../issues/closed/20260912-snapback4-online-only-operation-routing.md) | Execution + trace |
+| R15 | P1 | [Do not infer complete absence from a truncated partition](../../issues/closed/20260912-snapback4-horizon-completeness.md) | Execution + trace |
+| R16 | P1 | [Preserve the server value model in client arithmetic, ordering and aggregate keys](../../issues/closed/20260912-snapback4-client-value-semantics.md) | Reproduced |
+| R17 | P1 | [Stop oversized query output before returning it](../../issues/closed/20260912-snapback4-query-output-budget.md) | Reproduced |
+| R18 | P1 | [Bound HTTP admission and release the engine before network response work](../../issues/closed/20260912-snapback4-http-body-and-response-bounds.md) | Source trace |
+| R19 | P1 | [Keep idle changes polls from occupying every HTTP worker](../../issues/closed/20260912-snapback4-long-poll-worker-starvation.md) | Measured |
+| R20 | P1 | [Give inlined helpers fresh lexical bindings](../../issues/closed/20260912-snapback4-helper-binding-hygiene.md) | Reproduced |
+| R21 | P1 | [Keep right-hand lowering inside short-circuit branches](../../issues/closed/20260912-snapback4-short-circuit-lowering.md) | Reproduced |
+| R22 | P2 | [Reject duplicate named index keys without panicking](../../issues/closed/20260912-snapback4-duplicate-named-key-diagnostic.md) | Reproduced |
+| R23 | P2 | [Check operation uniqueness after module qualification](../../issues/closed/20260912-snapback4-module-operation-names.md) | Reproduced |
+| R24 | P2 | [Escape literals and property names in generated TypeScript](../../issues/closed/20260912-snapback4-typescript-literal-escaping.md) | Reproduced |
+| R25 | P1 | [Reject unsupported JSON numbers instead of replacing them with zero](../../issues/closed/20260912-snapback4-json-number-decoding.md) | Reproduced |
+| R26 | P1 | [Keep sibling created facts when one inserted row is updated](../../issues/closed/20260912-snapback4-created-facts-after-update.md) | Reproduced |
+| R27 | P2 | [Assert retained result states and distinguish intentional corpus exclusions](../../issues/closed/20260912-snapback4-corpus-state-and-skip-coverage.md) | Source trace |
+| R28 | P2 | [Make React hook resources survive Strict Mode setup and cleanup](../../issues/closed/20260912-snapback4-react-strict-mode-lifecycle.md) | Reproduced |
+| R29 | P2 | [Reconcile live page boundaries when earlier pages change](../../issues/closed/20260912-snapback4-live-pagination-boundaries.md) | Reproduced |
+| R30 | P2 | [Limit loop-bar cleanup to recorded process ownership](../../issues/closed/20260912-snapback4-loopbar-owned-process-cleanup.md) | Source trace |
+| R31 | P2 | [Honor the documented bare-token client option](../../issues/closed/20260912-snapback4-bare-token-client-authentication.md) | Reproduced |
+| R32 | P1 | [Diagnose unrepresentable rule literals instead of compiling them as zero](../../issues/closed/20260912-snapback4-numeric-rule-literal-decoding.md) | Execution + trace |
+| R33 | P2 | [Keep null narrowing inside the control-flow branch that proves it](../../issues/closed/20260912-snapback4-branch-local-null-narrowing.md) | Reproduced |
+| R34 | P2 | [Resolve witness tools from the Snapback 4 workspace](../../issues/closed/20260912-snapback4-witness-workspace-dependencies.md) | Source trace |
+| R35 | P2 | [Preserve reference-app drafts and show failed writes](../../issues/closed/20260912-snapback4-reference-composer-draft-loss.md) | Source trace |
+| R36 | P2 | [Align the distributed binary with the profile used for shipped-size claims](../../issues/closed/20260912-snapback4-publication-build-profile.md) | Source trace |
+| R37 | P2 | [Close clients that finish opening after their component unmounts](../../issues/closed/20260912-snapback4-reference-client-open-cleanup.md) | Source trace |
 
 ## Suggested repair order
 

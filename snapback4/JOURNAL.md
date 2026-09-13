@@ -1646,3 +1646,32 @@ are 0329.011, 0329.014, 0329.019, 0329.021 and 0329.020. Only their current link
 were removed; documents and references remain. The last retirement makes room
 for concurrently landed 3000.004 while keeping the 59-document budget.
 Verification and independent review results follow in the closure record.
+
+## 2026-09-13 — comprehensive review corrections qualified and tickets closed (Codex)
+
+All 37 review tickets are resolved and moved to `issues/closed/`, with their
+original reproductions, individual resolutions and regression pointers intact.
+The [complete index](../llp/reviews/3000-architecture-code-review-20260912.md)
+and [qualification record](../llp/reviews/3000-review-corrections-20260913.md)
+link the delivered state. Integration includes upstream 0.1.15 HTTP response
+batching alongside bounded encoding. The feeds card now uses an explicitly
+capped immediate audience, and video examples narrow nullable duration.
+
+The complete workspace passed 121 Rust tests; the full prescribed suite passed
+its fixture, client, build and typecheck steps. A final mixed-version native
+startup guard then passed package build/typecheck and all 94 client tests.
+Independent core/periphery reviews and the final HTTP/example/native deltas
+reported no material findings remaining in their defined scopes.
+
+The production dry run built, packed and installed a 2,710,816-byte darwin-arm64
+binary with matching source/installed version and SHA-256. The final
+JavaScript-only follow-up was separately repacked and installed: all 36 dist
+files match, and installed types, mock behavior and native incompatibility
+cleanup pass with the unchanged binary. These were dry runs; the Expo native
+framework/application still needs rebuilding for native publication. Cold
+macOS executable-launch waits inflated the full-suite wall time to 277 seconds;
+this record makes no claim to the 60-second cold budget.
+
+The four Research children remain Draft with explicit remaining questions.
+Source changes stayed in the owned integration worktree; the shared dirty root
+and active sibling work were preserved.
