@@ -311,7 +311,7 @@ fn maintain(shared: Arc<Shared>) {
         if tick % 60 == 0 {
             let prepared = shared.engine.lock().unwrap().prepare_asset_sweep(now);
             match prepared {
-                Ok(mut sweep) => match sweep.remove_files() {
+                Ok(sweep) => match sweep.remove_files() {
                     Ok(()) => {
                         if let Err(error) = shared.engine.lock().unwrap().finish_asset_sweep(&sweep) {
                             eprintln!("snapback4: the asset sweep catalog update failed: {error}");
@@ -483,12 +483,32 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
     for header in request.headers() {
         let name = header.field.as_str().as_str().to_ascii_lowercase();
         let value = header.value.as_str().trim();
-        if name == "x-snapback-persona" && !value.is_empty() && value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        if name == "x-snapback-persona" {
+            if persona.is_some()
+                || value.is_empty()
+                || !value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            {
+                return Err(Refusal::new("E_AUTH", "auth", "send exactly one valid x-snapback-persona header").guide("personas"));
+            }
             persona = Some(value.to_owned());
         }
-        if name == "authorization" && let Some(token) = value.strip_prefix("Bearer ") {
-            bearer = Some(token.trim().to_owned());
+        if name == "authorization" {
+            let Some(token) = value.strip_prefix("Bearer ").map(str::trim).filter(|token| !token.is_empty()) else {
+                return Err(Refusal::new("E_AUTH", "auth", "send Authorization: Bearer <token>").guide("personas"));
+            };
+            if bearer.replace(token.to_owned()).is_some() {
+                return Err(Refusal::new("E_AUTH", "auth", "send exactly one Authorization header").guide("personas"));
+            }
         }
+    }
+    if persona.is_some() && bearer.is_some() {
+        return Err(Refusal::new("E_AUTH", "auth", "send one credential: a development persona or a bearer token").guide("personas"));
+    }
+    if let Some(persona) = persona {
+        if shared.personas {
+            return Ok(persona_principal(&persona));
+        }
+        return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
     }
     if let Some(token) = bearer {
         let engine = shared.engine.lock().unwrap();
@@ -497,13 +517,6 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
             Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),
             Err(error) => Err(error.refusal()),
         };
-    }
-    if let Some(persona) = persona {
-        let loopback = request.remote_addr().is_some_and(|a| a.ip().is_loopback());
-        if shared.personas && loopback {
-            return Ok(persona_principal(&persona));
-        }
-        return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
     }
     Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
 }
@@ -546,7 +559,7 @@ fn handle(mut request: Request, shared: &Shared) {
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
     if method == Method::Post && (path == "/assets" || path.starts_with("/q/") || path.starts_with("/m/")
-        || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
+        || matches!(path.as_str(), "/auth/refresh" | "/auth/logout" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
@@ -779,10 +792,11 @@ fn handle(mut request: Request, shared: &Shared) {
             let deadline = Instant::now() + Duration::from_secs(wait);
             // A poll held open is a connection: `connected[p]` counts it
             // while it waits, and for a grace after it answers.
-            let connected = principal_of(&request, shared).ok();
-            if let Some(principal) = &connected {
-                shared.presence.enter(principal);
-            }
+            let connected = match principal_of(&request, shared) {
+                Ok(principal) => principal,
+                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+            };
+            shared.presence.enter(&connected);
             {
                 let mut seq = shared.seq.lock().unwrap();
                 while *seq <= since && Instant::now() < deadline {
@@ -791,9 +805,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     seq = guard;
                 }
             }
-            if let Some(principal) = &connected {
-                shared.presence.leave(principal);
-            }
+            shared.presence.leave(&connected);
             if let Err(refusal) = principal_of(&request, shared) {
                 return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
             }

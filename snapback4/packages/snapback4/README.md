@@ -152,7 +152,9 @@ mutation edit(messageId: messages, body: text <=4000):
   only: true when this mutation inserted the probed row), `and`, `or`,
   `not`. `update (old, next) <- old.x = next.x` names both images. A table
   with no rule for an effect denies it. Rules compare with `=` and `!=`
-  only; the system principal consults no rules.
+  only; the system principal consults no rules. A unique-key or id collision
+  with a row the writer cannot read returns the generic `E_RULE`, including
+  insert-if-absent and upsert; only a readable collision names its key.
 - **Sync** (§3) and **retain**: `retain until-revoked` (the default: a
   device drops a group's rows when it leaves the group) or
   `retain delivered-history` (it keeps what it was given).
@@ -386,11 +388,13 @@ table conversations:
 table memberships:
   conversationId: conversations
   principal: principal
+  role: enum('member', 'admin')
   unique byConversationPrincipal: conversationId, principal
+  by byConversationPrincipalRole: conversationId, principal, role
   by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
-  insert <- allow
+  insert <- exists memberships[.conversationId, viewer, 'admin'] or created conversations[.conversationId]
   sync to memberships[.conversationId]
 
 table messages:
@@ -455,7 +459,7 @@ table memberships:
   by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
-  insert <- allow
+  insert <- exists memberships[.conversationId, viewer]
 
 table messages:
   conversationId: id
@@ -532,7 +536,11 @@ The read rule must be exactly the audience — `public`, `.col = viewer` or
 and never misses one it may. A second disjunct or an extra conjunct is a
 compile error with the rewrite. The target table needs a unique index
 over `(a, b, principal)` and an index leading with `(principal, a, b)`.
-The horizon `last N by index` bounds what a device acquires per group;
+Every insert-rule branch on that audience table must prove the caller already
+has the matching grant, or that the mutation created the referenced group;
+`.principal = viewer` alone is a self-grant and fails `check`. Audience group
+and recipient columns must be immutable or guarded on update. This also covers
+insert-if-absent and upsert. The horizon `last N by index` bounds what a device acquires per group;
 older rows are online-only, and a device's read past them says
 `complete: false`. Joining a group delivers its rows; leaving it delivers
 one scope tombstone, and the table's `retain` says what the device keeps.
@@ -757,7 +765,10 @@ An `image <=N` or `video <=N` column holds an upload: the client sends
 the bytes first (`upload` → `{ ok: true, asset: { id, type, bytes, width,
 height, duration } }` or `{ ok: false, why }`; the server sniffs JPEG,
 PNG, WebP and MP4 and refuses the rest with `E_ASSET_TYPE`, and anything
-over the largest column's bound with `E_ASSET_TOO_LARGE`), then places
+over the largest column's bound with `E_ASSET_TOO_LARGE`). Images must have
+nonzero dimensions, at most 16,384 pixels per side and 40 million pixels
+total; video must have a positive duration of at most one hour
+(`E_ASSET_BOUNDS`). It then places
 `{ id }` in the mutation. Inside the mutation the argument already
 carries the facts the server established, and the row carries them.
 Every fact key is present; `width` and `height` are null for video,
@@ -772,9 +783,11 @@ revokes on unmount; `client.assetSource(id)` gives `{ uri, headers }`
 for native image and video views); a row that is deleted, whose column
 is cleared, that expired, or that the viewer may not read answers
 `E_ASSET_UNKNOWN`. A column declared `image <=N once` serves one view per
-principal: the second is `E_ASSET_VIEWED`, and the bytes are never cached
-anywhere (the sender is never counted). Uploads are online only; there is
-nothing to queue.
+principal after placement, including the uploader; an unplaced owner preview
+is exempt. The second is `E_ASSET_VIEWED`. Range is refused before consuming a
+once view (`E_ASSET_RANGE`); ordinary unsatisfiable ranges return 416. Every
+asset response is `private, no-store`, and at most two uploads write at once
+outside the engine mutex. Uploads are online only; there is nothing to queue.
 
 ### Sign-in (`snapback4/auth`)
 
@@ -794,8 +807,10 @@ receive the session from the application. For continuity, pass a
 `sessionStore` with async `get`, `set`, `delete`; `expo-secure-store` fits,
 with the key made filesystem-safe as in §7. `localStorageSessionStore()` is
 an explicit web opt-in when persistence across reloads is worth making the
-bearer readable to every script on the page. A password is eight characters
-or more. The schema opts in with `use identity` (guests and password accounts),
+bearer readable to every script on the page. Ordinary guest and password
+sessions last seven days. Signup passwords are 8–1,024 UTF-8 bytes and login
+passwords at most 1,024; attempts and concurrent Argon2 work are bounded by the
+host. The schema opts in with `use identity` (guests and password accounts),
 `use identity guests` or `use identity password`; without it the `/auth`
 routes refuse with `E_AUTH`. `snapback4 dev` also admits personas;
 `snapback4 serve` (a release) admits tokens only.
@@ -919,7 +934,8 @@ at most; 0 answers at once; at most
 500 commits are summarised). `POST /assets` (the
 file's bytes as the body, 64 MiB at most) answers `{ asset }`; `GET
 /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
-works; every viewer-authorized response uses `Cache-Control: private, no-store`).
+works on ordinary assets, returns 416 when unsatisfiable, and is refused on
+view-once assets; every response uses `Cache-Control: private, no-store`).
 `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
 (`{ "email", "password" }`) answer `{ "session": { principal, kind,
 token, expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout`
@@ -963,10 +979,14 @@ chunks each tick, and sweeps unplaced assets once a minute.
 - **`snapback4 rollback <dir> [--allow-destructive]`** moves `current`
   back, classifying the change the same way.
 - **`snapback4 serve <dir> [--port N] [--bind H]`** runs the current
-  release on the shared store on `0.0.0.0:4400`, tokens only (a persona is
-  refused `E_AUTH`; so is `/seed`). It symlinks the release's store to
-  the directory's, so the filesystem must support symlinks. TLS is a
-  proxy's job.
+  release on the shared store on `127.0.0.1:4400`, tokens only (a persona
+  is refused `E_AUTH`; so is `/seed`). A non-loopback literal bind requires
+  `--i-understand-cleartext` and prints a warning because the socket is HTTP.
+  Put a TLS proxy on the same host in front of the loopback listener: preserve
+  `Authorization` and `Origin`, strip `x-snapback-persona`, restrict direct
+  backend access, and rate-limit by the real client address. The binary does
+  not trust forwarded address or scheme headers. It symlinks the release's
+  store to the directory's, so the filesystem must support symlinks.
 
 ## 7. Expo
 

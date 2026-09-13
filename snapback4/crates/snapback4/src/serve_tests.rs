@@ -214,6 +214,21 @@ fn catalog_and_changes_require_live_identity_and_release_refuses_dev_doors() {
             status(&host.request("GET", "/native.wasm", &bearer, "")),
             404
         );
+        assert_eq!(
+            status(&host.request(
+                "GET",
+                "/schema",
+                &format!("{bearer}x-snapback-persona: alice\r\n"),
+                "",
+            )),
+            401,
+            "a request cannot mix production and development credentials",
+        );
+        assert_eq!(
+            status(&host.request("GET", "/schema", &format!("{bearer}{bearer}"), "")),
+            401,
+            "duplicate bearer headers are ambiguous",
+        );
         let started = Instant::now();
         assert_eq!(
             status(&host.request("GET", "/changes?since=999&wait=25", "", "")),
