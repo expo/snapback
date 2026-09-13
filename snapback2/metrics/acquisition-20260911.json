@@ -24486,6 +24486,290 @@
         }
       ],
       "decision": "Continue the active goal with the next coherent owner/client architecture. This candidate point is585.438437ms below the retained8080.116027ms same-v2 point, not a repeated distribution or component attribution. It remains4494.677590ms above3s with the reduced UI; full application and runtime qualification are outstanding."
+    },
+    "receiptGroupDurableClientRestart": {
+      "date": "2026-09-12",
+      "kind": "isolated experimental receipt-group and asynchronous durable-client full endpoint",
+      "status": "correctness and physical reopen passed; latency and runtime ceiling failed; full React UI unqualified",
+      "source": {
+        "commit": "6d85738294c4ae3bc553c12a84ce6f38b8168377",
+        "parent": "a588fc1641f23c8f341d277a3a5c8f49a39e19ef",
+        "branch": "llp-ship/acquisition-20260912/owner-architecture-restart",
+        "promotion": false,
+        "scope": "The source was clean and reviewed for isolated experimental delivery. This record preserves a failed latency experiment; it does not promote the standalone client or replace the production SnapbackClient."
+      },
+      "method": {
+        "experiment": "sub3-20260912-receipt-group-durable-client-01",
+        "startedAt": "2026-09-13T02:48:26.527Z",
+        "finishedAt": "2026-09-13T02:50:07.520Z",
+        "host": "expose-builder-pixel-a",
+        "platform": "linux",
+        "release": "6.8.0-100-generic",
+        "browser": "140.0.7339.186",
+        "node": "v24.13.1",
+        "instrumented": false,
+        "harnessVersion": "v3-durable-directory-scopes-async-row-export",
+        "oracleVersion": "native-acquisition-restart-v1",
+        "preNavigation": {
+          "freshProfile": true,
+          "sdkInitialized": false,
+          "physicalReads": false,
+          "firstUseQueries": false
+        },
+        "clockScope": "Navigation includes SDK/program/auth loads, the actual 100-conversation minimal DOM inbox, durable native content and receipt settlement, the network cut and first named offline IR history/search. Physical inspection, owner/browser stop and subsequent offline process reopen follow the primary clock. Milestones and individual query times are not additive component costs.",
+        "v3Delta": "The v2 timed app, fixture, receipt, first-use oracle, clock and process-reopen blocks are preserved. v3 extends post-clock physical inspection to five stores and awaits diagnostic SDK.rows; no first-use query or index preparation is moved before navigation."
+      },
+      "fixedHashes": {
+        "fixture": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+        "fixtureRows": "1c0d8f7f79d9e0eac7871669bf3df7315f13ba2b36b17a883b72d62bd35ad937",
+        "oracle": "461625b6e78b0a77146120c65319ca965d4132aac0ac952a9dba2dd7984834de",
+        "owner": "582e5ed525e986c0c6e530d5fc68a780976789ca2fdb2a0b7f8ba66073f3ae39",
+        "compilerCore": "ef1f484a2b82511f9511add4d4a964d5313e119dc63cdbadd9d9cba3c8a88f32",
+        "browser": "5386de944dc312f838d69a974253d23bdb029acc072e28e6b11aa478c8b504d5",
+        "harness": "a5dc4a9a75a83e725ee9fb0f1213c8b1fe7d8716a0292cb800049297943d9d4e",
+        "clientEntry": "a3edc44dae37d80f9d53905f0a66af2288f3e4d5a222cad4883fc8faf584990a",
+        "compiledProject": "526a8ddf51c2cb1b15aee97bc2695538d60a78aeeb7246c948d1ab6be020cdab",
+        "app": "9ea8fe3bb5c9287224ffb80d7c58c8a20b8123c9507b330816b9ecc1e75d817e",
+        "clientArchive": "0fef0b055a49a564ae9d5ccf4ee5be5d674e4b15004aafc1a2b5792c9d93d0c4",
+        "clientManifest": "98e130166c0d094bc6cfdae845d90a6ba1be08d6af14b46cfb33644d23017250"
+      },
+      "sample": {
+        "rawPrimaryPass": true,
+        "rawPrimaryPassMeaning": "The experimental full-endpoint correctness assertions passed. This boolean does not assert the three-second target, runtime ceiling or full UI qualification.",
+        "firstInboxMs": 375.21717400000034,
+        "contentMs": 22482.19024,
+        "receiptSettlementMs": 25804.872514,
+        "firstUseStartedAtMs": 25809.619597,
+        "completeAcquisitionMs": 25979.865335,
+        "firstOfflineHistoryMs": 137.29999923706055,
+        "firstOfflineSearchMs": 23.700000762939453,
+        "physicalReopenMs": 675.8099380000058,
+        "reopenHistoryMs": 107.89999961853027,
+        "reopenSearchMs": 28.299999237060547,
+        "inboxRows": 100,
+        "fixtureUnchanged": true,
+        "oracleUnchanged": true,
+        "statusAtSettlement": {
+          "principal": "dev:alice",
+          "seq": 10291,
+          "pending": 0,
+          "rejected": 0,
+          "acquired": 10008,
+          "exhausted": true
+        },
+        "firstUse": {
+          "pass": true,
+          "execution": "actual named IR evaluator through NativeAcquisitionClient.query; no physical/SDK rows inspection",
+          "historyRows": 50,
+          "historyState": "partial",
+          "historyCursor": "h1",
+          "searchRows": 1,
+          "searchState": "held",
+          "connection": "offline",
+          "scope": "The frozen ordered IDs and bodies match; truthful held/partial states do not establish complete authority coverage."
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "sdkMessageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "sdkMatchesPhysical": true,
+        "matchesOwnerMessages": true,
+        "ownerReceipts": {
+          "sameKeys": true,
+          "total": 10008,
+          "finalReceived": 10008,
+          "falseToTrue": 5558,
+          "trueToFalse": 0,
+          "identityChanges": 0,
+          "initiallyReceived": 4450,
+          "firstSequenceChanges": 0,
+          "nonadvancingNewSequences": 0,
+          "validSequences": true,
+          "transitionsSha256": "52da9644d89d88a7e668d890987fe50dcb1c954d3a53e8afae88c23adcef1a88",
+          "retainedFirstSequenceSha256": "0dff8e2c29afaace6e39b98c082198ee297cd598251222b2f93a06642cbdc936",
+          "observation": "Per-row before/after committed SQLite states; changed receipt rows, not internal UPDATE statements or transport packets.",
+          "pass": true
+        },
+        "errors": []
+      },
+      "durableReopen": {
+        "pass": true,
+        "physicalOwnerStopped": true,
+        "physicalChromiumRestart": true,
+        "sameProfile": true,
+        "inboxRows": 100,
+        "historyState": "partial",
+        "searchState": "held",
+        "connection": "offline",
+        "format": "snapback2-durable-rows-v1",
+        "databaseVersion": 1,
+        "allFiveSnapshotsIdentical": true,
+        "schemaIdentical": true,
+        "snapshotScope": "All five key/value/type-aware record snapshots remain identical through the offline cold queries; schema descriptors match. These are diagnostic record hashes, not internal IDB allocation or crash-durability evidence.",
+        "snapshots": {
+          "directory": {
+            "records": 20216,
+            "diagnosticEncodedUtf8Bytes": 436046176,
+            "sha256": "fff5537728cb40147288a56e6dd43626dce7c6c9c9ec47ccf6cfa754ed0cb834"
+          },
+          "meta": {
+            "records": 4,
+            "diagnosticEncodedUtf8Bytes": 619930,
+            "sha256": "4f8c324d67f1b898012e0c515b24ef6f2649fb59c2c2bdfcbfc81a0c077fdce4"
+          },
+          "pages": {
+            "records": 103,
+            "diagnosticEncodedUtf8Bytes": 8367040,
+            "sha256": "e8c9209de3b035b65fc479edf60e04437dcd69bc28e9892d35c386948ab237c5"
+          },
+          "proofs": {
+            "records": 3,
+            "diagnosticEncodedUtf8Bytes": 52082,
+            "sha256": "a2d999e330aee5a808b895b225b1c2fcf0ef4fcd2df811950ed5a36506d8882e"
+          },
+          "scopes": {
+            "records": 1,
+            "diagnosticEncodedUtf8Bytes": 1693,
+            "sha256": "4c906fd2f0a4a1a6f02e9d1f18404e35b0d268158fe0c45743a71d649a5b987e"
+          }
+        },
+        "integrity": {
+          "pageRows": 20216,
+          "directoryRecords": 20216,
+          "postingKeys": 320956,
+          "scopeKeys": 10008,
+          "proofPositions": 101,
+          "proofRanges": 2,
+          "proofAbsences": 0,
+          "proofVerdicts": 0,
+          "scopes": 1
+        },
+        "storageDiagnosticScope": "Post-clock type-tagged JSON expands binary keys. Its encoded byte count is neither persisted payload size, disk allocation nor retained heap.",
+        "durabilityScope": "Actual IndexedDB transaction completion and owner-offline graceful Chromium process restart, under default browser durability; no fsync or power-loss qualification."
+      },
+      "singlePointComparison": {
+        "referenceExperiment": "sub3-20260912-owner-architecture-restart-01",
+        "referenceSource": "a588fc1641f23c8f341d277a3a5c8f49a39e19ef",
+        "referenceRawSha256": "7b7156ba4e7e616a48ec6f1934c39634513d0597b9939c384a56835482c383d1",
+        "referenceFullMs": 7494.677590000001,
+        "candidateFullMs": 25979.865335,
+        "candidateMinusReferenceFullMs": 18485.187744999996,
+        "referenceContentMs": 4874.641170000001,
+        "candidateContentMs": 22482.19024,
+        "candidateMinusReferenceContentMs": 17607.54907,
+        "scope": "One later full candidate point versus the retained earlier owner-architecture point. Same frozen fixture, minimal DOM app/navigation and first-use workload; SDK/evaluator/carrier and owner receipt grouping changed together. v3 preserves the timed app/oracle blocks and extends post-clock physical inspection. This point is slower, not a repeated or adjacent cohort, distribution, per-component causal attribution, or original React/legacy-ACK comparison."
+      },
+      "qualification": {
+        "subThreeSeconds": false,
+        "replicatedCohort": false,
+        "distributionOrP95": false,
+        "sameLegacyProtocolOrUi": false,
+        "promotion": false,
+        "fullReactUi": false,
+        "runtimeBytes": {
+          "gzip": 105675,
+          "ceiling": 90000,
+          "passes": false,
+          "sourceManifest": "/tmp/acquisition-durable-runtime-bytes-manifest-02-20260912.json",
+          "sourceManifestSha256": "c225ef1e4d53c3fff478d6f7e31538f20f6952afd57e46db18da1fb8b0e60f7f",
+          "scope": "The unchanged canonical five required roots include NativeAcquisitionClient; inputs were verified unchanged at source 6d85738294c4ae3bc553c12a84ce6f38b8168377. No byte exemption."
+        },
+        "omittedLegacyUi": [
+          "React/provider mounting",
+          "live subscriptions",
+          "message-preview aggregation",
+          "composer/new-conversation controls",
+          "development overlay"
+        ],
+        "receiptProtocol": "The grouped native protocol changes logical commit boundaries. The frozen per-row receipt outcomes pass; this does not establish equivalence to the retired 201 ordinary ACK terminals."
+      },
+      "postflight": {
+        "pass": true,
+        "at": "2026-09-13T02:51:58.919991+00:00",
+        "active": [],
+        "processReadGaps": [],
+        "priorPidsRemaining": [],
+        "betweenBrowserProcesses": [],
+        "finalBrowserPids": [],
+        "ownerPostStopProcess": null,
+        "clientFilesVerified": 258,
+        "sourceFixturePriorArtifactsPreserved": true,
+        "privateExperimentOwnerAndProfileRetained": true,
+        "temporaryAppBuildRemovedByHarness": true,
+        "groupReleased": true
+      },
+      "artifacts": [
+        {
+          "path": "/tmp/sub3-20260912-receipt-group-durable-client-01.json",
+          "bytes": 58944,
+          "sha256": "fdd37044c747e5153a214befaba7215ae7210495dcfd4cb458daacd57405d2bd"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-durable-client-sample-20260912.json",
+          "bytes": 40404,
+          "sha256": "29428809a7acba8b38c5ed936bf965b40c443a0a965190318e448cef4a28c6bc"
+        },
+        {
+          "path": "/tmp/sub3-20260912-receipt-group-durable-client-01.log",
+          "bytes": 355,
+          "sha256": "6f10c883af699ffcba232c3436b8fb4919f8af21a9147898948e5845577034e5"
+        },
+        {
+          "path": "/tmp/sub3-20260912-receipt-group-durable-client-01-build-meta.json",
+          "bytes": 819,
+          "sha256": "0967abca7ccf219fe83cbc6c70df7262e792808a6c27a40eb4e5816484d5d302"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-postflight-20260912.json",
+          "bytes": 8281,
+          "sha256": "03560d3f2e221124777227f4ede988adc4cf18257d3e960e109b1c3ff4b27c69"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-client-linux-release-manifest-20260912.json",
+          "bytes": 9093,
+          "sha256": "d02ad16d7312082f9e36c7b6fbbacd16ce1ef5a752b183eb731e5b89dcbb933d"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-launch-01-20260912.sh",
+          "bytes": 1187,
+          "sha256": "824a37a9a52eab5ef141dd33a2bb694589e24fc2f4dedca96be8c0ac8bbdcb52"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-v3-20260912.mjs",
+          "bytes": 43950,
+          "sha256": "a5dc4a9a75a83e725ee9fb0f1213c8b1fe7d8716a0292cb800049297943d9d4e"
+        },
+        {
+          "path": "/tmp/acquisition-native-restart-v3-20260912-manifest.json",
+          "bytes": 1511,
+          "sha256": "914a9c468ff0ab2f5bf2da4e6dddb3898994e63a6285ced5a5fe317e029272a6"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-client-source-20260912.tar.gz",
+          "bytes": 4941189,
+          "sha256": "bca02445d5ab83f785264c785fc871518e98f429aa4380eb5546d15fc93040ea"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-client-source-manifest-20260912.json",
+          "sha256": "3d05d8db3b1b7e8ac77d28662786f1cea7afd29f4bd7197b0cb867fe6857c147"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-client-sdk-20260912.tar.gz",
+          "bytes": 1461367,
+          "sha256": "0fef0b055a49a564ae9d5ccf4ee5be5d674e4b15004aafc1a2b5792c9d93d0c4"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-client-sdk-20260912.json",
+          "bytes": 117192,
+          "sha256": "98e130166c0d094bc6cfdae845d90a6ba1be08d6af14b46cfb33644d23017250"
+        },
+        {
+          "path": "/tmp/acquisition-receipt-group-preflight-staged-20260912.json",
+          "bytes": 7887,
+          "sha256": "7da0ded062ab4aa50e8f7a902f833c2d189875ad2e9c584003f1931cd63eeaf0"
+        }
+      ],
+      "unprovenHypothesis": "Directory/posting work is a suspect for investigation given 320956 posting keys over 20216 directory records. The diagnostic encoding expands binary keys and does not measure persisted size or heap. This run has no component timing that attributes the slowdown to indexing or separates it from owner receipt-group cost.",
+      "decision": "Preserve the failed latency result before the next architecture change. The 25979.865335 ms full candidate point misses three seconds, the 105675-byte required runtime exceeds 90000, and the reduced UI leaves full application qualification outstanding. The 7494.677590 ms prior point is retained unchanged; the active goal remains open."
     }
   }
 }
