@@ -1792,3 +1792,73 @@ All repeated-case values below are medians of three reported per-run statistics.
 Traversal timing is separate: 27 initial/after-leave/regrant identities, repeated in each trial, total 162 walks. Candidate medians are lower for p50/p95/p99/max in 26/22/22/21 of 27; corresponding pairs are lower in 58/56/55/51 of 81. The sole median p50 regression is reader 0’s four-page thread after leave (1.831→1.847 ms). Thread walks contain four pages and empty/outsider controls one, so their tail percentiles have very small samples. Every traversal regression remains in the summary, including candidate’s worst page observation of 24.790 ms versus baseline’s 23.776 ms. Walk wall time and page throughput include oracle checks; per-page HTTP/JSON/projection timers end before those checks.
 
 Each process restores the same pristine SQLite/session snapshot. Previously issued seven-day guest sessions are unchanged through leave/regrant; no refresh or process restart occurs between those operations. Full proofs and initial traversals warm repeated cases; native caches remain as implemented, and OS cache is retained without resets or measured residency. Results are scoped to this loopback macOS experiment. They do not establish a comparator, cross-machine, device, write, memory-pressure, durability, universal or eventual-publication win. The raw-preserving ledger bundle retains every case, traversal, proof, paired loss and exact artifact/controller binding.
+
+## Four-variant TCP and memory-accounting follow-up
+
+A four-variant follow-up on the prepared Durand M4 Pro macOS host completed on
+2026-09-13 at 23:08:04 UTC. A is the retained baseline, whose CLI SHA
+`92db0d86…` matches published 0.2.8; B adds only
+`-DSQLITE_DEFAULT_MEMSTATUS=0`; C adds the two-file bounded TCP_NODELAY change;
+D combines B and C. All use source `8a81eb855`, the adopted
+`-USQLITE_ENABLE_MEMORY_MANAGEMENT` input, production optimization and the same
+configured SQLite page-cache size. B, C and D remain experimental.
+
+Logical rounds 51–54 ran serially in orders A/B/C/D, B/D/A/C, C/A/D/B and
+D/C/B/A. Each process restored the same pristine SQLite fixture and previously
+issued guest sessions. All 16 runs passed the full fixture, auth, exact-result,
+old-cursor, leave/current-union and same-session regrant checks: 312,000 repeated
+case calls, 18,720 excluded warmups and 89,360 separately timed traversal pages
+(401,360 timed reads total), with zero reported errors. The preceding four
+50-sample smoke runs are excluded.
+
+The table counts lower p50/p95/p99/max and higher RPS, in that order. A case
+median is the average of the middle two of four per-run statistics; it is not a
+pooled percentile. Paired counts compare matching logical rounds.
+
+| Contrast | Better case medians /39: p50/p95/p99/max/RPS | Better pairs /156: p50/p95/p99/max/RPS | Worse C1 p50 medians |
+|---|---|---|---|
+| B / A | 37/35/31/27/37 | 146/136/114/98/141 | 2/21 |
+| C / A | 22/23/24/16/23 | 84/81/80/67/82 | 6/21 |
+| D / A | 25/26/19/19/23 | 114/108/86/79/114 | 14/21 |
+| D / B | 11/13/12/12/11 | 48/54/58/67/54 | 18/21 |
+
+B/A has one median p95 tie; C/A has one median p99 tie and one paired p50 tie.
+D/B has one paired p50 tie and one paired p95 tie. Every other non-winning
+entry in this table is worse. B's only C1 p50 median
+losses are the 30- and 150-group hot points. C has six C1 p50 median losses;
+D has fourteen, including all seven 5-group C1 cases. D is worse than B on
+28/39 p50 medians, including 18/21 C1 cases.
+
+For the 150-group working feed at C8, A/B/C/D p50 medians are
+6.084/4.8925/6.1225/5.0315 ms. C1 remains unstable: the 5-group hot-point
+p50 medians are 0.3135/0.281/0.2945/1.6495 ms. In round 53, C's 30-group
+feed-next C1 p50 is 4.656 ms against A's 0.702 ms. B also has paired tail
+regressions: round 52's 150-group hot-point max is 22.836 ms versus A's
+7.445 ms. The largest single case maxima anywhere in A/B/C/D are
+35.429/22.836/30.276/22.521 ms; these do not imply each case's tail improved.
+All observations and losses remain in the 16 raw-preserving records.
+
+This matrix does not supersede the earlier three-pair MEMSTATUS experiment:
+that run had 12/21 C1 p50 medians worse, including higher 150-group thread-first
+p50 in all three pairs. The present run has 2/21 worse. Their disagreement
+precludes claiming a stable C1 improvement from these runs alone.
+
+Complete traversal timings are separate: 27 phase/actor/operation identities
+per run, including outsider and empty controls. The following counts lower
+page p50/p95/p99/max and higher whole-walk pages/second, respectively.
+
+| Contrast | Better traversal medians /27 | Better traversal pairs /108 |
+|---|---|---|
+| B / A | 17/16/15/14/18 | 68/64/70/65/71 |
+| C / A | 11/13/13/11/12 | 49/50/49/48/48 |
+| D / A | 15/13/13/13/15 | 64/57/56/57/61 |
+
+B/A has one paired p95 tie; other non-winning traversal entries above are worse.
+Page timers include HTTP, JSON decoding and projection; walk wall time and
+throughput also include oracle/loop work. One- and four-page controls provide
+little percentile information. Host CPU/process/memory snapshots are pre-run
+point samples; OS cache was retained without resets and residency was
+unmeasured. These observations establish neither Nagle causality nor an
+adoption, comparator, WAN, device, write, memory-pressure or durability claim.
+The controller is `0b9cb9b0…`, qualification receipt `954a20ab…`, and frozen
+instrument `ebe5b64d…`; the annotations retain their complete hashes and proofs.
