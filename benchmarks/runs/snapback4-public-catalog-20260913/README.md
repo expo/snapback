@@ -880,3 +880,151 @@ still includes membership-based authorization, writes with matched durability, f
 joins, counts, realtime fanout, reconnect/offline, search, files, scheduled jobs,
 SDK/UI costs, and hosted network conditions. This catalog does not stand in
 for those workloads.
+
+## SQLite page-cache experiments — no setting adopted
+
+A first hot-only pilot kept the initial point/thread/feed pages in a small
+working set. All four cache settings produced identical per-case miss
+deltas, including zero misses for the 150-group first feed over 100
+warmups plus one measured call. The planned hot-only repeated matrix was
+left unexecuted; those pilots supply no comparative latency claim.
+
+A distinct native-core experiment then rotated through the membership
+fixture's point and feed domains. It uses one binary built from qualified
+0.2.3 source `78366743b`, with the original cursor implementation. The
+baseline leaves `Store::open` unchanged and reads back `cache_size=-2000`;
+other runs set only that connection's cache target to -4096, -8192 or
+-16384. Negative values are approximate KiB targets, not hard heap limits.
+All runs report SQLite 3.53.2, 4096-byte pages, WAL and synchronous NORMAL.
+No query, authorization or result cache, resource ceiling, rule or
+transaction setting changes.
+
+Three rounds use orders default/4/8/16, 16/8/4/default and
+4/default/16/8, with one fresh process per setting/run, pinned to Linux
+virtual CPU 0. OS cache is retained without resets; residency is unmeasured.
+Nine cases per process each have 100 excluded warmups and 500 measured
+queries: **54,000 timed core queries** across twelve processes. Hot point
+repeats one key. Rotating point domains contain 1,000/6,000/30,000 rows;
+feed domains contain 50/300/1,500 pages. Each case visits
+`min(500, domain size)` distinct timed inputs, so the large domains are
+sampled rather than traversed fully. The first 100 inputs repeat after
+warmup. Real principal rules execute, but HTTP/session handling is outside
+this native experiment.
+
+Every warmup and timed response is checked against the hash-bound full
+fixture oracle, including exact rows and next cursor. Untimed first/last
+pages check terminal behavior. Full query-outcome hashes, including meters,
+caps, sequence, tables and cursor, match across all twelve runs; the outsider
+and empty-group controls match too. Inputs, oracle work, hashing and storage
+observations are outside the query timer. The twelve
+`membership-sqlite-working-set-profile` records in `metrics/storage.jsonl`
+retain all observations. Medians of three per-run percentiles:
+
+| Case | Default −2000 p50 / p95 (µs) | −4096 | −8192 | −16384 |
+|---|---:|---:|---:|---:|
+| 5-group hot point | 114.584 / 155.917 | 112.959 / 153.250 | 112.875 / 144.500 | 112.125 / 138.208 |
+| 5-group rotating point | 134.000 / 176.125 | 121.958 / 278.251 | 119.084 / 171.000 | 118.833 / 190.625 |
+| 5-group rotating feed | 1201.626 / 2961.920 | 1228.584 / 3714.087 | 1203.001 / 2656.669 | 1217.085 / 3120.044 |
+| 30-group hot point | 113.666 / 158.209 | 115.125 / 528.625 | 113.708 / 148.875 | 113.625 / 161.916 |
+| 30-group rotating point | 132.166 / 171.958 | 121.292 / 663.417 | 120.333 / 162.042 | 119.709 / 211.292 |
+| 30-group rotating feed | 5366.172 / 7544.757 | 5416.172 / 12447.845 | 5134.088 / 8794.842 | 5203.671 / 10221.093 |
+| 150-group hot point | 112.292 / 137.750 | 113.084 / 148.167 | 112.042 / 140.000 | 111.833 / 137.166 |
+| 150-group rotating point | 130.334 / 159.708 | 130.709 / 179.959 | 132.500 / 167.542 | 132.000 / 167.666 |
+| 150-group rotating feed | 18474.017 / 35691.032 | 18392.683 / 24193.105 | 18535.726 / 25964.607 | 18193.766 / 27298.191 |
+
+The 150-group rotating feed illustrates the limit of this change. Across
+600 calls per case (warmups included), each round records the same cache
+miss totals shown below. The 8/16 MiB targets reduce misses by
+97.27%/97.87%, while p50 medians change by +0.33%/−1.52%. The corresponding
+p95 medians are 27.25%/23.52% lower, but same-round p95 changes include a
+regression for both settings. Smaller point domains have lower p50 medians,
+while the 150-group rotating point does not. These observations do not
+establish a general benefit or justify changing the production default.
+
+| Cache size | 150-group feed misses / 600 calls | Cache-used bytes after case | Median observed query-phase high-water (KiB) |
+|---|---:|---:|---:|
+| Default −2000 | 46,114 | 2,102,672 | 130,512 |
+| −4096 | 14,032 | 4,313,488 | 132,696 |
+| −8192 | 1,259 | 8,626,320 | 136,932 |
+| −16384 | 984 | 12,033,936 | 140,364 |
+
+SQLite counters include warmups and cannot assign misses to measured calls
+alone; cache misses are not physical disk-I/O counts. Cache-used bytes are
+current approximate pager allocation. Observed query-phase VmRSS/VmHWM
+include the parsed 100,000-row fixture, cloned oracle and other profiler
+allocations, so they are not production memory estimates or hard limits.
+Process CPU ticks also cover whole cases, including input/oracle/hash work,
+and use the recorded 100 ticks/second; they are not syscall counts or
+query-only CPU time. Every case has zero write/spill counter deltas.
+
+The profiler SHA-256 is
+`ce850dc695a270e0349a6bd832dcf4cf6b8b000370e20c5dae5096c980027b09`;
+the common binary is
+`0b9aac6b7c185d751491b553c8d603d037fbc2da44fdc705eb60edf8823ad174`,
+built with the production profile at optimization level 3. The controller
+is `927314624887db2c73eab7e23aff5fc01c429eeb5fa2172479c10c1b6cb1fdec`.
+No cache setting is adopted. This is not an HTTP, comparator, device,
+write/durability or shipping-default result.
+
+## Membership execution-phase diagnostics
+
+A temporary instrumented copy of qualified 0.2.3 source `78366743b` adds
+RAII timers around existing query, merge, rule and store regions. It keeps
+the original expressions, branches, meter charges and transaction calls.
+The default SQLite cache remains -2000. An initial pilot's full outcomes,
+meters and cursors match the uninstrumented pilot over 100 warmups plus one
+measured call per case. This is a diagnostic binary, not a product change.
+
+Three fresh processes run serially at Linux virtual CPU 0. Each measures
+nine hot-point, rotating-point and rotating-feed cases with 200 samples
+after 100 warmups: **5,400 timed queries and 2,700 warmups**. Domain coverage
+is `min(200, domain size)` distinct timed inputs, with one key for hot
+points. The full fixture oracle checks every observed row and cursor,
+including untimed first/terminal pages and both empty readers. Complete
+outcome/meter hashes agree across the three instrumented runs. The
+uninstrumented equality preflight is limited to the pilot's input sequence.
+OS cache is retained without resets; residency is unmeasured.
+
+Phase counters exclude warmups and oracle/hash work. For each phase and
+run, summed nanoseconds are divided by 200 queries; the table reports the
+median of those three means. Percentage and call columns are separately
+computed medians of per-run ratios, so dividing displayed median durations
+need not reproduce the percentage. These are **overlapping inclusive
+regions**, not percentile costs or additive exclusive shares. Selected
+150-group rotating-feed observations:
+
+| Source region | Mean ms / query | Share of query total | Calls / query |
+|---|---:|---:|---:|
+| `query.total` | 20.204 | 100.00% | 1.000 |
+| `merge.initial_heads` | 16.013 | 79.13% | 1.000 |
+| `read.bounds` | 0.891 | 4.40% | 151.000 |
+| `rule.probe` | 7.721 | 38.39% | 169.300 |
+| `store.scan_keys` | 17.155 | 84.79% | 340.300 |
+| `store.step_collect_inclusive` | 16.518 | 81.63% | 340.300 |
+| `store.row_json` | 0.996 | 5.05% | 657.875 |
+| `store.prepare_bind` | 0.233 | 1.16% | 340.300 |
+
+The iteration/collection region is a concrete next inspection target. It
+includes SQLite stepping, column copies and allocations, JSON decoding,
+collection and iterator cleanup. The JSON subregion is already included;
+subtracting it does not isolate pure SQLite time. `prepare_bind` measures
+cached statement acquisition and binding, not every possible activity
+inside later iteration. The 340.3 store scans per query include 169.3 rule
+probe lookups; the separate prepared-scan count is 171, including membership
+discovery. This record establishes no more specific cause or speedup.
+
+The three `membership-execution-phase-profile` records in
+`metrics/storage.jsonl` retain all cases, phase sums, complete outcome
+hashes and storage observations. Counter bookkeeping and compiler layout
+affect absolute costs; these means cannot be compared with earlier
+uninstrumented percentiles as an optimization result. SQLite counters still
+cover whole cases including warmups, and observed query-phase process
+memory includes the parsed fixture and cloned oracle. No HTTP, comparator,
+device, write/durability or production-default claim follows.
+
+The profiler SHA-256 is
+`65bc1f4ad8ca5f6ef5830760a58fdad68e7d4e1bf284de4a2a222e6a90a2a7ed`;
+the instrumented production opt-3 binary is
+`eb17f777f4a05aa87fa274e404862bfa309a72214f049c4699cb77c72b5166a6`.
+Original and instrumented hashes for every modified core file are retained
+in each record's source bindings.
