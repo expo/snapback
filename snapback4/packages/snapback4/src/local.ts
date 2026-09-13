@@ -124,9 +124,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setLink("signed-out");
-    await forgetSession(base, sessions);
     for (const listener of sessionListeners) listener(null);
     for (const listener of viewerListeners) listener(null);
+    await forgetSession(base, sessions);
   };
   const refusedSession = async (denied: unknown) => {
     if (!sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
@@ -277,6 +277,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
     let watermark = state?.watermark ?? 0;
     const touched = new Set<string>();
+    let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;
     try {
@@ -318,6 +319,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
             nativeReady = false;
+            adoptedGeneration = true;
             nativeReady = await installNative(aborter.signal);
           } catch {
             return false;
@@ -348,7 +350,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
       return true;
     } finally {
-      if (!closed && touched.size > 0) {
+      if (!closed && adoptedGeneration) {
+        for (const watch of watches.values()) void rerun(watch);
+      } else if (!closed && touched.size > 0) {
         for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
       } else if (!closed && caughtUp) {
         for (const watch of watches.values()) {
@@ -493,15 +497,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     watch.running = true;
     try {
       const { read, tables, nextExpiry } = await runLocal(watch.op, watch.args);
-      if (closed) return;
+      if (closed || watches.get(watch.key) !== watch) return;
       watch.tables = tables;
       watch.snapshot = read;
       scheduleExpiry(watch, nextExpiry);
       notify(watch);
     } finally {
       watch.running = false;
-      if (watch.dirty) {
-        watch.dirty = false;
+      const dirty = watch.dirty;
+      watch.dirty = false;
+      if (dirty && watches.get(watch.key) === watch) {
         void rerun(watch);
       }
     }

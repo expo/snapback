@@ -122,6 +122,29 @@ test("online pending writes emit their terminal outcome exactly once", { timeout
   unsubscribe(); await client.close();
 });
 
+test("online auth refusal settles writes that were queued behind the refused request", { timeout: 5000 }, async () => {
+  const reply = deferred();
+  const terminal = [];
+  let requests = 0;
+  const client = createClient({ url: "http://auth-tail.invalid", persona: "alice", fetch: async () => {
+    requests++;
+    return reply.promise;
+  } });
+  client.onWrite((write) => terminal.push(write));
+  const first = client.mutate(send, { n: 1 });
+  const tail = client.mutate(send, { n: 2 });
+  await until(() => requests === 1, "the first write did not enter the transport");
+  reply.resolve(Response.json({ denied: { code: "E_AUTH", family: "auth", message: "expired" } }, { status: 401 }));
+  const outcomes = await Promise.all([first, tail]);
+  assert.equal(requests, 1, "a queued tail must not be sent after authentication ends");
+  assert.deepEqual(outcomes.map((write) => write.state), ["failed", "failed"]);
+  assert.deepEqual(outcomes.map((write) => write.why.code), ["E_AUTH", "E_AUTH"]);
+  assert.equal(terminal.length, 2);
+  assert.deepEqual(new Set(terminal.map((write) => write.id)), new Set(outcomes.map((write) => write.id)));
+  assert.equal(client.link(), "signed-out");
+  await client.close();
+});
+
 test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async () => {
   const queued = [], reply = deferred(), probe = deferred();
   const device = emptyDevice({ call: async (request) => {
@@ -229,6 +252,142 @@ test("local observations skip idle sync and rerun only after a changed page is a
   await until(() => log.length === 3, "changed poll did not apply and rerun");
   assert.deepEqual(log, ["query", "apply", "query"], "the changed page applies before its observation reruns");
   unsubscribe(); observed.close(); await client.close();
+});
+
+test("local generation adoption reruns observations whose dependencies changed", { timeout: 5000 }, async () => {
+  const backend = (generation, table) => ({
+    generation,
+    schema: { tables: { [table]: { columns: {}, indexes: {}, sync: { audience: "public" } } } },
+    programs: [{ name: "read", kind: "Query", args: {}, body: [{ table }] }],
+  });
+  const oldBackend = backend(1, "a"), newBackend = backend(2, "b");
+  let serverGeneration = 1, deviceGeneration = 1, schemas = 0, queryRuns = 0;
+  const change = deferred();
+  const device = emptyDevice({ call: async (request) => {
+    if (request.op === "sync_state") return { ok: { watermark: 0, generation: deviceGeneration, pending_ids: [], send_revision: 0 } };
+    if (request.op === "state") return { ok: { watermark: 0, generation: deviceGeneration } };
+    if (request.op === "adopt") { deviceGeneration = request.backend.generation; return { ok: null }; }
+    if (request.op === "apply") return { ok: { touched: [] } };
+    if (request.op === "query") {
+      queryRuns++;
+      const current = deviceGeneration === 1 ? { value: "old", table: "a" } : { value: "new", table: "b" };
+      return { ok: { data: [current.value], complete: true, tables: [current.table], unknown: false, nextExpiry: null } };
+    }
+  } });
+  const client = await createLocalClient({ url: "http://generation-watch.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(schemas++ === 0 ? oldBackend : newBackend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: serverGeneration, acknowledged: [] });
+    if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: serverGeneration }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  const observed = client.observe(query("read"), {});
+  const unsubscribe = observed.subscribe(() => {});
+  await until(() => observed.getSnapshot().data?.[0] === "old", "the generation-one observation did not run");
+  serverGeneration = 2;
+  await client.sync();
+  await until(() => observed.getSnapshot().data?.[0] === "new", "generation adoption left the old observation fresh");
+  assert.equal(queryRuns, 2);
+  unsubscribe(); observed.close(); await client.close();
+});
+
+test("closing a pending watch prevents its response from scheduling expiry or rerunning dirty work", { timeout: 5000 }, async () => {
+  const realSetTimeout = globalThis.setTimeout;
+  const realClearTimeout = globalThis.clearTimeout;
+  const longTimers = [];
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    const timer = realSetTimeout(callback, delay, ...args);
+    if (delay > 50_000) longTimers.push(timer);
+    return timer;
+  };
+  try {
+    {
+      const queryReply = deferred(), changes = [];
+      let queries = 0;
+      const client = createClient({ url: "http://closed-online-watch.invalid", persona: "alice", waitSeconds: 0, fetch: async (input, init) => {
+        const path = new URL(input).pathname;
+        if (path === "/q/read") { queries++; return queryReply.promise; }
+        if (path === "/changes") { const gate = deferred(); changes.push(gate); await held(gate, init?.signal); return gate.answer; }
+        throw new Error(`unexpected request ${path}`);
+      } });
+      const observed = client.observe(query("read"), {});
+      const unsubscribe = observed.subscribe(() => {});
+      await until(() => queries === 1 && changes.length === 1, "the online watch did not enter its query and poll");
+      changes[0].answer = Response.json({ seq: 1, tables: ["rows"], generation: 1 }); changes[0].resolve();
+      await until(() => changes.length === 2, "the table change did not dirty the pending online watch");
+      unsubscribe(); observed.close();
+      queryReply.resolve(Response.json({ data: ["late"], complete: true, seq: 1, tables: ["rows"], nextExpiry: Date.now() + 100_000 }));
+      await sleep(10);
+      assert.equal(queries, 1, "a closed dirty online watch reran after its response");
+      assert.equal(longTimers.length, 0, "a closed online watch retained a new expiry timer");
+      await client.close();
+    }
+    {
+      const queryReply = deferred(), change = deferred();
+      let queries = 0, touch = false;
+      const backend = {
+        generation: 1,
+        schema: { tables: { rows: { columns: {}, indexes: {}, sync: { audience: "public" } } } },
+        programs: [{ name: "read", kind: "Query", args: {}, body: [{ table: "rows" }] }],
+      };
+      const device = emptyDevice({ call: async (request) => {
+        if (request.op === "apply") return { ok: { touched: touch ? ["rows"] : [] } };
+        if (request.op === "query") { queries++; return queryReply.promise; }
+      } });
+      const client = await createLocalClient({ url: "http://closed-local-watch.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
+        const path = new URL(input).pathname;
+        if (path === "/schema") return Response.json(backend);
+        if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+        if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
+        throw new Error(`unexpected request ${path}`);
+      } });
+      const observed = client.observe(query("read"), {});
+      const unsubscribe = observed.subscribe(() => {});
+      await until(() => queries === 1, "the local watch did not enter its query");
+      touch = true;
+      await client.sync();
+      unsubscribe(); observed.close();
+      queryReply.resolve({ ok: { data: ["late"], complete: true, tables: ["rows"], unknown: false, nextExpiry: Date.now() + 100_000 } });
+      await sleep(10);
+      assert.equal(queries, 1, "a closed dirty local watch reran after its response");
+      assert.equal(longTimers.length, 0, "a closed local watch retained a new expiry timer");
+      await client.close();
+    }
+  } finally {
+    for (const timer of longTimers) realClearTimeout(timer);
+    globalThis.setTimeout = realSetTimeout;
+  }
+});
+
+test("local auth invalidation notifies viewer listeners before session deletion can fail", { timeout: 5000 }, async () => {
+  const change = deferred();
+  const session = { principal: "user:1", kind: "user", token: "token", expiresAt: Date.now() + 100_000 };
+  const sessionStore = {
+    async get() { return null; },
+    async set() {},
+    async delete() { throw new Error("secure delete failed"); },
+  };
+  const backend = {
+    generation: 1,
+    schema: { tables: { remote: { columns: {}, indexes: {} } } },
+    programs: [{ name: "read", kind: "Query", args: {}, body: [{ table: "remote" }] }],
+  };
+  const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice().opener, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
+    if (path === "/q/read") return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "expired" } }, { status: 401 });
+    if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  const viewers = [];
+  client.onViewer((viewer) => viewers.push(viewer));
+  const read = await client.query(query("read"), {});
+  assert.equal(read.denied.code, "E_AUTH");
+  assert.equal(client.viewer(), null);
+  assert.deepEqual(viewers, [null]);
+  assert.equal(client.link(), "signed-out");
+  await client.close();
 });
 
 test("local observations rerun when the device-reported visible lifetime expires", { timeout: 5000 }, async () => {

@@ -88,6 +88,19 @@ export function createClient(options: ClientOptions): Client {
   };
   const watches = new Map<string, Watch>();
   const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; resolve: (write: Write) => void }[] = [];
+  let sending: (typeof pending)[number] | null = null;
+
+  const failUnsentWrites = (why: Refusal) => {
+    const unsent = pending.filter((entry) => entry !== sending);
+    if (unsent.length === 0) return;
+    const retained = sending ? [sending] : [];
+    pending.splice(0, pending.length, ...retained);
+    for (const entry of unsent) {
+      const outcome = { state: "failed", id: entry.id, why } as const;
+      entry.resolve(outcome);
+      emitWrite(outcome);
+    }
+  };
 
   const setLink = (next: Link) => {
     if (closed) return;
@@ -98,6 +111,7 @@ export function createClient(options: ClientOptions): Client {
       void flush();
       for (const watch of watches.values()) void refresh(watch);
     } else if (next === "signed-out") {
+      failUnsentWrites(auth());
       for (const watch of watches.values()) {
         watch.lastServer = null;
         watch.snapshot = { denied: auth() };
@@ -195,7 +209,7 @@ export function createClient(options: ClientOptions): Client {
     watch.inFlight = true;
     try {
       const { read, tables, nextExpiry } = await runQuery(watch.op, watch.args);
-      if (closed) return;
+      if (closed || watches.get(watch.key) !== watch) return;
       watch.tables = new Set(tables);
       if ("data" in read) {
         watch.lastServer = read;
@@ -210,8 +224,9 @@ export function createClient(options: ClientOptions): Client {
       notify(watch);
     } finally {
       watch.inFlight = false;
-      if (watch.dirty) {
-        watch.dirty = false;
+      const dirty = watch.dirty;
+      watch.dirty = false;
+      if (dirty && watches.get(watch.key) === watch) {
         void refresh(watch);
       }
     }
@@ -298,7 +313,11 @@ export function createClient(options: ClientOptions): Client {
     const run = async () => {
       while (!closed && pending.length > 0 && link !== "signed-out") {
         const entry = pending[0]!;
-        if (!await send(entry)) {
+        sending = entry;
+        let sent: boolean;
+        try { sent = await send(entry); }
+        finally { sending = null; }
+        if (!sent) {
           if (closed || !credentials) return;
           retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
           (retry as { unref?: () => void }).unref?.();
