@@ -1,6 +1,6 @@
 # Snapback 4: A poisoned engine mutex wedges the server until restart
 
-Status: Open
+Status: Closed
 Severity: major
 Priority: P1
 Area: correctness
@@ -12,9 +12,9 @@ Review provenance: Snapback4 comprehensive-review synthesis (2026-09-13 child re
 ## Problem and reproduction
 
 Every request thread locks the process-wide engine with `.lock().unwrap()`
-([serve.rs](../snapback4/crates/snapback4/src/serve.rs):98,100-108,145,151,162,187,279,503,
-[assets.rs](../snapback4/crates/snapback4/src/assets.rs):25,43), and
-[serve.rs](../snapback4/crates/snapback4/src/serve.rs):79-82 spawns one OS
+([serve.rs](../../snapback4/crates/snapback4/src/serve.rs):98,100-108,145,151,162,187,279,503,
+[assets.rs](../../snapback4/crates/snapback4/src/assets.rs):25,43), and
+[serve.rs](../../snapback4/crates/snapback4/src/serve.rs):79-82 spawns one OS
 thread per request. A `Mutex` that observes a panic while locked stays
 poisoned, and every later `.lock().unwrap()` panics in turn. So a single
 panicking request (e.g. any `expect("canonical")` site in
@@ -31,9 +31,9 @@ and there is no watchdog that restarts a wedged server.
 
 ## Implementation locations
 
-- [crates/snapback4/src/serve.rs](../snapback4/crates/snapback4/src/serve.rs) (`Mutex<Engine>`, per-request `lock().unwrap()`)
-- [crates/snapback4/src/assets.rs](../snapback4/crates/snapback4/src/assets.rs) (`lock().unwrap()`)
-- [crates/snapback4-core/src/partition.rs](../snapback4/crates/snapback4-core/src/partition.rs) (panic sites reachable under the lock)
+- [crates/snapback4/src/serve.rs](../../snapback4/crates/snapback4/src/serve.rs) (`Mutex<Engine>`, per-request `lock().unwrap()`)
+- [crates/snapback4/src/assets.rs](../../snapback4/crates/snapback4/src/assets.rs) (`lock().unwrap()`)
+- [crates/snapback4-core/src/partition.rs](../../snapback4/crates/snapback4-core/src/partition.rs) (panic sites reachable under the lock)
 
 ## Suggestion
 
@@ -43,3 +43,15 @@ handling cannot panic while holding the lock (validate before locking,
 replace `expect` with refusal errors at the partition sites above). Add a
 regression test that poisons the mutex in-process and asserts the next
 request still serves.
+
+## Resolution — 2026-09-13
+
+The HTTP host now acquires every shared server mutex through one recovery
+helper. On poison it retains the guarded value, clears the poison marker and
+reports the recovery, so later requests do not repeat the panic.
+
+`serve::tests::a_request_after_engine_poison_still_serves` deliberately
+panics with the engine mutex held, then sends a real `POST /seed` request over
+TCP. The request returns HTTP 200 with `{ "seeded": 0 }`, and the assertion
+confirms the engine mutex is no longer poisoned. The focused binary suite
+passes 5/5 tests.

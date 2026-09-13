@@ -356,7 +356,16 @@ pub fn data(options: &Options) -> i32 {
             0
         }
         Err(error) => {
-            eprintln!("{error}");
+            if error.to_string().starts_with(&format!("E_SCHEMA: no table {table}")) {
+                let tables = snapback4_core::Engine::open(store)
+                    .ok()
+                    .map(|engine| engine.schema().tables.keys().cloned().collect::<Vec<_>>())
+                    .unwrap_or_default();
+                let tables = if tables.is_empty() { "(none)".to_owned() } else { tables.join(", ") };
+                eprintln!("no table {table}; tables: {tables}");
+            } else {
+                eprintln!("{error}");
+            }
             1
         }
     }

@@ -249,7 +249,7 @@ test("check reports generated-type write failures and data refuses malformed lim
   assert.match(limited.stderr, /--limit must be a non-negative integer/);
   const unknown = invoke("data", "nosuchtable");
   assert.equal(unknown.status, 1);
-  assert.match(unknown.stderr, /no table nosuchtable/);
+  assert.match(unknown.stderr, /no table nosuchtable; tables: items/);
 });
 
 test("run says when a job ignores --as and executes as the system", (t) => {
