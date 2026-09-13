@@ -437,6 +437,8 @@ carries the chronology. After week four, 2026-09-12 (0.1.0):
 
 | `crates/snapback4-device` | the device in Rust: `rows::Rows` over the core's SQLite, the stream applied with the watermark, the outbox, `engine::local` queries and pending predictions, a generation change, one JSON call over a C ABI (`include/snapback4.h`), against a real engine in `tests/native.rs`; 1.7 MB linked on iOS; the same interpreter as wasm for the web measured at 194 KB gzip, so the web keeps TypeScript | the native landing |
 
+| `packages/snapback4-expo`, `apps/chat-expo/src/client.ts`, `witness/expo.mjs` (`WITNESS_DEV_CLIENT=1`) | the Expo module: Swift over the C ABI, the Rust library as a 9.1 MB xcframework (staticlib alone, stripped; 3.3 MB on npm), `nativeAvailable()` choosing the tier at import; the simulator witness on a development build passes the five proofs on the module (303 rows synced in 31 ms, reopen 6 ms, cold start offline 2 ms) → `metrics/witness.jsonl` `dev-client-native`; `snapback4-expo@0.1.14` on npm | the Expo module landing |
+
 Not in slice one by decision: effects execution, word search
 (`NOT-DOING.md`).
 

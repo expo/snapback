@@ -3,7 +3,7 @@
 // The report goes to witness/expo.mjs, which is waiting for it.
 import { isReady } from "snapback4/contract";
 import { api } from "../../chat/snapback/generated/api";
-import { openClient } from "./client";
+import { openClient, tier } from "./client";
 
 async function until<T>(check: () => Promise<T | null>, ms = 20_000): Promise<T | null> {
   const deadline = Date.now() + ms;
@@ -16,17 +16,24 @@ async function until<T>(check: () => Promise<T | null>, ms = 20_000): Promise<T 
 }
 
 export async function runWitness(reportUrl: string): Promise<void> {
-  const report: Record<string, unknown> = { platform: "ios-simulator" };
+  const report: Record<string, unknown> = { platform: "ios-simulator", tier };
+  // Each step is posted as it happens, so a stall names its step.
+  const step = (name: string) => { console.log(`witness ${name}`); return fetch(`${reportUrl}/step`, { method: "POST", headers: { "content-type": "text/plain" }, body: `${tier}: ${name}` }).catch(() => undefined); };
   try {
+    await step("start");
     const t0 = Date.now();
     const client = await openClient({ persona: "bob", guest: false });
+    await step("opened");
     const syncMs = Date.now() - t0;
     const thread = await client.query(api.thread, { conversationId: "c1" });
+    await step("thread read");
     const inbox = await client.query(api.inbox, {});
     const write = await client.mutate(api.send, { conversationId: "c1", body: "sent from the simulator" });
+    await step(`sent: ${write.state}`);
     const after = await client.query(api.thread, { conversationId: "c1" });
-    const state = await client.replica.state();
+    const state = "replica" in client ? await client.replica.state() : { watermark: -1 };
     await client.close();
+    await step("first done");
     report.first = {
       syncMs,
       threadRows: isReady(thread) ? thread.data.length : -1,
@@ -34,17 +41,25 @@ export async function runWitness(reportUrl: string): Promise<void> {
       next: isReady(thread) && !!thread.next,
       count: isReady(inbox) ? inbox.data[0]?.count : -1,
       write: write.state,
-      landed: isReady(after) && after.data[0]?.body === "sent from the simulator" && !after.data[0]?.pending,
+      // `last 50` reads newest first: the send is the first row, read
+      // straight after `sent`; it stays `pending` until the stream's copy
+      // replaces it, so that flag is a race, recorded not judged.
+      sentRowRead: isReady(after) && after.data[0]?.body === "sent from the simulator",
+      sentRowPending: isReady(after) ? after.data[0]?.pending === true : null,
       watermark: state.watermark,
     };
     // A second open on the same SQLite file: the rows are already there.
     const t1 = Date.now();
     const again = await openClient({ persona: "bob", guest: false });
     const reopenMs = Date.now() - t1;
-    const rows = await again.replica.store.read((tx) => tx.count("messages", "byConvTime", ["c1"], 10_000));
+    // The rows are there: the TypeScript tier counts them in its store; the
+    // module answers through the count it maintains.
+    const again_inbox = await again.query(api.inbox, {});
+    const rows = "replica" in again ? await again.replica.store.read((tx) => tx.count("messages", "byConvTime", ["c1"], 10_000)) : (isReady(again_inbox) ? Number(again_inbox.data[0]?.count ?? -1) : -1);
     const again_thread = await again.query(api.thread, { conversationId: "c1" });
     await again.close();
     report.second = { reopenMs, reopenedRows: rows, threadRows: isReady(again_thread) ? again_thread.data.length : -1 };
+    await step("second done");
     // Native proof of the M6/M8 behaviours, on the real SQLite store: the
     // link is a fetch this app gates, so the server never has to die.
     // (a) A cold start with the server unreachable opens on what the
@@ -83,6 +98,7 @@ export async function runWitness(reportUrl: string): Promise<void> {
     };
   } catch (error) {
     report.error = String((error as Error).message ?? error);
+    await step(`error: ${report.error}`);
   }
   await fetch(reportUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) });
 }

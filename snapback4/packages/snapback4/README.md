@@ -544,13 +544,22 @@ drive the real module. Measured: 1.7 MB linked on iOS, SQLite included;
 the same interpreter as wasm is 194 KB gzip, so the web keeps the
 TypeScript twin above.
 
+For Expo the module is the `snapback4-expo` package: `nativeDevice` is
+the opener, `documentDirectory()` the place for stores, and
+`nativeAvailable()` says whether this build carries it, so an app opens
+the Rust device in a development or production build and the TypeScript
+tier above in Expo Go, with nothing above the choice changing.
+
 **Proving it on the device.** The package's own simulator witness
-(`witness/expo.mjs` in the repository, run in Expo Go on a booted iOS
-simulator against a real `snapback4 dev`) records, on the SQLite store: a
-cold sync, local reads and a send, a reopen that finds the rows, a cold
-start with the server unreachable that opens on what the store holds and
-answers with `fresh: false`, and two writes composed offline that survive
-a restart of the app still offline and flush in order on reconnect. An
+(`witness/expo.mjs` in the repository, run on a booted iOS simulator
+against a real `snapback4 dev`, in Expo Go on the TypeScript tier and
+with `WITNESS_DEV_CLIENT=1` on the Rust module in a development build)
+records the same five things on either: a cold sync, local reads and a
+send, a reopen that finds the rows, a cold start with the server
+unreachable that opens on what the store holds and answers with
+`fresh: false`, and two writes composed offline that survive a restart of
+the app still offline and flush in order on reconnect. On the module the
+cold sync of 303 rows takes 31 ms against the TypeScript tier's 199. An
 app proves the same the same way: gate the client's `fetch` option to
 model the link (the server never has to die), close and reopen the
 client to model a restart, and read the outcomes off the card.

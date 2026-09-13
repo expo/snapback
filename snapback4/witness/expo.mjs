@@ -29,11 +29,22 @@ const dev = await devServer({ seed: [
 // The report comes back over HTTP from the app.
 let resolveReport;
 const report = new Promise((r) => (resolveReport = r));
+const steps = [];
 const control = createServer((req, res) => {
   let body = "";
   req.on("data", (d) => (body += d));
-  req.on("end", () => { res.end("ok"); if (req.method === "POST") resolveReport(JSON.parse(body)); });
+  req.on("end", () => {
+    res.end("ok");
+    if (req.method !== "POST") return;
+    if (req.url === "/step") {
+      steps.push(`${((Date.now() - started) / 1000).toFixed(1)}s ${body}`);
+      if (process.env.WITNESS_VERBOSE) process.stderr.write(`step ${steps[steps.length - 1]}\n`);
+      return;
+    }
+    resolveReport(JSON.parse(body));
+  });
 });
+const started = Date.now();
 await new Promise((r) => control.listen(4498, "127.0.0.1", r));
 
 const app = join(root, "apps/chat-expo");
@@ -42,10 +53,15 @@ try {
   const holder = execSync(`lsof -nP -iTCP:${metroPort} -sTCP:LISTEN -t`, { encoding: "utf8" }).trim();
   if (holder) throw new Error(`port ${metroPort} is held by pid ${holder} (a stale Metro?); kill it first`);
 } catch (error) { if (!/Command failed/.test(String(error))) throw error; }
-const metro = spawn("npx", ["expo", "start", "--port", String(metroPort), "--ios", "--clear"], {
+// WITNESS_DEV_CLIENT=1 opens the development build (the Rust module inside)
+// instead of Expo Go; `npx expo run:ios` in apps/chat-expo makes one.
+// In dev-client mode Metro is started without opening anything; the
+// development build is launched below once Metro answers.
+const devClient = Boolean(process.env.WITNESS_DEV_CLIENT);
+const metro = spawn("npx", ["expo", "start", "--port", String(metroPort), "--clear", ...(devClient ? ["--dev-client"] : ["--ios"])], {
   cwd: app,
   detached: true,
-  env: { ...process.env, CI: "1", EXPO_PUBLIC_SNAPBACK_URL: dev.api, EXPO_PUBLIC_WITNESS_URL: "http://127.0.0.1:4498", EXPO_NO_TELEMETRY: "1", REACT_NATIVE_PACKAGER_HOSTNAME: "127.0.0.1" },
+  env: { ...process.env, CI: "1", EXPO_PUBLIC_SNAPBACK_URL: dev.api, EXPO_PUBLIC_WITNESS_URL: "http://127.0.0.1:4498", EXPO_NO_TELEMETRY: "1", REACT_NATIVE_PACKAGER_HOSTNAME: "127.0.0.1", ...(process.env.WITNESS_VERBOSE ? { EXPO_PUBLIC_SNAPBACK_TRACE: "1" } : {}) },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let metroLog = "";
@@ -59,12 +75,25 @@ const onLog = (d) => {
 metro.stdout.on("data", onLog);
 metro.stderr.on("data", onLog);
 
-const out = { at: new Date().toISOString(), witness: "expo-go-sqlite", simulator: udid, seeded: dev.seeded, proves: ["cold sync into SQLite", "local reads and a send", "a reopen finds the rows", "a cold start offline answers from the store", "writes composed offline survive a restart and flush in order"] };
+if (devClient) {
+  // Metro up, then the development build, then the link into it.
+  const ready = Date.now() + 120_000;
+  while (Date.now() < ready) {
+    try { const r = await fetch(`http://127.0.0.1:${metroPort}/status`); if (r.ok) break; } catch {}
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  // The launcher reads `--initialUrl` from its process arguments, so the
+  // build is launched straight onto Metro; an opened link would prompt.
+  const bundleId = process.env.WITNESS_APP ?? "dev.snapback4.chat";
+  try { execSync(`xcrun simctl terminate ${udid} host.exp.Exponent`, { stdio: "ignore" }); } catch {}
+  execSync(`xcrun simctl launch --terminate-running-processes ${udid} ${bundleId} --initialUrl http://127.0.0.1:${metroPort}`, { stdio: "ignore" });
+}
+const out = { at: new Date().toISOString(), witness: devClient ? "dev-client-native" : "expo-go-sqlite", simulator: udid, seeded: dev.seeded, proves: ["cold sync into SQLite", "local reads and a send", "a reopen finds the rows", "a cold start offline answers from the store", "writes composed offline survive a restart and flush in order"] };
 try {
   const result = await Promise.race([report, bundlingFailed, new Promise((_, reject) => setTimeout(() => reject(new Error(`no report within ${timeoutMs} ms\n${metroLog.slice(-2000)}`)), timeoutMs))]);
   Object.assign(out, result);
   const native = result.native ?? {};
-  out.ok = result.first?.threadRows === 50 && result.first?.threadComplete === true && result.first?.count === 300 && result.first?.write === "sent" && result.second?.reopenedRows >= 300
+  out.ok = result.first?.threadRows === 50 && result.first?.threadComplete === true && result.first?.count === 300 && result.first?.write === "sent" && result.first?.sentRowRead === true && result.second?.reopenedRows >= 300
     && native.coldLink === "offline" && native.coldThreadRows === 50 && native.coldFresh === false
     && native.queued === "pending" && native.queuedSecond === "pending"
     && JSON.stringify(native.pendingAfterRestart) === JSON.stringify(["composed offline, second", "composed offline"])
@@ -72,6 +101,7 @@ try {
 } catch (error) {
   out.ok = false;
   out.error = String(error.message ?? error);
+  out.steps = steps;
 } finally {
   try { process.kill(-metro.pid, "SIGTERM"); } catch { metro.kill(); }
   control.close();

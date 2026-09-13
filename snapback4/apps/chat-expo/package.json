@@ -5,17 +5,20 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "ios": "expo start --ios",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "ios": "expo run:ios",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "ios:dev": "expo run:ios"
   },
   "dependencies": {
     "expo": "57.0.22",
+    "expo-dev-client": "~57.0.19",
     "expo-secure-store": "~57.0.4",
     "expo-sqlite": "57.0.3",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
-    "snapback4": "workspace:*"
+    "snapback4": "workspace:*",
+    "snapback4-expo": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "~19.2.4",

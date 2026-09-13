@@ -1525,3 +1525,48 @@ device witness, `rescore` at 1k and 10k posts) and asks the author for
 three decisions. Numbering: 3000.000–3000.003 are the architecture
 review's children, allocated in another session and not yet on main, so
 this took 3000.004. Nothing moved off `NOT-DOING.md`.
+
+## 2026-09-13 — the Expo module: the Rust device in a development build, proved on the simulator
+
+`snapback4-expo` is the module for Expo: `Snapback4Module.swift` over the
+C ABI (`open`, `call`, `close`, handles as small integers, one lock
+around the device), the Rust library as `ios/Snapback4Device.xcframework`
+with the header and a module map so Swift imports `Snapback4Device`, and
+`src/index.ts` giving `snapback4/native` its opener — `nativeDevice`,
+`documentDirectory()`, and `nativeAvailable()` for the app to choose the
+tier, since Expo Go loads no custom native code and the module is present
+only in a development or production build. `apps/chat-expo` chooses at
+import: the Rust module when the build carries it, the TypeScript tier
+over expo-sqlite in Expo Go; the app above the choice is unchanged.
+
+The witness runs in both. `WITNESS_DEV_CLIENT=1 node witness/expo.mjs`
+starts Metro for the development client and launches the build straight
+onto it — the launcher reads `--initialUrl` from its process arguments —
+and the same five proofs pass on the module (`metrics/witness.jsonl`,
+`dev-client-native`): the cold sync of 303 rows in 31 ms where the
+TypeScript tier took 199, the reopen in 6 ms (10), the cold start offline
+in 2 ms with the thread answered from the store and `fresh: false`, two
+writes composed offline surviving a restart and landing in order. A
+module call is a millisecond; the thread's fifty rows come back as 6.7 KB
+of JSON.
+
+Two traps, both the harness's. **A system alert stalls the app behind
+it.** `xcrun simctl openurl` on the app's own scheme raises "Open in
+Snapback 4 chat?" on this simulator; the alert outlives the app and the
+Metro that opened it, and under it the app's JavaScript reached the
+module's first `query` and never got an answer — one call in, no thread
+in the module, no thread on the lock, the process idle. The witness no
+longer opens a link; a simulator that has one up needs a reboot.
+**The static library was 37 MB of bitcode.** The crate is also an rlib,
+and a build of every crate type at once leaves the staticlib
+un-optimised across crates, every object carrying its bitcode for a
+consumer's LTO; `cargo rustc --crate-type staticlib` builds it alone,
+optimised into one object beside SQLite and the builtins, and stripped it
+is 4.8 MB a slice: the xcframework is 9.1 MB where it was 71, the npm
+tarball 3.3 MB. The app pays the same 1.7 MB linked either way.
+
+Not in this landing: Android (the same C ABI under Kotlin, a later
+slice), and the Exact2 host, filed in that repository's `issues/` as a
+`DataSource` over `ffi::call` with `apps/messages` as the first app, to be
+built there when its `main` is quiet. Published `snapback4-expo@0.1.14`
+beside `snapback4@0.1.14`.

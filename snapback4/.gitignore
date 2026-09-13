@@ -7,3 +7,8 @@ packages/*/dist/
 # built by `snapback4 check`/`dev`, never committed
 **/snapback/generated/
 **/.snapback4/
+
+# built, not committed: the native module packed for Apple, and Expo's generated native projects
+packages/snapback4-expo/ios/Snapback4Device.xcframework/
+apps/chat-expo/ios/
+apps/chat-expo/android/
