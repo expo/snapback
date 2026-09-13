@@ -1,19 +1,19 @@
-// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// @ref LLP 1018.008.007.002#11-block-index-acquisition-restart —
 // one readonly carrier transaction backs a single suspendable Quarry execution.
 import { EvalError } from '../../evaluator/src/errors.js';
 import { CoverageIndex } from '../../evaluator/src/coverage.js';
-import { components, ordinaryColumns, preparePrefix, prepareScanBounds, compareScanBounds, scalarAtoms } from '../../evaluator/src/index-store.js';
+import { components, ordinaryColumns, preparePrefix, prepareScanBounds, compareScanBounds, scalarAtoms, type KeyImage } from '../../evaluator/src/index-store.js';
 import { NativeCoverage } from '../../evaluator/src/native-coverage.js';
 import { PreparedRange } from '../../evaluator/src/range-preparation.js';
 import { readQueryAuthority } from '../../evaluator/src/query.js';
 import { RowImage } from '../../evaluator/src/row-image.js';
-import { canonicalJson } from '../../evaluator/src/value-runtime.js';
+import { canonicalJson, totalCompare } from '../../evaluator/src/value-runtime.js';
 import type { QueryHost, QueryCursor, QueryDirectory } from '../../evaluator/src/query-work.js';
 import type { ClosureReceipt, Context, TraceRange, Value } from '../../evaluator/src/types.js';
 import type { LogicalIndexAtom } from '../../evaluator/src/search-key.js';
 import type { NativeState } from './native-custody.js';
 import type { DurableRowsTx, DirectoryRecord } from './durable-rows.js';
-import { directoryKeys, indexPrefix, scalarKey, scalarFromKey, KEY_END } from './durable-key.js';
+import { imageScopeKeys, indexPrefix, scalarKey, scalarFromKey, KEY_END } from './durable-key.js';
 
 export interface DurableProof {
   receipt: Omit<ClosureReceipt, 'rows'>;
@@ -24,11 +24,44 @@ export interface DurableProof {
 const identity = (table: string, id: string) => canonicalJson([table, id]);
 const positionId = (table: string, index: string, id: string) => canonicalJson([table, index, id]);
 
-function position(schema: any, table: string, index: string, keys: IDBValidKey[][],
+function wordMatches(word: string, prefix: string): boolean {
+  if (!prefix || !word.startsWith(prefix)) return false;
+  const end = prefix.charCodeAt(prefix.length - 1), next = word.charCodeAt(prefix.length);
+  // Posting expansion ends on a Unicode codepoint, never halfway through a pair.
+  return !(end >= 0xd800 && end <= 0xdbff && next >= 0xdc00 && next <= 0xdfff);
+}
+function position(schema: any, table: string, index: string, image: KeyImage,
   prefix: LogicalIndexAtom[]): Value[] | null {
-  const start = indexPrefix(table, index, prefix), parts = components(schema, table, index);
-  const key = keys.find(key => indexedDB.cmp(key.slice(0, start.length), start) === 0);
-  return key ? key.slice(2, parts.length + 2).flatMap((key, i) => 'Column' in parts[i] ? [scalarFromKey(key)] : []) : null;
+  const parts = image[index], definition = components(schema, table, index);
+  if (!parts || parts.length !== definition.length || prefix.length > parts.length) return null;
+  // A wordless row has a scope, but no posting for any receipt prefix.
+  if (parts.some(part => 'Words' in part && !part.Words.some(word => word.length))) return null;
+  for (let i = 0; i < prefix.length; i++) {
+    const atom = prefix[i], part = parts[i];
+    if ('Scalar' in atom) {
+      if (!('Scalar' in part) || totalCompare(part.Scalar, atom.Scalar)) return null;
+    } else if (!('Words' in part) || !atom.WordPrefix.token
+      || !part.Words.some(word => wordMatches(word, atom.WordPrefix.token!))) return null;
+  }
+  return parts.flatMap(part => 'Scalar' in part ? [part.Scalar] : []);
+}
+function postingMatches(schema: any, table: string, index: string, record: DirectoryRecord, key: IDBValidKey[]): boolean {
+  const definition = components(schema, table, index), parts = record.parts[index];
+  if (!parts || parts.length !== definition.length || key.length !== definition.length + 3
+    || indexedDB.cmp(key.slice(0, 2), indexPrefix(table, index, [])) !== 0
+    || indexedDB.cmp(key.at(-1)!, scalarKey({ Id: record.id })) !== 0) return false;
+  return parts.every((part, i) => {
+    if ('Column' in definition[i]) return 'Scalar' in part && indexedDB.cmp(key[i + 2], scalarKey(part.Scalar)) === 0;
+    const value = scalarFromKey(key[i + 2]);
+    return 'Words' in part && typeof value === 'object' && 'String' in value && !!value.String
+      && indexedDB.cmp(key[i + 2], scalarKey(value)) === 0
+      && part.Words.some(word => wordMatches(word, value.String));
+  });
+}
+function postingId(key: IDBValidKey[]): string {
+  const id = scalarFromKey(key.at(-1)!);
+  if (typeof id !== 'object' || !('Id' in id)) throw new TypeError('durable posting has no nominal row identity');
+  return id.Id;
 }
 
 /** Admission retains original keys, never reconstructs old evidence from current rows. */
@@ -39,7 +72,7 @@ export function durableProof(schema: any, receipt: ClosureReceipt, program?: unk
     const { prepared } = PreparedRange.tagged(schema, range, program);
     for (const id of [...range.row_ids, ...(range.halo ? [range.halo.id] : [])]) {
       const row = pool.get(identity(range.table, id));
-      const keys = row && position(schema, range.table, range.index, directoryKeys(range.table, row), prepared.meaning.prefix);
+      const keys = row && position(schema, range.table, range.index, RowImage.keys(row), prepared.meaning.prefix);
       if (!keys && !range.evicted_ids?.includes(id)) throw new TypeError('durable proof member has no issued position');
       positions.set(positionId(range.table, range.index, id), [range.table, range.index, id, keys ?? null]);
     }
@@ -57,7 +90,7 @@ export class DurableQueryHost implements QueryHost {
     const schema = tx.program.schema;
     this.facts = new CoverageIndex(schema, (range, prefix, id) => {
       const row = this.proofRows.get(identity(range.table, id));
-      return row ? position(schema, range.table, range.index, row.keys, prefix) : null;
+      return row ? position(schema, range.table, range.index, row.parts, prefix) : null;
     });
     this.native = new NativeCoverage(schema);
   }
@@ -118,43 +151,55 @@ export class DurableQueryHost implements QueryHost {
     else { maximum(bounds.after, false); minimum(bounds.before, true); }
     minimum(bounds.gt, true); minimum(bounds.gte, false); maximum(bounds.lt, false); maximum(bounds.lte, true);
     if (indexedDB.cmp(lower, upper) >= 0) return emptyCursor();
-    const request = this.tx.idb.objectStore('directory').index('keys')
-      .openCursor(IDBKeyRange.bound(lower, upper, false, true), order === 'Asc' ? 'next' : 'prev');
-    let pending = this.tx.request(request), first = true, stopped = false;
+    const postings = this.tx.postings.seek({ lower, upper, upperOpen: true, order });
+    let stopped = false;
     const tx = this.tx, seq = this.state.seq;
-    void pending.catch(() => undefined);
     return {
       async next() {
         if (stopped) return { done: true, value: undefined };
         for (;;) {
-          const cursor = await pending;
-          if (!cursor) { stopped = true; return { done: true, value: undefined }; }
-          if (!first) { pending = tx.request(request); cursor.continue(); first = true; continue; }
-          first = false;
-          const encoded = cursor.key as IDBValidKey[];
+          const next = await postings.next();
+          if (next.done) { stopped = true; return { done: true, value: undefined }; }
+          const encoded = next.value.key;
+          if (!Array.isArray(encoded) || encoded.length !== parts.length + 3)
+            throw new TypeError('durable posting key has the wrong shape');
           const suffix = encoded.slice(base.length, parts.length + 2).map(scalarFromKey);
-          if (compareScanBounds(suffix, bounds, order) !== 0) {
-            pending = tx.request(request); cursor.continue(); first = true; continue;
-          }
-          const record = cursor.value as DirectoryRecord;
+          if (compareScanBounds(suffix, bounds, order) !== 0) continue;
+          const record = await tx.directory(table, postingId(encoded));
+          if (!record || !postingMatches(schema, table, index, record, encoded))
+            throw new TypeError('durable posting disagrees with its row directory');
           if (record.seq > seq) throw new TypeError('durable posting is ahead of its snapshot');
           const row = await tx.row(record);
           if (!row) throw new TypeError('durable posting points to a deleted row');
-          // Advancing is deferred until the next pull, so abandoning a lane reads no halo.
+          // The next posting/body is pulled only when the evaluator requests it.
           return { done: false, value: row as Value };
         }
       },
-      async return() { stopped = true; return { done: true, value: undefined }; },
+      async return() { stopped = true; await postings.return?.(); return { done: true, value: undefined }; },
     };
   }
+
   readable(table: string): boolean { return this.tx.program.schema.tables?.[table]?.retain === 'delivered-history'; }
   async missingSearchAuthority(table: string, index: string, prefix: LogicalIndexAtom[], context: Context): Promise<boolean> {
     const parts = components(this.tx.program.schema, table, index), derived = parts.findIndex(part => 'WordPrefixes' in part);
     const word = prefix[derived];
     if (!word || !('WordPrefix' in word) || word.WordPrefix.empty || this.readable(table)) return false;
     const key = indexPrefix(table, index, prefix.slice(0, derived));
-    const record = await this.tx.request(this.tx.idb.objectStore('directory').index('scopeKeys').get(key)) as DirectoryRecord | undefined;
+    const members = this.tx.memberships.seek({ lower: key, upper: [...key, KEY_END], upperOpen: true });
+    let record: DirectoryRecord | null = null;
+    try {
+      const first = await members.next();
+      if (!first.done) {
+        const member = first.value.key;
+        if (!Array.isArray(member) || member.length !== key.length + 1
+          || indexedDB.cmp(member.slice(0, -1), key) !== 0) throw new TypeError('durable scope membership has the wrong shape');
+        record = await this.tx.directory(table, postingId(member));
+        if (!record || !imageScopeKeys(table, record.parts).some(scope => indexedDB.cmp(scope, key) === 0))
+          throw new TypeError('durable scope membership disagrees with its row directory');
+      }
+    } finally { await members.return?.(); }
     const row = record && await this.tx.row(record);
+    if (record && !row) throw new TypeError('durable scope membership points to a deleted row');
     return !!row && await readQueryAuthority(this, this.tx.program.schema, { ...context, args: {}, new_ids: [] }, table, row,
       parts.slice(0, derived).map(part => (part as { Column: string }).Column)) === null;
   }

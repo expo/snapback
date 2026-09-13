@@ -1,4 +1,4 @@
-// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// @ref LLP 1018.008.007.002#11-block-index-acquisition-restart —
 // the durable catalogue preserves term-independent scope authority and overflow.
 import { heldScopeLayout, validateHeldDescriptor } from '../../evaluator/src/held-directory.js';
 import { components } from '../../evaluator/src/index-store.js';
@@ -8,7 +8,7 @@ import { canonicalJson, clone, fieldOrNull, variant, wireJson } from '../../eval
 import type { QueryDirectory, QueryHost } from '../../evaluator/src/query-work.js';
 import type { Context, Value } from '../../evaluator/src/types.js';
 import type { DirectoryChange, DirectoryRecord, DurableRowsTx } from './durable-rows.js';
-import { indexPrefix, prefixRange, scalarFromKey, scalarKey, stringFromKey } from './durable-key.js';
+import { imageScopeKeys, indexPrefix, prefixRange, scalarFromKey, scalarKey, stringFromKey, KEY_END } from './durable-key.js';
 
 type Status = 'allowed' | 'unknown' | 'denied';
 interface Probe { table: string; index: string; key: any[] }
@@ -18,6 +18,7 @@ interface Descriptor {
 interface Scope {
   table: string; index: string; values: Value[]; key: IDBValidKey[]; identity: string;
 }
+interface ScopeChange { scope: Scope; before: Set<string>; after: Set<string> }
 interface ScopeRecord {
   scopeKey: IDBValidKey[];
   binding: string;
@@ -77,18 +78,18 @@ export class DurableScopes {
 
   /** A changed partition/program must rebuild its catalogue explicitly, not
    * turn old authority into an apparently empty search result. */
-  private async checkBinding(initial?: ReadonlyMap<string, number>): Promise<void> {
+  private async checkBinding(initial?: ReadonlyMap<string, number>): Promise<boolean> {
     const old = await this.tx.getMeta(BINDING);
-    if (old === this.binding) return;
+    if (old === this.binding) return false;
     if (old !== undefined || await this.tx.request(this.tx.idb.objectStore('scopes').count()))
       fail('catalogue identity changed or its binding is absent');
     for (const [key, entries] of this.byIndex) {
       const descriptor = entries[0].value;
-      const held = await this.tx.request(this.tx.idb.objectStore('directory').index('scopeKeys')
-        .count(prefixRange(indexPrefix(descriptor.table, descriptor.index, []))));
+      const held = await this.tx.scopeTotal(descriptor.table, descriptor.index);
       if (held !== (initial?.get(key) ?? 0)) fail('held rows have no initialized scope catalogue');
     }
     if (initial) await this.tx.putMeta(BINDING, this.binding);
+    return !!initial;
   }
   private scope(key: IDBValidKey[]): Scope {
     if (!Array.isArray(key) || key.length < 2) fail('invalid physical scope key');
@@ -164,15 +165,16 @@ export class DurableScopes {
   /** Read only the ordinary point keys that a declared scope rule depends on. */
   private changedDigests(record: DirectoryRecord, digests: Set<string>): void {
     if (!this.probeTables.has(record.table)) return;
-    for (const key of record.keys) {
-      const table = stringFromKey(key[0]), index = stringFromKey(key[1]);
-      if (!this.probeIndexes.has(indexId(table, index))) continue;
-      const parts = components(this.tx.program.schema, table, index);
-      if (table !== record.table || parts.some(part => !('Column' in part)) || key.length !== parts.length + 3)
-        fail('invalid authority point key');
-      digests.add(sha256(canonicalJson([table, index, key.slice(2, parts.length + 2).map(scalarFromKey).map(wireJson)])));
+    for (const [index, parts] of Object.entries(record.parts)) {
+      if (!this.probeIndexes.has(indexId(record.table, index))) continue;
+      const definition = components(this.tx.program.schema, record.table, index);
+      if (definition.some(part => !('Column' in part)) || parts.length !== definition.length
+        || parts.some(part => !('Scalar' in part))) fail('invalid authority point key');
+      const values = parts.map(part => wireJson((part as { Scalar: Value }).Scalar));
+      digests.add(sha256(canonicalJson([record.table, index, values])));
     }
   }
+
   private probeDigest(probe: Probe, row: Value): string {
     const keys = probe.key.map(term => {
       const [kind, data] = variant(term);
@@ -190,28 +192,34 @@ export class DurableScopes {
     if (this.tx.idb.mode !== 'readwrite' || this.refreshing) fail('refresh requires one serial write transaction');
     this.refreshing = true;
     try {
-      const pending = new Map<string, Scope>(), digests = new Set(authorityDigests);
+      const pending = new Map<string, ScopeChange>(), digests = new Set(authorityDigests);
       for (const value of digests) if (!digest(value)) fail('invalid changed authority digest');
-      const add = (key: IDBValidKey[]): void => {
+      const add = (key: IDBValidKey[]): ScopeChange | undefined => {
         const scope = this.scope(key);
-        if (this.byIndex.has(indexId(scope.table, scope.index))) pending.set(scope.identity, scope);
+        if (!this.byIndex.has(indexId(scope.table, scope.index))) return;
+        let change = pending.get(scope.identity);
+        if (!change) { change = { scope, before: new Set(), after: new Set() }; pending.set(scope.identity, change); }
+        return change;
       };
-      const changedRows = new Map<string, DirectoryRecord>();
+      // Multiple writes to one row in this transaction contribute one net change.
+      const changedRows = new Map<string, DirectoryChange>();
       for (const change of changes) {
-        changedRows.set(canonicalJson([change.after.table, change.after.id]), change.after);
-        for (const record of [change.before, change.after]) if (record) {
-          for (const key of record.scopeKeys) add(key);
-          this.changedDigests(record, digests);
-        }
+        const key = canonicalJson([change.after.table, change.after.id]), first = changedRows.get(key);
+        changedRows.set(key, { before: first ? first.before : change.before, after: change.after });
       }
-      // Initial binding may cover only a complete set of newly indexed rows;
-      // a missing catalogue over pre-existing rows is never silently repaired.
+      for (const change of changedRows.values()) for (const side of ['before', 'after'] as const) {
+        const record = change[side]; if (!record) continue;
+        for (const key of imageScopeKeys(record.table, record.parts)) add(key)?.[side].add(record.id);
+        this.changedDigests(record, digests);
+      }
+      // A first binding still requires the complete final membership set, even
+      // if the carrier already holds rows from a write that omitted this catalogue.
       const initialCounts = new Map<string, number>();
-      for (const row of changedRows.values()) for (const key of row.scopeKeys) {
-        const scope = this.scope(key), id = indexId(scope.table, scope.index);
-        initialCounts.set(id, (initialCounts.get(id) ?? 0) + 1);
+      for (const { scope, after } of pending.values()) {
+        const id = indexId(scope.table, scope.index);
+        initialCounts.set(id, (initialCounts.get(id) ?? 0) + after.size);
       }
-      await this.checkBinding(initialCounts);
+      const initialized = await this.checkBinding(initialCounts);
       const store = this.tx.idb.objectStore('scopes'), index = store.index('dependencyKeys');
       // Collect identities before changing their dependency index entries.
       for (const value of digests) {
@@ -224,21 +232,71 @@ export class DurableScopes {
           next = this.tx.request(request); cursor.continue();
         }
       }
-      for (const scope of pending.values()) await this.refreshScope(scope, host);
+      for (const change of pending.values()) await this.refreshScope(change, host, initialized);
     } catch (error) { try { this.tx.idb.abort(); } catch {} throw error; }
     finally { this.refreshing = false; }
   }
-  private async refreshScope(scope: Scope, host: QueryHost): Promise<void> {
-    const index = this.tx.idb.objectStore('directory').index('scopeKeys'), store = this.tx.idb.objectStore('scopes');
-    const [count, representative] = await Promise.all([
-      this.tx.request(index.count(IDBKeyRange.only(scope.key))),
-      this.tx.request(index.get(scope.key)) as Promise<DirectoryRecord | undefined>,
-    ]);
+  private async member(scope: Scope, id?: string): Promise<DirectoryRecord | null> {
+    if (id !== undefined) {
+      if (await this.tx.memberships.get([...scope.key, scalarKey({ Id: id })]) === undefined)
+        fail('scope representative membership is missing');
+    } else {
+      const members = this.tx.memberships.seek({ lower: scope.key, upper: [...scope.key, KEY_END], upperOpen: true });
+      try {
+        const next = await members.next(); if (next.done) return null;
+        const key = next.value.key;
+        if (!Array.isArray(key) || key.length !== scope.key.length + 1
+          || indexedDB.cmp(key.slice(0, -1), scope.key) !== 0) fail('invalid scope membership key');
+        const value = scalarFromKey(key.at(-1)!);
+        if (typeof value !== 'object' || !('Id' in value)) fail('invalid scope member identity');
+        id = value.Id;
+      } finally { await members.return?.(); }
+    }
+    const record = await this.tx.directory(scope.table, id);
+    if (!record || !imageScopeKeys(record.table, record.parts).some(key => indexedDB.cmp(key, scope.key) === 0))
+      fail('scope membership disagrees with its row directory');
+    return record;
+  }
+  private async checkNewScope(scope: Scope, after: ReadonlySet<string>): Promise<void> {
+    const remaining = new Set(after);
+    const members = this.tx.memberships.seek({ lower: scope.key, upper: [...scope.key, KEY_END], upperOpen: true });
+    try {
+      // A missing record is a new scope only when the complete actual set is
+      // the admitted after set. At most after.size + 1 entries are examined.
+      for (;;) {
+        const next = await members.next();
+        if (next.done) {
+          if (remaining.size) fail('scope baseline is missing admitted members');
+          return;
+        }
+        if (!remaining.size) fail('scope baseline is missing over existing members');
+        const key = next.value.key;
+        if (!Array.isArray(key) || key.length !== scope.key.length + 1
+          || indexedDB.cmp(key.slice(0, -1), scope.key) !== 0) fail('invalid scope membership key');
+        const value = scalarFromKey(key.at(-1)!);
+        if (typeof value !== 'object' || !('Id' in value)
+          || indexedDB.cmp(key.at(-1)!, scalarKey(value)) !== 0 || !remaining.delete(value.Id))
+          fail('scope baseline is missing over unexpected members');
+      }
+    } finally { await members.return?.(); }
+  }
+  private async refreshScope(change: ScopeChange, host: QueryHost, initialized: boolean): Promise<void> {
+    const { scope, before, after } = change, store = this.tx.idb.objectStore('scopes');
+    const held = await this.tx.request(store.get(scope.key));
+    const previous = held === undefined ? undefined : this.checked(held);
+    if (previous && indexedDB.cmp(previous.scope.key, scope.key) !== 0) fail('catalogue key disagrees');
+    if (!initialized && !previous && before.size) fail('scope baseline is missing');
+    if (!previous) await this.checkNewScope(scope, after);
+    const count = initialized ? after.size : (previous?.record.count ?? 0) + after.size - before.size;
+    if (!Number.isSafeInteger(count) || count < 0) fail('scope count delta is invalid');
     if (!count) {
-      if (representative !== undefined) fail('scope count and representative disagree');
+      if (await this.member(scope)) fail('scope count and membership disagree');
       await this.tx.request(store.delete(scope.key)); return;
     }
-    if (!representative || representative.table !== scope.table) fail('scope representative is missing');
+    const old = previous?.record.representative;
+    const removed = old !== undefined && before.has(old) && !after.has(old);
+    const representative = await this.member(scope, removed ? undefined : old);
+    if (!representative) fail('scope representative is missing');
     const row = await this.tx.row(representative);
     if (!row) fail('scope representative was deleted');
     const record: ScopeRecord = { scopeKey: scope.key, binding: this.binding, count, representative: representative.id,

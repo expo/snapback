@@ -1,10 +1,11 @@
-// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// @ref LLP 1018.008.007.002#11-block-index-acquisition-restart —
 // durable indexes preserve the Quarry value order, including nominal types.
 import { RowImage } from '../../evaluator/src/row-image.js';
 import { variant, asString, field } from '../../evaluator/src/value-runtime.js';
 import { compareCodepoints } from '../../evaluator/src/hash.js';
 import type { Value } from '../../evaluator/src/types.js';
 import type { LogicalIndexAtom } from '../../evaluator/src/search-key.js';
+import type { KeyImage } from '../../evaluator/src/index-store.js';
 
 /** IndexedDB compares binary keys bytewise; JS strings instead use UTF-16 order. */
 export function scalarKey(value: Value): IDBValidKey {
@@ -42,35 +43,40 @@ export function indexPrefix(table: string, index: string, prefix: readonly Logic
     return scalarKey({ String: atom.WordPrefix.token });
   })];
 }
-/** One directory record owns these keys; an IDB multiEntry index owns postings. */
-export function directoryKeys(table: string, row: RowImage): IDBValidKey[][] {
-  const keys: IDBValidKey[][] = [];
-  for (const [index, parts] of Object.entries(RowImage.keys(row))) {
-    const derived = parts.findIndex(part => 'Words' in part);
-    const base = [codepoints(table), codepoints(index)];
-    const tie = scalarKey({ Id: asString(field(row, 'id')) });
-    if (derived < 0) keys.push([...base, ...parts.map(part => scalarKey((part as { Scalar: Value }).Scalar)), tie]);
+/** Expand only the admitted write batch. Common scalar components are encoded
+ * once per row/index and shared across its prefixes until block admission. */
+export function imagePostingKeys(table: string, id: string, images: KeyImage,
+  namespace: (table: string, index: string) => IDBValidKey[] = (table, index) => indexPrefix(table, index, [])): IDBValidKey[][] {
+  const keys: IDBValidKey[][] = [], tie = scalarKey({ Id: id });
+  for (const [index, parts] of Object.entries(images)) {
+    const derived = parts.findIndex(part => 'Words' in part), base = namespace(table, index);
+    const scalars = parts.map(part => 'Scalar' in part ? scalarKey(part.Scalar) : undefined);
+    if (derived < 0) keys.push([...base, ...scalars as IDBValidKey[], tie]);
     else {
       const prefixes = new Set<string>();
       for (const word of (parts[derived] as { Words: string[] }).Words) {
         let prefix = '';
         for (const scalar of word) { prefix += scalar; prefixes.add(prefix); }
       }
-      for (const prefix of prefixes) keys.push([...base, ...parts.map((part, i) =>
-        scalarKey(i === derived ? { String: prefix } : (part as { Scalar: Value }).Scalar)), tie]);
+      for (const prefix of prefixes) keys.push([...base, ...scalars.slice(0, derived) as IDBValidKey[],
+        scalarKey({ String: prefix }), ...scalars.slice(derived + 1) as IDBValidKey[], tie]);
     }
   }
   return keys;
 }
-
-
+export function directoryKeys(table: string, row: RowImage): IDBValidKey[][] {
+  return imagePostingKeys(table, asString(field(row, 'id')), RowImage.keys(row));
+}
 /** Scopes exist even when every source field has no searchable word. */
-export function directoryScopeKeys(table: string, row: RowImage): IDBValidKey[][] {
-  return Object.entries(RowImage.keys(row)).flatMap(([index, parts]) => {
+export function imageScopeKeys(table: string, images: KeyImage): IDBValidKey[][] {
+  return Object.entries(images).flatMap(([index, parts]) => {
     const derived = parts.findIndex(part => 'Words' in part);
     return derived < 0 ? [] : [[codepoints(table), codepoints(index), ...parts.slice(0, derived)
       .map(part => scalarKey((part as { Scalar: Value }).Scalar))]];
   });
+}
+export function directoryScopeKeys(table: string, row: RowImage): IDBValidKey[][] {
+  return imageScopeKeys(table, RowImage.keys(row));
 }
 export function scalarFromKey(key: IDBValidKey): Value {
   if (!Array.isArray(key) || typeof key[0] !== 'number') throw new TypeError('invalid durable scalar key');

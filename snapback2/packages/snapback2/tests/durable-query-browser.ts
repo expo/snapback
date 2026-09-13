@@ -1,3 +1,4 @@
+// @ref LLP 1018.008.007.002#11-block-index-acquisition-restart — selected block postings retain exact query and proof semantics.
 import corpusJson from '../../../corpus/manifest.json';
 import { ClientStore } from '../../evaluator/src/store.js';
 import { EvalError } from '../../evaluator/src/errors.js';
@@ -9,7 +10,7 @@ import type { NativeState, NativeRow } from '../src/native-custody.js';
 import { DurableCustody } from '../src/durable-custody.js';
 import { DurableRows } from '../src/durable-rows.js';
 import { DurableQueryHost } from '../src/durable-query.js';
-import { scalarKey, scalarFromKey } from '../src/durable-key.js';
+import { scalarKey, scalarFromKey, directoryKeys, indexPrefix } from '../src/durable-key.js';
 import { preparePrefix } from '../../evaluator/src/index-store.js';
 import { SEARCH_CONTRACT } from '../../evaluator/src/unicode.js';
 
@@ -136,6 +137,88 @@ export async function runDurableQueryControls(): Promise<Array<{ name: string; p
         });
       } catch (error) { refused = String(error).includes('ahead of its snapshot'); }
       check(refused, 'scope representative bypassed snapshot integrity');
+    } finally { disk.close(); await request(indexedDB.deleteDatabase(name)); }
+  });
+
+  await test('selected stale block postings fail before returning a mismatched body', async () => {
+    const sample = corpus.find(test => test.name === 'merge-ties-and-empty-lane')!, program = installed(sample);
+    const name = `durable-posting-integrity:${crypto.randomUUID()}`, disk = await DurableRows.open(name, program);
+    try {
+      const admitted = rows(new ClientStore(sample.schema, sample.receipt, { program: sample.program }), program, 1);
+      const row = admitted.find(row => row.table === 'posts')!;
+      const start = indexPrefix('posts', 'byAuthorAt', []);
+      const real = directoryKeys('posts', row.row!).find(key => indexedDB.cmp(key.slice(0, 2), start) === 0)!;
+      const forged = [...real]; forged[2] = scalarKey({ Id: 'forged-author' });
+      await disk.transaction('readwrite', async tx => {
+        await tx.putRows(admitted, 1);
+        await tx.postings.apply([{ kind: 'put', key: forged, value: null }]);
+      });
+      let refused = false;
+      try {
+        await disk.transaction('readonly', async tx => {
+          const host = await DurableQueryHost.open(tx, { ...initial(sample, program), seq: 1 }, () => undefined);
+          tx.row = async () => { throw Error('forged posting reached a body read'); };
+          const cursor = host.seek('posts', 'byAuthorAt', [{ Scalar: { Id: 'forged-author' } }], null, null, null, 'Asc');
+          try { await cursor.next(); } finally { await cursor.return?.(); }
+        });
+      } catch (error) { refused = String(error).includes('posting disagrees'); }
+      check(refused, 'stale posting did not fail at its directory agreement check');
+
+      const unicode = { table: 'posts', id: 'noncanonical-key', seq: 2,
+        row: RowImage.prepare(program.schema, 'posts', { Row: {
+          id: { Id: 'noncanonical-key' }, author: { Id: '\u{10000}' }, at: { Int: 1 },
+        } }, program.schemaHash) };
+      const canonical = directoryKeys('posts', unicode.row).find(key => indexedDB.cmp(key.slice(0, 2), start) === 0)!;
+      const aliased = [...canonical];
+      // Two encoded surrogate halves decode to the same JS text, but occupy a
+      // different physical order from the single admitted Unicode codepoint.
+      aliased[2] = [4, new Uint8Array([0, 0xd8, 0, 0, 0xdc, 0]).buffer];
+      equal(scalarFromKey(aliased[2]), { Id: '\u{10000}' }, 'counterexample has identical decoded text');
+      check(indexedDB.cmp(aliased, canonical) !== 0, 'counterexample must have a different physical order');
+      await disk.transaction('readwrite', async tx => {
+        await tx.putRows([unicode], 2);
+        await tx.postings.apply([{ kind: 'delete', key: forged }, { kind: 'put', key: aliased, value: null }]);
+      });
+      refused = false;
+      try {
+        await disk.transaction('readonly', async tx => {
+          const host = await DurableQueryHost.open(tx, { ...initial(sample, program), seq: 2 }, () => undefined);
+          const read = tx.row.bind(tx);
+          tx.row = record => {
+            if (record.id === unicode.id) throw Error('noncanonical posting reached a body read');
+            return read(record);
+          };
+          const cursor = host.seek('posts', 'byAuthorAt', [], null, null, null, 'Asc');
+          try { while (!(await cursor.next()).done) { /* Scan to the malformed tuple. */ } }
+          finally { await cursor.return?.(); }
+        });
+      } catch (error) { refused = String(error).includes('posting disagrees'); }
+      check(refused, 'decoded equality admitted a noncanonical posting key');
+    } finally { disk.close(); await request(indexedDB.deleteDatabase(name)); }
+  });
+
+  await test('selected scope memberships must agree with current logical row parts', async () => {
+    const sample = corpus.find(test => test.name === 'search-held-global-first-page')!, program = installed(sample);
+    const name = `durable-member-integrity:${crypto.randomUUID()}`, disk = await DurableRows.open(name, program);
+    try {
+      const admitted = rows(new ClientStore(sample.schema, sample.receipt, { program: sample.program }), program, 1);
+      const row = admitted.find(row => row.table === 'messages')!;
+      const scope = indexPrefix('messages', 'byConversationWords', [{ Scalar: { Id: 'forged-conversation' } }]);
+      await disk.transaction('readwrite', async tx => {
+        await tx.putRows(admitted, 1);
+        await tx.memberships.apply([{ kind: 'put', key: [...scope, scalarKey({ Id: row.id })], value: null }]);
+      });
+      let refused = false;
+      try {
+        await disk.transaction('readonly', async tx => {
+          const host = await DurableQueryHost.open(tx, { ...initial(sample, program), seq: 1 }, () => undefined);
+          const prefix = preparePrefix(sample.schema, 'messages', 'byConversationWords', [
+            { Scalar: { Id: 'forged-conversation' } }, { WordPrefix: { source: 'CA', contract: SEARCH_CONTRACT } },
+          ], [undefined, 2000]);
+          await host.missingSearchAuthority('messages', 'byConversationWords', prefix, sample.context);
+        });
+      } catch (error) { refused = String(error).includes('scope membership disagrees'); }
+      check(refused, 'stale scope membership silently selected an unrelated row');
     } finally { disk.close(); await request(indexedDB.deleteDatabase(name)); }
   });
 

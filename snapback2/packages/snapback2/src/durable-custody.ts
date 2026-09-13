@@ -1,4 +1,4 @@
-// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// @ref LLP 1018.008.007.002#11-block-index-acquisition-restart —
 // bodies, indexes, proofs, cursor and earned receipt packets share one transaction.
 import { NativeCoverage } from '../../evaluator/src/native-coverage.js';
 import { executeQuery } from '../../evaluator/src/query.js';
@@ -9,7 +9,7 @@ import type { Context, LocalExecution } from '../../evaluator/src/types.js';
 import type { SearchExecution } from '../../evaluator/src/search-runtime.js';
 import type { HeldProgram } from './store/range-store.js';
 import type { NativeCommit, NativeState } from './native-custody.js';
-import { DurableRows, type DirectoryRecord } from './durable-rows.js';
+import { DurableRows } from './durable-rows.js';
 import { DurableQueryHost, durableProof, type DurableProof } from './durable-query.js';
 import { DurableScopes } from './durable-scopes.js';
 
@@ -59,7 +59,7 @@ export class DurableCustody {
     try {
       const state = await disk.transaction('readonly', async tx => {
         const state = await tx.getMeta<NativeState>('state');
-        if (!state && (await Promise.all(['pages', 'directory', 'proofs', 'scopes']
+        if (!state && (await Promise.all(['pages', 'blocks', 'proofs', 'scopes']
           .map(name => tx.request(tx.idb.objectStore(name).count())))).some(count => count !== 0))
           throw new TypeError('durable partition has rows or proofs without identity metadata');
         return state ?? initial;
@@ -144,15 +144,16 @@ export class DurableCustody {
     this.ready();
     return this.disk.transaction('readonly', async tx => {
       tx.boundReads(this.state.seq);
-      const request = tx.idb.objectStore('directory').openCursor(), result: Record<string, unknown>[] = [];
-      let next = tx.request(request);
-      for (;;) {
-        const cursor = await next;
-        if (!cursor) break;
-        const record = cursor.value as DirectoryRecord;
-        if (record.table === table) { const row = await tx.row(record); if (row) result.push(RowImage.wire(row)); }
-        next = tx.request(request); cursor.continue();
-      }
+      const result: Record<string, unknown>[] = [];
+      const cursor = tx.directories.seek();
+      try {
+        for await (const entry of cursor) {
+          const record = entry.value;
+          if (!Array.isArray(entry.key) || entry.key.length !== 2 || entry.key[0] !== record.table || entry.key[1] !== record.id)
+            throw new TypeError('durable directory key disagrees with its record');
+          if (record.table === table) { const row = await tx.row(record); if (row) result.push(RowImage.wire(row)); }
+        }
+      } finally { await cursor.return?.(); }
       return result;
     });
   }

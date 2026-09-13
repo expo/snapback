@@ -1,18 +1,21 @@
-// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// @ref LLP 1018.008.007.002#11-block-index-acquisition-restart —
 // current pages and durable indexes publish together; open does not hydrate rows.
-import { RowImage } from '../../evaluator/src/row-image.js';
-import { directoryKeys, directoryScopeKeys } from './durable-key.js';
+import { RowImage, imageCanonical } from '../../evaluator/src/row-image.js';
+import { validateColumnValue } from '../../evaluator/src/value-runtime.js';
+import { components, type KeyImage } from '../../evaluator/src/index-store.js';
+import { OrderedBlocks, type OrderedChange } from './ordered-blocks.js';
+import { imagePostingKeys, imageScopeKeys, indexPrefix, scalarKey } from './durable-key.js';
 import type { HeldProgram } from './store/range-store.js';
 
 export interface DirectoryRecord {
   table: string; id: string; seq: number; page: number; slot: number;
-  keys: IDBValidKey[][]; scopeKeys: IDBValidKey[][];
+  parts: KeyImage;
 }
 export interface PreparedNativeRow { table: string; id: string; row: RowImage | null; seq: number }
 export interface DirectoryChange { before: DirectoryRecord | null; after: DirectoryRecord }
 interface DiskRow { table: string; id: string; row: Record<string, unknown> | null; seq: number }
-const stores = ['pages', 'directory', 'meta', 'proofs', 'scopes'];
-const format = 'snapback2-durable-rows-v1';
+const stores = ['pages', 'blocks', 'meta', 'proofs', 'scopes'];
+const format = 'snapback2-durable-blocks-v1';
 function fail(message: string): never { throw new TypeError(`durable rows: ${message}`); }
 const integer = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -45,10 +48,10 @@ async function transaction<T>(db: IDBDatabase, mode: 'readonly' | 'readwrite', r
 function checkSchema(tx: IDBTransaction): void {
   if (tx.db.version !== 1 || [...tx.db.objectStoreNames].sort().join() !== [...stores].sort().join()) fail('incompatible physical stores');
   for (const name of stores) {
-    const store = tx.objectStore(name), directory = name === 'directory';
-    if (JSON.stringify(store.keyPath) !== (directory ? '["table","id"]' : 'null')
+    const store = tx.objectStore(name);
+    if (store.keyPath !== null
       || store.autoIncrement !== (name === 'pages')) fail('incompatible physical keys');
-    const indexes = directory ? ['keys', 'scopeKeys'] : name === 'scopes' ? ['dependencyKeys', 'selectionKeys'] : [];
+    const indexes = name === 'scopes' ? ['dependencyKeys', 'selectionKeys'] : [];
     if ([...store.indexNames].sort().join() !== indexes.join()) fail('incompatible physical indexes');
     for (const name of indexes) {
       const index = store.index(name);
@@ -62,7 +65,58 @@ export class DurableRowsTx {
   private readonly pages = new Map<number, Promise<DiskRow[]>>();
   private writing = false;
   private readSequence = Number.MAX_SAFE_INTEGER;
-  constructor(readonly idb: IDBTransaction, readonly program: HeldProgram, private readonly factory: IDBFactory) {}
+  readonly directories: OrderedBlocks<DirectoryRecord>;
+  readonly postings: OrderedBlocks<null>;
+  readonly memberships: OrderedBlocks<null>;
+  private totals?: Promise<Map<string, number>>;
+  private readonly namespaces = new Map<string, IDBValidKey[]>();
+  constructor(readonly idb: IDBTransaction, readonly program: HeldProgram, private readonly factory: IDBFactory) {
+    this.directories = new OrderedBlocks(idb, 'blocks', 'directory', factory);
+    this.postings = new OrderedBlocks(idb, 'blocks', 'postings', factory);
+    this.memberships = new OrderedBlocks(idb, 'blocks', 'memberships', factory);
+  }
+  private namespace = (table: string, index: string): IDBValidKey[] => {
+    const name = JSON.stringify([table, index]);
+    let key = this.namespaces.get(name);
+    if (!key) { key = indexPrefix(table, index, []); this.namespaces.set(name, key); }
+    return key;
+  };
+  private indexTotals(): Promise<Map<string, number>> {
+    return this.totals ??= (async () => {
+      const declared = new Map<string, number>();
+      const tables = this.program.schema.tables;
+      if (!tables) fail('schema tables are absent');
+      for (const [table, definition] of Object.entries(tables))
+        for (const index of Object.keys(definition.indexes ?? {}))
+          if (components(this.program.schema, table, index).some(part => 'WordPrefixes' in part))
+            declared.set(JSON.stringify([table, index]), 0);
+      const stored = await this.getMeta('indexCounts');
+      if (stored === undefined) {
+        const first = this.directories.seek();
+        try { if (!(await first.next()).done) fail('derived index counts are absent over existing rows'); }
+        finally { await first.return?.(); }
+        return declared;
+      }
+      if (!Array.isArray(stored)) fail('invalid derived index counts');
+      const counts = new Map<string, number>();
+      for (const entry of stored) {
+        if (!Array.isArray(entry) || entry.length !== 3 || typeof entry[0] !== 'string'
+          || typeof entry[1] !== 'string' || !integer(entry[2])) fail('invalid derived index count');
+        const [table, index, count] = entry, key = JSON.stringify([table, index]);
+        if (counts.has(key) || !declared.has(key))
+          fail('invalid derived index count identity');
+        counts.set(key, count);
+      }
+      if (counts.size !== declared.size) fail('derived index count is absent');
+      return counts;
+    })();
+  }
+  /** Atomic source-index totals establish initial catalogue custody, never scan a hot scope. */
+  async scopeTotal(table: string, index: string): Promise<number> {
+    const total = (await this.indexTotals()).get(JSON.stringify([table, index]));
+    if (total === undefined) fail('derived index count is absent');
+    return total;
+  }
   /** A custody snapshot fences every touched representative as well as query postings. */
   boundReads(seq: number): void {
     if (!integer(seq)) fail('invalid snapshot sequence');
@@ -74,32 +128,45 @@ export class DurableRowsTx {
     if (key === '_format') fail('the physical format marker is immutable');
     return request(this.idb.objectStore('meta').put(value, key));
   }
-  private keyList(value: unknown): value is IDBValidKey[][] {
-    if (!Array.isArray(value)) return false;
-    for (const key of value) {
-      if (!Array.isArray(key)) return false;
-      try { this.factory.cmp(key, key); } catch { return false; }
+  private checkParts(value: unknown, table: string): asserts value is KeyImage {
+    if (!object(value)) fail('invalid directory index parts');
+    const names = Object.keys(value), definitions = this.program.schema.tables?.[table]?.indexes;
+    if (!definitions || names.length && (names.length !== Object.keys(definitions).length
+      || names.some(name => !Object.hasOwn(definitions, name)))) fail('invalid directory index identity');
+    for (const name of names) {
+      const parts = value[name], declared = components(this.program.schema, table, name);
+      if (!Array.isArray(parts) || parts.length !== declared.length) fail('invalid directory index width');
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i], declaration = declared[i];
+        if (!object(part) || Object.keys(part).length !== 1) fail('invalid directory index part');
+        if ('Column' in declaration) {
+          if (!Object.hasOwn(part, 'Scalar')) fail('invalid directory scalar part');
+          validateColumnValue(this.program.schema, table, declaration.Column, part.Scalar as any, true);
+        } else {
+          if (!Array.isArray(part.Words) || part.Words.some(word => typeof word !== 'string' || !word.length)
+            || new Set(part.Words).size !== part.Words.length) fail('invalid directory words');
+          const max = declaration.WordPrefixes.fields.reduce((sum, field) => {
+            const kind: any = this.program.schema.tables?.[table]?.columns?.[field];
+            if (!kind || !(kind.Optional ?? kind).Text) fail('directory word source is absent');
+            return sum + 4 * (kind.Optional ?? kind).Text.max;
+          }, 0);
+          let length = 0;
+          for (const word of part.Words) for (const _scalar of word) if (++length > max) fail('directory words exceed source bounds');
+        }
+      }
     }
-    return true;
   }
   private checkDirectory(value: unknown, table: string, id: string): DirectoryRecord {
-    if (!object(value) || Object.keys(value).length !== 7 || value.table !== table || value.id !== id || !integer(value.seq)
-      || !integer(value.page) || !integer(value.slot) || value.slot >= 256
-      || !this.keyList(value.keys) || !this.keyList(value.scopeKeys)) fail('invalid row directory');
+    if (!object(value) || Object.keys(value).length !== 6 || value.table !== table || value.id !== id || !integer(value.seq)
+      || !integer(value.page) || !integer(value.slot) || value.slot >= 256) fail('invalid row directory');
+    this.checkParts(value.parts, table);
     if (value.seq > this.readSequence) fail('row is ahead of its snapshot');
     return value as unknown as DirectoryRecord;
   }
   async directory(table: string, id: string): Promise<DirectoryRecord | null> {
     if (typeof table !== 'string' || typeof id !== 'string') fail('invalid row identity');
-    const value = await request(this.idb.objectStore('directory').get([table, id]));
+    const value = await this.directories.get([table, id]);
     return value === undefined ? null : this.checkDirectory(value, table, id);
-  }
-  private sameKeys(left: IDBValidKey[][], right: IDBValidKey[][]): boolean {
-    if (left.length !== right.length) return false;
-    if (left.every((key, i) => this.factory.cmp(key, right[i]) === 0)) return true;
-    // Index declarations have no order in schema identity; multiEntry postings are a set.
-    const compare = (a: IDBValidKey, b: IDBValidKey) => this.factory.cmp(a, b);
-    return this.factory.cmp([...left].sort(compare), [...right].sort(compare)) === 0;
   }
   private page(number: number): Promise<DiskRow[]> {
     let held = this.pages.get(number);
@@ -129,8 +196,7 @@ export class DurableRowsTx {
       fail('page and directory disagree');
     // Only the selected body is admitted. Sibling bodies are not typed or indexed on read.
     const row = entry.row === null ? null : RowImage.fromWire(this.program.schema, entry.table, entry.row, fail, this.program.schemaHash);
-    if (!this.sameKeys(record.keys, row ? directoryKeys(record.table, row) : [])
-      || !this.sameKeys(record.scopeKeys, row ? directoryScopeKeys(record.table, row) : []))
+    if (imageCanonical(record.parts) !== imageCanonical(row ? RowImage.keys(row) : {}))
       fail('body and directory indexes disagree');
     return row;
   }
@@ -139,7 +205,7 @@ export class DurableRowsTx {
     this.checkDirectory(record, record.table, record.id);
     const current = await this.directory(record.table, record.id);
     if (!current || current.seq !== record.seq || current.page !== record.page || current.slot !== record.slot
-      || !this.sameKeys(current.keys, record.keys) || !this.sameKeys(current.scopeKeys, record.scopeKeys))
+      || imageCanonical(current.parts) !== imageCanonical(record.parts))
       fail('row directory changed');
     return this.decode(current);
   }
@@ -165,10 +231,15 @@ export class DurableRowsTx {
         }
         const wire = row === null ? null : RowImage.wire(row);
         if (wire && wire.id !== id) fail('prepared row identity mismatch');
-        return { table, id, row, wire, seq, keys: row ? directoryKeys(table, row) : [],
-          scopeKeys: row ? directoryScopeKeys(table, row) : [] };
+        return { table, id, row, wire, seq, parts: row ? RowImage.keys(row) : {} };
       });
-      const previous = await Promise.all(incoming.map(row => this.directory(row.table, row.id)));
+      const counts = await this.indexTotals();
+      // Resolve a sorted batch through interval caches. Concurrent cache misses
+      // would otherwise issue one browser request for every new row.
+      const previous: Array<DirectoryRecord | null> = Array(incoming.length);
+      const order = incoming.map((row, i) => ({ key: [row.table, row.id], i }))
+        .sort((a, b) => this.factory.cmp(a.key, b.key));
+      for (const { i } of order) previous[i] = await this.directory(incoming[i].table, incoming[i].id);
       const current = await Promise.all(previous.map(record => record ? this.decode(record) : null));
       const changedPages = new Set<number>(), changes: DirectoryChange[] = [];
       const additions: Array<{ row: DiskRow; after: DirectoryRecord }> = [];
@@ -183,7 +254,7 @@ export class DurableRowsTx {
         if (entry.row === null ? current[i] !== null : !RowImage.equal(current[i], entry.row))
           changed?.(entry.table, current[i], entry.row);
         const after: DirectoryRecord = { table: entry.table, id: entry.id, seq, page: before?.page ?? 0,
-          slot: before?.slot ?? 0, keys: entry.keys, scopeKeys: entry.scopeKeys };
+          slot: before?.slot ?? 0, parts: entry.parts };
         const row: DiskRow = { table: entry.table, id: entry.id, row: entry.wire, seq };
         if (before) {
           const page = await this.page(before.page);
@@ -201,8 +272,28 @@ export class DurableRowsTx {
         this.pages.set(number, Promise.resolve(entries));
         for (let slot = 0; slot < batch.length; slot++) Object.assign(batch[slot].after, { page: number, slot });
       }
-      const directory = this.idb.objectStore('directory');
-      for (const { after } of changes) directory.put(after);
+      const postings: OrderedChange<null>[] = [], memberships: OrderedChange<null>[] = [];
+      for (const { before, after } of changes) {
+        if (before && imageCanonical(before.parts) === imageCanonical(after.parts)) continue;
+        for (const [record, kind] of [[before, 'delete'], [after, 'put']] as const) {
+          if (!record) continue;
+          for (const key of imagePostingKeys(record.table, record.id, record.parts, this.namespace))
+            postings.push(kind === 'put' ? { kind, key, value: null } : { kind, key });
+          for (const key of imageScopeKeys(record.table, record.parts)) {
+            const member = [...key, scalarKey({ Id: record.id })];
+            memberships.push(kind === 'put' ? { kind, key: member, value: null } : { kind, key: member });
+          }
+          for (const [index, parts] of Object.entries(record.parts)) if (parts.some(part => 'Words' in part)) {
+            const key = JSON.stringify([record.table, index]), count = (counts.get(key) ?? 0) + (kind === 'put' ? 1 : -1);
+            if (!integer(count)) fail('derived index count underflow');
+            counts.set(key, count);
+          }
+        }
+      }
+      await this.directories.apply(changes.map(({ after }) => ({ kind: 'put', key: [after.table, after.id], value: after })));
+      await this.postings.apply(postings);
+      await this.memberships.apply(memberships);
+      await this.putMeta('indexCounts', [...counts].map(([key, count]) => [...JSON.parse(key), count]));
       return changes;
     } catch (error) { try { this.idb.abort(); } catch {} throw error; }
     finally { this.writing = false; }
@@ -236,9 +327,7 @@ export class DurableRows {
       if (event.oldVersion !== 0 || opening.result.objectStoreNames.length !== 0) { opening.transaction!.abort(); return; }
       const db = opening.result;
       db.createObjectStore('pages', { autoIncrement: true });
-      const directory = db.createObjectStore('directory', { keyPath: ['table', 'id'] });
-      directory.createIndex('keys', 'keys', { multiEntry: true });
-      directory.createIndex('scopeKeys', 'scopeKeys', { multiEntry: true });
+      db.createObjectStore('blocks');
       db.createObjectStore('meta').put(format, '_format');
       db.createObjectStore('proofs');
       const scopes = db.createObjectStore('scopes');

@@ -1,4 +1,4 @@
-// @ref LLP 1018.008.007.002#10-receipt-groups-and-the-full-application-client —
+// @ref LLP 1018.008.007.002#11-block-index-acquisition-restart —
 // real IndexedDB catalogue controls compare scope semantics with ClientStore.
 import { DurableRows } from '../src/durable-rows.js';
 import { DurableScopes } from '../src/durable-scopes.js';
@@ -115,7 +115,7 @@ async function status(store: DurableRows, room: string, tenant = 't'): Promise<s
   return (await records(store)).find(record => json(record.scopeKey.slice(2).map(scalarFromKey)) === json([text(room), id(tenant)]))?.statuses[0][1];
 }
 async function snapshot(store: DurableRows): Promise<unknown> {
-  return store.transaction('readonly', tx => Promise.all(['pages', 'directory', 'meta', 'proofs', 'scopes'].map(async name => {
+  return store.transaction('readonly', tx => Promise.all(['pages', 'blocks', 'meta', 'proofs', 'scopes'].map(async name => {
     const store = tx.idb.objectStore(name), keys = tx.request(store.getAllKeys()), values = tx.request(store.getAll());
     return [name, await keys, await values];
   })));
@@ -216,7 +216,8 @@ export async function runDurableScopesControls(): Promise<Result[]> {
         [f.receipt('a', true, 'other'), 'unknown'], [f.receipt('a', true, context.viewer, 6), 'unknown'],
         [f.receipt('a', true), 'allowed'], [undefined, 'unknown']] as const) {
         await commit(store, f, [], seq++, [['proof', proof]], [f.digest('a')]);
-        equal(await status(store, 'a'), expected, 'verdict transition'); await compare(store, f);
+        equal(await status(store, 'a'), expected, 'verdict transition');
+        equal((await records(store))[0].count, 1, 'proof-only changes preserve the membership count'); await compare(store, f);
       }
     });
   });
@@ -287,6 +288,75 @@ export async function runDurableScopesControls(): Promise<Result[]> {
       }), /no initialized/);
       equal(await snapshot(store), before, 'partial initialization did not abort');
     });
+  });
+
+  await test('a complete later membership set can initialize an absent catalogue', async () => {
+    const f = fixture(false, true);
+    await withStore(f, async store => {
+      const initial = [f.message('a', 'a'), f.message('b', 'b')];
+      await store.transaction('readwrite', tx => tx.putRows(initial, 1));
+      await refuses(select(store, f), /no initialized/);
+      await commit(store, f, [f.message('a', 'a', 't', 'coffee', 2), f.message('b', 'b', 't', '---', 2)], 2);
+      equal((await records(store)).map(record => record.count), [1, 1], 'complete final set initializes exact scope counts');
+      await compare(store, f);
+    });
+  });
+
+  await test('distinct net row deltas retain representatives through intermediate moves and repeated notifications', async () => {
+    const f = fixture(false, true);
+    await withStore(f, async store => {
+      await commit(store, f, [f.message('a', 'room'), f.message('b', 'room'), f.message('c', 'else')]);
+      const move = f.message('a', 'else', 't', 'coffee', 2);
+      const final = [f.message('a', 'room', 't', 'coffee', 3), f.message('d', 'room', 't', '---', 3),
+        { table: 'messages', id: 'b', row: null, seq: 3 }];
+      apply(f.host, [move, ...final]);
+      await store.transaction('readwrite', async tx => {
+        const first = await tx.putRows([move], 2), last = await tx.putRows(final, 3);
+        await new DurableScopes(tx, context).refresh([...first, ...last, ...last], f.host);
+        equal(await tx.scopeTotal('messages', 'search'), 3, 'cumulative membership total tracks net live rows');
+      });
+      const current = await records(store);
+      const room = current.find(record => json(record.scopeKey.slice(2).map(scalarFromKey)) === json([text('room'), id('t')]));
+      equal([room.count, room.representative], [2, 'a'], 'net-unchanged representative survives intermediate move');
+      equal(current.map(record => record.count).sort(), [1, 2], 'duplicate notification does not add another member');
+      await compare(store, f);
+    });
+  });
+
+  await test('an established binding cannot silently reset a missing scope baseline', async () => {
+    const f = fixture(false, true);
+    await withStore(f, async store => {
+      await commit(store, f, [f.message('a', 'a')]);
+      const old = (await records(store))[0];
+      await store.transaction('readwrite', tx => tx.request(tx.idb.objectStore('scopes').delete(old.scopeKey)));
+      const before = await snapshot(store), update = f.message('a', 'a', 't', 'changed', 2);
+      apply(f.host, [update]);
+      await refuses(store.transaction('readwrite', async tx => {
+        const changes = await tx.putRows([update], 2);
+        await new DurableScopes(tx, context).refresh(changes, f.host);
+      }), /scope baseline/);
+      equal(await snapshot(store), before, 'missing-baseline refusal rolls back body, blocks and metadata');
+    });
+  });
+
+  await test('a new identity cannot replace a missing catalogue over existing scope members', async () => {
+    // Exercise both an unexpected first member and one after the new member.
+    for (const added of ['c', '0']) {
+      const f = fixture(false, true);
+      await withStore(f, async store => {
+        await commit(store, f, [f.message('a', 'room'), f.message('b', 'room')]);
+        const old = (await records(store))[0];
+        await store.transaction('readwrite', tx => tx.request(tx.idb.objectStore('scopes').delete(old.scopeKey)));
+        const before = await snapshot(store), update = f.message(added, 'room', 't', 'new member', 2);
+        apply(f.host, [update]);
+        await refuses(store.transaction('readwrite', async tx => {
+          const changes = await tx.putRows([update], 2);
+          equal(changes[0].before, null, 'new identity has no before record to expose the missing baseline');
+          await new DurableScopes(tx, context).refresh(changes, f.host);
+        }), /scope baseline/);
+        equal(await snapshot(store), before, 'new-member refusal rolls back all five stores');
+      });
+    }
   });
 
   await test('malformed selected catalogue record fails closed', async () => {

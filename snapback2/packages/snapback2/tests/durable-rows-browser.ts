@@ -1,5 +1,5 @@
 import { DurableRows, type DurableRowsTx, type DirectoryRecord } from '../src/durable-rows.js';
-import { directoryKeys, directoryScopeKeys, indexPrefix, prefixRange } from '../src/durable-key.js';
+import { directoryScopeKeys, imageScopeKeys, indexPrefix, prefixRange, scalarFromKey, stringFromKey, KEY_END } from '../src/durable-key.js';
 import { RowImage } from '../../evaluator/src/row-image.js';
 import { SEARCH_CONTRACT } from '../../evaluator/src/unicode.js';
 import type { HeldProgram } from '../src/store/range-store.js';
@@ -35,7 +35,7 @@ async function withStore(run: (store: DurableRows, name: string) => Promise<void
 }
 async function snapshot(store: DurableRows): Promise<unknown> {
   return store.transaction('readonly', async tx => {
-    const records = await Promise.all(['pages', 'directory', 'meta', 'proofs', 'scopes'].map(async name => {
+    const records = await Promise.all(['pages', 'blocks', 'meta', 'proofs', 'scopes'].map(async name => {
       const store = tx.idb.objectStore(name), keys = tx.request(store.getAllKeys()), values = tx.request(store.getAll());
       return [name, await keys, await values];
     }));
@@ -43,11 +43,14 @@ async function snapshot(store: DurableRows): Promise<unknown> {
   });
 }
 async function indexed(tx: DurableRowsTx, index: 'keys' | 'scopeKeys', range: IDBKeyRange): Promise<DirectoryRecord[]> {
-  const rows: DirectoryRecord[] = [];
-  let cursor = await tx.request(tx.idb.objectStore('directory').index(index).openCursor(range));
-  while (cursor) {
-    rows.push(cursor.value);
-    const request = cursor.request; cursor.continue(); cursor = await tx.request(request);
+  const rows: DirectoryRecord[] = [], map = index === 'keys' ? tx.postings : tx.memberships;
+  const bounds = index === 'scopeKeys' ? { lower: range.lower, upper: [...range.upper as IDBValidKey[], KEY_END], upperOpen: true }
+    : { lower: range.lower, upper: range.upper, lowerOpen: range.lowerOpen, upperOpen: range.upperOpen };
+  for await (const entry of map.seek(bounds)) {
+    const key = entry.key as IDBValidKey[], id = scalarFromKey(key.at(-1)!);
+    if (id === 'Null' || !('Id' in id)) throw Error('posting has no nominal Id tie');
+    const record = await tx.directory(stringFromKey(key[0]), id.Id);
+    check(record, 'posting has no directory'); rows.push(record!);
   }
   return rows;
 }
@@ -89,7 +92,7 @@ export async function runDurableRowsControls(): Promise<Array<{ name: string; pa
       equal((await indexed(tx, 'scopeKeys', IDBKeyRange.only(scope))).length, 602, 'punctuation-only bodies retain derived scopes');
       const directory = (await tx.directory('messages', 'm000'))!;
       check(RowImage.equal(await tx.row(directory), rows[0].row), 'selected row roundtrip changed typed/omitted meaning');
-      equal(directory.keys, directoryKeys('messages', rows[0].row), 'directory stores actual nominal keys');
+      equal(directory.parts, RowImage.keys(rows[0].row), 'directory stores one logical component image');
     });
   }));
 
@@ -129,7 +132,7 @@ export async function runDurableRowsControls(): Promise<Array<{ name: string; pa
       prepared('m0', 2, 'Changed', 2), { table: 'messages', id: 'm1', row: null, seq: 2 },
     ], 2));
     equal(changes.length, 2, 'changed pairs'); equal(changes[1].before, old, 'scope upkeep gets exact old keys');
-    equal(changes[1].after.keys, [], 'tombstone postings'); equal(changes[1].after.scopeKeys, [], 'tombstone scopes');
+    equal(changes[1].after.parts, {}, 'tombstone index parts'); equal(imageScopeKeys('messages', changes[1].after.parts), [], 'tombstone scopes');
     await store.transaction('readonly', async tx => {
       const pages = await tx.request(tx.idb.objectStore('pages').getAll());
       check(pages[0] !== before[0], 'changed page missing'); equal(pages.slice(1), before.slice(1), 'untouched page bytes');
@@ -155,7 +158,7 @@ export async function runDurableRowsControls(): Promise<Array<{ name: string; pa
         await tx.putMeta('state', { seq });
         await tx.putRows(rows, seq);
       }), error);
-      equal(await snapshot(store), before, 'refusal must roll back pages, directories, metadata and proofs');
+      equal(await snapshot(store), before, 'refusal must roll back pages, directory blocks, metadata and proofs');
     }
     await store.transaction('readwrite', tx => tx.putRows([prepared('m', 3, 'retry')], 3));
     await store.transaction('readonly', async tx => equal(RowImage.wire((await tx.row((await tx.directory('messages', 'm'))!))!).body, 'retry', 'retry body'));
@@ -194,7 +197,7 @@ export async function runDurableRowsControls(): Promise<Array<{ name: string; pa
     try {
       await reopened.transaction('readonly', async tx => check(await tx.row(first), 'untouched corruption prevented unrelated read'));
       await refuses(reopened.transaction('readonly', tx => tx.row(later)), /JSON|Unexpected/);
-      await reopened.transaction('readwrite', tx => tx.request(tx.idb.objectStore('directory').put({ ...first, keys: [] })));
+      await reopened.transaction('readwrite', tx => tx.directories.apply([{ kind: 'put', key: [first.table, first.id], value: { ...first, parts: {} } }]));
       await refuses(reopened.transaction('readonly', async tx => tx.row((await tx.directory('messages', 'm0'))!)), /indexes disagree/);
     } finally { reopened.close(); }
   }));
@@ -203,7 +206,7 @@ export async function runDurableRowsControls(): Promise<Array<{ name: string; pa
     await store.transaction('readwrite', tx => tx.putRows([prepared('a', 1), prepared('b', 1)], 1));
     const record = (await store.transaction('readonly', tx => tx.directory('messages', 'a')))!;
     await refuses(store.transaction('readonly', tx => tx.row({ ...record, seq: 2 })), /directory changed/);
-    await store.transaction('readwrite', tx => tx.request(tx.idb.objectStore('directory').put({ ...record, slot: 1 })));
+    await store.transaction('readwrite', tx => tx.directories.apply([{ kind: 'put', key: [record.table, record.id], value: { ...record, slot: 1 } }]));
     await refuses(store.transaction('readonly', async tx => tx.row((await tx.directory('messages', 'a'))!)), /page and directory disagree/);
   }));
 
@@ -216,6 +219,26 @@ export async function runDurableRowsControls(): Promise<Array<{ name: string; pa
     try {
       await reopened.transaction('readonly', async tx => check(RowImage.equal(await tx.row((await tx.directory('messages', 'm'))!), original.row), 'index declaration order changed row admission'));
     } finally { reopened.close(); }
+  }));
+
+  await test('derived totals include termless rows and refuse missing established count custody', () => withStore(async store => {
+    await store.transaction('readwrite', tx => tx.putRows([prepared('a', 1, '---'), prepared('b', 1)], 1));
+    await store.transaction('readonly', async tx => equal(await tx.scopeTotal('messages', 'search'), 2, 'termless source still counts'));
+    await store.transaction('readwrite', tx => tx.putRows([prepared('a', 2, 'different'), prepared('b', 2, 'Coffee', 2, 'other')], 2));
+    await store.transaction('readonly', async tx => equal(await tx.scopeTotal('messages', 'search'), 2, 'body/scope movement preserves source total'));
+    await store.transaction('readwrite', tx => tx.putRows([{ table: 'messages', id: 'a', row: null, seq: 3 }], 3));
+    const counts = await store.transaction('readonly', tx => tx.getMeta('indexCounts'));
+    await store.transaction('readonly', async tx => equal(await tx.scopeTotal('messages', 'search'), 1, 'tombstone removes source total'));
+    const before = await snapshot(store);
+    for (const partial of [true, false]) {
+      await store.transaction('readwrite', async tx => {
+        if (partial) await tx.putMeta('indexCounts', []);
+        else await tx.request(tx.idb.objectStore('meta').delete('indexCounts'));
+      });
+      await refuses(store.transaction('readonly', tx => tx.scopeTotal('messages', 'search')), /counts? (is|are) absent/);
+      await store.transaction('readwrite', tx => tx.putMeta('indexCounts', counts));
+      equal(await snapshot(store), before, 'metadata repair leaves all rows/index blocks untouched');
+    }
   }));
 
   await test('bootstrap peek leaves missing database absent and reads only exact-format metadata', async () => {
