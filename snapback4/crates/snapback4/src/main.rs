@@ -93,6 +93,97 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn early_response_does_not_wait_for_an_unread_request_body() {
+        use std::io::{BufRead, BufReader, Write};
+        use std::net::TcpStream;
+        use std::time::Duration;
+        for (length, expect) in [(1, "Expect: 100-continue\r\n"), (2048, "")] {
+            let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
+            let address = server.server_addr().to_ip().unwrap();
+            let worker = std::thread::spawn(move || {
+                let request = server.recv_timeout(Duration::from_secs(5)).unwrap().expect("request");
+                crate::serve::respond(request, 204, serde_json::Value::Null);
+            });
+            let stream = TcpStream::connect(address).unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            let mut reader = BufReader::new(stream);
+            write!(reader.get_mut(), "OPTIONS / HTTP/1.1\r\nHost: localhost\r\nContent-Length: {length}\r\n{expect}\r\n").unwrap();
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            assert!(line.starts_with("HTTP/1.1 204 "), "{line:?}");
+            // Only send the body after receiving the final response.
+            reader.get_mut().write_all(&vec![b'x'; length]).unwrap();
+            worker.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn json_responses_preserve_framing_on_a_persistent_connection() {
+        use std::io::{BufRead, BufReader, Read, Write};
+        use std::net::TcpStream;
+        use std::time::Duration;
+        use serde_json::json;
+        let cases = [
+            ("GET", 200, json!({ "data": "small" })),
+            ("POST", 200, json!({ "data": "buffered request" })),
+            ("GET", 200, json!({ "data": "page".repeat(1500) })),
+            ("GET", 200, json!({ "data": "snapshot".repeat(10000) })),
+            ("HEAD", 200, json!({ "data": "page".repeat(1500) })),
+            ("OPTIONS", 204, json!(null)),
+            ("GET", 403, json!({ "denied": { "code": "E_AUTH" } })),
+        ];
+        let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
+        let address = server.server_addr().to_ip().unwrap();
+        let responses = cases.clone();
+        let worker = std::thread::spawn(move || {
+            for (_, status, body) in responses {
+                let request = server.recv_timeout(Duration::from_secs(5)).unwrap().expect("next request");
+                crate::serve::respond(request, status, body);
+            }
+        });
+        let stream = TcpStream::connect(address).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        let mut reader = BufReader::new(stream);
+        for (method, status, body) in cases {
+            let body_wire = if method == "POST" { "Content-Length: 2\r\n\r\n{}" } else { "\r\n" };
+            write!(reader.get_mut(), "{method} / HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n{body_wire}").unwrap();
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            assert!(line.starts_with(&format!("HTTP/1.1 {status} ")), "{line:?}");
+            let mut headers = std::collections::BTreeMap::new();
+            loop {
+                line.clear();
+                reader.read_line(&mut line).unwrap();
+                if line == "\r\n" { break; }
+                let (name, value) = line.split_once(':').expect("header");
+                headers.insert(name.to_ascii_lowercase(), value.trim().to_owned());
+            }
+            assert_eq!(headers["content-type"], "application/json");
+            assert_eq!(headers["access-control-allow-origin"], "*");
+            let mut received = Vec::new();
+            if method != "HEAD" && status != 204 {
+                if headers.get("transfer-encoding").is_some_and(|v| v == "chunked") {
+                    loop {
+                        line.clear();
+                        reader.read_line(&mut line).unwrap();
+                        let size = usize::from_str_radix(line.trim(), 16).unwrap();
+                        let mut chunk = vec![0; size + 2];
+                        reader.read_exact(&mut chunk).unwrap();
+                        assert_eq!(&chunk[size..], b"\r\n");
+                        if size == 0 { break; }
+                        received.extend_from_slice(&chunk[..size]);
+                    }
+                } else {
+                    received.resize(headers["content-length"].parse().unwrap(), 0);
+                    reader.read_exact(&mut received).unwrap();
+                }
+                assert_eq!(serde_json::from_slice::<serde_json::Value>(&received).unwrap(), body);
+            }
+        }
+        worker.join().unwrap();
+    }
+
     /// The binary and the client package publish together at one version.
     #[test]
     fn version_is_the_workspace_version() {

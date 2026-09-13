@@ -407,6 +407,19 @@ time-ordered 128-bit form.
   proposed as LLP 2000 §4's second reference application; the author rules
   on the position and the spike.
 
+- **2026-09-13 — JSON HTTP responses are framed before writing.**
+  For ordinary prebuffered requests, the server coalesces the already
+  materialized JSON response's headers and body. This avoids the separate
+  small socket writes that produced long Linux page-read delays. The pinned
+  HTTP library may drain an unread streaming request body when its writer is
+  extracted, so Expect, Transfer-Encoding, large Content-Length and upgrade
+  requests retain the original response-before-drain path. JSON uses one
+  additional transient response-sized buffer; asset streaming is unchanged.
+  Persistent-connection and early-response tests cover the wire lifecycle.
+  The [public-catalog record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+  measures this change and current local competitors on identical verified
+  data; it is a read microbenchmark, not the independent Clique bakeoff.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

@@ -11,7 +11,7 @@ use snapback4_core::{Context, Engine, WriteState, wire};
 use snapback4_lang::Bound;
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
-use std::io::Read as _;
+use std::io::{Read as _, Write as _};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -198,11 +198,31 @@ fn cors() -> Vec<Header> {
 
 pub(crate) fn respond(request: Request, status: u16, body: Json) {
     let text = body.to_string();
+    let capacity = text.len() + 512;
     let mut response = Response::from_string(text).with_status_code(status);
     for header in cors() {
         response.add_header(header);
     }
-    let _ = request.respond(response);
+    // `into_writer` drops the request reader before it returns. tiny_http
+    // prebuffers ordinary bodies up to 1 KiB; other readers may drain on
+    // drop, so keep its response-before-drain order for those requests.
+    let may_drain = request.body_length().is_some_and(|n| n > 1024) || request.headers().iter().any(|h| {
+        h.field.equiv("Expect") || h.field.equiv("Transfer-Encoding")
+            || (h.field.equiv("Connection") && h.value.as_str().split(',').any(|v| v.trim().eq_ignore_ascii_case("upgrade")))
+    });
+    if may_drain {
+        let _ = request.respond(response);
+        return;
+    }
+    // @ref LLP 3000#7-decisions-during-execution — coalesce buffered JSON HTTP responses
+    // The body is already materialized. Frame it before writing so the HTTP
+    // library's small socket buffer cannot split headers from a short body
+    // and leave the latter waiting for a delayed TCP acknowledgement.
+    let mut encoded = Vec::with_capacity(capacity);
+    if response.raw_print(&mut encoded, request.http_version().clone(), request.headers(), request.method() == &Method::Head, None).is_ok() {
+        let mut writer = request.into_writer();
+        let _ = writer.write_all(&encoded).and_then(|_| writer.flush());
+    }
 }
 
 pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
