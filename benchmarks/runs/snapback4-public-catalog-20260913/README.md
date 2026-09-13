@@ -1862,3 +1862,66 @@ unmeasured. These observations establish neither Nagle causality nor an
 adoption, comparator, WAN, device, write, memory-pressure or durability claim.
 The controller is `0b9cb9b0…`, qualification receipt `954a20ab…`, and frozen
 instrument `ebe5b64d…`; the annotations retain their complete hashes and proofs.
+
+## ARM Linux memory-accounting comparison
+
+A separate ARM Linux MEMSTATUS comparison on Office M1 Max/Colima VZ
+(4 CPUs, 12 GiB) completed on 2026-09-13 at 23:26:18 UTC. Both executables
+were built from `8a81eb855` (0.2.8), with the adopted
+`-USQLITE_ENABLE_MEMORY_MANAGEMENT` input. The candidate adds only
+`-DSQLITE_DEFAULT_MEMSTATUS=0`; NODELAY is unchanged. Baseline CLI SHA
+`33bd0c0b…` reproduces the qualified Linux 0.2.8 artifact; candidate
+`8c47c6a5…` is experimental. Both are 7,425,552 bytes. These are source-built
+Linux artifacts, separate from the macOS npm CLI.
+
+Three logical rounds 24–26 used baseline/candidate, candidate/baseline,
+baseline/candidate order. Every run restored a fresh SQLite/app copy and the
+same previously issued 90-day guest sessions. All six formal runs passed the
+full three-table physical proof, exact authorized feeds/threads, invalid and
+expired auth, old-cursor/leave checks and same-session regrant on the same
+server. There were 117,000 case calls and 7,020 excluded warmups, with zero
+reported errors. All 162 complete walks (33,510 page requests) were **untimed**.
+The two 50-sample smoke runs are separate and excluded.
+
+Each case median is the middle of three per-run reported statistics, not a
+pooled request percentile. “Better” means lower latency or higher RPS;
+triplets below are better/worse/tie.
+
+| Metric | Case medians /39 | Matching logical-trial pairs /117 |
+|---|---|---|
+| p50 | 34/5/0 | 88/29/0 |
+| p95 | 30/9/0 | 81/36/0 |
+| p99 | 29/10/0 | 75/42/0 |
+| max | 25/14/0 | 71/46/0 |
+| RPS | 31/8/0 | 83/33/1 |
+
+All five p50 median losses are retained (ms):
+
+| Case | Baseline | Candidate |
+|---|---:|---:|
+| groups5PointHotC1 | 3.638 | 3.845 |
+| groups5PointWorkingSetC8 | 6.127 | 6.629 |
+| groups30ThreadNextC1 | 4.554 | 4.861 |
+| groups30FeedFirstC1 | 4.962 | 5.150 |
+| groups150PointHotC1 | 3.314 | 3.741 |
+
+The 150-group working-feed C8 p50/p95 medians decreased from
+39.867/78.174 to 22.380/43.171 ms, but tails remain mixed. The 30-group
+thread-first C8 p50 decreased from 14.521 to 7.934 ms while p95/p99/max
+medians increased from 33.931/58.083/69.413 to
+71.398/168.631/235.739 ms, and RPS fell from 470.7 to 381.2. Its round-24
+max rose from 69.413 to 348.182 ms. The largest single observations across
+all cases were 353.839 ms in baseline (150-group feed-next C8, round 24)
+and 348.182 ms in candidate (30-group thread-first C8, round 24).
+The six raw-preserving records retain all medians, paired losses and tails.
+
+This is a prepared loopback workload with full-proof/traversal warming;
+working-set samples cover bounded selections of the larger domains.
+Pre-run load/free-memory observations are point samples. OS cache was retained
+without resets and residency was unmeasured. The historical instrument
+`36f4026b…` reports no traversal latency or traversal RPS; its verify-only
+`auth.timedIdentities=3` field is preserved, while that invocation has no
+repeated-case timing. No competitors were rerun, and these results do not
+establish adoption, a general/platform win, device throughput, memory-pressure,
+write or durability behavior. Controller `6d2a2f7e…`, setup `a53df17e…` and
+qualification `25a61327…` are fully bound in every annotation.
