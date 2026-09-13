@@ -1,6 +1,6 @@
 # Snapback 4: a reference column accepts an id that names no row
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P3
 **Date:** 2026-09-13
 **Systems:** `snapback4/crates/snapback4-core/src/engine/write.rs`, `validate.rs`; the guide's `types` card; the README
@@ -22,3 +22,23 @@ is the pattern every reference-taking mutation needs. If they should be
 checked, it is one point read per reference column per write, metered.
 
 Decide, document, and test once.
+
+## Resolution — 2026-09-13
+
+References remain typed IDs without implicit target lookups or delete cascades.
+The types and writes cards, E_INPUT explanation, package README and
+[LLP 3000 §7](../../llp/3000-snapback4.explainer.md#7-decisions-during-execution)
+now state the policy. Mutations requiring a visible target use an explicit,
+metered `require exists t[id] else CODE`; absent and hidden rows both refuse.
+The Interview sketch guards writePost, vote, comment, markSeen and setAffinity.
+
+The authored regression in
+[frontend_regressions.rs](../../snapback4/crates/snapback4-lang/tests/frontend_regressions.rs)
+checks the string `"null"` versus JSON null, unchecked insert/update/upsert,
+absent/hidden refusals without row changes, a visible target with one additional
+examined row, and target deletion without cascade. It passes in the complete
+suite (125 Rust tests, 94 client tests and 9 fixture tests). The revised
+Interview sketch also compiles: 12 tables, 10 operations, zero notes.
+Implementation: `fd1d9d91f9e96390bbe80c32e9438d93bdd16bdd`; independent read-only
+review reported no material findings. This closes an undocumented semantic
+choice; it does not introduce automatic foreign keys.

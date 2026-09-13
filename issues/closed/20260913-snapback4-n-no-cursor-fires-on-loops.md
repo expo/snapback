@@ -1,6 +1,6 @@
 # Snapback 4: `N_NO_CURSOR` fires on `for … first N` in mutations and on `chunk` in jobs
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P3
 **Date:** 2026-09-13
 **Systems:** `snapback4/crates/snapback4-lang` (the `N_NO_CURSOR` note), the `feeds` guide card
@@ -28,3 +28,22 @@ Fix: the note should consider a scan's position — the page a query
 *returns* — not every bounded scan in a program; a `for` body and a `chunk`
 are bounded by their `first N` and need no continuation. The card should
 compile with zero notes and the test should assert it.
+
+## Resolution — 2026-09-13
+
+The note now follows returned query-page provenance through aliases, records,
+branches and one-to-one shapes using the runtime's existing origin analysis.
+Its diagnostic mode includes cursorless pages; the runtime continuation plan
+retains its opaque-only mode. Consumed pages, scalar aggregates, mutation loops
+and job chunks do not receive a caller-cursor rewrite. Notes deduplicate a
+returned read site.
+
+Two authored tests in
+[chat.rs](../../snapback4/crates/snapback4-lang/tests/chat.rs) cover 25 positive
+and negative program cases, including merge and nested return shapes. The
+[feeds fixture](../../snapback4/crates/snapback4-sim/tests/clique.rs) now asserts
+that all notes are absent; it passes. The Rust/TypeScript page-plan parity test
+also passes, and the revised Interview sketch compiles with zero notes.
+The complete suite passes 125 Rust, 94 client and 9 fixture tests.
+Implementation: `fd1d9d91f9e96390bbe80c32e9438d93bdd16bdd`; independent read-only
+review reported no material findings.
