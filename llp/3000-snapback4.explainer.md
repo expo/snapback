@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -542,6 +542,47 @@ time-ordered 128-bit form.
   Chromium and scale witnesses; the conformance obligation between two
   interpreters ends with them.
 
+- **2026-09-13 — local development is a loopback capability; deployed HTTP
+  is private by default (security review).** Development personas and seed
+  are admitted only from a loopback peer whose `Host` and optional `Origin`
+  are also literal loopback names; CORS reflects only an admitted local
+  origin. `serve` binds loopback unless an operator explicitly accepts
+  cleartext exposure, and still refuses the development doors. The catalog,
+  schema, native module and change feed require a live principal. The host
+  authenticates before buffering protected bodies, caps connections, active
+  requests, long polls and expensive password or upload work, and gives every
+  socket operation a deadline. TLS remains the reverse proxy's job. On Unix,
+  store directories are 0700 and database, WAL, shared-memory and asset files
+  are 0600; unsupported permission models fail closed.
+
+- **2026-09-13 — sessions are short, rotated credentials (security review).**
+  Password hashing runs outside the engine mutex behind a bounded work queue;
+  password bodies and attempts per peer and normalized email are bounded, and
+  unknown accounts pay the same verification work. Ordinary sessions last
+  seven days. Refresh replaces the presented session, logout-all revokes every
+  session for its principal, and expired sessions are pruned. The web client
+  keeps credentials in memory by default, exposes localStorage only as an
+  explicit compatibility store, and refreshes a near-expiry session before it
+  becomes unusable.
+
+- **2026-09-13 — hidden rows stay hidden at write and replay boundaries
+  (security review).** A unique conflict with a row the caller cannot read is
+  the generic rule refusal. Audience insertion is admitted only when the
+  caller already has the matching grant; audience keys cannot be changed to
+  acquire one. The private mutation log may retain old operator data, but sync
+  catch-up re-evaluates the current row and emits only its current readable
+  image, or a deletion for a row that disappeared or expired. Previously
+  delivered device data remains a property of that device.
+
+- **2026-09-13 — assets are staged, bounded and viewer-private (security
+  review).** Server IDs use operating-system or Web Crypto entropy. Upload
+  bytes and asset deletion run outside the engine mutex, with bounded slots
+  and a generation/session check before commit. A once asset is consumable by
+  its placed recipient, while its unplaced uploader retains preview access;
+  ranged reads cannot bypass consumption. Image dimensions, total pixels and
+  video duration are capped. Unsatisfiable ranges return 416 and every asset
+  response is `private, no-store`, so a browser cache cannot cross principals.
+
 - **2026-09-13 — optimize the production server for speed.**
   The production Cargo profile uses optimization level 3 after an
   identical-source comparison with the former size setting. On the recorded
@@ -687,6 +728,14 @@ and compiler/client parity corrections. Integration preserves the concurrently
 landed native Expo module and ordered-merge performance work. The four children
 remain Draft Research for their explicitly outstanding choices; the ticket
 fixes do not claim that every architecture question has been settled.
+
+The separate [security review](./reviews/3000-security-review-20260913.md)
+opened twelve findings across the HTTP, identity, storage, synchronization and
+asset boundaries. Its
+[remediation record](./reviews/3000-security-remediation-20260913.md) closes
+those findings and three overlapping comprehensive-review findings. The four
+security decisions in §7 state the lasting contract; individual tickets retain
+the counterexamples, acceptance evidence and limits.
 
 ## How to orient
 

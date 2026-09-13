@@ -33,4 +33,5 @@ Body ceilings (1 MiB JSON, 16 MiB seed, 64 MiB assets) bound payload memory per 
 
 The HTTP host admits at most 128 connections before creating connection threads, with separate 32-request short and 32-request long-poll allowances. Idle/header/body/write deadlines are bounded; header and body budgets are absolute even under dribbling. Each connection has only one outstanding request. Unsupported HTTP versions are refused before writer ownership, and 100 Continue does not spend the final response's write budget. Anonymous changes waits are refused. Socket and pool regressions cover slow readers/writers, overload, pipelining, and progress of short requests while polls are occupied.
 
-Validation: Linux `cargo test --workspace --no-fail-fast --quiet`, wasm build, and the full `scripts/test.sh` at `8d8c1b7c170183d6a54d7a37af8b34596410160d` passed (0 failures in 45 seconds; 71 client tests). The final audience-index selection correction at `90152c6f2` passed its affected regression. See the [remediation and review record](../../llp/reviews/3000-security-remediation-20260913.md) for review scope and follow-up integration fixes.
+Delivery validation and independent review for the current-main port are in
+the [remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

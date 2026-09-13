@@ -41,3 +41,12 @@ P0 is an unauthenticated authorization bypass of the default development server.
 ## Remediation follow-up
 
 The original review above is retained as a baseline. All twelve tickets were resolved on 2026-09-13; the [implementation and follow-up review record](./3000-security-remediation-20260913.md) states the executed checks, later findings, and remaining scope limits.
+
+Three overlapping findings from the same-day comprehensive review were included
+in the delivered security correction:
+
+| Priority | Filesystem ticket | Relationship |
+|---|---|---|
+| P1 | [Engine lock held across slow I/O](../../issues/closed/20260913-snapback4-engine-lock-held-across-slow-io.md) | Extends S04/S08 to early body authentication and asset sweeping |
+| P2 | [Session lifecycle and default store](../../issues/closed/20260913-snapback4-session-lifecycle-and-default-store.md) | Extends S04 to rotation, revoke-all, expiry and client token custody |
+| P2 | [Asset Range and cache headers](../../issues/closed/20260913-snapback4-asset-range-and-cache-headers.md) | Extends S12 to unsatisfiable ranges and viewer-sensitive caching |

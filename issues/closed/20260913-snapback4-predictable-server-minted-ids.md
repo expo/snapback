@@ -37,4 +37,5 @@ Session tokens are `getrandom` and are not this generator. Client `mintId` uses 
 
 Every minted ID now combines the existing 48-bit timestamp with 80 bits from getrandom. Web devices enable the Web Crypto backend as well; xorshift exists only in the regression that demonstrates the former prediction attack. Entropy failure is a typed refusal. Tests cover server minting and more than eight web/native prediction IDs, their persisted replay, and failure of the old state-recovery prediction.
 
-Validation: Linux `cargo test --workspace --no-fail-fast --quiet`, wasm build, and the full `scripts/test.sh` at `8d8c1b7c170183d6a54d7a37af8b34596410160d` passed (0 failures in 45 seconds; 71 client tests). The final audience-index selection correction at `90152c6f2` passed its affected regression. See the [remediation and review record](../../llp/reviews/3000-security-remediation-20260913.md) for review scope and follow-up integration fixes.
+Delivery validation and independent review for the current-main port are in
+the [remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

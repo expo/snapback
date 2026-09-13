@@ -35,4 +35,5 @@ Expired rows have the same shape: sweep logs `del`, the put remains.
 
 Catch-up resolves each historical put against the current row, read rule, and expiry. Deleted or expired rows produce deletion events; unreadable historical puts are suppressed. Updates serve only the current authorized image. Old watermarks cannot retrieve deleted, expired, or replaced content. Revocation preserves an already delivered device copy when the declared policy is delivered-history; it grants no server-history retrieval right. Regression tests cover convergence and that retention distinction. Historical bytes may remain in the private SQLite log; this is a serving guarantee, not secure erasure.
 
-Validation: Linux `cargo test --workspace --no-fail-fast --quiet`, wasm build, and the full `scripts/test.sh` at `8d8c1b7c170183d6a54d7a37af8b34596410160d` passed (0 failures in 45 seconds; 71 client tests). The final audience-index selection correction at `90152c6f2` passed its affected regression. See the [remediation and review record](../../llp/reviews/3000-security-remediation-20260913.md) for review scope and follow-up integration fixes.
+Delivery validation and independent review for the current-main port are in
+the [remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

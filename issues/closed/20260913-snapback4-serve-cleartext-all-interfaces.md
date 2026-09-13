@@ -33,4 +33,5 @@ The client and local replica trust `/schema` and `/sync` with no response authen
 
 serve defaults to 127.0.0.1. A non-loopback literal bind requires --i-understand-cleartext and prints the cleartext warning. The README and identity guide state the TLS proxy contract: preserve Authorization, strip persona headers, and enforce client-address rate limits at the proxy; forwarded headers do not confer identity. Bind-policy tests cover the default, refusal, and explicit opt-in. TLS termination remains external.
 
-Validation: Linux `cargo test --workspace --no-fail-fast --quiet`, wasm build, and the full `scripts/test.sh` at `8d8c1b7c170183d6a54d7a37af8b34596410160d` passed (0 failures in 45 seconds; 71 client tests). The final audience-index selection correction at `90152c6f2` passed its affected regression. See the [remediation and review record](../../llp/reviews/3000-security-remediation-20260913.md) for review scope and follow-up integration fixes.
+Delivery validation and independent review for the current-main port are in
+the [remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

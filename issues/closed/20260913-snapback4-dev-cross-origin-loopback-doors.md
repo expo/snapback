@@ -39,4 +39,5 @@ Chrome's public-to-private preflight is not a complete mitigation. Safari/Firefo
 
 Development requests now require a loopback peer, one literal-loopback/localhost Host, and an absent or valid local Origin. Foreign, null, duplicate, and rebinding hosts/origins are refused before routing. CORS reflects only the admitted local origin. Deployed serve still refuses personas and seed. Raw HTTP regressions exercise both denied requests and admitted local development; this does not claim a live DNS-rebinding browser experiment.
 
-Validation: Linux `cargo test --workspace --no-fail-fast --quiet`, wasm build, and the full `scripts/test.sh` at `8d8c1b7c170183d6a54d7a37af8b34596410160d` passed (0 failures in 45 seconds; 71 client tests). The final audience-index selection correction at `90152c6f2` passed its affected regression. See the [remediation and review record](../../llp/reviews/3000-security-remediation-20260913.md) for review scope and follow-up integration fixes.
+Delivery validation and independent review for the current-main port are in
+the [remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

@@ -35,4 +35,5 @@ Magic-byte sniffing plus `X-Content-Type-Options: nosniff` is otherwise sound (n
 
 Once placed, an asset applies its home row's read rule and once-view ledger to the uploader too; only an unplaced owner preview is exempt. Ranges on once assets are refused with E_ASSET_RANGE before consuming the view. A whole-file request consumes the view at admission. Image dimensions must be nonzero, at most 16384 per side, and at most 40 million pixels; known video duration must be positive and at most one hour. Invalid headers are refused before a file is created. Owner/recipient/range and dimension/duration regressions pass; this remains header inspection rather than a full media decoder.
 
-Validation: Linux `cargo test --workspace --no-fail-fast --quiet`, wasm build, and the full `scripts/test.sh` at `8d8c1b7c170183d6a54d7a37af8b34596410160d` passed (0 failures in 45 seconds; 71 client tests). The final audience-index selection correction at `90152c6f2` passed its affected regression. See the [remediation and review record](../../llp/reviews/3000-security-remediation-20260913.md) for review scope and follow-up integration fixes.
+Delivery validation and independent review for the current-main port are in
+the [remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

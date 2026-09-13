@@ -32,4 +32,5 @@ The chat schema is correct (`insert <- exists memberships[..., viewer, 'admin']`
 
 Schema checking requires an independent audience grant in every insert-rule branch and guards changes to audience group/recipient columns. Exists grants must probe the same audience table through a plain index with the actual recipient slot bound to viewer and matching group fields; a freshly created group is admitted only through its referenced primary key. Decoy tables and self-grants are refused before any insert, insert-if-absent, or upsert can execute. Existing chat and newly integrated guide/fixture schemas pass with guarded membership creation. Regressions cover disjunctions, retargeting, decoys, recipient position, and created-group keys.
 
-Validation: Linux `cargo test --workspace --no-fail-fast --quiet`, wasm build, and the full `scripts/test.sh` at `8d8c1b7c170183d6a54d7a37af8b34596410160d` passed (0 failures in 45 seconds; 71 client tests). The final audience-index selection correction at `90152c6f2` passed its affected regression. See the [remediation and review record](../../llp/reviews/3000-security-remediation-20260913.md) for review scope and follow-up integration fixes.
+Delivery validation and independent review for the current-main port are in
+the [remediation record](../../llp/reviews/3000-security-remediation-20260913.md).
