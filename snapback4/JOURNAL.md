@@ -1490,3 +1490,38 @@ suite (51 s), passed its installed-consumer proof, and published 0.1.14 in
 six-run-per-variant HTTP worker-reuse experiment found no reliable read
 improvement in alternating controls, so that production change was discarded.
 Its raw timings remain in `metrics/storage.jsonl`; no thread-pool win is claimed.
+
+## 2026-09-13 — feeds: the question, the decomposition, an Interview sketch compiled and run; LLP 3000.004
+
+The author: a lot of apps have an algorithmic feed as a crucial part of
+the backend, Convex and Supabase give primitives only — could Snapback 4
+be a good solution, and does Interview (the Quora successor on Exact2 and
+Snapback 2) need one? The answer, written as
+[LLP 3000.004](../llp/3000.004-feeds-and-the-interview-reference-app.rfc.md)
+and carried provisionally in LLP 3000 §7: **yes for the serving half, no
+for the model half, and the line is the design.** Delivery, sync, read
+state, freshness and bounds are what the two flips already make
+declarative; candidate generation and learned scoring are an external
+ranker writing through mutations under a rule. Two shapes: the card's
+per-reader fan-out for a follow graph, and — new — a shared `ranked`
+partition scored by a job on a cadence, every device holding it, plus
+the viewer's own signals (`votes`, `seen`, a ranker's `affinity`) synced
+to the viewer, the device composing the two. Evidence, not argument:
+Interview's feed-relevant schema written for Snapback 4 — twelve tables,
+ten operations — compiled clean at 0.1.14 (`check: ok … no problems, 1
+note, 12.9 ms`) and run on a local store with `snapback4 run`: three
+posts, votes and a comment; `rescore` wrote three `ranked` rows (20, 2,
+−10 from `postScore * 10 + commentCount * 2 - ageHours`); `home --as
+bob` read them in score order with `seen` and the viewer's own vote
+beside each row (12 examined, 69 steps, 0.6 ms); `markSeen` flipped one
+row; three more votes and a second `rescore` moved the order; a ranker
+persona without a `services` row was refused `E_RULE`. Found on the way
+and ticketed: `N_NO_CURSOR` fires on `for … first N` in a mutation and
+on `chunk` in a job (the `feeds` card's own recipe gets two notes); a
+reference column stores an id that names no row. The document proposes
+Interview as LLP 2000 §4's second reference application with a bounded
+spike (the ranked recipe on the card, Interview's Home on Snapback 4, a
+device witness, `rescore` at 1k and 10k posts) and asks the author for
+three decisions. Numbering: 3000.000–3000.003 are the architecture
+review's children, allocated in another session and not yet on main, so
+this took 3000.004. Nothing moved off `NOT-DOING.md`.
