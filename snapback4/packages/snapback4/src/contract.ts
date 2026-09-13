@@ -102,6 +102,7 @@ export interface Client {
   link(): Link;
   onLink(notify: (link: Link) => void): () => void;
   viewer(): Principal | null;
+  onViewer(notify: (viewer: Principal | null) => void): () => void;
   close(): Promise<void>;
 }
 
