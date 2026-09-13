@@ -2072,3 +2072,13 @@ provider in the engine (phone, OAuth), push delivery, multi-server
 presence. Interview's own re-authoring onto these seats (its phone worker
 minting sessions, its model worker as an effect handler, Home on the
 ranked recipe) is application work in the Interview repository.
+
+## 2026-09-13 — 0.2.2 published: search, effects, services, presence, the ranked feed
+
+The landing above rebased over the 0.2.0 unification, native jobs and the
+compiled guide (`1f5b8a6ac`), then took its own version (`bf63040d1`)
+because another session published 0.2.1 from main four minutes before the
+first publish attempt. `snapback4@0.2.2` and `snapback4-darwin-arm64@0.2.2`
+are on npm (the record is in `metrics/publish.jsonl`; production profile,
+7.3 MB binary, 438 KB client tarball with `dist/worker.js` and the wasm
+device). `snapback4-expo` stays at 0.2.0: its module's ops did not change.
