@@ -1,105 +1,58 @@
 # Snapback 4 security remediation — 2026-09-13
 
 **Record author:** Codex (implementation and review synthesis; not an independent reviewer).
-**Scope:** S01–S12 from the [original Grok review](./3000-security-review-20260913.md), plus findings introduced by the intervening native-device, web-device, search, services, and effects integrations.
+**Scope:** S01–S12 from the [Grok security review](./3000-security-review-20260913.md), plus `engine-lock-held-across-slow-io`, `session-lifecycle-and-default-store`, and `asset-range-and-cache-headers`.
 **Related:** [LLP 3000 §7](../3000-snapback4.explainer.md#7-decisions-during-execution), [implementation journal](../../snapback4/JOURNAL.md).
-**Implementation:** `7bd93d820` through `8d8c1b7c170183d6a54d7a37af8b34596410160d`, followed by the plain audience-index selection correction `90152c6f2`.
 
 ## Disposition
 
-All twelve original tickets are closed with their individual resolution and
-acceptance evidence linked from the original review. The HTTP host now admits
-local development origins explicitly, defaults deployed HTTP to loopback,
-authenticates the catalog and change feed, and bounds connections, deadlines,
-password work, and uploads. Password hashing and upload disk writes run outside
-the engine mutex. Hidden constraint conflicts have only the generic write
-refusal. Catch-up does not replay deleted, expired, replaced, or currently
-unreadable images. Private files use owner-only permissions, minted IDs use
-cryptographic entropy, audience grants are checked, and asset views and media
-dimensions are bounded.
+All fifteen findings are resolved in one integrated change:
 
-These decisions are documented in LLP 3000 and the client/identity guide cards.
-The ticket resolutions preserve the limits: TLS terminates at a proxy; generic
-write refusal is not formal noninterference; delivered history refers to an
-already held device copy; private logs are not securely erased; non-Unix private
-storage fails closed pending owner ACL support; media checks inspect headers.
+| Finding | Resolution |
+|---|---|
+| S01 — development cross-origin doors | Development requests require a loopback peer, a literal loopback/localhost `Host`, and an absent or matching local HTTP(S) `Origin`. Allowed origins are reflected; foreign, `null`, duplicate, and malformed origin or credential headers are refused before routing. |
+| S02 — cleartext all-interface serve | `serve` defaults to `127.0.0.1`. A literal non-loopback bind requires `--i-understand-cleartext`, prints a warning, and is documented as a deliberate proxy deployment seam. |
+| S03 — unauthenticated catalog and changes | The schema, generated API, native module, and change feed require a live principal. Long polls authenticate before occupying a waiter and again after waking. `/auth/config` exposes only two booleans. |
+| S04 — auth lock and rate limits | Argon2 runs outside the engine mutex with a credential-state recheck. The host bounds concurrent password work and rate-limits guest, signup, and login attempts by peer and normalized email without an unbounded key map. Password and auth-body sizes are bounded. |
+| S05 — hidden uniqueness oracle | ID and unique-index collisions return generic `E_RULE` when the conflicting row is unreadable, including insert-if-absent and upsert paths. Readable conflicts retain the useful constraint refusal. |
+| S06 — deleted partition images | Catch-up derives a current readable row image. Deleted, expired, replaced, and currently hidden rows produce a tombstone or no new disclosure; `delivered-history` still preserves a device copy that was already delivered. |
+| S07 — private-store permissions | On Unix, store parents and asset directories are 0700 and databases, WAL/SHM sidecars, staged assets, and final assets are 0600, including pre-existing permissive paths. Unsupported platforms fail closed until an owner-only implementation exists. |
+| S08 — upload lock | Upload bytes are admitted and written to a staged file outside the engine mutex under a two-upload semaphore. Commit reauthenticates the session and validates the upload generation before publishing the file and catalog entry. Asset sweeping also deletes files outside the lock. |
+| S09 — predictable IDs | Every server and device minting path uses operating-system cryptographic randomness; the web build uses Web Crypto through `getrandom`. Entropy failure is returned instead of falling back to xorshift. |
+| S10 — audience self-grant | `check` requires each audience insert branch to prove an existing same-table grant or creation of the referenced group. It verifies the real recipient slot and a plain matching index, and requires audience columns to be immutable or guarded. The rule covers ordinary insert, insert-if-absent, and upsert. |
+| S11 — unbounded HTTP work | The vendored host caps accepted connections, short workers, long-poll waiters, request headers, and one request per connection. Header, body, response, and idle deadlines bound slow clients; excess connections close. |
+| S12 — once and media bounds | Images have positive dimensions capped at 16,384 per side and 40 million pixels; video duration is positive and at most one hour. A placed view-once asset counts its uploader, while an unplaced owner preview does not. Range is refused before consuming a once view. |
+| Slow I/O before identity | Protected POST routes authenticate before buffering their bodies and reauthenticate after slow work. Upload and password work no longer hold the engine mutex. Logout is also authenticated before body handling. |
+| Session lifecycle and default store | Ordinary sessions expire after seven days, refresh rotates the token atomically, logout-all revokes every account session, and expired rows are indexed and pruned opportunistically. The browser default is memory-only; readable `localStorage` persistence is an explicit opt-in. The client refreshes sessions before the final 24 hours and guards against stale-token races. |
+| Asset range and cache headers | Unsatisfiable valid ranges return 416 with `Content-Range: bytes */size`; malformed ranges are ignored as ordinary HTTP requests. Every asset response uses `Cache-Control: private, no-store`, and view-once ranges are refused before view accounting. |
 
-## Additional findings resolved during integration
+The security contract is recorded in LLP 3000 and in the Snapback 4 compiled
+guide and package reference. Each closed filesystem ticket records its focused
+acceptance evidence.
 
-- Unsupported HTTP versions could retain writer ownership while trying to send
-  an error; refusal now precedes ownership. Interim 100 Continue and the final
-  response have separate write budgets.
-- Exhausted peers could fill the email limiter with fresh keys; denied peers no
-  longer allocate new secondary keys.
-- Authentication followed body buffering; protected uploads, operations,
-  service routes, and deployed seed now refuse before reading an untrusted
-  body. Error responses close without draining it.
-- A grant probe could use a writable decoy table or bind viewer in the wrong
-  recipient position. The validator now requires the actual audience table,
-  plain index, matching group, and recipient. Created-group grants require the
-  referenced primary key.
-- A native watcher reacquired an engine lock it already held. It now reuses the
-  guard; a live edit/watch probe passed.
-- The unified web device could revert to predictable IDs after its initial
-  supplied IDs. All device minting now uses the secure core path and Web Crypto.
-- A failed browser persistence save could lose an already drained deletion.
-  The web adapter retains and retries the exact pending batch before advancing
-  the device or freeing it.
-- Search dictionary discovery disclosed existence through completeness and
-  scope-cap errors. It now establishes rule opacity and authorizes a uniform
-  scope before discovering words.
-- Whole-row index selectors could treat a words index's scalar projection as
-  its physical key. Sync/audience, cap, expiry, rule probes, complete-group
-  admission, and device leave walks now require plain indexes.
-- Effects could be settled after lease expiry or by an earlier attempt sharing
-  the same worker identity. Settlement requires a live lease and its attempt.
-- A worker with multiple handlers could claim unrelated effects. The SDK sends
-  its bounded handler list and the engine filters the atomic claim accordingly.
+## Preserved limits
 
-## Reviews actually received
-
-The fresh, non-author Codex reviewer `/root/final_correctness_review` reviewed
-successive integrated candidates read-only. Earlier findings above were fixed
-by the implementation owner. Its final verdict at
-`8d8c1b7c170183d6a54d7a37af8b34596410160d` was:
-
-> No material finding remains in the reviewed security remediation and integration.
-
-It confirmed all four search/worker findings from `a59a566da` were resolved.
-One nonblocking omission selected a words index before a valid plain audience
-group index and rejected an otherwise valid schema. `90152c6f2` corrects that
-selector and adds the counterexample to the existing regression.
-
-A separate Grok 4.6 xhigh CLI review received the source and fixes, with tools,
-subagents, and web search disabled. Its completed follow-up at `734c069e1`
-returned **No material finding remains** for six specific items: early body
-authentication, Continue deadlines, first-open sidecar permissions, audience
-grant shape, web ID entropy, and browser persistence, plus service admission.
-The alleged sidecar creation window was rejected after inspecting the bundled
-SQLite Unix VFS: WAL/journal and SHM creation inherit the database mode, and the
-database is pre-created as 0600. This verdict did not cover the later four
-search/worker findings.
-
-Review outputs and exact prompt inputs are retained in the local run directory
-`.llp/ship-runs/sb4-security-20260913/`. Planning-only CLI attempts were not
-counted as reviews. One separate review session was stopped by automatic review
-policy after reporting a valid finding; it supplied no clean verdict.
+TLS still terminates at a same-host proxy. The backend does not trust forwarded
+address or scheme headers, so the proxy must keep the loopback listener private,
+strip development persona headers, preserve `Authorization` and `Origin`, and
+apply any real-client rate limit itself. Generic hidden-conflict refusal reduces
+the existence oracle but is not a claim of formal noninterference. Private files
+are not securely erased, and media validation bounds trusted header facts rather
+than fully decoding every frame or pixel.
 
 ## Executed validation
 
-At `8d8c1b7c170183d6a54d7a37af8b34596410160d`, an isolated Linux worktree ran:
+The initial integrated candidate passed `snapback4/scripts/test.sh` with zero
+failures in 52 seconds, including all Rust workspaces, the WebAssembly build,
+package type/build checks, fixtures, the host boundary suite, the simulation
+security suite, both device stores, and 66 client tests. After self-review added
+the strict credential parsing, pre-wait authentication, logout admission, and
+native-sidecar regression, these focused checks also passed:
 
-- `cargo test --workspace --no-fail-fast --quiet`: PASS.
-- `bash scripts/build-wasm.sh`: PASS.
-- `bash scripts/test.sh`: PASS, **0 failures in 45 seconds**, including all
-  **71 client tests**, the actual-server worker test, socket regressions,
-  compiler/guide fixtures, and both device stores.
-- `git diff --exit-code` after the checks: PASS.
+- `cargo test -p snapback4 --bin snapback4` — 23 passed.
+- `cargo test -p snapback4-device --test native` — 4 passed.
+- `cargo test -p snapback4-lang --test guide` — 8 passed.
 
-The final affected regression
-`cargo test -p snapback4-sim --test security words_indexes_cannot_select_sync_rows_caps_or_expiry --quiet`
-passed at `90152c6f2`. Earlier candidates also passed complete Linux suites;
-the final result above includes the newly integrated search and effects tests.
-Local package build/typecheck and five real-wasm failed-persistence regressions
-passed. No live DNS-rebinding browser, production TLS, Windows ACL, physical
-phone, or production deployment qualification is claimed by this record.
+The final exact-commit suite and independent remediation verdict are appended
+after the candidate is frozen. No live DNS-rebinding browser, production TLS
+terminator, Windows ACL, or production deployment qualification is claimed.

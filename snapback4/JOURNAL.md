@@ -2132,3 +2132,43 @@ binary (6,802,080 B, opt-level 3), packed 439,283 B for the client and
 both in 176 s. The client tarball carries the web device's wasm without
 the host (1.4 MB raw), as §9 decided. The registry answered `snapback4@0.2.4`
 about two minutes after the platform package; a view in between reads 404.
+
+## 2026-09-13 — the security boundary: local development, bounded host work, rotated sessions
+
+The first dedicated security review found twelve holes and the integration
+pass added three adjacent ones. The development door now belongs to a literal
+loopback request: loopback peer and `Host`, absent or matching local `Origin`,
+one unambiguous credential, reflected origin. The release host defaults to
+`127.0.0.1`; exposing its cleartext socket takes an explicit flag and warning,
+with the supported deployment contract a same-host TLS proxy that cannot reach
+the development persona door. The catalog, module, generated API, and change
+feed all require a live session, including both sides of a long-poll wait.
+
+The process has finite admission now: connections, short workers, waiters,
+headers, bodies, writes, idle time, password work, password attempts, and
+uploads each have a bound. Protected bodies are authenticated before they are
+buffered. Argon2, staged upload writes, and asset-file deletion happen outside
+the engine mutex; password and upload commits recheck the authority they began
+with. Store parents and asset directories are owner-only on Unix, as are the
+database, SQLite sidecars, staged files, and final bytes. Other platforms fail
+closed until they can make the same custody promise.
+
+The rule boundary also became closed under the less obvious paths. Hidden id
+and unique collisions use the generic rule refusal, including if-absent and
+upsert. Partition catch-up reconstructs the current readable image rather than
+replaying a deleted or since-hidden one. Minted IDs use OS randomness on native
+targets and Web Crypto in the browser. Audience insertion must follow an
+existing grant or a group created in the same mutation, must use the actual
+recipient slot and plain group index, and cannot later rewrite its group or
+recipient columns without an equivalent guard.
+
+Ordinary sessions now live seven days, rotate atomically through refresh, can
+all be revoked for an account, and are pruned through an expiry index. The web
+client keeps them in memory unless the application explicitly opts into the
+page-readable local-storage adapter; it refreshes before the final day and
+rejects stale-token races. Media facts have dimension and duration ceilings.
+Once-view accounting includes the uploader after placement and refuses ranges
+before consuming a view; ordinary unsatisfiable ranges return 416, and every
+asset response is private and `no-store`. The exact checks and independent
+review for the integrated result live in the 2026-09-13 security remediation
+record beside LLP 3000.
