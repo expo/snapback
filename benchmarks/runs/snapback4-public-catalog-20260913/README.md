@@ -1650,3 +1650,71 @@ Balanced call-tree analysis finds `sqlite3Malloc` immediately above pthread wait
 C1 precedes C8 against one restored process, with another full traversal and 30 warmups before C8. Process and OS-cache history carry forward; OS residency is unmeasured. The diagnostic inherits the pristine snapshot's physical-fixture proof and adds complete authorized traversal checks; it does not repeat a privileged physical scan, leave/regrant matrix or the 39-case benchmark. No comparator, device, write, memory-pressure, durability or universal-performance claim follows. The metrics record preserves the complete receipts, verifier, load observations and exact source/helper/sample hashes.
 
 The subsequently retained outer diagnostic log and exit also reconcile with both load receipts and confirm exit 0.
+
+### Office 0.2.8 membership follow-up (2026-09-13)
+
+Three later Snapback-only runs used the same Office host, frozen instrument, fixture and logical trial IDs 24–26. Relative to the earlier 0.2.5 runs, **32 of 39 case p50 medians were higher**, while several wide-feed tails were lower. The earlier Convex/Supabase runs were not repeated alongside this follow-up; the comparisons below are descriptive and noncontemporaneous.
+
+The selected Linux ARM CLI was built from `8a81eb855` with the adopted `-USQLITE_ENABLE_MEMORY_MANAGEMENT` input: SHA-256 `33bd0c0ba298cfb1044e788aee0702157fbf0530b8c4b01b8d859bda24c89593`, 7,425,552 bytes. It is not the macOS npm executable. The prior Linux qualification passed 103 affected Rust tests, the 211-case corpus with 82 named skips, and a separate production execution of the existing store regression. This version includes intervening engine/HTTP/security/reader changes; these timings do not isolate the SQLite flag or any other one change.
+
+All three runs completed by 22:05:34 UTC with exit 0: 58,500 timed case calls, 3,510 excluded warmups, zero reported errors. A separate 50-sample smoke (1,950 calls) is excluded. Every run rechecked the complete 501-group/186-membership/100,000-message fixture before timing and passed ordinary-auth, exact pages, foreign/old cursor, leave and same-session regrant checks. The 81 complete before/after/regrant walks were untimed, as were other setup/auth checks.
+
+Counts below show cases where later 0.2.8 had a lower median latency or a higher median RPS, out of 39. Each cell compares medians of three reported per-run statistics, not pooled request percentiles.
+
+| Earlier comparison | p50 lower | p95 lower | p99 lower | Median maximum lower | RPS higher |
+|---|---:|---:|---:|---:|---:|
+| Earlier Snapback4 0.2.5 | 7 | 16 | 21 | 22 | 11 |
+| Earlier Convex | 4 | 15 | 19 | 23 | 8 |
+| Earlier Supabase | 38 | 39 | 38 | 38 | 38 |
+
+Corresponding logical-trial latency comparisons are lower in 25/60/72/64 of 117 against 0.2.5, 21/45/55/61 against Convex, and 113/111/108/107 against Supabase (p50/p95/p99/max). They remain separate time windows, not interleaved pairs. All individual losses are retained in the raw records and summary.
+
+The wide C8 feed working set is 29.883 / 65.664 ms p50/p95 here, versus earlier 0.2.5 44.881 / 169.251, Convex 4.102 / 7.787, and Supabase 58.169 / 131.892. The 150-group first-feed C8 p50 is higher than 0.2.5 (33.412 versus 28.147 ms), despite its lower p95 (56.635 versus 115.218). The sole case-median p50 loss to Supabase is 150-group thread-first C8 (16.282 versus 15.107 ms); 30-group feed-next C8 loses at p99/median maximum (94.695/114.671 versus 55.941/69.643 ms). Six individual logical-trial p95 comparisons still favor Supabase. The worst new observation is 164.081 ms in trial 25, 150-group thread-first C8.
+
+All 39 later-0.2.8 case medians follow. Latencies are milliseconds; maximum is the median of per-run maxima, and RPS is completed case requests/second.
+
+| Case | p50 | p95 | p99 | Median max | RPS |
+|---|---:|---:|---:|---:|---:|
+| `groups5PointHotC1` | 4.118 | 7.741 | 11.547 | 25.277 | 214.8 |
+| `groups5PointWorkingSetC1` | 5.002 | 10.964 | 23.610 | 45.486 | 167.2 |
+| `groups5ThreadFirstC1` | 5.424 | 8.504 | 13.584 | 37.602 | 167.5 |
+| `groups5ThreadNextC1` | 4.767 | 7.055 | 10.619 | 15.915 | 198.7 |
+| `groups5FeedFirstC1` | 5.090 | 7.280 | 10.047 | 31.570 | 183.2 |
+| `groups5FeedNextC1` | 4.798 | 5.943 | 7.412 | 22.363 | 203.7 |
+| `groups5FeedWorkingSetC1` | 5.122 | 8.144 | 12.395 | 33.984 | 180.4 |
+| `groups5PointWorkingSetC8` | 7.388 | 16.867 | 34.695 | 39.157 | 949.0 |
+| `groups5ThreadFirstC8` | 15.180 | 25.440 | 32.513 | 37.331 | 499.8 |
+| `groups5ThreadNextC8` | 14.027 | 23.857 | 39.060 | 45.048 | 526.1 |
+| `groups5FeedFirstC8` | 11.439 | 17.374 | 21.049 | 21.709 | 677.4 |
+| `groups5FeedNextC8` | 11.694 | 18.054 | 21.071 | 23.490 | 663.2 |
+| `groups5FeedWorkingSetC8` | 11.632 | 25.592 | 49.327 | 57.651 | 604.1 |
+| `groups30PointHotC1` | 3.764 | 6.026 | 8.875 | 14.708 | 242.6 |
+| `groups30PointWorkingSetC1` | 4.044 | 6.599 | 8.852 | 16.833 | 231.8 |
+| `groups30ThreadFirstC1` | 4.875 | 7.049 | 10.115 | 29.584 | 193.0 |
+| `groups30ThreadNextC1` | 5.171 | 7.851 | 11.284 | 26.997 | 176.8 |
+| `groups30FeedFirstC1` | 5.923 | 12.067 | 21.213 | 36.869 | 142.9 |
+| `groups30FeedNextC1` | 5.511 | 6.884 | 9.465 | 29.838 | 176.0 |
+| `groups30FeedWorkingSetC1` | 5.768 | 11.804 | 17.124 | 28.893 | 155.7 |
+| `groups30PointWorkingSetC8` | 6.813 | 11.982 | 31.806 | 35.399 | 1045.7 |
+| `groups30ThreadFirstC8` | 14.283 | 25.589 | 32.801 | 42.968 | 504.1 |
+| `groups30ThreadNextC8` | 13.781 | 20.965 | 34.961 | 47.392 | 547.2 |
+| `groups30FeedFirstC8` | 12.458 | 20.091 | 27.293 | 35.672 | 608.5 |
+| `groups30FeedNextC8` | 14.762 | 46.586 | 94.695 | 114.671 | 412.2 |
+| `groups30FeedWorkingSetC8` | 23.351 | 46.707 | 65.022 | 101.565 | 315.6 |
+| `groups150PointHotC1` | 4.007 | 5.920 | 8.524 | 15.102 | 237.8 |
+| `groups150PointWorkingSetC1` | 3.815 | 6.710 | 10.200 | 28.579 | 232.9 |
+| `groups150ThreadFirstC1` | 5.033 | 7.518 | 10.845 | 24.904 | 185.6 |
+| `groups150ThreadNextC1` | 5.069 | 7.837 | 10.555 | 23.196 | 179.9 |
+| `groups150FeedFirstC1` | 10.043 | 19.262 | 32.957 | 61.786 | 92.9 |
+| `groups150FeedNextC1` | 11.110 | 20.960 | 30.540 | 57.607 | 80.5 |
+| `groups150FeedWorkingSetC1` | 10.350 | 16.291 | 24.829 | 60.467 | 89.1 |
+| `groups150PointWorkingSetC8` | 6.516 | 11.321 | 20.695 | 22.820 | 1138.8 |
+| `groups150ThreadFirstC8` | 16.282 | 29.824 | 37.251 | 55.417 | 452.4 |
+| `groups150ThreadNextC8` | 18.415 | 39.771 | 61.198 | 74.764 | 373.4 |
+| `groups150FeedFirstC8` | 33.412 | 56.635 | 68.850 | 96.718 | 224.1 |
+| `groups150FeedNextC8` | 26.996 | 51.224 | 65.605 | 71.799 | 263.0 |
+| `groups150FeedWorkingSetC8` | 29.883 | 65.664 | 88.031 | 103.616 | 232.8 |
+
+Each Snapback run restored the full pristine SQLite snapshot and restarted the server; the earlier comparators retained their processes and immutable tables while memberships were restored. Native query caching remains enabled with unmeasured hit rates. Untimed traversals warmed page arguments; OS cache was retained without resets and residency was unmeasured. Existing copied 90-day guest sessions were used, rather than newly issued seven-day sessions. Per-request timers include HTTP/JSON/projection; exact oracle assertions follow those timers, while case wall time/RPS include assertions and loop overhead. Working-set samples retain the earlier input selection but do not cover every wide-domain input.
+
+The record does not claim a current cross-backend controlled win, full Clique comparison, isolated optimization effect, cross-machine result, device/realtime result, write throughput, memory-pressure behavior or durability equivalence. The ledger annotations retain each complete original record, raw instrument/regrant objects and exact file/provenance hashes.
