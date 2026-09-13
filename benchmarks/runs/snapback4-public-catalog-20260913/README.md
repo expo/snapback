@@ -404,6 +404,32 @@ Both actual executables compile the generated public and private catalog
 fixtures without problems. These checks qualify the new artifacts; the
 historical timings above remain bound to their recorded 0.1.16 binaries.
 
+Main then gained native jobs and the unified Rust device in 0.2.0. The
+reviewed compiler change landed over that work as `87dcac33c`; 0.1.18 was
+not published. The existing publication path published **0.2.1** at
+09:55:18 UTC, with optimization level 3 in the actual Cargo artifact record.
+Its updated suite passed 141 Rust tests (one existing long native-job
+ceiling/rollback test at the 8,192-write limit ignored), 60 client tests and nine fixture-wrapper
+tests, with zero failed stages and no JavaScript skips. The suite took
+92 seconds, still above the 60-second loop budget; the complete publication
+took 209.2 seconds. The installed-package typecheck and query/write/offline
+checks passed.
+
+The published Darwin executable is 7,101,584 B, SHA-256
+`b892c68d95e08f1d49ee9112406180cad4e3fdffbcc734600d211ba6df035703`.
+The client tarball is 362,126 B and the platform tarball 3,397,409 B. Both
+registry archives were downloaded and verified against their registry
+integrity values; the platform binary matches the qualified artifact and
+includes the tiny_http MIT notice. The downloaded executable compiles both
+catalog fixtures. The client archive includes the new upstream wasm device;
+these package sizes are not a measurement of the earlier TypeScript client.
+The corresponding Linux executable is 7,622,208 B, SHA-256
+`98d1fad68c4c4a4e77384e64885a4402a480dd0cace5fe67ccbd5b6296f0bbee`,
+built from `6f4004a9f`, whose runtime is byte-identical to the landed source
+(the later rebase adds publication records and an asynchronous test wait).
+It also compiles both catalog fixtures. Its build took 6m21s with newly
+introduced native-job dependencies; this is not a matched warm-build result.
+
 ## Private catalog extension and correctness smokes
 
 `--private-catalog-init NEW_DIRECTORY` extends the existing instrument with
