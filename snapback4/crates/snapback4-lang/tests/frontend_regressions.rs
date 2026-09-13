@@ -198,6 +198,60 @@ query complete(flag: bool):
 }
 
 #[test]
+fn declaration_failures_are_diagnostic_instead_of_being_dropped_or_overwritten() {
+    let duplicates = compile(&[("schema.q".into(), r#"
+shape card = { value: 1 }
+shape card = { value: 2 }
+fn calculate(x: int): x
+fn calculate(x: int): x + 1
+proc fill():
+  return null
+proc fill():
+  return null
+effect notify
+effect notify
+"#.into())]);
+    assert_eq!(duplicates.diagnostics.len(), 4, "{:?}", duplicates.diagnostics);
+    for name in ["duplicate shape card", "duplicate fn calculate", "duplicate proc fill", "duplicate effect notify"] {
+        assert!(duplicates.diagnostics.iter().any(|diagnostic| diagnostic.message.contains(name)), "{name}: {:?}", duplicates.diagnostics);
+    }
+
+    for source in ["shape card from legacy\n", "fn calculate from legacy\n", "proc fill from legacy\n"] {
+        let refused = compile(&[("schema.q".into(), source.into())]);
+        assert_eq!(refused.diagnostics[0].code, "E_QUARRY_UNSUPPORTED", "{source}: {:?}", refused.diagnostics);
+    }
+    let readable = compile(&[("schema.q".into(), "table rows:\n  read <- allow\nmaintain totals: count rows by id\n  readable <- allow\n".into())]);
+    assert!(readable.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_UNSUPPORTED" && diagnostic.message.contains("readable on a maintain")), "{:?}", readable.diagnostics);
+
+    let empty_enum = compile(&[("schema.q".into(), "table rows:\n  state: enum()\n  read <- allow\n".into())]);
+    assert_eq!(empty_enum.diagnostics[0].code, "E_QUARRY_SYNTAX");
+    assert!(empty_enum.diagnostics[0].message.contains("at least one variant"));
+}
+
+#[test]
+fn sync_inversion_and_hoisted_chunk_checks_keep_their_specific_diagnostics() {
+    let inverted = compile(&[("schema.q".into(), "table rows:\n  owner: principal\n  read <- allow\n  sync to .owner\n".into())]);
+    assert_eq!(inverted.diagnostics.len(), 1, "{:?}", inverted.diagnostics);
+    assert_eq!(inverted.diagnostics[0].code, "E_SYNC");
+    assert_eq!(inverted.diagnostics[0].guide, "sync");
+
+    let unstable = compile(&[("schema.q".into(), r#"
+table rows:
+  rank: int
+  by byRank: rank, id
+  read <- allow
+  update <- allow
+fn one(): 1
+job moveRows():
+  chunk row in rows[one()] first 10 by byRank:
+    update rows[row.id] { rank: row.rank + 1 }
+"#.into())]);
+    assert_eq!(unstable.diagnostics.len(), 1, "{:?}", unstable.diagnostics);
+    assert_eq!(unstable.diagnostics[0].code, "E_JOB_CURSOR_INDEX");
+    assert_eq!(unstable.diagnostics[0].site.line, 9);
+}
+
+#[test]
 fn duplicate_named_keys_are_located_diagnostics_for_reads_ranges_and_rules() {
     let source = format!(
         "{ITEMS}\nquery point():\n  return items[a=1, a=2]\nquery page():\n  return items[a=1, a=2] first 10 by byABId\nquery mixed():\n  return items[a=1, 2]\ntable other:\n  n: int\n  read <- exists items[a=1, a=2]\nquery separate():\n  return misspelled\n"

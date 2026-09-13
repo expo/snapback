@@ -32,10 +32,11 @@ impl Catalog {
     pub fn build(documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -> Self {
         let mut tables: BTreeMap<String, TableInfo> = BTreeMap::new();
         let mut maintains = BTreeMap::new();
-        let mut shapes = BTreeMap::new();
-        let mut functions = BTreeMap::new();
-        let mut procs = BTreeMap::new();
+        let mut shapes: BTreeMap<String, ShapeDecl> = BTreeMap::new();
+        let mut functions: BTreeMap<String, FunctionDecl> = BTreeMap::new();
+        let mut procs: BTreeMap<String, ProcDecl> = BTreeMap::new();
         let mut effects = BTreeMap::new();
+        let mut effect_sites: BTreeMap<String, Site> = BTreeMap::new();
         for doc in &documents {
             for table in &doc.tables {
                 if tables.contains_key(&table.name) {
@@ -99,15 +100,32 @@ impl Catalog {
                 maintains.insert(maintain.name.clone(), maintain.clone());
             }
             for shape in &doc.shapes {
+                if let Some(first) = shapes.get(&shape.name) {
+                    diagnostics.push(unknown(&shape.site, format!("duplicate shape {}; first declared at {}", shape.name, first.site), "rename one shape"));
+                    continue;
+                }
                 shapes.insert(shape.name.clone(), shape.clone());
             }
             for function in &doc.functions {
+                if let Some(first) = functions.get(&function.name) {
+                    diagnostics.push(unknown(&function.site, format!("duplicate fn {}; first declared at {}", function.name, first.site), "rename one function"));
+                    continue;
+                }
                 functions.insert(function.name.clone(), function.clone());
             }
             for proc in &doc.procs {
+                if let Some(first) = procs.get(&proc.name) {
+                    diagnostics.push(unknown(&proc.site, format!("duplicate proc {}; first declared at {}", proc.name, first.site), "rename one procedure"));
+                    continue;
+                }
                 procs.insert(proc.name.clone(), proc.clone());
             }
             for effect in &doc.effects {
+                if let Some(first) = effect_sites.get(&effect.name) {
+                    diagnostics.push(unknown(&effect.site, format!("duplicate effect {}; first declared at {first}", effect.name), "rename one effect"));
+                    continue;
+                }
+                effect_sites.insert(effect.name.clone(), effect.site.clone());
                 effects.insert(effect.name.clone(), effect.module.clone());
             }
         }

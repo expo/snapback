@@ -83,7 +83,20 @@ impl<'a> Binder<'a> {
         let count = decl.body.len();
         for (index, statement) in decl.body.iter().enumerate() {
             match binder.statement(statement, &mut body, index + 1 == count) {
-                Ok(()) => {}
+                Ok(()) => {
+                    // Binding a chunk prefix may hoist setup statements. The
+                    // chunk itself is the final statement emitted for this
+                    // declaration, so validate that scan directly instead of
+                    // zipping the differently-shaped AST and IR vectors.
+                    if decl.kind == ProgramKind::Job
+                        && let S::For { site, .. } = statement
+                        && let Some(Stmt::For { domain: LoopDomain::Page(scan), .. }) = body.last()
+                        && let Err(diagnostic) = stable_chunk(catalog, site, scan)
+                    {
+                        diagnostics.push(diagnostic);
+                        failed = true;
+                    }
+                }
                 Err(diagnostic) => {
                     diagnostics.push(diagnostic);
                     failed = true;
@@ -91,10 +104,6 @@ impl<'a> Binder<'a> {
             }
         }
         if failed {
-            return None;
-        }
-        if decl.kind == ProgramKind::Job && let Err(diagnostic) = stable_chunks(catalog, decl, &body) {
-            diagnostics.push(diagnostic);
             return None;
         }
         // The interpreter returns null when control reaches the end. Include
@@ -823,20 +832,13 @@ fn title(value: &str) -> String {
 /// A sweep continues across commits from a cursor, so no write may move an
 /// unvisited row across it: every column of the chunk's index is `id` or
 /// declared `immutable` (LLP 1016 §4 D2).
-fn stable_chunks(catalog: &Catalog, decl: &ast::ProgramDecl, body: &[Stmt]) -> Fallible<()> {
-    for (stmt, chunk) in body.iter().zip(&decl.body) {
-        let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt else { continue };
-        let Some(info) = catalog.tables.get(&scan.table) else { continue };
-        let Some(index) = info.indexes.iter().find(|index| index.name == scan.index) else { continue };
-        let immutable: Vec<&str> = info.decl.immutable.iter().flat_map(|(columns, _)| columns.iter().map(String::as_str)).collect();
-        let moving: Vec<&str> = index.columns.iter().map(String::as_str).filter(|column| *column != "id" && !immutable.contains(column)).collect();
-        if !moving.is_empty() {
-            let site = match chunk {
-                S::For { site, .. } => site.clone(),
-                _ => decl.site.clone(),
-            };
-            return Err(Diagnostic::new(&site, "E_JOB_CURSOR_INDEX", format!("chunk over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or sweep by byId", moving.join(", "), scan.table)).guide("jobs"));
-        }
+fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
+    let Some(info) = catalog.tables.get(&scan.table) else { return Ok(()) };
+    let Some(index) = info.indexes.iter().find(|index| index.name == scan.index) else { return Ok(()) };
+    let immutable: Vec<&str> = info.decl.immutable.iter().flat_map(|(columns, _)| columns.iter().map(String::as_str)).collect();
+    let moving: Vec<&str> = index.columns.iter().map(String::as_str).filter(|column| *column != "id" && !immutable.contains(column)).collect();
+    if !moving.is_empty() {
+        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("chunk over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or sweep by byId", moving.join(", "), scan.table)).guide("jobs"));
     }
     Ok(())
 }

@@ -47,7 +47,11 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     if diagnostics.is_empty() {
         for issue in core::validate(&schema) {
             let site = catalog.site_for(&issue.path);
-            diagnostics.push(Diagnostic::new(&site, "E_SCHEMA_CONSTRAINT", issue.message, "fix the declaration named by this message").guide("indexes"));
+            if issue.path.ends_with(".sync") {
+                diagnostics.push(Diagnostic::new(&site, "E_SYNC", issue.message, "make the sync audience exactly match the table's read rule").guide("sync"));
+            } else {
+                diagnostics.push(Diagnostic::new(&site, "E_SCHEMA_CONSTRAINT", issue.message, "fix the declaration named by this message").guide("indexes"));
+            }
         }
     }
     schema

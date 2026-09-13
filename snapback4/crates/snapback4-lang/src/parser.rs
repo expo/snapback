@@ -659,6 +659,9 @@ impl Parser {
                         }
                     }
                     self.take(")")?;
+                    if variants.is_empty() {
+                        return Err(syntax_with(&site, "enum needs at least one variant", "enum('draft', 'published')"));
+                    }
                     TypeKind::Enum { variants }
                 }
                 other => TypeKind::Ref { table: other.to_owned() },
