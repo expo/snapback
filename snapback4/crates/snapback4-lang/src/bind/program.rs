@@ -97,6 +97,12 @@ impl<'a> Binder<'a> {
             diagnostics.push(diagnostic);
             return None;
         }
+        // The interpreter returns null when control reaches the end. Include
+        // that observable path in the generated result type; a return nested
+        // in one branch or in a possibly-empty loop does not cover it.
+        if !control::exits(&body) {
+            binder.returns.push(Ty::Null);
+        }
         let result = binder.returns.iter().fold(None, |joined: Option<Ty>, ty| Some(match joined { Some(j) => j.join(ty), None => ty.clone() })).unwrap_or(Ty::Null);
         let full_name = super::operation_name(module, &decl.name);
         let kind = match decl.kind {

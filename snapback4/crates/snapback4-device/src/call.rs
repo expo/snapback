@@ -54,7 +54,9 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
             }
             "apply" => {
                 let page: StreamPage = parse(arg(request, "page")?)?;
-                let first = request.get("first").and_then(Json::as_bool).unwrap_or(true);
+                // A missing marker is a continuation. Starting a snapshot is
+                // destructive to its private staging area and must be explicit.
+                let first = request.get("first").and_then(Json::as_bool).unwrap_or(false);
                 json!({ "touched": device.apply(&page, first)? })
             }
             "query" => {
@@ -62,7 +64,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
                 let (result, unknown) = device.query_with_coverage(text(request, "name")?, text(request, "viewer")?, &args, now);
                 match result {
-                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "tables": outcome.tables, "unknown": unknown }),
+                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown }),
                     Err(refusal) => json!({ "denied": refusal, "unknown": unknown }),
                 }
             }

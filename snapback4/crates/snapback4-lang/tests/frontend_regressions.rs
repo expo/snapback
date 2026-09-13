@@ -3,6 +3,7 @@
 
 use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_lang::{Bound, compile};
+use snapback4_lang::types::Ty;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::Command;
@@ -165,6 +166,35 @@ query nested(x: int ?, flag: bool):
     assert_eq!(e.query("refuse", context(&[("x", Value::Null)])).unwrap_err().code, "MISSING");
     assert_eq!(query(&mut e, "both", &[("x", Value::Int(9)), ("flag", Value::Bool(false))]), Value::Int(10));
     assert_eq!(query(&mut e, "nested", &[("x", Value::Null), ("flag", Value::Bool(false))]), Value::Int(1));
+}
+
+#[test]
+fn result_types_include_null_when_control_can_reach_the_end() {
+    let source = r#"
+query conditional(x: int ?):
+  if x != null:
+    return x
+query loop(xs: [int] <=2):
+  for x in xs:
+    return x
+query complete(flag: bool):
+  if flag:
+    return 1
+  else:
+    return 2
+"#;
+    let compiled = bound(source);
+    let results: BTreeMap<_, _> = compiled.programs.iter().map(|program| (program.program.name.as_str(), &program.result)).collect();
+    assert_eq!(results["conditional"], &Ty::Int.optional());
+    assert_eq!(results["loop"], &Ty::Int.optional());
+    assert_eq!(results["complete"], &Ty::Int);
+    let mut engine = Engine::memory(compiled.schema.clone(), compiled.programs.iter().map(|program| program.program.clone())).unwrap();
+    assert_eq!(query(&mut engine, "conditional", &[("x", Value::Null)]), Value::Null);
+    assert_eq!(query(&mut engine, "loop", &[("xs", Value::Array(Vec::new()))]), Value::Null);
+    let emitted = snapback4_lang::emit::typescript(&compiled);
+    assert!(emitted.contains("conditional: Query<{ x?: number | null }, number | null>;"), "{emitted}");
+    assert!(emitted.contains("loop: Query<{ xs: number[] }, number | null>;"), "{emitted}");
+    assert!(emitted.contains("complete: Query<{ flag: boolean }, number>;"), "{emitted}");
 }
 
 #[test]

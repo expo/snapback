@@ -91,6 +91,111 @@ fn state(device: &mut dyn AnyDevice) -> (u64, u64) {
 }
 
 #[test]
+fn query_reports_the_next_expiry_to_the_host() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table notes:\n  until: time ?\n  by byExpiry: until\n  expire at .until\n  read <- allow\n  sync public\nquery notes():\n  return notes[] first 10 by byId\n";
+        let (mut engine, backend) = compile(source);
+        engine.seed([
+            ("notes".into(), snapback4_core::value::object([("id", id("soon")), ("until", Value::Int(4_000_000_000_000))])),
+            ("notes".into(), snapback4_core::value::object([("id", id("later")), ("until", Value::Int(4_000_000_001_000))])),
+            ("notes".into(), snapback4_core::value::object([("id", id("never")), ("until", Value::Null)])),
+        ]).unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("expiry", Some(backend)).unwrap();
+        for (index, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, index == 0)); }
+        let before = query(&mut *device, "notes", "dev:alice", serde_json::json!({}), 3_000_000_000_000);
+        assert_eq!(before["nextExpiry"], 4_000_000_000_000_i64, "{label}: the earliest visible expiry schedules a refresh");
+        let after = query(&mut *device, "notes", "dev:alice", serde_json::json!({}), 4_000_000_001_000);
+        assert_eq!(after["nextExpiry"], serde_json::Value::Null, "{label}: no future expiry is encoded as null");
+        device.close();
+    });
+}
+
+#[test]
+fn omitted_apply_first_continues_the_staged_snapshot() {
+    on_both(|host| {
+        let label = host.label();
+        let (mut engine, backend) = server();
+        let mut device = host.open("apply-default", Some(backend)).unwrap();
+        let pages = snapshot_pages(&mut engine, "dev:bob", 50);
+        assert!(pages.len() >= 3);
+        for (index, page) in pages.iter().enumerate() {
+            let mut request = serde_json::json!({ "op": "apply", "page": page_json(page) });
+            if index == 0 { request["first"] = serde_json::Value::Bool(true); }
+            ok(device.call(request));
+        }
+        let thread = query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 2_000);
+        assert_eq!(rows(&thread).len(), 50, "{label}: an omitted marker on a continuation must not clear earlier pages");
+        assert_eq!(rows(&query(&mut *device, "inbox", "dev:bob", serde_json::json!({}), 2_000))[0]["count"], 120, "{label}");
+        device.close();
+    });
+}
+
+#[test]
+fn withdrawing_one_prediction_replays_the_remaining_outbox() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table items:\n  group: text <=10\n  value: int\n  read <- allow\n  update <- allow\n  delete <- allow\n  sync public\nquery row(id: id):\n  return items[id] by byId\nmutation first():\n  update items['a'] {value: 99}\n  delete items['b']\nmutation later():\n  old = items['a'] by byId\n  require old != null else MISSING\n  update items['a'] {value: old.value + 1}\n";
+        let (mut engine, backend) = compile(source);
+        engine.seed([
+            ("items".into(), snapback4_core::value::object([("id", id("a")), ("group", Value::String("g".into())), ("value", Value::Int(1))])),
+            ("items".into(), snapback4_core::value::object([("id", id("b")), ("group", Value::String("g".into())), ("value", Value::Int(20))])),
+        ]).unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("withdraw", Some(backend)).unwrap();
+        for (index, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() { ok(apply(&mut *device, page, index == 0)); }
+        let queue = |op: &str, seq: u64| Queued { id: format!("w{seq}"), seq, op: op.into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2_000, predictable: true, sent_seq: None, observed_seq: None };
+        let first = ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("first", 1) })));
+        ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("later", 2) })));
+        assert_eq!(query(&mut *device, "row", "dev:alice", serde_json::json!({ "id": "a" }), 2_000)["data"]["value"], 100, "{label}");
+        ok(device.call(serde_json::json!({ "op": "dequeue", "id": "w1" })));
+        ok(device.call(serde_json::json!({ "op": "withdraw", "predicted": first["predicted"] })));
+        assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().len(), 1, "{label}");
+        assert_eq!(query(&mut *device, "row", "dev:alice", serde_json::json!({ "id": "a" }), 2_000)["data"]["value"], 2, "{label}: the surviving prediction is replayed over the confirmed image");
+        assert_eq!(query(&mut *device, "row", "dev:alice", serde_json::json!({ "id": "b" }), 2_000)["data"]["value"], 20, "{label}");
+        device.close();
+    });
+}
+
+#[test]
+fn the_unified_device_shares_search_value_and_output_bound_semantics() {
+    on_both(|host| {
+        let label = host.label();
+        let source = "table documents:\n  body: text <=4096\n  by byWords: words(body), id\n  read <- allow\n  sync public\ntable guarded:\n  data: json <=4096\n  read <- .data = viewer\nquery huge():\n  return documents[] first 300 by byId\nquery search(q: text <=20):\n  return documents matching q first 10 by byWords\nquery mixed(input: json <=100):\n  return input = viewer\nquery guardedRows():\n  return guarded[] first 10 by byId\n";
+        let (mut engine, backend) = compile(source);
+        let body = format!("needle {}", "x".repeat(4_089));
+        let mut seeded = (0..300).map(|n| ("documents".to_owned(), snapback4_core::value::object([("id", id(&format!("d{n:03}"))), ("body", Value::String(body.clone()))]))).collect::<Vec<_>>();
+        seeded.push(("guarded".into(), snapback4_core::value::object([("id", id("g1")), ("data", Value::String("dev:alice".into()))])));
+        engine.seed(seeded).unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
+        let mut device = host.open("shared-semantics", Some(backend.clone())).unwrap();
+        for (index, page) in snapshot_pages(&mut engine, "dev:alice", 400).iter().enumerate() { ok(apply(&mut *device, page, index == 0)); }
+        assert_eq!(query(&mut *device, "mixed", "dev:alice", serde_json::json!({ "input": "dev:alice" }), 1)["data"], false, "{label}: JSON text and viewer identity keep distinct tags");
+        assert_eq!(rows(&query(&mut *device, "search", "dev:alice", serde_json::json!({ "q": "nee" }), 1)).len(), 10, "{label}: word-prefix indexes are served on the device");
+        let local = query(&mut *device, "huge", "dev:alice", serde_json::json!({}), 1);
+        assert_eq!(local["denied"]["code"], "E_BOUND", "{label}: device output uses the shared 1 MiB ceiling: {local}");
+        assert_eq!(engine.query("huge", context("dev:alice", &[])).unwrap_err().code, "E_BOUND", "{label}: server and device refuse the same oversized result");
+
+        // Install a row this online-only table would never legitimately
+        // receive to exercise the rule: JSON text is not viewer identity.
+        let watermark = state(&mut *device).0;
+        let page: snapback4_device::device::StreamPage = serde_json::from_value(serde_json::json!({
+            "snapshot": false,
+            "events": [{ "table": "guarded", "kind": "put", "id": "g1", "data": { "id": "g1", "data": "dev:alice" } }],
+            "watermark": watermark,
+            "more": false,
+            "generation": backend.generation,
+        })).unwrap();
+        ok(apply(&mut *device, &page, false));
+        let guarded = query(&mut *device, "guardedRows", "dev:alice", serde_json::json!({}), 1);
+        assert!(rows(&guarded).is_empty(), "{label}: the mixed-tag rule must deny the row");
+        assert_eq!(guarded["complete"], false, "{label}: the online-only read remains honestly incomplete");
+        device.close();
+    });
+}
+
+#[test]
 fn the_device_follows_the_server_and_answers_locally() {
     on_both(|host| {
         let label = host.label();

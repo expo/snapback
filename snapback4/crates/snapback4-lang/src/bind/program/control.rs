@@ -319,7 +319,7 @@ impl Binder<'_> {
 
 /// A loop may be empty. A return, an unconditional refusal, or two exiting
 /// branches leave no path to the following statement.
-fn exits(statements: &[Stmt]) -> bool {
+pub(super) fn exits(statements: &[Stmt]) -> bool {
     statements.iter().any(|statement| match statement {
         Stmt::Return(_) | Stmt::Break => true,
         Stmt::Require { condition: Expr::Literal(Value::Bool(false)), .. } => true,

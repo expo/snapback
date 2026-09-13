@@ -428,7 +428,11 @@ impl<S: DeviceStore> Device<S> {
     /// restores anything else.
     pub fn withdraw(&mut self, _predicted: &[String]) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        let watermark = meta_u64(&tx, WATERMARK)?;
         predictions::restore(&tx, &self.schema)?;
+        // Base images are shared by overlapping predictions, so restore the
+        // complete speculative overlay and rebuild the writes that remain.
+        predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
         tx.commit()
     }
 

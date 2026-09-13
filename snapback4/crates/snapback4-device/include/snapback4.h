@@ -9,9 +9,13 @@
  * Ops: state, adopt {backend}, apply {page, first}, query {name, viewer, args, now},
  * predict {name, viewer, args, now, newIds, entropy}, withdraw {predicted},
  * enqueue {entry}, queued, next_submission, dequeue {id}, meta {key},
- * set_meta {key, value}, clear_rows. Nothing panics across this boundary;
- * every answer is JSON the caller frees. A device is not thread-safe: one
- * caller at a time, as the store is one transaction at a time.
+ * set_meta {key, value}, clear_rows. Nothing unwinds across this boundary:
+ * unwind builds translate an internal panic to E_STORE; production uses
+ * panic=abort and terminates before unwinding. Every answer is JSON the
+ * caller frees. A device is not thread-safe: one caller at a time, as the
+ * store is one transaction at a time.
+ * `apply.first` must be true on the first page of a snapshot. It defaults
+ * to false so an omitted marker cannot discard a snapshot already staged.
  */
 #ifndef SNAPBACK4_H
 #define SNAPBACK4_H
@@ -26,7 +30,10 @@ typedef struct sb4_device sb4_device;
  * (ask `sb4_open_reason` why). */
 sb4_device *sb4_open(const char *path, const char *backend_json);
 
-/* Why `sb4_open` would refuse, as JSON to free: {"ok":true} when it would open. */
+/* Take the refusal recorded by the most recent failed `sb4_open` on this
+ * thread, as JSON to free. This diagnoses that attempt without opening or
+ * mutating the store a second time. The arguments are retained for ABI
+ * compatibility. */
 char *sb4_open_reason(const char *path, const char *backend_json);
 
 /* One call; the answer is JSON to free with `sb4_free`. */
