@@ -170,3 +170,7 @@ the retained qualification receipt is
 `linux-final-run-7-d8cdc6c81.receipt.json` under this run's ignored ledger.
 This checkpoint also integrates main's independently qualified SQLite plan
 reuse; no causal claim assigns the whole final timing change to the runner.
+
+### Published repair qualification
+
+The qualified publisher at landed `342c53d306d7484cd64e820ee27a151e02eb4b0b` reran the entire suite in 30 seconds: 236 Rust, 9 fixture and 89 client passes, zero failures and the same one declared ignored debug throughput test. Raw log SHA-256: `38f71d6c2d0e74f8d134c20e7da2bb88d1a6530f7f55849a048f0c12d68ca94a`. The resulting 0.2.6 package and 0.2.1 Expo artifact are published and registry-verified; no ceiling changed.

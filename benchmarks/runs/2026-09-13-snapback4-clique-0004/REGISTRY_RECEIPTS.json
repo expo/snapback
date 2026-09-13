@@ -1,0 +1,70 @@
+{
+  "verifiedAt": "2026-09-13T18:30:33Z",
+  "sourceCommit": "342c53d306d7484cd64e820ee27a151e02eb4b0b",
+  "packages": {
+    "snapback4": {
+      "name": "snapback4",
+      "version": "0.2.6",
+      "dist": {
+        "shasum": "8c0c85da016f95369d346d1148f2db6fc3adcd9f",
+        "tarball": "https://registry.npmjs.org/snapback4/-/snapback4-0.2.6.tgz",
+        "fileCount": 29,
+        "integrity": "sha512-l2TOjbXIlKsdMlD1VgXn5qbPqBTRk1KabuCihBGtCdyl5oSRKuiSzzO2H4EYCiLMNnQpxXgAkoWZX2bYa/5j/Q==",
+        "signatures": [
+          {
+            "sig": "MEUCIQDIjaCmT9oMIxI7N3JTpRL/qfF8liMxvWXFDklafn3N3gIgX6ZnvIk6ok+ang2B9AJCm1F5umy3EtMxqdlj2sahfxM=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEYCIQC2jhXUgHnV0QpfO0bcpgeIlwZnWxJDTE7eytmYPTLacwIhAPQtcVtaumg6cS486dRM4Gkh2H+d/ZxF/euvRE2lgACA",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 1589870
+      },
+      "local_tarball": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-MXx4dA/snapback4-0.2.6.tgz",
+      "sha256": "4f4f1267997d9347484d1bcf66115b2608e7708edb8af5d80a9e8df265dbb58d",
+      "registry_integrity_matches_local_tarball": true
+    },
+    "snapback4-darwin-arm64": {
+      "name": "snapback4-darwin-arm64",
+      "version": "0.2.6",
+      "dist": {
+        "shasum": "d64037106b9ede3765ad3117676374e1d380b8ee",
+        "tarball": "https://registry.npmjs.org/snapback4-darwin-arm64/-/snapback4-darwin-arm64-0.2.6.tgz",
+        "fileCount": 3,
+        "integrity": "sha512-d/JiEkbz/Jq0SUMPVBfTTerYHO2LxtrTyPZnl6fTTbnKJo29zGrksUUtaQ7GuJjKP+xFX/EUK/1WIlE8z6QGmg==",
+        "signatures": [
+          {
+            "sig": "MEQCIEG1O+bunQeSfajlBytNMMyHHHImSsLLaLwMOnrBwNvYAiBxTKFCZYT4zmaRSAWcah8KRwol6Zh2FFiRUAIoP+ejkA==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 6969219
+      },
+      "local_tarball": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-MXx4dA/snapback4-darwin-arm64-0.2.6.tgz",
+      "sha256": "63e2f2baa5c84c6c3707a41ef9f1579f7077eee0c4b0ec1928075bc7da8ccfbf",
+      "registry_integrity_matches_local_tarball": true
+    },
+    "snapback4-expo": {
+      "name": "snapback4-expo",
+      "version": "0.2.1",
+      "dist": {
+        "shasum": "d53896dd16404fc1f34aeb62fcf883f9735c596c",
+        "tarball": "https://registry.npmjs.org/snapback4-expo/-/snapback4-expo-0.2.1.tgz",
+        "fileCount": 13,
+        "integrity": "sha512-AzpMiVBJWr9J+/CTJRuurvyC/FPtXTd5UMHftEU66c2c6hqrCpZ6nhh2kwEGXFBIeCcAv2yoGvlhH/KEtryRWQ==",
+        "signatures": [
+          {
+            "sig": "MEYCIQDzpI8XA/KLba+tHf32gjmjT8O/Y7on+uzZMAg7GtCxDgIhAJaeUWBiyceZL9fFVHPauTcvyWb619U2/mzbKF/IK3Ms",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 13200366
+      },
+      "local_tarball": "/tmp/sb4-36-ready-expo/snapback4-expo-0.2.1.tgz",
+      "sha256": "02aa66c6d7bf385b9724f08adb1448e3508f38cd4237d08ac00b2de0e13894fe",
+      "registry_integrity_matches_local_tarball": true
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "sha": "342c53d306d7484cd64e820ee27a151e02eb4b0b",
+  "publisher": {
+    "at": "2026-09-13T18:28:03.242Z",
+    "version": "0.2.6",
+    "tarballBytes": 451052,
+    "platformTarballBytes": 3420347,
+    "files": 29,
+    "binaryBytes": 6967536,
+    "binarySha256": "53038e2bda472bf4e901ac8ae0209d92e1aeeac9ca8740be9957239153ae0344",
+    "binaryVersion": "snapback4 0.2.6",
+    "binaryProfile": "production",
+    "cargoProfile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": false
+    },
+    "platform": "darwin-arm64",
+    "publish_s": 41.2,
+    "dry": false
+  },
+  "suite_seconds": 30,
+  "rust_passed": 236,
+  "rust_ignored": 1,
+  "client_passed": 89,
+  "fixture_passed": 9,
+  "failed": 0,
+  "log_sha256": "38f71d6c2d0e74f8d134c20e7da2bb88d1a6530f7f55849a048f0c12d68ca94a"
+}

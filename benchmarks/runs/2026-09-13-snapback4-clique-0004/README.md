@@ -1,11 +1,16 @@
 # Clique on Snapback 4 — full brief, three builder models
 
-**Status: prepared, not launched.** No builder, scorer, grader, or M7 process
-has started. The intended published pins are `snapback4@0.2.6` and
-`snapback4-expo@0.2.1`; both remain **pending publication and qualification**.
-The packet still contains `PENDING_PUBLISHED_FIXED_PIN` and
-`PENDING_PUBLISHED_EXPO_PIN`, so it refuses to launch. This record makes no
-result or installed-version claim yet.
+**Status: running.** Astra medium's continuous builder started at
+`2026-09-13T18:30:36Z` (PID `56884`); Grok and Muse remain queued.
+All three lanes are frozen to published `snapback4@0.2.6` and
+`snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
+matches the exact qualified tarballs, including the platform binary.
+
+The repairs landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`.
+The publisher reran the full suite in 30 seconds: 236 Rust, 9 fixture and
+89 client passes, zero failures and one declared ignored test. Its installed
+consumer checks passed. `release-qualification.json` retains the package,
+binary and raw-log digests. No benchmark outcome is reported yet.
 
 ## Frozen run
 
@@ -33,7 +38,8 @@ grader behavior across runs.
 
 ## Results
 
-Every field is pending because the run has not launched.
+Astra is active; milestone outcomes are pending until its receipts report them.
+Grok, Muse, holistic scoring, independent grading and M7 have not started.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -71,11 +77,11 @@ a capability failure. The Muse/Snapback 2 M7 row reflects the retained-artifact
 audit completed on 2026-09-13: the artifact passed, but its 21,506-second run
 was not an on-budget completion.
 
-## Prepared execution order
+## Execution order
 
-After both exact npm pins are published, the packet records them in
-`SNAPBACK4_VERSION` and `SNAPBACK4_EXPO_VERSION`, rerenders, and verifies before
-these foreground commands run serially:
+Both exact npm pins are published and frozen. Packet verification passed for
+all 177 instrument files and three cold lanes before launch. These foreground
+commands run serially:
 
 ```sh
 cd /Users/ccheever/clique-sb4-20260913-full-3models
