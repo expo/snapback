@@ -1,6 +1,6 @@
 # Snapback 4: Sim group-membership check is any-field equality, not the audience binding
 
-Status: Open
+Status: Closed
 Severity: minor
 Priority: P2
 Area: tests
@@ -11,7 +11,7 @@ Review provenance: Snapback4 comprehensive-review synthesis (2026-09-13 child re
 
 ## Problem and reproduction
 
-[replica.rs](../snapback4/crates/snapback4-sim/src/replica.rs):164-169:
+[replica.rs](../../snapback4/crates/snapback4-sim/src/replica.rs):164-169:
 
 ```rust
 fn matches_group(row: &Json, group: &[Json]) -> bool {
@@ -34,7 +34,7 @@ no hits).
 
 ## Implementation locations
 
-- [crates/snapback4-sim/src/replica.rs](../snapback4/crates/snapback4-sim/src/replica.rs) (`matches_group`, `Host for Replica`)
+- [crates/snapback4-sim/src/replica.rs](../../snapback4/crates/snapback4-sim/src/replica.rs) (`matches_group`, `Host for Replica`)
 
 ## Suggestion
 
@@ -42,3 +42,9 @@ Resolve membership through the same audience binding the server uses
 (audience columns of the table's sync line), not any-field equality.
 Add a sim fixture where a non-audience field echoes another group's value
 and assert the row is not delivered to that group.
+
+## Resolution — 2026-09-13
+
+The simulator receives each synced table's ordered audience columns and compares group values only in those positions. Regressions reject a non-audience echo and a swapped compound audience; the real chat simulator uses the schema-derived binding.
+
+Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.

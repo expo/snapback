@@ -1,6 +1,6 @@
 # Snapback 4: a backward clock (or schedule-shape change) double-fires a period
 
-Status: Open
+Status: Closed
 Priority: P2
 Date: 2026-09-13
 Systems: `fire_schedules`
@@ -15,8 +15,14 @@ The same comparison fails if `every_ms` / `offset_ms` changes on adopt: the meta
 
 ## Implementation locations
 
-- [snapback4/crates/snapback4-core/src/engine/job.rs](../snapback4/crates/snapback4-core/src/engine/job.rs) (`fire_schedules`)
+- [snapback4/crates/snapback4-core/src/engine/job.rs](../../snapback4/crates/snapback4-core/src/engine/job.rs) (`fire_schedules`)
 
 ## Suggestion
 
 Treat `last >= boundary` as “already fired for this period”. On a schedule-shape change, reset meta to first-seen rather than compare incomparable timestamps.
+
+## Resolution — 2026-09-13
+
+The stored boundary is a high-water mark: backward time and revisiting an already-fired boundary do nothing. Schedule period/offset/target shape changes initialize at the next boundary. The regression checks rewind, re-forward and a changed 2m→5m shape.
+
+Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.

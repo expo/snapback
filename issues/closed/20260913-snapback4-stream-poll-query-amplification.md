@@ -1,12 +1,12 @@
 # Snapback 4: Stream polling executes individual SQLite queries for every held group
 
-Status: Open
+Status: Closed
 Priority: P2
 Observed: 2026-09-13
 Review finding: P01
 Evidence: Code-traced
 Baseline: `6918cccbc264cf000982b03a5a11a2cf5563f885` / Snapback 4 0.1.15
-Related: [partition.rs](../snapback4/crates/snapback4-core/src/partition.rs), [store.rs](../snapback4/crates/snapback4-core/src/store.rs)
+Related: [partition.rs](../../snapback4/crates/snapback4-core/src/partition.rs), [store.rs](../../snapback4/crates/snapback4-core/src/store.rs)
 
 ## Problem and reproduction
 
@@ -56,3 +56,9 @@ With 20 active clients connected via long-polling or regular sync, the server ex
 - [crates/snapback4-core/src/partition.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/partition.rs#L481-L541) (`stream`)
 - [crates/snapback4-core/src/partition.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/partition.rs#L586-L600) (`has_more`)
 - [crates/snapback4-core/src/store.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/store.rs) (`read_log`)
+
+## Resolution — 2026-09-13
+
+The principal, public and authorized group intervals are passed as one JSON relation to a single ordered SQLite log query. Lookahead and whole-commit retries use the same relation; no SELECT is issued per held group on an idle/content poll. A drained watermark returns immediately. Join-time image reconstruction occurs only for actual joins, preserving historical authority.
+
+Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.

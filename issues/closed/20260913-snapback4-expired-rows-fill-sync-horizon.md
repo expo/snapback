@@ -1,11 +1,11 @@
 # Snapback 4: expired rows occupy the sync horizon; live rows are never acquired
 
-Status: Open
+Status: Closed
 Priority: P1
 Date: 2026-09-13
 Systems: partition snapshot / join expansion, expiry, replica
 Author: Grok 4.6 (comprehensive review of origin/main `f9bf18f0e`)
-Related: Clique M5, [LLP 3000](../llp/3000-snapback4.explainer.md) §7 (expire as a lifetime), NOT-DOING (no exact horizon backfill)
+Related: Clique M5, [LLP 3000](../../llp/3000-snapback4.explainer.md) §7 (expire as a lifetime), NOT-DOING (no exact horizon backfill)
 
 ## Problem and reproduction
 
@@ -26,10 +26,16 @@ Expiry is only a read filter. Until the sweep (2_000 rows/tick), the stored imag
 
 ## Implementation locations
 
-- [snapback4/crates/snapback4-core/src/partition.rs](../snapback4/crates/snapback4-core/src/partition.rs) (`group_rows`, `group_rows_from`, `groups_now`)
-- [snapback4/crates/snapback4-core/src/engine/mod.rs](../snapback4/crates/snapback4-core/src/engine/mod.rs) (`sweep_expired`, `asset_access`)
-- [snapback4/crates/snapback4-core/src/engine/write.rs](../snapback4/crates/snapback4-core/src/engine/write.rs) (`check_constraints`, `check_final_exists`, maintains)
+- [snapback4/crates/snapback4-core/src/partition.rs](../../snapback4/crates/snapback4-core/src/partition.rs) (`group_rows`, `group_rows_from`, `groups_now`)
+- [snapback4/crates/snapback4-core/src/engine/mod.rs](../../snapback4/crates/snapback4-core/src/engine/mod.rs) (`sweep_expired`, `asset_access`)
+- [snapback4/crates/snapback4-core/src/engine/write.rs](../../snapback4/crates/snapback4-core/src/engine/write.rs) (`check_constraints`, `check_final_exists`, maintains)
 
 ## Suggestion
 
 Treat expiry as absence everywhere a reader, constraint, derived row, or partition acquisition names a row — not only in `Runner::{get,scan,exists,fetch}`. The smallest consistent cut is a store-level predicate used by lookup, unique/cap counts, `check_final_exists`, maintain delta, `group_rows`/`groups_now`, and snapshot/join expansion. Apply the same expiry check to the uploader once a home exists.
+
+## Resolution — 2026-09-13
+
+Snapshot and join acquisition count live rows toward the horizon and pass expired siblings. Membership expiry bounds stream commit timestamps before sweep. Logical lookup, uniqueness, caps, final-exists and maintained reads share expiry semantics; uploader access checks the home lifetime. New horizon, broad-expiry and membership-history regressions pass without physical cleanup. Partial local maintained-source coverage remains explicitly incomplete, as documented.
+
+Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.

@@ -1,6 +1,6 @@
 # Snapback 4: Releasing before claiming makes asset moves always refuse
 
-Status: Open
+Status: Closed
 Severity: major
 Priority: P1
 Area: correctness
@@ -20,7 +20,7 @@ if let Some(claimed) = after { ... self.tx.claim_asset(&claimed, ...) }
 ```
 
 But `claim_asset`
-([assets.rs](../snapback4/crates/snapback4-core/src/assets.rs):354-371)
+([assets.rs](../../snapback4/crates/snapback4-core/src/assets.rs):354-371)
 refuses any asset with `released_at` set — with the misleading
 `E_ASSET_UNKNOWN` ("no upload of yours is named {id}; upload the bytes
 first"), which describes a never-uploaded asset, not a just-released one.
@@ -39,8 +39,8 @@ accounting order) and `20260913-snapback4-asset-once-and-pixel-bounds`
 
 ## Implementation locations
 
-- [crates/snapback4-core/src/assets.rs](../snapback4/crates/snapback4-core/src/assets.rs) (`claim_asset`, `release_asset`)
-- [crates/snapback4-core/src/engine/write.rs](../snapback4/crates/snapback4-core/src/engine/write.rs) (release-before-claim order)
+- [crates/snapback4-core/src/assets.rs](../../snapback4/crates/snapback4-core/src/assets.rs) (`claim_asset`, `release_asset`)
+- [crates/snapback4-core/src/engine/write.rs](../../snapback4/crates/snapback4-core/src/engine/write.rs) (release-before-claim order)
 
 ## Suggestion
 
@@ -49,3 +49,9 @@ new home, transferring the home instead), and return a distinct code
 (e.g. `E_ASSET_RELEASED`) when a claim names a released asset. Add tests:
 move asset row A -> row B succeeds; clear-then-reset succeeds; genuinely
 unknown id still yields `E_ASSET_UNKNOWN`.
+
+## Resolution — 2026-09-13
+
+Release detaches the prior home while retaining the ledger until collection. A subsequent claim can establish a new home and clears released_at. The regression covers moving within a transaction, clearing and reclaiming before collection; unknown/collected assets still refuse.
+
+Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.

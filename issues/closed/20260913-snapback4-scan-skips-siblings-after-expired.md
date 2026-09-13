@@ -1,6 +1,6 @@
 # Snapback 4: a non-unique scan can return no live rows and `complete: true`
 
-Status: Open
+Status: Closed
 Priority: P1
 Date: 2026-09-13
 Systems: interpreter scan continuation
@@ -18,10 +18,16 @@ Job chunks already resume from the full stored key (`decode(key).skip(prefix.len
 
 ## Implementation locations
 
-- [snapback4/crates/snapback4-core/src/engine/read.rs](../snapback4/crates/snapback4-core/src/engine/read.rs) (~259)
-- [snapback4/crates/snapback4-core/src/store.rs](../snapback4/crates/snapback4-core/src/store.rs) (`Tx::scan`)
-- [snapback4/crates/snapback4-core/src/engine/job.rs](../snapback4/crates/snapback4-core/src/engine/job.rs) (the working form)
+- [snapback4/crates/snapback4-core/src/engine/read.rs](../../snapback4/crates/snapback4-core/src/engine/read.rs) (~259)
+- [snapback4/crates/snapback4-core/src/store.rs](../../snapback4/crates/snapback4-core/src/store.rs) (`Tx::scan`)
+- [snapback4/crates/snapback4-core/src/engine/job.rs](../../snapback4/crates/snapback4-core/src/engine/job.rs) (the working form)
 
 ## Suggestion
 
 Resume from the full stored key, including the extra id `index_key` already appends. Keep the compiler cursor rule as defense in depth, not as the only uniqueness guarantee.
+
+## Resolution — 2026-09-13
+
+Internal scan continuations retain the full stored key, including the appended row id. A batch of expired equal-key siblings no longer skips later live siblings or claims an empty complete result. The regression scans 12 expired and 5 live equal-key rows and returns all 5 live rows with complete=true.
+
+Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.

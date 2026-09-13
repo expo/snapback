@@ -1,12 +1,12 @@
 # Snapback 4: Partition stream interval parity inverts on truncated log
 
-Status: Open
+Status: Closed
 Priority: P1
 Observed: 2026-09-13
 Review finding: C01
 Evidence: Code-traced
 Baseline: `6918cccbc264cf000982b03a5a11a2cf5563f885` / Snapback 4 0.1.15
-Related: [LLP 3000.001](../llp/3000.001-durable-replica-and-write-lifecycle.research.md), [partition.rs](../snapback4/crates/snapback4-core/src/partition.rs)
+Related: [LLP 3000.001](../../llp/3000.001-durable-replica-and-write-lifecycle.research.md), [partition.rs](../../snapback4/crates/snapback4-core/src/partition.rs)
 
 ## Problem and reproduction
 
@@ -49,3 +49,9 @@ The assumption that `steps` contains every transition between `watermark` and `n
 
 - [crates/snapback4-core/src/partition.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/partition.rs#L430-L478) (`intervals`)
 - [crates/snapback4-core/src/partition.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/partition.rs#L481-L541) (`stream`)
+
+## Resolution — 2026-09-13
+
+Authority is reconstructed from the complete membership ledger through the transaction head rather than the truncated content page. Authorized group spans are merged before page limits; whole commits remain indivisible. The truncated-own-page regression cannot grant a later membership early, and closed joins preserve only their authorized historical images.
+
+Integrated implementation: `4b70bdb6f` and `3d2007794`, plus the HTTP/device follow-ups where applicable. Focused core, simulator and host regressions passed. Full integrated suite and scoped blind review are recorded in the append-only Snapback4 journal before publication.
