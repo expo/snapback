@@ -1631,3 +1631,22 @@ The registry's `snapback4@0.2.8` and `snapback4-darwin-arm64@0.2.8` archives hav
 The retained source archive is `a0ed84778c75fa0d682088fa9c6cf16578170f886a70927f17d22f185f3d3ef0`; publication log `4b46f50a1859fc453d239f0c3a9ee4a971eb95173fb54b1a2968ccfaedd00984`, with exit 0. An early preparation launch exited 2 because its helper had not finished transferring; that original failure is retained. After transfer, preparation and the exact affected store test passed against the unchanged archived source, followed by the full publisher above. The temporary remote npm credential file was removed and its cleanup receipt verified. The raw publisher record is appended to `snapback4/metrics/publish.jsonl`; `page-cache-028-publication-qualification.json` in the ignored run binds the original/corrective preparation, publication and registry receipts.
 
 The preceding HTTP timings remain bound to the same-source **0.2.7 experimental pair**. The 0.2.8 package has its own qualified source and artifact digests; this publication adds no new latency, comparator or memory-pressure measurement.
+
+### 0.2.8 HTTP stack diagnostic (2026-09-13, Durand)
+
+A separate symbol-retaining build of published 0.2.8 source `8a81eb855` used the adopted `-USQLITE_ENABLE_MEMORY_MANAGEMENT` input and the production profile with only `strip=none`. Its CLI SHA-256 is `8f5d146c3d05776a47d1724237e08e7ed95e5e88e09d0471ffa94191d3c427c5`, distinct from the published CLI. This is a perturbed stack diagnostic, not an unsampled latency or throughput comparison.
+
+The frozen membership verifier passed all five authorized unions, representative threads and denial checks on the restored, hash-bound 100,000-message fixture. Previously issued sessions were reused unchanged. The C1 and C8 loads checked every response against the exact 150-group feed oracle, completing 2,358 and 15,168 active requests respectively, plus 1,530 preparation requests each. Each complete load visited all 1,500 page inputs. Both five-second, five-millisecond-interval sample invocations fit within their respective twelve-second active load windows; coverage of every page specifically within the sample windows was not recorded.
+
+| Exclusive thread-stack observations | C1 | C8 |
+|---|---:|---:|
+| All thread trees | 4,438 | 17,905 |
+| Request handling | 471 | 4,880 |
+| Request mutex-wait leaves | 0 | 1,112 |
+| Other request observations | 471 | 3,768 |
+
+Balanced call-tree analysis finds `sqlite3Malloc` immediately above pthread wait wrappers for 734 of C8's 1,112 mutex-wait observations. There are no mutex waits with `pcache1Fetch`, `pcache1Unpin` or `pcache1FetchStage2` as the nearest non-pthread caller; allocation/free and teardown waits remain, including 106 nearest `pcache1TruncateUnsafe`. This supports investigating SQLite's global allocation accounting separately. It does not quantify that experiment's benefit. C1 still shows indexed scan/VM, allocation, JSON and cursor work. Inclusive categories overlap; wait, `pread` and mutex-release samples are not CPU-time measurements.
+
+C1 precedes C8 against one restored process, with another full traversal and 30 warmups before C8. Process and OS-cache history carry forward; OS residency is unmeasured. The diagnostic inherits the pristine snapshot's physical-fixture proof and adds complete authorized traversal checks; it does not repeat a privileged physical scan, leave/regrant matrix or the 39-case benchmark. No comparator, device, write, memory-pressure, durability or universal-performance claim follows. The metrics record preserves the complete receipts, verifier, load observations and exact source/helper/sample hashes.
+
+The subsequently retained outer diagnostic log and exit also reconcile with both load receipts and confirm exit 0.
