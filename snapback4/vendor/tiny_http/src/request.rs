@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 use std::sync::mpsc::Sender;
 
-use crate::util::{EqualReader, FusedReader};
+use crate::util::{ConnectionAbort, EqualReader, FusedReader, SequentialWriterAbort};
 use crate::{HTTPVersion, Header, Method, Response, StatusCode};
 use chunked_transfer::Decoder;
 
@@ -53,6 +53,14 @@ pub struct Request {
 
     // if this writer is empty, then the request has been answered
     response_writer: Option<Box<dyn Write + Send + 'static>>,
+
+    // Present for network requests. A checked response uses it to make an
+    // incomplete response terminal for this connection.
+    abort_connection: Option<ConnectionAbort>,
+
+    // Shared by every response writer for this connection. It prevents a
+    // queued response from following an incomplete checked response.
+    abort_writers: Option<SequentialWriterAbort>,
 
     remote_addr: Option<SocketAddr>,
 
@@ -133,8 +141,70 @@ pub fn new_request<R, W>(
     version: HTTPVersion,
     headers: Vec<Header>,
     remote_addr: Option<SocketAddr>,
+    source_data: R,
+    writer: W,
+) -> Result<Request, RequestCreationError>
+where
+    R: Read + Send + 'static,
+    W: Write + Send + 'static,
+{
+    new_request_inner(
+        secure,
+        method,
+        path,
+        version,
+        headers,
+        remote_addr,
+        source_data,
+        writer,
+        None,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn new_request_with_abort<R, W>(
+    secure: bool,
+    method: Method,
+    path: String,
+    version: HTTPVersion,
+    headers: Vec<Header>,
+    remote_addr: Option<SocketAddr>,
+    source_data: R,
+    writer: W,
+    abort_connection: ConnectionAbort,
+    abort_writers: SequentialWriterAbort,
+) -> Result<Request, RequestCreationError>
+where
+    R: Read + Send + 'static,
+    W: Write + Send + 'static,
+{
+    new_request_inner(
+        secure,
+        method,
+        path,
+        version,
+        headers,
+        remote_addr,
+        source_data,
+        writer,
+        Some(abort_connection),
+        Some(abort_writers),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn new_request_inner<R, W>(
+    secure: bool,
+    method: Method,
+    path: String,
+    version: HTTPVersion,
+    headers: Vec<Header>,
+    remote_addr: Option<SocketAddr>,
     mut source_data: R,
     writer: W,
+    abort_connection: Option<ConnectionAbort>,
+    abort_writers: Option<SequentialWriterAbort>,
 ) -> Result<Request, RequestCreationError>
 where
     R: Read + Send + 'static,
@@ -229,6 +299,8 @@ where
     Ok(Request {
         data_reader: Some(reader),
         response_writer: Some(Box::new(writer) as Box<dyn Write + Send + 'static>),
+        abort_connection,
+        abort_writers,
         remote_addr,
         secure,
         method,
@@ -459,14 +531,24 @@ impl Request {
     {
         let mut writer = self.extract_writer_impl();
         let do_not_send_body = self.method == Method::Head;
-        response.raw_print(
-            writer.by_ref(),
-            self.http_version.clone(),
-            &self.headers,
-            do_not_send_body,
-            None,
-        )?;
-        writer.flush()
+        let result = response
+            .raw_print(
+                writer.by_ref(),
+                self.http_version.clone(),
+                &self.headers,
+                do_not_send_body,
+                None,
+            )
+            .and_then(|()| writer.flush());
+        if result.is_err() {
+            if let Some(abort) = self.abort_writers.as_ref() {
+                abort.abort();
+            }
+            if let Some(abort) = self.abort_connection.as_mut() {
+                abort.abort();
+            }
+        }
+        result
     }
 
     fn respond_impl<R>(&mut self, response: Response<R>) -> Result<(), IoError>

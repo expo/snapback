@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 
 use crate::common::{HTTPVersion, Method};
-use crate::util::RefinedTcpStream;
+use crate::util::{ConnectionAbort, RefinedTcpStream, SequentialWriterAbort};
 use crate::util::{SequentialReader, SequentialReaderBuilder, SequentialWriterBuilder};
 use crate::Request;
 
@@ -30,6 +30,15 @@ pub struct ClientConnection {
     // sequence of Writers to the stream, to avoid writing response #2 before
     //  response #1
     sink: SequentialWriterBuilder<BufWriter<RefinedTcpStream>>,
+
+    // A failed checked response has already put an incomplete HTTP message on
+    // the wire. Shut down the whole connection before the next sequential
+    // writer is released, so a pipelined response cannot become body bytes.
+    abort: ConnectionAbort,
+
+    // Marks every queued response writer unusable before the failed writer
+    // releases the next request in the pipeline.
+    abort_writers: SequentialWriterAbort,
 
     // Reader to read the next header from
     next_header_source: SequentialReader<BufReader<RefinedTcpStream>>,
@@ -60,13 +69,19 @@ impl ClientConnection {
     ) -> ClientConnection {
         let remote_addr = read_socket.peer_addr();
         let secure = read_socket.secure();
+        let abort = write_socket.abort_handle();
 
         let mut source = SequentialReaderBuilder::new(BufReader::with_capacity(1024, read_socket));
         let first_header = source.next().unwrap();
 
+        let sink = SequentialWriterBuilder::new(BufWriter::with_capacity(1024, write_socket));
+        let abort_writers = sink.abort_handle();
+
         ClientConnection {
             source,
-            sink: SequentialWriterBuilder::new(BufWriter::with_capacity(1024, write_socket)),
+            sink,
+            abort,
+            abort_writers,
             remote_addr,
             next_header_source: first_header,
             no_more_requests: false,
@@ -170,7 +185,7 @@ impl ClientConnection {
         std::mem::swap(&mut self.next_header_source, &mut data_source);
 
         // building the next reader
-        let request = crate::request::new_request(
+        let request = crate::request::new_request_with_abort(
             self.secure,
             method,
             path,
@@ -179,6 +194,8 @@ impl ClientConnection {
             *self.remote_addr.as_ref().unwrap(),
             data_source,
             writer,
+            self.abort.clone(),
+            self.abort_writers.clone(),
         )
         .map_err(|e| {
             use crate::request;

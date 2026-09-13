@@ -40,7 +40,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
   const directory = mkdtempSync(join(tmpdir(), "sb4-http-bounds-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
-  const child = spawn(binary, ["dev", "--port", "0", "--no-watch", "--fresh"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", url;
   child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:(\d+)/)?.[0]; });
@@ -63,6 +63,19 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     await once(socket, "close");
     sockets.delete(socket);
     return answer;
+  }
+  async function rawBytes(data) {
+    const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port) });
+    sockets.add(socket);
+    const chunks = [];
+    socket.on("data", (chunk) => { chunks.push(chunk); });
+    await once(socket, "connect");
+    socket.end(data);
+    const [hadError] = await once(socket, "close");
+    sockets.delete(socket);
+    assert.equal(hadError, false, "the peer sees an orderly EOF after the truncated response");
+    assert.equal(socket.readableEnded, true, "the response stream reached EOF");
+    return Buffer.concat(chunks);
   }
   try {
     const deadline = Date.now() + 3000;
@@ -132,6 +145,20 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
         });
         socket.on("close", () => { sockets.delete(socket); resolve(); });
       });
+
+      const assetPath = join(directory, ".snapback4", "assets", id);
+      writeFileSync(assetPath, png.subarray(0, 2 * MiB));
+      const pipelined = await rawBytes(
+        `GET /assets/${id} HTTP/1.1\r\nHost: localhost\r\nTE: identity\r\nx-snapback-persona: alice\r\n\r\n`
+        + "POST /q/ping HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 2\r\nx-snapback-persona: alice\r\n\r\n{}",
+      );
+      const headerEnd = pipelined.indexOf(Buffer.from("\r\n\r\n")) + 4;
+      assert.ok(headerEnd >= 4, "the truncated response includes its headers");
+      assert.match(pipelined.subarray(0, headerEnd).toString("latin1"), /^HTTP\/1\.1 200[\s\S]*Content-Length: 8388608/im);
+      assert.ok(pipelined.length > headerEnd, "the peer receives the available asset prefix");
+      assert.ok(pipelined.length - headerEnd < png.length, "the peer reaches EOF before the declared asset length");
+      assert.equal(pipelined.indexOf(Buffer.from("HTTP/1.1"), 1), -1, "a queued response cannot append bytes after the truncated body");
+      writeFileSync(assetPath, png);
 
       const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(5000) });
       assert.equal(complete.status, 200);

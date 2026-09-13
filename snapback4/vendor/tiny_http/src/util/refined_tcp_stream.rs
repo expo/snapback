@@ -12,6 +12,15 @@ pub(crate) enum Stream {
     Https(SslStream),
 }
 
+#[derive(Clone)]
+pub(crate) struct ConnectionAbort(Stream);
+
+impl ConnectionAbort {
+    pub(crate) fn abort(&mut self) {
+        self.0.shutdown(Shutdown::Both).ok();
+    }
+}
+
 impl Clone for Stream {
     fn clone(&self) -> Self {
         match self {
@@ -120,6 +129,10 @@ impl RefinedTcpStream {
 
     pub(crate) fn peer_addr(&mut self) -> IoResult<Option<SocketAddr>> {
         self.stream.peer_addr()
+    }
+
+    pub(crate) fn abort_handle(&self) -> ConnectionAbort {
+        ConnectionAbort(self.stream.clone())
     }
 }
 

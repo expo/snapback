@@ -1,6 +1,7 @@
 use std::io::Result as IoResult;
-use std::io::{Read, Write};
+use std::io::{Error as IoError, ErrorKind, Read, Write};
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -45,6 +46,16 @@ where
 {
     writer: Arc<Mutex<W>>,
     next_trigger: Option<Receiver<()>>,
+    aborted: Arc<AtomicBool>,
+}
+
+#[derive(Clone)]
+pub(crate) struct SequentialWriterAbort(Arc<AtomicBool>);
+
+impl SequentialWriterAbort {
+    pub(crate) fn abort(&self) {
+        self.0.store(true, Ordering::Release);
+    }
 }
 
 pub struct SequentialWriter<W>
@@ -54,6 +65,7 @@ where
     trigger: Option<Receiver<()>>,
     writer: Arc<Mutex<W>>,
     on_finish: Sender<()>,
+    aborted: Arc<AtomicBool>,
 }
 
 impl<R: Read + Send> SequentialReaderBuilder<R> {
@@ -69,7 +81,12 @@ impl<W: Write + Send> SequentialWriterBuilder<W> {
         SequentialWriterBuilder {
             writer: Arc::new(Mutex::new(writer)),
             next_trigger: None,
+            aborted: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub(crate) fn abort_handle(&self) -> SequentialWriterAbort {
+        SequentialWriterAbort(self.aborted.clone())
     }
 }
 
@@ -106,6 +123,7 @@ impl<W: Write + Send> Iterator for SequentialWriterBuilder<W> {
             trigger: next_next_trigger,
             writer: self.writer.clone(),
             on_finish: tx,
+            aborted: self.aborted.clone(),
         })
     }
 }
@@ -131,6 +149,13 @@ impl<W: Write + Send> Write for SequentialWriter<W> {
         }
         self.trigger = None;
 
+        if self.aborted.load(Ordering::Acquire) {
+            return Err(IoError::new(
+                ErrorKind::BrokenPipe,
+                "connection response sequence aborted",
+            ));
+        }
+
         self.writer.lock().unwrap().write(buf)
     }
 
@@ -139,6 +164,13 @@ impl<W: Write + Send> Write for SequentialWriter<W> {
             v.recv().unwrap()
         }
         self.trigger = None;
+
+        if self.aborted.load(Ordering::Acquire) {
+            return Err(IoError::new(
+                ErrorKind::BrokenPipe,
+                "connection response sequence aborted",
+            ));
+        }
 
         self.writer.lock().unwrap().flush()
     }
