@@ -115,6 +115,7 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
 /// Validate the arguments and fill each omitted optional with `null`, so
 /// a caller that leaves `c` out reads page one.
 pub fn validate_inputs(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+    super::admission::check(schema, program)?;
     for (name, kind) in &program.args {
         if !inputs.contains_key(name) && (kind.is_optional() || matches!(kind, ArgType::Cursor)) {
             inputs.insert(name.clone(), Value::Null);

@@ -52,7 +52,13 @@ appears on another member's browser without a reload.
    of your choosing above 49500, seeds the fixture through `POST /seed`,
    exercises every operation over HTTP as each persona (`x-snapback-persona`),
    asserts the rules (a non-member reading a thread is refused; a
-   self-follow is refused; a second follow is refused), and exits 0.
+   self-follow is refused; a second follow is refused), and exits 0. Keep the
+   child handle and PID when you launch a server, and close that child in a
+   `finally` block. Do the same for development servers you launch while
+   building. Never discover another process by its name, directory or port
+   and kill it. If a chosen port is occupied, choose another or report the
+   conflict. The runner repeats acceptance from a new copy with no dev store;
+   it preserves that copy for diagnosis and does not stop unowned processes.
 4. The web app builds (`npm run build`) and typechecks.
 
 ## The record

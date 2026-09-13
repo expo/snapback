@@ -3,7 +3,8 @@
 // everything but `npm publish`. One script, one state machine, a recorded
 // number (LLP 0329.016 P11; LLP 3000 §4 "Publication").
 import { execFileSync } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,10 +36,19 @@ const platformPkg = join(root, `packages/snapback4-${process.platform}-${process
 const platformVersion = JSON.parse(readFileSync(join(platformPkg, "package.json"), "utf8")).version;
 if (platformVersion !== version) throw new Error(`snapback4-${process.platform}-${process.arch} is ${platformVersion}; the client is ${version}`);
 console.log(`== build the binary → ${platformPkg}`);
-run("cargo", ["build", "--release", "--quiet", "-p", "snapback4"], { cwd: root });
-const { copyFileSync } = await import("node:fs");
-copyFileSync(join(root, "target/release/snapback4"), join(platformPkg, "snapback4"));
-const binaryBytes = statSync(join(platformPkg, "snapback4")).size;
+const binaryProfile = "production";
+const built = run("cargo", ["build", "--profile", binaryProfile, "--quiet", "--message-format=json-render-diagnostics", "-p", "snapback4"], { cwd: root });
+const artifact = built.trim().split("\n").map((line) => JSON.parse(line)).find((message) => message.reason === "compiler-artifact" && message.target?.name === "snapback4" && message.target.kind.includes("bin") && message.executable);
+if (!artifact) throw new Error("cargo did not report the production snapback4 binary");
+// Use Cargo's reported path, including CARGO_TARGET_DIR, rather than finding
+// an old release binary beside the one that was actually built.
+const sourceBinary = artifact.executable;
+const expectedVersion = `snapback4 ${version}`;
+const binaryVersion = run(sourceBinary, ["--version"]).trim();
+if (binaryVersion !== expectedVersion) throw new Error(`built binary is ${binaryVersion}; expected ${expectedVersion}`);
+const digest = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
+const binarySha256 = digest(sourceBinary);
+copyFileSync(sourceBinary, join(platformPkg, "snapback4"));
 
 const work = mkdtempSync(join(tmpdir(), "snapback4-publish-"));
 console.log(`== pack → ${work}`);
@@ -47,13 +57,22 @@ const tarball = join(work, packed.filename);
 const tarballBytes = statSync(tarball).size;
 const [packedPlatform] = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", work], { cwd: platformPkg }));
 const platformTarball = join(work, packedPlatform.filename);
+const platformTarballBytes = statSync(platformTarball).size;
 
 console.log("== installed-consumer proof");
 const consumer = join(work, "consumer");
 mkdirSync(consumer);
 writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "consumer", private: true, type: "module" }));
 run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", platformTarball, tarball, "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "typescript@5.9.3"], { cwd: consumer });
-console.log(run(join(consumer, "node_modules/.bin/snapback4"), ["--version"], { cwd: consumer }).trim());
+const installedBinary = join(consumer, `node_modules/snapback4-${process.platform}-${process.arch}/snapback4`);
+if (digest(installedBinary) !== binarySha256) throw new Error("packed/installed platform binary differs from the production artifact");
+const installedVersion = run(join(consumer, "node_modules/.bin/snapback4"), ["--version"], { cwd: consumer }).trim();
+if (installedVersion !== expectedVersion) throw new Error(`installed CLI is ${installedVersion}; expected ${expectedVersion}`);
+// This is the binary unpacked from the platform tarball, not an unrelated
+// output in target/. The source artifact's hash and selected profile bind the
+// recorded shipped-size figure to the installed-consumer proof.
+const binaryBytes = statSync(installedBinary).size;
+console.log(`${installedVersion}; ${binaryProfile}; ${binaryBytes} packed binary bytes; sha256 ${binarySha256}`);
 writeFileSync(join(consumer, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, jsx: "react-jsx", noEmit: true, skipLibCheck: true, types: ["react"] }, include: ["check.tsx"] }));
 writeFileSync(join(consumer, "check.tsx"), `
 import { isReady, type Read, type Write, type Query } from "snapback4/contract";
@@ -88,7 +107,7 @@ if (dry) {
   console.log(`== npm publish ${packed.filename}`);
   run("npm", ["publish", tarball, "--access", "public"], { cwd: pkg });
 }
-const record = { at: new Date().toISOString(), version, tarballBytes, files: packed.entryCount, binaryBytes, platform: `${process.platform}-${process.arch}`, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
+const record = { at: new Date().toISOString(), version, tarballBytes, platformTarballBytes, files: packed.entryCount, binaryBytes, binarySha256, binaryVersion, binaryProfile, cargoProfile: artifact.profile, platform: `${process.platform}-${process.arch}`, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
 mkdirSync(join(root, "metrics"), { recursive: true });
 appendFileSync(join(root, "metrics/publish.jsonl"), JSON.stringify(record) + "\n");
 console.log(JSON.stringify(record));

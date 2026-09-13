@@ -6,6 +6,7 @@
 //! between two interpreters is the web's alone (LLP 3000 §7).
 
 use serde::{Deserialize, Serialize};
+use rusqlite::OptionalExtension;
 use snapback4_core::engine::local;
 use snapback4_core::error::{Refusal, RuntimeError};
 use snapback4_core::ir::Program;
@@ -18,6 +19,8 @@ use snapback4_core::{Context, QueryOutcome, wire};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+
+mod predictions;
 
 /// The compiled backend, as `GET /schema` sends it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,6 +43,8 @@ pub struct StreamEvent {
 /// One page of `GET /sync`.
 #[derive(Clone, Debug, Deserialize)]
 pub struct StreamPage {
+    #[serde(default)]
+    pub acknowledged: BTreeMap<String, u64>,
     pub snapshot: bool,
     pub events: Vec<StreamEvent>,
     pub watermark: u64,
@@ -62,11 +67,22 @@ pub struct Queued {
     pub new_ids: Vec<String>,
     #[serde(default)]
     pub predicted: Vec<String>,
+    #[serde(default)]
+    pub viewer: String,
+    #[serde(default)]
+    pub now: i64,
+    #[serde(default)]
+    pub predictable: bool,
+    #[serde(default)]
+    pub sent_seq: Option<u64>,
+    #[serde(default)]
+    pub observed_seq: Option<u64>,
 }
 
 /// What a prediction left behind.
 #[derive(Clone, Debug, Serialize)]
 pub struct Predicted {
+    pub new_ids: Vec<String>,
     pub result: serde_json::Value,
     pub written: Vec<String>,
     pub read: Vec<String>,
@@ -83,6 +99,7 @@ pub struct Device {
     schema: Schema,
     programs: BTreeMap<String, Program>,
     generation: u64,
+    snapshot_owner: Option<String>,
 }
 
 /// Rows written by a prediction carry `pending: true`, the card's word for
@@ -94,18 +111,19 @@ struct Predicting<'a> {
 
 impl Rows for Predicting<'_> {
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
-        self.tx.get(table, id)
+        self.tx.get(table, id).map(|row| row.map(predictions::without_pending))
     }
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
-        self.tx.lookup(table, index_name, index, key)
+        self.tx.lookup(table, index_name, index, key).map(|row| row.map(predictions::without_pending))
     }
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        self.tx.scan(table, index_name, prefix, bounds, dir, limit)
+        self.tx.scan(table, index_name, prefix, bounds, dir, limit).map(|rows| rows.into_iter().map(|(row, key)| (predictions::without_pending(row), key)).collect())
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         self.tx.count_prefix(table, index_name, prefix, limit)
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        predictions::remember(self.tx, table_name, row.field("id")?.as_str()?)?;
         let mut fields = row.as_object()?.clone();
         fields.insert("pending".to_owned(), Value::Bool(true));
         let pending = Value::Row(fields.into());
@@ -113,6 +131,8 @@ impl Rows for Predicting<'_> {
         self.tx.put(table_name, table, &pending, old)
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        predictions::remember(self.tx, table_name, old.field("id")?.as_str()?)?;
+        self.written.borrow_mut().push(format!("{table_name}/{}", old.field("id")?.as_str()?));
         self.tx.delete(table_name, table, old)
     }
 }
@@ -125,10 +145,9 @@ impl Device {
     /// the generation moved.
     pub fn open(path: &Path, backend: Option<Backend>) -> Result<Self, RuntimeError> {
         let mut store = Store::open(path)?;
-        store.conn().execute_batch("CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL);")?;
+        store.conn().execute_batch("CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL); CREATE TABLE IF NOT EXISTS _device_base (t TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(t, id)) WITHOUT ROWID; CREATE TABLE IF NOT EXISTS _device_snapshot (k TEXT PRIMARY KEY, t TEXT NOT NULL, data TEXT NOT NULL);")?;
         let backend = match backend {
             Some(backend) => {
-                store.set_meta(BACKEND, &serde_json::to_string(&backend).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
                 backend
             }
             None => {
@@ -136,29 +155,23 @@ impl Device {
                 serde_json::from_str(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
             }
         };
-        store.install(&backend.schema)?;
-        let mut device = Self { store, schema: backend.schema, programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(), generation: backend.generation };
-        let held = device.meta_u64(GENERATION)?;
-        if held != 0 && held != device.generation {
-            // A new generation re-derives the partition: drop rows, keep the outbox.
-            device.clear_rows()?;
-        }
-        device.store.set_meta(GENERATION, &device.generation.to_string())?;
-        Ok(device)
+        let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
+        let reset = held != 0 && held != backend.generation;
+        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), serde_json::to_string(&backend).map_err(|e| RuntimeError::Store(e.to_string()))?), (GENERATION.to_owned(), backend.generation.to_string())]);
+        if reset { metadata.insert(WATERMARK.to_owned(), "0".into()); }
+        store.install_device(&backend.schema, &metadata, reset)?;
+        Ok(Self { store, schema: backend.schema, programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(), generation: backend.generation, snapshot_owner: None })
     }
 
-    /// The backend changed (a new generation from `/schema`): adopt it and
-    /// keep it; the next sync is a snapshot.
     pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
-        self.store.set_meta(BACKEND, &serde_json::to_string(&backend).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
-        self.store.install(&backend.schema)?;
+        let reset = backend.generation != self.generation;
+        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), serde_json::to_string(&backend).map_err(|e| RuntimeError::Store(e.to_string()))?), (GENERATION.to_owned(), backend.generation.to_string())]);
+        if reset { metadata.insert(WATERMARK.to_owned(), "0".into()); }
+        self.store.install_device(&backend.schema, &metadata, reset)?;
         self.schema = backend.schema;
         self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        if backend.generation != self.generation {
-            self.generation = backend.generation;
-            self.clear_rows()?;
-            self.store.set_meta(GENERATION, &self.generation.to_string())?;
-        }
+        self.generation = backend.generation;
+        self.snapshot_owner = None;
         Ok(())
     }
 
@@ -173,59 +186,96 @@ impl Device {
 
     /// Drop every row and index entry; the outbox and the watermark reset.
     pub fn clear_rows(&mut self) -> Result<(), RuntimeError> {
-        self.store.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
-        self.store.set_meta(WATERMARK, "0")?;
+        let tx = self.store.transaction()?;
+        tx.conn().execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _device_base; DELETE FROM _device_snapshot;")?;
+        tx.set_meta(WATERMARK, "0")?;
+        tx.conn().execute("DELETE FROM _meta WHERE key IN ('device:snapshot:owner', 'device:snapshot:watermark')", [])?;
+        tx.commit()?;
+        self.snapshot_owner = None;
         Ok(())
     }
 
-    /// Apply one page atomically: rows, tombstones, and the watermark with
-    /// the last page of a snapshot or any page of the stream. Returns the
-    /// tables touched. `first` says this is a snapshot's first page (the
-    /// rows are cleared before it).
+    /// Paged snapshots stage separately; the last page atomically replaces
+    /// the confirmed partition and rebases all remaining predictions.
     pub fn apply(&mut self, page: &StreamPage, first: bool) -> Result<Vec<String>, RuntimeError> {
-        if let Some(generation) = page.generation
-            && generation != self.generation
-        {
-            return Err(RuntimeError::Generation(format!("the page is generation {generation}; this device runs {}", self.generation)));
-        }
-        let mut touched = BTreeSet::new();
-        if page.snapshot && first {
-            self.clear_rows()?;
-            touched.extend(self.schema.tables.keys().cloned());
-        }
+        if page.generation.is_some_and(|g| g != self.generation) { return Err(RuntimeError::Generation("stale device page".into())); }
+        let owner = if page.snapshot && first { Some(format!("{}-{:x}", std::process::id(), snapback4_core::ids::seed())) } else { self.snapshot_owner.clone() };
         let tx = self.store.transaction()?;
-        for event in &page.events {
-            touched.insert(event.table.clone());
-            let Some(table) = self.schema.table(&event.table) else { continue };
-            match event.kind.as_str() {
-                "put" => {
-                    let Some(data) = &event.data else { continue };
-                    let row = wire::row_from_json(table, data).map_err(RuntimeError::Store)?;
-                    let old = tx.get(&event.table, &event.id)?;
-                    tx.put(&event.table, table, &row, old.as_ref())?;
+        let watermark: u64 = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [WATERMARK], |r| r.get::<_, String>(0)).optional()?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store("invalid device watermark".into()))).transpose()?.unwrap_or(0);
+        if page.watermark < watermark { return Err(RuntimeError::Generation("device watermark would move backwards".into())); }
+        let mut touched = BTreeSet::new();
+        if page.snapshot {
+            if first {
+                tx.conn().execute("DELETE FROM _device_snapshot", [])?;
+                tx.set_meta("device:snapshot:watermark", &page.watermark.to_string())?;
+                tx.set_meta("device:snapshot:owner", owner.as_deref().expect("first page owner"))?;
+            }
+            let held_owner: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'device:snapshot:owner'", [], |r| r.get(0)).optional()?;
+            if owner.is_none() || held_owner != owner { return Err(RuntimeError::Generation("snapshot is finished or belongs to another device sync; restart at its first page".into())); }
+            let pinned: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'device:snapshot:watermark'", [], |r| r.get(0))?;
+            if pinned != page.watermark.to_string() { return Err(RuntimeError::Generation("snapshot watermark changed between pages".into())); }
+            for event in &page.events {
+                if event.kind != "put" { return Err(RuntimeError::Input("snapshots contain only row images".into())); }
+                let table = self.schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("unknown table {}", event.table)))?;
+                let row = wire::row_from_json(table, event.data.as_ref().ok_or_else(|| RuntimeError::Input("snapshot row is missing".into()))?).map_err(RuntimeError::Input)?;
+                if row.field("id")?.as_str()? != event.id { return Err(RuntimeError::Input("snapshot row identity does not match its event".into())); }
+                tx.conn().execute("INSERT INTO _device_snapshot(k, t, data) VALUES (?1, ?2, ?3) ON CONFLICT(k) DO UPDATE SET data = excluded.data", rusqlite::params![serde_json::to_string(&(&event.table, &event.id)).unwrap(), event.table, serde_json::to_string(&row).unwrap()])?;
+            }
+            if page.more { tx.commit()?; self.snapshot_owner = owner; return Ok(Vec::new()); }
+        }
+        predictions::restore(&tx, &self.schema)?;
+        if page.snapshot {
+            tx.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
+            touched.extend(self.schema.tables.keys().cloned());
+            let mut after = String::new();
+            loop {
+                let rows: Vec<(String, String, String)> = tx.conn().prepare("SELECT k, t, data FROM _device_snapshot WHERE k > ?1 ORDER BY k LIMIT 500")?.query_map([&after], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?.collect::<Result<_, _>>()?;
+                for (key, table_name, data) in &rows {
+                    let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("unknown table {table_name}")))?;
+                    let row: Value = serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                    tx.put(table_name, table, &row, None)?;
+                    after = key.clone();
                 }
-                "del" => {
-                    if let Some(old) = tx.get(&event.table, &event.id)? {
-                        tx.delete(&event.table, table, &old)?;
+                if rows.len() < 500 { break; }
+            }
+            tx.conn().execute("DELETE FROM _device_snapshot", [])?;
+            tx.conn().execute("DELETE FROM _meta WHERE key IN ('device:snapshot:owner', 'device:snapshot:watermark')", [])?;
+        } else {
+            for event in &page.events {
+                touched.insert(event.table.clone());
+                let table = self.schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("unknown table {}", event.table)))?;
+                match event.kind.as_str() {
+                    "put" => {
+                        let row = wire::row_from_json(table, event.data.as_ref().ok_or_else(|| RuntimeError::Input("event row is missing".into()))?).map_err(RuntimeError::Input)?;
+                        if row.field("id")?.as_str()? != event.id { return Err(RuntimeError::Input("row identity does not match its event".into())); }
+                        let old = tx.get(&event.table, &event.id)?;
+                        tx.put(&event.table, table, &row, old.as_ref())?;
                     }
+                    "del" => if let Some(old) = tx.get(&event.table, &event.id)? { tx.delete(&event.table, table, &old)?; },
+                    "scope" => {
+                        let columns = audience_prefix(table);
+                        let group: Vec<Value> = match &event.data {
+                            Some(serde_json::Value::Array(items)) if items.len() == columns.len() => items.iter().zip(&columns).map(|(item, column)| wire::column_from_json(&table.columns[column], item)).collect::<Result<_, _>>().map_err(RuntimeError::Input)?,
+                            _ => return Err(RuntimeError::Input("scope is not a key".into())),
+                        };
+                        leave(&tx, &self.schema, &event.table, &group)?;
+                    }
+                    _ => return Err(RuntimeError::Input("unknown stream event".into())),
                 }
-                "scope" => {
-                    // The group's prefix values, typed by the audience columns
-                    // (an id on the wire is a string; in a key it is an id).
-                    let columns = audience_prefix(table);
-                    let group: Vec<Value> = match &event.data {
-                        Some(serde_json::Value::Array(items)) => items.iter().zip(&columns).map(|(item, column)| table.columns.get(column).map(|kind| wire::column_from_json(kind, item).unwrap_or_else(|_| wire::untyped(item))).unwrap_or_else(|| wire::untyped(item))).collect(),
-                        _ => Vec::new(),
-                    };
-                    leave(&tx, &self.schema, &event.table, &group)?;
-                }
-                _ => {}
             }
         }
-        if !(page.snapshot && page.more) {
-            tx.set_meta(WATERMARK, &page.watermark.to_string())?;
+        tx.set_meta(WATERMARK, &page.watermark.to_string())?;
+        for (id, seq) in &page.acknowledged {
+            if *seq > page.watermark { return Err(RuntimeError::Input("acknowledgement is beyond the applied watermark".into())); }
+            let data: Option<String> = tx.conn().query_row("SELECT entry FROM _device_outbox WHERE id = ?1", [id], |r|r.get(0)).optional()?;
+            if let Some(data) = data {
+                let mut entry: Queued = serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                entry.observed_seq = Some(*seq); predictions::enqueue(&tx, &entry)?;
+            }
         }
+        predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?;
         tx.commit()?;
+        if page.snapshot { self.snapshot_owner = None; }
         Ok(touched.into_iter().collect())
     }
 
@@ -239,6 +289,20 @@ impl Device {
         outcome
     }
 
+    pub fn query_with_coverage(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool) {
+        let mut unknown = false;
+        let result = (|| {
+            let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            let context = Context::new(viewer, typed_args(&program, args)?).at(now);
+            let tx = self.store.transaction()?;
+            let (result, coverage) = local::query_with_coverage(&tx, &self.schema, &program, context, Ceilings::default());
+            unknown = coverage;
+            tx.rollback()?;
+            result
+        })();
+        (result, unknown)
+    }
+
     /// Predict a mutation: its rows land in the store marked `pending`, in
     /// one transaction that a refusal rolls back whole.
     pub fn predict(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, new_ids: Vec<String>, entropy: u64) -> Result<Predicted, RuntimeError> {
@@ -250,7 +314,7 @@ impl Device {
             Ok(prediction) => {
                 let predicted = predicting.written.into_inner();
                 tx.commit()?;
-                Ok(Predicted { result: wire::to_json(&prediction.result), written: prediction.written, read: prediction.read, predicted })
+                Ok(Predicted { new_ids: prediction.new_ids, result: wire::to_json(&prediction.result), written: prediction.written, read: prediction.read, predicted })
             }
             Err(error) => {
                 tx.rollback()?;
@@ -261,19 +325,41 @@ impl Device {
 
     /// Withdraw a refused write's rows: those still pending go; the
     /// stream restores anything the prediction replaced.
-    pub fn withdraw(&mut self, predicted: &[String]) -> Result<(), RuntimeError> {
+    pub fn withdraw(&mut self, _predicted: &[String]) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
-        for key in predicted {
-            let Some((table_name, id)) = key.split_once('/') else { continue };
-            let Some(table) = self.schema.table(table_name) else { continue };
-            if let Some(row) = tx.get(table_name, id)?
-                && row.field("pending").ok() == Some(&Value::Bool(true))
-            {
-                tx.delete(table_name, table, &row)?;
-            }
+        predictions::restore(&tx, &self.schema)?;
+        tx.commit()
+    }
+
+    pub fn admit(&mut self, mut entry: Queued) -> Result<Queued, RuntimeError> {
+        let program = self.programs.get(&entry.op).ok_or_else(|| RuntimeError::UnknownOp(entry.op.clone()))?;
+        let tx = self.store.transaction()?;
+        if entry.predictable {
+        tx.savepoint("admit")?;
+        match predictions::run(&tx, &self.schema, program, &entry) {
+            Ok((predicted, new_ids)) => { entry.predicted = predicted; entry.new_ids = new_ids; entry.predictable = true; tx.release("admit")?; }
+            Err(RuntimeError::Prediction(_)) => { tx.rollback_to("admit")?; tx.release("admit")?; entry.predictable = false; }
+            Err(error) => return Err(error),
         }
+        }
+        predictions::enqueue(&tx, &entry)?;
+        tx.set_meta("device:submission", &entry.seq.to_string())?;
         tx.commit()?;
-        Ok(())
+        Ok(entry)
+    }
+
+    pub fn settle(&mut self, id: &str, seq: Option<u64>) -> Result<(), RuntimeError> {
+        let tx = self.store.transaction()?;
+        let watermark: u64 = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [WATERMARK], |r| r.get::<_, String>(0)).optional()?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store("invalid device watermark".into()))).transpose()?.unwrap_or(0);
+        predictions::restore(&tx, &self.schema)?;
+        if let Some(seq) = seq {
+            let data: String = tx.conn().query_row("SELECT entry FROM _device_outbox WHERE id = ?1", [id], |r| r.get(0))?;
+            let mut entry: Queued = serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+            entry.sent_seq = Some(seq);
+            predictions::enqueue(&tx, &entry)?;
+        } else { tx.conn().execute("DELETE FROM _device_outbox WHERE id = ?1", [id])?; }
+        predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
+        tx.commit()
     }
 
     pub fn enqueue(&mut self, entry: &Queued) -> Result<(), RuntimeError> {
@@ -291,7 +377,7 @@ impl Device {
 
     /// The next submission number.
     pub fn next_submission(&self) -> Result<u64, RuntimeError> {
-        Ok(self.store.conn().query_row("SELECT COALESCE(MAX(seq), 0) + 1 FROM _device_outbox", [], |row| row.get::<_, i64>(0))? as u64)
+        Ok(self.store.conn().query_row("SELECT MAX(COALESCE((SELECT MAX(seq) FROM _device_outbox), 0), COALESCE((SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'device:submission'), 0)) + 1", [], |row| row.get::<_, i64>(0))? as u64)
     }
 
     pub fn dequeue(&mut self, id: &str) -> Result<(), RuntimeError> {
@@ -307,6 +393,8 @@ impl Device {
     pub fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> {
         self.store.set_meta(&format!("client:{key}"), value)
     }
+
+    pub fn backend(&self) -> Backend { Backend { generation: self.generation, schema: self.schema.clone(), programs: self.programs.values().cloned().collect() } }
 
     pub fn schema(&self) -> &Schema {
         &self.schema

@@ -4,7 +4,8 @@
 // first (LLP 2000.000 §7.2, §7.3). Values are plain JSON here; the server's
 // tagged literals are untagged as they are read.
 
-import { canonicalJson, decodeCursor, encodeCursor, type ColumnTypeJson } from "./cursor.ts";
+import { pagePlan } from "./pages.ts";
+import { compareStrings, tagFor, canonicalJson, decodeCursor, encodeCursor, type ColumnTypeJson } from "./cursor.ts";
 import type { Bounds, Row, SchemaJson, StoreTx } from "./store.ts";
 
 export type Json = unknown;
@@ -43,6 +44,11 @@ export interface LocalRead {
 export interface Ceilings { examined: number; ruleProbes: number; steps: number; rowsWritten: number }
 export const CEILINGS: Ceilings = { examined: 8192, ruleProbes: 8192, steps: 1_000_000, rowsWritten: 1024 };
 
+// Row-shaped values and JSON maps have different positions in the core's
+// total order. Keep that provenance internal, without adding wire fields.
+const shapes = new WeakSet<object>();
+const shape = <T extends object>(value: T): T => { shapes.add(value); return value; };
+
 const untagged = (v: unknown): unknown => {
   if (v === null || typeof v !== "object") return v;
   if (Array.isArray(v)) return v.map(untagged);
@@ -53,7 +59,8 @@ const untagged = (v: unknown): unknown => {
       case "Null": return null;
       case "Bool": case "Int": case "String": case "Id": case "Bytes": return inner;
       case "Array": return (inner as unknown[]).map(untagged);
-      case "Row": case "Map": return Object.fromEntries(Object.entries(inner as Record<string, unknown>).map(([k, x]) => [k, untagged(x)]));
+      case "Row": return shape(Object.fromEntries(Object.entries(inner as Record<string, unknown>).map(([k, x]) => [k, untagged(x)])));
+      case "Map": return Object.fromEntries(Object.entries(inner as Record<string, unknown>).map(([k, x]) => [k, untagged(x)]));
     }
   }
   return v;
@@ -85,7 +92,7 @@ export function literal(v: unknown): unknown {
   return untagged(v);
 }
 
-const tagOf = (v: unknown): number => v === null || v === undefined ? 0 : typeof v === "boolean" ? 1 : typeof v === "number" ? 2 : typeof v === "string" ? 3 : Array.isArray(v) ? 7 : 6;
+const tagOf = (v: unknown): number => v === null || v === undefined ? 0 : typeof v === "boolean" ? 1 : typeof v === "number" ? 2 : typeof v === "string" ? 3 : Array.isArray(v) ? 7 : typeof v === "object" && shapes.has(v) ? 6 : 8;
 
 /** The value model's total order over plain values. */
 export function totalCompare(a: unknown, b: unknown): number {
@@ -95,7 +102,7 @@ export function totalCompare(a: unknown, b: unknown): number {
     case 0: return 0;
     case 1: return a === b ? 0 : a ? 1 : -1;
     case 2: return (a as number) < (b as number) ? -1 : a === b ? 0 : 1;
-    case 3: return (a as string) < (b as string) ? -1 : a === b ? 0 : 1;
+    case 3: return compareStrings(a as string, b as string);
     case 7: {
       const x = a as unknown[], y = b as unknown[];
       for (let i = 0; i < Math.min(x.length, y.length); i++) {
@@ -105,10 +112,10 @@ export function totalCompare(a: unknown, b: unknown): number {
       return x.length - y.length;
     }
     default: {
-      const x = Object.entries(a as Record<string, unknown>).sort(), y = Object.entries(b as Record<string, unknown>).sort();
+      const x = Object.entries(a as Record<string, unknown>).sort(([a], [b]) => compareStrings(a, b)), y = Object.entries(b as Record<string, unknown>).sort(([a], [b]) => compareStrings(a, b));
       if (x.length !== y.length) return x.length - y.length;
       for (let i = 0; i < x.length; i++) {
-        if (x[i]![0] !== y[i]![0]) return x[i]![0] < y[i]![0] ? -1 : 1;
+        if (x[i]![0] !== y[i]![0]) return compareStrings(x[i]![0], y[i]![0]);
         const c = totalCompare(x[i]![1], y[i]![1]);
         if (c !== 0) return c;
       }
@@ -142,13 +149,18 @@ export class Interpreter {
   private written = 0;
   private capped = false;
   private beyondHorizon = false;
+  get hasUnknownReads(): boolean { return this.beyondHorizon; }
   /** The program's page had more rows and no cursor to continue on. */
   private pageOverflow = false;
   /** A field of a pending row was read while building an object. */
   private pendingTouched = false;
   private page: { table: string; index: string; order: "Asc" | "Desc"; prefixLen: number; next: unknown[] | null } | null = null;
+  private pages = new Map<string, NonNullable<Interpreter["page"]>>();
+  private pageOwners = new Map<string, string>();
   private pageDepth = 0;
-  private created = new Set<string>();
+  private created = new Map<string, number>();
+  private createdRows = new Map<string, string[]>();
+  private inserted: { table: string; row: Row }[] = [];
   readonly tables = new Set<string>();
   readonly writes: { table: string; row: Row; old?: Row }[] = [];
   private site = "";
@@ -172,13 +184,22 @@ export class Interpreter {
   }
 
   async run(program: ProgramJson): Promise<LocalRead> {
+    this.pageOwners = pagePlan(program);
     // An omitted optional argument (or cursor) reads as null, as on the server.
     for (const [name, kind] of Object.entries(program.args)) {
       if (!this.env.has(name) && (kind === "Cursor" || (typeof kind === "object" && kind !== null && "Optional" in kind))) this.env.set(name, null);
     }
-    const flow = await this.statements(program.body, program.name);
+    validateNumbers(this.ctx.args);
+    let flow: Flow | undefined;
+    try { flow = await this.statements(program.body, program.name); }
+    catch (error) {
+      if (this.mode === "mutation" && this.beyondHorizon && error instanceof Refused && ["rule", "auth", "constraint"].includes(error.refusal.family)) throw unpredictable();
+      throw error;
+    }
+    if (this.mode === "mutation" && this.beyondHorizon) throw unpredictable();
+    if (this.mode === "mutation") await this.finalExists();
     const data = flow instanceof Flow && flow.kind === "return" ? flow.value : null;
-    return { data, complete: !this.capped && !this.beyondHorizon && !this.pageOverflow, next: this.capped ? null : this.nextCursor(), tables: this.tables };
+    return { data, complete: !this.capped && !this.beyondHorizon && !this.pageOverflow, next: this.nextCursor(), tables: this.tables };
   }
 
   private nextCursor(): string | null {
@@ -191,7 +212,8 @@ export class Interpreter {
 
   private async statements(stmts: unknown[], prefix: string): Promise<Flow | undefined> {
     for (let i = 0; i < stmts.length; i++) {
-      this.site = `${prefix}:${i + 1}`;
+      const site = `${prefix}:${i + 1}`;
+      this.site = site;
       this.step();
       const raw: unknown = stmts[i];
       if (raw === "Break") return new Flow("break");
@@ -208,7 +230,7 @@ export class Interpreter {
         }
         case "If": {
           const c = await this.expr(body.condition);
-          const flow = await this.statements((c ? body.then_body : body.else_body) as unknown[], `${this.site}:${c ? "then" : "else"}`);
+          const flow = await this.statements((c ? body.then_body : body.else_body) as unknown[], `${site}:${c ? "then" : "else"}`);
           if (flow) return flow;
           break;
         }
@@ -219,7 +241,7 @@ export class Interpreter {
           let result: Flow | undefined;
           for (const item of items) {
             this.env.set(body.binding as string, item);
-            const flow = await this.statements(body.body as unknown[], this.site);
+            const flow = await this.statements(body.body as unknown[], site);
             if (flow?.kind === "break") break;
             if (flow?.kind === "return") { result = flow; break; }
           }
@@ -246,7 +268,12 @@ export class Interpreter {
         case "Upsert": await this.upsert(body.table as string, (await this.expr(body.key)) as string, (await this.expr(body.row)) as Row); break;
         case "Delete": await this.delete(body.table as string, (await this.expr(body.key)) as string); break;
         case "Emit": throw new Refused({ code: "E_PREDICT", family: "predict", message: "effects run on the server; this write is not predicted", retryable: true });
-        case "Return": return new Flow("return", await this.expr(body));
+        case "Return": {
+          const data = await this.expr(body);
+          const owner = this.pageOwners.get(site);
+          this.page = owner ? this.pages.get(owner) ?? null : null;
+          return new Flow("return", data);
+        }
         default: throw new Refused({ code: "E_SCHEMA", family: "schema", message: `unknown statement ${kind}` });
       }
     }
@@ -312,7 +339,7 @@ export class Interpreter {
         for (const [k, v] of Object.entries(body as Record<string, unknown>)) out[k] = await this.expr(v);
         if (this.pendingTouched && !("pending" in out)) out.pending = true;
         this.pendingTouched = outer || this.pendingTouched;
-        return out;
+        return shape(out);
       }
       case "Binary": {
         const b = body as { op: string; left: unknown; right: unknown };
@@ -327,9 +354,9 @@ export class Interpreter {
           case "Lte": return totalCompare(left, right) <= 0;
           case "Gt": return totalCompare(left, right) > 0;
           case "Gte": return totalCompare(left, right) >= 0;
-          case "Add": return num(left) + num(right);
-          case "Sub": return num(left) - num(right);
-          case "Mul": return num(left) * num(right);
+          case "Add": return checked(BigInt(num(left)) + BigInt(num(right)));
+          case "Sub": return checked(BigInt(num(left)) - BigInt(num(right)));
+          case "Mul": return checked(BigInt(num(left)) * BigInt(num(right)));
           case "And": return Boolean(left) && Boolean(right);
           case "Or": return Boolean(left) || Boolean(right);
           default: return equal(left, right);
@@ -351,12 +378,12 @@ export class Interpreter {
     const name = typeof b.builtin === "string" ? b.builtin : Object.keys(b.builtin as object)[0]!;
     switch (name) {
       case "Len": case "Count": case "CountCapped": { const v = args[0]; return typeof v === "string" ? [...v].length : Array.isArray(v) ? v.length : v && typeof v === "object" ? Object.keys(v).length : 0; }
-      case "Sum": return (args[0] as number[]).reduce((s, x) => s + x, 0);
+      case "Sum": return checked((args[0] as number[]).reduce((s, x) => s + BigInt(num(x)), 0n));
       case "Slice": { const [v, s, e] = args as [unknown, number, number]; const start = Math.max(0, s), end = Math.max(0, e); return typeof v === "string" ? [...v].slice(start, end).join("") : (v as unknown[]).slice(start, end); }
       case "Concat": { const [l, r] = args; return Array.isArray(l) && Array.isArray(r) ? [...l, ...r] : `${String(l ?? "")}${String(r ?? "")}`; }
       case "Min": return totalCompare(args[0], args[1]) <= 0 ? args[0] : args[1];
       case "Max": return totalCompare(args[0], args[1]) >= 0 ? args[0] : args[1];
-      case "Divmod": { const [n, d] = args as [number, number]; if (d === 0) throw new Refused({ code: "E_DIV_ZERO", family: "input", message: "division by zero" }); const q = Math.floor(n / d); return { quotient: q, remainder: n - q * d, sink: "lexicographic-id" }; }
+      case "Divmod": { const [n, d] = args.map((v) => BigInt(num(v))) as [bigint, bigint]; if (d === 0n) throw new Refused({ code: "E_DIV_ZERO", family: "input", message: "division by zero" }); let q = n / d, r = n % d; if (r < 0n) { r += d < 0n ? -d : d; q -= d > 0n ? 1n : -1n; } return { quotient: checked(q), remainder: checked(r), sink: "lexicographic-id" }; }
       case "Sort": { const keys = (b.builtin as { Sort: { keys: { field: string; order: "Asc" | "Desc" }[] } }).Sort.keys; return [...(args[0] as Record<string, unknown>[])].sort((x, y) => { for (const k of keys) { const c = totalCompare(x[k.field], y[k.field]); if (c !== 0) return k.order === "Desc" ? -c : c; } return 0; }); }
       case "MentionTokens": { const seen = new Set<string>(); const out: string[] = []; for (const w of String(args[0]).split(/[\s,;()[\]{}<>"']+/)) { if (!w.startsWith("@")) continue; const t = w.slice(1).replace(/^[^\p{L}\p{N}_]+|[^\p{L}\p{N}_]+$/gu, ""); if (t && !seen.has(t)) { seen.add(t); out.push(t); } } return out; }
       case "DeterministicShare": { const [amount, list, who] = args as [number, unknown[], unknown]; const sorted = [...list].sort(totalCompare); const at = sorted.findIndex((x) => equal(x, who)); if (at < 0) throw new Refused({ code: "E_INPUT", family: "input", message: "recipient missing from shares" }); const n = sorted.length; const base = Math.floor(amount / n); return base + (at < amount - base * n ? 1 : 0); }
@@ -389,7 +416,8 @@ export class Interpreter {
     const mark = { probes: this.probes, capped: this.capped };
     const row = await this.tx.lookup(read.table, read.index, key);
     if (!this.charge("examined")) return null;
-    if (!row || this.expired(read.table, row)) return null;
+    if (!row) { if (table.sync?.horizon) this.beyondHorizon = true; return null; }
+    if (this.expired(read.table, row)) return null;
     if (await this.readable(read.table, row)) return row;
     this.probes = mark.probes; this.capped = mark.capped;
     return null;
@@ -410,6 +438,10 @@ export class Interpreter {
         if (scan.opaque_cursor) {
           const position = decodeCursor(String(after));
           if (!position || position.table !== table || position.index !== index || position.order !== order) throw new Refused({ code: "E_INPUT", family: "input", message: "cursor: the token names another scope" });
+          const columns = definition.indexes[index]!.components.map((c) => "Column" in c ? c.Column : "").slice(prefix.length);
+          const suffix = columns.map((name) => ({ name, kind: definition.columns[name] }));
+          if (canonicalJson(position.suffix) !== canonicalJson(suffix) || position.values.length !== suffix.length || encodeCursor(position) !== after) throw new Refused({ code: "E_INPUT", family: "input", message: "cursor: invalid position type" });
+          validateNumbers(position.values);
           bounds.after = position.values;
         } else bounds.after = Array.isArray(after) ? after : [after];
       }
@@ -453,7 +485,7 @@ export class Interpreter {
         if (this.capped) break outer;
         if (allowed) {
           if (visible.length === take) { hasMore = true; break outer; }
-          visible.push(row);
+          visible.push(shape(row));
           lastKey = key;
         } else if (uniform) {
           // One hidden row hides the prefix: stop without reading it, at
@@ -464,17 +496,15 @@ export class Interpreter {
       }
       if (fetched.length < batch) break;
     }
-    // Inside the horizon, a short page is the whole group; at the horizon
-    // it may continue on the server.
+    // Acquisition does not backfill after deletion. A short held range
+    // never proves absence outside the horizon; another ordering cannot
+    // prove even a full prefix of its result.
     const horizon = definition.sync?.horizon;
-    if (horizon && !hasMore && !this.capped && horizon.by === index) {
-      const held = await this.tx.count(table, index, prefix, horizon.last);
-      if (held >= horizon.last) this.beyondHorizon = true;
-    }
+    if (horizon && (horizon.by !== index || order !== "Desc" || !hasMore)) this.beyondHorizon = true;
     if (this.pageDepth === 0 && !scan.opaque_cursor && hasMore) this.pageOverflow = true;
     if (this.pageDepth === 0 && scan.opaque_cursor) {
       const columns = definition.indexes[index]!.components.length;
-      this.page = { table, index, order, prefixLen: prefix.length, next: hasMore && lastKey && visible.length ? suffixOf(this.schema, table, index, visible[visible.length - 1] as Row, prefix.length).slice(0, columns - prefix.length) : null };
+      this.pages.set(scan.site as string, { table, index, order, prefixLen: prefix.length, next: (hasMore || this.capped) && lastKey && visible.length ? suffixOf(this.schema, table, index, visible[visible.length - 1] as Row, prefix.length).slice(0, columns - prefix.length) : null });
     }
     return visible;
   }
@@ -527,7 +557,7 @@ export class Interpreter {
     const hasMore = candidates.length > take;
     const page = candidates.slice(0, take);
     if (this.pageDepth === 0 && !first.opaque_cursor && hasMore) this.pageOverflow = true;
-    if (this.pageDepth === 0 && first.opaque_cursor) this.page = { table, index, order, prefixLen, next: hasMore && page.length ? page[page.length - 1]!.key : null };
+    if (this.pageDepth === 0 && first.opaque_cursor) this.pages.set(merge.site as string, { table, index, order, prefixLen, next: (hasMore || this.capped) && page.length ? page[page.length - 1]!.key : null });
     return page.map((c) => c.row);
   }
 
@@ -617,7 +647,7 @@ export class Interpreter {
     }
     this.pageDepth = depth;
     if (depth === 0) {
-      if (first.opaque_cursor) this.page = { table, index, order, prefixLen, next: (hasMore || this.capped) && page.length ? page[page.length - 1]!.key : null };
+      if (first.opaque_cursor) this.pages.set(merge.site as string, { table, index, order, prefixLen, next: (hasMore || this.capped) && page.length ? page[page.length - 1]!.key : null });
       else if (hasMore) this.pageOverflow = true;
     }
     return page.map((c) => c.row);
@@ -712,6 +742,8 @@ export class Interpreter {
         if (!this.charge("probes")) return false;
         this.tables.add(b.table);
         const found = await this.tx.lookup(b.table, b.index, b.key.map(term));
+        const sync = this.schema.tables[b.table]?.sync;
+        if (!sync || (!found && sync.horizon)) this.beyondHorizon = true;
         return found !== undefined && !this.expired(b.table, found);
       }
       case "Created": {
@@ -769,13 +801,13 @@ export class Interpreter {
     if (await this.tx.get(table, row.id)) throw new Refused({ code: "E_CONSTRAINT", family: "constraint", message: `${table} already has a row with id ${row.id}` });
     await this.constraints(table, undefined, row, "insert");
     await this.put(table, { ...row, pending: true });
-    for (const [name, index] of Object.entries(this.schema.tables[table]!.indexes)) this.created.add(`${table}\u0000${name}\u0000${canonicalJson(index.components.map((c) => ("Column" in c ? row[c.Column] ?? null : null)))}`);
     return true;
   }
 
   private async update(table: string, id: string, patch: Record<string, unknown>) {
     this.tables.add(table);
     const old = await this.tx.get(table, id);
+    if (!this.schema.tables[table]?.sync || (!old && this.schema.tables[table]?.sync?.horizon)) this.beyondHorizon = true;
     if (!old || this.expired(table, old)) throw new Refused({ code: "NOT_FOUND", family: "rule", message: "the row does not exist on this device", rule: "NOT_FOUND" });
     const next = { ...old, ...patch, pending: true } as Row;
     await this.permitted(table, "update", old, next);
@@ -792,11 +824,13 @@ export class Interpreter {
   private async delete(table: string, id: string) {
     this.tables.add(table);
     const old = await this.tx.get(table, id);
+    if (!this.schema.tables[table]?.sync || (!old && this.schema.tables[table]?.sync?.horizon)) this.beyondHorizon = true;
     if (!old || this.expired(table, old)) throw new Refused({ code: "NOT_FOUND", family: "rule", message: "the row does not exist on this device", rule: "NOT_FOUND" });
     await this.permitted(table, "delete", undefined, old);
     this.written++;
     if (this.written > this.ceilings.rowsWritten) throw new Refused({ code: "E_BOUND", family: "bound", message: "rows written reached the ceiling", site: this.site });
     await this.tx.delete(table, id);
+    this.creationFacts(table, old, undefined);
     this.writes.push({ table, row: old, old });
     await this.maintain(table, old, undefined);
   }
@@ -805,8 +839,43 @@ export class Interpreter {
     this.written++;
     if (this.written > this.ceilings.rowsWritten) throw new Refused({ code: "E_BOUND", family: "bound", message: "rows written reached the ceiling", site: this.site });
     await this.tx.put(table, row);
+    this.creationFacts(table, old, row);
     this.writes.push(old ? { table, row, old } : { table, row });
     await this.maintain(table, old, row);
+  }
+
+  private creationFacts(table: string, old: Row | undefined, next: Row | undefined) {
+    const owner = `${table}\u0000${(old ?? next)!.id}`;
+    const previous = this.createdRows.get(owner);
+    if (previous) for (const key of previous) {
+      const count = this.created.get(key)! - 1;
+      if (count) this.created.set(key, count); else this.created.delete(key);
+    }
+    this.createdRows.delete(owner);
+    if (!old && next) this.inserted.push({ table, row: structuredClone(next) });
+    if ((!old || previous) && next) {
+      const keys = Object.entries(this.schema.tables[table]!.indexes).map(([name, index]) => `${table}\u0000${name}\u0000${canonicalJson(index.components.map(c => "Column" in c ? next[c.Column] ?? null : null))}`);
+      for (const key of keys) this.created.set(key, (this.created.get(key) ?? 0) + 1);
+      this.createdRows.set(owner, keys);
+    }
+  }
+
+  private async finalExists() {
+    for (const { table, row } of this.inserted) for (const constraint of (this.schema.tables[table] as TableWithConstraints).constraints ?? []) {
+      if (!constraint || typeof constraint !== "object" || !("FinalExistsOnInsert" in constraint)) continue;
+      const c = (constraint as { FinalExistsOnInsert: { table: string; index: string; key: unknown[] } }).FinalExistsOnInsert;
+      const key = c.key.map(term => {
+        if (term === "Viewer") return this.ctx.viewer;
+        const [kind, value] = Object.entries(term as Record<string, unknown>)[0]!;
+        if (kind === "Field" || kind === "NextField") return row[value as string] ?? null;
+        return kind === "Literal" ? literal(value) : null;
+      });
+      this.tables.add(c.table);
+      const found = await this.tx.lookup(c.table, c.index, key);
+      const sync = this.schema.tables[c.table]?.sync;
+      if (!sync || (!found && sync.horizon)) throw unpredictable();
+      if (!found) throw new Refused({ code: "E_CONSTRAINT", family: "constraint", message: `inserting into ${table} requires a matching row in ${c.table} by the end of the mutation` });
+    }
   }
 
   /** A device keeps its counts honest while a prediction stands. */
@@ -814,19 +883,19 @@ export class Interpreter {
     for (const maintain of (this.schema.maintains ?? []) as MaintainJson[]) {
       if (maintain.source !== source) continue;
       const delta = (row: Row | undefined, sign: number) => (row ? (maintain.kind === "Count" ? sign : sign * num(row[(maintain.kind as { Sum: { of: string } }).Sum.of])) : 0);
-      const groups = new Map<string, { key: unknown[]; change: number }>();
+      const groups = new Map<string, { key: unknown[]; change: bigint }>();
       for (const [row, sign] of [[old, -1], [next, 1]] as [Row | undefined, number][]) {
         if (!row) continue;
         const key = maintain.by.map((c) => row[c] ?? null);
-        const id = canonicalJson(key.map(tag));
-        const g = groups.get(id) ?? { key, change: 0 };
-        g.change += delta(row, sign);
+        const id = canonicalJson(key.map((v, i) => tagFor(this.schema.tables[source]!.columns[maintain.by[i]!], v)));
+        const g = groups.get(id) ?? { key, change: 0n };
+        g.change += BigInt(delta(row, sign));
         groups.set(id, g);
       }
       for (const [id, g] of groups) {
-        if (g.change === 0) continue;
+        if (g.change === 0n) continue;
         const existing = await this.tx.get(maintain.target, id);
-        const value = num(existing?.value ?? 0) + g.change;
+        const value = checked(BigInt(num(existing?.value ?? 0)) + g.change);
         if (value === 0) { if (existing) await this.tx.delete(maintain.target, id); continue; }
         const row: Row = { id, value, pending: true };
         maintain.by.forEach((c, i) => { row[c] = g.key[i]; });
@@ -842,7 +911,20 @@ type TableWithConstraints = SchemaJson["tables"][string] & { constraints?: unkno
 
 function num(v: unknown): number {
   if (typeof v !== "number") throw new Refused({ code: "E_TYPE", family: "input", message: `expected a number, got ${typeof v}` });
+  if (!Number.isSafeInteger(v)) throw new Refused({ code: "E_OVERFLOW", family: "input", message: "number is outside the i53 integer model" });
   return v;
+}
+
+function checked(value: bigint): number {
+  if (value < -9007199254740991n || value > 9007199254740991n) throw new Refused({ code: "E_OVERFLOW", family: "input", message: "arithmetic is outside the i53 integer model" });
+  return Number(value);
+}
+function validateNumbers(value: unknown): void {
+  if (typeof value === "number") { num(value); return; }
+  if (value && typeof value === "object") for (const item of Object.values(value)) validateNumbers(item);
+}
+function unpredictable(): Refused {
+  return new Refused({ code: "E_PREDICT", family: "prediction", message: "this device does not hold enough rows to judge the mutation" });
 }
 
 /** A plain value as the server's tagged literal (for canonical ids). */

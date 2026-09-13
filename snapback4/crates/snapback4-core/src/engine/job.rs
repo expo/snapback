@@ -162,7 +162,9 @@ impl Engine {
         }
         validate_inputs(&self.schema, &program, &mut args)?;
         let id = crate::ids::mint(now, &mut self.entropy);
-        insert_job(self.store.conn(), &id, name, &args, &digest(&program), now)?;
+        let tx = self.store.transaction()?;
+        insert_job(tx.conn(), &id, name, &args, &digest(&program), now)?;
+        tx.commit()?;
         Ok(id)
     }
 
@@ -195,19 +197,24 @@ impl Engine {
     /// parks the job with the refusal; a job whose program changed since
     /// it was queued parks with `E_JOB_GENERATION`.
     pub fn run_job_chunk(&mut self, now: i64) -> Result<Option<JobRun>, RuntimeError> {
-        let head = self.store.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
+        let tx = self.store.transaction()?;
+        let head = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
         let Some(head) = head else { return Ok(None) };
         let program = self.programs.get(&head.run.name).cloned();
         let Some(program) = program.filter(|program| digest(program) == head.program_hash) else {
-            return self.park(&head.run.id, now, "E_JOB_GENERATION", &format!("job {} changed (or went away) since this run was queued; queue it again", head.run.name));
+            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("E_JOB_GENERATION: job {} changed (or went away) since this run was queued; queue it again", head.run.name), now])?;
+            tx.commit()?;
+            return self.job(&head.run.id);
         };
         let sweeps: Vec<(&str, &Scan, &[Stmt])> = program.body.iter().filter_map(|stmt| match stmt { Stmt::For { binding, domain: LoopDomain::Page(scan), body } => Some((binding.as_str(), scan, body.as_slice())), _ => None }).collect();
         let sweep = head.run.sweep as usize;
         if sweep >= sweeps.len() {
-            return self.finish(&head.run.id, now, sweeps.len());
+            tx.conn().execute("UPDATE _jobs SET state = 'done', sweep = ?2, cursor = NULL, upper = NULL, updated_at = ?3 WHERE id = ?1", params![head.run.id, sweeps.len() as i64, now])?;
+            tx.commit()?;
+            return self.job(&head.run.id);
         }
         let (binding, scan, body) = sweeps[sweep];
-        let tx = self.store.transaction()?;
+        tx.savepoint("job_chunk")?;
         let seq = tx.next_seq()?;
         let mut context = Context::system().at(now);
         context.args = head.args.clone();
@@ -249,25 +256,17 @@ impl Engine {
                 Ok(self.job(&head.run.id)?)
             }
             Err(error) if error.is_refusal() => {
-                tx.rollback()?;
+                tx.rollback_to("job_chunk")?;
                 let refusal = error.refusal();
-                self.park(&head.run.id, now, &refusal.code, &refusal.message)
+                tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("{}: {}", refusal.code, refusal.message), now])?;
+                tx.commit()?;
+                self.job(&head.run.id)
             }
             Err(error) => {
                 tx.rollback()?;
                 Err(error)
             }
         }
-    }
-
-    fn park(&mut self, id: &str, now: i64, code: &str, message: &str) -> Result<Option<JobRun>, RuntimeError> {
-        self.store.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![id, format!("{code}: {message}"), now])?;
-        self.job(id)
-    }
-
-    fn finish(&mut self, id: &str, now: i64, sweeps: usize) -> Result<Option<JobRun>, RuntimeError> {
-        self.store.conn().execute("UPDATE _jobs SET state = 'done', sweep = ?2, cursor = NULL, upper = NULL, updated_at = ?3 WHERE id = ?1", params![id, sweeps as i64, now])?;
-        self.job(id)
     }
 
     /// Queue the job of every schedule whose period boundary the clock has
@@ -281,13 +280,15 @@ impl Engine {
         for schedule in self.schema.schedules.clone() {
             let boundary = schedule.boundary(now);
             let key = format!("schedule:{}", schedule.name);
-            let last: Option<i64> = self.store.meta(&key)?.and_then(|value| value.parse().ok());
+            let tx = self.store.transaction()?;
+            let last: Option<i64> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [&key], |row| row.get::<_, String>(0)).optional()?.and_then(|value| value.parse().ok());
             if last == Some(boundary) {
                 continue;
             }
             let program = self.programs.get(&schedule.target).cloned();
             let (Some(program), Some(_)) = (program, last) else {
-                self.store.set_meta(&key, &boundary.to_string())?;
+                tx.set_meta(&key, &boundary.to_string())?;
+                tx.commit()?;
                 continue;
             };
             let mut args = BTreeMap::new();
@@ -298,7 +299,6 @@ impl Engine {
                 args.insert("periodEnd".to_owned(), Value::Int(boundary));
             }
             let id = crate::ids::mint(now, &mut self.entropy);
-            let tx = self.store.transaction()?;
             insert_job(tx.conn(), &id, &schedule.target, &args, &digest(&program), now)?;
             tx.conn().execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, boundary.to_string()])?;
             tx.commit()?;

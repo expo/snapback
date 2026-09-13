@@ -57,10 +57,17 @@ pub fn call(device: &mut Device, request: &Json) -> Json {
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
-                match device.query(text(request, "name")?, text(request, "viewer")?, &args, now) {
-                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "tables": outcome.tables }),
-                    Err(refusal) => json!({ "denied": refusal }),
+                let (result, unknown) = device.query_with_coverage(text(request, "name")?, text(request, "viewer")?, &args, now);
+                match result {
+                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "tables": outcome.tables, "unknown": unknown }),
+                    Err(refusal) => json!({ "denied": refusal, "unknown": unknown }),
                 }
+            }
+            "backend" => serde_json::to_value(device.backend()).map_err(|e| RuntimeError::Store(e.to_string()))?,
+            "admit" => serde_json::to_value(device.admit(parse::<Queued>(arg(request, "entry")?)?)?).map_err(|e| RuntimeError::Store(e.to_string()))?,
+            "settle" => {
+                device.settle(text(request, "id")?, request.get("seq").and_then(Json::as_u64))?;
+                Json::Null
             }
             "predict" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));

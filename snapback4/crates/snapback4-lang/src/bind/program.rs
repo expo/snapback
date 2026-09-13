@@ -12,6 +12,9 @@ use snapback4_core::ir::{self, BinaryOp, Bound, Builtin, Expr, IndexKeyExpr, Inp
 use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
+mod control;
+mod expr;
+
 /// A bound operation: the IR plus the types the client sees.
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
@@ -26,13 +29,21 @@ pub struct Binder<'a> {
     catalog: &'a Catalog,
     name: String,
     kind: ProgramKind,
-    scopes: Vec<BTreeMap<String, Ty>>,
+    scopes: Vec<BTreeMap<String, Binding>>,
     focal: Option<(String, Ty)>,
     temps: u32,
     sites: u32,
     returns: Vec<Ty>,
     /// Depth of fn/proc expansion, to bound recursion.
     depth: u32,
+}
+
+/// Source names are lexical; the IR's flat environment needs a distinct
+/// runtime name for each declaration and each helper expansion.
+#[derive(Clone)]
+struct Binding {
+    runtime: String,
+    ty: Ty,
 }
 
 const MAX_EXPANSION_DEPTH: u32 = 8;
@@ -55,7 +66,7 @@ impl<'a> Binder<'a> {
                 return None;
             }
             let ty = Ty::from_scalar(&arg.type_);
-            binder.scopes[0].insert(arg.name.clone(), ty.clone());
+            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone() });
             args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
             arg_types.push((arg.name.clone(), ty));
         }
@@ -79,7 +90,7 @@ impl<'a> Binder<'a> {
             return None;
         }
         let result = binder.returns.iter().fold(None, |joined: Option<Ty>, ty| Some(match joined { Some(j) => j.join(ty), None => ty.clone() })).unwrap_or(Ty::Null);
-        let full_name = if module == "schema" { decl.name.clone() } else { format!("{module}.{}", decl.name) };
+        let full_name = super::operation_name(module, &decl.name);
         let kind = match decl.kind {
             ProgramKind::Query => ir::ProgramKind::Query,
             ProgramKind::Mutation => ir::ProgramKind::Mutation,
@@ -99,11 +110,17 @@ impl<'a> Binder<'a> {
     }
 
     fn lookup(&self, name: &str) -> Option<&Ty> {
+        self.binding(name).map(|binding| &binding.ty)
+    }
+
+    fn binding(&self, name: &str) -> Option<&Binding> {
         self.scopes.iter().rev().find_map(|scope| scope.get(name))
     }
 
-    fn declare(&mut self, name: &str, ty: Ty) {
-        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), ty);
+    fn declare(&mut self, name: &str, ty: Ty) -> String {
+        let runtime = if name.starts_with('$') { name.to_owned() } else { self.temp(name) };
+        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), ty });
+        runtime
     }
 
     fn push_scope(&mut self) {
@@ -116,724 +133,6 @@ impl<'a> Binder<'a> {
 
     fn table(&self, name: &str, site: &Site) -> Fallible<&'a TableInfo> {
         self.catalog.tables.get(name).ok_or_else(|| unknown(site, format!("unknown table {name}"), name_rewrite(name, self.catalog.tables.keys().map(String::as_str), None)))
-    }
-
-    // ----- statements -----
-
-    fn block(&mut self, statements: &[S], out: &mut Vec<Stmt>, completes: bool) -> Fallible<()> {
-        self.push_scope();
-        let count = statements.len();
-        let mut result = Ok(());
-        for (index, statement) in statements.iter().enumerate() {
-            result = self.statement(statement, out, completes && index + 1 == count);
-            if result.is_err() {
-                break;
-            }
-        }
-        self.pop_scope();
-        result
-    }
-
-    fn statement(&mut self, statement: &S, out: &mut Vec<Stmt>, completes: bool) -> Fallible<()> {
-        match statement {
-            S::Return { value, site: _ } => {
-                let (expr, ty) = self.value_of(value, out)?;
-                self.returns.push(ty);
-                out.push(Stmt::Return(expr));
-                Ok(())
-            }
-            S::Bind { names, value, site } => {
-                if names.len() == 2 {
-                    return self.tuple_bind(names, value, site, out);
-                }
-                if names.len() != 1 {
-                    return Err(unknown(site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", "(quotient, remainder) = divmod(dividend, divisor)"));
-                }
-                let name = &names[0];
-                if self.scopes.last().is_some_and(|scope| scope.contains_key(name)) {
-                    return Err(unknown(site, format!("duplicate local {name}"), format!("rename {name} so every local in this scope is unique")));
-                }
-                if matches!(self.lookup(name), Some(_)) && self.scopes[0].contains_key(name) {
-                    return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), format!("rename the local (for example {name}2)")));
-                }
-                let (expr, ty) = self.value_of(value, out)?;
-                if matches!(value, A::Write { op: WriteOp::Delete, .. }) {
-                    return Err(unknown(site, "delete does not yield a value; return a confirmation value after the write", "delete the row, then `return null`"));
-                }
-                self.declare(name, ty);
-                out.push(Stmt::Let { name: name.clone(), value: expr });
-                Ok(())
-            }
-            S::Require { condition, code, site } => {
-                validate_code(site, code)?;
-                let (expr, ty) = self.expr(condition, out)?;
-                if !ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("require needs a bool condition, got {}", ty.name()), "compare the value: `require x != null else CODE`"));
-                }
-                self.narrow(condition, true);
-                out.push(Stmt::Require { condition: expr, code: code.clone(), site: Some(site.to_string()) });
-                Ok(())
-            }
-            S::Emit { effect, payload, site } => {
-                if self.kind == ProgramKind::Query {
-                    return Err(Diagnostic::new(site, "E_EMIT_IN_QUERY", "queries cannot emit effects", "change query to mutation before emitting an effect"));
-                }
-                if !self.catalog.effects.contains_key(effect) {
-                    return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect} from <module>` at the top level")));
-                }
-                let (expr, _) = self.expr(payload, out)?;
-                out.push(Stmt::Emit { effect: effect.clone(), payload: expr });
-                Ok(())
-            }
-            S::If { condition, then_body, else_body, site: _ } => {
-                let (expr, ty) = self.expr(condition, out)?;
-                if !ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("if needs a bool condition, got {}", ty.name()), "compare the value: `if x != null:`"));
-                }
-                let mut then_out = Vec::new();
-                self.push_scope();
-                self.narrow(condition, true);
-                let then_result = self.block(then_body, &mut then_out, completes);
-                self.pop_scope();
-                then_result?;
-                let mut else_out = Vec::new();
-                self.push_scope();
-                self.narrow(condition, false);
-                let else_result = self.block(else_body, &mut else_out, completes);
-                self.pop_scope();
-                else_result?;
-                out.push(Stmt::If { condition: expr, then_body: then_out, else_body: else_out });
-                Ok(())
-            }
-            S::For { name, domain, body, site } => {
-                let (loop_domain, item_ty) = self.loop_domain(domain, out)?;
-                let mut body_out = Vec::new();
-                self.push_scope();
-                self.declare(name, item_ty);
-                let result = self.block(body, &mut body_out, false);
-                self.pop_scope();
-                result?;
-                let _ = site;
-                out.push(Stmt::For { binding: name.clone(), domain: loop_domain, body: body_out });
-                Ok(())
-            }
-            S::Expr { value, site } => {
-                if let A::Call { name, args, site: call_site } = value
-                    && self.catalog.procs.contains_key(name)
-                {
-                    return self.proc_call(name, args, call_site, out);
-                }
-                if completes && self.kind != ProgramKind::Job {
-                    let (expr, ty) = self.value_of(value, out)?;
-                    self.returns.push(ty);
-                    out.push(Stmt::Return(expr));
-                    return Ok(());
-                }
-                if let A::Write { .. } = value {
-                    self.write(value, out, false)?;
-                    return Ok(());
-                }
-                Err(unknown(site, "a non-final expression must be a write; bind it if its value is needed", format!("value = {}", print::expression(value))))
-            }
-        }
-    }
-
-    fn tuple_bind(&mut self, names: &[String], value: &A, site: &Site, out: &mut Vec<Stmt>) -> Fallible<()> {
-        let A::Call { name, args, .. } = value else {
-            return Err(unknown(site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", "(quotient, remainder) = divmod(dividend, divisor)"));
-        };
-        if args.len() != 2 || (name != "divmod" && name != "sorted") {
-            return Err(unknown(site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", format!("({}, {}) = divmod(a, b)", names[0], names[1])));
-        }
-        let (a, at) = self.expr(&args[0], out)?;
-        let (b, bt) = self.expr(&args[1], out)?;
-        if name == "divmod" {
-            if !at.is_numeric() || !bt.is_numeric() {
-                return Err(type_error(site, format!("divmod takes two present numbers, got {} and {}", at.name(), bt.name()), "narrow both operands first"));
-            }
-            let tmp = self.temp("divmod");
-            out.push(Stmt::Let { name: tmp.clone(), value: Expr::Builtin { builtin: Builtin::Divmod { remainder_sink: "lexicographic-id".into() }, args: vec![a, b] } });
-            out.push(Stmt::Let { name: names[0].clone(), value: ir::field(ir::var(&tmp), "quotient") });
-            out.push(Stmt::Let { name: names[1].clone(), value: ir::field(ir::var(&tmp), "remainder") });
-            self.declare(&names[0], Ty::Int);
-            self.declare(&names[1], Ty::Int);
-        } else {
-            if !at.comparable(&bt) || at.is_optional() || bt.is_optional() {
-                return Err(type_error(site, format!("sorted takes two present values of one type, got {} and {}", at.name(), bt.name()), "narrow both operands first"));
-            }
-            let ta = self.temp("a");
-            let tb = self.temp("b");
-            out.push(Stmt::Let { name: ta.clone(), value: a });
-            out.push(Stmt::Let { name: tb.clone(), value: b });
-            out.push(Stmt::Let { name: names[0].clone(), value: Expr::Builtin { builtin: Builtin::Min, args: vec![ir::var(&ta), ir::var(&tb)] } });
-            out.push(Stmt::Let { name: names[1].clone(), value: Expr::Builtin { builtin: Builtin::Max, args: vec![ir::var(&ta), ir::var(&tb)] } });
-            let joined = at.join(&bt);
-            self.declare(&names[0], joined.clone());
-            self.declare(&names[1], joined);
-        }
-        Ok(())
-    }
-
-    /// After `require x != null` or inside `if x != null:`, `x` is present.
-    fn narrow(&mut self, condition: &A, then_branch: bool) {
-        match condition {
-            A::Binary { op, left, right, .. } if op == "and" && then_branch => {
-                self.narrow(left, true);
-                self.narrow(right, true);
-            }
-            A::Binary { op, left, right, .. } if (op == "!=") == then_branch && (op == "!=" || op == "=") => {
-                let candidate = match (left.as_ref(), right.as_ref()) {
-                    (A::Literal { value: Literal::Null, .. }, other) | (other, A::Literal { value: Literal::Null, .. }) => other,
-                    _ => return,
-                };
-                if let A::Name { name, .. } = candidate
-                    && let Some(ty) = self.lookup(name).cloned()
-                {
-                    let required = ty.required();
-                    for scope in self.scopes.iter_mut().rev() {
-                        if let Some(slot) = scope.get_mut(name) {
-                            *slot = required;
-                            break;
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn loop_domain(&mut self, domain: &A, out: &mut Vec<Stmt>) -> Fallible<(LoopDomain, Ty)> {
-        match domain {
-            A::Read(read) if read.range.is_some() => {
-                let (scan, _) = self.scan(read, out)?;
-                Ok((LoopDomain::Page(scan), Ty::Row(read.table.clone())))
-            }
-            A::Walk { table, seed, column, depth, site } => {
-                let (recurse, ty) = self.walk(table, seed, column, *depth, site, out)?;
-                Ok((LoopDomain::Recurse(recurse), ty))
-            }
-            A::Call { name, args, site } if name == "range" => {
-                if args.len() != 2 {
-                    return Err(type_error(site, "range takes two integer literals", "for i in range(0, 10):"));
-                }
-                let start = literal_int(&args[0]).ok_or_else(|| type_error(args[0].site(), "range takes integer literals", "for i in range(0, 10):"))?;
-                let end = literal_int(&args[1]).ok_or_else(|| type_error(args[1].site(), "range takes integer literals", "for i in range(0, 10):"))?;
-                if end < start || end - start > 10_000 {
-                    return Err(unbound_loop(site, "range spans at most 10,000 steps", "for i in range(0, 10):"));
-                }
-                Ok((LoopDomain::LiteralRange { start, end_exclusive: end }, Ty::Int))
-            }
-            A::Name { name, site } if self.scopes[0].contains_key(name) => {
-                let ty = self.scopes[0][name].clone();
-                match ty {
-                    Ty::List(item, max) => Ok((LoopDomain::ArgList { name: name.clone(), max }, *item)),
-                    Ty::Optional(inner) if matches!(*inner, Ty::List(..)) => Err(type_error(site, "for cannot iterate an optional list", format!("for x in {name} ?? []:"))),
-                    other => Err(type_error(site, format!("for cannot iterate {}", other.name()), "iterate a bounded page or a bounded list argument")),
-                }
-            }
-            other => {
-                let (expr, ty) = self.expr(other, out)?;
-                match ty {
-                    Ty::List(item, max) => Ok((LoopDomain::DerivedArray { value: expr, max, bound_source: "list".into() }, *item)),
-                    Ty::Page(table, max) => Ok((LoopDomain::DerivedArray { value: expr, max, bound_source: "page".into() }, Ty::Row(table))),
-                    Ty::Collection(item, max) => Ok((LoopDomain::DerivedArray { value: expr, max, bound_source: "shape".into() }, *item)),
-                    Ty::Optional(inner) if inner.loop_max().is_some() => Err(type_error(other.site(), "for cannot iterate an optional list", format!("for x in {} ?? []:", print::expression(other)))),
-                    Ty::Unknown => Err(unbound_loop(other.site(), "for cannot prove a static bound for this value", "iterate a bounded page, a bounded list argument, or tokens(text)")),
-                    other_ty => Err(type_error(other.site(), format!("for cannot iterate {}", other_ty.name()), "iterate a bounded page or bounded list")),
-                }
-            }
-        }
-    }
-
-    fn proc_call(&mut self, name: &str, args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<()> {
-        let proc = self.catalog.procs[name].clone();
-        if self.depth >= MAX_EXPANSION_DEPTH {
-            return Err(unsupported(site, "procs nested deeper than eight levels", "flatten the helper"));
-        }
-        if args.len() != proc.args.len() {
-            return Err(type_error(site, format!("{name} takes {} arguments; received {}", proc.args.len(), args.len()), format!("{name}({})", proc.args.iter().map(|a| a.name.clone()).collect::<Vec<_>>().join(", "))));
-        }
-        self.push_scope();
-        for (declared, given) in proc.args.iter().zip(args) {
-            let (expr, ty) = self.expr(given, out)?;
-            let expected = Ty::from_scalar(&declared.type_);
-            if !ty.assignable_to(&expected) {
-                self.pop_scope();
-                return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), format!("pass {} for {}", expected.name(), declared.name)));
-            }
-            let tmp = self.temp(&declared.name);
-            out.push(Stmt::Let { name: tmp.clone(), value: expr });
-            out.push(Stmt::Let { name: declared.name.clone(), value: ir::var(&tmp) });
-            self.declare(&declared.name, expected);
-        }
-        self.depth += 1;
-        let result = (|| {
-            for statement in &proc.body {
-                self.statement(statement, out, false)?;
-            }
-            Ok(())
-        })();
-        self.depth -= 1;
-        self.pop_scope();
-        result
-    }
-
-    // ----- expressions -----
-
-    /// An expression whose value is used (bound, returned, or a final
-    /// write): writes yield their row.
-    fn value_of(&mut self, value: &A, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        if let A::Write { .. } = value {
-            return self.write(value, out, true).map(|opt| opt.expect("a valued write"));
-        }
-        self.expr(value, out)
-    }
-
-    pub fn expr(&mut self, expr: &A, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        let site = expr.site();
-        match expr {
-            A::Name { name, .. } => self.name(name, site),
-            A::Focal { .. } => match &self.focal {
-                Some((var, ty)) => Ok((ir::var(var), ty.clone())),
-                None => Err(unknown(site, "focal . is valid only inside a row shape", "name the row: `row.field`")),
-            },
-            A::Literal { value, .. } => Ok(match value {
-                Literal::Str(text) => (Expr::Literal(Value::String(text.clone())), Ty::Text(text.chars().count() as u32)),
-                Literal::Number(text) => match text.parse::<i64>() {
-                    Ok(n) if (snapback4_core::value::I53_MIN..=snapback4_core::value::I53_MAX).contains(&n) => (Expr::Literal(Value::Int(n)), Ty::Int),
-                    _ => return Err(type_error(site, "number literals are integers within ±2^53", "use a decimal column with scaled integer minor units")),
-                },
-                Literal::Bool(b) => (Expr::Literal(Value::Bool(*b)), Ty::Bool),
-                Literal::Null => (Expr::Literal(Value::Null), Ty::Null),
-            }),
-            A::Array { items, .. } => {
-                let mut exprs = Vec::new();
-                let mut item_ty: Option<Ty> = None;
-                for item in items {
-                    let (e, t) = self.expr(item, out)?;
-                    item_ty = Some(match item_ty { Some(j) => j.join(&t), None => t });
-                    exprs.push(e);
-                }
-                let max = exprs.len() as u32;
-                Ok((Expr::Array(exprs), Ty::List(Box::new(item_ty.unwrap_or(Ty::Unknown)), max)))
-            }
-            A::Object { fields, .. } => self.object(fields, out),
-            A::Unary { op, value, .. } => {
-                let (e, t) = self.expr(value, out)?;
-                if op == "not" {
-                    if !t.is_bool() {
-                        return Err(type_error(site, format!("not needs a bool, got {}", t.name()), "compare the value first"));
-                    }
-                    Ok((Expr::Unary { op: UnaryOp::Not, value: Box::new(e) }, Ty::Bool))
-                } else {
-                    if !t.is_numeric() {
-                        return Err(type_error(site, format!("unary - needs a present number, got {}", t.name()), "negate an int, decimal or money value"));
-                    }
-                    Ok((Expr::Unary { op: UnaryOp::Neg, value: Box::new(e) }, t))
-                }
-            }
-            A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
-            A::If { then, condition, otherwise, .. } => {
-                let (cond, cond_ty) = self.expr(condition, out)?;
-                if !cond_ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), "compare the value: `x if ttl != null else y`"));
-                }
-                // Each arm binds under its narrowing and runs only when taken.
-                let temp = self.temp("if");
-                let mut then_out = Vec::new();
-                self.push_scope();
-                self.narrow(condition, true);
-                let then_bound = self.expr(then, &mut then_out);
-                self.pop_scope();
-                let (then_expr, then_ty) = then_bound?;
-                let mut else_out = Vec::new();
-                self.push_scope();
-                self.narrow(condition, false);
-                let else_bound = self.expr(otherwise, &mut else_out);
-                self.pop_scope();
-                let (else_expr, else_ty) = else_bound?;
-                then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
-                else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
-                out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
-                out.push(Stmt::If { condition: cond, then_body: then_out, else_body: else_out });
-                let ty = if then_ty == Ty::Null { else_ty.optional() } else if else_ty == Ty::Null { then_ty.optional() } else { then_ty.join(&else_ty) };
-                Ok((ir::var(&temp), ty))
-            }
-            A::Member { base, name, .. } => {
-                let (e, t) = self.expr(base, out)?;
-                self.member(e, t, name, site)
-            }
-            A::Call { name, args, .. } => self.call(name, args, site, out),
-            A::Read(read) => self.read(read, out),
-            A::Merge(merge) => self.merge(merge, out),
-            A::Exists { read, .. } => {
-                let (point, _) = self.point(read, ReadMode::Exists, out)?;
-                Ok((Expr::Exists(point), Ty::Bool))
-            }
-            A::Created { .. } => Err(unknown(site, "created is valid only in an insert table rule", "use exists here")),
-            A::Assert { value, code, .. } => {
-                validate_code(site, code)?;
-                let (e, t) = self.expr(value, out)?;
-                let tmp = self.temp("present");
-                out.push(Stmt::Let { name: tmp.clone(), value: e });
-                out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, code: code.clone(), site: Some(site.to_string()) });
-                Ok((ir::var(&tmp), t.required()))
-            }
-            A::Shape { base, fields, .. } => self.shape(base, fields, site, out),
-            A::ShapeUse { base, name, .. } => {
-                let Some(shape) = self.catalog.shapes.get(name).cloned() else {
-                    return Err(unknown(site, format!("unknown shape {name}"), name_rewrite(name, self.catalog.shapes.keys().map(String::as_str), Some("declare `shape name = { fields }`"))));
-                };
-                self.shape(base, &shape.fields, site, out)
-            }
-            A::Walk { table, seed, column, depth, .. } => {
-                let (recurse, ty) = self.walk(table, seed, column, *depth, site, out)?;
-                let list = self.temp("walk");
-                out.push(Stmt::Let { name: list.clone(), value: Expr::Array(Vec::new()) });
-                let item = self.temp("node");
-                out.push(Stmt::For { binding: item.clone(), domain: LoopDomain::Recurse(recurse), body: vec![Stmt::Push { target: list.clone(), value: ir::var(&item) }] });
-                Ok((ir::var(&list), Ty::List(Box::new(ty), depth.saturating_add(1))))
-            }
-            A::Write { .. } => self.write(expr, out, true).map(|opt| opt.expect("a valued write")),
-        }
-    }
-
-    fn name(&mut self, name: &str, site: &Site) -> Fallible<(Expr, Ty)> {
-        match name {
-            "viewer" => Ok((Expr::Input(Input::Viewer), Ty::Principal)),
-            "now" | "commit" => {
-                if self.kind == ProgramKind::Query && name == "commit" {
-                    return Err(unknown(site, "commit is the mutation commit clock; queries read now", "now"));
-                }
-                Ok((Expr::Input(Input::Now), Ty::Time))
-            }
-            "new" => {
-                if self.kind == ProgramKind::Query {
-                    return Err(unknown(site, "queries cannot mint ids", "mint ids in a mutation"));
-                }
-                Ok((Expr::Input(Input::NewId), Ty::Id))
-            }
-            "true" => Ok((Expr::Literal(Value::Bool(true)), Ty::Bool)),
-            "false" => Ok((Expr::Literal(Value::Bool(false)), Ty::Bool)),
-            "null" => Ok((Expr::Literal(Value::Null), Ty::Null)),
-            _ => {
-                if let Some(ty) = self.lookup(name) {
-                    return Ok((ir::var(name), ty.clone()));
-                }
-                if self.catalog.tables.contains_key(name) {
-                    return Err(unknown(site, format!("{name} is a table; a read needs a key or a range"), format!("{name}[key]  -- or: {name}[prefix] first 50 by index")));
-                }
-                let declared: Vec<&str> = self.scopes.iter().flat_map(|s| s.keys().map(String::as_str)).chain(["viewer", "now", "new"]).collect();
-                Err(unknown(site, format!("unknown name {name}"), name_rewrite(name, declared, None)))
-            }
-        }
-    }
-
-    fn member(&mut self, base: Expr, ty: Ty, name: &str, site: &Site) -> Fallible<(Expr, Ty)> {
-        let field_ty = match ty.required() {
-            Ty::Row(table) => {
-                let info = self.table(&table, site)?;
-                if name == "id" {
-                    Ty::Ref(table.clone())
-                } else {
-                    match info.columns.get(name) {
-                        Some(scalar) => Ty::from_scalar(scalar),
-                        None => return Err(unknown(site, format!("{table} has no column {name}"), name_rewrite(name, info.columns.keys().map(String::as_str).chain(["id"]), None))),
-                    }
-                }
-            }
-            Ty::Object(fields) => match fields.get(name) {
-                Some(field) => field.clone(),
-                None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
-            },
-            Ty::Image | Ty::Video => match name {
-                "id" => Ty::Id,
-                "width" | "height" | "bytes" | "duration" => Ty::Int,
-                "type" => Ty::Text(64),
-                _ => return Err(unknown(site, format!("assets have no field {name}"), "id, width, height, bytes, type, duration")),
-            },
-            other => return Err(type_error(site, format!("{} has no fields", other.name()), "read a row or an object before selecting a field")),
-        };
-        let result_ty = if ty.is_optional() { field_ty.optional() } else { field_ty };
-        Ok((ir::field(base, name), result_ty))
-    }
-
-    fn object(&mut self, fields: &[ObjectField], out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        let mut exprs = BTreeMap::new();
-        let mut types = BTreeMap::new();
-        for field in fields {
-            let (e, t) = match &field.value {
-                Some(value) => self.expr(value, out)?,
-                None => self.name(&field.name, &field.site)?,
-            };
-            if exprs.insert(field.name.clone(), e).is_some() {
-                return Err(unknown(&field.site, format!("duplicate field {}", field.name), "keep one"));
-            }
-            types.insert(field.name.clone(), t);
-        }
-        Ok((Expr::Object(exprs), Ty::Object(types)))
-    }
-
-    fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        if op == "??" {
-            let (l, lt) = self.expr(left, out)?;
-            let tmp = self.temp("or");
-            out.push(Stmt::Let { name: tmp.clone(), value: l });
-            let mut fallback = Vec::new();
-            // `conversationId ?? 'dm1'`: a text literal after an identity is
-            // an id, as it is beside `=` and in a key.
-            let (r, rt) = if lt.required().is_identity() { self.expr_as_identity(right, &mut fallback, &lt.required())? } else { self.expr(right, &mut fallback)? };
-            fallback.push(Stmt::Assign { name: tmp.clone(), value: r });
-            out.push(Stmt::If { condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, then_body: fallback, else_body: Vec::new() });
-            let ty = if rt.is_optional() { lt.required().join(&rt) } else { lt.required().join(&rt).required() };
-            return Ok((ir::var(&tmp), ty));
-        }
-        if op == "/" || op == "%" {
-            return Err(unknown(site, "division binds a quotient and a remainder at once", format!("(quotient, remainder) = divmod({}, {})", print::expression(left), print::expression(right))));
-        }
-        let (l, lt) = self.expr(left, out)?;
-        let coerce_right = lt.is_identity();
-        let (r, rt) = if coerce_right { self.expr_as_identity(right, out, &lt)? } else { self.expr(right, out)? };
-        let (l, lt) = if rt.is_identity() && !lt.is_identity() {
-            match (left, &l) {
-                (A::Literal { value: Literal::Str(text), .. }, _) => (Expr::Literal(Value::Id(text.clone())), Ty::Id),
-                _ => (l, lt),
-            }
-        } else {
-            (l, lt)
-        };
-        let ir_op = match op {
-            "=" | "!=" => {
-                if !lt.comparable(&rt) {
-                    return Err(type_error(site, format!("{op} compares {} with {}", lt.name(), rt.name()), "compare values of one type"));
-                }
-                if op == "=" { BinaryOp::Eq } else { BinaryOp::Ne }
-            }
-            "<" | "<=" | ">" | ">=" => {
-                if lt.is_optional() || rt.is_optional() {
-                    return Err(type_error(site, format!("{op} needs present operands; got {} and {}", lt.name(), rt.name()), format!("narrow first: `if {} != null:`, or `{} ?? 0`", print::expression(if lt.is_optional() { left } else { right }), print::expression(if lt.is_optional() { left } else { right }))));
-                }
-                if !lt.comparable(&rt) {
-                    return Err(type_error(site, format!("{op} compares {} with {}", lt.name(), rt.name()), "compare values of one type"));
-                }
-                match op {
-                    "<" => BinaryOp::Lt,
-                    "<=" => BinaryOp::Lte,
-                    ">" => BinaryOp::Gt,
-                    _ => BinaryOp::Gte,
-                }
-            }
-            "+" | "-" | "*" => {
-                if !lt.is_numeric() || !rt.is_numeric() {
-                    return Err(type_error(site, format!("{op} needs present numbers; got {} and {}", lt.name(), rt.name()), "narrow optional operands with `?? 0`"));
-                }
-                let result = match (op, &lt, &rt) {
-                    ("-", Ty::Time, Ty::Time) => Ty::Int,
-                    ("+", Ty::Time, Ty::Int) | ("+", Ty::Int, Ty::Time) | ("-", Ty::Time, Ty::Int) => Ty::Time,
-                    ("+", Ty::Time, Ty::Time) | ("*", Ty::Time, _) | ("*", _, Ty::Time) => return Err(type_error(site, "time values add or subtract an int offset; time + time and time * n have no meaning", "subtract two times for an int difference in milliseconds")),
-                    (_, Ty::Decimal(a), Ty::Decimal(b)) if a == b && op != "*" => Ty::Decimal(*a),
-                    (_, Ty::Money(c, a), Ty::Money(d, b)) if a == b && c == d && op != "*" => Ty::Money(c.clone(), *a),
-                    ("*", Ty::Decimal(a), Ty::Int) | ("*", Ty::Int, Ty::Decimal(a)) => Ty::Decimal(*a),
-                    ("*", Ty::Money(c, a), Ty::Int) | ("*", Ty::Int, Ty::Money(c, a)) => Ty::Money(c.clone(), *a),
-                    (_, Ty::Int, Ty::Int) => Ty::Int,
-                    _ => return Err(type_error(site, format!("{op} needs matching numeric types; got {} and {}", lt.name(), rt.name()), "convert one operand")),
-                };
-                let ir_op = match op {
-                    "+" => BinaryOp::Add,
-                    "-" => BinaryOp::Sub,
-                    _ => BinaryOp::Mul,
-                };
-                return Ok((Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) }, result));
-            }
-            "and" | "or" => {
-                if !lt.is_bool() || !rt.is_bool() {
-                    return Err(type_error(site, format!("{op} needs bool operands; got {} and {}", lt.name(), rt.name()), "compare each side first"));
-                }
-                if op == "and" { BinaryOp::And } else { BinaryOp::Or }
-            }
-            other => return Err(unknown(site, format!("unknown operator {other}"), "use =, !=, <, <=, >, >=, +, -, *, and, or, ??")),
-        };
-        Ok((Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) }, Ty::Bool))
-    }
-
-    /// An expression in an identity position: a text literal becomes an id.
-    fn expr_as_identity(&mut self, expr: &A, out: &mut Vec<Stmt>, expected: &Ty) -> Fallible<(Expr, Ty)> {
-        if let A::Literal { value: Literal::Str(text), .. } = expr {
-            if text.is_empty() {
-                return Err(type_error(expr.site(), "an empty text literal cannot be an id", "use a non-empty id literal, or null"));
-            }
-            return Ok((Expr::Literal(Value::Id(text.clone())), expected.required()));
-        }
-        self.expr(expr, out)
-    }
-
-    fn call(&mut self, name: &str, args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        if let Some(function) = self.catalog.functions.get(name).cloned() {
-            return self.fn_call(&function, args, site, out);
-        }
-        if self.catalog.procs.contains_key(name) {
-            return Err(unknown(site, format!("{name} is a proc; call it as a statement"), format!("{name}({})", args.iter().map(print::expression).collect::<Vec<_>>().join(", "))));
-        }
-        let arity = |n: usize, rewrite: &str| -> Fallible<()> {
-            if args.len() != n {
-                return Err(type_error(site, format!("{name} takes {n} argument{}; received {}", if n == 1 { "" } else { "s" }, args.len()), rewrite));
-            }
-            Ok(())
-        };
-        match name {
-            "count" => {
-                arity(1, "count(list)")?;
-                let (e, t) = self.expr(&args[0], out)?;
-                if t.loop_max().is_none() {
-                    return Err(type_error(args[0].site(), format!("count takes a bounded list or page, got {}", t.name()), if matches!(t.required(), Ty::Text(_)) { "for a text length use slice, or store the length" } else { "count a page or a bounded list" }));
-                }
-                Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![e] }, Ty::Int))
-            }
-            "sum" if args.len() == 2 => {
-                // `sum(page, .x)`: the rows' field, summed — a loop that
-                // pushes each projection, then the sum of the list.
-                let (source, source_ty) = self.expr(&args[0], out)?;
-                let (domain, item_ty) = match (&source, &source_ty) {
-                    (Expr::Scan(scan), Ty::Page(table, _)) => (LoopDomain::Page(scan.clone()), Ty::Row(table.clone())),
-                    (_, Ty::Collection(item, max)) | (_, Ty::List(item, max)) => (LoopDomain::DerivedArray { value: source.clone(), max: *max, bound_source: "sum".into() }, item.as_ref().clone()),
-                    (_, other) => return Err(type_error(args[0].site(), format!("sum takes a page or a bounded list, got {}", other.name()), "sum(t[prefix] first 50 by index, .amount)")),
-                };
-                let list = self.temp("sum");
-                let item = self.temp("row");
-                out.push(Stmt::Let { name: list.clone(), value: Expr::Array(Vec::new()) });
-                let mut body = Vec::new();
-                self.push_scope();
-                self.declare(&item, item_ty.clone());
-                let saved = self.focal.replace((item.clone(), item_ty));
-                let projected = self.expr(&args[1], &mut body);
-                self.focal = saved;
-                self.pop_scope();
-                let (projection, projection_ty) = projected?;
-                if !projection_ty.is_numeric() {
-                    return Err(type_error(args[1].site(), format!("sum adds numbers; .{} is {}", print::expression(&args[1]).trim_start_matches('.'), projection_ty.name()), if projection_ty.required().is_numeric() { format!("{} ?? 0", print::expression(&args[1])) } else { "name a numeric field: sum(page, .amount)".into() }));
-                }
-                body.push(Stmt::Push { target: list.clone(), value: projection });
-                out.push(Stmt::For { binding: item, domain, body });
-                Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![ir::var(&list)] }, projection_ty))
-            }
-            "sum" => {
-                arity(1, "sum(list)")?;
-                let (e, t) = self.expr(&args[0], out)?;
-                let item = match &t {
-                    Ty::List(item, _) | Ty::Collection(item, _) => item.as_ref().clone(),
-                    other => return Err(type_error(args[0].site(), format!("sum takes a bounded list of numbers, got {}", other.name()), "sum a list of int values")),
-                };
-                if !item.is_numeric() {
-                    return Err(type_error(args[0].site(), format!("sum takes numbers, got a list of {}", item.name()), "map the rows to their numeric field first"));
-                }
-                Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![e] }, item))
-            }
-            "slice" => {
-                arity(3, "slice(value, start, end)")?;
-                let (e, t) = self.expr(&args[0], out)?;
-                let (s, st) = self.expr(&args[1], out)?;
-                let (n, nt) = self.expr(&args[2], out)?;
-                if !matches!(st, Ty::Int) || !matches!(nt, Ty::Int) {
-                    return Err(type_error(site, "slice positions are ints", "slice(text, 0, 80)"));
-                }
-                let ty = match t.required() {
-                    Ty::Text(max) => match (literal_int(&args[1]), literal_int(&args[2])) {
-                        (Some(a), Some(b)) if b >= a => Ty::Text(((b - a) as u32).min(max)),
-                        _ => Ty::Text(max),
-                    },
-                    Ty::List(item, max) => Ty::List(item, max),
-                    Ty::Page(table, max) => Ty::List(Box::new(Ty::Row(table)), max),
-                    Ty::Collection(item, max) => Ty::Collection(item, max),
-                    other => return Err(type_error(args[0].site(), format!("slice takes text or a bounded list, got {}", other.name()), "slice(text, start, end)")),
-                };
-                if t.is_optional() {
-                    return Err(type_error(args[0].site(), "slice needs a present value", format!("slice({} ?? '', start, end)", print::expression(&args[0]))));
-                }
-                Ok((Expr::Builtin { builtin: Builtin::Slice, args: vec![e, s, n] }, ty))
-            }
-            "min" | "max" => {
-                arity(2, &format!("{name}(a, b)"))?;
-                let (a, at) = self.expr(&args[0], out)?;
-                let (b, bt) = self.expr(&args[1], out)?;
-                if at.is_optional() || bt.is_optional() || !at.comparable(&bt) {
-                    return Err(type_error(site, format!("{name} takes two present values of one type; got {} and {}", at.name(), bt.name()), "narrow the operands first"));
-                }
-                Ok((Expr::Builtin { builtin: if name == "min" { Builtin::Min } else { Builtin::Max }, args: vec![a, b] }, at.join(&bt)))
-            }
-            "tokens" => {
-                arity(1, "tokens(text)")?;
-                let (e, t) = self.expr(&args[0], out)?;
-                if !matches!(t, Ty::Text(_)) {
-                    return Err(type_error(args[0].site(), format!("tokens takes present text, got {}", t.name()), "tokens(body ?? '')"));
-                }
-                Ok((Expr::Builtin { builtin: Builtin::MentionTokens, args: vec![e] }, Ty::List(Box::new(Ty::Text(64)), MENTION_MAX)))
-            }
-            "share" => {
-                arity(3, "share(amount, recipients, recipient)")?;
-                let (a, at) = self.expr(&args[0], out)?;
-                let (list, lt) = self.expr(&args[1], out)?;
-                let (r, _) = self.expr(&args[2], out)?;
-                if !at.is_numeric() {
-                    return Err(type_error(args[0].site(), format!("share's amount must be a present number, got {}", at.name()), "share(amount, recipients, recipient)"));
-                }
-                if lt.loop_max().is_none() {
-                    return Err(type_error(args[1].site(), format!("share recipients must be a bounded list, got {}", lt.name()), "share(amount, recipients, recipient)"));
-                }
-                Ok((Expr::Builtin { builtin: Builtin::DeterministicShare, args: vec![a, list, r] }, at))
-            }
-            "sorted" | "divmod" => Err(unknown(site, format!("{name} binds a pair"), format!("(a, b) = {name}({})", args.iter().map(print::expression).collect::<Vec<_>>().join(", ")))),
-            "range" => Err(unknown(site, "range is a for domain", "for i in range(0, 10):")),
-            "sort" => {
-                if args.len() < 2 {
-                    return Err(type_error(site, "sort takes a list and one or more field names", "sort(rows, 'at')"));
-                }
-                let (e, t) = self.expr(&args[0], out)?;
-                let mut keys = Vec::new();
-                for key in &args[1..] {
-                    let A::Literal { value: Literal::Str(field), .. } = key else {
-                        return Err(type_error(key.site(), "sort keys are field name literals", "sort(rows, 'at')"));
-                    };
-                    let (field, order) = match field.strip_prefix('-') {
-                        Some(rest) => (rest.to_owned(), Order::Desc),
-                        None => (field.clone(), Order::Asc),
-                    };
-                    keys.push(SortKey { field, order });
-                }
-                if t.loop_max().is_none() {
-                    return Err(type_error(args[0].site(), format!("sort takes a bounded list, got {}", t.name()), "sort(rows, 'at')"));
-                }
-                Ok((Expr::Builtin { builtin: Builtin::Sort { keys }, args: vec![e] }, t))
-            }
-            "len" => Err(unknown(site, "len is spelled count", format!("count({})", args.first().map(print::expression).unwrap_or_default()))),
-            other => Err(unknown(site, format!("unknown function {other}"), name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted"]), None))),
-        }
-    }
-
-    fn fn_call(&mut self, function: &ast::FunctionDecl, args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
-        if self.depth >= MAX_EXPANSION_DEPTH {
-            return Err(unsupported(site, "fns nested deeper than eight levels", "flatten the helper"));
-        }
-        if args.len() != function.args.len() {
-            return Err(type_error(site, format!("{} takes {} arguments; received {}", function.name, function.args.len(), args.len()), format!("{}({})", function.name, function.args.iter().map(|a| a.name.clone()).collect::<Vec<_>>().join(", "))));
-        }
-        self.push_scope();
-        for (declared, given) in function.args.iter().zip(args) {
-            let expected = Ty::from_scalar(&declared.type_);
-            let (expr, ty) = if expected.is_identity() { self.expr_as_identity(given, out, &expected)? } else { self.expr(given, out)? };
-            if !ty.assignable_to(&expected) {
-                self.pop_scope();
-                return Err(type_error(given.site(), format!("{}'s {} is {}; got {}", function.name, declared.name, expected.name(), ty.name()), format!("pass {} for {}", expected.name(), declared.name)));
-            }
-            let tmp = self.temp(&declared.name);
-            out.push(Stmt::Let { name: tmp.clone(), value: expr });
-            self.declare(&declared.name, expected);
-            out.push(Stmt::Let { name: declared.name.clone(), value: ir::var(&tmp) });
-        }
-        self.depth += 1;
-        let result = self.expr(&function.body, out);
-        self.depth -= 1;
-        self.pop_scope();
-        result
     }
 
     // ----- reads -----
@@ -917,6 +216,7 @@ impl<'a> Binder<'a> {
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl)> {
+        super::validate_key_names(read)?;
         let point = mode != ReadMode::Range;
         let mut keys = Vec::new();
         for part in &read.keys {
@@ -1031,7 +331,9 @@ impl<'a> Binder<'a> {
         }
         let mut ordered = Vec::new();
         for column in index.columns.iter().take(keys.len()) {
-            let position = keys.iter().position(|(c, _, _)| c.as_deref() == Some(column)).expect("matched");
+            let Some(position) = keys.iter().position(|(c, _, _)| c.as_deref() == Some(column)) else {
+                return Err(unknown(&index.site, format!("key omits column {column} of {}.{}", info.decl.name, index.name), format!("name each prefix column once: {}", index.columns.iter().take(keys.len()).cloned().collect::<Vec<_>>().join(", "))));
+            };
             let expected = self.column_ty(info, column);
             if !keys[position].2.comparable(&expected) {
                 return Err(type_error(&index.site, format!("{column} is {}; {}.{column} is {}", keys[position].2.name(), info.decl.name, expected.name()), format!("use {} for {column}", expected.name())));
@@ -1087,8 +389,7 @@ impl<'a> Binder<'a> {
             if let Some((name, domain)) = &lane.loop_ {
                 let (scan, _) = self.scan(domain, &mut setup)?;
                 source = Some(scan);
-                binding = name.clone();
-                self.declare(name, Ty::Row(domain.table.clone()));
+                binding = self.declare(name, Ty::Row(domain.table.clone()));
             }
             let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), site: lane.site.clone() };
             let (mut scan, _) = self.scan(&read, &mut setup)?;

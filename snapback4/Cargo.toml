@@ -2,6 +2,10 @@
 resolver = "3"
 members = ["crates/*"]
 default-members = ["crates/snapback4"]
+exclude = ["vendor/tiny_http"]
+
+[patch.crates-io]
+tiny_http = { path = "vendor/tiny_http" }
 
 [workspace.package]
 version = "0.1.15"

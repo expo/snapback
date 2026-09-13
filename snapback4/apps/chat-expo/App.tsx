@@ -18,12 +18,18 @@ export function App() {
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     let live: Client | null = null;
+    let disposed = false;
+    const close = () => { disposed = true; void live?.close(); };
     if (process.env.EXPO_PUBLIC_WITNESS_URL) {
-      runWitness(process.env.EXPO_PUBLIC_WITNESS_URL).catch((e: Error) => setProblem(`witness: ${e.message}`));
-      return;
+      runWitness(process.env.EXPO_PUBLIC_WITNESS_URL).catch((e: Error) => { if (!disposed) setProblem(`witness: ${e.message}`); });
+      return close;
     }
-    openClient().then((c) => { live = c; setClient(c); }, (e: Error) => setProblem(e.message));
-    return () => { void live?.close(); };
+    openClient().then((c) => {
+      if (disposed) { void c.close(); return; }
+      live = c;
+      setClient(c);
+    }, (e: Error) => { if (!disposed) setProblem(e.message); });
+    return close;
   }, []);
   return <SafeAreaView style={styles.screen}>
     <StatusBar style="auto" />

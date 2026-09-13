@@ -50,9 +50,16 @@ class SqliteStore implements Store {
       async put(key, value) { await db.run("INSERT INTO side(name, key, value) VALUES (?, ?, ?) ON CONFLICT(name, key) DO UPDATE SET value = excluded.value", [name, key, JSON.stringify(value)]); },
       async delete(key) { await db.run("DELETE FROM side WHERE name = ? AND key = ?", [name, key]); },
       async all() { return (await db.all("SELECT key, value FROM side WHERE name = ? ORDER BY key", [name])).map((r) => ({ key: r.key as string, value: JSON.parse(r.value as string) })); },
+      async page(after, limit) {
+        const rows = after === undefined
+          ? await db.all("SELECT key, value FROM side WHERE name = ? ORDER BY key LIMIT ?", [name, limit])
+          : await db.all("SELECT key, value FROM side WHERE name = ? AND key > ? ORDER BY key LIMIT ?", [name, after, limit]);
+        return rows.map((r) => ({ key: r.key as string, value: JSON.parse(r.value as string) }));
+      },
       async clear() { await db.run("DELETE FROM side WHERE name = ?", [name]); },
     });
     return {
+      async clearRows() { await db.run("DELETE FROM r"); await db.run("DELETE FROM i"); },
       async get(table, id) {
         return parse(await db.all("SELECT data FROM r WHERE t = ? AND id = ?", [table, id]))[0];
       },
@@ -101,16 +108,26 @@ class SqliteStore implements Store {
 
   read<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> { return this.db.transaction(() => body(this.tx())); }
   write<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> { return this.db.transaction(() => body(this.tx())); }
-  async clearRows() { await this.db.run("DELETE FROM r"); await this.db.run("DELETE FROM i"); }
+  clearRows() { return this.write((tx) => tx.clearRows()); }
   close() { return this.db.close(); }
 }
 
 /** `node:sqlite`'s synchronous database behind the driver, for tests and
  * for Node hosts. (`expo-sqlite` fits the same way with its async calls.) */
+/** Serialize independent callers; an overlapping async call is never a
+ * nested transaction. Rejections release the queue for the next caller. */
+function serial() {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(body: () => Promise<T>): Promise<T> => {
+    const result = tail.then(body);
+    tail = result.catch(() => {});
+    return result;
+  };
+}
+
 export function nodeSqliteDriver(db: { exec(sql: string): void; prepare(sql: string): { run(...p: unknown[]): unknown; all(...p: unknown[]): unknown[] }; close(): void }): SqliteDriver {
-  let depth = 0;
-  // Rebind stable SQL for every row and index entry instead of compiling it
-  // again. Bound the cache because callers can also use this public driver.
+  const enqueue = serial();
+  // Reuse stable SQL while bounding the public driver's statement cache.
   const statements = new Map<string, ReturnType<typeof db.prepare>>();
   const prepare = (sql: string) => {
     let statement = statements.get(sql);
@@ -124,42 +141,38 @@ export function nodeSqliteDriver(db: { exec(sql: string): void; prepare(sql: str
   return {
     async run(sql, params = []) { prepare(sql).run(...(params as unknown[])); },
     async all(sql, params = []) { return prepare(sql).all(...(params as unknown[])) as Record<string, unknown>[]; },
-    async transaction(body) {
-      if (depth > 0) return body();
-      depth++;
-      db.exec("BEGIN");
-      try {
-        const result = await body();
-        db.exec("COMMIT");
-        return result;
-      } catch (error) {
-        db.exec("ROLLBACK");
-        throw error;
-      } finally {
-        depth--;
-      }
+    transaction(body) {
+      return enqueue(async () => {
+        db.exec("BEGIN");
+        try { const result = await body(); db.exec("COMMIT"); return result; }
+        catch (error) { db.exec("ROLLBACK"); throw error; }
+      });
     },
-    async close() { statements.clear(); db.close(); },
+    close() { return enqueue(async () => { statements.clear(); db.close(); }); },
   };
 }
 
-/** `expo-sqlite`'s async database behind the driver. */
-export function expoSqliteDriver(db: { runAsync(sql: string, ...p: unknown[]): Promise<unknown>; getAllAsync(sql: string, ...p: unknown[]): Promise<unknown[]>; withExclusiveTransactionAsync?(body: (tx: unknown) => Promise<void>): Promise<void>; withTransactionAsync(body: () => Promise<void>): Promise<void>; closeAsync(): Promise<void> }): SqliteDriver {
-  let depth = 0;
+type ExpoConnection = { runAsync(sql: string, ...p: unknown[]): Promise<unknown>; getAllAsync(sql: string, ...p: unknown[]): Promise<unknown[]> };
+
+/** Use Expo's transaction-owned connection where available. The fallback
+ * still serializes every store operation, including reads. */
+export function expoSqliteDriver(db: ExpoConnection & { withExclusiveTransactionAsync?(body: (tx: ExpoConnection) => Promise<void>): Promise<void>; withTransactionAsync(body: () => Promise<void>): Promise<void>; closeAsync(): Promise<void> }): SqliteDriver {
+  const enqueue = serial();
+  let connection: ExpoConnection = db;
   return {
-    async run(sql, params = []) { await db.runAsync(sql, ...(params as unknown[])); },
-    async all(sql, params = []) { return (await db.getAllAsync(sql, ...(params as unknown[]))) as Record<string, unknown>[]; },
-    async transaction(body) {
-      if (depth > 0) return body();
-      depth++;
-      let result!: Awaited<ReturnType<typeof body>>;
-      try {
-        await db.withTransactionAsync(async () => { result = await body(); });
-      } finally {
-        depth--;
-      }
-      return result;
+    async run(sql, params = []) { await connection.runAsync(sql, ...(params as unknown[])); },
+    async all(sql, params = []) { return (await connection.getAllAsync(sql, ...(params as unknown[]))) as Record<string, unknown>[]; },
+    transaction(body) {
+      return enqueue(async () => {
+        let result!: Awaited<ReturnType<typeof body>>;
+        try {
+          if (db.withExclusiveTransactionAsync) {
+            await db.withExclusiveTransactionAsync(async (tx) => { connection = tx; result = await body(); });
+          } else await db.withTransactionAsync(async () => { result = await body(); });
+          return result;
+        } finally { connection = db; }
+      });
     },
-    async close() { await db.closeAsync(); },
+    close() { return enqueue(() => db.closeAsync()); },
   };
 }

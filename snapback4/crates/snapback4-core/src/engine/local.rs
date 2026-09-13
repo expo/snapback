@@ -17,10 +17,16 @@ use crate::schema::Schema;
 use crate::value::Value;
 
 /// A query over the device's rows.
-pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> Result<QueryOutcome, Refusal> {
-    validate_inputs(schema, program, &mut context.args)?;
+pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> Result<QueryOutcome, Refusal> {
+    query_with_coverage(rows, schema, program, context, ceilings).0
+}
+
+/// Preserve coverage even when a require/unwrap refused after a missing row.
+pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool) {
+    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false); }
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
+    let result = (|| {
     let data = runner.run(program)?;
     runner.charge_output(&data)?;
     let next = runner.next_cursor()?;
@@ -33,6 +39,8 @@ pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: C
         metered: runner.meter.used,
         tables: runner.read_tables.iter().cloned().collect(),
     })
+    })();
+    (result, runner.beyond_horizon)
 }
 
 /// What a mutation predicts on the device: its result, and the tables it
@@ -40,6 +48,7 @@ pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: C
 /// rolls its transaction back.
 #[derive(Clone, Debug)]
 pub struct Prediction {
+    pub new_ids: Vec<String>,
     pub result: Value,
     pub written: Vec<String>,
     pub read: Vec<String>,
@@ -49,7 +58,12 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     validate_inputs(schema, program, &mut context.args)?;
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
-    let result = runner.run(program)?;
+    let result = runner.run(program);
+    if runner.beyond_horizon {
+        return Err(RuntimeError::Prediction("this device does not hold enough rows to judge the mutation".into()));
+    }
+    let result = result?;
     runner.check_final_exists()?;
-    Ok(Prediction { result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
+    runner.charge_output(&result)?;
+    Ok(Prediction { new_ids: runner.context.minted_ids.clone(), result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
 }

@@ -87,6 +87,8 @@ impl MeterKind {
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
+    #[error("{code}: {message}")]
+    Structural { code: &'static str, message: String },
     #[error("E_INPUT: {0}")]
     Input(String),
     #[error("E_SCHEMA: {0}")]
@@ -111,6 +113,8 @@ pub enum RuntimeError {
     Auth(String),
     #[error("{code}: {message}")]
     Asset { code: &'static str, message: String },
+    #[error("E_PREDICT: {0}")]
+    Prediction(String),
     #[error("E_GENERATION: {0}")]
     Generation(String),
     #[cfg(feature = "sqlite")]
@@ -123,6 +127,7 @@ pub enum RuntimeError {
 impl RuntimeError {
     pub fn code(&self) -> String {
         match self {
+            Self::Structural { code, .. } => (*code).into(),
             Self::Input(_) => "E_INPUT".into(),
             Self::Schema(_) => "E_SCHEMA".into(),
             Self::Value(ValueError::Overflow(_)) => "E_OVERFLOW".into(),
@@ -139,6 +144,7 @@ impl RuntimeError {
             Self::UnknownOp(_) => "E_OP".into(),
             Self::Auth(_) => "E_AUTH".into(),
             Self::Asset { code, .. } => (*code).into(),
+            Self::Prediction(_) => "E_PREDICT".into(),
             Self::Generation(_) => "E_GENERATION".into(),
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "E_STORE".into(),
@@ -149,13 +155,14 @@ impl RuntimeError {
     pub fn family(&self) -> &'static str {
         match self {
             Self::Input(_) | Self::Value(_) => "input",
-            Self::Schema(_) => "schema",
+            Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
             Self::Conflict { .. } | Self::Constraint(_) => "constraint",
             Self::Fanout | Self::Bound { .. } => "bound",
             Self::UnknownOp(_) => "op",
             Self::Asset { .. } => "asset",
+            Self::Prediction(_) => "prediction",
             Self::Generation(_) => "generation",
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "store",

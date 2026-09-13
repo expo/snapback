@@ -24,7 +24,9 @@ pub fn typescript(bound: &Bound) -> String {
     out.push_str("};\n\n");
     let mut modules: BTreeMap<String, Vec<&BoundProgram>> = BTreeMap::new();
     for program in &bound.programs {
-        modules.entry(program.module.clone()).or_default().push(program);
+        if program.program.kind != ProgramKind::Job {
+            modules.entry(program.module.clone()).or_default().push(program);
+        }
     }
     out.push_str("export type Ops = {\n");
     for (module, programs) in &modules {
@@ -60,7 +62,7 @@ pub fn typescript(bound: &Bound) -> String {
                 ProgramKind::Mutation => "mutation",
                 ProgramKind::Job => continue,
             };
-            out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: \"{}\" }},\n", property(short), program.program.name));
+            out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {} }},\n", property(short), string_literal(&program.program.name)));
         }
         if module != "schema" {
             out.push_str("  },\n");
@@ -85,13 +87,13 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::Bool => "boolean".into(),
         Ty::Int | Ty::Time | Ty::Decimal(_) | Ty::Money(..) => "number".into(),
         Ty::Text(_) | Ty::Id | Ty::Principal | Ty::Ref(_) | Ty::Bytes => "string".into(),
-        Ty::Image | Ty::Video => "{ id: string; width?: number; height?: number; bytes?: number; type?: string; duration?: number }".into(),
-        Ty::Enum(variants) => variants.iter().map(|v| format!("\"{v}\"")).collect::<Vec<_>>().join(" | "),
+        Ty::Image | Ty::Video => "{ id: string; width?: number | null; height?: number | null; bytes?: number; type?: string; duration?: number | null }".into(),
+        Ty::Enum(variants) => variants.iter().map(|v| string_literal(v)).collect::<Vec<_>>().join(" | "),
         Ty::Cursor => "Cursor".into(),
         Ty::Optional(inner) => format!("{} | null", ty_ts(inner)),
         Ty::List(item, _) => format!("{}[]", wrap(&ty_ts(item))),
-        Ty::Row(table) => format!("Rows[\"{table}\"]"),
-        Ty::Page(table, _) => format!("Rows[\"{table}\"][]"),
+        Ty::Row(table) => format!("Rows[{}]", string_literal(table)),
+        Ty::Page(table, _) => format!("Rows[{}][]", string_literal(table)),
         Ty::Collection(item, _) => format!("{}[]", wrap(&ty_ts(item))),
         Ty::Object(fields) => {
             if fields.is_empty() {
@@ -113,6 +115,15 @@ fn column_ts(kind: &ColumnType, schema: &Schema) -> String {
 }
 
 fn property(name: &str) -> String {
+    // In an object literal, this spelling must create an own property,
+    // rather than invoking JavaScript's prototype-setter syntax.
+    if name == "__proto__" {
+        return format!("[{}]", string_literal(name));
+    }
     let plain = name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$') && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$');
-    if plain { name.to_owned() } else { format!("\"{name}\"") }
+    if plain { name.to_owned() } else { string_literal(name) }
+}
+
+fn string_literal(value: &str) -> String {
+    serde_json::to_string(value).expect("strings always serialize").replace('\u{2028}', "\\u2028").replace('\u{2029}', "\\u2029")
 }

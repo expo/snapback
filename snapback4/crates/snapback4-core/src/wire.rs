@@ -31,23 +31,33 @@ pub fn from_json(kind: &ArgType, json: &Json) -> Result<Value, String> {
         (ArgType::Bytes { .. }, Json::String(s)) => Value::Bytes(crate::value::decode_bytes_hex(s).ok_or("bytes must be lowercase base16")?),
         (ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. }, Json::Number(n)) => Value::Int(n.as_i64().ok_or("an integer")?),
         (ArgType::Bool, Json::Bool(b)) => Value::Bool(*b),
-        (ArgType::Json { .. } | ArgType::Scalar, other) => untyped(other),
-        (ArgType::Image { .. } | ArgType::Video { .. }, Json::Object(fields)) => Value::Map(fields.iter().map(|(k, v)| (k.clone(), if k == "id" { Value::Id(v.as_str().unwrap_or_default().to_owned()) } else { untyped(v) })).collect()),
-        (ArgType::List { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| match of { Some(of) => from_json(of, item), None => Ok(untyped(item)) }).collect::<Result<Vec<_>, _>>()?),
+        (ArgType::Json { .. } | ArgType::Scalar, other) => untyped(other)?,
+        (ArgType::Image { .. } | ArgType::Video { .. }, Json::Object(fields)) => asset_from_json(fields)?,
+        (ArgType::List { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| match of { Some(of) => from_json(of, item), None => untyped(item) }).collect::<Result<Vec<_>, _>>()?),
         (kind, other) => return Err(format!("expected {}, got {}", describe(kind), other_kind(other))),
     })
 }
 
 /// JSON with no declared type: numbers are ints, strings are text.
-pub fn untyped(json: &Json) -> Value {
-    match json {
+pub fn untyped(json: &Json) -> Result<Value, String> {
+    Ok(match json {
         Json::Null => Value::Null,
         Json::Bool(b) => Value::Bool(*b),
-        Json::Number(n) => Value::Int(n.as_i64().unwrap_or(0)),
+        Json::Number(n) => {
+            let n = n.as_i64().filter(|n| (crate::value::I53_MIN..=crate::value::I53_MAX).contains(n))
+                .ok_or("a number must be an integer in the signed 53-bit range")?;
+            Value::Int(n)
+        }
         Json::String(s) => Value::String(s.clone()),
-        Json::Array(items) => Value::Array(items.iter().map(untyped).collect()),
-        Json::Object(fields) => Value::Map(fields.iter().map(|(k, v)| (k.clone(), untyped(v))).collect()),
-    }
+        Json::Array(items) => Value::Array(items.iter().map(untyped).collect::<Result<_, _>>()?),
+        Json::Object(fields) => Value::Map(fields.iter().map(|(k, v)| Ok((k.clone(), untyped(v)?))).collect::<Result<_, String>>()?),
+    })
+}
+
+fn asset_from_json(fields: &Map<String, Json>) -> Result<Value, String> {
+    Ok(Value::Map(fields.iter().map(|(k, v)| Ok((k.clone(), if k == "id" {
+        Value::Id(v.as_str().ok_or("an asset id must be a string")?.to_owned())
+    } else { untyped(v)? }))).collect::<Result<_, String>>()?))
 }
 
 /// A stored row from plain JSON, typed by the table's columns.
@@ -71,8 +81,8 @@ pub fn column_from_json(kind: &crate::schema::ColumnType, json: &Json) -> Result
         (C::Bytes { .. }, Json::String(s)) => Value::Bytes(crate::value::decode_bytes_hex(s).ok_or("bytes must be lowercase base16")?),
         (C::Int | C::Time | C::Decimal { .. } | C::Money { .. }, Json::Number(n)) => Value::Int(n.as_i64().ok_or("an integer")?),
         (C::Bool, Json::Bool(b)) => Value::Bool(*b),
-        (C::Json { .. }, other) => untyped(other),
-        (C::Image { .. } | C::Video { .. }, Json::Object(fields)) => Value::Map(fields.iter().map(|(k, v)| (k.clone(), if k == "id" { Value::Id(v.as_str().unwrap_or_default().to_owned()) } else { untyped(v) })).collect()),
+        (C::Json { .. }, other) => untyped(other)?,
+        (C::Image { .. } | C::Video { .. }, Json::Object(fields)) => asset_from_json(fields)?,
         (C::List { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| column_from_json(of, item)).collect::<Result<Vec<_>, _>>()?),
         (kind, other) => return Err(format!("expected {kind}, got {}", other_kind(other))),
     })

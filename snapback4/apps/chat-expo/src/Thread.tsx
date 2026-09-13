@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { useMutation, usePage, useViewer } from "snapback4/react";
 import { api } from "../../chat/snapback/generated/api";
@@ -10,6 +10,17 @@ export function Thread({ conversationId, onBack }: { conversationId: string; onB
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
   const send = useMutation(api.send);
   const [body, setBody] = useState("");
+  const [unsent, setUnsent] = useState<{ revision: number; body: string; message: string }[]>([]);
+  const revision = useRef(0);
+  const submit = async () => {
+    const text = body.trim();
+    if (!text || send.inFlight) return;
+    const submitted = revision.current;
+    const outcome = await send.run({ conversationId, body: text });
+    if (outcome.state === "failed") {
+      if (revision.current !== submitted) setUnsent((drafts) => [...drafts, { revision: submitted, body: text, message: outcome.why.message }]);
+    } else if (revision.current === submitted) { revision.current++; setBody(""); }
+  };
   return <View style={styles.thread}>
     <View style={styles.header}>
       <Button title="Back" onPress={onBack} />
@@ -29,9 +40,16 @@ export function Thread({ conversationId, onBack }: { conversationId: string; onB
       )}
     />
     <View style={styles.composer}>
-      <TextInput style={styles.input} value={body} onChangeText={setBody} placeholder="Message" />
-      <Button title="Send" disabled={!body.trim()} onPress={() => { const text = body; setBody(""); void send.run({ conversationId, body: text }); }} />
+      <TextInput style={styles.input} value={body} onChangeText={(text) => { revision.current++; setBody(text); }} placeholder="Message" />
+      <Button title="Send" disabled={send.inFlight || !body.trim()} onPress={() => { void submit(); }} />
     </View>
+    {send.last?.state === "failed" ? <Text style={styles.alert}>Not sent: {send.last.why.message}</Text> : null}
+    {send.last?.state === "pending" ? <Text style={styles.note}>Queued on this device.</Text> : null}
+    {unsent.map((draft) => <View key={draft.revision}>
+      <Text style={styles.alert}>Not sent: {draft.message}</Text>
+      <Text selectable>{draft.body}</Text>
+      <Button title="Dismiss unsent draft" onPress={() => setUnsent((drafts) => drafts.filter((d) => d !== draft))} />
+    </View>)}
   </View>;
 }
 

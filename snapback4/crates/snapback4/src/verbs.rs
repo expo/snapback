@@ -297,16 +297,15 @@ pub fn data(options: &Options) -> i32 {
         return 2;
     };
     let project = project_or_exit();
-    let bound = compile_or_exit(&project, options.json);
-    let engine = match project.open_engine(&bound) {
-        Ok(engine) => engine,
+    let store = match project.open_store() {
+        Ok(store) => store,
         Err(error) => {
             eprintln!("cannot open the store: {error}");
             return 2;
         }
     };
     let limit: usize = options.flags.get("limit").and_then(|s| s.parse().ok()).unwrap_or(50);
-    match engine.store().rows(table) {
+    match store.rows(table) {
         Ok(rows) => {
             let total = rows.len();
             for row in rows.iter().take(limit) {
@@ -347,17 +346,35 @@ pub fn doctor(options: &Options) -> i32 {
         return 1;
     };
     lines.push(format!("project   {}", project.root.display()));
-    match project.compile() {
+    let personas = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));
-            match project.open_engine(&bound) {
+            bound.personas
+        }
+        Ok(bound) => {
+            ok = false;
+            lines.push(format!("schema    {} problem{} (`snapback4 check`)", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
+            bound.personas
+        }
+        Err(error) => {
+            ok = false;
+            lines.push(format!("schema    FAIL {error}"));
+            Vec::new()
+        }
+    };
+    // Source diagnostics and persisted backend health are independent. Even
+    // broken or destructive edits must leave the active generation usable.
+    match project.open_store() {
+        Ok(store) => {
+            let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
+            lines.push(format!("store     {} at seq {}, generation {}", project.store_path().display(), store.seq().unwrap_or(0), generation));
+            if let Ok(sizes) = store.sizes() {
+                storage = Some(sizes);
+                lines.push(format!("storage   rows {} ({} rows) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));
+            }
+            match snapback4_core::Engine::open(store) {
                 Ok(engine) => {
-                    lines.push(format!("store     {} at seq {}", project.store_path().display(), engine.seq().unwrap_or(0)));
-                    if let Ok(sizes) = engine.store().sizes() {
-                        storage = Some(sizes);
-                        lines.push(format!("storage   rows {} ({} rows) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));
-                    }
-                    for schedule in &bound.schema.schedules {
+                    for schedule in &engine.schema().schedules {
                         let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
                         lines.push(format!("schedule  {} every {}{} → {}; {}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02}", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target, match last { Some(at) => format!("last boundary {at}"), None => "not yet started (a running server starts it)".into() }));
                     }
@@ -369,21 +386,16 @@ pub fn doctor(options: &Options) -> i32 {
                 }
                 Err(error) => {
                     ok = false;
-                    lines.push(format!("store     FAIL {error}"));
+                    lines.push(format!("backend   FAIL {error}"));
                 }
             }
-            lines.push(format!("types     {}", if project.generated_dir().join("api.ts").is_file() { "generated" } else { "not generated yet (`snapback4 check` writes them)" }));
-        }
-        Ok(bound) => {
-            ok = false;
-            lines.push(format!("schema    {} problem{} (`snapback4 check`)", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
         }
         Err(error) => {
             ok = false;
-            lines.push(format!("schema    FAIL {error}"));
+            lines.push(format!("store     FAIL {error}"));
         }
     }
-    let personas = project.compile().ok().map(|b| b.personas).unwrap_or_default();
+    lines.push(format!("types     {}", if project.generated_dir().join("api.ts").is_file() { "generated" } else { "not generated yet (`snapback4 check` writes them)" }));
     if !personas.is_empty() {
         lines.push(format!("personas  {}", personas.join(", ")));
     }
@@ -617,149 +629,8 @@ fn arg_word(kind: &ir::ArgType) -> String {
 }
 
 
-// ----- H0: deploy, rollback, serve -----
-
-/// A release directory: `releases/<n>/snapback/*.q`, `current` naming the
-/// live release, `releases.jsonl` as the ledger, and one store shared by
-/// every release (the schema successor rules gate what a release may do
-/// to it).
-fn release_dir(options: &Options) -> Option<std::path::PathBuf> {
-    options.positionals.first().map(|p| std::path::PathBuf::from(p))
-}
-
-fn read_current(dir: &Path) -> Option<u64> {
-    std::fs::read_to_string(dir.join("current")).ok().and_then(|s| s.trim().parse().ok())
-}
-
-fn ledger(dir: &Path, entry: Json) {
-    let _ = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("releases.jsonl")).and_then(|mut f| { use std::io::Write; writeln!(f, "{entry}") });
-}
-
-pub fn deploy(options: &Options) -> i32 {
-    let Some(dir) = release_dir(options) else {
-        eprintln!("usage: snapback4 deploy <dir> [--allow-destructive]");
-        return 2;
-    };
-    let project = project_or_exit();
-    let bound = compile_or_exit(&project, options.json);
-    if let Err(error) = std::fs::create_dir_all(dir.join("releases")) {
-        eprintln!("cannot create {}: {error}", dir.display());
-        return 2;
-    }
-    // Day two: what this release does to the live schema.
-    let previous = read_current(&dir);
-    if let Some(n) = previous {
-        let live = Project { root: dir.join("releases").join(n.to_string()) };
-        if let Ok(old) = live.compile() && old.diagnostics.is_empty() {
-            let steps = snapback4_core::successor::classify(&old.schema, &bound.schema);
-            let worst = snapback4_core::successor::worst(&steps);
-            for step in &steps {
-                println!("  {:?}: {}", step.change, step.message);
-            }
-            if worst == snapback4_core::successor::Change::Destructive && !options.flags.contains_key("allow-destructive") {
-                eprintln!("deploy: this release loses data (see above); pass --allow-destructive to confirm");
-                return 1;
-            }
-        }
-    }
-    let n = previous.map(|n| n + 1).unwrap_or(1);
-    let target = dir.join("releases").join(n.to_string()).join("snapback");
-    if let Err(error) = std::fs::create_dir_all(&target) {
-        eprintln!("cannot create {}: {error}", target.display());
-        return 2;
-    }
-    for (name, text) in project.sources().unwrap_or_default() {
-        let _ = std::fs::write(target.join(name), text);
-    }
-    // Install the schema into the shared store now, so the generation is recorded.
-    let release = Project { root: dir.join("releases").join(n.to_string()) };
-    let store_path = dir.join("store.sqlite");
-    let opened = std::fs::create_dir_all(&dir).and_then(|_| Ok(snapback4_core::Store::open(&store_path))).ok().and_then(|s| s.ok());
-    match opened.map(|store| snapback4_core::Engine::new(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()))) {
-        Some(Ok(engine)) => {
-            let _ = engine.store().set_meta("generation", &n.to_string());
-        }
-        Some(Err(error)) => {
-            eprintln!("deploy: the store refuses this schema: {error}");
-            return 1;
-        }
-        None => {
-            eprintln!("deploy: cannot open {}", store_path.display());
-            return 2;
-        }
-    }
-    let _ = std::fs::write(dir.join("current"), format!("{n}\n"));
-    ledger(&dir, json!({ "at": snapback4_core::now_ms(), "release": n, "previous": previous, "tables": bound.schema.tables.len(), "operations": bound.programs.len(), "source": project.root.display().to_string() }));
-    let _ = release;
-    println!("deploy: release {n} is current in {} — `snapback4 serve {}` runs it", dir.display(), dir.display());
-    0
-}
-
-pub fn rollback(options: &Options) -> i32 {
-    let Some(dir) = release_dir(options) else {
-        eprintln!("usage: snapback4 rollback <dir>");
-        return 2;
-    };
-    let Some(current) = read_current(&dir) else {
-        eprintln!("rollback: {} has no current release", dir.display());
-        return 1;
-    };
-    let mut previous = current.saturating_sub(1);
-    while previous > 0 && !dir.join("releases").join(previous.to_string()).join("snapback/schema.q").is_file() {
-        previous -= 1;
-    }
-    if previous == 0 {
-        eprintln!("rollback: release {current} is the first; nothing to roll back to");
-        return 1;
-    }
-    let release = Project { root: dir.join("releases").join(previous.to_string()) };
-    let bound = compile_or_exit(&release, options.json);
-    match snapback4_core::Store::open(&dir.join("store.sqlite")).and_then(|store| snapback4_core::Engine::new(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()))) {
-        Ok(engine) => {
-            let _ = engine.store().set_meta("generation", &previous.to_string());
-        }
-        Err(error) => {
-            eprintln!("rollback: the store refuses release {previous}: {error}");
-            return 1;
-        }
-    }
-    let _ = std::fs::write(dir.join("current"), format!("{previous}\n"));
-    ledger(&dir, json!({ "at": snapback4_core::now_ms(), "release": previous, "previous": current, "rollback": true }));
-    println!("rollback: release {previous} is current (was {current})");
-    0
-}
-
-pub fn serve_release(options: &Options) -> i32 {
-    let Some(dir) = release_dir(options) else {
-        eprintln!("usage: snapback4 serve <dir> [--port N] [--bind H]");
-        return 2;
-    };
-    let Some(current) = read_current(&dir) else {
-        eprintln!("serve: {} has no current release; `snapback4 deploy {}` first", dir.display(), dir.display());
-        return 1;
-    };
-    let release = Project { root: dir.join("releases").join(current.to_string()) };
-    let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
-    let bind = options.flags.get("bind").cloned().unwrap_or_else(|| "0.0.0.0".into());
-    // The release's store is the directory's shared one.
-    let shared_store = dir.join("store.sqlite");
-    let _ = std::fs::create_dir_all(release.data_dir());
-    let link = release.store_path();
-    if !link.exists() {
-        #[cfg(unix)]
-        let _ = std::os::unix::fs::symlink(std::fs::canonicalize(&dir).unwrap_or(dir.clone()).join("store.sqlite"), &link);
-        #[cfg(not(unix))]
-        let _ = std::fs::copy(&shared_store, &link);
-    }
-    let _ = shared_store;
-    match crate::serve::serve(release, port, crate::serve::Mode::Release, &bind) {
-        Ok(()) => 0,
-        Err(error) => {
-            eprintln!("serve: {error}");
-            1
-        }
-    }
-}
+mod releases;
+pub use releases::{deploy, rollback, serve_release};
 
 /// The native module as a process: the same `Device` the Expo and Exact2
 /// hosts link, speaking one JSON request per line on stdin and one answer

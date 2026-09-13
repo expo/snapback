@@ -17,8 +17,13 @@ export function App() {
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     let live: LocalClient | null = null;
-    createLocalClient(persona ? { url, persona } : { url, guest: true }).then((c) => { live = c; setClient(c); }, (e: Error) => setProblem(e.message));
-    return () => { void live?.close(); };
+    let disposed = false;
+    createLocalClient(persona ? { url, persona } : { url, guest: true }).then((c) => {
+      if (disposed) { void c.close(); return; }
+      live = c;
+      setClient(c);
+    }, (e: Error) => { if (!disposed) setProblem(e.message); });
+    return () => { disposed = true; void live?.close(); };
   }, []);
   if (problem) return <p role="alert">Cannot reach {url}: {problem}. Run <code>snapback4 dev</code> in the app directory.</p>;
   if (!client) return <p>Opening your replica…</p>;

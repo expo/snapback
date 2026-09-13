@@ -14,16 +14,26 @@ export interface CursorPosition {
 }
 
 /** Canonical JSON: compact, object keys sorted, as serde_json writes a BTreeMap. */
+export function compareStrings(a: string, b: string): number {
+  let i = 0, j = 0;
+  while (i < a.length && j < b.length) {
+    const x = a.codePointAt(i)!, y = b.codePointAt(j)!;
+    if (x !== y) return x < y ? -1 : 1;
+    i += x > 0xffff ? 2 : 1; j += y > 0xffff ? 2 : 1;
+  }
+  return i < a.length ? 1 : j < b.length ? -1 : 0;
+}
+
 export function canonicalJson(value: unknown): string {
   if (value === null || value === undefined) return "null";
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : JSON.stringify(value);
   if (typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const keys = Object.keys(value as Record<string, unknown>).sort();
+  const keys = Object.keys(value as Record<string, unknown>).sort(compareStrings);
   return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`).join(",")}}`;
 }
 
-function tagFor(kind: ColumnTypeJson, value: unknown): unknown {
+export function tagFor(kind: ColumnTypeJson, value: unknown): unknown {
   if (value === null || value === undefined) return "Null";
   const name = typeof kind === "string" ? kind : Object.keys(kind as object)[0]!;
   const inner = typeof kind === "object" && kind !== null ? (kind as Record<string, unknown>)[name] : undefined;
@@ -34,8 +44,17 @@ function tagFor(kind: ColumnTypeJson, value: unknown): unknown {
     case "Int": case "Time": case "Decimal": case "Money": return { Int: value };
     case "Bool": return { Bool: value };
     case "Bytes": return { Bytes: value };
+    case "List": return { Array: (value as unknown[]).map((v) => tagFor((inner as { of: unknown }).of, v)) };
+    case "Json": return tagJson(value);
     default: return typeof value === "string" ? { String: value } : typeof value === "number" ? { Int: value } : typeof value === "boolean" ? { Bool: value } : "Null";
   }
+}
+
+function tagJson(value: unknown): unknown {
+  if (value === null || value === undefined) return "Null";
+  if (Array.isArray(value)) return { Array: value.map(tagJson) };
+  if (typeof value === "object") return { Map: Object.fromEntries(Object.entries(value).map(([k, v]) => [k, tagJson(v)])) };
+  return typeof value === "string" ? { String: value } : typeof value === "number" ? { Int: value } : { Bool: value };
 }
 
 function untag(tagged: unknown): unknown {

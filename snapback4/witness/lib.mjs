@@ -61,7 +61,7 @@ export async function devServer({ seed, port = 4460 + (process.pid % 20) }) {
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
 export async function launch({ seed, headless = true }) {
-  const require = createRequire(join(process.env.HOME, "projects/snapback/snapback2/packages/snapback2/package.json"));
+  const require = createRequire(join(root, "package.json"));
   const { chromium } = require("playwright-core");
   const exe = chromiumExecutable();
   const { build } = await import(pathToFileURL(createRequire(join(root, "apps/chat/package.json")).resolve("vite")).href);

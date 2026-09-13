@@ -20,61 +20,137 @@ export function useClient(): Client {
 
 const LOADING: Read<never> = { loading: true };
 
+/** Constructing this resource is inert: only a committed subscription owns an
+ * observation. React may discard a render or replay a subscription's setup. */
+class Observation<R> {
+  private observed: Observed<R> | null = null;
+  private unsubscribe: (() => void) | null = null;
+  private subs = new Set<() => void>();
+  constructor(private open: () => Observed<R>) {}
+  getSnapshot = (): Read<R> => this.observed?.getSnapshot() ?? LOADING;
+  subscribe = (notify: () => void) => {
+    this.subs.add(notify);
+    if (!this.observed) {
+      const observed = this.open();
+      this.observed = observed;
+      this.unsubscribe = observed.subscribe(() => {
+        if (this.observed === observed) for (const s of this.subs) s();
+      });
+    }
+    let active = true;
+    return () => {
+      if (!active) return;
+      active = false;
+      this.subs.delete(notify);
+      if (this.subs.size) return;
+      const observed = this.observed;
+      this.observed = null;
+      this.unsubscribe?.();
+      this.unsubscribe = null;
+      observed?.close();
+    };
+  };
+}
+
 /** One live read. Re-renders when the value changes; never throws. */
 export function useQuery<A, R>(op: Query<A, R>, args: A): Read<R> {
   const client = useClient();
   const key = JSON.stringify(args);
-  const observed = useMemo(() => client.observe(op, args), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => observed.close(), [observed]);
+  const observed = useMemo(() => new Observation(() => client.observe(op, args)), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
 
 /** A page resource: the pages a screen has asked for, concatenated, and a way to ask for one more. */
 class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
-  private observed: Observed<R>[] = [];
-  private cursors: (Cursor | null)[] = [null];
+  private pages: { cursor: Cursor | null; observed: Observed<R>; unsubscribe: () => void }[] = [];
+  private requested = 1;
   private subs = new Set<() => void>();
   private cache: { items: R[number][]; hasMore: boolean; read: Read<R> } | null = null;
-  private unsubscribe: (() => void)[] = [];
-  constructor(private client: Client, private op: Query<A, R>, private args: A) { this.open(null); }
+  private reconciling = false;
+  constructor(private client: Client, private op: Query<A, R>, private args: A) {}
   private open(c: Cursor | null) {
     const observed = this.client.observe(this.op, { ...this.args, c });
-    this.observed.push(observed);
-    this.unsubscribe.push(observed.subscribe(() => this.notify()));
+    const page = { cursor: c, observed, unsubscribe: () => {} };
+    this.pages.push(page);
+    page.unsubscribe = observed.subscribe(() => {
+      if (this.pages.includes(page)) this.notify();
+    });
   }
-  private notify() { this.cache = null; for (const s of this.subs) s(); }
-  subscribe = (notify: () => void) => { this.subs.add(notify); return () => { this.subs.delete(notify); }; };
+  private drop(from: number) {
+    for (const page of this.pages.splice(from)) {
+      page.unsubscribe();
+      page.observed.close();
+    }
+  }
+  private notify() {
+    if (this.reconciling) return;
+    this.reconciling = true;
+    try {
+      // A later page belongs to its predecessor's current cursor. Keep the
+      // requested depth, but discard the old suffix before opening a new one:
+      // deduplication alone cannot recover rows an old boundary skipped.
+      for (let i = 0; i < this.pages.length; i++) {
+        const read = this.pages[i]!.observed.getSnapshot();
+        const next = isReady(read) ? read.next : null;
+        if (!next || i + 1 >= this.requested || this.pages.slice(0, i + 1).some((p) => p.cursor === next)) {
+          this.drop(i + 1);
+          break;
+        }
+        if (this.pages[i + 1]?.cursor !== next) {
+          this.drop(i + 1);
+          this.open(next);
+        }
+      }
+      this.cache = null;
+    } finally { this.reconciling = false; }
+    for (const s of this.subs) s();
+  }
+  subscribe = (notify: () => void) => {
+    this.subs.add(notify);
+    if (!this.pages.length) { this.open(null); this.notify(); }
+    let active = true;
+    return () => {
+      if (!active) return;
+      active = false;
+      this.subs.delete(notify);
+      if (!this.subs.size) { this.drop(0); this.cache = null; }
+    };
+  };
   getSnapshot = () => {
     if (this.cache) return this.cache;
-    const reads = this.observed.map((o) => o.getSnapshot());
     const items: R[number][] = [];
-    let hasMore = false;
     let last: Read<R> = LOADING as Read<R>;
-    for (const read of reads) {
+    let complete = true, fresh = true;
+    let since: number | undefined;
+    let knownSince = true;
+    for (const page of this.pages) {
+      const read = page.observed.getSnapshot();
       last = read;
       if (!isReady(read)) break;
       items.push(...(read.data as readonly R[number][]));
-      hasMore = read.next != null;
+      complete &&= read.complete;
+      fresh &&= read.fresh;
+      if (read.since == null) knownSince = false;
+      else since = Math.min(since ?? read.since, read.since);
     }
-    this.cache = { items, hasMore, read: last };
+    const hasMore = isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
+    const read: Read<R> = isReady(last)
+      ? { data: items as unknown as R, complete, fresh, ...(knownSince && since != null ? { since } : {}), ...(last.next !== undefined ? { next: last.next } : {}) }
+      : last;
+    this.cache = { items, hasMore, read };
     return this.cache;
   };
   loadMore = () => {
-    const last = this.observed[this.observed.length - 1]?.getSnapshot();
-    if (!last || !isReady(last) || last.next == null) return;
-    if (this.cursors.includes(last.next)) return;
-    this.cursors.push(last.next);
-    this.open(last.next);
+    if (!this.subs.size || !this.getSnapshot().hasMore) return;
+    this.requested = Math.max(this.requested, this.pages.length + 1);
     this.notify();
   };
-  close() { for (const u of this.unsubscribe) u(); for (const o of this.observed) o.close(); }
 }
 
 export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">) {
   const client = useClient();
   const key = JSON.stringify(args);
   const pages = useMemo(() => new Pages(client, op, args as A), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => pages.close(), [pages]);
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
 }
@@ -84,12 +160,29 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
   const client = useClient();
   const [last, setLast] = useState<Write | undefined>(undefined);
   const [inFlight, setInFlight] = useState(false);
-  const alive = useRef(true);
-  useEffect(() => () => { alive.current = false; }, []);
+  const lifetime = useRef({ active: true, pending: 0 });
+  useEffect(() => {
+    if (!lifetime.current.active) {
+      lifetime.current = { active: true, pending: 0 };
+      setLast(undefined);
+      setInFlight(false);
+    }
+    const owner = lifetime.current;
+    return () => { owner.active = false; };
+  }, [client, op]);
   const run = useCallback(async (args: A): Promise<Write> => {
-    setInFlight(true);
-    const outcome = await client.mutate(op, args);
-    if (alive.current) { setLast(outcome); setInFlight(false); }
+    const owner = lifetime.current;
+    owner.pending++;
+    if (owner.active) setInFlight(true);
+    let outcome: Write;
+    try { outcome = await client.mutate(op, args); }
+    catch (error) {
+      // A foreign Client can throw without exposing its minted id. Do not
+      // invent an operation identity or claim that this is safe to retry.
+      outcome = { state: "failed", id: "", why: { code: "E_CLIENT", family: "client", message: `The client did not return a write outcome; whether it was admitted is unknown. ${error instanceof Error ? error.message : String(error)}` } };
+    }
+    owner.pending--;
+    if (owner.active && lifetime.current === owner) { setLast(outcome); setInFlight(owner.pending > 0); }
     return outcome;
   }, [client, op]);
   return { run, last, inFlight };

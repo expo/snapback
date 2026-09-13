@@ -44,11 +44,13 @@ impl Probe for Runner<'_> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
-        Ok(self.tx.lookup(table, index, index_def, key)?.is_some_and(|row| !self.expired(definition, &row)))
+        let found = self.tx.lookup(table, index, index_def, key)?;
+        if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
+        Ok(found.is_some_and(|row| !self.expired(definition, &row)))
     }
 
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool {
-        self.created.contains(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
+        self.created.contains_key(&(table.to_owned(), index.to_owned(), canonical_json(&key)))
     }
 }
 
@@ -90,7 +92,9 @@ impl Runner<'_> {
     /// A row by id, materialized, without a rule check.
     pub(super) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        Ok(self.tx.get(table_name, id)?.filter(|row| !self.expired(table, row)).map(|mut row| {
+        let found = self.tx.get(table_name, id)?;
+        if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
+        Ok(found.filter(|row| !self.expired(table, row)).map(|mut row| {
             materialize_optional_fields(&mut row, table);
             row
         }))
@@ -119,7 +123,10 @@ impl Runner<'_> {
         if !self.meter.charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
-        let Some(mut row) = found else { return Ok(Value::Null) };
+        let Some(mut row) = found else {
+            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.beyond_horizon = true; }
+            return Ok(Value::Null);
+        };
         if self.expired(table, &row) {
             return Ok(Value::Null);
         }
@@ -223,7 +230,7 @@ impl Runner<'_> {
             Order::Desc => Dir::Desc,
         };
         let visibility = rules::scan_visibility(self.schema, scan);
-        let always_visible = self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let always_visible = (self.device && table.sync.is_some()) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !visibility.uniform && !always_visible {
             self.non_uniform = true;
         }
@@ -287,12 +294,11 @@ impl Runner<'_> {
                 break;
             }
         }
-        // Inside the horizon a short page is the whole group; at the horizon
-        // it may continue on the server.
-        if self.device && !has_more && !capped
+        // Acquired horizons do not backfill. Missing rows and alternate
+        // index orderings cannot establish a complete answer from counts.
+        if self.device
             && let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref())
-            && horizon.by == scan.index
-            && self.tx.count_prefix(&scan.table, &scan.index, &prefix, u64::from(horizon.last))? >= u64::from(horizon.last)
+            && (horizon.by != scan.index || scan.order != crate::ir::Order::Desc || !has_more)
         {
             self.beyond_horizon = true;
         }
@@ -306,7 +312,7 @@ impl Runner<'_> {
             // presence of `next` then says nothing about hidden rows.
             let continues = if capped || self.non_uniform { !visible.is_empty() } else { has_more };
             let next = if continues { keys.last().and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
-            self.page = Some(PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), next });
+            self.pages.insert(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), next });
         }
         Ok((visible, keys))
     }
@@ -401,7 +407,7 @@ impl Runner<'_> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = if self.meter.capped_at.is_some() || self.non_uniform { !candidates.is_empty() } else { has_more };
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.page = Some(PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next });
+            self.pages.insert(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next });
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
@@ -478,7 +484,7 @@ impl Runner<'_> {
         if depth == 0 {
             if first.scan.opaque_cursor {
                 let continues = if self.meter.capped_at.is_some() || self.non_uniform { !page.is_empty() } else { has_more };
-                self.page = Some(PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next: if continues { last } else { None } });
+                self.pages.insert(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next: if continues { last } else { None } });
             } else if has_more { self.page_overflow = true; }
         }
         Ok(page)

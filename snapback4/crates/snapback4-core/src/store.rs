@@ -14,6 +14,8 @@ use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+mod activation;
+
 const STORE_VERSION: &str = "snapback4-store-1";
 
 pub struct Store {
@@ -22,6 +24,7 @@ pub struct Store {
     /// Where uploaded bytes live: `assets/` beside the database file, or a
     /// directory that dies with the process for a store in memory.
     assets_dir: PathBuf,
+    identity: activation::Identity,
 }
 
 /// One transaction over the store, with the catalog in reach.
@@ -51,7 +54,7 @@ impl Store {
         &self.assets_dir
     }
 
-    fn prepare(conn: Connection, assets_dir: PathBuf) -> Result<Self, RuntimeError> {
+    fn prepare(mut conn: Connection, assets_dir: PathBuf) -> Result<Self, RuntimeError> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);
@@ -69,82 +72,28 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _asset_views (asset TEXT NOT NULL, principal TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (asset, principal)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _jobs (id TEXT PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL, program_hash TEXT NOT NULL, state TEXT NOT NULL, sweep INTEGER NOT NULL, cursor TEXT, upper TEXT, chunks INTEGER NOT NULL, rows_written INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT);",
         )?;
-        let version: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0)).optional()?;
-        match version.as_deref() {
-            None => {
-                conn.execute("INSERT INTO _meta(key, value) VALUES ('version', ?1)", [STORE_VERSION])?;
-            }
-            Some(STORE_VERSION) => {}
-            Some(other) => return Err(RuntimeError::Store(format!("store version {other} is not {STORE_VERSION}; this data directory belongs to another Snapback"))),
-        }
-        let mut catalog = BTreeMap::new();
-        let mut statement = conn.prepare("SELECT name, num FROM _catalog")?;
-        for row in statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))? {
-            let (name, num) = row?;
-            catalog.insert(name, num);
-        }
-        drop(statement);
-        Ok(Self { conn, catalog, assets_dir })
-    }
-
-    /// Give every table and index a number; build the entries of any index
-    /// that is new or whose definition changed. Idempotent.
-    pub fn install(&mut self, schema: &Schema) -> Result<(), RuntimeError> {
-        // The write lock first, then the catalog as it is now: another
-        // process (a CLI verb beside a running `dev`) may have installed the
-        // same tables a moment ago, and must not be raced to the same number.
-        let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        {
-            let mut statement = tx.prepare("SELECT name, num FROM _catalog")?;
-            let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?;
-            for row in rows {
-                let (name, num) = row?;
-                self.catalog.insert(name, num);
-            }
-        }
-        let mut next: i64 = tx.query_row("SELECT COALESCE(MAX(num), 0) + 1 FROM _catalog", [], |row| row.get(0))?;
-        let mut rebuild = Vec::new();
-        for (table_name, table) in &schema.tables {
-            if !self.catalog.contains_key(table_name) {
-                tx.execute("INSERT INTO _catalog(name, num) VALUES (?1, ?2)", params![table_name, next])?;
-                self.catalog.insert(table_name.clone(), next);
-                next += 1;
-            }
-            for (index_name, index) in &table.indexes {
-                let full = format!("{table_name}.{index_name}");
-                let definition = canonical_json(&index.columns());
-                let meta_key = format!("index:{full}");
-                let stored: Option<String> = tx.query_row("SELECT value FROM _meta WHERE key = ?1", [&meta_key], |row| row.get(0)).optional()?;
-                if !self.catalog.contains_key(&full) {
-                    tx.execute("INSERT INTO _catalog(name, num) VALUES (?1, ?2)", params![full, next])?;
-                    self.catalog.insert(full.clone(), next);
-                    next += 1;
-                }
-                if stored.as_deref() != Some(definition.as_str()) {
-                    tx.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![meta_key, definition])?;
-                    rebuild.push((table_name.clone(), index_name.clone(), index.clone()));
-                }
-            }
-        }
-        for (table_name, index_name, index) in rebuild {
-            let t = self.catalog[&table_name];
-            let ti = self.catalog[&format!("{table_name}.{index_name}")];
-            tx.execute("DELETE FROM i WHERE ti = ?1", [ti])?;
-            let mut rows = tx.prepare("SELECT id, data FROM r WHERE t = ?1")?;
-            let entries: Vec<(String, String)> = rows.query_map([t], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
-            drop(rows);
-            for (id, data) in entries {
-                let row: Value = serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-                tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![ti, index_key(&index, &row, &id), id])?;
-            }
-        }
-        tx.execute("INSERT INTO _meta(key, value) VALUES ('schema_hash', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [schema.hash()])?;
-        tx.commit()?;
-        Ok(())
+        // Catalog numbers and ownership must come from the same snapshot.
+        // An activation between separate reads must never attach new IR to
+        // the previous catalog, even when every number is monotone.
+        let opened = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        opened.execute("INSERT OR IGNORE INTO _meta(key, value) VALUES ('version', ?1)", [STORE_VERSION])?;
+        let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
+        if version != STORE_VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
+        let identity = activation::identity(&opened)?;
+        opened.commit()?;
+        Ok(Self { conn, catalog, assets_dir, identity })
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
-        Ok(Tx { tx: self.conn.transaction()?, catalog: &self.catalog })
+        // The write lock and identity check are one boundary: an engine
+        // opened before another process activated a successor cannot write
+        // or read with its stale schema/catalog.
+        let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        if activation::identity(&tx)? != self.identity {
+            return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
+        }
+        Ok(Tx { tx, catalog: &self.catalog })
     }
 
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {

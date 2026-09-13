@@ -27,18 +27,40 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     let catalog = Catalog::build(documents, &mut diagnostics);
     let schema = schema::bind_schema(&catalog, &mut diagnostics);
     let mut programs = Vec::new();
-    let mut names = std::collections::BTreeSet::new();
+    let mut names = std::collections::BTreeMap::new();
+    let mut api_roots = std::collections::BTreeMap::new();
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "schema".into());
         for decl in &doc.programs {
-            if !names.insert(decl.name.clone()) {
-                diagnostics.push(crate::diag::unknown(&decl.site, format!("duplicate operation {}", decl.name), "rename one operation"));
+            let full_name = operation_name(&module, &decl.name);
+            if let Some(first) = names.get(&full_name) {
+                diagnostics.push(crate::diag::unknown(&decl.site, format!("duplicate operation {full_name}; first declared at {first}"), "rename one operation or put it in a different module"));
                 continue;
+            }
+            names.insert(full_name, decl.site.clone());
+            if decl.kind != crate::ast::ProgramKind::Job {
+                let nested = module != "schema";
+                let root = if nested { &module } else { &decl.name };
+                if let Some((first_nested, first_site)) = api_roots.get(root) && *first_nested != nested {
+                    diagnostics.push(crate::diag::unknown(&decl.site, format!("API name {root} is both an operation and a module; first declared at {first_site}"), "rename the bare operation or the module file"));
+                    continue;
+                }
+                api_roots.entry(root.clone()).or_insert((nested, decl.site.clone()));
             }
             if let Some(bound) = program::Binder::bind(&catalog, &module, decl, &mut diagnostics) {
                 programs.push(bound);
             }
         }
+    }
+    if diagnostics.is_empty() {
+        programs.retain(|bound| match snapback4_core::engine::admission::check(&schema, &bound.program) {
+            Ok(()) => true,
+            Err(error) => {
+                let why = error.refusal();
+                diagnostics.push(Diagnostic::new(&bound.site, &why.code, why.message, why.rewrite.unwrap_or_else(|| "iterate one complete schema-capped group, or move the pass to a chunk job".into())));
+                false
+            }
+        });
     }
     let mut schema = schema;
     for doc in &catalog.documents {
@@ -51,6 +73,31 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     }
     let notes = completeness_notes(&catalog, &schema, &programs);
     Bound { schema, programs, personas, diagnostics, notes }
+}
+
+fn operation_name(module: &str, name: &str) -> String {
+    if module == "schema" { name.to_owned() } else { format!("{module}.{name}") }
+}
+
+/// Programs and rules use the same i53 literal domain. A token must never
+/// change its numeric meaning because it was written in a rule position.
+fn integer_literal(text: &str, site: &crate::diag::Site) -> crate::diag::Fallible<i64> {
+    text.parse::<i64>().ok().filter(|n| (snapback4_core::value::I53_MIN..=snapback4_core::value::I53_MAX).contains(n)).ok_or_else(|| crate::diag::type_error(site, "number literals are integers within ±(2^53 − 1)", "use a decimal column with scaled integer minor units"))
+}
+
+/// A named key is a one-to-one spelling of an index prefix, never a mix
+/// of names and positions. Validate before either program or rule binding.
+fn validate_key_names(read: &crate::ast::ReadExpr) -> crate::diag::Fallible<()> {
+    let mut names = std::collections::BTreeSet::new();
+    for key in &read.keys {
+        if let Some(name) = &key.column && !names.insert(name) {
+            return Err(crate::diag::unknown(&key.site, format!("key repeats column {name}"), format!("name each {} index column once; replace the repeated {name} with the missing column", read.table)));
+        }
+    }
+    if !names.is_empty() && names.len() != read.keys.len() {
+        return Err(crate::diag::unknown(&read.site, "a key cannot mix named and positional components", "name every key component, or supply all components in index order"));
+    }
+    Ok(())
 }
 
 /// A schedule fires a job; the job may take the period it covers, as

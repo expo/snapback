@@ -97,7 +97,7 @@ fn the_device_follows_the_server_and_answers_locally() {
     assert_eq!(device.query("inbox", "dev:bob", &serde_json::json!({}), 2_000).unwrap().data.as_array().unwrap()[0].field("count").unwrap(), &Value::Int(121));
     // The outbox keeps it in submission order until the server answers.
     let seq = device.next_submission().unwrap();
-    device.enqueue(&Queued { id: "w1".into(), seq, op: "send".into(), args: serde_json::json!({ "conversationId": "c1", "body": "hello" }), new_ids: vec!["msgNEW".into()], predicted: predicted.predicted.clone() }).unwrap();
+    device.enqueue(&Queued { id: "w1".into(), seq, op: "send".into(), args: serde_json::json!({ "conversationId": "c1", "body": "hello" }), new_ids: vec!["msgNEW".into()], predicted: predicted.predicted.clone(), viewer: String::new(), now: 0, predictable: false, sent_seq: None, observed_seq: None }).unwrap();
     assert_eq!(device.queued().unwrap().len(), 1);
     // The server applies it; the stream brings the confirmed image, without `pending`.
     let sent = engine.mutate("send", Some("w1"), Context::new("dev:bob", args(&[("conversationId", id("c1")), ("body", Value::String("hello".into()))])).at(2_500).with_ids(["msgNEW".to_owned()])).unwrap();
@@ -237,4 +237,53 @@ fn a_wide_merge_matches_the_server_until_the_device_horizon() {
     }
     drop(device);
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn atomic_snapshots_and_durable_rejection_rebase_preserve_confirmed_images() {
+    let source = "table items:\n  group: text <=10\n  value: int\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  sync public\nmaintain sums: sum items of value by group\n  read <- allow\nquery row(id: id):\n  return items[id] by byId\nquery total():\n  return sums['g'] by byGroup\nmutation first():\n  update items['a'] {value: 99}\n  delete items['b']\nmutation later():\n  old = items['a'] by byId\n  require old != null else MISSING\n  update items['a'] {value: old.value + 1}\nmutation many():\n  for n in range(0, 12):\n    insert items {group: 'g', value: n}\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p|p.program.clone())).unwrap();
+    engine.seed([("items".into(), snapback4_core::value::object([("id",id("a")),("group",Value::String("g".into())),("value",Value::Int(1))])),("items".into(),snapback4_core::value::object([("id",id("b")),("group",Value::String("g".into())),("value",Value::Int(20))]))]).unwrap();
+    let backend = Backend { generation:engine.generation(),schema:bound.schema,programs:bound.programs.into_iter().map(|p|p.program).collect() };
+    let dir=std::env::temp_dir().join(format!("sb4-native-atomic-{}",std::process::id()));std::fs::create_dir_all(&dir).unwrap();let path=dir.join("store.sqlite");let _=std::fs::remove_file(&path);
+    let mut device=Device::open(&path,Some(backend)).unwrap();
+    for(n,page)in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate(){device.apply(page,n==0).unwrap();}
+    let watermark=device.state().unwrap().0;
+    let queue=|op:&str,seq|Queued{id:format!("w{seq}"),seq,op:op.into(),args:serde_json::json!({}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:2000,predictable:true,sent_seq:None,observed_seq:None};
+    device.admit(queue("first",1)).unwrap();device.admit(queue("later",2)).unwrap();
+    assert_eq!(device.query("row","dev:alice",&serde_json::json!({"id":"a"}),2000).unwrap().data.field("value").unwrap(),&Value::Int(100));
+    // Reopen before rejection: both the base images and ordered overlay survive.
+    drop(device);let mut device=Device::open(&path,None).unwrap();device.settle("w1",None).unwrap();
+    assert_eq!(device.queued().unwrap().len(),1);
+    assert_eq!(device.query("row","dev:alice",&serde_json::json!({"id":"a"}),2000).unwrap().data.field("value").unwrap(),&Value::Int(2));
+    assert_eq!(device.query("row","dev:alice",&serde_json::json!({"id":"b"}),2000).unwrap().data.field("value").unwrap(),&Value::Int(20));
+    assert_eq!(device.query("total","dev:alice",&serde_json::json!({}),2000).unwrap().data,Value::Int(22));
+    device.settle("w2",None).unwrap();
+    let pages=snapshot_pages(&mut engine,"dev:alice",1);
+    assert!(pages.len()>1);device.apply(&pages[0],true).unwrap();
+    let sql=rusqlite::Connection::open(&path).unwrap();
+    sql.execute_batch("CREATE TRIGGER fail_snapshot BEFORE INSERT ON r BEGIN SELECT RAISE(ABORT, 'snapshot failed'); END;").unwrap();
+    for page in &pages[1..pages.len()-1]{device.apply(page,false).unwrap();}
+    assert!(device.apply(pages.last().unwrap(),false).is_err());
+    assert_eq!(device.state().unwrap().0,watermark);
+    assert_eq!(device.query("row","dev:alice",&serde_json::json!({"id":"b"}),2000).unwrap().data.field("value").unwrap(),&Value::Int(20));
+    sql.execute_batch("DROP TRIGGER fail_snapshot").unwrap();device.apply(pages.last().unwrap(),false).unwrap();
+    assert!(device.apply(pages.last().unwrap(),false).is_err(), "a repeated final page cannot truncate the partition");
+    let mut competing=Device::open(&path,None).unwrap();
+    device.apply(&pages[0],true).unwrap();competing.apply(&pages[0],true).unwrap();
+    assert!(device.apply(&pages[1],false).is_err(), "the superseded snapshot owner must restart");
+    for page in &pages[1..]{competing.apply(page,false).unwrap();}
+    assert_eq!(competing.query("row","dev:alice",&serde_json::json!({"id":"b"}),2000).unwrap().data.field("value").unwrap(),&Value::Int(20));
+    drop(competing);
+    // A program minting more than a guessed small preallocation persists
+    // every actual id and retains those exact rows across replay/reopen.
+    let admitted=device.admit(queue("many",3)).unwrap();assert_eq!(admitted.new_ids.len(),12);
+    assert_eq!(admitted.new_ids.iter().collect::<std::collections::BTreeSet<_>>().len(),12);
+    let ids=admitted.new_ids.clone();drop(device);let mut device=Device::open(&path,None).unwrap();
+    device.apply(&stream_page(&mut engine,"dev:alice",watermark),false).unwrap();
+    assert_eq!(device.queued().unwrap()[0].new_ids,ids);
+    for id in ids{assert_ne!(device.query("row","dev:alice",&serde_json::json!({"id":id}),2000).unwrap().data,Value::Null);}
+    drop(device);drop(sql);std::fs::remove_dir_all(dir).unwrap();
 }

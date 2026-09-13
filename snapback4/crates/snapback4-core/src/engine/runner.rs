@@ -41,7 +41,10 @@ pub struct Runner<'a> {
     pub(crate) env: BTreeMap<String, Value>,
     pub(crate) consts: BTreeSet<String>,
     /// Rows this transaction inserted, by (table, index, encoded key).
-    pub(crate) created: BTreeSet<(String, String, String)>,
+    pub(crate) created: BTreeMap<(String, String, String), usize>,
+    /// Current facts owned by each row inserted in this execution. Distinct
+    /// rows can share a key; counts preserve their independent ownership.
+    pub(crate) created_rows: BTreeMap<(String, String), Vec<(String, String, String)>>,
     pub(crate) inserted: Vec<(String, Value)>,
     /// Tables read and tables written, for live subscriptions and commits.
     pub(crate) read_tables: BTreeSet<String>,
@@ -55,6 +58,8 @@ pub struct Runner<'a> {
     /// the program's `next`.
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
+    pub(crate) pages: BTreeMap<String, PagePosition>,
+    page_plan: BTreeMap<String, String>,
     /// Whether a scan ran whose read rule the prefix does not decide. Such a
     /// result is `capped` whatever the meter found (LLP 1001 §3): a page
     /// that was `complete` only when few hidden rows were walked would
@@ -88,7 +93,8 @@ impl<'a> Runner<'a> {
             meter,
             env,
             consts: BTreeSet::new(),
-            created: BTreeSet::new(),
+            created: BTreeMap::new(),
+            created_rows: BTreeMap::new(),
             inserted: Vec::new(),
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
@@ -97,6 +103,8 @@ impl<'a> Runner<'a> {
             outbox: Vec::new(),
             page_depth: 0,
             page: None,
+            pages: BTreeMap::new(),
+            page_plan: BTreeMap::new(),
             non_uniform: false,
             page_overflow: false,
             device: false,
@@ -107,6 +115,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        self.page_plan = super::pages::plan(program);
         match self.statements(&program.body, &program.name)? {
             Flow::Return(value) => Ok(value),
             _ => Ok(Value::Null),
@@ -223,7 +232,11 @@ impl<'a> Runner<'a> {
                     self.outbox.push((id, effect.clone(), payload));
                     Flow::Next
                 }
-                Stmt::Return(value) => Flow::Return(self.expr(value)?),
+                Stmt::Return(value) => {
+                    let value = self.expr(value)?;
+                    self.page = self.page_plan.get(&site).and_then(|owner| self.pages.get(owner)).cloned();
+                    Flow::Return(value)
+                },
                 Stmt::Break => Flow::Break,
                 Stmt::Continue => Flow::Continue,
             };
@@ -478,7 +491,20 @@ impl<'a> Runner<'a> {
 
     /// Charge the bytes a result will occupy on the wire.
     pub(super) fn charge_output(&mut self, value: &Value) -> Result<bool, RuntimeError> {
-        self.meter.charge(MeterKind::OutputBytes, canonical_json(value).len() as u64)
+        // Count the canonical tagged representation without allocating a
+        // second result-sized string. A shaped/scalar result cannot be
+        // truncated without changing its type or inventing a continuation.
+        struct Counter(u64);
+        impl std::io::Write for Counter {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> { self.0 = self.0.saturating_add(bytes.len() as u64); Ok(bytes.len()) }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        let mut count = Counter(0);
+        serde_json::to_writer(&mut count, value).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        if !self.meter.charge(MeterKind::OutputBytes, count.0)? {
+            return Err(RuntimeError::Bound { kind: MeterKind::OutputBytes, actual: count.0, ceiling: self.meter.ceilings.output_bytes, site: self.meter.site().to_owned() });
+        }
+        Ok(true)
     }
 }
 

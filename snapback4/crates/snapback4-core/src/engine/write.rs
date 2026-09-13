@@ -307,23 +307,31 @@ impl Runner<'_> {
         self.rows_written += 1;
         self.meter.charge(MeterKind::RowsWritten, 1)?;
         let table = self.schema.table(table_name).expect("validated").clone();
-        match (old, new) {
-            (None, Some(row)) => {
-                for (name, index) in &table.indexes {
-                    self.created.insert((table_name.to_owned(), name.clone(), canonical_json(&index_values(index, row))));
-                }
-                self.inserted.push((table_name.to_owned(), row.clone()));
-            }
-            (Some(old), Some(row)) => {
-                let id = old.field("id")?.as_str()?.to_owned();
-                self.created.retain(|(t, _, _)| t != table_name || !self.inserted.iter().any(|(it, ir)| it == table_name && ir.field("id").ok().and_then(|v| v.as_str().ok()) == Some(id.as_str())));
-                for (name, index) in &table.indexes {
-                    if self.inserted.iter().any(|(it, ir)| it == table_name && ir.field("id").ok().and_then(|v| v.as_str().ok()) == Some(id.as_str())) {
-                        self.created.insert((table_name.to_owned(), name.clone(), canonical_json(&index_values(index, row))));
-                    }
+        // Final-exists obligations retain immutable successful-insert images.
+        // Current creation facts have separate per-row ownership, so updates
+        // and deletes remove only that row's contributions in O(index count).
+        let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
+        let owner = (table_name.to_owned(), id.to_owned());
+        let previous = self.created_rows.remove(&owner);
+        let was_created = previous.is_some() || old.is_none();
+        if let Some(keys) = previous {
+            for key in keys {
+                if let Some(count) = self.created.get_mut(&key) {
+                    *count -= 1;
+                    if *count == 0 { self.created.remove(&key); }
                 }
             }
-            _ => {}
+        }
+        if old.is_none() {
+            if let Some(row) = new { self.inserted.push((table_name.to_owned(), row.clone())); }
+        }
+        if was_created {
+            if let Some(row) = new {
+                let keys: Vec<_> = table.indexes.iter().map(|(name, index)|
+                    (table_name.to_owned(), name.clone(), canonical_json(&index_values(index, row)))).collect();
+                for key in &keys { *self.created.entry(key.clone()).or_default() += 1; }
+                self.created_rows.insert(owner, keys);
+            }
         }
         partition::row_changed(self, table_name, old, new)?;
         if origin == Origin::Source {

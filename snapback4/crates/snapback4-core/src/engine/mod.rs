@@ -6,6 +6,8 @@
 #[cfg(feature = "sqlite")]
 pub mod job;
 pub mod local;
+pub mod admission;
+mod pages;
 pub mod read;
 pub mod rules;
 pub mod runner;
@@ -47,11 +49,13 @@ pub struct Context {
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
     entropy: u64,
+    /// Every id consumed by this execution, including newly minted ids.
+    pub(crate) minted_ids: Vec<String>,
 }
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, new_ids: VecDeque::new(), entropy: 0 }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new() }
     }
 
     pub fn system() -> Self {
@@ -80,13 +84,12 @@ impl Context {
     }
 
     pub(crate) fn mint(&mut self) -> String {
-        if let Some(id) = self.new_ids.pop_front() {
-            return id;
-        }
-        if self.entropy == 0 {
-            self.entropy = crate::ids::seed();
-        }
-        crate::ids::mint(self.now.unwrap_or(0), &mut self.entropy)
+        let id = if let Some(id) = self.new_ids.pop_front() { id } else {
+            if self.entropy == 0 { self.entropy = crate::ids::seed(); }
+            crate::ids::mint(self.now.unwrap_or(0), &mut self.entropy)
+        };
+        self.minted_ids.push(id.clone());
+        id
     }
 }
 
@@ -141,6 +144,7 @@ pub struct Engine {
     programs: BTreeMap<String, Program>,
     ceilings: Ceilings,
     entropy: u64,
+    generation: u64,
 }
 
 #[cfg(feature = "sqlite")]
@@ -150,9 +154,45 @@ impl Engine {
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
-        store.install(&schema)?;
-        let mut engine = Self { store, schema, programs: programs.into_iter().map(|p| (p.name.clone(), p)).collect(), ceilings: Ceilings::default(), entropy: crate::ids::seed() };
-        engine.rebuild_unbuilt_maintains()?;
+        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let generation = Self::activate(&mut store, &schema, &programs, None)?;
+        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed() })
+    }
+
+    /// Activate an immutable source release. Its pointer lives in the same
+    /// transaction as rows/programs/generation; the filesystem pointer is a
+    /// checked convenience copy, never an independent authority.
+    pub fn new_release(mut store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
+        if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
+        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)))?;
+        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed() })
+    }
+
+    /// Attach to an already activated semantic generation without installing
+    /// caller source. Reads of its identity and compiled content are one snapshot.
+    pub fn open(mut store: Store) -> Result<Self, RuntimeError> {
+        let tx = store.transaction()?;
+        let (generation, schema, programs): (u64, String, String) = tx.conn().query_row(
+            "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
+            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
+        let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;
+        let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
+        tx.rollback()?;
+        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed() })
+    }
+
+    /// Serving a selected immutable release may attach only while that release
+    /// is still current. A racing deployment makes startup retry, never adopt.
+    pub fn attach_release(store: Store, expected: u64) -> Result<Self, RuntimeError> {
+        let mut engine = Self::open(store)?;
+        let tx = engine.store.transaction()?;
+        let release: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0))?;
+        if release.parse::<u64>().ok() != Some(expected) {
+            return Err(RuntimeError::Generation("the current release changed while starting; retry serve".into()));
+        }
+        tx.rollback()?;
         Ok(engine)
     }
 
@@ -196,51 +236,46 @@ impl Engine {
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
-        self.store.install(&schema)?;
-        let previous = std::mem::replace(&mut self.schema, schema);
-        self.programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        // An aggregate the change adds or redefines is built from the rows
-        // that are already there, in one commit that fans out like any other.
-        let added: Vec<crate::schema::Maintain> = self.schema.maintains.iter().filter(|m| !previous.maintains.contains(m)).cloned().collect();
-        self.rebuild_maintains(added)?;
-        let next = self.generation() + 1;
-        self.store.set_meta("generation", &next.to_string())?;
-        Ok(next)
+        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let generation = Self::activate(&mut self.store, &schema, &programs, None)?;
+        self.schema = schema;
+        self.programs = programs;
+        self.generation = generation;
+        Ok(generation)
     }
 
-    /// Aggregates whose target holds nothing while the source holds rows were
-    /// never built (a release installed over an older store): build them.
-    fn rebuild_unbuilt_maintains(&mut self) -> Result<(), RuntimeError> {
-        let mut unbuilt = Vec::new();
-        for maintain in &self.schema.maintains {
-            if self.store.count(&maintain.target)? == 0 && self.store.count(&maintain.source)? > 0 {
-                unbuilt.push(maintain.clone());
+    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>) -> Result<u64, RuntimeError> {
+        store.activate(schema, Some(programs), false, |tx, changed| {
+            if let Some((release, expected)) = release {
+                use rusqlite::OptionalExtension;
+                let actual: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
+                // Legacy stores have no DB pointer yet. Their predecessor
+                // was checked from the file; the first adoption establishes it.
+                if actual.as_ref().is_some_and(|s| s.parse::<u64>().ok() != expected) {
+                    return Err(RuntimeError::Generation("the current release changed during deployment; retry against its new schema".into()));
+                }
+                tx.set_meta("release", &release.to_string())?;
             }
-        }
-        self.rebuild_maintains(unbuilt)
-    }
-
-    fn rebuild_maintains(&mut self, which: Vec<crate::schema::Maintain>) -> Result<(), RuntimeError> {
-        if which.is_empty() {
-            return Ok(());
-        }
-        let now = crate::now_ms();
-        let tx = self.store.transaction()?;
-        let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-        for maintain in &which {
-            runner.rebuild_maintain(maintain)?;
-        }
-        let events = std::mem::take(&mut runner.events);
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        let written = runner.rows_written;
-        drop(runner);
-        if written > 0 {
-            tx.record_commit(seq, now, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &tables, written)?;
-            partition::append(&tx, seq, &events)?;
-        }
-        tx.commit()?;
-        Ok(())
+            if !changed { return Ok(()); }
+            use rusqlite::OptionalExtension;
+            let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
+            let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
+            let rebuild: Vec<_> = schema.maintains.iter().filter(|m| previous.as_ref().is_none_or(|old| !old.maintains.contains(m))).collect();
+            if rebuild.is_empty() { return Ok(()); }
+            let now = crate::now_ms();
+            let seq = tx.next_seq()?;
+            let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            for maintain in rebuild { runner.rebuild_maintain(maintain)?; }
+            let events = std::mem::take(&mut runner.events);
+            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+            let written = runner.rows_written;
+            drop(runner);
+            if written > 0 {
+                tx.record_commit(seq, now, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &tables, written)?;
+                partition::append(tx, seq, &events)?;
+            }
+            Ok(())
+        })
     }
 
     /// Record an upload under `owner`: sniffed, bounded by the largest
@@ -381,7 +416,7 @@ impl Engine {
     /// The schema generation the store serves; a device holds a partition
     /// of exactly one.
     pub fn generation(&self) -> u64 {
-        self.store.meta("generation").ok().flatten().and_then(|g| g.parse().ok()).unwrap_or(1)
+        self.generation
     }
 
     /// Run a query. Refusals (a `require`, a rule, bad input) are the
@@ -415,6 +450,22 @@ impl Engine {
         drop(runner);
         tx.rollback()?;
         Ok(outcome)
+    }
+
+    /// Correlate a bounded pending outbox with authority already present in
+    /// a stream page. Devices suppress those overlays before the mutation
+    /// response arrives, but keep retrying for its complete result.
+    pub fn acknowledged(&mut self, principal: &str, pending: &[String], through: u64) -> Result<BTreeMap<String, u64>, RuntimeError> {
+        use rusqlite::OptionalExtension;
+        if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
+        let tx = self.store.transaction()?;
+        let mut acknowledged = BTreeMap::new();
+        for id in pending {
+            let seq: Option<u64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3", rusqlite::params![principal, id, through], |row| row.get(0)).optional()?;
+            if let Some(seq) = seq { acknowledged.insert(id.clone(), seq); }
+        }
+        tx.rollback()?;
+        Ok(acknowledged)
     }
 
     /// The recorded outcome of a client-minted op that already applied, so a

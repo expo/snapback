@@ -11,7 +11,7 @@ use snapback4_core::{Context, Engine, WriteState, wire};
 use snapback4_lang::Bound;
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
-use std::io::{Read as _, Write as _};
+use std::io::{self, Write as _};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -32,7 +32,7 @@ pub struct Shared {
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
     Dev { watch: bool, fresh: bool },
-    Release,
+    Release { expected: u64 },
 }
 
 pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
@@ -47,8 +47,11 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
-    let fresh = matches!(mode, Mode::Dev { fresh: true, .. });
-    let engine = if fresh { snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|e| e.to_string())? } else { project.open_engine(&bound).map_err(|e| e.to_string())? };
+    let engine = match &mode {
+        Mode::Dev { fresh: true, .. } => Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())),
+        Mode::Dev { .. } => project.open_engine(&bound),
+        Mode::Release { expected } => project.open_release_engine(&bound, *expected),
+    }.map_err(|e| e.to_string())?;
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()) });
@@ -196,10 +199,36 @@ fn cors() -> Vec<Header> {
     ]
 }
 
+const JSON_REQUEST_CEILING: usize = 1 << 20;
+const SEED_REQUEST_CEILING: usize = 16 << 20;
+const JSON_RESPONSE_CEILING: usize = 16 << 20;
+
+/// Stop encoding before an additional unbounded String exists. Partition
+/// acquisition has its own page/commit bounds; this owns the wire buffer.
+struct JsonBuffer(Vec<u8>);
+impl io::Write for JsonBuffer {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        if bytes.len() > JSON_RESPONSE_CEILING.saturating_sub(self.0.len()) {
+            return Err(io::Error::other("HTTP JSON response exceeds 16 MiB"));
+        }
+        self.0.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+}
+
 pub(crate) fn respond(request: Request, status: u16, body: Json) {
-    let text = body.to_string();
-    let capacity = text.len() + 512;
-    let mut response = Response::from_string(text).with_status_code(status);
+    let mut bytes = JsonBuffer(Vec::new());
+    let encoded = serde_json::to_writer(&mut bytes, &body);
+    drop(body);
+    let status = if encoded.is_err() {
+        bytes.0.clear();
+        let refusal = Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values").guide("reads");
+        serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal) })).expect("the fixed HTTP refusal fits the response ceiling");
+        200
+    } else { status };
+    let capacity = bytes.0.len() + 512;
+    let mut response = Response::from_data(bytes.0).with_status_code(status);
     for header in cors() {
         response.add_header(header);
     }
@@ -262,8 +291,21 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
 }
 
 fn query_params(url: &str) -> BTreeMap<String, String> {
+    fn decode(text: &str) -> String {
+        let mut out = Vec::with_capacity(text.len());
+        let bytes = text.as_bytes();
+        let mut at = 0;
+        while at < bytes.len() {
+            if bytes[at] == b'%' && at + 2 < bytes.len() {
+                let hex = |b: u8| (b as char).to_digit(16).map(|n| n as u8);
+                if let (Some(a), Some(b)) = (hex(bytes[at+1]), hex(bytes[at+2])) { out.push(a * 16 + b); at += 3; continue; }
+            }
+            out.push(if bytes[at] == b'+' { b' ' } else { bytes[at] }); at += 1;
+        }
+        String::from_utf8(out).unwrap_or_else(|_| text.to_owned())
+    }
     url.split_once('?')
-        .map(|(_, query)| query.split('&').filter_map(|pair| pair.split_once('=').map(|(k, v)| (k.to_owned(), v.to_owned()))).collect())
+        .map(|(_, query)| query.split('&').filter_map(|pair| pair.split_once('=').map(|(k, v)| (decode(k), decode(v)))).collect())
         .unwrap_or_default()
 }
 
@@ -277,7 +319,30 @@ fn handle(mut request: Request, shared: &Shared) {
     }
     let mut bytes = Vec::new();
     if method == Method::Post {
-        let _ = request.as_reader().take(crate::assets::UPLOAD_CEILING as u64 + 1).read_to_end(&mut bytes);
+        let ceiling = match path.as_str() {
+            "/assets" => crate::assets::UPLOAD_CEILING,
+            "/seed" => SEED_REQUEST_CEILING,
+            _ => JSON_REQUEST_CEILING,
+        };
+        let length = request.body_length();
+        let too_large = || Refusal::new("E_INPUT", "input", format!("the request body exceeds its {ceiling}-byte limit; split it into smaller requests"));
+        if length.is_some_and(|length| length > ceiling) {
+            return respond(request, 413, json!({ "denied": refusal_json(&too_large()) }));
+        }
+        let mut buffer = [0; 8 * 1024];
+        loop {
+            let length = buffer.len().min(ceiling - bytes.len() + 1);
+            match request.as_reader().read(&mut buffer[..length]) {
+                Ok(0) => break,
+                Ok(read) if read > ceiling - bytes.len() => return respond(request, 413, json!({ "denied": refusal_json(&too_large()) })),
+                Ok(read) => bytes.extend_from_slice(&buffer[..read]),
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("cannot read the request body: {error}"))) })),
+            }
+        }
+        if length.is_some_and(|length| length != bytes.len()) {
+            return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "the request body ended before its declared Content-Length")) }));
+        }
     }
     if method == Method::Post && path == "/assets" {
         return crate::assets::upload(request, bytes, shared);
@@ -285,20 +350,29 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Get && let Some(id) = path.strip_prefix("/assets/") {
         return crate::assets::serve(request, id, shared);
     }
-    let body = String::from_utf8_lossy(&bytes).into_owned();
+    let body = match String::from_utf8(bytes) {
+        Ok(body) => body,
+        Err(_) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
+    };
     match (method, path.as_str()) {
         (Method::Get, "/") => {
-            let bound = shared.bound.lock().unwrap();
-            let ops: Vec<Json> = bound.programs.iter().map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word() })).collect();
-            let tables: Vec<Json> = bound.schema.tables.iter().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
-            respond(request, 200, json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *shared.generation.lock().unwrap(), "seq": *shared.seq.lock().unwrap(), "ops": ops, "tables": tables }));
+            let body = {
+                let bound = shared.bound.lock().unwrap();
+                let ops: Vec<Json> = bound.programs.iter().map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word() })).collect();
+                let tables: Vec<Json> = bound.schema.tables.iter().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
+                json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *shared.generation.lock().unwrap(), "seq": *shared.seq.lock().unwrap(), "ops": ops, "tables": tables })
+            };
+            respond(request, 200, body);
         }
         (Method::Get, "/schema") => {
             // The compiled backend a device runs locally: the schema and the
             // programs' IR, bound to a generation.
-            let bound = shared.bound.lock().unwrap();
-            let programs: Vec<Json> = bound.programs.iter().map(|p| serde_json::to_value(&p.program).unwrap_or(Json::Null)).collect();
-            respond(request, 200, json!({ "generation": *shared.generation.lock().unwrap(), "schema": bound.schema, "programs": programs }));
+            let body = {
+                let bound = shared.bound.lock().unwrap();
+                let programs: Vec<Json> = bound.programs.iter().map(|p| serde_json::to_value(&p.program).unwrap_or(Json::Null)).collect();
+                json!({ "generation": *shared.generation.lock().unwrap(), "schema": bound.schema, "programs": programs })
+            };
+            respond(request, 200, body);
         }
         (Method::Get, "/api.ts") => {
             let text = snapback4_lang::emit::typescript(&shared.bound.lock().unwrap());
@@ -324,10 +398,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
-            if path.starts_with("/m/")
-                && let Some(id) = payload.get("id").and_then(Json::as_str)
-                && let Ok(Some(outcome)) = shared.engine.lock().unwrap().replay(&principal, id)
-            {
+            let replay = if path.starts_with("/m/") {
+                payload.get("id").and_then(Json::as_str).and_then(|id| shared.engine.lock().unwrap().replay(&principal, id).ok().flatten().map(|outcome| (id, outcome)))
+            } else { None };
+            if let Some((id, outcome)) = replay {
                 // A resend of an applied write: its recorded outcome, before the
                 // current generation gets to judge its shape.
                 let body = match outcome.state {
@@ -366,6 +440,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                 }
             }
+            let viewer = principal.clone();
             let mut context = Context::new(principal, args);
             if path.starts_with("/q/") {
                 if program.kind != ProgramKind::Query {
@@ -376,7 +451,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     // The meter's numbers and its cut site stay off the wire: they
                     // measure hidden rows. `complete` is the one word.
-                    Ok(outcome) => respond(request, 200, json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "seq": outcome.seq, "next": outcome.next })),
+                    Ok(outcome) => respond(request, 200, json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "seq": outcome.seq, "next": outcome.next, "tables": outcome.tables, "viewer": viewer })),
                     Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
                 }
             } else {
@@ -433,7 +508,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     let mut tables: Vec<String> = changes.into_iter().flat_map(|(_, tables)| tables).collect();
                     tables.sort();
                     tables.dedup();
-                    respond(request, 200, json!({ "seq": seq, "tables": tables, "generation": *shared.generation.lock().unwrap() }));
+                    let generation = *shared.generation.lock().unwrap();
+                    respond(request, 200, json!({ "seq": seq, "tables": tables, "generation": generation }));
                 }
                 Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
             }
@@ -449,23 +525,34 @@ fn handle(mut request: Request, shared: &Shared) {
             let params = query_params(&url);
             let from: u64 = params.get("from").and_then(|s| s.parse().ok()).unwrap_or(0);
             let limit: usize = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(2_000).min(10_000);
-            let mut engine = shared.engine.lock().unwrap();
+            let pending: Vec<String> = match params.get("pending").map(|s| serde_json::from_str::<Vec<String>>(s)).transpose() {
+                Ok(ids) if ids.as_ref().is_none_or(|ids| ids.len() <= 256 && ids.iter().all(|id| id.len() <= 128)) => ids.unwrap_or_default(),
+                _ => { respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync pending must contain at most 256 short ids")) })); return; }
+            };
             if from == 0 {
                 // A snapshot comes in pages: `after` is the token the previous
                 // page returned; `next` is the one for the following page.
                 let after = params.get("after").cloned();
-                match engine.snapshot_page(&principal, after.as_deref(), limit) {
-                    Ok((events, watermark, next)) => {
-                        let events: Vec<Json> = events.iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
-                        respond(request, 200, json!({ "snapshot": true, "events": events, "watermark": watermark, "more": next.is_some(), "next": next, "generation": *shared.generation.lock().unwrap() }));
+                let (outcome, generation) = {
+                    let mut engine = shared.engine.lock().unwrap();
+                    (engine.snapshot_page(&principal, after.as_deref(), limit).and_then(|(events, watermark, next)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, acks))), *shared.generation.lock().unwrap())
+                };
+                match outcome {
+                    Ok((events, watermark, next, acknowledged)) => {
+                        let events: Vec<Json> = events.into_iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
+                        respond(request, 200, json!({ "snapshot": true, "events": events, "watermark": watermark, "more": next.is_some(), "next": next, "generation": generation, "acknowledged": acknowledged }));
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
             } else {
-                match engine.stream(&principal, from, limit) {
-                    Ok(page) => {
-                        let events: Vec<Json> = page.events.iter().map(|e| json!({ "seq": e.seq, "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
-                        respond(request, 200, json!({ "snapshot": false, "events": events, "watermark": page.watermark, "more": page.more, "generation": *shared.generation.lock().unwrap() }));
+                let (outcome, generation) = {
+                    let mut engine = shared.engine.lock().unwrap();
+                    (engine.stream(&principal, from, limit).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *shared.generation.lock().unwrap())
+                };
+                match outcome {
+                    Ok((page, acknowledged)) => {
+                        let events: Vec<Json> = page.events.into_iter().map(|e| json!({ "seq": e.seq, "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
+                        respond(request, 200, json!({ "snapshot": false, "events": events, "watermark": page.watermark, "more": page.more, "generation": generation, "acknowledged": acknowledged }));
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }

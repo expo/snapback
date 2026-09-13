@@ -6,9 +6,11 @@
 // `pending` before the server confirms them.
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import { mintId } from "./client.ts";
+import { createClient, mintId } from "./client.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { Interpreter, Refused, type LocalRead, type ProgramJson } from "./replica/interpreter.ts";
+import { predict, restoreConfirmed } from "./replica/predictions.ts";
+import { operationTables } from "./replica/dependencies.ts";
 import { Replica, type StreamPage } from "./replica/replica.ts";
 import { MemoryStore, openIndexedDb, type Row, type SchemaJson, type Store, type StoreTx } from "./replica/store.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, restoreSession, type Session, type SessionStore } from "./auth.ts";
@@ -76,6 +78,10 @@ interface Queued {
   newIds: string[];
   /** Rows this write predicted, to withdraw on failure: `table/id`. */
   predicted: string[];
+  predictable?: boolean;
+  now?: number;
+  sentSeq?: number;
+  observedSeq?: number;
 }
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
@@ -108,11 +114,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const sessionListeners = new Set<(session: Session | null) => void>();
   const endSession = async () => {
     sessionDead = true;
+    delete headers.authorization;
+    delete headers["x-snapback-persona"];
+    setLink("signed-out");
     await forgetSession(base, sessions);
     for (const listener of sessionListeners) listener(null);
   };
   const refusedSession = async (denied: unknown) => {
-    if (session && !sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
+    if (!sessionDead && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
   };
 
   // The store opens before the network is asked: a device that starts
@@ -137,13 +146,23 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   store.setSchema(backend.schema);
   let closed = false;
-  let seq = 0;
+  let closing: Promise<void> | undefined;
+  const active = new Set<Promise<unknown>>();
+  function track<T>(work: Promise<T>): Promise<T> {
+    active.add(work);
+    void work.finally(() => active.delete(work)).catch(() => {});
+    return work;
+  }
+  let changesSeq = 0;
+  const online = createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
   const aborter = new AbortController();
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+  const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
 
   const setLink = (next: Link) => {
+    if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
     for (const listener of linkListeners) listener(next);
@@ -152,10 +171,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
 
   async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+    if (closed || sessionDead) return { ok: false };
     try {
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
-      if (response.status >= 500) return { ok: false };
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body), signal: aborter.signal });
+      if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       const json = (await response.json()) as Record<string, unknown>;
+      if (closed) return { ok: false };
+      await refusedSession(json.denied ?? json.why);
       if (link !== "online") setLink("online");
       return { ok: true, json };
     } catch {
@@ -167,9 +189,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const replica = new Replica(store, backend.schema, {
     async sync(from, limit, after) {
       try {
-        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}`, { headers });
-        if (response.status === 503) return { denied: offline() };
+        if (closed || sessionDead) return { denied: unavailable() };
+        const pending = (await queued()).slice(0, 256).map((entry) => entry.id);
+        const response = await doFetch(`${base}/sync?from=${from}&limit=${limit}${after ? `&after=${encodeURIComponent(after)}` : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers, signal: aborter.signal });
+        if (response.status >= 500) { setLink("offline"); return { denied: offline() }; }
         const page = (await response.json()) as StreamPage & { denied?: Refusal };
+        if (closed) return { denied: unavailable() };
         if (page.denied) {
           await refusedSession(page.denied);
           if (!page.denied.retryable) {
@@ -184,17 +209,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         partitionDenied = null;
         if (link !== "online") setLink("online");
-        if (page.watermark > seq) seq = page.watermark;
         if (page.generation !== undefined && page.generation !== backend.generation) {
           // Day two: the server adopted a new generation. Load it, then let
           // the replica re-derive the partition on its next round.
-          const next = await loadBackend(doFetch, base, headers);
+          const next = await loadBackend(doFetch, base, headers, aborter.signal);
+          if (closed) return { denied: unavailable() };
           backend.generation = next.generation;
           backend.schema = next.schema;
           backend.programs = next.programs;
           store.setSchema(next.schema);
           await store.write((tx) => tx.setMeta(BACKEND, next));
           replica.adopt(next.schema, next.generation);
+          for (const watch of watches.values()) void rerun(watch);
           return { denied: { code: "E_GENERATION", family: "generation", message: "the backend changed; re-deriving the partition", retryable: true } };
         }
         return page;
@@ -207,20 +233,25 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // Every applied batch re-runs the queries whose tables it touched.
   replica.onChange((touched) => {
-    for (const watch of watches.values()) if ([...watch.tables].some((t) => touched.has(t))) void rerun(watch);
+    if (replica.isCaughtUp) lastSyncAt = Date.now();
+    for (const watch of watches.values()) if (touched.size === 0 || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
   });
 
   async function waitForChange(): Promise<void> {
     if (link !== "online") {
       await new Promise((r) => setTimeout(r, 1000));
-      const probe = await post("/q/__probe", {});
-      if (probe.ok) setLink("online");
+      if (!closed && !sessionDead) await post("/q/__probe", {});
       return;
     }
     try {
-      const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
-      const json = (await response.json()) as { seq: number };
-      if (json.seq > seq) seq = json.seq;
+      const response = await doFetch(`${base}/changes?since=${changesSeq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
+      if (!response.ok) throw new Error(`changes: HTTP ${response.status}`);
+      const json = (await response.json()) as { seq: number; tables?: string[]; generation?: number };
+      if (json.seq > changesSeq || (json.generation !== undefined && json.generation !== backend.generation)) {
+        changesSeq = Math.max(changesSeq, json.seq);
+        const touched = new Set(json.tables ?? []);
+        for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t)) || json.generation !== backend.generation) void rerun(watch);
+      }
     } catch {
       if (closed) return;
       setLink("offline");
@@ -228,27 +259,53 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
 
-  async function runLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string> }> {
+  function runLocal<R>(op: Query<unknown, R>, args: unknown) { return track(evaluateLocal(op, args)); }
+
+  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string> }> {
+    const refused = unavailable();
+    if (refused) return { read: { denied: refused }, tables: new Set() };
     const program = backend.programs[op.name];
     if (!program) return { read: { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } }, tables: new Set() };
     if (partitionDenied) return { read: { denied: partitionDenied }, tables: new Set(Object.keys(backend.schema.tables)) };
+    const tables = operationTables(program, backend.schema);
+    const server = async () => {
+      const read = await online.query(op, args);
+      if ("denied" in read) await refusedSession(read.denied);
+      setLink(online.link());
+      return { read, tables };
+    };
+    const onlineOnly = [...tables].some((t) => !backend.schema.tables[t]?.sync);
+    if (onlineOnly && link === "online") return server();
+    let interpreter: Interpreter | undefined;
     try {
-      const outcome: LocalRead = await store.read((tx) => new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint: mintId }, "query").run(program));
-      const read: Read<R> = { data: outcome.data as R, complete: outcome.complete, fresh: link === "online" && replica.isCaughtUp, next: outcome.next as Cursor | null, ...(link === "online" && replica.isCaughtUp ? {} : { since: lastSyncAt }) };
-      return { read, tables: outcome.tables };
+      const outcome: LocalRead = await store.read((tx) => {
+        interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint: mintId }, "query");
+        return interpreter.run(program);
+      });
+      const unavailableWhy = unavailable();
+      if (unavailableWhy) return { read: { denied: unavailableWhy }, tables };
+      if ((!outcome.complete || interpreter?.hasUnknownReads) && link === "online" && !(await queued()).some((e) => e.observedSeq === undefined && (e.predictable ?? e.predicted.length > 0))) return server();
+      const fresh = link === "online" && replica.isCaughtUp;
+      const read: Read<R> = { data: outcome.data as R, complete: outcome.complete && !onlineOnly, fresh, next: outcome.next as Cursor | null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) };
+      return { read, tables: new Set([...tables, ...outcome.tables]) };
     } catch (error) {
-      if (error instanceof Refused) return { read: { denied: error.refusal }, tables: new Set() };
+      for (const table of interpreter?.tables ?? []) tables.add(table);
+      if (error instanceof Refused) {
+        if (onlineOnly || interpreter?.hasUnknownReads) return link === "online" ? server() : { read: { denied: offline() }, tables };
+        return { read: { denied: error.refusal }, tables };
+      }
       throw error;
     }
   }
 
-  let lastSyncAt = Date.now();
+  let lastSyncAt = Number(await store.read((tx) => tx.getMeta("syncedAt")) ?? 0);
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
   }
 
   async function rerun(watch: Watch) {
+    if (closed) return;
     if (watch.running) { watch.dirty = true; return; }
     watch.running = true;
     try {
@@ -284,52 +341,94 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     await tx.side("outbox").put(entry.id, entry);
   }
 
-  let flushing = false;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let retryMs = 250;
+  let flushing: Promise<void> | null = null;
   let flushAgain = false;
-  async function flush() {
+  function flush(): Promise<void> {
     // A write queued while a flush runs is flushed by the same flush, on
     // its next pass: nothing waits for the next link change.
     if (flushing) {
       flushAgain = true;
-      return;
+      return flushing;
     }
-    flushing = true;
-    try {
-      do {
-        flushAgain = false;
-        await flushOnce();
-      } while (flushAgain && link === "online" && !closed);
-    } finally {
-      flushing = false;
+    if (closed || sessionDead) return Promise.resolve();
+    if (retry) { clearTimeout(retry); retry = undefined; }
+    const run = (async () => {
+      try {
+        do {
+          flushAgain = false;
+          await flushOnce();
+        } while (flushAgain && link === "online" && !closed);
+      } catch { retryFlush(); }
+    })();
+    flushing = run;
+    void run.finally(() => { if (flushing === run) flushing = null; }).catch(() => {});
+    return run;
+  }
+
+  function retryFlush() {
+    if (closed || sessionDead || retry) return;
+    retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
+    (retry as { unref?: () => void }).unref?.();
+    retryMs = Math.min(retryMs * 2, 5000);
+  }
+
+  async function rebase(tx: StoreTx, apply: () => Promise<void>, acknowledged: Record<string, number> = {}) {
+    await restoreConfirmed(tx, backend.schema);
+    await apply();
+    const watermark = Number(await tx.getMeta("watermark") ?? 0);
+    for (const [id, seq] of Object.entries(acknowledged)) {
+      if (!Number.isSafeInteger(seq) || seq < 0 || seq > watermark) continue;
+      const entry = await tx.side("outbox").get(id) as Queued | undefined;
+      if (entry) await tx.side("outbox").put(id, { ...entry, observedSeq: seq });
+    }
+    const entries = (await tx.side("outbox").all()).map((e) => e.value as Queued).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || a.id.localeCompare(b.id));
+    for (const entry of entries) {
+      if (entry.sentSeq !== undefined && entry.sentSeq <= watermark) { await tx.side("outbox").delete(entry.id); continue; }
+      if (entry.observedSeq !== undefined && entry.observedSeq <= watermark) continue;
+      const program = backend.programs[entry.op];
+      if (!program || !(entry.predictable ?? entry.predicted.length > 0)) continue;
+      try {
+        await predict(tx, backend.schema, program, {
+          viewer: principal, args: entry.args as Record<string, unknown>, now: entry.now ?? Date.now(), newIds: [...entry.newIds],
+          mint: () => { throw new Refused({ code: "E_PREDICT", family: "prediction", message: "replay needs an id that was not fixed before this write was submitted" }); },
+        });
+      } catch (error) {
+        if (!(error instanceof Refused)) throw error;
+        // Its POST may already be in flight with the original IDs. Keep the
+        // admitted write, but stop rendering a prediction we cannot replay.
+        if (error.refusal.code === "E_PREDICT") await tx.side("outbox").put(entry.id, { ...entry, predicted: [], predictable: false });
+      }
     }
   }
+  replica.reconcile = rebase;
 
   async function flushOnce() {
     {
       for (const entry of await queued()) {
-        if (link !== "online") return;
+        if (closed) return;
+        if (entry.sentSeq !== undefined) { await replica.syncOnce(); continue; }
         const result = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.newIds });
-        if (!result.ok) return;
+        if (closed) return;
+        if (!result.ok) { retryFlush(); return; }
         const json = result.json;
-        await store.write(async (tx) => {
-          await tx.side("outbox").delete(entry.id);
-          if (json.state !== "sent") {
-            // The prediction is withdrawn: the rows it wrote go, the stream
-            // restores anything it replaced.
-            for (const key of entry.predicted) {
-              const [table, id] = key.split("/") as [string, string];
-              const row = await tx.get(table, id);
-              if (row && row.pending) await tx.delete(table, id);
-            }
+        const why = (json.why ?? json.denied) as Refusal | undefined;
+        if (why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+        retryMs = 250;
+        await store.write((tx) => rebase(tx, async () => {
+          if (json.state === "sent") {
+            const current = await tx.side("outbox").get(entry.id) as Queued | undefined;
+            if (current) await tx.side("outbox").put(entry.id, { ...current, sentSeq: Number(json.seq ?? 0) });
           }
-        });
-        if (json.denied) await refusedSession(json.denied);
-        settled.get(entry.id)?.(json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) } : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? offline() });
+          else await tx.side("outbox").delete(entry.id);
+        }));
+        settled.get(entry.id)?.(json.state === "sent" ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) } : { state: "failed", id: entry.id, why: why ?? offline() });
         settled.delete(entry.id);
-        if (json.state === "sent" && Number(json.seq) > seq) seq = Number(json.seq);
         if (json.state === "sent") await replica.syncOnce();
-        else for (const watch of watches.values()) void rerun(watch);
+        for (const watch of watches.values()) void rerun(watch);
       }
+
     }
   }
 
@@ -338,8 +437,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const client = {
     replica,
     async sync() {
-      await replica.syncOnce();
-      lastSyncAt = Date.now();
+      if (!closed && !sessionDead) await replica.syncOnce();
     },
     async query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>> {
       return (await runLocal(op as Query<unknown, R>, args)).read;
@@ -377,37 +475,45 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
       const id = mintId();
+      const unavailableWhy = unavailable();
+      if (unavailableWhy) return { state: "failed", id, why: unavailableWhy };
       const seq = ++submissions;
       const program = backend.programs[op.name];
       if (!program) return { state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } };
       const newIds: string[] = [];
       const mint = () => { const minted = mintId(); newIds.push(minted); return minted; };
-      // Predict: run the mutation over the replica; its rows render as pending.
-      let predicted: string[] = [];
-      let refused: Refusal | null = null;
-      try {
-        await store.write(async (tx) => {
-          const interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: args as Record<string, unknown>, now: Date.now(), newIds: [], mint }, "mutation");
-          await interpreter.run(program);
-          predicted = interpreter.writes.map((w) => `${w.table}/${w.row.id}`);
-          await enqueue(tx, { id, seq, op: op.name, args, newIds: [...newIds], predicted });
-        });
-      } catch (error) {
-        if (!(error instanceof Refused)) throw error;
-        if (error.refusal.code === "E_PREDICT") {
-          // Not predictable here: queue it without local rows.
-          await store.write((tx) => enqueue(tx, { id, seq, op: op.name, args, newIds: [], predicted: [] }));
-        } else refused = error.refusal;
-      }
-      if (refused) return { state: "failed", id, why: refused };
-      for (const watch of watches.values()) void rerun(watch);
+      const now = Date.now();
+      const tables = operationTables(program, backend.schema);
+      const onlineOnly = [...tables].some((t) => !backend.schema.tables[t]?.sync);
+      // Register before admission: a concurrent flush can see the durable
+      // entry as soon as the transaction commits.
       const outcome = new Promise<Write>((resolve) => settled.set(id, resolve));
+      let refused: Refusal | null = null;
+      await track((async () => {
+        try {
+          await store.write(async (tx) => {
+            const predicted = onlineOnly ? [] : await predict(tx, backend.schema, program, { viewer: principal, args: args as Record<string, unknown>, now, newIds: [], mint });
+            await enqueue(tx, { id, seq, op: op.name, args, now, newIds: [...newIds], predicted, predictable: !onlineOnly });
+          });
+        } catch (error) {
+          if (error instanceof Refused && error.refusal.code === "E_PREDICT") {
+            try { await store.write((tx) => enqueue(tx, { id, seq, op: op.name, args, now, newIds: [], predicted: [], predictable: false })); }
+            catch (failure) { refused = { code: "E_STORE", family: "store", message: `write ${id} was not admitted: ${String(failure)}` }; }
+          } else refused = error instanceof Refused ? error.refusal : { code: "E_STORE", family: "store", message: `write ${id} was not admitted: ${String(error)}` };
+        }
+      })());
+      if (refused) { settled.delete(id); return { state: "failed", id, why: refused }; }
+      if (closed) { settled.delete(id); return { state: "pending", id }; }
+      for (const watch of watches.values()) void rerun(watch);
       void flush();
       if (link !== "online") return { state: "pending", id };
-      const first = await Promise.race([outcome, new Promise<Write>((resolve) => setTimeout(() => resolve({ state: "pending", id }), 4_000))]);
-      return first;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try { return await Promise.race([outcome, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve({ state: "pending", id }), 4_000); })]); }
+      finally { clearTimeout(timer); }
     },
     async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
+      const unavailableWhy = unavailable();
+      if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       // An upload is bytes on the server; there is nothing to queue.
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const uploaded = await uploadAsset(base, headers, doFetch, bytes);
@@ -421,7 +527,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       linkListeners.add(listener);
       return () => linkListeners.delete(listener);
     },
-    viewer: () => viewer,
+    viewer: () => sessionDead ? null : viewer,
     session: () => (sessionDead ? null : session),
     onSession(listener: (session: Session | null) => void) {
       sessionListeners.add(listener);
@@ -432,41 +538,37 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!sessionDead) await endSession();
       await client.close();
     },
-    async close() {
+    close() {
+      if (closing) return closing;
       closed = true;
       aborter.abort();
+      if (retry) clearTimeout(retry);
       watches.clear();
       linkListeners.clear();
       sessionListeners.clear();
-      await replica.close();
+      for (const [id, resolve] of settled) resolve({ state: "pending", id });
+      closing = (async () => {
+        await Promise.allSettled([online.close(), flushing, ...active]);
+        await replica.close();
+        settled.clear();
+      })();
+      return closing;
     },
   };
   // First: catch up, then re-apply any predictions still in the outbox.
   await client.sync();
   await reapplyPredictions();
+  changesSeq = (await replica.state()).watermark;
   replica.follow(waitForChange);
   void flush();
 
-  async function reapplyPredictions() {
-    for (const entry of await queued()) {
-      const program = backend.programs[entry.op];
-      if (!program || entry.predicted.length === 0) continue;
-      try {
-        await store.write(async (tx) => {
-          const interpreter = new Interpreter(tx, backend.schema, { viewer: principal, args: entry.args as Record<string, unknown>, now: Date.now(), newIds: [...entry.newIds], mint: mintId }, "mutation");
-          await interpreter.run(program);
-        });
-      } catch {
-        // The server will judge it; the rows stay absent until then.
-      }
-    }
-  }
+  async function reapplyPredictions() { await store.write((tx) => rebase(tx, async () => {})); }
 
   return client;
 }
 
-async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>): Promise<Backend> {
-  const response = await doFetch(`${base}/schema`, { headers });
+async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<Backend> {
+  const response = await doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) });
   const json = (await response.json()) as { generation: number; schema: SchemaJson; programs: ProgramJson[] };
   return { generation: json.generation, schema: json.schema, programs: Object.fromEntries(json.programs.map((p) => [p.name, p])) };
 }

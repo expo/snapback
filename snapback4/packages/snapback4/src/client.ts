@@ -70,22 +70,32 @@ export function createClient(options: ClientOptions): Client {
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   const token = options.session?.token ?? options.token;
   if (token) headers.authorization = `Bearer ${token}`;
-  const viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.session ? (options.session.principal as Principal) : null;
-  let link: Link = viewer ? "online" : "signed-out";
+  let viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.session ? (options.session.principal as Principal) : null;
+  let credentials = Boolean(viewer || token);
+  let link: Link = credentials ? "online" : "signed-out";
   let closed = false;
   const aborter = new AbortController();
+  const requests = new Set<Promise<unknown>>();
+  let closing: Promise<void> | undefined;
   let seq = 0;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
   const pending: { id: string; op: Mutation<unknown, unknown>; args: unknown; resolve: (write: Write) => void }[] = [];
 
   const setLink = (next: Link) => {
+    if (closed) return;
     if (link === next) return;
     link = next;
     for (const listener of linkListeners) listener(next);
     if (next === "online") {
       void flush();
       for (const watch of watches.values()) void refresh(watch);
+    } else if (next === "signed-out") {
+      for (const watch of watches.values()) {
+        watch.lastServer = null;
+        watch.snapshot = { denied: auth() };
+        notify(watch);
+      }
     } else {
       for (const watch of watches.values()) {
         if (watch.lastServer) {
@@ -97,28 +107,51 @@ export function createClient(options: ClientOptions): Client {
   };
 
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+  const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
+  const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
 
-  async function post(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+  function post(path: string, body: unknown) {
+    const request = sendPost(path, body);
+    requests.add(request);
+    void request.finally(() => requests.delete(request)).catch(() => {});
+    return request;
+  }
+
+  async function sendPost(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+    if (closed) return { ok: false };
+    let encoded: string;
+    try { encoded = JSON.stringify(body); }
+    catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: encoded, signal: aborter.signal });
       const json = (await response.json()) as Record<string, unknown>;
-      if (response.status === 503) return { ok: false };
-      if (link !== "online" && viewer) setLink("online");
+      if (closed) return { ok: false };
+      if (response.status >= 500) { setLink("offline"); return { ok: false }; }
+      if (((json.denied ?? json.why) as Refusal | undefined)?.code === "E_AUTH") {
+        viewer = null;
+        credentials = false;
+        delete headers.authorization;
+        delete headers["x-snapback-persona"];
+        setLink("signed-out");
+      }
+      else if (credentials && typeof json.viewer === "string") viewer = json.viewer as Principal;
+      if (link !== "online" && credentials) setLink("online");
       return { ok: true, json };
     } catch {
-      if (viewer) setLink("offline");
+      if (credentials) setLink("offline");
       return { ok: false };
     }
   }
 
   async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number }> {
-    if (!viewer) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq };
+    if (closed) return { read: { denied: ended() }, tables: [], seq };
+    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq };
     const result = await post(`/q/${op.name}`, { args });
+    if (!credentials) return { read: { denied: auth() }, tables: [], seq };
     if (!result.ok) return { read: { denied: offline() }, tables: [], seq };
     const json = result.json;
-    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: [], seq };
+    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq };
     const at = Number(json.seq ?? 0);
-    if (at > seq) seq = at;
     const next = (json.next as Cursor | null | undefined) ?? null;
     return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables: (json.tables as string[] | undefined) ?? [], seq: at };
   }
@@ -128,6 +161,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   async function refresh(watch: Watch) {
+    if (closed) return;
     if (watch.inFlight) {
       watch.dirty = true;
       return;
@@ -136,10 +170,10 @@ export function createClient(options: ClientOptions): Client {
     try {
       const { read, tables } = await runQuery(watch.op, watch.args);
       if (closed) return;
+      watch.tables = new Set(tables);
       if ("data" in read) {
         watch.lastServer = read;
         watch.lastServerAt = Date.now();
-        watch.tables = new Set(tables);
         watch.snapshot = read;
       } else if ("denied" in read && read.denied.code === "E_OFFLINE" && watch.lastServer) {
         watch.snapshot = { ...watch.lastServer, fresh: false, since: watch.lastServerAt };
@@ -157,31 +191,32 @@ export function createClient(options: ClientOptions): Client {
   }
 
   let polling = false;
+  let generation: number | undefined;
   async function poll() {
     if (polling) return;
     polling = true;
     while (!closed && watches.size > 0) {
       if (link !== "online") {
         await new Promise((r) => setTimeout(r, 1000));
-        if (viewer && link === "offline") {
-          const probe = await post("/q/__probe", {});
-          if (probe.ok) setLink("online");
-        }
+        if (!closed && credentials && link === "offline") await post("/q/__probe", {});
         continue;
       }
       try {
         const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
-        const json = (await response.json()) as { seq: number; tables: string[] };
-        if (json.seq > seq) {
-          seq = json.seq;
+        if (!response.ok) throw new Error(`changes: HTTP ${response.status}`);
+        const json = (await response.json()) as { seq: number; tables: string[]; generation?: number };
+        const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
+        generation = json.generation;
+        if (json.seq > seq || changedGeneration) {
+          seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
           for (const watch of watches.values()) {
-            if ([...watch.tables].some((t) => touched.has(t))) void refresh(watch);
+            if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
       } catch {
         if (closed) break;
-        if (viewer) setLink("offline");
+        if (credentials) setLink("offline");
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
@@ -192,26 +227,45 @@ export function createClient(options: ClientOptions): Client {
     const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args });
     if (!result.ok) return false;
     const json = result.json;
+    if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
-      if (at > seq) seq = at;
       entry.resolve({ state: "sent", id: entry.id, seq: at });
       for (const watch of watches.values()) void refresh(watch);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
-      entry.resolve({ state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } });
+      const why = (json.why ?? json.denied) as Refusal | undefined;
+      if (!why) return false; // An unrecognized answer does not settle this id.
+      entry.resolve({ state: "failed", id: entry.id, why });
     }
     return true;
   }
 
-  async function flush() {
-    while (pending.length > 0 && link === "online") {
-      const entry = pending[0]!;
-      const sent = await send(entry);
-      if (!sent) return;
-      pending.shift();
-    }
+  let flushing: Promise<void> | null = null;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let retryMs = 250;
+  function flush(): Promise<void> {
+    if (flushing) return flushing;
+    if (retry) { clearTimeout(retry); retry = undefined; }
+    const run = async () => {
+      while (!closed && pending.length > 0 && link !== "signed-out") {
+        const entry = pending[0]!;
+        if (!await send(entry)) {
+          if (closed || !credentials) return;
+          retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
+          (retry as { unref?: () => void }).unref?.();
+          retryMs = Math.min(retryMs * 2, 5000);
+          return;
+        }
+        retryMs = 250;
+        pending.shift();
+      }
+    };
+    const result = run();
+    flushing = result;
+    void result.finally(() => { if (flushing === result) flushing = null; }).catch(() => {});
+    return result;
   }
 
   const client: Client = {
@@ -240,6 +294,7 @@ export function createClient(options: ClientOptions): Client {
           if (watches.get(own.key) !== own) {
             watches.set(own.key, own);
             void refresh(own);
+            void poll();
           }
           return () => {
             mine.delete(notifyMe);
@@ -254,26 +309,20 @@ export function createClient(options: ClientOptions): Client {
     },
     async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
       const id = mintId();
-      if (!viewer) return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } };
+      if (closed) return { state: "failed", id, why: ended() };
+      if (!credentials || link === "signed-out") return { state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } };
       let settle!: (write: Write) => void;
       const settled = new Promise<Write>((resolve) => { settle = resolve; });
       const entry = { id, op: op as Mutation<unknown, unknown>, args, resolve: settle };
-      if (link === "offline" || pending.length > 0) {
-        pending.push(entry);
-        void flush();
-        return { state: "pending", id };
-      }
       pending.push(entry);
-      const sent = await send(entry);
-      if (sent) {
-        pending.shift();
-        return settled;
-      }
-      // Durable admission on this device: the write waits for the link.
-      return { state: "pending", id };
+      const attempt = flush();
+      if (link !== "online") return { state: "pending", id };
+      return Promise.race([settled, attempt.then((): Write => ({ state: "pending", id }))]);
+
     },
     async upload(bytes) {
-      if (!viewer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
+      if (closed) return { ok: false, why: ended() };
+      if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
       const uploaded = await uploadAsset(base, headers, doFetch, bytes);
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
@@ -286,11 +335,16 @@ export function createClient(options: ClientOptions): Client {
       return () => linkListeners.delete(listener);
     },
     viewer: () => viewer,
-    async close() {
+    close() {
+      if (closing) return closing;
       closed = true;
       aborter.abort();
+      if (retry) clearTimeout(retry);
       watches.clear();
       linkListeners.clear();
+      for (const entry of pending) entry.resolve({ state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } });
+      closing = Promise.allSettled([flushing, ...requests]).then(() => { pending.length = 0; });
+      return closing;
     },
   };
   return client;

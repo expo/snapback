@@ -92,7 +92,38 @@ impl Project {
     pub fn open_engine(&self, bound: &Bound) -> Result<Engine, RuntimeError> {
         std::fs::create_dir_all(self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
         let store = Store::open(&self.store_path())?;
+        if store.meta("release")?.is_some() {
+            return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into()));
+        }
         Engine::new(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()))
+    }
+
+    /// Inspection attaches to existing data and never installs the working
+    /// directory's source or creates a store as a side effect.
+    pub fn open_store(&self) -> Result<Store, RuntimeError> {
+        let path = self.store_path();
+        if !path.is_file() {
+            return Err(RuntimeError::Store(format!("no store at {}; run `snapback4 dev` first", path.display())));
+        }
+        Store::open(&path)
+    }
+
+    /// The release's compiled authoring metadata must describe the persisted
+    /// programs we attach to. Neither stale selection nor edited release
+    /// source is permission to activate another backend during startup.
+    // @ref LLP 3000.000#the-atomic-object-to-define — startup attaches to the persisted activation
+    pub fn open_release_engine(&self, bound: &Bound, release: u64) -> Result<Engine, RuntimeError> {
+        let store = self.open_store()?;
+        if store.meta("release")?.is_none() {
+            return Err(RuntimeError::Generation("this deployment predates stored release activations; deploy its source once before serving".into()));
+        }
+        let engine = Engine::attach_release(store, release)?;
+        let same_programs = bound.programs.len() == engine.programs().count()
+            && bound.programs.iter().all(|bound| engine.program(&bound.program.name) == Some(&bound.program));
+        if engine.schema() != &bound.schema || !same_programs {
+            return Err(RuntimeError::Generation("release source differs from its activated backend; deploy the source as a new release".into()));
+        }
+        Ok(engine)
     }
 }
 

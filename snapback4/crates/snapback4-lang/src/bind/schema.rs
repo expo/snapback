@@ -311,10 +311,17 @@ fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
         Expr::Name { name, .. } => Err(unknown(site, format!("`{name}` is not a rule term; rules read the row as .{name}"), format!(".{name}"))),
         Expr::Literal { value, .. } => Ok(match value {
             Literal::Str(text) => (RuleTerm::Literal(Value::String(text.clone())), Ty::Text(text.chars().count() as u32)),
-            Literal::Number(text) => (RuleTerm::Literal(Value::Int(text.parse().unwrap_or(0))), Ty::Int),
+            Literal::Number(text) => (RuleTerm::Literal(Value::Int(super::integer_literal(text, site)?)), Ty::Int),
             Literal::Bool(b) => (RuleTerm::Literal(Value::Bool(*b)), Ty::Bool),
             Literal::Null => (RuleTerm::Literal(Value::Null), Ty::Null),
         }),
+        Expr::Unary { op, value, .. } if op == "-" => {
+            let (term, _) = rule_term(catalog, info, value, bindings)?;
+            match term {
+                RuleTerm::Literal(Value::Int(n)) => Ok((RuleTerm::Literal(Value::Int(-n)), Ty::Int)),
+                _ => Err(type_error(site, "a negative rule literal needs an integer", "compare .column with an integer literal")),
+            }
+        }
         other => {
             let _ = catalog;
             Err(unknown(site, format!("`{}` is not a rule term", crate::print::expression(other)), "compare .column with viewer or a literal"))
@@ -332,6 +339,7 @@ fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
 /// Bind `exists t[keys]` inside a rule: the target's index by key arity and
 /// names, the terms over the focal row.
 pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, update: bool) -> Fallible<(String, String, Vec<RuleTerm>)> {
+    super::validate_key_names(read)?;
     let Some(target) = catalog.tables.get(&read.table) else {
         return Err(unknown(site, format!("exists probes unknown table {}", read.table), name_rewrite(&read.table, catalog.tables.keys().map(String::as_str), None)));
     };
@@ -362,7 +370,7 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
                     None => types.get(position),
                 };
                 let expected = if column == "id" { Ty::Ref(read.table.clone()) } else { target.columns.get(column).map(Ty::from_scalar).unwrap_or(Ty::Unknown) };
-                ty.is_none_or(|ty| ty.comparable(&expected))
+                ty.is_some_and(|ty| ty.comparable(&expected))
             })
         })
         .collect();
@@ -378,7 +386,10 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
         }
     };
     let mut ordered: Vec<RuleTerm> = match &named {
-        Some(names) => index.columns.iter().map(|column| terms[names.iter().position(|n| n == column).unwrap()].1.clone()).collect(),
+        Some(names) => index.columns.iter().map(|column| {
+            let position = names.iter().position(|n| n == column).ok_or_else(|| unknown(site, format!("key omits column {column} of {}.{}", read.table, index.name), format!("name each column once: {}", index.columns.join(", "))))?;
+            Ok(terms[position].1.clone())
+        }).collect::<Fallible<_>>()?,
         None => terms.into_iter().map(|(_, term)| term).collect(),
     };
     // Literals take the column's nominal form: an id in an identity column,

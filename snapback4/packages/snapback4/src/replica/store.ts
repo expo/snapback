@@ -37,6 +37,8 @@ export interface StoreTx {
   lookup(table: string, index: string, key: readonly unknown[]): Promise<Row | undefined>;
   scan(table: string, index: string, prefix: readonly unknown[], bounds: Bounds, dir: "asc" | "desc", limit: number): Promise<{ row: Row; key: Uint8Array }[]>;
   count(table: string, index: string, prefix: readonly unknown[], limit: number): Promise<number>;
+  /** Clear rows and indexes inside this transaction; metadata and side tables stay. */
+  clearRows(): Promise<void>;
   put(table: string, row: Row): Promise<void>;
   delete(table: string, id: string): Promise<void>;
   getMeta(key: string): Promise<unknown>;
@@ -50,6 +52,7 @@ export interface SideTx {
   put(key: string, value: unknown): Promise<void>;
   delete(key: string): Promise<void>;
   all(): Promise<{ key: string; value: unknown }[]>;
+  page(after: string | undefined, limit: number): Promise<{ key: string; value: unknown }[]>;
   clear(): Promise<void>;
 }
 
@@ -130,28 +133,47 @@ export class MemoryStore implements Store {
   constructor(public schema: SchemaJson) {}
   setSchema(schema: SchemaJson) { this.schema = schema; }
 
+  private queue: Promise<unknown> = Promise.resolve();
+
   private tx(): StoreTx {
     const self = this;
-    const entries = (table: string, index: string) => {
+    const ownedRows = new Set<string>(), ownedIndexes = new Set<string>(), ownedSides = new Set<string>();
+    const rowsForWrite = (table: string) => {
+      if (!ownedRows.has(table)) {
+        self.rows.set(table, new Map(self.rows.get(table)));
+        ownedRows.add(table);
+      }
+      return self.rows.get(table)!;
+    };
+    const entries = (table: string, index: string, writing = false) => {
       const name = `${table}.${index}`;
-      let list = self.indexes.get(name);
-      if (!list) { list = []; self.indexes.set(name, list); }
-      return list;
+      if (writing && !ownedIndexes.has(name)) {
+        self.indexes.set(name, [...self.indexes.get(name) ?? []]);
+        ownedIndexes.add(name);
+      }
+      return self.indexes.get(name) ?? [];
     };
     const side = (name: string): SideTx => {
-      let map = self.sides.get(name);
-      if (!map) { map = new Map(); self.sides.set(name, map); }
-      const m = map;
+      const map = () => self.sides.get(name);
+      const writable = () => {
+        if (!ownedSides.has(name)) {
+          self.sides.set(name, new Map(map()));
+          ownedSides.add(name);
+        }
+        return self.sides.get(name)!;
+      };
       return {
-        async get(key) { return m.get(key); },
-        async put(key, value) { m.set(key, structuredClone(value)); },
-        async delete(key) { m.delete(key); },
-        async all() { return [...m.entries()].map(([key, value]) => ({ key, value })); },
-        async clear() { m.clear(); },
+        async get(key) { return structuredClone(map()?.get(key)); },
+        async put(key, value) { writable().set(key, structuredClone(value)); },
+        async delete(key) { writable().delete(key); },
+        async all() { return [...map()?.entries() ?? []].map(([key, value]) => ({ key, value: structuredClone(value) })); },
+        async page(after, limit) { return [...map()?.keys() ?? []].sort().filter((key) => after === undefined || key > after).slice(0, limit).map((key) => ({ key, value: structuredClone(map()?.get(key)) })); },
+        async clear() { self.sides.set(name, new Map()); ownedSides.add(name); },
       };
     };
     return {
-      async get(table, id) { return self.rows.get(table)?.get(id); },
+      async clearRows() { self.rows.clear(); self.indexes.clear(); ownedRows.clear(); ownedIndexes.clear(); },
+      async get(table, id) { return structuredClone(self.rows.get(table)?.get(id)); },
       async lookup(table, index, key) {
         const { kinds } = indexKinds(self.schema, table, index);
         const prefix = encodeKey(key.map((v, i) => [kinds[i] ?? "string", v] as [Kind, unknown]));
@@ -159,7 +181,7 @@ export class MemoryStore implements Store {
         const at = lowerBoundIndex(list, prefix);
         const entry = list[at];
         if (!entry || compareKeys(entry.key, upperBound(prefix)) >= 0) return undefined;
-        return self.rows.get(table)?.get(entry.id);
+        return structuredClone(self.rows.get(table)?.get(entry.id));
       },
       async scan(table, index, prefix, bounds, dir, limit) {
         const range = scanRange(self.schema, table, index, prefix, bounds, dir);
@@ -172,12 +194,12 @@ export class MemoryStore implements Store {
         if (dir === "asc") {
           for (let i = start; i < end && out.length < limit; i++) {
             const row = self.rows.get(table)?.get(list[i]!.id);
-            if (row) out.push({ row, key: list[i]!.key });
+            if (row) out.push({ row: structuredClone(row), key: list[i]!.key.slice() });
           }
         } else {
           for (let i = end - 1; i >= start && out.length < limit; i--) {
             const row = self.rows.get(table)?.get(list[i]!.id);
-            if (row) out.push({ row, key: list[i]!.key });
+            if (row) out.push({ row: structuredClone(row), key: list[i]!.key.slice() });
           }
         }
         return out;
@@ -189,13 +211,12 @@ export class MemoryStore implements Store {
         return Math.min(limit, lowerBoundIndex(list, range[1]) - lowerBoundIndex(list, range[0]));
       },
       async put(table, row) {
-        let rows = self.rows.get(table);
-        if (!rows) { rows = new Map(); self.rows.set(table, rows); }
+        const rows = rowsForWrite(table);
         const old = rows.get(row.id);
         const definition = self.schema.tables[table];
         if (!definition) throw new Error(`unknown table ${table}`);
         for (const index of Object.keys(definition.indexes)) {
-          const list = entries(table, index);
+          const list = entries(table, index, true);
           if (old) {
             const before = indexKey(self.schema, table, index, old);
             const at = lowerBoundIndex(list, before);
@@ -211,29 +232,48 @@ export class MemoryStore implements Store {
         const old = rows?.get(id);
         if (!old) return;
         for (const index of Object.keys(self.schema.tables[table]?.indexes ?? {})) {
-          const list = entries(table, index);
+          const list = entries(table, index, true);
           const before = indexKey(self.schema, table, index, old);
           const at = lowerBoundIndex(list, before);
           if (list[at] && compareKeys(list[at]!.key, before) === 0) list.splice(at, 1);
         }
-        rows!.delete(id);
+        rowsForWrite(table).delete(id);
       },
-      async getMeta(key) { return self.meta.get(key); },
-      async setMeta(key, value) { self.meta.set(key, value); },
+      async getMeta(key) { return structuredClone(self.meta.get(key)); },
+      async setMeta(key, value) { self.meta.set(key, structuredClone(value)); },
       side,
     };
   }
 
-  async read<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> { return body(this.tx()); }
-  async write<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> { return body(this.tx()); }
-  async clearRows() { this.rows.clear(); this.indexes.clear(); }
-  async close() {}
+  private run<T>(body: (tx: StoreTx) => Promise<T>, write: boolean): Promise<T> {
+    const result = this.queue.then(async () => {
+      const previous = { rows: this.rows, indexes: this.indexes, meta: this.meta, sides: this.sides };
+      // Copy only containers this transaction changes. Row/side values and
+      // index keys are immutable internally; get/put clone at the boundary.
+      // Outbox metadata must not deep-copy an otherwise untouched replica.
+      if (write) {
+        this.rows = new Map(previous.rows);
+        this.indexes = new Map(previous.indexes);
+        this.meta = new Map(previous.meta);
+        this.sides = new Map(previous.sides);
+      }
+      try { return await body(this.tx()); }
+      catch (error) { if (write) Object.assign(this, previous); throw error; }
+    });
+    this.queue = result.catch(() => {});
+    return result;
+  }
+  read<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> { return this.run(body, false); }
+  write<T>(body: (tx: StoreTx) => Promise<T>): Promise<T> { return this.run(body, true); }
+  clearRows() { return this.write((tx) => tx.clearRows()); }
+  async close() { await this.queue; }
+
 }
 
 // ---------------------------------------------------------------------------
 // IndexedDB.
 
-const STORES = ["rows", "idx", "meta", "outbox", "predicted", "log"] as const;
+const STORES = ["rows", "idx", "meta", "outbox", "predicted", "log", "snapshot"] as const;
 
 /** IndexedDB compares binary keys byte-wise; hand it a plain ArrayBuffer. */
 function idbKey(bytes: Uint8Array): ArrayBuffer {
@@ -249,7 +289,7 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
 
 export async function openIndexedDb(name: string, schema: SchemaJson): Promise<Store> {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const open = indexedDB.open(name, 1);
+    const open = indexedDB.open(name, 2);
     open.onupgradeneeded = () => {
       const database = open.result;
       for (const store of STORES) if (!database.objectStoreNames.contains(store)) database.createObjectStore(store);
@@ -290,10 +330,17 @@ class IndexedDbStore implements Store {
           const values = await request(store.getAll());
           return keys.map((key, i) => ({ key: String(key), value: values[i] }));
         },
+        page: async (after, limit) => {
+          const range = after === undefined ? undefined : IDBKeyRange.lowerBound(after, true);
+          const keys = await request(store.getAllKeys(range, limit));
+          const values = await request(store.getAll(range, limit));
+          return keys.map((key, i) => ({ key: String(key), value: values[i] }));
+        },
         clear: async () => { await request(store.clear()); },
       };
     };
     const api: StoreTx = {
+      async clearRows() { await request(rows.clear()); await request(idx.clear()); },
       get: (table, id) => request(rows.get([table, id])) as Promise<Row | undefined>,
       async lookup(table, index, key) {
         const { kinds } = indexKinds(schema, table, index);
@@ -384,10 +431,7 @@ class IndexedDbStore implements Store {
     }
   }
 
-  async clearRows() {
-    const transaction = this.db.transaction(["rows", "idx", "predicted"], "readwrite");
-    await Promise.all([request(transaction.objectStore("rows").clear()), request(transaction.objectStore("idx").clear()), request(transaction.objectStore("predicted").clear())]);
-  }
+  clearRows() { return this.write((tx) => tx.clearRows()); }
 
   async close() { this.db.close(); }
 }
