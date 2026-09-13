@@ -237,8 +237,8 @@ adds the reviewed pool helper/test there and retains the drain fix, response
 ceiling and newly added query metadata. No second vendor copy or manifest is
 introduced. The earlier profile/HTTP experiments predate those other main
 changes and do not qualify the integrated candidate's latency. The
-[open transport issue](../../../issues/20260913-snapback4-keepalive-connection-pool-stalls.md)
-records the prepared fix, review and remaining integration qualification.
+[resolved transport issue](../../../issues/closed/20260913-snapback4-keepalive-connection-pool-stalls.md)
+records the prepared fix, review, integrated qualification and landing.
 
 ## Integrated 0.1.16 production profile, trials 12–14
 
@@ -293,10 +293,31 @@ bound tests and the SQLite-free core build. Linux passed the Rust workspace,
 typechecks/build and client tests; its React browser lifetime group was
 skipped because Chromium is unavailable. A missing shared fixture pack was
 copied from the committed repository and all nine fixture tests passed on
-rerun. These separate checks are not a single passing timed Linux suite;
-Darwin's complete publication qualification follows delivery. References
+rerun. These separate checks are not a single passing timed Linux suite.
+The complete Darwin publication suite subsequently passed in 112 s: all Rust
+groups, nine fixture tests and all 94 client tests, with no skips. Its
+fifteen-test simulator group took 10.24 s. A sampled pre-main loader pause
+recurred, and the 60 s budget issue remains open. References
 validated with 471 LLPs, 8,682 references, zero errors and zero unchecked.
 Independent source review found no material issue in the integrated runtime.
+
+The runtime and comparison record landed at `d5215e6d2`. The existing
+publication path then passed its installed-consumer proof and published
+`snapback4@0.1.16` and `snapback4-darwin-arm64@0.1.16` at
+2026-09-13T08:14:25.337Z. Registry metadata and downloaded tarballs were
+verified independently, including the exact production binary hash and
+upstream dependency notice. The Darwin ARM64 binary is 2,727,360 B, SHA-256
+`f419528dbb1c2cff73cc98547cbcdc3969d526e1b299ce39406ee1c180911429`.
+The client tarball is 72,025 B and the platform tarball 1,669,125 B.
+Publication took 451.8 s. Pre-main loader pauses were sampled in the version
+probe and the installed CLI's `/usr/bin/env` launcher as well as the test
+process; no underlying macOS cause is claimed. This host's launch delays
+are separate from the Linux HTTP comparison.
+
+Registry integrity:
+
+- Client: `sha512-Cb+nAvlQvpNoQ7GoU9u3V/WfjJALW5CjDehjpFT5VQjn2TDz507RbKu0qpwsjg7L9RUEmfbYKuVpVOs5FIrahw==`
+- Darwin ARM64: `sha512-96bYjuhvRsjITJKbyspan21MyQpeQYAXdMY5NKwFBJzQc2llHTmDeWr8C2dEDptLfqbAH+2nBFsnh3OiqvdPZg==`
 
 ## Simulator observation follow-up
 

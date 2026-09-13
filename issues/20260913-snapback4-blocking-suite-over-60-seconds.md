@@ -70,7 +70,19 @@ lacked the shared root benchmark fixture pack. With that exact committed
 pack copied, all nine fixture tests passed separately in 40.716 s. The React
 browser lifetime group was skipped because Chromium is absent in the VM;
 the native process-core test passed. These separate runs establish no
-complete-suite budget pass. The Darwin publication repeat remains pending.
+complete-suite budget pass.
+
+The integrated Darwin publication suite at landed `d5215e6d2` subsequently
+passed every stage in 112 s: all Rust groups, nine fixture tests and all
+94 client tests, with no skips. The simulator's fifteen-test group took
+10.24 s, fixture tests 6.377 s and client tests 10.559 s. At 55 s after the
+first test executable launched, another one-second sample caught it at
+`_dyld_start + 0` in all 93 samples, with a 96 KiB footprint and no binary
+image list. It later ran successfully. This is further evidence of an
+intermittent pre-main pause on this host, not an explanation for every
+second of the run or a suite-budget pass. Evidence:
+`production-016-publish.log`, `production-publish-processes.jsonl`, and
+`production-suite-sample-3189.txt` in the same ignored run directory.
 
 Resolution: restore the existing complete suite to the 60 s budget on an
 appropriately idle documented host, without dropping correctness assertions,

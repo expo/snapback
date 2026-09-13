@@ -1,6 +1,6 @@
 # Snapback 4: accepted keep-alive connections can wait seconds for a worker
 
-**Status:** Open
+**Status:** Resolved
 **Priority:** P0
 **Date:** 2026-09-13
 **Systems:** `snapback4`, tiny_http 0.12.0 connection dispatch
@@ -29,10 +29,10 @@ throughput was 215.2 versus 1,528.8 requests/s. Every run reverified all 100,000
 rows and asserted every timed result. This establishes a stall/throughput
 improvement; it is not a uniform p50/p95 or competitor win.
 
-The reviewed deliverable is a trimmed tiny_http 0.12.0 library with the queue
+The prepared review used a trimmed tiny_http 0.12.0 library with the queue
 fix, a private dispatch helper for its regression, the original README and
 both licenses. The tested HTTP experiment changed only the predicate; the
-helper/test form still needs integrated product qualification. The registry
+helper/test form was subsequently qualified after integration below. The registry
 archive checksum is
 `389915df6413a2e74fb181895f933386023c71110878cd0825588928e64cdc82`.
 
@@ -58,11 +58,13 @@ Linux. In fresh production-profile comparisons (trials 12–14), all 24,000
 Snapback requests passed their assertions and the maximum latency was
 124.371 ms. Each run included connection expansion and full fixture
 verification. Both competitor backends were remeasured in the same rotating
-batch. The [catalog record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
-retains the raw records and remaining competitor gaps. Delivery and
-publication remain pending.
+batch. The [catalog record](../../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+retains the raw records and remaining competitor gaps.
 
-Resolution: deliver the approved reproducible dependency fix, run the existing
-HTTP lifecycle tests against that integrated binary, and repeat the matched
-catalog workload including its connection-expansion interval. Do not hide the
-failure by disabling keep-alive or adding concurrent warmups to this record.
+Resolution: the approved fix landed on main in `4e126d206`, followed by its
+production comparison record in `d5215e6d2`. The existing HTTP lifecycle tests
+and matched workload qualified the integrated helper/test form without
+disabling keep-alive or adding concurrent warmups. The complete Darwin
+publication suite then passed every stage in 112 s, including all 94 client
+tests with no skips. The separate suite-budget issue remains open; publication
+status is recorded in the catalog record.
