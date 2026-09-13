@@ -1,0 +1,312 @@
+# Snapback2 offline entrypoint isolation and public projection
+
+Status: Open
+Date: 2026-09-06
+Scope: Snapback2 full R8 candidate 47a7f491a7d7f3b3abd976f2767bf2856a5baf68; unlanded branch.
+
+Fresh independent full-delta reviews require three repairs. Astra reproduced shallow-frozen external rows bypassing recursive isolation through put, construction and rehydrate, causing body/posting disagreement. It also reproduced malformed direct setReceipt range endpoints throwing after old absence authority is removed and partial range metadata installed. Both are inherited on e1c6 and occur in standalone APIs with synthetic private inputs; no public/native exploit is established.
+
+Grok identified a separate inherited held offlineView projection that includes denied data and denied/partial next. R8 repairs the online projection but misses forced-offline, hydration and transport-fallback use of the held result. This finding is source-only until a bounded public-path regression runs.
+
+Repair must isolate arbitrary external nested values, preserve prior receipt authority and dependencies on refusal, and omit the forbidden public fields while retaining complete/capped cursors. Preserve incoming-only validation, indexed lookup, established budgets and original test deadlines. Keep before/final controls and run fresh independent reviews on the final combined source. Size, movement and realistic resident qualification remain separate unfinished work.
+
+[Complete review evidence](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review/README.md). Root authorized serialized repair after the resident preparation writer actually releases. Do not close from intent or a narrow regression alone.
+
+
+## 2026-09-06 — Full R8 round 2 retains two further P2s
+
+The prior three entrypoint repairs are frozen as unlanded cb578e197535290d9c3c7394246584e12459e77a. Its affected public 24/24 and Twin 4/4 controls pass at their original 10s limits; direct Bun indexed assertions have no original per-file deadline. These are scoped implementation results, not closure of full R8 or resource qualification.
+
+Fresh mutually blind full e1c6→cb578 review finds two remaining P2s. Astra reproduces a persistent-admission gap: an empty synthetic checked receipt with incomplete after suffix width can commit before stricter Twin hydration rejects it. Its second reproduction consumes a native Limit page's member or halo through an actual prediction and synthetic queued overlay, then incorrectly reports complete warm/cold without authoritative exhaustion. The second issue is inherited at e1c6; the first combines an inherited acceptance gap with newly throwing post-commit behavior. Grok returns correctness READY by source review, with a separate cold moved-key uncertainty that remains unproven.
+
+Root authorized shared complete-bound prevalidation before any persistent publication, exact refusal/outbox/reopen controls, and distinct page-value versus exhaustion evidence with deletion/movement, warm/cold and later actual Exhausted controls. Preserve the original native-initial-fixture versus synthetic malformed/queued-overlay boundaries. No native emission or public authorization bypass is claimed by those diagnostics. Repair, final full-delta reviews and integration remain pending; keep this ticket Open.
+
+[Full round 2 reports and evidence](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review-r2/README.md). Complete runtime remains 72,709 gzip, 6,709 over 66,000. Original movement failures and current resident qualification remain separate unfinished work.
+
+
+## 2026-09-06 — Cold moved-key uncertainty reproduced
+
+The separate Grok uncertainty now has a bounded exact-cb578 diagnostic. Two later synthetic matching-plan row images move members outside the retained native Limit page. Warm evaluation remains partial, but cold reopen reports capped and selects a moved row ahead of a compatible unheld tail. No/one-move controls remain correct. The initial native program/frame is unchanged; later images are synthetic checked-admission controls, not native-emitted movement. The initial wrong-planHash fixture correctly refused and remains separately preserved.
+
+[Complete diagnostic and source custody](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-cold-movement/README.md). Root authorized a narrow repair using existing immutable issuing key/extent proof with retention/GC/replacement/refusal controls. All three demonstrated findings need final repaired-source review; this ticket stays Open. No wire/privateformat/full-row-cache or resource-budget change is implied.
+
+
+## 2026-09-06 — Full R8 round 3 retains public movement and replacement-custody P2s
+
+The three preceding bounds/exhaustion/cold-issuing-key corrections are frozen in unlanded36feaacc9c5bf2ccede2623653252e67c0152f26. Its scoped Twin10/10 and store6/6 pass their original10s checks; full qualification remains separate.
+
+Fresh full e1c6→36fea review returns Astra NEEDS_CHANGES with two preserved counterexamples and Grok correctness READY by source inspection. A cold public forced-offline query chooses historical capped membership expanded using moved current bodies, omitting the held halo despite local partial coverage. A delayed FULL replacement changes interior immutable issuing keys while newer current bodies stay unchanged; the receipt hash omits that custody dependency, so warm remains capped while cold is partial on identical persisted bytes. Initial fixtures are native26c9; later frames are synthetic authenticated-admission controls. Exact e1c6 attribution and both unsuccessful input-copy setup attempts remain retained. Neither base output nor diagnostic exit0 proves correctness.
+
+Root authorized both repairs within the next coherent ownership replacement: public partial/movement projection through cold, retry and subscription paths; semantic receipt comparison including all issuing keys and missing/fallback availability. Preserve delivered history, exact typed authority, unchanged replay and bounded owner replacement. Keep this ticket Open until repaired final source, fresh review and coherent integration. [Full round3 reports, model/terminal receipts and exact probes](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-full-r8-review-r3/README.md). Runtime73,023gzip remains7,023over66,000; original movement and current resident limits are not waived. Astra's disclosed owner-coordination-file read remains explicit in the evidence.
+
+
+## 2026-09-06 — Shared-image review retains whole-graph ownership and cold-key failures
+
+The public movement and delayed issuing-key repairs are included in unlanded fca223284a3a20cc9aa557ff75e87259d9d94337. Its scoped Linux checks pass, including original10s movement43/43 and cap2/2. Fresh independent Astra/xhigh and nativeGrok4.6/xhigh reviews of direct36fea and full cumulativee1c6 context both return NEEDS_CHANGES.
+
+An equal-body newer FULL leaves separate equal current/effective typed images. Astra additionally demonstrates actual in-process database-adapter ProjectionCache full-row JSON retention, and raw/cold key preparation failing on an omitted optional indexed __proto__ field. The first two are ownership failures without a demonstrated wrong public value; the third uses a synthetic one-row schema/directstore boundary, not a native-emitted certified query. Actual native26c9 initial frames, synthetic successor/driver/schema distinctions and before-fix rawresults are retained.
+
+Root authorized the sole descendant writer to repair allthree, preserving exact equality, revisions/issuingkeys/rollback, colddeletion and failedtransactionbaselines, genericJSONisolation and sparse omission. No full row mirror, globalinternregistry or schema ban. No completed repair or closure is claimed; keep this ticket Open through repairedsource review and coherent integration. [Full reviews and rawprobe/model/terminal evidence](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-option1-review/README.md). Fixedwhole-runtime74243gzip remains8243over66000; currentresident/phone/system qualification is pending.
+
+
+## 2026-09-07 — Image-dedup review finds reset completion reappearing after reopen
+
+The prior current-image/adapter payload-mirror/raw optional-key repairs are frozen in unlanded 2ce04895fa833ef40d8aad4e06b86c4ddae29a8c. Fresh mutually blind full-context native Astra/xhigh returns NEEDS_CHANGES and Grok 4.6/xhigh returns scoped correctness READY. Astra demonstrates an inherited public completeReset durability defect: memory clears superseded after rebuilding 11 rows, but metadataChanges omits its three persisted child deletions, so close/open restores the pending reset. The checked initial program/frame is native 26c9; the storage driver is a synthetic transactional map behind shipped SqliteBackend JavaScript. Base attribution is source-only, not native/old-build execution; no queued-write loss is claimed.
+
+Root authorized keyed metadata-root deletion/replacement ownership within the sole range successor, preserving the body-free baseline, bounded changed-root work and transaction rollback. Actual Node SQLite and FakeIndexedDB reset/rebuild/complete/reopen, failed publication/retry and object-to-scalar/absent controls remain required. Keep this ticket Open through repaired final source, fresh review and coherent integration. [Both full reports and exact probe/model/terminal custody](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-image-dedup-review/README.md). Whole runtime 74,399 gzip remains 8,399 over 66,000; scoped movement 43/43 and evaluator checks do not qualify resident/phone/native integration or waive historical failures.
+
+
+## 2026-09-07 — Frozen range review finds generic metadata normalization mismatch
+
+Fresh mutually blind review of unlanded 23a0e54e82106ae28090bd379e197fcb0f7717d6 returns Astra NEEDS_CHANGES and Grok scoped READY. Astra executed identical tiny projection diagnostics on e1c6, 2ce, and 23a0: existing object/array children changed to undefined refuse, while a metadata-root array ending in holes silently loses length. Generic ProjectionCache splits children before applying the promised JSON form. Exact current public SqliteBackend source with a synthetic transactional Map driver confirms refusal-before-transaction/old-state retention for undefined, and a committed wrong empty array on reopen. This is an inherited public backend seam defect, distinct from the now-repaired F1 removed-root cleanup; no native, real SQLite, partial publication or queued-write-loss claim.
+
+Root authorized the same successor author to restore generic JSON omission/null/array-length semantics before split, preserving journal-bounded warm work, keys-only root ownership, failed publication/retry, cold reopening and outbox. Keep this ticket Open pending actual repair, fresh review and coherent integration. [Both complete reports and exact source/probe/model/terminal custody](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-range-preparation-review/README.md). Original full five-root measurement of 75,799 gzip remains 9,799 over 66,000; no resource waiver or current resident/phone qualification.
+
+
+## 2026-09-07 — Frozen runtime redesign review identifies canonical domain fallback regression
+
+Fresh mutually blind review of unlanded 82c43ca456022682670941494dd828e099fca3d8 versus 23a0 returns Astra NEEDS_CHANGES and Grok scoped READY. No additional demonstrated projection/traversal regression was found, but Astra's source-bound direct canonicalProgramJson probe finds two introduced hash changes for malformed singleton loop-domain containers. Parent reconstructs a tagged object; the shared dispatcher keeps the original string/array. Three exact controls remain equal. These are synthetic hasher inputs, not admitted native programs or an authorization bypass.
+
+Root authorized a narrow isolated fallback repair preserving opaque payload order plus all five original controls and affected verification. This append does not claim completed repair, ticket closure or coherent integration. [Full closed reviews and exact source/probe/model/terminal evidence](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-runtime-redesign-review/README.md). Complete five-root 75,815 gzip remains 9,815 over 66,000, separate from correctness; no resource, native/main integration or phone clearance.
+
+
+## 2026-09-07 — Canonical domain fallback repair passes fresh narrow review
+
+Isolated local commit0ecd6015a7a1f0c291a224baef37f832b6b3154a restores the parent wrapper for malformed singleton domains without changing opaque payload order or other dispatch/refusal paths. All five exact parent controls and the original full evaluator pass. Fresh native Astra/xhigh and Grok4.6/xhigh reviews are both READY for the two-file delta; Astra's disclosed filename-enumeration limitation remains recorded. No new reviewer product probe was needed.
+
+[Full repair, before/after evidence, exact source and closed review terminals](../../benchmarks/runs/2026-09-06-clique-improvement/evidence/offline-domain-fallback-repair/README.md). Keep this issue Open pending coherent cumulative integration and remaining qualifications. Base82c43 full-five-root75,815gzip still fails66,000;0ecd was not remeasured. No product landing, native/compiler alignment or phone/resource clearance is asserted by this evidence append.
+
+### 2026-09-07 — Unicode packet size hypothesis rejected
+
+The isolated two-file candidate `e2f6c726d4b2f359aa33bd7e917d0ac05bb04c33` preserved all seven sequences/five arrays and passed the original-limit package/evaluator checks, but its ONE unchanged full-five-root Node gzip9 measurement was **76,300 bytes**, **485 larger** than 82c43 and **10,300 over 66,000**. It is rejected for size and is not a product landing. No second variant, altered measurement boundary or unmeasured startup rationale was used. Exact source, actual model/terminal, full measured bundle and raw results are retained in `revisions/twin-unicode-packet-rejection/`; the source-only next design does not clear any size or resident requirement. Existing issue remains open; the separately reviewed fallback 0ecd repair is unchanged.
+
+### 2026-09-07 — Broader structural codec experiment rejected for size
+
+The isolated four-file checkpoint `b1c9e956235939a721fe56d0851a72611897a782` replaces tagged/wire admission and canonical construction bodies with a finite structural codec. Its final 2,425-policy plus legacy outputs exactly match the runtime-matched parent under both Node and Bun, and all 129 selected public tests pass at their original limits. The first parent capture setup error, four added boundary discrepancies and original 15 Bun differences remain preserved with their source snapshots.
+
+The ONE unchanged full-five-root Node gzip9 measurement is **76,335 bytes**, **520 above the historical 82c43 anchor** and **10,335 over 66,000**. The selected 0ecd parent was not separately measured. Under the agreed conservative comparison rule this experiment is rejected; its code is not a product landing or a retained size fix. [Exact experiment evidence](../../revisions/twin-structural-codec-rejection/README.md) preserves the original measurement, source, affected results and actual author termination. Keep this issue Open. The separately reviewed 0ecd fallback repair and existing resource, resident and cumulative integration requirements remain unchanged.
+
+## Remaining scope — reconciled 2026-09-08
+
+The unlanded-candidate framing above is historical after qualified LLP 1018.000 integration. Keep the ticket open until each preserved counterexample is mapped to its final executing regression. Retain the rejected codec experiments and historical failures. The current explicit complete-runtime ceiling is 82,500 bytes gzip with an 80,000 target, separately from historical 66,000-byte misses; final integrated runtime was 82,085. Full native/Chrome/Expo qualification is recorded, but does not by itself discharge every resource/resident obligation in this cumulative ticket.
+
+Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.
+
+## Exact cumulative reconciliation — 2026-09-08, d19d9399e
+
+The [frozen source audit and regression matrix](../../benchmarks/runs/2026-09-08-release-cold-headroom/offline-ticket-audit.md)
+maps the retained isolation, authority replacement, public state, extent and
+exhaustion, movement, image ownership, reset durability and canonical-domain
+counterexamples to regressions executed in the combined canonical suite at
+`43e06fa90`. Product/test sources are unchanged at audit pin `d19d9399e`.
+Each native-fixture, synthetic-successor and actual-carrier boundary remains
+explicit; no new test run or native-device proof is claimed by the audit.
+
+The audit also confirms two retained generic metadata source gaps at that pin:
+an existing child changed to undefined can throw, and a trailing-hole root
+array can lose length. Candidate `51e54b785` repairs those paths and passes
+the six focused carrier controls, all 23 SQLite-file tests and both unchanged
+outbox write-count controls at the original per-test deadline. Its failed
+pre-repair baseline is retained. Subsequent review rejected that candidate;
+the additional attempts below are also unpublished.
+
+Keep this ticket open for those qualification steps and the separate resource
+obligations. Before the metadata repair, current complete runtime is 83,227
+gzip bytes under the separately authorized 84,000 allocation, missing the
+80,000 target by 3,227; the combined suite is 83.921s against a 60s target.
+Historical allocation failures and rejected experiments remain unchanged.
+Actual 100-lane media-bearing/max-width, phone peak and full-engine scale-curve
+evidence remain undisclosed by these unit controls; they are not waived.
+
+## Metadata repair attempts — 2026-09-08
+
+All three repair candidates remain unshipped. The first passed functional
+qualification but review found unbounded untouched-array serialization and
+own-property restoration errors. The second passed functional qualification
+but review found wrong `toJSON` property names and corruption of untouched
+coerced roots. Their exact failed/review evidence is retained in the
+[initial](../../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-qualification.json)
+and [second](../../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-r2-qualification.json)
+records.
+
+The third, `ce7f9b00b`, uses per-root metadata records. Its 39 carrier tests,
+two bounded outbox controls, actual published019 downgrade refusal witness,
+and full-engine production qualification pass. The complete canonical run
+fails: 788/837 Node tests pass and49 fail, concentrated in cold reopen;
+865 native tests pass with four skips. Runtime is83,826 gzip under84,000,
+which does not override the functional failures. Exact evidence and retained
+unpublished tarballs are described in the
+[third record](../../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-r3-qualification.json).
+
+Root and the implementer independently identified the first-write omission:
+an empty committed metadata cache takes the incremental path, writing the
+constant header and touched roots but omitting `factFormat` and `version`. Cold admission
+classifies current facts as legacy and resets coverage; the missing version also
+lets the published019 reader silently misparse the journaled first-write layout.
+The passing downgrade witness used a full replacement, so it did not cover
+that production path. The smallest proposed
+repair permits incremental projection only after the committed cache owns the
+`state` sentinel; the first write and its refused-transaction retry must use
+the existing full metadata projection. It needs first-commit custody and
+abort/retry controls plus the full original-deadline suite and fresh review.
+No further repair was made after the repository’s three-round limit; one
+additional bounded round has been requested from the user. Published019 and
+main do not contain the third candidate’s introduced defect. This ticket
+remains open for the original metadata gaps and separate resource work.
+
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open. This triage did not rerun rejected,
+unpublished metadata candidates: `15c134d056` intentionally lacks their
+first-write regression, so those failures are not current-production evidence.
+Current browser controls exercised ordinary IndexedDB first-write custody, not
+the candidate projection. Remaining work is the original isolation/public
+projection proof, two generic metadata gaps, first-write plus abort/retry proof
+for any repair, and the separately stated size, deadline, media-width and
+device-resource obligations.
+
+## Disposition — 2026-09-11 implementation pass
+
+**State:** keep open, narrowed to cumulative review and resource qualification.
+Commit `96516575b` lands the per-root projection repair plus the missing
+first-write gate. Metadata is normalized with JSON property-name semantics
+before splitting; undefined object children are removed, array holes and
+length survive as JSON nulls, own `__proto__` is restored safely, and callable
+root `toJSON` changes promote the serialization boundary. The first database
+write and a failed transaction retry take the full projection path until a
+committed `state` sentinel proves a complete root inventory.
+
+The focused SQLite/IndexedDB cases for generic omission, sparse arrays,
+refusal/retry, and journaled first write pass. The full current
+`twin.test.ts` and `offline-public-state.test.ts` run also passes 218/218,
+including the historical isolation, denied/partial public projection,
+movement, cold-key, extent, exhaustion, and replacement-custody controls. The
+package builds successfully.
+
+This cumulative ticket is not closed: a fresh independent full-delta review
+has not been run, nor has the original full-suite deadline/resource bar been
+remeasured. Its explicitly retained 100-lane media-bearing/max-width, phone
+peak-resident, and full-engine scale-curve obligations also remain. Those are
+now the only live scope here; the metadata and public-projection correctness
+defects above are implemented and locally qualified.
+
+## Disposition — 2026-09-11 custody follow-through
+
+**State:** keep open; no resource claim was inferred from unit coverage. The
+follow-through at `dc8bbf74c` adds mounted/cold public-screen and 105-row
+paginated offline controls, and the four focused custody files pass 194/194.
+That is useful correctness evidence but is not the ticket's required fresh
+independent full-delta review, original canonical-suite deadline measurement,
+100-lane media/max-width measurement, phone peak-resident measurement, or
+full-engine scale curve. The Silver host did not answer a bounded SSH
+availability probe, so no fleet/device qualification was attempted or claimed.
+Those measured/review obligations remain the exact blockers to closure.
+
+## Disposition — 2026-09-11 fresh full-delta review
+
+**Correctness review: READY. State: keep open for measurements only.** A fresh
+read-only review at product pin `a52703b7c` inspected the cumulative historical
+counterexample matrix, the per-root metadata/first-write repair at integrated
+commit `776098904`, the retained-reset follow-through at `3a6358e9e`, and the
+adjacent cold view-once revalidation repair. No material correctness defect was
+found. The six focused package files pass 427/427; direct named-`toJSON`, own
+`__proto__`, sparse-array and canonical-domain probes pass. The evaluator ran
+all retained offline audit controls successfully before stopping later on the
+separate Bun 1.4 maintained-address null-prototype assertion, so no full-suite
+pass or timing is inferred.
+
+[Complete review and practical measurement map](../../benchmarks/runs/2026-09-11-snapback2-offline-entrypoint-review/README.md).
+This discharges the pending independent correctness review, but not the
+original 60-second canonical-suite bar, the recorded 100-lane media/max-width
+run, phone cold-build peak resident/storage evidence, or the full-engine
+10%/50%/100% latency curve. Those four measured obligations are the only
+remaining scope, and this ticket stays Open until they are recorded honestly.
+
+## Disposition — 2026-09-11 fleet resource measurements
+
+**State: keep open for two remaining measurements.** At exact source commit
+`117bf209d`, the committed 100-lane engine test passed with 100 membership
+lanes, 200 messages carrying image/once-image/video descriptors, 20,480-byte
+message rows and 576-byte membership rows. Its stress arm measured 3,213,881
+closure bytes, 4,298,858 derived scratch bytes, and 69,027 derived steps,
+below the 3,938,518-byte closure, 5,840,738-byte scratch and 353,091-step
+certificate; certified heap/output/step maxima remain below 8 MiB/1 MiB/1M.
+
+An optimized full-engine curve over the same max-width workload recorded 30
+samples after five warmups at each checkpoint. Nearest-rank p95 was 1.064125
+ms at 10 lanes, 2.556667 ms at 50 lanes, and 3.298000 ms at 100 lanes. Every
+sample returned 20 IDs, validated its receipt pool, retained plan hash
+`95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8`,
+and stayed under closure/scratch/step bounds. This discharges the recorded
+100-lane media/max-width and full-engine 10%/50%/100% curve obligations.
+
+[Exact commands, harness patch, all 90 samples, raw test/resource receipts,
+and derived summary](../../benchmarks/runs/2026-09-11-snapback2-offline-entrypoint-measurements/README.md)
+are retained. The reusable fleet worktree was restored clean after the run.
+
+Physical-phone evidence remains externally blocked rather than waived. The
+2026-09-09 fleet inventory documents no attached phone; a direct Air probe
+listed three iOS/iPadOS devices as offline, no physical device online, and an
+empty ADB device list. Therefore no phone cold-build peak resident/storage
+claim is made. Per orchestration, the canonical suite was not rerun before the
+final integrated commit. The only live ticket scope is now that final
+canonical-suite 60-second measurement and the physical-phone cold-build peak
+resident/storage witness once an operator makes a device available.
+
+## Disposition — 2026-09-11 fleet-wide physical-device follow-up
+
+**State: keep open for operator unlock plus the final canonical run.** The
+Air-only availability statement above was superseded by a bounded probe of
+every suitable available-now fleet host. One deduplicated iPhone 17 Pro Max is
+online through the Air and Black, and Bones has two online USB Nothing A069P
+Android 16/API-36 phones. The current host has only an emulator; Silver has
+only simulators; Windows has no ADB; Office, Durand and Minisforum did not
+answer bounded LAN SSH. Offline historical Apple rows and simulators remain
+excluded.
+
+The Android source-bound attempt at exact source `117bf209d` preserved the
+10,240 rule-probe ceiling, admitted 10,000 500-character messages through real
+`messages.send` mutations across 50 seeded conversations, and independently
+re-counted 200 messages in every conversation. Its 67,950,541-byte release APK
+built and installed on both phones. Both Android devices require post-boot
+strong authentication (`deviceLocked=1`, `strongAuthRequired=0x1`) and refused
+activity launch. The paired, developer-mode iPhone likewise refused an
+existing Snapback app launch with an explicit locked-device CoreDevice error.
+No local device credential is available. Consequently no phone process RSS or
+SQLite byte value is claimed.
+
+[Exact fleet and attempt receipts, cleanup, and the reusable measurement
+harness](../../benchmarks/runs/2026-09-11-snapback2-offline-entrypoint-measurements/README.md)
+are retained. The installed measurement package and temporary APK were removed
+and the reusable Air worktree was restored clean. The physical obligation is
+now narrowly blocked on an operator unlocking one attached phone, not on device
+discovery or build readiness. The ticket remains open for that measurement and
+root's final canonical-suite 60-second decision.
+
+## Disposition — 2026-09-11 canonical-suite closure
+
+**State: keep open only for operator-unlocked physical-phone evidence.** The
+final no-override `snapback2/scripts/test.sh` command at integrated commit
+`06559b7e3fad` exited zero in 53.92 seconds on the Silver M5 Max. Package
+tests passed 1,307/1,307; native passed 1,125 with four configured skips;
+compiler passed 302/302; evaluator delivery, visibility and corpus checks,
+doctests, prerequisite builds and the canonical-artifact comparison all
+passed. The log SHA-256 is
+`621d3087abb5c77feaec0cd3361699ace56cd5277af37a95f027ede628f145f3`.
+This discharges the canonical-suite obligation without substituting a focused
+run or raising a deadline.
+
+The attached Android workload is built and was installed successfully, and
+the paired iPhone is developer-enabled, but all three discovered phones last
+refused launch while awaiting post-boot strong authentication. The remaining
+acceptance is exactly one honest cold-build process-RSS and SQLite/storage
+witness on an operator-unlocked attached phone. No repository change can
+supply that credential boundary, so the ticket remains Open rather than
+waiving the measurement.
+
+A final fleet recheck at `2026-09-11T10:34:18Z` confirmed the same external
+boundary. The deduplicated iPhone 17 Pro Max remained online through the Air
+and Black hosts with `passcodeRequired=true`. Both Bones Android devices
+remained attached but reported `deviceLocked=1`,
+`strongAuthRequired=0x1`, and keyguard showing. No measurement was attempted
+against a locked phone and no resource value is inferred from availability.

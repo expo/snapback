@@ -574,7 +574,7 @@ impl<'a> RecoveryKeyMaterial<'a> {
 /// UNWIRED-DO-NOT-CALL: this dormant shape is not a verified-provisioning
 /// authority. No host invocation currently injects or verifies its fields.
 /// The required lane remains open in
-/// `issues/20260808-guide-gap-principal-to-app-identity-binding.md`.
+/// `issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md`.
 #[allow(dead_code)]
 pub struct VerifiedProvisioningAuthority {
     hook_id: String,
@@ -629,7 +629,7 @@ pub enum ProvisioningOutcome {
 
 /// UNWIRED-DO-NOT-CALL: construction here does not verify a principal or
 /// establish the sealed host authority required by LLP 0214 §§5.3–5.5.
-/// Follow `issues/20260808-guide-gap-principal-to-app-identity-binding.md`.
+/// Follow `issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md`.
 #[allow(dead_code)]
 pub fn prepare_verified_provisioning(
     hook_id: &str,
@@ -2923,7 +2923,7 @@ impl LocalDatabase {
     /// UNWIRED-DO-NOT-CALL: this dormant storage helper has no host invocation
     /// and does not verify the principal/identity fields it receives. It is not
     /// the sealed writer specified by LLP 0214 §§5.3–5.5. The platform ask is
-    /// tracked in `issues/20260808-guide-gap-principal-to-app-identity-binding.md`.
+    /// tracked in `issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md`.
     #[allow(dead_code)]
     pub fn execute_verified_provisioning(
         &mut self,

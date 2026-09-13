@@ -1,0 +1,156 @@
+{
+  "format": "snapback3-native-platform-integrity/1",
+  "result": "PASS",
+  "completedAt": "2026-09-13T03:46:22.347Z",
+  "runId": "native-witness-integrity-20260913T034516Z",
+  "scope": "focused fixed-native Expo/Hermes integration witness with reusable-harness integrity binding",
+  "runtime": {
+    "os": "iOS 26.5 (23F77)",
+    "deviceModel": "iPhone 17 Pro simulator",
+    "expoGo": "57.0.9",
+    "expo": "57.0.11",
+    "reactNative": "0.86.3",
+    "hermes": true,
+    "entrypoint": "createExpoClient({ url })",
+    "overrides": [],
+    "databaseName": "snapback3-39d101904dce78fcbcb3737dcc4f953c7a243df1cf0cb80fd074ff5455836120.db",
+    "bindings": {
+      "resultMatchesConfig": true,
+      "allReportsMatchRun": true,
+      "everyLaunchExact": true,
+      "bundleLaunchExact": true,
+      "networkBindingsExact": true,
+      "urlSelectedDatabaseExact": true
+    }
+  },
+  "bindings": {
+    "packageArchiveSha256": "cafa9b8b1487ab6b5928731f568550af644258776b123ef4b359548f4824bbcd",
+    "packageSourceSha256": "e0712a87cc4c2e1f508d6e02e3b6409f529871985c5a4049f05a27d689eb5cea",
+    "workerSha256": "6f7b4b92a288947ab3bc09247e29fb31cd5ae22791811becb17f2a9bda329a5c",
+    "installedPayloadFiles": 127,
+    "installedManifestBeforeAndAfterSha256": "cd9b8df61b92fceee3551f0d2369c47fff1bc8c001d082fc7d5568b60e0df7ba",
+    "resolvedEntry": "dist/expo.mjs",
+    "bundleSha256": "2e9be917d8de6ab1e31480aece62dbcfe04d36f5084c3e8657bd850974b15ebc",
+    "sourceMapSha256": "66009570ac240c003f35663e040afc468512e8bf4f2191840b0f395fa0fae6c5",
+    "metroSdkModules": {
+      "dist/expo.mjs": "625605f84e5c57636ec0c1670756078d67d1a25b2f7d39e36d6e7356a63aa42b",
+      "dist/react.mjs": "143a844451b6a924b4f2e247633f3bbacb2c93813e2a7feb1b35c30862078bef",
+      "dist/shared-B62eGG2A.mjs": "974b15497a28994b07dc8ad9db9f69584ea93ac44763bd1a78f36e707f8ecca6"
+    },
+    "runnerSha256": "98d846d4e2e00e25974282728dbd11fc3cec9a9afb779d175cdace697d8a4e05",
+    "proofSha256": "187238c352650833f0675d55a13396257e8a17693b10863f16b109300168819c",
+    "packageBindingSha256": "d364791868bac6b3d7a6702779d4d92da93aa2f4716df062922bb4ff779e80d3",
+    "integrityAuditSourceSha256": "611829bb3b8253f7b3074064e13e61fa7f5f9e7bbfd5d864466e4c677b7ce9ef",
+    "appSha256": "7da8e734cc24a7f2ae6dd0ec94a7ab66fac21a60edfa3a492b2826d773af344c",
+    "reviewedSdkFiles": 20,
+    "reviewedSdkManifestSha256": "e4dde0900a7be8f056a8821c3ba43e01216931014e5a781c4be24f32892a3e53"
+  },
+  "audit": {
+    "actualControlsAccepted": [
+      "retained-actual-positive",
+      "fresh-partial-ready-reopen-positive",
+      "installed-package-positive"
+    ],
+    "corruptionsRejected": [
+      "corrupted-checkpoint-authority",
+      "corrupted-acquisition-row-link",
+      "changed-non-body-argument",
+      "changed-plan-hash",
+      "mismatched-terminal",
+      "mismatched-installed-package"
+    ]
+  },
+  "assertions": {
+    "actualHermesNativeDefaults": true,
+    "localAuthenticationAndKnownRows": true,
+    "completeAcquisitionIdentityAndExactLinks": true,
+    "defaultExpoStreaming": true,
+    "contentAndAuthUnavailable": true,
+    "noServerApplicationDuringOutage": true,
+    "fullImmutableRequestChain": true,
+    "rustRequestDigestsAndTerminalReceipts": true,
+    "fifoExactlyOnceReplay": true,
+    "twoOsProcessDeathsAndFinalRestore": true,
+    "archiveInstalledMetroAndBundleBound": true,
+    "runtimeParametersBound": true
+  },
+  "acquisition": {
+    "comparedFields": [
+      "id",
+      "declarationHash",
+      "principal",
+      "authEpoch",
+      "generation",
+      "schemaHash",
+      "rootKeys",
+      "resourceKeys",
+      "pages",
+      "pending",
+      "derivedDeclarations",
+      "phase",
+      "seq"
+    ],
+    "statuses": ["ready", "ready", "acquiring", "acquiring"],
+    "identitySha256": "d12bb9da217bf50f0589000ae6e4f642091d2df57123b5c7f5628695af7d0b0e",
+    "linkedResources": 1,
+    "linkedRows": 4
+  },
+  "operations": [
+    {
+      "id": "8b517051-c666-45da-98e7-c17b48fff0c3",
+      "ordinal": 1,
+      "serverRequestDigest": "f7d150e2a02236de230409d0c09a8d57ab302ae67e7843845b4795c67462ce08",
+      "statuses": ["queued", "queued", "committed", "committed"],
+      "committedSeq": 3
+    },
+    {
+      "id": "643daf11-b4ee-44e2-b1e0-e7890c6ea65a",
+      "ordinal": 2,
+      "serverRequestDigest": "eaabab25d85c87e65752f73db8631caa814b22c4d84ee4f56daa637eba987fcc",
+      "statuses": ["queued", "queued", "committed", "committed"],
+      "committedSeq": 4
+    }
+  ],
+  "sqliteSha256": {
+    "queued": "657e66725b52dfcaf854ad86bd842977562ef97b1307af40d90c11f8c6888e2f",
+    "reopened": "657e66725b52dfcaf854ad86bd842977562ef97b1307af40d90c11f8c6888e2f",
+    "settled": "264efac22708d932ec94a92f9c0819a66e750e78332b39712193e7eae7c152ff",
+    "final": "264efac22708d932ec94a92f9c0819a66e750e78332b39712193e7eae7c152ff",
+    "server": "dfdb06fbf45c6ea05fb240cb35b640383cf1f62eb1ffa96db5bafbc4ed80d195"
+  },
+  "traffic": {
+    "successfulDefaultExpoStreamingRequests": 2,
+    "offlineResponses503": 4,
+    "offlineMutationRequests": 0,
+    "replayMutationRequests": 2,
+    "metroAndInstrumentationReachableDuringOutage": true
+  },
+  "processes": {
+    "runner": {"pid": 22906, "startedAt": "2026-09-13T03:46:04.896Z", "lastOwnedActionAt": "2026-09-13T03:46:22.476Z", "exit": 0},
+    "backend": {"pid": 22938, "startedAt": "2026-09-13T03:46:04.898Z", "endedAt": "2026-09-13T03:46:17.993Z", "exit": 0},
+    "metro": {"pid": 23163, "startedAt": "2026-09-13T03:46:06.554Z", "endedAt": "2026-09-13T03:46:22.364Z", "exit": 0},
+    "expo": [
+      {"pid": 23424, "startedAt": "2026-09-13T03:46:08.229Z", "endedAt": "2026-09-13T03:46:13.033Z", "termination": "first-process-death"},
+      {"pid": 24270, "startedAt": "2026-09-13T03:46:13.611Z", "endedAt": "2026-09-13T03:46:18.131Z", "termination": "second-process-death"},
+      {"pid": 25123, "startedAt": "2026-09-13T03:46:18.543Z", "endedAt": "2026-09-13T03:46:22.045Z", "termination": "final-teardown"}
+    ]
+  },
+  "evidence": {
+    "runPath": ".llp/ship-runs/20260912-snapback3-full-clique/native-witness-integrity-20260913T034516Z",
+    "rawTracked": false,
+    "rawResultSha256": "ad1297d8eb44beaf48510cb4794ccfd43eec98da96aaf95c5fee8b0ad93409b3",
+    "qualificationSha256": "912755e26e8e5cf65699f2caf914afc8ec4a1d183871a28db0274de9a58b7204",
+    "manifestSha256": "581d692bcb6dfe45d8994ac3cca496659daea76d0110fc8497c0f42bfc438c43",
+    "auditSha256": "b67ff7add0ca40a2ebc6e9234b18159dc6fa50d54d5748c0fd866092e7215d72"
+  },
+  "preservedFailures": [
+    ".llp/ship-runs/20260912-snapback3-full-clique/native-witness-integrity-20260913T032846Z",
+    ".llp/ship-runs/20260912-snapback3-full-clique/native-witness-integrity-20260913T034257Z"
+  ],
+  "limits": [
+    "Backend content/auth were denied while Metro and instrumentation remained reachable; this is not airplane-mode startup qualification.",
+    "This is not acquisition-time qualification.",
+    "This fixed-native integration snapshot uses a frozen worker and is not a Cargo-backed whole-product release.",
+    "Full native Clique, Android, media/search/scale and shipping-app qualification remain out of scope."
+  ]
+}

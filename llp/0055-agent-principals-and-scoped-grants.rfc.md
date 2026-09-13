@@ -1054,7 +1054,7 @@ sweep still runs before admission, so one expired OAuth proposal can still
 wedge pairing mint, presentation, and inbox access across the database, and any
 OAuth child can still block destructive parent teardown. The rebuild required
 to change that ownership action is deferred in
-`issues/20260823-oauth-pairing-fk-wedge-deferred.md`.
+`issues/shelved/20260823-oauth-pairing-fk-wedge-deferred.md`.
 
 **Grant lifetime.** Delegated grants **must** carry `expires_at`: default 30
 days, hard maximum 90, chosen within those bounds at consent and displayed

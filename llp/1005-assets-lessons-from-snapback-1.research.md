@@ -220,7 +220,7 @@ The diagnostics registry currently carries **111 `SNAPBACK_ASSET*`, 69
 And the result: `assets.media-collection.v1` and `assets.media-command.v1` are
 **still `experimental` with open GAP rows** (`guide/capabilities.md`), whose
 review dates expired and produced
-`issues/20260828-guide-gap-review-expired-assets-media-collection-v1.md`. The
+`issues/shelved/20260828-guide-gap-review-expired-assets-media-collection-v1.md`. The
 two capabilities that cost the most shipped the least.
 
 This is the clearest single argument for `rules/NOT-DOING.md`'s existing
@@ -296,11 +296,11 @@ intent)" and nothing above it.
 - Expose the canonical digest as ordinary queryable data.
 - Admit HEIC and `video/quicktime` in the accept vocabulary at birth. Both are
   what real phones hand you, and both were retrofits in v1
-  (`issues/20260819-heic-image-normalization.md` is still open).
+  (`issues/shelved/20260819-heic-image-normalization.md` is still open).
 - Project the placeholder with the media read. v1 already computes thumbhash
   and dominant color at admission and simply does not project them, so tiles
   paint empty during issuance
-  (`issues/20260816-media-placeholder-projection.md`). Cheapest perceived
+  (`issues/shelved/20260816-media-placeholder-projection.md`). Cheapest perceived
   latency win available.
 - Stream finalize, and run media CPU outside the writer lock — see §9.
 

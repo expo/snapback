@@ -165,7 +165,7 @@ impl CommitTimeoutPhase {
 /// ignore the supplied authority, return a successful value without a durable
 /// write, or commit a captured pending transaction for another database. Such
 /// an implementation would violate the contract without being rejected by the
-/// type system; see `issues/20260822-capsule-structural-residuals.md`.
+/// type system; see `issues/shelved/20260822-capsule-structural-residuals.md`.
 pub(crate) trait PendingCommit: Sized {
     type Output;
     type Uncertain: Send + 'static;

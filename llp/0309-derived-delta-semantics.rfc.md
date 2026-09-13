@@ -354,7 +354,7 @@ to continue the delta-lane ladder past rung 1 — the remaining §7
 shapes (window boundary displacement, bounded to-many, semi-joins
 behind their evaluator condition) are the intended Stage C
 beneficiaries. Commission ticket:
-`issues/20260825-llp0309-stage-a-commission.md`. Each Stage C rung
+`issues/shelved/20260825-llp0309-stage-a-commission.md`. Each Stage C rung
 individually remains demand-gated exactly as LLP 0209 §7 gates the
 expensive rung; firing the trigger commissions Stages A and B, not
 any particular rung.

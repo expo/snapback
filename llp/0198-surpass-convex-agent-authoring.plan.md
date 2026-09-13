@@ -400,7 +400,7 @@ closed D4 sharing grammar, and GC/quota/invalidation/consistent-cut custody.
 record
 `tests/acceptance/maturity/media-collection-2026-08-15.introduction.json`).
 The remaining R4 media command, collection client hook, and guide Paths 2/4
-stay tracked in `issues/20260815-finish-media-happy-path.md`.
+stay tracked in `issues/shelved/20260815-finish-media-happy-path.md`.
 
 2026-08-16 addendum — R4 landed: `defineMediaCommand` (closed
 `MediaCommandBindingV1`, command-only mutation ingress, atomic staging

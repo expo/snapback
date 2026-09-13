@@ -117,7 +117,7 @@ The central decision is good: an Expo integration seam, distinct from LLP 0045â€
 
 7. **MATERIAL â€” `a1expo-f5` is broader than the hosted gate described here.**
 
-   D4 says hosted is blocked until the executor can hold config and egress. The actual ticket says the hosted target lacks sessions/native authentication and requires hosted session routes plus a production broker/delivery path reachable from mobile clients ([a1expo-f5](</Users/ccheever/projects/snapback/issues/20260801-0137-a1expo-f5-hosted-mobile-gap.md:7>)). Without hosted native auth, authenticated token registration cannot work even if action egress does.
+   D4 says hosted is blocked until the executor can hold config and egress. The actual ticket says the hosted target lacks sessions/native authentication and requires hosted session routes plus a production broker/delivery path reachable from mobile clients ([a1expo-f5](</Users/ccheever/projects/snapback/issues/shelved/20260801-0137-a1expo-f5-hosted-mobile-gap.md:7>)). Without hosted native auth, authenticated token registration cannot work even if action egress does.
 
    **Resolution:** Define the hosted availability conjunction: hosted native authentication/session entry, authenticated registry operations, provider config custody, action egress, durable receipt polling, and a hosted conformance receipt. Keep the capability Missing until all pass.
 

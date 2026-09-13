@@ -9,7 +9,7 @@
 **Revised:** 2026-08-25 (D2 corrects the supervised native carrier: the binding
 GET stays session-free and a later admitted adoption POST mints the session)
 **Revised:** 2026-08-16 (r5: Accepted by author ruling; all four OQs ruled and folded in; revision history trimmed)
-**Related:** LLP 0009, LLP 0010, LLP 0017 (D3 amends its loopback-read default), LLP 0030 (browser-facts fence preserved), LLP 0031, LLP 0036, LLP 0039, LLP 0060, LLP 0168, LLP 0181, LLP 0213, `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, `issues/closed/20260811-ios-physical-device-dev-carrier-decision-packet.md`
+**Related:** LLP 0009, LLP 0010, LLP 0017 (D3 amends its loopback-read default), LLP 0030 (browser-facts fence preserved), LLP 0031, LLP 0036, LLP 0039, LLP 0060, LLP 0168, LLP 0181, LLP 0213, `issues/shelved/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, `issues/closed/20260811-ios-physical-device-dev-carrier-decision-packet.md`
 
 ## Summary
 

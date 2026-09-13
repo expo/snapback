@@ -359,7 +359,7 @@ from it (`binding.source: 'persisted-receipt'`) and renders the retained
 rows through the hooks. The fresh-client witness is
 `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs`; a
 physical-device process-kill witness is still open
-(`issues/20260806-expo-file-carrier-process-kill-witness.md`).
+(`issues/shelved/20260806-expo-file-carrier-process-kill-witness.md`).
 
 Flush on background (the LLP 0091 step-5 lifecycle wiring): persistence is
 debounced, so have the shell flush pending resume state when the app leaves

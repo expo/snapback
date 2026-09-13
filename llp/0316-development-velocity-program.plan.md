@@ -135,7 +135,7 @@ server crate and relinks every binary above it.
 - **83 integration-test link targets** (79 under `crates/snapback/tests/`);
   811 MB of test executables in `target/debug/deps`. The debug `snapback`
   binary is 533 MB (LLP 0314 and
-  `issues/20260820-debug-binary-symbol-bloat.md` record 489 MB one week
+  `issues/shelved/20260820-debug-binary-symbol-bloat.md` record 489 MB one week
   earlier; 278 MB of that is `LINKEDIT`). Linking is the fixed cost that
   makes even a one-line edit pay 15 s.
 - **No dev-profile tuning exists.** No `[profile.dev]` block: full DWARF for
@@ -159,7 +159,7 @@ command that produces it.
   (`demos/all-aboard/snapback/generated/artifacts.json`, since regenerated in
   714eefaed). Later that day the author's temporary low-noise posture
   (LLP 0189 revision of 2026-08-24, eb72d10b0; restoration owned by
-  `issues/20260824-restore-automatic-actions-after-low-noise-interval.md`)
+  `issues/shelved/20260824-restore-automatic-actions-after-low-noise-interval.md`)
   made it `workflow_dispatch`-only: in the hour before the ruling, 16 pushes
   had produced 130 runs, 66 failed and 40 cancelled. **It has not run
   since.** The gate passes locally on `origin/main` in 35 s.
@@ -469,10 +469,10 @@ files" shorthand was inaccurate; the support-inclusive exact count is eight.
 | Relink after deleting all of them | 79 links | 5.2 s wall for 13 |
 
 The 174 inherited reds are the fixture-migration debt of
-`issues/20260820-f3-bucket-b-pre-existing-reds.md` (item 13: 223
+`issues/shelved/20260820-f3-bucket-b-pre-existing-reds.md` (item 13: 223
 `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED` refusals since the 2026-08-16
 enforcement) plus the admin-read enforcement flip of LLP 0262 stage 3;
-`issues/20260825-the-two-inherited-reds-every-lane-re-derives.md` is the
+`issues/shelved/20260825-the-two-inherited-reds-every-lane-re-derives.md` is the
 standing reference. At this landing's evidence point, `check-guide` was red at
 "generated API cold signatures" since cbf4fc7fa, independent of this work.
 That failure was fixed concurrently while the nextest landing rebased; its
@@ -509,7 +509,7 @@ Fleet provisioning used the same 0.9.143 pin and directly verified the binary
 on the control Mac, Additional Apartment M1 Max, Office M1 Max, Bones, Durand,
 Minisforum, all three Hetzner hosts, and the Windows NucBox—ten machines in
 total. The Apartment MacBook Air did not answer Tailscale ping or TCP/22, so it
-could not be mutated; `issues/20260827-cargo-nextest-apartment-air-install.md`
+could not be mutated; `issues/shelved/20260827-cargo-nextest-apartment-air-install.md`
 owns installation before that host rejoins Rust proof duty. The typed launcher
 refusal prevents an unprovisioned host from silently using Cargo instead.
 
@@ -606,7 +606,7 @@ build):** `cargo test --workspace --exclude snapback-sync --no-run
 
 Test executables over 50 MB: 65, **21.5 GB** — the disk-headroom problem
 LLP 0276 (#5) named. `snapback-sync` was excluded because its lib tests do
-not compile on current `main` (inherited; `issues/20260826-sync-test-target-red-room-reauthorization.md`).
+not compile on current `main` (inherited; `issues/shelved/20260826-sync-test-target-red-room-reauthorization.md`).
 
 Reading: two-thirds of the CPU in a full test build is 79 links of the
 same ~530 MB. Phase 5 attacks that directly. The remaining critical path
@@ -792,7 +792,7 @@ so here rather than being quietly dropped.
    `scripts/generate-control-catalog.mjs`). Phase 5 must keep that one
    binary name and is otherwise free to consolidate.
 3. What is the exit condition for the low-noise Actions posture? (Owned by
-   `issues/20260824-restore-automatic-actions-after-low-noise-interval.md`;
+   `issues/shelved/20260824-restore-automatic-actions-after-low-noise-interval.md`;
    Phase 6 contributes precondition 3.)
 
 ## Sequencing

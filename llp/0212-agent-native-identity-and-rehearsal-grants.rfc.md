@@ -125,7 +125,7 @@ independent local-only carriers (admin token + `ImpersonationCapability`),
 and `app.reset` reissues principal ids so fixtures can never hold raw
 ids. Handlers see the resolved principal and nothing else — no verified
 email claim — which makes principal↔app-row binding a documented gap
-(`issues/20260808-guide-gap-principal-to-app-identity-binding.md`).
+(`issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md`).
 
 Snapback also has real assets GoTrue lacks, which this RFC builds *on*
 rather than re-deriving: the shared invocation gate; connection-bound

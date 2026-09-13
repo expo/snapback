@@ -245,3 +245,21 @@ test("resource demand coalesces writes while a read is in flight and enforces co
   assert.equal(calls, 2); assert.equal(peak, 1);
   await events.close();
 });
+
+test("clock refresh renews only streams that declared the due operation", async context => {
+  const { worker, owner, url } = await fixture(context, true, { heartbeatMs: 10_000 });
+  const subscribe = async (key: string, op: string) => eventReader(await fetch(url + "/api/events", {
+    method: "POST", headers: { Authorization: "Bearer valid", "Content-Type": "application/json" },
+    body: JSON.stringify({ queries: [{ key, op, args: {} }] }), signal: AbortSignal.timeout(2_000),
+  }));
+  const clock = await subscribe("clock", "reports.now"), stable = await subscribe("stable", "messages.page");
+  context.after(async () => { await clock.close(); await stable.close(); });
+  await clock.next("resources"); await stable.next("resources");
+  const before = worker.calls.filter(call => call.method === "read").length;
+  owner.refreshClock(["reports.now"]);
+  await clock.next("resources");
+  await new Promise(done => setTimeout(done, 20));
+  const reads = worker.calls.filter(call => call.method === "read").slice(before);
+  assert.equal(reads.length, 1);
+  assert.equal((reads[0].params.queries as Array<{ op: string }>)[0].op, "reports.now");
+});

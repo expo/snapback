@@ -988,7 +988,7 @@ from it (`binding.source: 'persisted-receipt'`) and renders the retained
 rows through the hooks. The fresh-client witness is
 `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs`; a
 physical-device process-kill witness is still open
-(`issues/20260806-expo-file-carrier-process-kill-witness.md`).
+(`issues/shelved/20260806-expo-file-carrier-process-kill-witness.md`).
 
 The **supervised** provider takes the same fallback on a cold boot with the
 supervisor unreachable. A successful supervised adoption caches the

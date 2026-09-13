@@ -261,8 +261,10 @@ silent wedge trap (ENG-22659).
 - Land doc updates in the same commit as the code change that motivated them.
 - Prefer filesystem tickets under `issues/` over Linear for repository-scoped
   bugs, follow-ups, papercuts, and maintenance work. Use
-  `issues/YYYYMMDD-slug.md` for open tickets; when resolved, record the
-  resolution and move the file to `issues/closed/`. Linear is a good tracker,
+  `issues/YYYYMMDD-slug.md` for open tickets in the working set; when resolved,
+  record the resolution and move the file to `issues/closed/`. Park work that
+  is not in the current working set under `issues/shelved/` without closing it
+  (Snapback 1–3 tickets were shelved 2026-09-13). Linear is a good tracker,
   but reserve it for work that benefits from human project-management state,
   assignment, cycles, or cross-repository coordination. When a filesystem
   ticket grows into that kind of work, graduate it to Linear, record the Linear

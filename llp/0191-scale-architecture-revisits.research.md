@@ -221,7 +221,7 @@ windowed-query controller, so the commissioning must either extend
 D4's charter to server-side evaluation scheduling explicitly or name
 the runtime owner. Measure each rung with the existing instrument (`diag-hot-stream.mts` iterates in minutes against
 the persistent baseline) before committing to the next. Ticket:
-`issues/20260808-live-query-reevaluation-cost-at-scale.md`.
+`issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md`.
 
 **Dated note (2026-08-08):** the coalescing half of rung 1 was built the
 same day via the ticket sweep, as ticket work ahead of the OQ4 ruling:
@@ -521,7 +521,7 @@ cross-family convergent recommendation:
    scope), commissioned separably; the D4-charter-extension question
    (server-side evaluation scheduling vs a named runtime owner) is
    resolved at commissioning. Drafting waits for spike data. Ticket:
-   `issues/20260808-d2-d4-owner-specs-commission.md`.
+   `issues/shelved/20260808-d2-d4-owner-specs-commission.md`.
 2. **OQ2 — ruled distributed.** One coordinating identity-architecture
    Decision (namespaces, provenance, uniqueness, conversion rules) with
    implementation distributed to the schema, auth/D7, and D5/effects
@@ -532,7 +532,7 @@ cross-family convergent recommendation:
    LLP 0158's custody manifest into operation-specific profiles; 0158
    remains the fork profile and a consumer/conformance witness; the
    shutdown-checkpoint repair proceeds as a bounded runtime fix. Ticket:
-   `issues/20260808-state-capture-custody-spec.md`.
+   `issues/shelved/20260808-state-capture-custody-spec.md`.
 4. **OQ4 — ruled yes, immediately.** The coalescing measurement spike
    runs now against the persistent diagnosis baseline with the
    predeclared axes in OQ4 above; measurement only per LLP 0189. Ticket:

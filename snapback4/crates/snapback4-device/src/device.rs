@@ -117,6 +117,10 @@ const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
 const SNAPSHOT_SEND_REVISION: &str = "device:snapshot:send_revision";
 const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
 const SNAPSHOT_KEYS: [&str; 4] = [SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH];
+/// The app's native module (LLP 3000.005 §9), kept so a cold start offline
+/// answers native reads too: the bytes as hex, and the digest the server named.
+const NATIVE: &str = "device:native";
+const NATIVE_DIGEST: &str = "device:native:digest";
 
 pub struct Device<S: DeviceStore> {
     store: S,
@@ -124,6 +128,10 @@ pub struct Device<S: DeviceStore> {
     programs: BTreeMap<String, Program>,
     generation: u64,
     snapshot_owner: Option<String>,
+    /// The app's native module, once installed or reloaded from the store.
+    #[cfg(feature = "wasm-host")]
+    native: Option<std::sync::Arc<snapback4_core::engine::native::Module>>,
+    native_digest: Option<String>,
 }
 
 /// Rows written by a prediction carry `pending: true`, the card's word for
@@ -193,7 +201,50 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(WATERMARK.to_owned(), "0".into());
         }
         store.install(&backend.schema, &metadata, reset)?;
-        Ok(Self { store, schema: backend.schema, programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(), generation: backend.generation, snapshot_owner: None })
+        let native_digest = store.meta(NATIVE_DIGEST)?;
+        #[cfg(feature = "wasm-host")]
+        let native = match store.meta(NATIVE)? {
+            // A module kept from last time that no longer loads is dropped,
+            // not fatal: the next sync installs the server's.
+            Some(hex) => snapback4_core::value::decode_bytes_hex(&hex).and_then(|bytes| snapback4_core::engine::native::Module::compile(&bytes).ok()).map(std::sync::Arc::new),
+            None => None,
+        };
+        Ok(Self {
+            store,
+            schema: backend.schema,
+            programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(),
+            generation: backend.generation,
+            snapshot_owner: None,
+            #[cfg(feature = "wasm-host")]
+            native,
+            native_digest,
+        })
+    }
+
+    /// Install the app's native module the server serves at `/native.wasm`
+    /// (LLP 3000.005 §9), keeping its bytes so a cold start offline has it.
+    /// Returns the jobs and the reads it implements.
+    pub fn install_native(&mut self, bytes: &[u8], digest: &str) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+        #[cfg(feature = "wasm-host")]
+        {
+            let module = snapback4_core::engine::native::Module::compile(bytes)?;
+            let names = (module.jobs().to_vec(), module.reads().to_vec());
+            self.store.set_meta(NATIVE, &snapback4_core::value::encode_bytes_hex(bytes))?;
+            self.store.set_meta(NATIVE_DIGEST, digest)?;
+            self.native = Some(std::sync::Arc::new(module));
+            self.native_digest = Some(digest.to_owned());
+            Ok(names)
+        }
+        #[cfg(not(feature = "wasm-host"))]
+        {
+            let _ = (bytes, digest);
+            Err(RuntimeError::Native { code: "E_NATIVE".into(), message: "this device was built without the wasm host; native reads go to the server".into() })
+        }
+    }
+
+    /// The digest of the module installed, as the server named it.
+    pub fn native_digest(&self) -> Option<&str> {
+        self.native_digest.as_deref()
     }
 
     /// The backend changed (a new generation from `/schema`): adopt it and
@@ -396,7 +447,20 @@ impl<S: DeviceStore> Device<S> {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             let context = Context::new(viewer, typed_args(&program, args)?).at(now);
             let tx = self.store.read_transaction()?;
-            let (result, coverage) = local::query_with_coverage(&tx, &self.schema, &program, context, Ceilings::default());
+            let (result, coverage) = if program.native {
+                // A native read over the rows held (LLP 3000.005 §9); without
+                // the module the device does not know, and the host asks the
+                // server.
+                #[cfg(feature = "wasm-host")]
+                match &self.native {
+                    Some(module) => local::native_query(&tx, &self.schema, module, &program, context, Ceilings::default()),
+                    None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true),
+                }
+                #[cfg(not(feature = "wasm-host"))]
+                (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true)
+            } else {
+                local::query_with_coverage(&tx, &self.schema, &program, context, Ceilings::default())
+            };
             unknown = coverage;
             tx.rollback()?;
             result

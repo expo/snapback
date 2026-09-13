@@ -230,7 +230,7 @@ export class Runner {
         // @ref LLP 1001#8-emit-and-the-outbox — the twin does not run effects, but it must consume the authoritative outbox id.
         case "Emit":
           this.expr(data.payload);
-          if (this.context.new_ids.shift() === undefined)
+          if (this.takeNewId() === undefined)
             fail("E_INPUT", "newId envelope exhausted");
           break;
         case "Return":
@@ -368,7 +368,7 @@ export class Runner {
         if (this.context.now === null) fail("E_INPUT", "now was not pinned");
         return int(this.context.now);
       case "NewId": {
-        const next = this.context.new_ids.shift();
+        const next = this.takeNewId();
         if (next === undefined) fail("E_INPUT", "newId envelope exhausted");
         return { Id: next };
       }
@@ -379,6 +379,10 @@ export class Runner {
       default:
         fail("E_INPUT", `unknown modeled input ${input}`);
     }
+  }
+
+  private takeNewId(): string | undefined {
+    return this.context.new_ids.shift() ?? this.context.new_id?.();
   }
 
   private binary(data: any): Value {

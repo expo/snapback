@@ -3,7 +3,7 @@
   "rowCoverage": {
     "unmappedAttackCount": 69,
     "unmappedAttackIdsSha256": "d41f9146b3955b878e14db553ac657bbe59836d519ea36e2ff907f41cde17087",
-    "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
+    "unmappedReason": "Pinned legacy debt from issues/shelved/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
     {

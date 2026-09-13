@@ -50,7 +50,7 @@ LLP 0295; author may revise.); 2026-08-17
 **Related:** LLP 0010, LLP 0041, LLP 0108, LLP 0117, LLP 0123, LLP 0146,
 LLP 0172, LLP 0186, LLP 0189, LLP 0196, LLP 0198, LLP 0231, LLP 0241,
 LLP 0245, LLP 0252, LLP 0253, LLP 0259, LLP 0264, LLP 0274, LLP 0295,
-`issues/20260821-authoring-profile-vertical-contract-fixtures.md`
+`issues/shelved/20260821-authoring-profile-vertical-contract-fixtures.md`
 
 ## Summary
 
@@ -430,7 +430,7 @@ mechanism owners; the vertical fixtures VCF-E-P1..P4, VCF-E-L1, and the
 rest of the
 Explicit-lane catalogue in LLP 0253 S9.2 are the lane's acceptance
 receipts, executed through
-`issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
+`issues/shelved/20260821-authoring-profile-vertical-contract-fixtures.md`.
 
 **Implementation evidence (2026-08-22).** VCF-E-P1–P4 now derive exact
 `returnBinding`, `returnChangedCount`, and `returnDocument` contracts plus the
@@ -692,12 +692,12 @@ be implemented before improving its own golden path.
 
 - `issues/closed/20260817-react-template-typecheck-node-types.md` — close the concrete
   React template hygiene failure found by Diary 0091.
-- `issues/20260817-0275-derive-closed-plan-result-contracts.md` — implement D3.
-- `issues/20260817-0275-auto-qualify-packaged-runtime-in-prove.md` — implement
+- `issues/shelved/20260817-0275-derive-closed-plan-result-contracts.md` — implement D3.
+- `issues/shelved/20260817-0275-auto-qualify-packaged-runtime-in-prove.md` — implement
   D4.
-- `issues/20260817-0275-single-source-verify-path-registration.md` — implement
+- `issues/shelved/20260817-0275-single-source-verify-path-registration.md` — implement
   D5.
-- `issues/20260817-0275-first-use-ceremony-budget-harness.md` — implement D6/D7
+- `issues/shelved/20260817-0275-first-use-ceremony-budget-harness.md` — implement D6/D7
   and retain the before/after measurement.
 
 ## Acceptance

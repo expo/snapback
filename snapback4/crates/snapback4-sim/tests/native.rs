@@ -11,105 +11,9 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 /// Interview's feed-relevant subset (LLP 3000.004 §5) with the scoring job
-/// native, plus the two misbehaving jobs.
-const SCHEMA: &str = r#"
-use identity
-use personas alice, bob, marc
-
-table prompts:
-  title: text 1..300
-  authorId: principal
-  at: time
-  by byTime: at, id
-  immutable authorId, at
-  read <- allow
-  insert <- .authorId = viewer
-  update <- .authorId = viewer
-  delete <- deny
-  sync public last 500 by byTime
-
-table posts:
-  promptId: prompts
-  authorId: principal
-  provider: text <=30 ?
-  summary: text <=1200
-  at: time
-  by byTime: at, id
-  by byPromptTime: promptId, at, id
-  immutable promptId, authorId, at
-  read <- allow
-  insert <- .authorId = viewer
-  update <- .authorId = viewer
-  delete <- deny
-  sync public last 2000 by byTime
-
-table votes:
-  postId: posts
-  principal: principal
-  direction: int
-  unique byPostPrincipal: postId, principal
-  by byPrincipal: principal, id
-  read <- .principal = viewer
-  insert <- .principal = viewer
-  update <- .principal = viewer
-  delete <- .principal = viewer
-  sync to .principal last 1000 by byPrincipal
-
-table comments:
-  postId: posts
-  authorId: principal
-  body: text 1..1500
-  at: time
-  by byTime: at, id
-  immutable postId, authorId, at
-  read <- allow
-  insert <- .authorId = viewer
-  update <- .authorId = viewer
-  delete <- deny
-  sync public last 2000 by byTime
-
-maintain postScore: sum votes of direction by postId
-  read <- allow
-
-maintain commentCount: count comments by postId
-  read <- allow
-
-table ranked:
-  postId: posts
-  score: int
-  at: time
-  unique byPost: postId
-  by byScore: score, id
-  read <- allow
-  insert <- deny
-  update <- deny
-  delete <- deny
-  sync public last 500 by byScore
-
-job rescore(): native
-job overflow(): native
-job clash(): native
-job boom(): native
-
-schedule rescoreEvery every 5m: rescore
-
-query home(c: cursor ?):
-  return ranked[] after c last 50 by byScore { *, post: posts[.postId], mine: votes[.postId, viewer] }
-
-mutation createPrompt(title: text 1..300):
-  return insert prompts { title, authorId: viewer, at: now }
-
-mutation writePost(promptId: prompts, summary: text <=1200, provider: text <=30 ?):
-  require exists prompts[promptId] else PROMPT_NOT_FOUND
-  return insert posts { promptId, authorId: viewer, provider, summary, at: now }
-
-mutation vote(postId: posts, direction: int):
-  require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
-  upsert votes[postId, viewer] { direction }
-
-mutation comment(postId: posts, body: text 1..1500):
-  return insert comments { postId, authorId: viewer, body, at: now }
-"#;
+/// and the personalizer native, plus the misbehaving jobs: the fixture's own
+/// schema, which the device test compiles too.
+const SCHEMA: &str = include_str!("../../../native-fixtures/rescore/schema.q");
 
 fn id(s: &str) -> Value {
     Value::Id(s.into())
@@ -188,8 +92,10 @@ fn scores(engine: &Engine) -> BTreeMap<String, i64> {
 fn a_native_job_scores_the_feed_and_the_ordinary_query_serves_it() {
     let mut engine = engine();
     assert_eq!(engine.declared_native_jobs(), vec!["boom", "clash", "overflow", "rescore"]);
+    assert_eq!(engine.native_module().map(|m| m.reads().to_vec()), None);
     let jobs = engine.install_native(module()).unwrap();
     assert_eq!(jobs, vec!["rescore", "overflow", "clash", "boom"]);
+    assert_eq!(engine.native_module().unwrap().reads(), ["personalize"]);
     let (bobs, marcs, models) = seed_interview(&mut engine);
     let run = engine.run_job("rescore", BTreeMap::new(), NOW + 1_000).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");

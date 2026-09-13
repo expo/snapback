@@ -15,6 +15,16 @@ const preparedSchemas = new WeakMap<object,{ hash: string; rules: Map<unknown,st
 // custody may reuse canonical schema/rule bytes across fresh Runner executions.
 export function prepareSchema(schema: any, expected: string): any {
   const owned = immutable(structuredClone(schema));
+  return admitPreparedSchema(owned,expected);
+}
+
+/** Client manifests already crossed ownJson's deep-copy/deep-freeze boundary.
+ * This narrow path avoids requiring structuredClone from a native JS host. */
+export function prepareOwnedSchema(schema: any, expected: string): any {
+  return admitPreparedSchema(schema,expected);
+}
+
+function admitPreparedSchema(owned: any, expected: string): any {
   if (schemaDigest(owned) !== expected) return;
   const rules = new Map<unknown,string>();
   for (const table of Object.values<any>(owned.tables)) for (const rule of Object.values(table.rules ?? {}))

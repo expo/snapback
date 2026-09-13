@@ -105,7 +105,7 @@ see `issues/closed/20260717-app-cli-attribution-seams.md`)
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0108, LLP 0110, LLP 0113, LLP 0114, LLP 0200,
 LLP 0219, LLP 0267,
-`issues/20260820-familiar-live-subscription-contention.md`
+`issues/shelved/20260820-familiar-live-subscription-contention.md`
 
 ## Summary
 

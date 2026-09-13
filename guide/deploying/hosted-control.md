@@ -4,7 +4,7 @@ id: deploying.hosted-control
 order: 3
 audience: agent-first
 capabilities: [deploy.target-control]
-authorities: [llp/0111-fly-completion-and-hosted-ephemeral.plan.md, packages/snapback-cli/hosted-control.mjs, packages/snapback-cli/index.mjs, issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
+authorities: [llp/0111-fly-completion-and-hosted-ephemeral.plan.md, packages/snapback-cli/hosted-control.mjs, packages/snapback-cli/index.mjs, issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
 examples: []
 status: current
 targets: [all]
@@ -64,7 +64,7 @@ with a valid V2 request returns the structured
 `snapback.hosted-lifecycle-refusal.v1` envelope with
 `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`. Its `recommendedNext` uses the
 catalog refusal shape—`owner`, `ticketOrDesignPointer`, and `note`—and points
-to the [hosted lifecycle carrier and custody GAP](repo:issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md).
+to the [hosted lifecycle carrier and custody GAP](repo:issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md).
 
 ## Understand what must land before enablement
 

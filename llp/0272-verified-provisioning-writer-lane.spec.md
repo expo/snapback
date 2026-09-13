@@ -62,7 +62,7 @@ PK must use a non-null `incarnation` sentinel under SQLite NULL-distinct semanti
 Status Draft → Accepted; implementation deferred as a separate follow-up)
 **Related:** LLP 0003, LLP 0009, LLP 0057, LLP 0053, LLP 0055, LLP 0056,
 LLP 0058, LLP 0110, LLP 0151, LLP 0183, LLP 0211, LLP 0214, LLP 0226, and
-`issues/20260808-guide-gap-principal-to-app-identity-binding.md`
+`issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md`
 
 ## Summary
 

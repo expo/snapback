@@ -4,10 +4,14 @@ import { acquisitionState, canonicalDeclarations, chainValue, declarationIdentit
 import { FactPool, queryKey, snapshot, taggedArgs, validateManifest } from './resource/facts.js';
 import { isSha256 } from '../../evaluator/src/hash.js';
 import { decodeDeliveryMessage, ownDeliveryEnvelope, type DeliveryEnvelopeV1, type DeliveryUnchanged } from './resource/protocol.js';
+import { checkedStoredOperation } from './resource/operation.js';
+import { DatasetAcquisition, Intent, loading, Resource } from './resource/handles.js';
+import { PendingQueryCoordinator, type PredictionUpdate } from './resource/prediction.js';
 import { rowReferences } from './resource/row-values.js';
 import { canonicalJson } from '../../evaluator/src/value-runtime.js';
 import { deferred, errorOf, ownJson, Signal } from './resource/signal.js';
 import { createIndexedDBStorage, createMemoryStorage } from './resource/storage.js';
+import { normalizeOwnerUrl, platformId, storageJob, timer, type ClientPlatformDefaults } from './client-platform.js';
 import { SnapbackError, type Acquisition, type AcquisitionDeclaration, type AcquisitionSnapshot, type Args,
   type ClientSnapshot, type ClientStorage, type Manifest,
   type MutationReceipt, type Operation, type OperationSnapshot, type QueryResource, type ResourceSnapshot,
@@ -19,40 +23,29 @@ export type { Op, Channel, Api, ArgsOf, ResultOf } from './api.js';
 export { createIndexedDBStorage, createMemoryStorage, pages, SnapbackError };
 export type { AcquisitionSpec, PageChain };
 export type { Acquisition, AcquisitionSnapshot, ClientSnapshot, ClientStorage, MutationReceipt, Operation, OperationSnapshot,
-  QueryResource, ResourceSnapshot, Session, StoragePatch, StoredState } from './resource/types.js';
+  PendingResourceItem, QueryResource, ResourceSnapshot, Session, StoragePatch, StoredState } from './resource/types.js';
 
 export interface ClientOptions {
   url: string;
   storage?: ClientStorage | false;
   fetch?: typeof globalThis.fetch;
+  /** Secure identity source for hosts without Web Crypto. Expo supplies expo-crypto by default. */
+  idFactory?: () => string;
   /** Disable the event connection for a request-only host. Queries and writes still work. */
   live?: boolean;
 }
+export type { ClientPlatformDefaults } from './client-platform.js';
 
-const loading = <T>(): ResourceSnapshot<T> => ({ data: undefined, status: 'loading', complete: false, fresh: false });
 const nameOf = (ref: string | Op<any, any, any>): string => typeof ref === 'string' ? ref : referenceName(ref);
 const isPending = (state: string): boolean => ['persisting', 'queued', 'sending', 'observing', 'parked', 'error', 'rejected', 'conflict'].includes(state);
 const retryable = (error: SnapbackError): boolean => ['S3_NETWORK', 'S3_OWNER_BUSY', 'S3_WORKER_TIMEOUT', 'S3_WORKER_IO',
   'S3_WORKER_EXIT', 'S3_WORKER_CLOSED', 'S3_UNAVAILABLE', 'S3_RESPONSE_INVALID'].includes(error.code)
   || [408, 425, 429, 500, 502, 503, 504].includes((error.details as any)?.status);
-const timer = (fn: () => void, ms: number): ReturnType<typeof setTimeout> => {
-  const handle = setTimeout(fn, ms);
-  (handle as any).unref?.();
-  return handle;
-};
 const exactObject = (value: unknown, required: readonly string[], optional: readonly string[] = []): boolean => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const keys = Object.keys(value as object);
   return required.every(key => Object.hasOwn(value, key))
     && keys.every(key => required.includes(key) || optional.includes(key));
-};
-const storageJobs = new WeakMap<ClientStorage, Promise<void>>();
-/** Orders clients sharing one adapter instance. Separate adapter instances own
- * their existing subscribe/notification coordination. */
-const storageJob = <T>(storage: ClientStorage, run: () => Promise<T>): Promise<T> => {
-  const result = (storageJobs.get(storage) ?? Promise.resolve()).then(run);
-  storageJobs.set(storage, result.then(() => {}, () => {}));
-  return result;
 };
 const ownAcquisitionSpec = <Root>(input: AcquisitionSpec<Root>): AcquisitionSpec<Root> => {
   const root = input.root;
@@ -61,104 +54,6 @@ const ownAcquisitionSpec = <Root>(input: AcquisitionSpec<Root>): AcquisitionSpec
       ...(root.cursor !== undefined ? { cursor: root.cursor } : {}) }),
     ...(input.expand ? { expand: input.expand } : {}) });
 };
-
-class Resource<T> extends Signal<ResourceSnapshot<T>> implements QueryResource<T> {
-  active = false;
-  references?: Set<string>;
-  projection?: string;
-  acquisition?: { id: string; seq: number };
-  readonly key: string;
-  constructor(readonly op: string, readonly args: Args,
-    private readonly acquire: () => Promise<ResourceSnapshot<T>>, demand: (active: boolean) => void) {
-    super(loading<T>(), demand);
-    this.key = queryKey(op, args);
-  }
-  refresh = (): Promise<ResourceSnapshot<T>> => this.acquire();
-}
-
-class Intent<T> extends Signal<OperationSnapshot<T>> implements Operation<T> {
-  private readonly admitted = deferred<void>();
-  private readonly terminal = deferred<MutationReceipt<T>>();
-  readonly durable = this.admitted.promise;
-  private sealed = false;
-  private readonly sealedResult = deferred<MutationReceipt<T>>();
-  get settled(): Promise<MutationReceipt<T>> { return this.sealed ? this.sealedResult.promise : this.terminal.promise; }
-  get isSealed(): boolean { return this.sealed; }
-  constructor(readonly id: string, op: string, args: Args) { super({ id, op, args, status: 'persisting' }); }
-  admission(): void { this.admitted.resolve(); }
-  finish(receipt: MutationReceipt<T>): void { if (!this.sealed) this.terminal.resolve(receipt); }
-  fail(error: SnapbackError): void { this.admitted.reject(error); this.terminal.reject(error); }
-  override set(value: OperationSnapshot<T>, notify = true): void { if (!this.sealed) super.set(value, notify); }
-  seal(notify = true): boolean {
-    if (this.sealed) return false;
-    this.sealed = true;
-    const error = new SnapbackError('S3_AUTH_CHANGED', 'This operation belongs to a previous account session. Sign in to recover its current handle.');
-    super.set({ id: this.id, op: '', args: Object.freeze({}), status: 'sealed', error }, notify);
-    this.admitted.reject(error); this.terminal.reject(error); this.sealedResult.reject(error);
-    return true;
-  }
-}
-
-class DatasetAcquisition extends Signal<AcquisitionSnapshot> implements Acquisition {
-  private completion = deferred<AcquisitionSnapshot>();
-  private completionSettled = false;
-  private cycle = 0;
-  private cancellation?: Promise<void>;
-  get completed(): Promise<AcquisitionSnapshot> { return this.completion.promise; }
-  constructor(readonly id: string, private readonly cancelRun: () => Promise<void>, private readonly resumeRun: () => void) {
-    super({ id, status: 'acquiring', pages: 0, chains: 1 });
-  }
-  cancel = (): void => {
-    if (this.getSnapshot().status === 'sealed' || this.getSnapshot().status === 'cancelled') return;
-    this.cycle++;
-    const error = new SnapbackError('S3_ACQUISITION_CANCELLED', 'The acquisition was cancelled. Call resume() to continue it.');
-    this.set({ ...this.getSnapshot(), status: 'cancelled', error: undefined });
-    if (this.completionSettled) this.replaceCompletion();
-    this.completionSettled = true; this.completion.reject(error);
-    this.cancellation = this.cancelRun();
-  };
-  resume = (): Promise<AcquisitionSnapshot> => {
-    const status = this.getSnapshot().status;
-    if (status === 'sealed' || status === 'ready' || status === 'acquiring') return this.completed;
-    if (this.completionSettled) this.replaceCompletion();
-    this.set({ ...this.getSnapshot(), status: 'acquiring', error: undefined });
-    const cycle = ++this.cycle, start = () => {
-      if (cycle === this.cycle && this.getSnapshot().status === 'acquiring') this.resumeRun();
-    };
-    if (this.cancellation) void this.cancellation.then(start); else start();
-    return this.completed;
-  };
-  prepareAutomaticResume(): boolean {
-    const status = this.getSnapshot().status;
-    if (status === 'sealed' || status === 'cancelled' || status === 'error' && this.completionSettled) return false;
-    if (status === 'ready') this.replaceCompletion();
-    this.set({ ...this.getSnapshot(), status: 'acquiring', error: undefined });
-    return true;
-  }
-  get awaitingRetry(): boolean { return this.getSnapshot().status === 'error' && !this.completionSettled; }
-  finish(value: AcquisitionSnapshot): void {
-    if (this.getSnapshot().status === 'sealed' || this.getSnapshot().status === 'cancelled') return;
-    this.set(value); this.completionSettled = true; this.completion.resolve(value);
-  }
-  fail(error: SnapbackError): void {
-    if (this.getSnapshot().status === 'sealed' || this.getSnapshot().status === 'cancelled') return;
-    this.set({ ...this.getSnapshot(), status: 'error', error });
-    this.completionSettled = true; this.completion.reject(error);
-  }
-  suspend(error: SnapbackError): void {
-    if (this.getSnapshot().status === 'sealed' || this.getSnapshot().status === 'cancelled') return;
-    this.set({ ...this.getSnapshot(), status: 'error', error });
-  }
-  seal(error: SnapbackError): void {
-    this.cycle++;
-    this.set({ ...this.getSnapshot(), status: 'sealed', error });
-    if (this.completionSettled) this.replaceCompletion();
-    this.completionSettled = true; this.completion.reject(error);
-  }
-  private replaceCompletion(): void {
-    this.completion = deferred<AcquisitionSnapshot>(); this.completionSettled = false;
-  }
-}
 
 /** One client owns resource evidence, identity, and the durable operation queue.
  * React and other hosts subscribe to these same values. */
@@ -174,7 +69,9 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   };
   private readonly url: string;
   private readonly storage: ClientStorage;
+  private readonly ownsStorage: boolean;
   private readonly fetcher: typeof globalThis.fetch;
+  private readonly idFactory?: () => string;
   private readonly resources = new Map<string, Resource<any>>();
   private readonly acquiredFacts = new Map<string, { pool: FactPool; seq: number }>();
   private readonly acquiredIdentities = new Map<string, string>();
@@ -186,8 +83,11 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   private acquisitionEpoch = 0;
   private readonly intents = new Map<string, Intent<any>>();
   private readonly journal = new Map<string, StoredOperation>();
-  private readonly clientId = globalThis.crypto.randomUUID();
+  private readonly predictions = new PendingQueryCoordinator();
+  private operationOrder = 0;
+  private readonly clientId: string;
   private readonly releaseStorageListener?: () => void;
+  private releaseBrowserListeners?: () => void;
   private readonly requests = new Set<AbortController>();
   private readonly queued = new Map<Resource<any>, ReturnType<typeof deferred<ResourceSnapshot<any>>>>();
   private readonly acquiring = new Map<string, Promise<ResourceSnapshot<any>>>();
@@ -195,6 +95,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   private manifest: Manifest | null = null;
   private facts: FactPool | null = null;
   private persistence = Promise.resolve();
+  private closeResult = Promise.resolve();
   private accountEpoch = 0;
   private readEpoch = 0;
   /** Monotonic authority knowledge survives fact eviction and local cache clears. */
@@ -204,6 +105,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   private connected = false;
   private closed = false;
   private draining = false;
+  private drainRequested = false;
   private readScheduled = false;
   private eventController?: AbortController;
   private eventQueries = '';
@@ -215,12 +117,19 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   private readonly browserOnline = () => { if (this.allowedOnline) void this.reconnect().catch(() => {}); };
   private readonly browserOffline = () => { this.connected = false; this.stopEvents(); this.staleResources(); this.publish(); };
 
-  constructor(private readonly options: ClientOptions) {
+  constructor(private readonly options: ClientOptions, platform: ClientPlatformDefaults = {}) {
     super({ status: 'starting', principal: null, pending: [] });
-    this.url = options.url.replace(/\/+$/, '');
-    this.fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.url = normalizeOwnerUrl(options.url);
+    const defaultFetch = platform.fetch ?? globalThis.fetch;
+    if (!options.fetch && typeof defaultFetch !== 'function')
+      throw new SnapbackError('S3_PLATFORM_FETCH', 'This host needs a fetch implementation. Use its platform entrypoint or provide fetch.');
+    this.fetcher = options.fetch ?? defaultFetch.bind(globalThis);
+    this.idFactory = options.idFactory ?? platform.idFactory;
+    this.clientId = platformId(this.idFactory);
+    this.ownsStorage = options.storage === undefined;
     this.storage = options.storage === false ? createMemoryStorage()
-      : options.storage ?? (typeof indexedDB === 'undefined' ? createMemoryStorage() : createIndexedDBStorage(`snapback3:${this.url}`));
+      : options.storage ?? platform.defaultStorage?.()
+      ?? (typeof indexedDB === 'undefined' ? createMemoryStorage() : createIndexedDBStorage(`snapback3:${this.url}`));
     this.auth = {
       persona: name => this.signIn('persona', { name }),
       signup: (email, password) => this.signIn('signup', { email, password }),
@@ -237,15 +146,22 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
       const epoch = this.accountEpoch;
       void this.ready.then(() => this.storageAuthorityChanged(epoch)).catch(error => this.storageFailure(error));
     });
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', this.browserOnline);
-      window.addEventListener('offline', this.browserOffline);
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function'
+      && typeof window.removeEventListener === 'function') {
+      const browser = window;
+      browser.addEventListener('online', this.browserOnline);
+      browser.addEventListener('offline', this.browserOffline);
+      this.releaseBrowserListeners = () => {
+        browser.removeEventListener('online', this.browserOnline);
+        browser.removeEventListener('offline', this.browserOffline);
+      };
     }
   }
 
   watch<A, T>(operation: Op<A, T, any>, args: A): QueryResource<T>;
   watch<T = unknown>(operation: string, args?: Args): QueryResource<T>;
   watch<T>(operation: string | Op<any, T, any>, input: Args = {}): QueryResource<T> {
+    this.assertOpen();
     const op = nameOf(operation), args = ownJson(input), key = queryKey(op, args);
     const existing = this.resources.get(key);
     if (existing) return existing;
@@ -266,6 +182,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   /** Acquire and retain a declared paginated dataset. The explicit revision is
    * part of its durable identity because JavaScript derivation closures cannot be hashed safely. */
   acquire<Root>(input: AcquisitionSpec<Root>): Acquisition {
+    this.assertOpen();
     const spec = ownAcquisitionSpec(input);
     const existing = this.acquisitionHandles.get(spec.id);
     if (existing) {
@@ -312,8 +229,12 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   mutate<A, T>(operation: Op<A, T, any>, args: A): Operation<T>;
   mutate<T = unknown>(operation: string, args?: Args): Operation<T>;
   mutate<T>(operation: string | Op<any, T, any>, input: Args = {}): Operation<T> {
+    this.assertOpen();
     const op = nameOf(operation), args = ownJson(input);
-    const intent = new Intent<T>(globalThis.crypto.randomUUID(), op, args);
+    const id = platformId(this.idFactory);
+    if (this.intents.has(id) || this.journal.has(id))
+      throw new SnapbackError('S3_PLATFORM_ID', 'The identity source repeated an operation identity.');
+    const intent = new Intent<T>(id, op, args);
     this.intents.set(intent.id, intent);
     void this.admit(intent, this.accountEpoch).catch(error => {
       const failure = errorOf(error);
@@ -332,6 +253,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
    * Unknown and parked operations cannot be discarded through this method. */
   async dismissOperation(id: string): Promise<void> {
     await this.ready;
+    this.assertOpen();
     const entry = this.journal.get(id);
     if (!entry || entry.principal !== this.session?.principal.id) throw new SnapbackError('S3_OPERATION_UNKNOWN', 'This operation is not available to this account.');
     if (!entry.receipt) throw new SnapbackError('S3_OPERATION_PENDING', 'This operation has no terminal result yet.');
@@ -372,17 +294,21 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
     this.releaseStorageListener?.();
     this.stopEvents(); clearTimeout(this.retryTimer); clearTimeout(this.expiryTimer);
     for (const controller of this.requests) controller.abort();
-    for (const controller of this.acquisitionControllers.values()) controller.abort();
-    this.acquisitionRerun.clear();
+    this.sealAcquisitions(new SnapbackError('S3_CLOSED', 'The client is closed.'));
     for (const waiter of this.queued.values()) waiter.reject(new SnapbackError('S3_CLOSED', 'The client is closed.'));
     this.queued.clear();
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('online', this.browserOnline);
-      window.removeEventListener('offline', this.browserOffline);
-    }
-    if (!this.options.storage) void this.persistence.finally(() => this.storage.close?.());
+    this.releaseBrowserListeners?.(); this.releaseBrowserListeners = undefined;
+    const pending = this.persistence;
+    this.closeResult = storageJob(this.storage, async () => {
+      await pending;
+      if (this.ownsStorage) await this.storage.close?.();
+    });
+    // close() stays safe for teardown callbacks that intentionally do not wait.
+    void this.closeResult.catch(() => {});
   }
 
+  /** Await durable writes and, for a platform/default store, its connection close. */
+  async closeAsync(): Promise<void> { this.close(); await this.closeResult; }
   private async initialize(): Promise<void> {
     try {
       let state;
@@ -396,7 +322,8 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
       if (state.manifest) this.manifest = validateManifest(state.manifest);
       if (state.session && state.session.expiresAt > Date.now()) this.session = this.checkedSession(state.session);
       for (const entry of state.operations) {
-        const body = this.checkedBody(entry);
+        const body = checkedStoredOperation(entry);
+        this.operationOrder = Math.max(this.operationOrder, entry.order ?? ++this.operationOrder);
         const intent = new Intent(entry.id, body.op, body.args);
         this.journal.set(entry.id, entry); this.intents.set(entry.id, intent);
         this.updateIntent(entry); intent.admission();
@@ -409,12 +336,13 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
           ...[...this.journal.values()].filter(entry => entry.principal === this.session!.principal.id).map(entry => entry.receipt?.seq ?? 0));
         if (!state.acquisitionsInvalidated) this.restoreAcquisitions(state);
       }
+      this.refreshPredictions(false);
       this.scheduleExpiry();
       for (const resource of this.resources.values()) this.readLocal(resource);
-      try { await this.loadManifest(this.accountEpoch); this.connected = true; }
-      catch (error) { this.connected = false; this.lastError = errorOf(error); }
-      this.publish(); this.startEvents();
-      queueMicrotask(() => { void this.drain(); });
+      this.connected = false; this.publish();
+      // Local readiness is never held behind an unbounded network request.
+      // A cached session reconnects opportunistically after ready settles.
+      if (this.session && this.allowedOnline) queueMicrotask(() => { void this.reconnect(); });
     } catch (error) {
       this.lastError = errorOf(error, 'S3_STORAGE');
       this.set({ status: 'error', principal: null, pending: [], error: this.lastError });
@@ -430,8 +358,12 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
     return ownJson(input);
   }
 
+  private assertOpen(): void {
+    if (this.closed) throw new SnapbackError('S3_CLOSED', 'The client is closed.');
+  }
   private async signIn(method: string, args: Args): Promise<Session> {
     await this.ready;
+    this.assertOpen();
     this.clearAuthority();
     const epoch = this.accountEpoch;
     await this.persist({ session: null });
@@ -445,6 +377,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
       this.facts = new FactPool(this.manifest!, session);
       this.restoreAcquisitions(await this.storage.load());
       this.restoreIntentHandles();
+      this.refreshPredictions(false);
       this.connected = true; this.lastError = undefined;
       this.scheduleExpiry(); this.publish(); this.startEvents();
       for (const resource of this.resources.values()) if (resource.active) void this.acquireResource(resource).catch(() => {});
@@ -458,6 +391,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
 
   private async signOut(): Promise<void> {
     await this.ready;
+    this.assertOpen();
     const previous = this.session;
     this.clearAuthority();
     await this.persist({ session: null });
@@ -469,6 +403,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   private clearAuthority(): void {
     this.accountEpoch++; this.readEpoch++; this.minimumSeq = 0; this.session = null; this.facts = null;
     this.acquiredFacts.clear(); this.acquiredIdentities.clear();
+    this.predictions.clear();
     this.stopEvents(); clearTimeout(this.expiryTimer);
     for (const controller of this.requests) controller.abort();
     const failure = new SnapbackError('S3_AUTH_CHANGED', 'The active account changed.');
@@ -522,11 +457,12 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
     const patch = { manifest, ...(changed || advanced ? { frame: null as null } : {}) };
     if (authorityChanged) await this.persistFailClosed(patch, epoch);
     else await this.persist(patch);
+    if (changed || advanced) this.refreshPredictions(false);
     if (changed) await this.observeOperations();
   }
 
-  private readLocal(resource: Resource<any>): void {
-    if (!this.session || this.session.expiresAt <= Date.now()) return;
+  private readLocal(resource: Resource<any>, notify = true): boolean {
+    if (!this.session || this.session.expiresAt <= Date.now()) return false;
     let acquisition: Resource<any>['acquisition'];
     let local = this.facts && this.facts.seq >= this.minimumSeq ? this.facts.read(resource.op, resource.args) : undefined;
     if (!local) {
@@ -542,8 +478,30 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
       resource.references = envelope ? rowReferences(envelope.data) : undefined;
       resource.projection = envelope ? canonicalJson(envelope.data) : undefined;
       resource.acquisition = acquisition;
-      resource.set(local);
+      resource.set(local, notify);
+      return true;
     }
+    return false;
+  }
+
+  /** Rebase every current pool from the one durable FIFO, then publish only
+   * certified queries whose read tables intersect an entering/leaving overlay. */
+  private refreshPredictions(notify = true): PredictionUpdate {
+    const pools = [this.facts, ...[...this.acquiredFacts.values()].map(item => item.pool)]
+      .filter((pool): pool is FactPool => pool !== null);
+    const update = this.predictions.sync(this.manifest, this.session, this.journal.values(), pools);
+    if (!update.changedTables.size) return update;
+    const changed: Resource<any>[] = [];
+    for (const resource of this.resources.values()) {
+      const reads = this.manifest?.programs[resource.op]?.certificate.read_sites ?? [];
+      if (!reads.some((site: any) => update.changedTables.has(site.table))) continue;
+      const before = resource.getSnapshot();
+      const available = this.readLocal(resource, false);
+      if (!available && before.pending?.length) resource.set(loading(), false);
+      if (resource.getSnapshot() !== before) changed.push(resource);
+    }
+    if (notify) for (const resource of changed) resource.notify();
+    return update;
   }
 
   private withdrawAcquiredResources(id?: string): void {
@@ -574,6 +532,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
         const pool = restoreAcquiredPool(this.manifest, this.session, acquisition,
           state.acquisitionRows ?? [], state.acquisitionResources ?? []);
         if (pool && acquisition.seq !== undefined && acquisition.seq >= this.minimumSeq) {
+          this.predictions.attach(pool);
           this.acquiredFacts.set(acquisition.id, { pool, seq: acquisition.seq });
           this.acquiredIdentities.set(acquisition.id, acquisition.declarationHash);
         }
@@ -736,6 +695,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
         else {
           const pool = restoreAcquiredPool(manifest, session, metadata, [...rows.values()], [...resources.values()]);
           if (pool) {
+            this.predictions.attach(pool);
             assertCurrent();
             this.acquiredFacts.set(id, { pool, seq: metadata.seq });
             this.acquiredIdentities.set(id, identity);
@@ -791,6 +751,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
           await persistProgress([], [], true);
           const pool = restoreAcquiredPool(manifest, session, metadata, [...rows.values()], [...resources.values()]);
           if (!pool) throw new SnapbackError('S3_STORAGE', 'The completed acquisition could not be restored.');
+          this.predictions.attach(pool);
           assertCurrent();
           this.acquiredFacts.set(id, { pool, seq: metadata.seq! });
           this.acquiredIdentities.set(id, identity);
@@ -1054,7 +1015,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
       resource.acquisition = undefined;
       resource.set(failure
         ? { ...loading(), status: failure.code === 'S3_FORBIDDEN' ? 'denied' : 'error', seq: response.seq, error: failure }
-        : snapshot(deliveries.get(resource.key)!, true), false);
+        : this.facts.read(resource.op, resource.args, true) ?? snapshot(deliveries.get(resource.key)!, true), false);
       const accepted = deliveries.get(resource.key);
       resource.references = accepted ? rowReferences(accepted.data) : undefined;
       resource.projection = accepted ? canonicalJson(accepted.data) : undefined;
@@ -1090,31 +1051,16 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
     const body = JSON.stringify(ownJson({ op: current.op, args: current.args, intent: intent.id,
       planHash: program.planHash, schemaHash: this.manifest.schemaHash }));
     const entry: StoredOperation = { id: intent.id, principal: this.session.principal.id,
-      body, status: 'queued', createdAt: Date.now() };
+      body, status: 'queued', createdAt: Date.now(), order: ++this.operationOrder };
     await this.persist({ operations: [entry] });
-    this.journal.set(entry.id, entry); this.updateIntent(entry); intent.admission(); this.publish();
+    this.journal.set(entry.id, entry); this.updateIntent(entry); intent.admission();
+    this.refreshPredictions(); this.publish();
     void this.drain();
-  }
-
-  private checkedBody(entry: StoredOperation): { op: string; args: Args; intent: string; planHash: string; schemaHash: string } {
-    const body = JSON.parse(entry.body);
-    if (!/^[A-Za-z0-9_-]{1,128}$/.test(entry.id) || typeof entry.principal !== 'string'
-      || body.intent !== entry.id || typeof body.op !== 'string' || !body.op
-      || !isSha256(body.planHash) || !isSha256(body.schemaHash) || !body.args || Array.isArray(body.args)
-      || !['queued', 'parked', 'committed', 'rejected', 'conflict'].includes(entry.status)
-      || !Number.isSafeInteger(entry.createdAt) || entry.createdAt < 0)
-      throw new SnapbackError('S3_STORAGE', 'A pending operation has invalid identity.');
-    if (entry.receipt && (entry.receipt.intent !== entry.id || entry.receipt.state !== entry.status
-      || !['committed', 'rejected', 'conflict'].includes(entry.receipt.state)
-      || !Number.isSafeInteger(entry.receipt.seq) || entry.receipt.seq < 0)
-      || ['committed', 'rejected', 'conflict'].includes(entry.status) && !entry.receipt)
-      throw new SnapbackError('S3_STORAGE', 'A saved operation has an invalid terminal receipt.');
-    return ownJson(body);
   }
 
   private updateIntent(entry: StoredOperation): void {
     let intent = this.intents.get(entry.id)!;
-    const body = this.checkedBody(entry);
+    const body = checkedStoredOperation(entry);
     if (intent.isSealed && entry.principal === this.session?.principal.id) {
       intent = new Intent(entry.id, body.op, body.args); this.intents.set(entry.id, intent); intent.admission();
     }
@@ -1168,7 +1114,8 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
   }
 
   private async drain(): Promise<void> {
-    if (this.draining || this.closed || !this.allowedOnline || !this.connected || !this.session || !this.manifest) return;
+    if (this.closed || !this.allowedOnline || !this.connected || !this.session || !this.manifest) return;
+    if (this.draining) { this.drainRequested = true; return; }
     this.draining = true;
     const session = this.session, epoch = this.accountEpoch;
     try {
@@ -1176,7 +1123,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
         if (this.closed || epoch !== this.accountEpoch || !this.allowedOnline) break;
         if (entry.principal !== session.principal.id || !['queued', 'parked'].includes(entry.status)) continue;
         const intent = this.intents.get(entry.id)!;
-        const body = this.checkedBody(entry);
+        const body = checkedStoredOperation(entry);
         intent.set({ ...intent.getSnapshot(), status: 'sending', error: undefined }); this.publish();
         // Terminal lookup comes before successor checks: a committed lost reply
         // still belongs to the old immutable request after the schema changes.
@@ -1199,16 +1146,20 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
         if (!['committed', 'rejected', 'conflict'].includes(terminal.state) || terminal.intent !== entry.id
           || !Number.isSafeInteger(terminal.seq) || terminal.seq < 0)
           throw new SnapbackError('S3_PROTOCOL', 'The mutation receipt has an invalid identity.');
-        const advanced = terminal.seq > this.minimumSeq;
-        this.minimumSeq = Math.max(this.minimumSeq, terminal.seq);
-        if (advanced) this.renewResources();
         const settled: StoredOperation = { ...entry, status: terminal.state, receipt: ownJson(terminal), error: undefined };
         if (terminal.state === 'committed' && !this.awaitingObservation(settled)) settled.observed = true;
         // A process death here leaves the original intent retryable. Receipt
         // durability must finish before observers see a terminal operation.
         await this.persist({ operations: [settled] });
-        this.journal.set(entry.id, settled); this.updateIntent(settled); intent.finish(settled.receipt!); this.publish();
-        if (epoch === this.accountEpoch && terminal.state === 'committed' && !advanced) this.renewResources();
+        this.journal.set(entry.id, settled);
+        // Retire precisely this durable operation over the still-held base
+        // before a sequence renewal. Subscribers never see its predicted row
+        // relabelled as an authoritative stale frame.
+        this.refreshPredictions(false);
+        const advanced = terminal.seq > this.minimumSeq;
+        this.minimumSeq = Math.max(this.minimumSeq, terminal.seq);
+        if (advanced || terminal.state === 'committed') this.renewResources();
+        this.updateIntent(settled); intent.finish(settled.receipt!); this.publish();
       }
     } catch (error) {
       const failure = errorOf(error);
@@ -1222,19 +1173,22 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
         const intent = this.intents.get(entry.id)!;
         if (intent.getSnapshot().status === 'sending') this.updateIntent(entry);
       }
+      const rerun = this.drainRequested;
+      this.drainRequested = false;
       this.publish();
+      if (rerun) void this.drain();
     }
   }
 
   private async park(entry: StoredOperation, error: SnapbackError): Promise<void> {
     const parked: StoredOperation = { ...entry, status: 'parked', error: { code: error.code, message: error.message } };
     await this.persist({ operations: [parked] });
-    this.journal.set(entry.id, parked); this.updateIntent(parked); this.publish();
+    this.journal.set(entry.id, parked); this.updateIntent(parked); this.refreshPredictions(); this.publish();
   }
 
   private awaitingObservation(entry: StoredOperation): boolean {
     if (!entry.receipt || entry.receipt.state !== 'committed') return false;
-    const body = this.checkedBody(entry), program = this.manifest?.programs[body.op];
+    const body = checkedStoredOperation(entry), program = this.manifest?.programs[body.op];
     if (!program || this.manifest?.schemaHash !== body.schemaHash || program.planHash !== body.planHash) return false;
     const tables = new Set<string>((program.certificate.write_sites ?? []).map((site: any) => site.table));
     return [...this.resources.values()].some(resource => resource.active
@@ -1373,12 +1327,18 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
       const value = this.intents.get(id)!.getSnapshot();
       if (isPending(value.status)) pending.push(value);
     }
-    this.set({ status: !this.session ? 'signed-out' : this.connected && this.allowedOnline ? 'online' : 'offline',
+    const next: ClientSnapshot = { status: !this.session ? 'signed-out' : this.connected && this.allowedOnline ? 'online' : 'offline',
       principal: this.session?.principal ?? null, pending: Object.freeze(pending),
-      ...(this.lastError ? { error: this.lastError } : {}) });
+      ...(this.lastError ? { error: this.lastError } : {}) };
+    const previous = this.getSnapshot();
+    if (previous.status === next.status && previous.principal === next.principal
+      && previous.error === next.error && previous.pending.length === next.pending.length
+      && previous.pending.every((item, index) => item === next.pending[index])) return;
+    this.set(next);
   }
 
   private persist(patch: StoragePatch): Promise<void> {
+    if (this.closed) return Promise.reject(new SnapbackError('S3_CLOSED', 'The client is closed.'));
     const previous = this.persistence;
     const next = storageJob(this.storage, async () => { await previous; await this.storage.write({ ...patch, source: this.clientId }); })
       .catch(error => { throw errorOf(error, 'S3_STORAGE'); });
@@ -1390,6 +1350,7 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
    * the durable session fallback must finish before any restore can run. */
   private persistFailClosed(patch: StoragePatch, epoch: number,
     acquisition?: NonNullable<StoragePatch['cancelAcquisition']>): Promise<void> {
+    if (this.closed) return Promise.reject(new SnapbackError('S3_CLOSED', 'The client is closed.'));
     const authority = this.session && { token: this.session.token, principal: this.session.principal.id, authEpoch: this.session.authEpoch };
     const previous = this.persistence;
     const next = storageJob(this.storage, async () => {
@@ -1427,12 +1388,14 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
       // Restore recoverable work for the newly selected account; the operation
       // ledger still owns the terminal identity if two tabs drain concurrently.
       for (const entry of stored.operations) {
-        const body = this.checkedBody(entry);
+        const body = checkedStoredOperation(entry);
+        this.operationOrder = Math.max(this.operationOrder, entry.order ?? ++this.operationOrder);
         let intent = this.intents.get(entry.id);
         if (!intent) { intent = new Intent(entry.id, body.op, body.args); this.intents.set(entry.id, intent); }
         this.journal.set(entry.id, entry); this.updateIntent(entry); intent.admission();
         if (entry.receipt) intent.finish(entry.receipt);
       }
+      this.refreshPredictions(false);
       this.scheduleExpiry(); this.publish();
       if (this.allowedOnline) await this.reconnect();
     }
@@ -1467,3 +1430,8 @@ export class SnapbackClient extends Signal<ClientSnapshot> {
 }
 
 export function createClient(options: ClientOptions): SnapbackClient { return new SnapbackClient(options); }
+/** Platform entrypoints inject native defaults without disguising an explicit
+ * caller-owned storage adapter as client-owned state. */
+export function createPlatformClient(options: ClientOptions, platform: ClientPlatformDefaults): SnapbackClient {
+  return new SnapbackClient(options, platform);
+}

@@ -87,7 +87,7 @@ non-sealed public trait; clone any `Clone` value it receives.
 
 **Cannot:** name a `pub(crate)` item; construct a struct that has even one private field
 and no public constructor; write an inherent `impl` for a type defined in another crate
-(`issues/20260818-inherent-impl-blocks-owner-based-carves.md`); add a workspace
+(`issues/shelved/20260818-inherent-impl-blocks-owner-based-carves.md`); add a workspace
 dependency edge or an external crate outside `externalConfinement` without editing
 **two** committed artifacts that `scripts/check-workspace-graph.mjs` compares against
 each other (`crates/allowed-dependencies.v1.json` and the duplicated `EXPECTED_CRATES` /

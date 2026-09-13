@@ -41,7 +41,7 @@ observation paths no longer reconcile whole-queue custody; replay reconciles
 only the target-fenced record at its submission slot; optional
 `ledgerIncarnation` plumbing is ready, but real reset quarantine remains
 pending the server field tracked in
-`issues/20260825-inspect-exposes-ledger-incarnation.md`)
+`issues/shelved/20260825-inspect-exposes-ledger-incarnation.md`)
 **Revised:** 2026-08-25 (round-15 custody-order correction: shared capability
 currency and each persisted enqueue target pass before any custody write;
 reconciliation is limited to the already-validated record, so a valid prefix
@@ -591,7 +591,7 @@ inspection-to-POST deployment window. Sessions-mode servers enforce the
 carried `expectedGeneration` against the manifest pair selected for the
 invocation. v0-dev servers currently tolerate that additive field and do not
 perform mutation-time enforcement; server parity is tracked in
-`issues/20260825-v0-dev-mutation-generation-enforcement.md`.
+`issues/shelved/20260825-v0-dev-mutation-generation-enforcement.md`.
 
 All mutation/replay POSTs, other effect-producing requests, capability
 inspection, and any request carrying a bearer, lease, session, admin token, or
@@ -679,7 +679,7 @@ giving the JS client a changed replay-target axis. The same-origin,
 same-artifact reset case is **not closed** until the server publishes
 `ledgerIncarnation` and the real reset/zero-POST regression runs; the Rust-side
 work and acceptance test are tracked in
-`issues/20260825-inspect-exposes-ledger-incarnation.md`.
+`issues/shelved/20260825-inspect-exposes-ledger-incarnation.md`.
 
 Every newly written server settlement also stores a nullable authoritative
 version beside the legacy settlement cursor. A non-null value — including
@@ -1429,7 +1429,7 @@ this document; no normative claim changes.
 - **Genuinely process-isolated restart:** the client process terminates
   and a new process renders from durable state alone. No current suite
   proves this class; the owning ticket for that witness is
-  `issues/20260801-js-arm-integrated-authenticated-restart-witness.md`
+  `issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md`
   (the LLP 0129 exit-criterion 1/2 conjunction).
 
 Wherever "cold process" appears in this document it claims the first

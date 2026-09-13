@@ -493,7 +493,7 @@ carries the persisted generation as `expectedGeneration`. Sessions servers
 compare that assertion atomically with the manifest pair selected for the
 invocation. v0-dev currently tolerates the field without enforcing it, so its
 remaining post-inspection race is tracked in
-`issues/20260825-v0-dev-mutation-generation-enforcement.md`. That exception
+`issues/shelved/20260825-v0-dev-mutation-generation-enforcement.md`. That exception
 never admits replay or transport and therefore enqueues without a foreground
 mutation POST. The durable store writer assigns the request order before inspection
 transport and compare-and-commits answered facts by observed fact revision or
@@ -1497,7 +1497,7 @@ A site needs the split-phase reservation only when a *live caller authority* can
 retire mid-flight. Job, watch and webhook contexts reconstruct credential-free
 execution authority and carry no session publication to reserve, so the mode
 guard alone is both correct and sufficient there. Classification and per-site
-evidence: `issues/20260821-authorized-effect-remedy-classification.md`.
+evidence: `issues/shelved/20260821-authorized-effect-remedy-classification.md`.
 
 **Split-phase (caller-backed).** The ordinary HTTP mutation seam, and the asset
 sites: upload-attempt creation; cancellation and TUS termination; TUS preflight
@@ -1528,7 +1528,7 @@ outcome. See `issues/closed/20260821-terminal-accounting-settlement-ruling.md`.
 **Irreversible and external effects are withheld, not fenced.** Holding a guard
 across the moment of irreversibility is too late; authority transfers to a
 durable record before the physical cut, and the cut is performed from that
-record. See `issues/20260821-durable-authority-to-effect-handoff-design.md`.
+record. See `issues/shelved/20260821-durable-authority-to-effect-handoff-design.md`.
 
 Each fenced site carries a mutation test that fails when its own fence is
 removed; a fence without such a test is not considered proven.

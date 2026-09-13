@@ -32,12 +32,22 @@ export class SnapbackError extends Error {
   }
 }
 
+export interface PendingResourceItem {
+  readonly operationId: string;
+  readonly table: string;
+  readonly id: string;
+  readonly effect: 'create' | 'update' | 'delete';
+}
+
 export interface ResourceSnapshot<T> {
   readonly data: T | undefined;
   readonly status: 'loading' | 'ready' | 'error' | 'denied';
   /** Completeness belongs to this resource at seq; it never implies a composite snapshot. */
   readonly complete: boolean;
   readonly fresh: boolean;
+  /** Local FIFO effects included in data. When present, fresh is false;
+   * complete and seq describe only the authoritative base beneath them. */
+  readonly pending?: readonly PendingResourceItem[];
   readonly seq?: number;
   readonly next?: string | null;
   readonly error?: SnapbackError;
@@ -110,6 +120,9 @@ export interface StoredOperation {
   body: string;
   status: 'queued' | 'parked' | 'committed' | 'rejected' | 'conflict';
   createdAt: number;
+  /** Durable client admission order. Older stores fall back to their adapter's
+   * load order and createdAt; this field never travels on the mutation wire. */
+  order?: number;
   receipt?: MutationReceipt;
   error?: { code: string; message: string };
   dismissed?: true;
@@ -232,5 +245,5 @@ export interface ClientStorage {
   load(): Promise<StoredState>;
   write(patch: StoragePatch): Promise<void>;
   subscribe?(listener: (event: { source?: string; type: 'authority' }) => void): () => void;
-  close?(): void;
+  close?(): void | Promise<void>;
 }

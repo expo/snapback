@@ -44,7 +44,7 @@ bump these fields ride),
 `issues/20260809-per-milestone-token-metering.md` (D0.6 implementation
 ticket), `issues/20260820-matrix-lane-skill-routing-context-budget.md`
 (orientation carrier),
-`issues/20260821-clique-instrument-observability-version-bump.md`
+`issues/shelved/20260821-clique-instrument-observability-version-bump.md`
 
 ## Summary
 
@@ -926,7 +926,7 @@ with a protocol-approved boundary-snapshot estimator permitted only
 where a pinned harness exposes no per-phase fields, and the estimator's
 use recorded as a field). The fields must be schema-compatible with the
 coordinated version bump in
-`issues/20260821-clique-instrument-observability-version-bump.md`.
+`issues/shelved/20260821-clique-instrument-observability-version-bump.md`.
 
 Registered per-milestone fields:
 

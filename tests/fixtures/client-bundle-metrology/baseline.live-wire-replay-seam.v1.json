@@ -60,7 +60,7 @@
     "landing": "3c0bec2d3e2dd24fe1f103bf5e67a049398260b1",
     "classification": "ratify compressed-output-only drift",
     "fix": "The live-wire fixture replay lane extracted a shared live-wire-core seam from the client entry; minified and gzip bytes are unchanged on react-external while Brotli shifts by five bytes from content reordering. No new module enters the React closure (the replay module is test-only).",
-    "ticket": "issues/20260808-integration-coverage-gaps.md",
+    "ticket": "issues/shelved/20260808-integration-coverage-gaps.md",
     "standingPolicy": "LLP 0145 Phase A, 2026-08-10 author ruling: attributed growth from a landed, receipted fix takes an automatic blessed rollover.",
     "byteDeltas": "react-external brotli 28483 -> 28488 (+5); minified and gzip unchanged.",
     "summary": "Advance only react-external Brotli for the landed replay-seam content shift; every other ceiling and the predecessor remain immutable."

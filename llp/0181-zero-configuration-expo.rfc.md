@@ -1530,7 +1530,7 @@ NOT-YET local iOS nonclaim and A3-closed successor-RFC gate remain in force.
 **Author addendum — 2026-08-23.** Packet rulings 4–6 are closed: do not spend
 current effort on the F-A2-4 loopback-auth blast-radius measurement; schedule
 the Android USB native receipt through
-`issues/20260823-android-usb-native-live-device-receipt.md`; and treat a
+`issues/shelved/20260823-android-usb-native-live-device-receipt.md`; and treat a
 peer-authenticated private overlay as an unsupported experimental front, not
 an admitted carrier, until a separate reviewed design says otherwise. None of
 these rulings claims an iOS local carrier or advances E5.

@@ -936,7 +936,7 @@ than a polish step: the Zerobugs control shipped every
 application-semantic refusal as a plain `throw` through ten receipted gate
 attempts, and only adopted the channel when a gate assertion caught that a
 short-id boundary refusal was invisible to the client
-([issue](repo:issues/20260808-guide-gap-declared-refusals-discoverability.md)).
+([issue](repo:issues/shelved/20260808-guide-gap-declared-refusals-discoverability.md)).
 
 ### Debug `SNAPBACK_HANDLER_FAILED` under the dev supervisor
 

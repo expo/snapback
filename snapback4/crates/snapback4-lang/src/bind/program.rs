@@ -76,7 +76,11 @@ impl<'a> Binder<'a> {
             // The body is the app's Rust (LLP 3000.005): nothing to bind, the
             // module is checked against the declaration by `check`.
             let full_name = super::operation_name(module, &decl.name);
-            return Some(BoundProgram { program: Program { name: full_name, kind: ir::ProgramKind::Job, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, module: module.to_owned(), args: arg_types, result: Ty::Null, site: decl.site.clone() });
+            let (kind, result) = match decl.kind {
+                ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
+                _ => (ir::ProgramKind::Job, Ty::Null),
+            };
+            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, module: module.to_owned(), args: arg_types, result, site: decl.site.clone() });
         }
         let mut body = Vec::new();
         let mut failed = false;

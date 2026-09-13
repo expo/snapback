@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { createClient, createMemoryStorage, type ClientStorage, type SnapbackClient, type Session } from '../packages/snapback3/src/client.js';
+import { createClient, createMemoryStorage, createPlatformClient, type ClientStorage, type SnapbackClient,
+  type Session } from '../packages/snapback3/src/client.js';
 import { FactPool, queryKey, taggedArgs, validateManifest } from '../packages/snapback3/src/resource/facts.js';
 import { deferred } from '../packages/snapback3/src/resource/signal.js';
 import type { DeliveryEnvelopeV1 } from '../packages/snapback3/src/resource/protocol.js';
@@ -693,6 +694,34 @@ describe('account and live boundaries', () => {
     await eventually(() => second.getSnapshot().status === 'signed-out');
     expect(rows.getSnapshot().data).toBeUndefined();
   });
+
+  test('throwing application observers do not interrupt shared-memory authority withdrawal', async () => {
+    const harness = new Harness(), storage = createMemoryStorage();
+    const first = harness.client(storage); await first.auth.persona('alice');
+    const throwing = harness.client(storage), later = harness.client(storage);
+    throwing.setOnline(false); later.setOnline(false);
+    await Promise.all([throwing.ready, later.ready]);
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'reportError');
+    const reported: Array<{ error: unknown; principal?: string }> = [];
+    Object.defineProperty(globalThis, 'reportError', { configurable: true,
+      value: (error: unknown) => reported.push({ error, principal: throwing.getSnapshot().principal?.id }) });
+    let laterNotifications = 0;
+    const stopThrowing = throwing.subscribe(() => { throw new Error('memory observer failure'); });
+    const stopLater = later.subscribe(() => { laterNotifications++; });
+    try {
+      await expect(first.auth.persona('bob')).resolves.toMatchObject({ principal: { id: 'bob' } });
+      await eventually(() => throwing.getSnapshot().principal?.id === 'bob'
+        && later.getSnapshot().principal?.id === 'bob');
+      expect(reported.some(item => item.error instanceof Error && item.error.message === 'memory observer failure')).toBe(true);
+      expect(reported.every(item => item.principal !== 'alice')).toBe(true);
+      expect(laterNotifications).toBeGreaterThan(0);
+      expect((await storage.load()).session?.principal.id).toBe('bob');
+    } finally {
+      stopThrowing(); stopLater();
+      if (descriptor) Object.defineProperty(globalThis, 'reportError', descriptor);
+      else delete (globalThis as typeof globalThis & { reportError?: unknown }).reportError;
+    }
+  });
 });
 
 test('storage updates preserve other clients intents instead of replacing the journal', async () => {
@@ -709,4 +738,117 @@ test('resource identifiers have fixed length even for long valid arguments, and 
   expect(first).toHaveLength(64);
   expect(queryKey('search.results', { limit: 10, text })).toBe(first);
   expect(queryKey('search.results', { text: `${text}b`, limit: 10 })).not.toBe(first);
+});
+
+describe('platform lifecycle', () => {
+  test('cached data and pending work become ready while the network hangs without native clone or UUID globals', async () => {
+    const harness = new Harness(), storage = createMemoryStorage(), first = harness.client(storage);
+    await first.auth.persona('alice');
+    const before = await first.query<any[]>('cards.list', { columnId: 'col1' });
+    first.setOnline(false);
+    const held = first.mutate('cards.add', { columnId: 'col1', title: 'Held for native restart' });
+    await held.durable; first.close();
+
+    const descriptors = new Map(['crypto', 'structuredClone', 'TextEncoder'].map(name =>
+      [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const));
+    let networkCalls = 0, nextId = 0;
+    const hanging = ((_input: RequestInfo | URL, init: RequestInit = {}) => {
+      networkCalls++;
+      return new Promise<Response>((_resolve, reject) => init.signal?.addEventListener('abort',
+        () => reject(new DOMException('Aborted', 'AbortError')), { once: true }));
+    }) as typeof fetch;
+    let reopened: SnapbackClient | undefined, immediate: SnapbackClient | undefined;
+    try {
+      for (const name of descriptors.keys()) Object.defineProperty(globalThis, name, { configurable: true, value: undefined });
+      reopened = createClient({ url: 'http://snapback.test', storage, fetch: hanging, live: false,
+        idFactory: () => `native-id-${++nextId}` });
+      clients.push(reopened);
+      await Promise.race([reopened.ready, new Promise((_, reject) => setTimeout(() => reject(new Error('local ready waited for network')), 50))]);
+      expect(reopened.getSnapshot().principal?.id).toBe('alice');
+      expect(reopened.getSnapshot().pending.map(item => item.id)).toContain(held.id);
+      await eventually(() => networkCalls > 0, 'opportunistic reconnect did not start');
+      reopened.setOnline(false);
+      expect(await reopened.query<any[]>('cards.list', { columnId: 'col1' })).toEqual(before);
+      const next = reopened.mutate('cards.add', { columnId: 'col1', title: 'Created without global crypto' });
+      await next.durable;
+      expect(next.id).toBe('native-id-2');
+
+      const callsBeforeImmediate = networkCalls;
+      immediate = createClient({ url: 'http://snapback.test', storage, fetch: hanging, live: false,
+        idFactory: () => `native-id-${++nextId}` });
+      clients.push(immediate); immediate.setOnline(false);
+      await immediate.ready; await new Promise(resolve => setTimeout(resolve, 0));
+      expect(networkCalls).toBe(callsBeforeImmediate);
+      expect(immediate.getSnapshot().principal?.id).toBe('alice');
+      expect(immediate.getSnapshot().pending.map(item => item.id)).toContain(next.id);
+    } finally {
+      reopened?.close(); immediate?.close();
+      for (const [name, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+        else delete (globalThis as any)[name];
+      }
+    }
+  });
+
+  test('a never-synced client resolves honestly without inventing local data', async () => {
+    let calls = 0;
+    const client = createClient({ url: 'http://never-synced.test', storage: false, live: false,
+      fetch: async () => { calls++; return new Promise<Response>(() => {}); }, idFactory: () => 'never-synced-client' });
+    clients.push(client);
+    await client.ready;
+    expect(client.getSnapshot().status).toBe('signed-out');
+    expect(client.watch('unknown.query', {}).getSnapshot().data).toBeUndefined();
+    await expect(client.query('unknown.query', {})).rejects.toMatchObject({ code: 'S3_AUTH' });
+    expect(calls).toBe(0);
+  });
+
+  test('owned storage closes only after a held write drains; explicit storage remains caller-owned', async () => {
+    const harness = new Harness(), durable = createMemoryStorage(), seed = harness.client(durable);
+    await seed.auth.persona('alice'); seed.setOnline(false); seed.close();
+    const started = deferred<void>(), release = deferred<void>();
+    let held = true, closes = 0;
+    const storage: ClientStorage = {
+      load: durable.load,
+      async write(patch) {
+        if (held && patch.session === null) { held = false; started.resolve(); await release.promise; }
+        await durable.write(patch);
+      },
+      subscribe: durable.subscribe,
+      async close() { closes++; },
+    };
+    const owned = createPlatformClient({ url: 'http://snapback.test', live: false }, {
+      defaultStorage: () => storage, fetch: harness.fetch, idFactory: () => 'owned-client',
+    });
+    clients.push(owned); owned.setOnline(false); await owned.ready;
+    const logout = owned.auth.logout(); await started.promise;
+    owned.close();
+    expect(closes).toBe(0);
+    expect(() => owned.watch('cards.list', {})).toThrow(/closed/i);
+    expect(() => owned.mutate('cards.add', {})).toThrow(/closed/i);
+    release.resolve(); await logout; await owned.closeAsync();
+    expect(closes).toBe(1);
+
+    let externalCloses = 0;
+    const external: ClientStorage = { load: durable.load, write: durable.write, async close() { externalCloses++; } };
+    const callerOwned = createClient({ url: 'http://snapback.test', storage: external, fetch: harness.fetch,
+      idFactory: () => 'external-client', live: false });
+    clients.push(callerOwned); callerOwned.setOnline(false); await callerOwned.ready; await callerOwned.closeAsync();
+    expect(externalCloses).toBe(0);
+  });
+
+  test('ignored close cleanup rejection does not become unhandled and remains awaitable', async () => {
+    const memory = createMemoryStorage(), unhandled: unknown[] = [];
+    const onUnhandled = (error: unknown) => { unhandled.push(error); };
+    process.on('unhandledRejection', onUnhandled);
+    const client = createPlatformClient({ url: 'http://snapback.test', live: false }, {
+      defaultStorage: () => ({ load: memory.load, write: memory.write, async close() { throw new Error('close failed'); } }),
+      fetch: async () => { throw new Error('unexpected network'); }, idFactory: () => 'cleanup-client',
+    });
+    try {
+      await client.ready; client.close();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+      await expect(client.closeAsync()).rejects.toThrow('close failed');
+    } finally { process.off('unhandledRejection', onUnhandled); }
+  });
 });

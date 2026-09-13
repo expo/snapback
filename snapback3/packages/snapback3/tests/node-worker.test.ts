@@ -13,8 +13,9 @@ import { createInterface } from 'node:readline';
 import { appendFileSync } from 'node:fs';
 for await (const line of createInterface({input:process.stdin})) {
   const request = JSON.parse(line);
-  appendFileSync(${JSON.stringify(records)}, JSON.stringify(request) + '\\n');
+  appendFileSync(${JSON.stringify(records)}, JSON.stringify({...request,pid:process.pid,args:process.argv.slice(2)}) + '\\n');
   const send = result => process.stdout.write(JSON.stringify({id:request.id,result}) + '\\n');
+  if (request.method === 'crash') process.exit(23);
   if (request.method === 'wait') continue;
   if (request.method === 'malformed') { process.stdout.write('broken\\n'); continue; }
   if (request.method === 'large') { send('x'.repeat(1024)); continue; }
@@ -23,7 +24,10 @@ for await (const line of createInterface({input:process.stdin})) {
   send(request.params);
 }
 `);
-  const worker = new WorkerClient({ command: process.execPath, args: [source], ...overrides });
+  const configured = { ...overrides };
+  if (configured.args?.[0] === "$fixture") configured.args = [source, ...configured.args.slice(1)];
+  if (configured.restartArgs?.[0] === "$fixture") configured.restartArgs = [source, ...configured.restartArgs.slice(1)];
+  const worker = new WorkerClient({ command: process.execPath, args: [source], ...configured });
   context.after(async () => { await worker.close(); await rm(directory, { recursive: true, force: true }); });
   return { worker, records };
 }
@@ -67,4 +71,41 @@ test("malformed and excessive worker output fail boundedly", async context => {
   await assert.rejects(worker.request("large"), { code: "S3_WORKER_PROTOCOL" });
   await new Promise(done => setTimeout(done, 40));
   await assert.rejects(worker.request("malformed"), { code: "S3_WORKER_PROTOCOL" });
+});
+
+test("each fresh child completes recovery and presence restoration before ordinary work", async context => {
+  const replacements: boolean[] = [];
+  const { worker, records } = await fixture(context, {
+    args: ["$fixture", "initial"],
+    restartArgs: ["$fixture", "recovery"],
+    restarts: 1,
+    initialize: async (fresh, child) => {
+      replacements.push(child.replacement);
+      await fresh.request("effect.recover", {});
+      await fresh.request("presence.replace", { counts: { "dev:alice": 1 } });
+    },
+  });
+  assert.deepEqual(await worker.request("echo", { first: true }), { first: true });
+  await assert.rejects(worker.request("crash"), { code: "S3_WORKER_EXIT" });
+  assert.deepEqual(await worker.request("echo", { second: true }), { second: true });
+  const calls = (await readFile(records, "utf8")).trim().split("\n").map(line => JSON.parse(line));
+  const groups = new Map<number, typeof calls>();
+  for (const call of calls) groups.set(call.pid, [...(groups.get(call.pid) ?? []), call]);
+  assert.equal(groups.size, 2);
+  for (const child of groups.values()) {
+    assert.deepEqual(child.slice(0, 2).map(call => call.method), ["effect.recover", "presence.replace"]);
+  }
+  assert.deepEqual([...groups.values()].map(child => child[0].args), [["initial"], ["recovery"]]);
+  assert.deepEqual(replacements, [false, true]);
+  assert.deepEqual(calls.filter(call => call.method === "echo").map(call => call.params), [{ first: true }, { second: true }]);
+  assert.equal(calls.filter(call => call.method === "crash").length, 1, "the ambiguous original request was not replayed");
+});
+
+test("graceful close drains an active request before closing worker stdin", async context => {
+  const { worker } = await fixture(context, { closeDrainMs: 500, closeExitMs: 500 });
+  const slow = worker.request("slow");
+  const closing = worker.close();
+  assert.equal(await slow, "done");
+  await closing;
+  await assert.rejects(worker.request("echo"), { code: "S3_OWNER_CLOSED" });
 });

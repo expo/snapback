@@ -510,7 +510,7 @@ Each phase keeps existing primitives usable and advertises only the capability
 rows it has actually qualified.
 
 > **As-built rollout record (2026-08-16,
-> issues/20260815-finish-media-happy-path.md).** Steps 3 and 4 are
+> issues/shelved/20260815-finish-media-happy-path.md).** Steps 3 and 4 are
 > implemented and landed: the generated `assetCollection` (`26e0ee26c`,
 > `assets.media-collection.v1` experimental via its LLP 0134 same-commit
 > act) and the closed `defineMediaCommand` binding with atomic host staging

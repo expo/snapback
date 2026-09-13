@@ -303,8 +303,7 @@ fn historical_audience_specialization_settles_pending_then() {
     context.now = Some(1);
     context.new_ids.push_back("pending".into());
     rt.execute("custody.emit", context).unwrap();
-    rt.store()
-        .outbox_claim_next(1, &["custody.effect".into()])
+    rt.claim_effect(1)
         .unwrap()
         .claimed
         .unwrap();

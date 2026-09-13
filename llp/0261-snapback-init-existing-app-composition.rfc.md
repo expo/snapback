@@ -36,7 +36,7 @@ recipe portfolio — the `snapback new` surface this deliberately does not
 overload), LLP 0223 (zero-config connect DX), LLP 0041 (the thirteen-package
 publication closure and publication posture; optional
 `@expo/snapback-expo-custody` is deliberately not installed by `snapback init`),
-`issues/20260808-guide-gap-compose-snapback-into-existing-app.md`, Diary 0063
+`issues/shelved/20260808-guide-gap-compose-snapback-into-existing-app.md`, Diary 0063
 G4, LLP 0295 (published-matrix improvement program — D0.1 names this RFC a
 lifecycle design co-owner),
 `issues/closed/20260821-fixed-origin-external-client-dev-lifecycle.md` (D0.1/W1

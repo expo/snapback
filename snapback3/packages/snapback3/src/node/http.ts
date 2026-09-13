@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { Socket } from "node:net";
 import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -6,6 +7,8 @@ import { pipeline } from "node:stream/promises";
 import { gzipSync } from "node:zlib";
 import { OwnerError, type WorkerTransport } from "./worker.js";
 import { PasswordAttempts } from "./auth-limit.js";
+import { parseAssetKind, type AssetCredential, type AssetRuntime } from "./assets.js";
+import { matchOperatorRoute, type OperatorSurface } from "./operator.js";
 
 const BODY_LIMIT = 1024 * 1024;
 const STREAM_BUFFER_LIMIT = 16 * 1024 * 1024;
@@ -23,6 +26,10 @@ export interface HttpOptions {
   origins?: readonly string[];
   heartbeatMs?: number;
   maxStreams?: number;
+  assets?: AssetRuntime;
+  operator?: OperatorSurface;
+  activity?: { noteCommit(details: { seq?: unknown; generation?: unknown }): void; poke(): void };
+  shutdownMs?: number;
   log?: (message: string) => void;
 }
 
@@ -46,8 +53,10 @@ interface LiveStream {
 export function createOwnerServer(options: HttpOptions) {
   const passwordAttempts = new PasswordAttempts();
   const streams = new Set<LiveStream>();
+  const connections = new Set<Socket>();
   let pendingStreams = 0;
   let closed = false;
+  let closing: Promise<void> | undefined;
   let nextInvalidation: Record<string, unknown> | undefined;
   let scheduled = false;
 
@@ -83,6 +92,7 @@ export function createOwnerServer(options: HttpOptions) {
   };
   const invalidate = (details: { seq?: unknown; generation?: unknown } = {}) => {
     nextInvalidation = {
+      ...nextInvalidation,
       type: "invalidate",
       ...(Number.isSafeInteger(details.seq) ? { seq: details.seq } : {}),
       ...(typeof details.generation === "string" ? { generation: details.generation } : {}),
@@ -98,6 +108,15 @@ export function createOwnerServer(options: HttpOptions) {
         else send(stream.response, "invalidate", value);
       }
     });
+  };
+  const refreshClock = (operations: readonly string[]) => {
+    const due = new Set(operations);
+    if (!due.size) return;
+    for (const stream of streams) {
+      // Clock-only renewal is query-selective. It does not issue a generic
+      // invalidation that would suspend unrelated resources or acquisitions.
+      if (stream.queries?.some(query => due.has(query.op))) refresh(stream);
+    }
   };
   const closeStreams = () => {
     for (const { response } of streams) response.end();
@@ -118,14 +137,23 @@ export function createOwnerServer(options: HttpOptions) {
   const server = createServer({ maxHeaderSize: 16 * 1024 }, (request, response) => {
     void route(request, response).catch(error => {
       const reason = asOwnerError(error);
+      if (response.destroyed || response.writableEnded) return;
       if (response.headersSent) { response.end(); return; }
       if (reason.code.startsWith("S3_WORKER")) options.log?.(`${reason.code}: ${reason.message}`);
-      json(response, statusFor(reason.code), { error: { code: reason.code, message: reason.message } });
+      const value = { error: { code: reason.code, message: reason.message } };
+      if (isIncompleteAssetRequest(request)) refuseIncompleteBody(request, response, statusFor(reason.code), value);
+      else json(response, statusFor(reason.code), value);
     });
   });
-  server.requestTimeout = 15_000;
+  // Media gets a bounded two-minute body window; JSON routes retain their
+  // existing explicit ten-second reader deadline and 1 MiB ceiling.
+  server.requestTimeout = 120_000;
   server.headersTimeout = 10_000;
   server.keepAliveTimeout = 5_000;
+  server.on("connection", socket => {
+    connections.add(socket);
+    socket.once("close", () => connections.delete(socket));
+  });
   server.on("close", () => { closed = true; clearInterval(heartbeat); closeStreams(); });
 
   async function route(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -136,20 +164,33 @@ export function createOwnerServer(options: HttpOptions) {
     if (origin) {
       if (!originAllowed(origin, request.headers.host, options)) throw new OwnerError("S3_FORBIDDEN", "This browser origin is not allowed by the server.");
       response.setHeader("Access-Control-Allow-Origin", origin);
+      response.setHeader("Access-Control-Expose-Headers", "Accept-Ranges, Content-Length, Content-Range, Content-Type, ETag");
       response.setHeader("Vary", "Origin");
     }
-    const rawPath = (request.url ?? "/").split("?")[0];
+    const rawUrl = request.url ?? "/";
+    const rawPath = rawUrl.split("?")[0];
     let path: string;
     try { path = decodeURIComponent(rawPath); }
     catch { throw new OwnerError("S3_INPUT", "The URL contains invalid encoding."); }
     if (path.includes("\0") || path.includes("\\") || path.split("/").some(part => part === "..")) {
       throw new OwnerError("S3_FORBIDDEN", "The requested path is not available.");
     }
+    if (path.startsWith("/control/")) {
+      if (!options.operator) throw new OwnerError("S3_NOT_FOUND", "No operator surface is available.");
+      options.operator.authenticate(request.headers.authorization);
+      const command = matchOperatorRoute(request.method, path);
+      if (!command) throw new OwnerError("S3_NOT_FOUND", "No operator route at this path.");
+      if (new URL(rawUrl, "http://snapback.invalid").search) throw new OwnerError("S3_INPUT", "Operator routes do not accept query parameters.");
+      const body = request.method === "POST" ? await readJson(request) : {};
+      json(response, 200, await options.operator.execute(command, body));
+      return;
+    }
     if (request.method === "OPTIONS") {
       if (!path.startsWith("/api/")) throw new OwnerError("S3_NOT_FOUND", "No route at this path.");
       response.writeHead(204, {
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type, Range, If-None-Match",
+        "Access-Control-Expose-Headers": "Accept-Ranges, Content-Length, Content-Range, Content-Type, ETag",
         "Access-Control-Max-Age": "600",
       });
       response.end(); return;
@@ -160,6 +201,46 @@ export function createOwnerServer(options: HttpOptions) {
     }
     if (path === "/api/manifest" && request.method === "GET") {
       json(response, 200, await options.worker.request("manifest")); return;
+    }
+    if (path === "/api/assets" && request.method === "POST") {
+      if (!options.assets) throw new OwnerError("S3_NOT_FOUND", "Media is not available in this owner.");
+      const url = new URL(rawUrl, "http://snapback.invalid");
+      if ([...url.searchParams.keys()].some(key => key !== "kind") || url.searchParams.getAll("kind").length !== 1) {
+        throw new OwnerError("S3_INPUT", "Asset upload accepts exactly one kind query parameter.");
+      }
+      json(response, 200, await options.assets.upload(request, bearer(request), parseAssetKind(url.searchParams.get("kind"))));
+      return;
+    }
+    if (path === "/api/assets/session" && request.method === "POST") {
+      if (!options.assets) throw new OwnerError("S3_NOT_FOUND", "Media is not available in this owner.");
+      const url = new URL(rawUrl, "http://snapback.invalid");
+      if (url.search) throw new OwnerError("S3_INPUT", "Asset session creation does not accept query parameters.");
+      emptyBody(request);
+      json(response, 200, await options.assets.createSession(bearer(request)));
+      return;
+    }
+    const assetLifecycle = /^\/api\/assets\/([^/]+)\/(status|discard)$/.exec(path);
+    if (assetLifecycle) {
+      if (!options.assets) throw new OwnerError("S3_NOT_FOUND", "Media is not available in this owner.");
+      const url = new URL(rawUrl, "http://snapback.invalid");
+      if (url.search) throw new OwnerError("S3_INPUT", "Asset lifecycle routes do not accept query parameters.");
+      const [, id, action] = assetLifecycle;
+      if (action === "status" && request.method === "GET") {
+        json(response, 200, await options.assets.status(bearer(request), id)); return;
+      }
+      if (action === "discard" && request.method === "POST") {
+        const body = await readJson(request); keys(body, []);
+        json(response, 200, await options.assets.discard(bearer(request), id)); return;
+      }
+      throw new OwnerError("S3_NOT_FOUND", "No route for this asset lifecycle method.");
+    }
+    const assetDelivery = /^\/api\/assets\/([^/]+)$/.exec(path);
+    if (assetDelivery && (request.method === "GET" || request.method === "HEAD")) {
+      if (!options.assets) throw new OwnerError("S3_NOT_FOUND", "Media is not available in this owner.");
+      const url = new URL(rawUrl, "http://snapback.invalid");
+      const credential = assetCredential(request, url);
+      await options.assets.serve(request, response, credential, assetDelivery[1]);
+      return;
     }
     if (path.startsWith("/api/auth/") && request.method === "POST") {
       const action = path.slice("/api/auth/".length);
@@ -226,7 +307,10 @@ export function createOwnerServer(options: HttpOptions) {
           params.schemaHash = text(body.schemaHash, "schemaHash", 128);
         }
         const result = await options.worker.request<Record<string, unknown>>(mutation ? "mutation" : "query", params);
-        if (mutation && result.state === "committed") invalidate({ seq: result.seq });
+        if (mutation && result.state === "committed") {
+          if (options.activity) options.activity.noteCommit({ seq: result.seq });
+          else invalidate({ seq: result.seq });
+        }
         json(response, 200, result);
       }
       return;
@@ -236,16 +320,40 @@ export function createOwnerServer(options: HttpOptions) {
     await staticFile(options.root, path, request, response);
   }
 
-  return {
-    server, invalidate, closeStreams,
-    async close(): Promise<void> {
-      if (closed) return;
+  const close = (): Promise<void> => closing ??= (async () => {
       closed = true; clearInterval(heartbeat); closeStreams();
-      await new Promise<void>((done, reject) => server.close(error =>
-        error && (error as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING" ? reject(error) : done()));
-      server.closeAllConnections();
-    },
-  };
+      const serverClosing = new Promise<void>((done, reject) => server.close(error => {
+        error && (error as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING" ? reject(error) : done();
+      }));
+      server.closeIdleConnections();
+      if (!await settlesWithin(serverClosing, boundedShutdown(options.shutdownMs))) {
+        for (const socket of connections) socket.destroy();
+        server.closeAllConnections();
+        if (!await settlesWithin(serverClosing, Math.min(1_000, boundedShutdown(options.shutdownMs)))) {
+          if ([...connections].some(socket => !socket.destroyed)) {
+            throw new OwnerError("S3_HTTP_SHUTDOWN_TIMEOUT", "HTTP connections did not close within the bounded shutdown window.");
+          }
+        }
+      }
+    })();
+
+  return { server, invalidate, refreshClock, closeStreams, close };
+}
+
+function boundedShutdown(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value >= 1
+    ? Math.min(Math.floor(value), 30_000)
+    : 5_000;
+}
+
+async function settlesWithin(promise: Promise<void>, milliseconds: number): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const settled = await Promise.race([
+    promise.then(() => true),
+    new Promise<false>(done => { timer = setTimeout(() => done(false), milliseconds); }),
+  ]);
+  if (timer) clearTimeout(timer);
+  return settled;
 }
 
 function originAllowed(origin: string, host: string | undefined, options: HttpOptions): boolean {
@@ -263,6 +371,35 @@ function bearer(request: IncomingMessage): string {
   const match = value && /^Bearer ([^\s]+)$/i.exec(value);
   if (!match || match[1].length > 4096) throw new OwnerError("S3_AUTH", "Sign in before accessing application data.");
   return match[1];
+}
+
+function assetCredential(request: IncomingMessage, url: URL): AssetCredential {
+  const parameters = [...url.searchParams.keys()];
+  if (parameters.length === 0) {
+    return request.headers.authorization === undefined
+      ? { kind: "public" }
+      : { kind: "header", token: bearer(request) };
+  }
+  if (parameters.some(key => key !== "s") || url.searchParams.getAll("s").length !== 1) {
+    throw new OwnerError("S3_INPUT", "Asset delivery accepts only one optional s query parameter.");
+  }
+  if (request.headers.authorization !== undefined) {
+    throw new OwnerError("S3_INPUT", "Asset delivery cannot combine header and URL credentials.");
+  }
+  const carrier = url.searchParams.get("s");
+  if (!carrier || !/^[A-Za-z0-9_-]{32,128}$/.test(carrier)) {
+    throw new OwnerError("S3_ASSET_UNAVAILABLE", "Asset is unavailable.");
+  }
+  return { kind: "carrier", token: carrier };
+}
+
+function emptyBody(request: IncomingMessage): void {
+  const length = request.headers["content-length"];
+  const transfer = request.headers["transfer-encoding"];
+  if ((length !== undefined && length !== "0") || transfer !== undefined) {
+    request.pause();
+    throw new OwnerError("S3_INPUT", "This media route accepts an empty request body.");
+  }
 }
 
 function object(value: unknown, label: string): Record<string, unknown> {
@@ -339,20 +476,49 @@ function asOwnerError(error: unknown): OwnerError {
   return error instanceof OwnerError ? error : new OwnerError("S3_INTERNAL", "The server could not complete this request.");
 }
 function statusFor(code: string): number {
-  if (code === "S3_AUTH") return 401;
+  if (code === "S3_AUTH" || code === "S3_OPERATOR_AUTH") return 401;
   if (code === "S3_FORBIDDEN") return 403;
   if (code === "S3_NOT_FOUND") return 404;
   if (code === "S3_CONTENT_TYPE") return 415;
-  if (code === "S3_INPUT_TOO_LARGE" || code === "S3_ACQUISITION_OVERSIZE") return 413;
+  if (code === "S3_INPUT_TOO_LARGE" || code === "S3_ACQUISITION_OVERSIZE" || code === "S3_ASSET_TOO_LARGE") return 413;
+  if (code === "S3_ASSET_TYPE") return 422;
+  if (code === "S3_ASSET_VIEWED" || code === "E_ASSET_VIEWED") return 410;
+  if (code === "S3_ASSET_UPLOAD_TIMEOUT") return 408;
+  if (code === "S3_ASSET_NOT_READY" || code === "E_ASSET_NOT_READY" || code === "S3_ASSET_UNAVAILABLE") return 404;
   if (code === "S3_SEQUENCE_CHANGED" || code === "S3_GENERATION_CHANGED") return 409;
   if (code === "S3_OWNER_BUSY" || code === "S3_AUTH_RATE_LIMIT") return 429;
-  if (code.startsWith("S3_WORKER") || code === "S3_OWNER_CLOSED") return 503;
+  if (code.startsWith("S3_WORKER") || code === "S3_OWNER_CLOSED" || code.startsWith("S3_MEDIA")
+    || ["S3_ASSET_BYTES_UNAVAILABLE", "S3_ASSET_IO", "S3_ASSET_STORAGE", "S3_ASSET_FINALIZE_UNKNOWN",
+      "S3_ASSET_RESERVE_UNKNOWN", "S3_ASSET_SHUTDOWN_TIMEOUT"].includes(code)) return 503;
   if (code === "S3_INTERNAL") return 500;
   return 400;
 }
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   response.end(JSON.stringify(value));
+}
+
+function isIncompleteAssetRequest(request: IncomingMessage): boolean {
+  if (request.complete || request.method !== "POST") return false;
+  const path = (request.url ?? "/").split("?", 1)[0];
+  return path === "/api/assets" || path.startsWith("/api/assets/");
+}
+
+function refuseIncompleteBody(request: IncomingMessage, response: ServerResponse, status: number, value: unknown): void {
+  request.pause();
+  response.shouldKeepAlive = false;
+  response.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    Connection: "close",
+  });
+  const force = setTimeout(() => request.socket.destroy(), 1_000);
+  force.unref();
+  response.once("close", () => clearTimeout(force));
+  response.end(JSON.stringify(value), () => {
+    clearTimeout(force);
+    request.socket.destroy();
+  });
 }
 
 function negotiatedJson(request: IncomingMessage, response: ServerResponse, status: number, value: unknown): void {

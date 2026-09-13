@@ -121,7 +121,7 @@ destructive/provisioning capability to whoever reaches the public URL. For a
 deliberately controlled experiment, `SNAPBACK_PROFILE=prod` is the only value
 that fails closed, and functionality may consequently refuse; selecting a
 profile does not by itself approve public exposure. See
-[`issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`](../issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md).
+[`issues/shelved/20260804-tunnelled-loopback-server-keeps-dev-profile.md`](../issues/shelved/20260804-tunnelled-loopback-server-keeps-dev-profile.md).
 
 ## Hostname and certificate findings
 
@@ -227,7 +227,7 @@ document.
 
 | # | Open concern | Disposition in this Research |
 | --- | --- | --- |
-| 1 | A direct tunnel to the loopback server bypasses the loopback-direct exemption. | **Re-routed to a present-tense owner — not deferred.** The round-1 review established that this is not a property of an unbuilt edge: `ngrok http 4420` against today's loopback-bound server yields a publicly reachable server still in the bind-derived `dev` profile. Filed as [`issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`](../issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md) so the live exposure has an owner regardless of whether an edge is ever built. The edge-specific residue — that no signal distinguishes a tunnel client from a local process — remains an A2 precondition. |
+| 1 | A direct tunnel to the loopback server bypasses the loopback-direct exemption. | **Re-routed to a present-tense owner — not deferred.** The round-1 review established that this is not a property of an unbuilt edge: `ngrok http 4420` against today's loopback-bound server yields a publicly reachable server still in the bind-derived `dev` profile. Filed as [`issues/shelved/20260804-tunnelled-loopback-server-keeps-dev-profile.md`](../issues/shelved/20260804-tunnelled-loopback-server-keeps-dev-profile.md) so the live exposure has an owner regardless of whether an edge is ever built. The edge-specific residue — that no signal distinguishes a tunnel client from a local process — remains an A2 precondition. |
 | 2 | A loopback-minted edge credential proves provenance, not policy compliance. | **Deferred as an auth-boundary design.** Mint authority, bound policy facts, transfer resistance, restart/reacquisition, and the local-process threat model depend on the future process topology. The prior credential design is discarded, not carried forward. |
 | 3 | The hostname inventory omitted public DNS plus DNS-01. | **Resolved as a research omission.** The option and its costs are now in the certificate inventory. Selection remains open because no carrier/certificate path has been tested end to end. |
 | 4 | The residual scope subtracted “a tunnel” even though a tunnel alone fixes only TLS. | **Resolved.** The comparison distinguishes a bare-bundler tunnel from a tunnel fronting an existing route-composing relay. Only the latter composes both axes, and its auth exposure remains unapproved. |
@@ -342,7 +342,7 @@ ruling 3 is the A1 scoping edit above. Packet ruling 1 is implemented by LLP
 **Author addendum — 2026-08-23.** Packet rulings 4–6 are closed. F-A2-4's
 loopback-auth blast-radius measurement is not scheduled while the local edge
 remains NOT-YET. The Android USB native live-device receipt is scheduled in
-`issues/20260823-android-usb-native-live-device-receipt.md`. A
+`issues/shelved/20260823-android-usb-native-live-device-receipt.md`. A
 peer-authenticated private overlay remains an unsupported experimental front,
 not a carrier, until a separate reviewed design explicitly admits its peer,
 route, authority, lifecycle, and receipt contracts. This addendum does not

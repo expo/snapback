@@ -859,7 +859,7 @@ wrong vocabulary from the source diaries and review evidence.
     Required guidance: "manifest publishes the closed three-class matrix", "Clients may retry, but must not convert a denial into existence evidence".
 
 Case 80 absorbs the Messtimate 0.1.24 field-masking miss recorded in
-`issues/20260821-0235-field-masking-productization.md`.
+`issues/shelved/20260821-0235-field-masking-productization.md`.
 
 80. **Sensitive field split:** "A consumer-visible profile includes a private
     phone number. How do I hide one field or mask the phone number?" The run

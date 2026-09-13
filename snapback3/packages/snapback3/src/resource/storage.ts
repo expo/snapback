@@ -1,33 +1,34 @@
 import type { ClientStorage, FrameHeader, FramePatch, StoragePatch, StoredState } from './types.js';
 import { SnapbackError } from './types.js';
+import { cloneJson, notifyObservers, reportObserverError } from './signal.js';
 
 const empty = (): StoredState => ({ version: 2, session: null, manifest: null, frame: null, operations: [],
   acquisitions: [], acquisitionRows: [], acquisitionResources: [], acquisitionFloor: 0, acquisitionsInvalidated: false });
 export const rowKey = (row: { table: string; id: string }): string => JSON.stringify([row.table, row.id]);
 
-function sameFrame(a: FrameHeader, b: FrameHeader): boolean {
+export function sameFrame(a: FrameHeader, b: FrameHeader): boolean {
   return a.seq === b.seq && a.generation === b.generation && a.schemaHash === b.schemaHash
     && a.principal === b.principal && a.authEpoch === b.authEpoch;
 }
 
-function admitFrame(state: Pick<StoredState, 'session' | 'manifest'>, frame: FramePatch): boolean {
+export function admitFrame(state: Pick<StoredState, 'session' | 'manifest'>, frame: FramePatch): boolean {
   return state.session?.principal.id === frame.principal && state.session.authEpoch === frame.authEpoch
     && state.manifest?.generation === frame.generation && state.manifest.schemaHash === frame.schemaHash;
 }
 
-function matchesSession(session: StoredState['session'], expected: NonNullable<StoragePatch['clearSession']>): boolean {
+export function matchesSession(session: StoredState['session'], expected: NonNullable<StoragePatch['clearSession']>): boolean {
   return session?.token === expected.token && session.principal.id === expected.principal
     && session.authEpoch === expected.authEpoch;
 }
 
-function admitAcquisition(state: Pick<StoredState, 'session' | 'manifest' | 'acquisitionFloor'>,
+export function admitAcquisition(state: Pick<StoredState, 'session' | 'manifest' | 'acquisitionFloor'>,
   acquisition: NonNullable<StoragePatch['acquisition']>['acquisition']): boolean {
   return state.session?.principal.id === acquisition.principal && state.session.authEpoch === acquisition.authEpoch
     && state.manifest?.generation === acquisition.generation && state.manifest.schemaHash === acquisition.schemaHash
     && (acquisition.seq === undefined || acquisition.seq >= (state.acquisitionFloor ?? 0));
 }
 
-function matchesAcquisition(acquisition: NonNullable<StoredState['acquisitions']>[number] | undefined,
+export function matchesAcquisition(acquisition: NonNullable<StoredState['acquisitions']>[number] | undefined,
   expected: NonNullable<NonNullable<StoragePatch['clearSession']>['acquisition']>): boolean {
   return acquisition?.id === expected.id && acquisition.declarationHash === expected.declarationHash
     && acquisition.principal === expected.principal && acquisition.authEpoch === expected.authEpoch
@@ -40,9 +41,9 @@ function matchesClearSession(state: Pick<StoredState, 'session' | 'acquisitions'
     || matchesAcquisition(state.acquisitions?.find(item => item.id === expected.acquisition!.id), expected.acquisition));
 }
 
-const acquisitionRejected = (): SnapbackError => new SnapbackError('S3_STORAGE',
+export const acquisitionRejected = (): SnapbackError => new SnapbackError('S3_STORAGE',
   'The acquisition checkpoint was rejected because its durable authority or sequence changed.');
-const manifestRejected = (): SnapbackError => new SnapbackError('S3_STORAGE',
+export const manifestRejected = (): SnapbackError => new SnapbackError('S3_STORAGE',
   'The application generation was rejected because it predates durable acquisition authority.');
 
 function merge(state: StoredState, patch: StoragePatch): StoredState {
@@ -110,14 +111,14 @@ export function createMemoryStorage(): ClientStorage {
   let tail = Promise.resolve();
   const listeners = new Set<(event: { source?: string; type: 'authority' }) => void>();
   return {
-    async load() { await tail; return structuredClone(state); },
+    async load() { await tail; return cloneJson(state, 'S3_STORAGE'); },
     write(patch) {
-      const owned = structuredClone(patch);
+      const owned = cloneJson(patch, 'S3_STORAGE');
       const next = tail.then(() => {
         const authorityChanged = owned.session !== undefined
           || owned.clearSession !== undefined && matchesClearSession(state, owned.clearSession);
         state = merge(state, owned);
-        if (authorityChanged) for (const listener of listeners) listener({ source: owned.source, type: 'authority' });
+        if (authorityChanged) notifyObservers(listeners, { source: owned.source, type: 'authority' });
       });
       tail = next.catch(() => {});
       return next;
@@ -135,7 +136,7 @@ export function createIndexedDBStorage(name: string, factory: IDBFactory = globa
   const listeners = new Set<(event: { source?: string; type: 'authority' }) => void>();
   const channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(`snapback3-authority:${name}`);
   if (channel) channel.onmessage = event => {
-    if (event.data?.type === 'authority') for (const listener of listeners) listener(event.data);
+    if (event.data?.type === 'authority') notifyObservers(listeners, event.data);
   };
   const open = (): Promise<IDBDatabase> => opened ??= new Promise((resolve, reject) => {
     if (!factory) { reject(new SnapbackError('S3_STORAGE', 'IndexedDB is unavailable.')); return; }
@@ -183,7 +184,7 @@ export function createIndexedDBStorage(name: string, factory: IDBFactory = globa
         acquisitionFloor: acquisitionFloor ?? 0, acquisitionsInvalidated: acquisitionsInvalidated ?? false };
     },
     async write(input) {
-      const patch = structuredClone(input);
+      const patch = cloneJson(input, 'S3_STORAGE');
       const db = await open();
       const transaction = db.transaction(['state', 'rows', 'resources', 'operations',
         'acquisitions', 'acquisitionRows', 'acquisitionResources'], 'readwrite');
@@ -279,8 +280,8 @@ export function createIndexedDBStorage(name: string, factory: IDBFactory = globa
       await done;
       if (authorityChanged) {
         const event = { source: patch.source, type: 'authority' as const };
-        channel?.postMessage(event);
-        for (const listener of listeners) listener(event);
+        try { channel?.postMessage(event); } catch (error) { reportObserverError(error); }
+        notifyObservers(listeners, event);
       }
     },
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },

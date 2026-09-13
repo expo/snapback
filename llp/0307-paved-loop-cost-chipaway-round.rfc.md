@@ -66,7 +66,7 @@ LLP 0114, LLP 0179, LLP 0307.000, Diary 0113,
 `benchmarks/runs/2026-08-23-clique-published-0125-sol-high/record.md`,
 `issues/20260824-metro-generated-module-freshness.md`,
 `issues/20260824-fixed-port-stale-listener-false-positive.md`,
-`issues/20260824-first-party-headless-replay-helper.md`,
+`issues/shelved/20260824-first-party-headless-replay-helper.md`,
 `issues/closed/20260824-guide-gap-familiar-defineauth-spelling.md`,
 `issues/closed/20260824-activity-presence-volatile-value-publish-storm.md`,
 `issues/20260824-familiar-offline-replay-capability-unathorable.md`
@@ -219,7 +219,7 @@ live backend replacement with zero manual binding work, and the
 caller-owned Metro served a schema successor hot (corroborating the T1
 CI fix from the caller side). Q-a's binding-term obligation is resolved
 for this path: declared-dev has no clock term. Off-spec findings routed:
-`issues/20260825-livequery-headless-transport-default.md` and
+`issues/shelved/20260825-livequery-headless-transport-default.md` and
 `issues/20260825-caller-owned-devloop-papercuts.md`. Both pin gates (Q-a,
 Q-b) are now green; the full-pin gate waits only on T1 (landed) and the
 instrument bump.
@@ -237,7 +237,7 @@ instrument bump.
    the port before choosing the diagnostic; a stale descriptor with no
    listener gets a stale-descriptor remediation (or auto-recovery), not a
    phantom-listener claim.
-3. `issues/20260824-first-party-headless-replay-helper.md` — the tracking
+3. `issues/shelved/20260824-first-party-headless-replay-helper.md` — the tracking
    anchor for S1, **inventory-only**: no replay implementation starts from
    this ticket before the S1 Spec is accepted.
 4. `issues/closed/20260824-guide-gap-familiar-defineauth-spelling.md` — the
@@ -322,7 +322,7 @@ instrument bump.
    misses, detached scale watching *as observation*. M7 handoff
    self-containment is **not** in the bump (r3): it changes replay-path
    custody under LLP 0201/0277 and stays with its own ticket,
-   `issues/20260822-m7-handoff-not-self-contained.md`. Two boundaries (r2): per-milestone token metering
+   `issues/shelved/20260822-m7-handoff-not-self-contained.md`. Two boundaries (r2): per-milestone token metering
    **landed** (`59894588b`) — the bump validates its emission on the
    harness path rather than re-implementing it; and session *shape*
    (milestone-boundary session splits or compaction) changes the

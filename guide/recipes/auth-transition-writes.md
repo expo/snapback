@@ -149,7 +149,7 @@ behaving correctly.
 The run that exposed the poisoned overlay also used six live subscriptions.
 Consolidating them removed its repeated trigger, but that behavior remains a
 separate open contention investigation:
-[the retained ticket](repo:issues/20260820-familiar-live-subscription-contention.md).
+[the retained ticket](repo:issues/shelved/20260820-familiar-live-subscription-contention.md).
 This recipe settles the foreground promise safely; it does not classify the
 subscription behavior or make one aggregate query a universal requirement.
 

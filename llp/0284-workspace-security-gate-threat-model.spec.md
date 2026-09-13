@@ -1330,7 +1330,7 @@ effect, closure-factory, promotion, and membership witnesses now enter through
 the explicit `ServingDatabase` owner surface; they still compile and therefore
 remain honest RED evidence for the unimplemented forgery/confinement halves.
 The current exact expected-red inventory is maintained in
-`issues/20260819-security-gates-expected-red-until-f1.md`.
+`issues/shelved/20260819-security-gates-expected-red-until-f1.md`.
 
 | id | Attack | Mount crate | Features | TODAY | After F-1 (expected) | Span |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1544,7 +1544,7 @@ remains `[workspace]` so it is not a fourteenth product member.
 while its findings are known real and F-1 remains open, so the three product
 gate ids are complete-battery-only and absent from `alwaysGates` and ordinary
 affected path selection. The green `security-gate-fixtures` negative corpus is
-always-on. `issues/20260819-security-gates-expected-red-until-f1.md` records the
+always-on. `issues/shelved/20260819-security-gates-expected-red-until-f1.md` records the
 exact expected findings instead of an allowlist. F-1's landing moves the three
 product ids into `alwaysGates` and closes that ticket with green outputs. This
 temporary accepted amendment is the orchestrator's repository-integration

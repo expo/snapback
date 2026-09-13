@@ -43,7 +43,7 @@ and every capability remains `Missing`.
 `sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`,
 and Ibex gitlink `4c34c831aa087d6783b0d68f281cdb374ed7fc89` received two fresh,
 mutually blind `READY` verdicts. The 2026-08-06 author ruling in
-`issues/20260803-0163-public-operation-identity-carrier.md` supersedes the
+`issues/shelved/20260803-0163-public-operation-identity-carrier.md` supersedes the
 earlier HEAD-chasing interpretation: newer mainline cuts are normal
 conflict-resolving merges that preserve C33's review authority, not review
 invalidation and not new C-numbers. The merged tree lands first, receives

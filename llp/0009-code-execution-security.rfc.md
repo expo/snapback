@@ -600,14 +600,14 @@ reproduced against the bundled Hermes engine. Do not read this section as
   application source can install a `Proxy` handler map, or overwrite an entry,
   and make a generated admission wrapper name resolve to the underlying
   handler — `ctx.permissions.*` never runs
-  (`issues/20260819-snapback-handlers-registry-admission-substitution.md`).
+  (`issues/shelved/20260819-snapback-handlers-registry-admission-substitution.md`).
 - Ibex submits ambient + allowlist + bootstrap + application + tail as one
   Script, so Hermes instantiates the whole Script's global function
   declarations before the first statement. An application-level
   `function globalThis() {}` therefore replaces the real global's `globalThis`
   property *before* the bootstrap runs, and the seal is then applied to — and
   verified against — the attacker's object
-  (`issues/20260819-ibex-single-script-declaration-instantiation-shadows-globals.md`).
+  (`issues/shelved/20260819-ibex-single-script-declaration-instantiation-shadows-globals.md`).
   The `value === g` self-check cannot detect this, because it proves only that
   the object passed as `g` points at itself, not that `g` is the realm global.
 

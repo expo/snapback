@@ -156,7 +156,7 @@ certificates as well. Authority-only rule probes do not execute programs.
 The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
 *asserted*, not merely true by construction: `assert_bounds` checks
 `receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
-negative test (`issues/20260829-bounded-programs-receipt-absences-unvalidated.md`).
+negative test (`issues/shelved/20260829-bounded-programs-receipt-absences-unvalidated.md`).
 Nothing in this crate ever constructs a receipt from anything but a trace.
 The receipt-only client may use a hidden `Exists` input only through an exact
 verdict match on rule hash, pinned-input digest, principal, and auth epoch. A
@@ -1081,7 +1081,7 @@ may not be an index column (`E_SCHEMA_INDEX_COLUMN`). Existing corpus JSON
 stays valid.
 
 Two more, from the column-type survey
-(`issues/20260829-bounded-programs-column-type-survey.md`, folded 2026-08-30),
+(`issues/shelved/20260829-bounded-programs-column-type-survey.md`, folded 2026-08-30),
 both representable in today's value model so nothing about storage,
 arithmetic, ordering, or the evaluator twin changes:
 

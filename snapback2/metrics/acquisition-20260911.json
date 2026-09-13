@@ -2,7 +2,7 @@
   "kind": "Retained scoped experiment; no gate or benchmark registry",
   "date": "2026-09-11",
   "plan": "llp/1018.008.007.000-incremental-acquisition-performance.plan.md",
-  "followUp": "issues/20260911-snapback2-full-acquisition-and-foreground-send.md",
+  "followUp": "issues/shelved/20260911-snapback2-full-acquisition-and-foreground-send.md",
   "source": {
     "baseline": "bf84508494d3671a2037766bfef33cbb62c690dc",
     "warmLaneHead": "dd629ae33",

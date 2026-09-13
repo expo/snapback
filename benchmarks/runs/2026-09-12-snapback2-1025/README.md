@@ -64,7 +64,7 @@ moving conversation population into chunks did not solve follow-table seed
 cost. The failed setup is retained here, outside runnable correction fixtures.
 Compiler acceptance at the declared envelope is not a full hub runtime pass.
 The remaining bounded setup work is tracked in
-`issues/20260912-snapback2-hub-digest-owner-qualification.md`.
+`issues/shelved/20260912-snapback2-hub-digest-owner-qualification.md`.
 
 To reproduce this **failure** in an isolated copy after the production patches:
 append `owner-hub-schema.q` to `snapback/schema.q`, copy `owner-hub.q` as

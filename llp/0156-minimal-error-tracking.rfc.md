@@ -246,7 +246,7 @@ group-count, metering, and exemplar semantics; fingerprint scheme v1 remains
 current because its exception tuple and normalizer did not change.)
 **Revised:** 2026-08-10 (dated scope amendment — the sanitized
 **runtime-failure evidence bundle** proposed from the LLP 0207
-dissolution (`issues/20260809-runtime-failure-evidence-bundle-proposal.md`)
+dissolution (`issues/shelved/20260809-runtime-failure-evidence-bundle-proposal.md`)
 is accepted into this document per the 2026-08-10 author ruling, with the
 ruling's two fences: v1 is local-capture-only, and the redaction contract
 is a tested invariant. The mandated fit check ran first: the bundle
@@ -1482,7 +1482,7 @@ stays open as an implementable follow-up.
 ## Amendment (2026-08-10): runtime-failure evidence bundle (E1.5)
 
 Accepted scope amendment per the 2026-08-10 author ruling on
-`issues/20260809-runtime-failure-evidence-bundle-proposal.md` (origin:
+`issues/shelved/20260809-runtime-failure-evidence-bundle-proposal.md` (origin:
 the LLP 0207 dissolution; both 0207 review families independently
 proposed capture-without-replay as the honest residue of the killed S5
 replay workstream). Two fences from the ruling bind everything below:

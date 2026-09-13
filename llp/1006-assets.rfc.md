@@ -459,7 +459,7 @@ ledger at mutation entry, before the body runs (§6) — the second panel found
 that revisions (f)–(i) checked only at column write, which let a mutation act
 on a forged duration without ever storing the clip. Snapback 1 could not
 express Coterie's sixty-second rule at all
-(`issues/20260817-upload-intent-codec-duration-admission-facts.md`) and
+(`issues/shelved/20260817-upload-intent-codec-duration-admission-facts.md`) and
 LLP 0305 proposed a declared-admission grammar for it; both are retired for
 Snapback 2 by putting the fact in the value. Lane C must let a `require` read a
 field off an asset-typed argument — the parser already has member access, and
@@ -535,7 +535,7 @@ the decision rather than mandating it.
   as v1 did).
 - **HEIC normalizes to JPEG at admission.** iOS libraries are HEIC-first and
   pickers hand back HEIC even in compatible mode (LLP 1005 §6); Snapback 1 still
-  cannot decode it (`issues/20260819-heic-image-normalization.md`, open).
+  cannot decode it (`issues/shelved/20260819-heic-image-normalization.md`, open).
   Accepting HEIC and storing an unservable original would reproduce the bug.
   This is a **server-side** decode, ruled so on 2026-09-03: the Expo SDK may
   transcode on the device as a courtesy, but a browser hands over HEIC too —

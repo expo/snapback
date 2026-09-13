@@ -184,7 +184,7 @@ Designed in LLP 0301 §9; **not required for these Specs to go READY and
 excluded from this implementation set** — the client-side hook (optional
 fingerprint argument; refusal of unsigned facts when configured) is part
 of that future work, tracked by
-`issues/20260824-signed-discovery-future-spec.md`.
+`issues/shelved/20260824-signed-discovery-future-spec.md`.
 
 ## 7. Diagnostics
 

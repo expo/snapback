@@ -260,8 +260,8 @@ Applied:
   through the registry drift gate, including the Swift arm) — recorded
   in the withdrawal note.
 - Evidence bundle and feedback verb → filed as proposals
-  (`issues/20260809-runtime-failure-evidence-bundle-proposal.md`,
-  `issues/20260809-snapback-feedback-verb-proposal.md`) to LLP 0156 /
+  (`issues/shelved/20260809-runtime-failure-evidence-bundle-proposal.md`,
+  `issues/shelved/20260809-snapback-feedback-verb-proposal.md`) to LLP 0156 /
   LLP 0193 respectively, each recording what the loop rejected so it is
   not re-proposed.
 - The seven round-5 minors travel with their pieces: №2 (P1b demand-gate

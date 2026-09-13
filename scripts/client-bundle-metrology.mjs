@@ -1575,7 +1575,7 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
         + 'with a regeneration hint, and rewords the React durable-queue wedge '
         + 'warning so bounded diagnostic history does not falsely identify a '
         + 'specific blocking mutation. Both changes are regression-tested.',
-      ticket: 'issues/20260809-clique-defect-fixes-review-minors.md',
+      ticket: 'issues/shelved/20260809-clique-defect-fixes-review-minors.md',
       standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
         + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
       byteDeltas: 'external-react-application min 104633->104691 (+58), gzip '
@@ -1772,7 +1772,7 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
         + 'bytes are unchanged on react-external while Brotli shifts by '
         + 'five bytes from content reordering. No new module enters the '
         + 'React closure (the replay module is test-only).',
-      ticket: 'issues/20260808-integration-coverage-gaps.md',
+      ticket: 'issues/shelved/20260808-integration-coverage-gaps.md',
       standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
         + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
       byteDeltas: 'react-external brotli 28483 -> 28488 (+5); minified and '
@@ -2234,7 +2234,7 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       fix: 'LLP 0247 D1/D4 adds the public argument-normalization surface '
         + 'and the common SnapbackDiagnosticError refusal carrier used by '
         + 'the ordinary client read/dispatch/run surface.',
-      ticket: 'issues/20260812-0247-0248-measurement-reruns.md',
+      ticket: 'issues/shelved/20260812-0247-0248-measurement-reruns.md',
       byteDeltas: 'public-subpath-argument-normalization first run min 7648, '
         + 'gzip 2853, brotli 2526; resolved-public-subpath-argument-normalization '
         + 'first run min 7657, gzip 2860, brotli 2531; '
@@ -2326,7 +2326,7 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
         + 'the familiar React entrypoint can refuse cross-profile references '
         + 'before any resource or transport work.',
       ticket: 'llp/0253-familiar-profile-v1-api.spec.md',
-      byteDeltas: 'PENDING MINT: blocked on the pre-existing baseline staleness recorded in issues/20260813-familiar-subpath-metrology-mint.md (base-red at origin/main; see issues/20260812-0247-0248-measurement-reruns.md). Our residual on app-data-operation-live is ~+694 min bytes; the first-run reference-kinds receipts mint with the rerun.',
+      byteDeltas: 'PENDING MINT: blocked on the pre-existing baseline staleness recorded in issues/shelved/20260813-familiar-subpath-metrology-mint.md (base-red at origin/main; see issues/shelved/20260812-0247-0248-measurement-reruns.md). Our residual on app-data-operation-live is ~+694 min bytes; the first-run reference-kinds receipts mint with the rerun.',
       summary: 'First-run receipts for the ./reference-kinds public subpath; '
         + 'every other active ceiling remains immutable.',
     }),

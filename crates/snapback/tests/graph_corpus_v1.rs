@@ -9725,7 +9725,7 @@ fn assert_backward_normalization_disposition(case: &Value) {
         disposition == "exact"
             || (disposition == "exact-after-pinned-physical-id-tiebreak-normalization"
                 && case["normalizationDisposition"]["deviationTicket"]
-                    == "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"),
+                    == "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md"),
         "{} has an explicit exact or authorized backward disposition",
         case["id"],
     );

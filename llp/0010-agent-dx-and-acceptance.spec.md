@@ -554,7 +554,7 @@ universal filesystem-non-mutation claim: descendant symlinks below an otherwise
 disjoint publication backend (including `.snapback` or `generated`) and the
 interval between prospective canonicalization and `mkdirSync` remain hardening
 routes tracked in
-`issues/20260827-release-output-root-alias-hardening.md`.
+`issues/shelved/20260827-release-output-root-alias-hardening.md`.
 
 The freshness boundary is the complete permitted static local module graph, not
 only the entry files. An AST resolver admits literal relative/file edges only and

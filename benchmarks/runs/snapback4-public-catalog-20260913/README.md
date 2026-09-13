@@ -711,6 +711,138 @@ Control and candidate example binaries are respectively
 Both use the production profile at level 3 on the same ARM64 Linux VM;
 the records retain each variant's actual read-source hash.
 
+## Membership-gated feed protocol
+
+The existing instrument now supports `--membership-init NEW_DIRECTORY` and
+`--membership snapback4|convex|supabase`. This is a separate live-membership
+fixture: 100,000 immutable messages in 500 populated groups, plus one empty
+group. Five real identities cover readers with 5, 30 and 150 memberships,
+an outsider, and an empty-group reader. The measured readers can see 1,000,
+6,000 and 30,000 messages; their overlapping unions cover 34,000 distinct
+messages. Privileged, untimed full-table digests match on all three backends,
+including the other 66,000 messages. The message digest is
+`91e37b68d13e112eb0ab9faf9078d95eaadcc8d784d984916e833103c1f73675`.
+
+All backends project `{messageKey, groupKey, at, body}` and order by the
+same required `(at, messageKey)` suffix. Logical ASCII keys avoid native
+ID ordering differences; timestamps deliberately tie within and across
+groups. Membership discovery uses `(memberId, groupKey)`, while message
+access probes `(groupKey, memberId)`. Each request resolves current
+membership from the database. Counts, joins and materialized per-reader
+feeds are separate future cases.
+
+Snapback uses ordinary guest sessions, a unique-key point read, a
+membership-gated 50-row thread and a 20-row `merge`. Its existing
+500-lane discovery bound produces the documented wide-merge advisory;
+no resource ceiling changes. Convex retains the configured real JWT
+provider and uses indexed lazy iterators with a small heap. Continuation
+seeks the remaining equal-time keys before earlier timestamps; a lone
+`at < cursor.at` range would omit ties. These are ordinary query functions,
+including the backend's automatic query cache.
+[Convex indexed reads](https://docs.convex.dev/database/reading-data/indexes/),
+[ordered iterators](https://docs.convex.dev/api/interfaces/server.OrderedQuery).
+
+Supabase uses ordinary Auth sessions, RLS and `SECURITY INVOKER` RPCs.
+Feed selection joins the caller's memberships to indexed per-group
+`LATERAL` queries with 21-row lookahead, then takes the global page. First
+and continuation reads use disjoint `UNION ALL` arms: the continuation
+arm exposes a bare composite index bound. An earlier `cursor IS NULL OR
+tuple < cursor` spelling was removed during review because a generic plan
+could scan newer prefixes. Twelve executed prepared-body plans, extracted
+from the deployed functions under the authenticated role and fixture claims
+with generic parameters, confirm active composite index seeks and inactive
+opposite branches. First-feed scans read 21 rows per membership lane. The
+Postgres image refused nested `auto_explain`, so these are query-body plans;
+the thread plan excludes its preceding membership requirement. Actual RPC
+authorization and results are checked separately through HTTP.
+[PostgreSQL lateral queries](https://www.postgresql.org/docs/17/queries-table-expressions.html#QUERIES-LATERAL),
+[Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security).
+
+The adapter checks complete authorized feed traversals and representative
+threads, exact full-row equality, ties, empty readers, missing/foreign
+points, invalid and expired authentication, forged viewers and cursor
+reuse. After timing, an acknowledged leave must hide the revoked group's
+rows immediately, including with old cursors, while another member keeps
+access. The controller must then regrant and repeat full verification
+without replacing the measured sessions.
+
+There are 39 read cases: for each membership degree, one repeated point
+at C1, then point working sets, first/next thread pages, first/next feed
+pages and feed working sets at C1/C8. Page arguments were visited during
+untimed correctness traversal; working sets cycle real keys and cursors,
+so they are not an uncached-work claim. Every timed response is checked.
+All three smoke runs passed: 39 cases × 50 samples × 3 backends =
+5,850 timed calls, plus warmups and complete authorization, pagination and
+same-session revoke/regrant checks. These trial-1000 records are tagged
+`membership-feed-smoke` in `metrics/storage.jsonl`; they qualify the fixture
+and instrument, not a repeated comparative result. The measured Snapback
+binary is the retained production 0.2.3 artifact described above. The
+Convex and Supabase image digests remain attached to their records.
+
+The remote artifacts show completion by 2026-09-13 12:05:23 UTC. The
+original SSH log stream stopped advancing after 11:51:37; later process
+and artifact inspection confirmed completion. Re-running the controller
+validated all three saved records and returned exit 0 without repeating
+timings. The interrupted SSH client's exit 255 is not a backend failure or
+a successful measurement exit. These observations establish no formal
+comparative win; repeated trials remain next.
+
+## Repeated cursor encoding experiment — not adopted
+
+A separate temporary candidate on qualified 0.2.3 removes only the final
+`encode_cursor` comparison in `decode_cursor`. The base64 decoder already
+checks canonical text, and the tagged JSON round trip establishes the
+same bytes; version, typed values, both size limits and caller descriptor
+checks remain. Independent source review found that final encoding
+redundant. The candidate passed the two existing cursor unit tests and
+sixteen corpus tests (211 cases passed, 82 named skips, zero failures).
+No broader malformed-token differential proof is claimed.
+
+The isolated native profiler uses the same compiled membership schema,
+programs and five principals on a disposable seed copy. Three alternating
+pairs run control/candidate, candidate/control, control/candidate, pinned
+to Linux virtual CPU 0 with no overlapping builds or controlled timings.
+Each process measures fifteen query cases at 1,000 samples plus two
+microcases at 100,000 samples: 90,000 timed queries and 1.2 million timed
+microcalls overall. Each query has 100 excluded warmups; each microcase
+has 1,000. Complete query outcomes, including meters, caps, sequence,
+tables and cursor, match across all six runs; hashes include warmups and
+are computed outside timers. The outsider and empty-group controls also
+match. The profiler checks point identity and page sizes; full-fixture
+correctness comes from the preceding smoke qualification. These are core
+calls with real principal rule evaluation, excluding HTTP/session handling.
+
+The six `redundant-cursor-encoding-profile` records in `metrics/storage.jsonl`
+retain every observation. Selected medians of three per-run percentiles:
+
+| Case | Control p50 / p95 (µs) | Candidate p50 / p95 (µs) |
+|---|---:|---:|
+| Cursor decode | 4.583 / 4.791 | 3.250 / 3.375 |
+| 5-group point | 111.125 / 135.083 | 112.958 / 143.416 |
+| 5-group thread first | 499.499 / 582.415 | 526.541 / 864.915 |
+| 5-group feed first | 1073.413 / 2012.996 | 1121.874 / 1470.453 |
+| 5-group feed next | 1123.329 / 1593.621 | 1156.330 / 1211.080 |
+| 30-group feed first | 4729.615 / 8284.860 | 4850.945 / 11792.677 |
+| 30-group feed next | 4942.366 / 8130.944 | 5075.401 / 11561.382 |
+| 150-group feed first | 16134.570 / 27057.990 | 16252.977 / 23458.640 |
+| 150-group feed next | 16961.986 / 24949.295 | 16809.204 / 23241.601 |
+
+Decoder p50 improves in all three pairs, with a 29.09% lower median.
+Fourteen of fifteen query-case p50 medians are higher, however; the one
+lower median (150-group continuation, 0.90%) has mixed pair directions.
+Null-cursor and point controls also move despite no decode on those paths.
+The experiment supplies no causal explanation for those changes and no
+reliable whole-query improvement. The candidate is not adopted, and the
+shipping cursor implementation is unchanged. No HTTP or comparator win
+follows from the microcase.
+
+The profiler SHA-256 is
+`87c91b01d83e0d85ee0b61180a09141d8b64e8e30be7165fbe703fc374e81e20`.
+Control and candidate binary hashes are respectively
+`38e91ee34b1fa68b5c8210dee241316c06cf22ee20ea5475c48c18a5be03ff42` and
+`4e6e93a74017237f868699ade53d0d388fb3078f506954853ca3913179815d76`;
+both use the production profile at optimization level 3.
+
 ## Simulator observation follow-up
 
 The four chat checks previously constructed and parsed every host state

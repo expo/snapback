@@ -42716,7 +42716,7 @@ fn public_capture_only_carrier_derives_transitive_predecessors_and_refuses_plain
 }
 
 // Executable P3-LOW falsification probes recorded in
-// issues/20260825-p3-low-top-six-execution.md. These are characterization
+// issues/shelved/20260825-p3-low-top-six-execution.md. These are characterization
 // tests: a passing test records what current main actually permits, including
 // behavior that requires reclassification rather than a silently strengthened
 // assertion.

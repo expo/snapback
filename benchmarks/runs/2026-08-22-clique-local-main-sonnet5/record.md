@@ -63,7 +63,7 @@ Summary:
    confusion in every membership-insert call site) that may fully explain
    the symptom, but explicitly did not re-test with corrected principals to
    find out before this report was written. Tracked in
-   `issues/20260822-membership-visibility-read-denial-needs-reverify.md`,
+   `issues/shelved/20260822-membership-visibility-read-denial-needs-reverify.md`,
    which also carries the lane's suggestion: a branded/nominal type for
    `Principal` vs. `Id<table>` would have caught its own bug at
    `snapback generate` time.
@@ -77,7 +77,7 @@ Summary:
 3. **The runtime-readiness checkout-root inference bug reproduced in both
    lanes independently**, each losing real setup time to it before finding
    the same class of workaround. Already tracked as
-   `issues/20260817-0275-auto-qualify-packaged-runtime-in-prove.md`; this
+   `issues/shelved/20260817-0275-auto-qualify-packaged-runtime-in-prove.md`; this
    run adds corroborating, independent evidence.
 4. **Two real, disclosed offline-capability gaps, both discoverable from the
    guide rather than hidden:** no qualified durable write-outbox on the

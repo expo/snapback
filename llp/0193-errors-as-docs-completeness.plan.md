@@ -10,7 +10,7 @@ per LLP 0223 ticket 4 — per emitting context, (code, operation) under
 fan-out; first entry `SNAPBACK_AUTH_REQUEST_INVALID` recorded ahead of the
 Phase 1 ledger.) 2026-08-10 (amendment: accepts ownership of the `snapback
 feedback` verb per the 2026-08-10 author ruling on
-`issues/20260809-snapback-feedback-verb-proposal.md` — design added as a
+`issues/shelved/20260809-snapback-feedback-verb-proposal.md` — design added as a
 dated amendment under Phase 4; explicit invocation only, the
 0207-rejected telemetry stays rejected.) 2026-08-08 (implementation amendment: replaces the 200–500 intake estimate with the audit's measured ~2,418 production-code vocabulary and records the measurement method.) 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fixes: the residue routing re-derived from diary 0069's record — run 5's refusal-reachable set is EMPTY (1/4 → 0196, 2/3/5 → 0194, 6 = guide-anchor gap, no refusal incident), replacing r8's unverified 1/4/6 enumeration; D7 terminology narrowed to the typed-remediation requirement vs OQ6's carrier.) 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
 the evidence claim narrowed to the refusal-reachable three-of-six subset
@@ -153,7 +153,7 @@ from environment names, protocol constants, and other non-emitting vocabulary.
 ### Dated amendment — 2026-08-10: the `snapback feedback` verb (Phase 4 intake)
 
 Accepted in principle by author ruling 2026-08-10 on
-`issues/20260809-snapback-feedback-verb-proposal.md` (origin: the LLP
+`issues/shelved/20260809-snapback-feedback-verb-proposal.md` (origin: the LLP
 0207 dissolution). This Plan owns the verb because Phase 4's grading
 loop is its consumer: the npm-consumer population is invisible to the
 loop today (LLP 0202 theme 5's surface inventory shows no feedback
@@ -421,7 +421,7 @@ grading lane, not asserted here.**
 L8's routes closed the observed retrieval misses. This amendment closes the
 population question those routes left open; the extractor work that implements
 the emitter-scoped rule is tracked in
-`issues/20260828-0193-emitter-scoped-diagnostic-intake.md`.
+`issues/shelved/20260828-0193-emitter-scoped-diagnostic-intake.md`.
 
 #### What this amendment does not decide
 

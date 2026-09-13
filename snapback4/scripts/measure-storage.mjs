@@ -14,6 +14,14 @@ import { binary as binaryPath, root, scaleSeed } from "../witness/lib.mjs";
 
 // A separate public-catalog workload uses the same records and result checks
 // on each actual backend. This is runtime measurement, not a Clique score.
+if (process.argv.includes("--membership-init")) {
+  initMembership();
+  process.exit(0);
+}
+if (process.argv.includes("--membership")) {
+  await measureMembership();
+  process.exit(0);
+}
 if (process.argv.includes("--private-catalog-init")) {
   initPrivateCatalog();
   process.exit(0);
@@ -754,4 +762,449 @@ async function measurePrivateCatalog() {
   const metadata = process.env.SB4_CATALOG_METADATA ? JSON.parse(readFileSync(process.env.SB4_CATALOG_METADATA, "utf8")) : {};
   const out = { at: new Date().toISOString(), workload: "private-catalog", backend, trial, rows: count, initial, final, measurements, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), node: process.version, host: `${platform()}-${arch()} ${cpus()[0].model}`, transport: "loopback HTTP; real owner credentials; two owners plus authenticated outsider; no SDK retry wrapper", durability: "default-mode acknowledgement latency; no matched power-loss-durable write claim", auth: { identities: 3, timedIdentities: 2, ...authChecks, expiredTokenChecked: !!credentials.expiredToken, public: credentials.publicMetadata ?? {} }, correctness: { fullPartitionsBeforeAndAfter: true, foreignRowsHidden: true, foreignCursorNoLeak: true, unauthenticatedPrivateDataHidden: true, malformedTamperedAuthRefused: true, immutablePatchRefused: backend === "supabase" ? true : null, ownerArgumentForgeryRefused: true, freshAndFailedReplay: true, contendedDistinctIds: 8, concurrentSameId: 8, processRestartTested: false }, metadata };
   console.log(JSON.stringify(out));
+}
+
+// One live-membership fixture, with portable ordering keys. The extra empty
+// group and its reader are correctness controls, outside the timed degrees.
+function membershipSeed() {
+  const group = n => "g" + String(n).padStart(3, "0");
+  const groups = Array.from({ length: 501 }, (_, n) => ({ groupKey: group(n), title: "Group " + group(n) }));
+  const messages = Array.from({ length: 100000 }, (_, n) => {
+    const messageKey = "m" + String(n).padStart(7, "0"), groupKey = group(n % 500);
+    return { messageKey, groupKey, at: Math.floor(n / 1500) * 1000 + Math.floor(n % 500 / 25), body: "Message " + messageKey + " in " + groupKey };
+  });
+  const memberships = [5, 30, 150, 0, 1].flatMap((count, readerSlot) => Array.from({ length: count }, (_, n) => ({ readerSlot, groupKey: group(readerSlot === 4 ? 500 : n + (readerSlot === 2 ? 20 : 0)) })));
+  return { groups, memberships, messages };
+}
+
+function initMembership() {
+  const dir = resolve(option("--membership-init"));
+  mkdirSync(dir); mkdirSync(join(dir, "snapback")); mkdirSync(join(dir, "convex"));
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "snapback4-membership-measurement", private: true, type: "module", dependencies: { convex: "1.45.0", supabase: "2.117.0" } }, null, 2) + "\n");
+  writeFileSync(join(dir, "snapback/schema.q"), `use identity guests
+
+table feedGroups:
+  groupKey: text 1..40
+  title: text <=120
+  unique byKey: groupKey
+  immutable groupKey, title
+  read <- exists feedMemberships[.groupKey, viewer]
+  insert <- deny
+  update <- deny
+  delete <- deny
+
+table feedMemberships:
+  groupKey: text 1..40
+  memberId: principal
+  unique byGroupMember: groupKey, memberId
+  unique byMemberGroup: memberId, groupKey
+  immutable groupKey, memberId
+  read <- .memberId = viewer
+  insert <- deny
+  update <- deny
+  delete <- .memberId = viewer
+
+table feedMessages:
+  messageKey: text 1..40
+  groupKey: text 1..40
+  at: int
+  body: text <=500
+  unique byKey: messageKey
+  unique byGroupTimeKey: groupKey, at, messageKey
+  immutable messageKey, groupKey, at, body
+  read <- exists feedMemberships[.groupKey, viewer]
+  insert <- deny
+  update <- deny
+  delete <- deny
+
+query point(messageKey: text 1..40):
+  return feedMessages[messageKey] by byKey { messageKey, groupKey, at, body }
+
+query thread(groupKey: text 1..40, c: cursor ?):
+  require exists feedMemberships[groupKey, viewer] else MEMBERSHIP_REQUIRED
+  return feedMessages[groupKey] after c last 50 by byGroupTimeKey
+    { messageKey, groupKey, at, body }
+
+query feed(c: cursor ?):
+  page = merge feedMessages after c last 20 by byGroupTimeKey:
+    [m.groupKey] for m in feedMemberships[viewer] first 500 by byMemberGroup
+  return page { messageKey, groupKey, at, body }
+
+mutation leave(groupKey: text 1..40):
+  row = feedMemberships[groupKey, viewer] by byGroupMember ! else NOT_MEMBER
+  delete feedMemberships[row]
+  return { groupKey }
+`);
+  writeFileSync(join(dir, "convex/schema.js"), `import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+export default defineSchema({
+  // Preserve the public and private catalog fixtures on the owned backend.
+  products: defineTable({ sku: v.string(), category: v.string(), price: v.number(), title: v.string() })
+    .index("by_sku", ["sku"]).index("by_category_price", ["category", "price"]),
+  privateProducts: defineTable({ ownerId: v.string(), sku: v.string(), category: v.string(), price: v.number(), title: v.string(), revision: v.number() })
+    .index("by_owner_sku", ["ownerId", "sku"]).index("by_owner_category_price", ["ownerId", "category", "price", "sku"]),
+  privateOps: defineTable({ ownerId: v.string(), opId: v.string(), outcome: v.any() }).index("by_owner_op", ["ownerId", "opId"]),
+  feedGroups: defineTable({ groupKey: v.string(), title: v.string() }).index("by_key", ["groupKey"]),
+  feedMemberships: defineTable({ groupKey: v.string(), memberId: v.string() })
+    .index("by_group_member", ["groupKey", "memberId"]).index("by_member_group", ["memberId", "groupKey"]),
+  feedMessages: defineTable({ messageKey: v.string(), groupKey: v.string(), at: v.number(), body: v.string() })
+    .index("by_key", ["messageKey"]).index("by_group_time_key", ["groupKey", "at", "messageKey"]),
+});
+`);
+  writeFileSync(join(dir, "convex/membership.js"), `import { queryGeneric as query, mutationGeneric as mutation } from "convex/server";
+import { v } from "convex/values";
+const owner = async ctx => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("AUTH_REQUIRED");
+  return identity.subject;
+};
+const member = (ctx, memberId, groupKey) => ctx.db.query("feedMemberships")
+  .withIndex("by_group_member", q => q.eq("groupKey", groupKey).eq("memberId", memberId)).unique();
+const fields = r => r && ({ messageKey: r.messageKey, groupKey: r.groupKey, at: r.at, body: r.body });
+const cursor = v.union(v.string(), v.null());
+const decode = c => {
+  if (c === null) return null;
+  if (c.length > 128) throw new Error("BAD_CURSOR");
+  const p = JSON.parse(c);
+  if (!Number.isSafeInteger(p.at) || !/^m[0-9]{7}$/.test(p.messageKey)) throw new Error("BAD_CURSOR");
+  return p;
+};
+const page = (rows, size) => ({ data: rows.slice(0, size).map(fields), next: rows.length > size ?
+  JSON.stringify({ at: rows[size - 1].at, messageKey: rows[size - 1].messageKey }) : null });
+async function* lane(ctx, groupKey, c) {
+  if (c) yield* ctx.db.query("feedMessages").withIndex("by_group_time_key", q =>
+    q.eq("groupKey", groupKey).eq("at", c.at).lt("messageKey", c.messageKey)).order("desc");
+  yield* ctx.db.query("feedMessages").withIndex("by_group_time_key", q =>
+    c ? q.eq("groupKey", groupKey).lt("at", c.at) : q.eq("groupKey", groupKey)).order("desc");
+}
+export const point = query({ args: { messageKey: v.string() }, handler: async (ctx, a) => {
+  const who = await owner(ctx);
+  const row = await ctx.db.query("feedMessages").withIndex("by_key", q => q.eq("messageKey", a.messageKey)).unique();
+  return row && await member(ctx, who, row.groupKey) ? fields(row) : null;
+} });
+export const thread = query({ args: { groupKey: v.string(), c: cursor }, handler: async (ctx, a) => {
+  if (!await member(ctx, await owner(ctx), a.groupKey)) throw new Error("MEMBERSHIP_REQUIRED");
+  const rows = [];
+  for await (const row of lane(ctx, a.groupKey, decode(a.c))) { rows.push(row); if (rows.length === 51) break; }
+  return page(rows, 50);
+} });
+export const feed = query({ args: { c: cursor }, handler: async (ctx, a) => {
+  const who = await owner(ctx), c = decode(a.c);
+  const members = await ctx.db.query("feedMemberships").withIndex("by_member_group", q => q.eq("memberId", who)).take(501);
+  if (members.length > 500) throw new Error("MEMBERSHIP_BOUND");
+  // A bounded heap of lazy indexed iterators: initialize one head per lane,
+  // then only advance the winner. No materialized per-reader feed or cache.
+  const heap = [], newer = (a, b) => a.row.at > b.row.at || (a.row.at === b.row.at && a.row.messageKey > b.row.messageKey);
+  const push = item => {
+    let n = heap.length; heap.push(item);
+    while (n > 0) { const p = (n - 1) >> 1; if (!newer(heap[n], heap[p])) break; [heap[n], heap[p]] = [heap[p], heap[n]]; n = p; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last; let n = 0;
+      for (;;) { let p = n, l = n * 2 + 1, r = l + 1;
+        if (l < heap.length && newer(heap[l], heap[p])) p = l;
+        if (r < heap.length && newer(heap[r], heap[p])) p = r;
+        if (p === n) break; [heap[n], heap[p]] = [heap[p], heap[n]]; n = p;
+      }
+    }
+    return top;
+  };
+  const iterators = members.map(m => lane(ctx, m.groupKey, c));
+  try {
+    const heads = await Promise.all(iterators.map(async iterator => ({ iterator, head: await iterator.next() })));
+    for (const { iterator, head } of heads) if (!head.done) push({ iterator, row: head.value });
+    const rows = [];
+    while (heap.length && rows.length < 21) {
+      const item = pop(); rows.push(item.row);
+      if (rows.length < 21) { const next = await item.iterator.next(); if (!next.done) push({ iterator: item.iterator, row: next.value }); }
+    }
+    return page(rows, 20);
+  } finally { await Promise.all(iterators.map(iterator => iterator.return())); }
+} });
+export const leave = mutation({ args: { groupKey: v.string() }, handler: async (ctx, a) => {
+  const row = await member(ctx, await owner(ctx), a.groupKey);
+  if (!row) throw new Error("NOT_MEMBER");
+  await ctx.db.delete(row._id); return { groupKey: a.groupKey };
+} });
+`);
+  writeFileSync(join(dir, "schema.sql"), `create table public.feed_groups (group_key text collate "C" primary key, title text not null);
+create table public.feed_memberships (group_key text collate "C" not null references public.feed_groups,
+  member_id uuid not null, primary key (group_key, member_id));
+create index feed_memberships_by_member on public.feed_memberships (member_id, group_key);
+create table public.feed_messages (message_key text collate "C" primary key,
+  group_key text collate "C" not null references public.feed_groups, at bigint not null, body text not null);
+create unique index feed_messages_by_group_time_key on public.feed_messages (group_key, at, message_key);
+alter table public.feed_groups enable row level security;
+alter table public.feed_memberships enable row level security;
+alter table public.feed_messages enable row level security;
+create policy own_membership_read on public.feed_memberships for select to authenticated using (member_id = (select auth.uid()));
+create policy own_membership_leave on public.feed_memberships for delete to authenticated using (member_id = (select auth.uid()));
+create policy member_group_read on public.feed_groups for select to authenticated using
+  (group_key in (select group_key from public.feed_memberships where member_id = (select auth.uid())));
+create policy member_message_read on public.feed_messages for select to authenticated using
+  (group_key in (select group_key from public.feed_memberships where member_id = (select auth.uid())));
+revoke all on public.feed_groups, public.feed_memberships, public.feed_messages from public, anon, authenticated;
+grant select on public.feed_groups, public.feed_memberships, public.feed_messages to authenticated;
+grant delete on public.feed_memberships to authenticated;
+grant all on public.feed_groups, public.feed_memberships, public.feed_messages to service_role;
+
+create function public.membership_point(p_message_key text) returns jsonb
+language sql stable security invoker set search_path = '' as $$
+  select (select jsonb_build_object('messageKey', message_key, 'groupKey', group_key, 'at', at, 'body', body)
+    from public.feed_messages where message_key = p_message_key);
+$$;
+create function public.membership_thread(p_group_key text, p_c jsonb) returns jsonb
+language plpgsql stable security invoker set search_path = '' as $$
+declare result jsonb;
+begin
+  if not exists (select 1 from public.feed_memberships where group_key = p_group_key and member_id = (select auth.uid()))
+    then raise exception 'MEMBERSHIP_REQUIRED'; end if;
+  with candidates as materialized (
+    (select message_key, group_key, at, body from public.feed_messages
+      where p_c is null and group_key = p_group_key order by at desc, message_key desc limit 51)
+    union all
+    (select message_key, group_key, at, body from public.feed_messages
+      where p_c is not null and group_key = p_group_key
+        and (at, message_key) < ((p_c->>'at')::bigint, (p_c->>'messageKey') collate "C")
+      order by at desc, message_key desc limit 51)
+  ), ranked as (select *, row_number() over (order by at desc, message_key desc) n from candidates)
+  select jsonb_build_object('data', coalesce(jsonb_agg(jsonb_build_object('messageKey', message_key, 'groupKey', group_key, 'at', at, 'body', body)
+    order by at desc, message_key desc) filter (where n <= 50), '[]'::jsonb),
+    'next', case when count(*) > 50 then (select jsonb_build_object('at', at, 'messageKey', message_key) from ranked where n = 50) else null end)
+    into result from ranked;
+  return result;
+end;
+$$;
+create function public.membership_feed(p_c jsonb) returns jsonb
+language sql stable security invoker set search_path = '' as $$
+  with candidates as materialized (
+    select m.* from public.feed_memberships own cross join lateral (
+      (select message_key, group_key, at, body from public.feed_messages
+        where p_c is null and group_key = own.group_key order by at desc, message_key desc limit 21)
+      union all
+      (select message_key, group_key, at, body from public.feed_messages
+        where p_c is not null and group_key = own.group_key
+          and (at, message_key) < ((p_c->>'at')::bigint, (p_c->>'messageKey') collate "C")
+        order by at desc, message_key desc limit 21)
+    ) m where own.member_id = (select auth.uid())
+    order by m.at desc, m.message_key desc limit 21
+  ), ranked as (select *, row_number() over (order by at desc, message_key desc) n from candidates)
+  select jsonb_build_object('data', coalesce(jsonb_agg(jsonb_build_object('messageKey', message_key, 'groupKey', group_key, 'at', at, 'body', body)
+    order by at desc, message_key desc) filter (where n <= 20), '[]'::jsonb),
+    'next', case when count(*) > 20 then (select jsonb_build_object('at', at, 'messageKey', message_key) from ranked where n = 20) else null end)
+    from ranked;
+$$;
+create function public.membership_leave(p_group_key text) returns jsonb
+language plpgsql volatile security invoker set search_path = '' as $$
+begin
+  delete from public.feed_memberships where group_key = p_group_key and member_id = (select auth.uid());
+  if not found then raise exception 'NOT_MEMBER'; end if;
+  return jsonb_build_object('groupKey', p_group_key);
+end;
+$$;
+revoke all on function public.membership_point(text), public.membership_thread(text, jsonb), public.membership_feed(jsonb), public.membership_leave(text) from public, anon, authenticated;
+grant execute on function public.membership_point(text), public.membership_thread(text, jsonb), public.membership_feed(jsonb), public.membership_leave(text) to authenticated;
+`);
+  const seed = membershipSeed(), digests = {};
+  for (const [name, rows] of Object.entries(seed)) {
+    const body = rows.map(r => JSON.stringify(r)).join("\n") + "\n";
+    writeFileSync(join(dir, name + ".jsonl"), body); digests[name] = createHash("sha256").update(body).digest("hex");
+  }
+  console.log(JSON.stringify({ directory: dir, populatedGroups: 500, emptyGroups: 1, messages: seed.messages.length, memberships: seed.memberships.length, digests, identity: "setup maps five logical reader slots to real backend principals; credentials remain outside this fixture" }));
+}
+
+async function measureMembership() {
+  const backend = option("--membership"), samples = Number(option("--samples", 500)), trial = Number(option("--trial", 0));
+  assert.ok(["snapback4", "convex", "supabase"].includes(backend));
+  assert.ok(Number.isSafeInteger(samples) && samples >= 50 && samples <= 10000);
+  assert.ok(Number.isSafeInteger(trial) && trial >= 0 && trial <= 1000);
+  const endpoint = new URL(process.env.SB4_MEMBERSHIP_URL);
+  assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(endpoint.hostname), "membership runs use an isolated loopback backend");
+  const credentials = JSON.parse(readFileSync(process.env.SB4_MEMBERSHIP_SESSIONS, "utf8"));
+  assert.equal(credentials.backend, backend); assert.equal(credentials.sessions.length, 5);
+  assert.equal(new Set(credentials.sessions.map(s => s.principal)).size, 5);
+  for (const actor of credentials.sessions) assert.ok(typeof actor.principal === "string" && typeof actor.token === "string" && actor.token.length > 10);
+  assert.ok(credentials.expiredToken, "a validly issued expired credential is required");
+  if (backend === "supabase") {
+    assert.ok(credentials.apiKey);
+    for (const actor of credentials.sessions) {
+      const p = JSON.parse(Buffer.from(actor.token.split(".")[1], "base64url"));
+      assert.equal(p.role, "authenticated"); assert.equal(p.sub, actor.principal);
+      assert.ok(p.exp * 1000 > Date.now() + 120000, "ordinary user sessions must cover the run");
+    }
+  }
+  const http = async (path, body, actor, token) => {
+    const headers = { "content-type": "application/json", ...(backend === "supabase" ? { apikey: credentials.apiKey } : {}), ...(token == null ? {} : { authorization: "Bearer " + token }) };
+    const r = await fetch(new URL(path, endpoint), { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+    let value;
+    try { value = await r.json(); } catch { throw new Error("membership backend returned non-JSON status " + r.status); }
+    assert.ok(r.status < 500, "membership backend returned a server error");
+    return { status: r.status, value, ok: r.ok && !value?.denied && value?.status !== "error" };
+  };
+  const queryRaw = async (name, args, actor = 0, token = credentials.sessions[actor].token) => {
+    if (backend === "snapback4") return http("/q/" + name, { args }, actor, token);
+    if (backend === "convex") return http("/api/query", { path: "membership:" + name, args, format: "json" }, actor, token);
+    const { messageKey, groupKey, c, ...extra } = args;
+    const body = name === "point" ? { p_message_key: messageKey } : name === "thread" ? { p_group_key: groupKey, p_c: c } : { p_c: c };
+    return http("/rest/v1/rpc/membership_" + name, { ...body, ...extra }, actor, token);
+  };
+  const fields = r => r == null ? null : ({ messageKey: r.messageKey, groupKey: r.groupKey, at: Number(r.at), body: r.body });
+  const unpack = (r, name, actor) => {
+    assert.ok(r.ok, "membership query was refused");
+    if (backend === "snapback4") {
+      assert.equal(r.value.complete, true, "capped membership reads are not successful samples");
+      assert.equal(r.value.viewer, credentials.sessions[actor].principal);
+      return { data: name === "point" ? fields(r.value.data) : r.value.data.map(fields), next: r.value.next ?? null };
+    }
+    const value = backend === "convex" ? r.value.value : r.value;
+    return name === "point" ? { data: fields(value), next: null } : { data: value.data.map(fields), next: value.next ?? null };
+  };
+  const query = async (name, args, actor = 0) => unpack(await queryRaw(name, args, actor), name, actor);
+  const leave = async (groupKey, actor) => {
+    const token = credentials.sessions[actor].token;
+    const r = backend === "snapback4" ? await http("/m/leave", { id: "membership-" + trial + "-" + actor, args: { groupKey } }, actor, token) :
+      backend === "convex" ? await http("/api/mutation", { path: "membership:leave", args: { groupKey }, format: "json" }, actor, token) :
+      await http("/rest/v1/rpc/membership_leave", { p_group_key: groupKey }, actor, token);
+    if (!r.ok || (backend === "snapback4" && r.value.state !== "sent")) return { refused: true, status: r.status };
+    const value = backend === "snapback4" ? r.value.result : backend === "convex" ? r.value.value : r.value;
+    assert.deepEqual(value, { groupKey }); return { refused: false, status: r.status };
+  };
+  const seed = membershipSeed(), byKey = new Map(seed.messages.map(r => [r.messageKey, r]));
+  const compare = (a, b) => b.at - a.at || (a.messageKey < b.messageKey ? 1 : a.messageKey > b.messageKey ? -1 : 0);
+  const groups = credentials.sessions.map((_, actor) => new Set(seed.memberships.filter(m => m.readerSlot === actor).map(m => m.groupKey)));
+  const oracle = actor => seed.messages.filter(r => groups[actor].has(r.groupKey)).sort(compare);
+  const feedPages = [], threadPages = [];
+  const walk = async (name, base, actor, wanted, retain) => {
+    const size = name === "feed" ? 20 : 50, pages = []; let c = null, position = 0;
+    do {
+      const args = { ...base, c }, answer = await query(name, args, actor), expected = wanted.slice(position, position + size);
+      assert.deepEqual(answer.data, expected, "membership traversal returned missing, duplicate, foreign or misordered rows");
+      position += expected.length;
+      assert.equal(answer.next != null, position < wanted.length, "continuation must reflect another authorized row");
+      pages.push({ args, wanted: expected, hasNext: answer.next != null });
+      c = answer.next;
+    } while (c != null);
+    assert.equal(position, wanted.length);
+    if (retain) retain.push(...pages);
+    return { rows: wanted.length, pages: pages.length, sha256: createHash("sha256").update(wanted.map(r => JSON.stringify(r)).join("\n") + "\n").digest("hex") };
+  };
+  const verify = async (retain = false) => {
+    const feeds = [];
+    for (let actor = 0; actor < 5; actor++) {
+      const wanted = oracle(actor), feed = []; feeds.push(await walk("feed", {}, actor, wanted, retain ? feed : null));
+      if (retain) feedPages[actor] = feed;
+      if (groups[actor].size) {
+        const groupKey = [...groups[actor]][0], thread = [];
+        await walk("thread", { groupKey }, actor, wanted.filter(r => r.groupKey === groupKey), retain ? thread : null);
+        if (retain) threadPages[actor] = thread;
+      }
+    }
+    return feeds;
+  };
+  const point = { messageKey: seed.messages[0].messageKey };
+  const anonymous = await queryRaw("point", point, 0, null);
+  if (anonymous.ok) {
+    const data = backend === "snapback4" ? anonymous.value.data : backend === "convex" ? anonymous.value.value : anonymous.value;
+    assert.equal(data, null, "unauthenticated membership data was exposed");
+  }
+  for (const token of ["invalid-token", credentials.sessions[0].token.slice(0, -8) + "tampered", credentials.expiredToken]) {
+    assert.equal((await queryRaw("point", point, 0, token)).ok, false, "invalid or expired authentication was accepted");
+  }
+  for (let actor = 0; actor < 5; actor++) {
+    assert.deepEqual((await query("point", point, actor)).data, groups[actor].has("g000") ? seed.messages[0] : null);
+    assert.equal((await query("point", { messageKey: "missing" }, actor)).data, null);
+    assert.equal((await query("point", { messageKey: seed.messages[499].messageKey }, actor)).data, null);
+  }
+  assert.equal((await queryRaw("point", { ...point, viewer: credentials.sessions[0].principal }, 3)).ok, false, "a forged viewer argument was accepted");
+  const denials = [];
+  for (const groupKey of ["g000", "nonexistent"]) {
+    const answer = await queryRaw("thread", { groupKey, c: null }, 3);
+    assert.equal(answer.ok, false, "an unauthorized thread must be refused");
+    denials.push({ group: groupKey === "g000" ? "foreign" : "missing", status: answer.status });
+  }
+  const initial = await verify(true);
+  assert.deepEqual(initial.map(r => r.rows), [1000, 6000, 30000, 0, 0]);
+  const assertBoundedAuthorized = (answer, actor, size) => {
+    assert.ok(answer.data.length <= size);
+    assert.equal(new Set(answer.data.map(r => r.messageKey)).size, answer.data.length);
+    assert.deepEqual([...answer.data].sort(compare), answer.data);
+    for (const row of answer.data) {
+      assert.ok(groups[actor].has(row.groupKey), "cursor reuse exposed another reader's data");
+      assert.deepEqual(row, byKey.get(row.messageKey));
+    }
+  };
+  for (const [name, args, actor, size] of [
+    ["feed", feedPages[0][1].args, 2, 20],
+    ["thread", threadPages[0][1].args, 2, 50],
+    ["thread", { ...threadPages[0][1].args, groupKey: "g001" }, 0, 50],
+  ]) {
+    const r = await queryRaw(name, args, actor);
+    if (r.ok) assertBoundedAuthorized(unpack(r, name, actor), actor, size);
+  }
+  const metadata = process.env.SB4_MEMBERSHIP_METADATA ? JSON.parse(readFileSync(process.env.SB4_MEMBERSHIP_METADATA, "utf8")) : {};
+  const out = { at: new Date().toISOString(), workload: "membership-feed", backend, trial, populatedGroups: 500, emptyGroups: 1, rows: seed.messages.length,
+    degrees: [5, 30, 150], initial, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"),
+    node: process.version, host: `${platform()}-${arch()} ${cpus()[0].model}`, transport: "loopback HTTP; real bearer credentials; no SDK retry wrapper",
+    auth: { identities: 5, timedIdentities: 3, anonymous: { status: anonymous.status, outcome: anonymous.ok ? "hidden" : "refused" }, expiredTokenChecked: true, threadDenials: denials, public: credentials.publicMetadata ?? {} },
+    correctness: { completeAuthorizedFeedTraversals: true, completeRepresentativeThreads: true, timestampTieOrder: true, foreignPointHidden: true, outsiderAndEmptyReader: true, foreignCursorNoLeak: true, invalidAuthRefused: true, forgedViewerRefused: true },
+    cachePosture: "no harness or application result cache; native automatic query caching retained; timed page arguments were visited in untimed correctness traversal; working-set cases cycle real keys/cursors", metadata };
+  if (process.argv.includes("--membership-verify-only")) {
+    console.log(JSON.stringify({ ...out, workload: "membership-feed-verify", scope: "untimed restored membership and same-session access verification; no timed samples or revocation" })); return;
+  }
+  const measurements = {};
+  const run = async (name, concurrency, spec) => {
+    const call = async n => {
+      const { operation, args, actor, wanted, hasNext } = spec(n), started = performance.now();
+      const answer = await query(operation, args, actor), ms = performance.now() - started;
+      assert.deepEqual(answer.data, wanted, "timed membership read returned the wrong complete rows");
+      if (hasNext !== undefined) assert.equal(answer.next != null, hasNext);
+      return ms;
+    };
+    const warmups = 30; for (let n = 0; n < warmups; n++) await call(n);
+    const times = []; let next = warmups;
+    const started = performance.now();
+    await Promise.all(Array.from({ length: concurrency }, async () => {
+      for (;;) { const n = next++; if (n >= samples + warmups) return; times.push(await call(n)); }
+    }));
+    const elapsedMs = performance.now() - started; times.sort((a, b) => a - b);
+    const p = x => +times[Math.ceil(times.length * x) - 1].toFixed(3);
+    measurements[name] = { samples, concurrency, warmups, p50Ms: p(.5), p95Ms: p(.95), p99Ms: p(.99), maxMs: p(1), elapsedMs: +elapsedMs.toFixed(1), requestsPerSecond: +(samples * 1000 / elapsedMs).toFixed(1), errors: 0 };
+    console.error(backend + " " + name + ": " + JSON.stringify(measurements[name]));
+  };
+  for (const [actor, degree] of [5, 30, 150].entries()) {
+    const wanted = oracle(actor), prefix = "groups" + degree;
+    await run(prefix + "PointHotC1", 1, () => ({ operation: "point", args: { messageKey: wanted[0].messageKey }, actor, wanted: wanted[0] }));
+    for (const concurrency of [1, 8]) {
+      await run(prefix + "PointWorkingSetC" + concurrency, concurrency, n => {
+        const row = wanted[(n * 7919 + trial * 997) % wanted.length];
+        return { operation: "point", args: { messageKey: row.messageKey }, actor, wanted: row };
+      });
+      for (const [suffix, operation, page] of [
+        ["ThreadFirst", "thread", threadPages[actor][0]], ["ThreadNext", "thread", threadPages[actor][1]],
+        ["FeedFirst", "feed", feedPages[actor][0]], ["FeedNext", "feed", feedPages[actor][1]],
+      ]) await run(prefix + suffix + "C" + concurrency, concurrency, () => ({ operation, actor, ...page }));
+      await run(prefix + "FeedWorkingSetC" + concurrency, concurrency, n => {
+        const page = feedPages[actor][(n * 7919 + trial * 997) % feedPages[actor].length];
+        return { operation: "feed", actor, ...page };
+      });
+    }
+  }
+  assert.equal((await leave("g000", 3)).refused, true, "an outsider removed a membership");
+  assert.equal((await leave("g000", 0)).refused, false, "the member's leave was refused");
+  groups[0].delete("g000");
+  assert.equal((await query("point", point, 0)).data, null, "acknowledged revocation did not hide a formerly readable point");
+  for (const c of [null, threadPages[0][1].args.c]) assert.equal((await queryRaw("thread", { groupKey: "g000", c }, 0)).ok, false);
+  const old = await queryRaw("feed", feedPages[0][1].args, 0);
+  if (old.ok) {
+    const answer = unpack(old, "feed", 0), edge = feedPages[0][0].wanted.at(-1);
+    assertBoundedAuthorized(answer, 0, 20);
+    assert.deepEqual(answer.data, oracle(0).filter(row => compare(row, edge) > 0).slice(0, 20), "old cursor must seek within the current authorized union");
+  }
+  assert.deepEqual((await query("point", point, 1)).data, seed.messages[0], "another member lost access during revocation");
+  const final = await verify();
+  assert.deepEqual(final.map(r => r.rows), [800, 6000, 30000, 0, 0]);
+  console.log(JSON.stringify({ ...out, final, measurements, correctness: { ...out.correctness, acknowledgedLeaveImmediate: true, revokedOldCursorNoLeak: true, otherMemberRetainsAccess: true, regrantTested: false },
+    scope: "live membership point/thread/feed reads; no materialized-feed/count, write throughput, realtime or durability claim; controller must restore and separately verify regrant" }));
 }

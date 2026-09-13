@@ -1720,7 +1720,7 @@ weaken or supersede any of those facts.
 npm `latest` for the fourteen-package identity-preset closure. Neither
 carries a `fastpath-0-1-2X-*` holding tag. The isolated-worktree fast-path
 ceremony was not a buildable tree at the time
-(`issues/20260827-fastpath-release-isolate-not-buildable.md`); 0.1.28 also
+(`issues/shelved/20260827-fastpath-release-isolate-not-buildable.md`); 0.1.28 also
 shipped the final runtime packages without packaged-store qualification
 receipts, as recorded in this document's 2026-08-27 revision. Those
 closures therefore went out through a path that bypasses the holding-tag

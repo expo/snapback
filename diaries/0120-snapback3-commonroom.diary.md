@@ -456,3 +456,183 @@ The first inbox was visible in a median of 435ms; physical offline reopen,
 including its full audit, took a median of 1.477 seconds. This is a useful
 measured improvement at a fixed scope, with every earlier failed candidate
 retained. It does not establish the broader product or builder comparison.
+
+## 2026-09-12: Full Clique integration in progress
+
+The next commission covers the complete M1–M8 benchmark, including media,
+autonomous work, native reopening, and delivery semantics. The useful reuse
+from Snapback2 is substantial: asset authority, delivery receipts, the local
+mutation evaluator, timers and bounded jobs already express difficult rules.
+The remaining work is to make those rules agree across the Node owner, Rust
+worker, durable client, and application-facing API.
+
+The first media checks passed with a substitute validator while the actual
+Rust codec helper did not compile. Preserving that failure exposed three
+ordinary integration errors; after repair, real helper/worker/HTTP tests passed
+upload, attachment authorization, once-open concurrency and restart. Review
+then found the incomplete reclamation lifecycle: discard had no path to release
+charged slots after physical deletion. That integration is still being tested.
+
+Worker review found that hiding system operations from the manifest did not
+prevent a session from guessing their names. It also found unbounded cleanup.
+A separate integration check caught a test using a bookkeeping signature the
+compiler could never produce. The repaired worker now exercises the real
+compiler's `{ outboxId, effect, result }` contract and persists its semantic
+binding through restart. Root verification of the rebuilt worker and Node owner
+passed all 28 owner tests, including autonomous work with no clients.
+
+Native code now has one entrypoint supplying SQLite, streaming fetch and secure
+identities to the shared client. Local readiness no longer waits for a hung
+network request. These are promising reductions in application coordination,
+but review found two defects before simulator qualification: the default
+database did not distinguish backend URLs, and a throwing observer could stop
+other peers' account-change notifications. The latter was independently
+reproduced against real SQLite after its transaction had committed. Device
+proof remains outstanding.
+
+The isolated Node effect runner also needed a stronger memory check: a small
+V8 heap limit still allowed a touched 128 MiB typed array. The candidate now
+uses a sampled RSS watchdog as well as process, time and I/O boundaries; it
+does not claim a hard resident-memory ceiling. Full owner integration is still
+pending. The complete Clique builder run has not started, and the frozen v8
+acquisition result does not qualify this growing candidate.
+
+The next independent owner review exposed a second weakness in our own green
+checks: the lost-enqueue test dropped the HTTP reply only after the Node operator
+had received and logged the job ID. It did not exercise loss of the worker reply
+before that publication. Source inspection confirmed that this earlier loss
+left the durable job undiscoverable through the exposed operator log. The same
+review found successor commit/restart-file ordering and timer-store-failure
+retry defects. These are assigned repairs; the earlier 28 passing owner tests
+remain real, with their narrower coverage preserved.
+
+Native repairs now scope default SQLite storage to the backend URL and isolate
+post-commit observers. Twelve actual SQLite tests exercise the exported Expo
+construction path, lost reply, rollback and cross-account interleavings. They
+do not establish Hermes behavior or OS-process restart. A separate iOS witness
+is preparing those checks on the owned Durand simulator.
+
+The first actual Hermes launch reached the SDK and failed before a backend
+request: the client checked that `window` existed, then called
+`window.addEventListener`. React Native's window alias had neither DOM event
+method. Expo crypto, streaming fetch and SQLite were available. A separate
+Node probe with the same host shape reproduced the failure. The client repair
+now owns capability detection and listener cleanup; the native fixture keeps
+its real host without a DOM shim. This is precisely the platform boundary
+that the Node SQLite fixture could not establish.
+
+The owner recovery repairs now commit the accepted project definition with its
+generation, recover job IDs from durable operator-attributed records, and close
+an owner after a terminal timer/storage fault. The final suite passed 36 real
+Node owner tests and 10 worker tests, including exact worker-commit-before-reply
+loss, whole-owner reopening, stored-definition tampering and the recovery CLI.
+A compiled timed query also refreshed over SSE without writes while a concurrent
+constant query did not. These close specific evidence gaps; effects and the
+full application remain outside that result.
+
+Media review found a concrete false-ready path. Removing the entire `mdat`
+payload from the canonical MP4 left a 6,241-byte skeleton; the actual helper
+still returned successful video facts and produced a finalized file. Existing
+successful-upload tests could not establish playable input validation. Source
+inspection also confirmed late growth reservation, raw-stage cleanup lost after
+attachment, rejected bodies draining outside the upload limit, and shutdown
+releasing helper/worker custody too early. The next repair groups these around
+complete upload ownership. The review's HEIC/MOV demand was a scope mismatch:
+the full Clique brief names JPEG/PNG/WebP and MP4/H.264/AAC. S3's narrower format
+contract needs explicit documentation and a versioned helper handshake, without
+claiming all of Snapback2's format support.
+
+The corrected native package reached actual Hermes auth, acquisition, live
+streaming and durable offline enqueue on Durand. Three successive harness
+assumptions interrupted the subsequent restart audit: selecting the only
+Snapback database instead of the current URL's file, reading SQLite while its
+owner held an exclusive lock, and treating a raw query envelope as SDK-unwrapped
+data. Those failures and queued SQLite backups are retained. After Durand became
+unreachable, qualification moved to a fresh headless local simulator with an
+audit of the remaining harness assertions. Native OS-restart/replay qualification
+is still pending; none of these intermediate steps is a full Clique M6/M8 pass.
+
+The local iOS26.5/Expo57/Hermes witness subsequently passed. Three distinct
+terminated Expo processes preserved the same two immutable queued operations,
+then their committed receipts. The server committed them at sequences 3 and 4;
+both bodies appeared exactly once after replay. Root independently compared the
+entire stored request objects with transport replay, checked all three SQLite
+backup hashes and terminal records, and confirmed that the 18 scoped native
+source/build/package files still matched the frozen native revision. The first
+local attempt is retained too: its harness expected a restored acquisition
+checkpoint to be `ready`, although restart deliberately resumes validation.
+Accepting that bounded validation state does not claim new network confirmation.
+The final witness proves this small native persistence case, not full native
+Clique, media playback, search or large acquisition.
+
+The exact malformed MP4 control now fails with the rebuilt helper: removing
+`mdat` from the canonical clip returns `E_ASSET_TYPE` and leaves no output.
+The valid clip still validates and is emitted byte for byte. The old accepted
+output and both helper hashes remain in the run evidence. The helper tests
+also cover duration/sample inconsistencies and image orientation; browser
+playback and upload lifecycle qualification remain separate Node work.
+
+The native result now has a compact tracked record under
+`snapback3/benchmarks/native-platform/results/20260913-ios-hermes-restart.json`,
+with package/source/harness/SQLite identities and explicit scope limits. Raw
+SQLite and traffic remain in the ignored run directory. Both final native
+reviewers receive the same frozen source and actual evidence.
+
+The coherent Node media repair now passes33focused tests under Node and the
+existing36owner tests without skips. The actual helper/worker/HTTP path played
+the canonical MP4 through an expiring private carrier: Chrome observed320×240,
+a five-second duration and advancing playback time. Bun's CDP/nested-test
+compatibility failures were retained as harness failures; the controlled
+browser and owner tests use Node. All observed test processes exited. The
+media SDK/cache/native player path and full Clique qualification remain ahead.
+
+Final native review found no SDK defect in either family. One reviewer identified
+reusable-harness integrity gaps around acquisition linkage and the package bytes
+Metro loads. Root's supplemental audit confirms all127installed package files
+match the fixed archive and all acquisition/request/server digest records match.
+The native implementation item is closed; a bounded harness repair and new
+small device run stay in the native qualification work. The reviewed SDK bytes
+remain frozen while the broader product integration continues.
+
+The final owner review exposed six more concrete lifecycle gaps despite the
+passing focused suite. Root independently reproduced a single queue-busy error
+closing BackgroundOwner and used the actual jobs DDL to show that a one-row
+recovery page scanned and sorted history. Both families also found recovery
+still reading an unused filesystem candidate; seed retry was lost when initial
+and replacement arguments were split. Post-commit project/job diagnostics
+could imply an outcome that was not known. These now form one explicit lifecycle
+matrix, covering startup, recovery, overload, discovery and confirmation,
+instead of another isolated happy-path repair.
+
+The native instrument repair now has a fresh actual passing run with unchanged
+SDK and app sources. It checks all thirteen acquisition fields, exact linked
+resources and rows, and full requests through four real SQLite captures.
+Archive-to-install comparison covers 127 files before and after Metro; actual
+source-map contents bind the three loaded SDK modules. Root independently
+opened the SQLite backups and compared their operations, checked the installed
+payload and source-map contents, and rechecked all 57 final manifest entries.
+Two new harness failures remain recorded: an early parameter wiring error and
+an overly strict expectation that every reopened checkpoint must immediately
+be `acquiring`. A valid checkpoint can also remain `ready`; neither permits a
+claim of fresh network confirmation. The bound result has its own tracked
+record and does not replace the earlier result.
+
+The second media review found four smaller but real gaps. The actual helper
+accepted a modified canonical clip with 70.013 seconds of sample timing while
+reporting five seconds, accepted zeroed SPS/PPS syntax with preserved NAL
+headers, and panicked on an eight-byte truncated configuration. The real frozen
+Node HTTP path also returned 404 for an expired carrier on an otherwise public
+asset. All four root controls are retained for one combined repair. The native
+SDK component remains closed, and portable pending-query prediction starts
+independently so these media repairs do not stall the ordinary one-client
+experience again.
+
+Charlie then asked whether to stop here and focus on Snapback4. Codex
+recommended the shift and paused the S3 expansion. The two active implementation
+agents and the final owner reviewer were interrupted; all their recorded child
+processes exited, while Commonroom remained running. The current source includes
+unfinished prediction and media repair work. The source snapshot, frozen reviewed
+revisions and measured acquisition/native evidence remain available for reuse.
+No full Clique result was reached. The cost of bringing the additional S3
+machinery through all product boundaries is itself useful evidence in the
+comparison; it does not erase the narrower results that passed.

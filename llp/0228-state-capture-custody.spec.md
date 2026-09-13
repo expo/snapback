@@ -8,7 +8,7 @@ Operations, Testing
 **Date:** 2026-08-10
 **Revised:** 2026-08-10
 **Related:** LLP 0057, LLP 0072, LLP 0158, LLP 0188, LLP 0191, LLP 0192,
-issues/20260808-state-capture-custody-spec.md,
+issues/shelved/20260808-state-capture-custody-spec.md,
 issues/closed/20260807-server-sigterm-strands-large-sqlite-wal.md,
 issues/closed/20260808-sessions-store-copy-needs-auth-keyring-sibling.md,
 issues/20260730-auth-logical-export-import.md

@@ -764,7 +764,7 @@ out. The Zerobugs control's declaration:
 The `public-read` line below is a frozen-control compatibility declaration,
 not the recommended privacy posture for a new binding table. It preserves the
 LLP 0182/0183 parity instrument's existing handler-authorized behavior while
-the [honest-narrowest migration remains an author decision](repo:issues/20260824-zerobugs-control-honest-narrowest-visibility.md).
+the [honest-narrowest migration remains an author decision](repo:issues/shelved/20260824-zerobugs-control-honest-narrowest-visibility.md).
 
 ```js source=demos/zerobugs/control/snapback/schema.mjs
 export const identityBinding = defineTable({
@@ -2740,7 +2740,7 @@ Preview and failed/refused attempts never fabricate committed receipts.
 The `generatedAuthorityOperation` marker is currently trusted as deployment
 content; activation does not yet recompute it from the synthesized operation
 implementation. That verification is the open
-[marker-activation hardening ticket](repo:issues/20260816-generated-authority-op-marker-activation-verification.md).
+[marker-activation hardening ticket](repo:issues/shelved/20260816-generated-authority-op-marker-activation-verification.md).
 
 The generated profile facade never projects a raw membership row or its `_id`.
 That is a boundary of the generated operations, not a blanket `ctx.db` denial:

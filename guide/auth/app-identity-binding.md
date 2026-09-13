@@ -70,7 +70,7 @@ out. The Zerobugs control's declaration:
 The `public-read` line below is a frozen-control compatibility declaration,
 not the recommended privacy posture for a new binding table. It preserves the
 LLP 0182/0183 parity instrument's existing handler-authorized behavior while
-the [honest-narrowest migration remains an author decision](repo:issues/20260824-zerobugs-control-honest-narrowest-visibility.md).
+the [honest-narrowest migration remains an author decision](repo:issues/shelved/20260824-zerobugs-control-honest-narrowest-visibility.md).
 
 ```js source=demos/zerobugs/control/snapback/schema.mjs
 export const identityBinding = defineTable({

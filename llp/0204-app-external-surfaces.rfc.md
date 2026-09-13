@@ -483,7 +483,7 @@ digest, and spend reservation. Retirement before that handoff prevents the
 provider call; a handoff committed before retirement owns that turn's send and
 settlement even if retirement follows. Later turns must re-authorize and
 refuse after retirement. Implementation is tracked by
-`issues/20260823-ask-per-turn-authority-handoff.md`.
+`issues/shelved/20260823-ask-per-turn-authority-handoff.md`.
 
 - **Authority = caller's authority.** The agent runs under the caller's
   grant; every function call inside the loop passes the same per-function
@@ -720,7 +720,7 @@ pairing-secret consumption does not release the slot, while grant approval
 does. The existing OAuth request foreign key remains `ON DELETE RESTRICT`.
 Consequently, this admission bound does not fix the global expiry-sweep or
 destructive-parent teardown wedge; the companion-table rebuild is deferred in
-`issues/20260823-oauth-pairing-fk-wedge-deferred.md`.
+`issues/shelved/20260823-oauth-pairing-fk-wedge-deferred.md`.
 
 **Implementation note (S2 Landing C, 2026-08-09):** the first local facade is
 bearer-only behind the explicit `api.oauth.bearer: true` opt-in. It issues

@@ -124,7 +124,7 @@ program covered it; its residue tickets remain accurate).
    (registration, initial `sbac_` issuance) is unbuilt; only
    harness-provisioning or human-mediated pairing exists. Already tracked:
    the capability-index GAP row (`guide/capabilities.md:77`) and the Wave 4
-   identity program (`issues/20260808-wave4-identity-program.md`, LLP 0150).
+   identity program (`issues/shelved/20260808-wave4-identity-program.md`, LLP 0150).
    The only new action is linking the boundary from the headless-client
    entry points so agents stop hunting for a route that does not exist
    (folded into `issues/20260808-guide-docs-hygiene-batch.md`).

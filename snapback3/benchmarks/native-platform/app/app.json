@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Snapback3 Native Witness",
+    "slug": "snapback3-native-witness",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true }
+      }
+    }
+  }
+}

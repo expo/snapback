@@ -1155,7 +1155,7 @@ shipped guide page) but was not run — Track C is one three-surface
 exercise and two of three surfaces are unready for this app. The four
 precise unready gates (full citations in
 `demos/improvement-sweep/arms/a1-exact-graduation/gap-record.json` and
-ticket `issues/20260801-0137-track-c-exact-unready-gate.md`): (1)
+ticket `issues/shelved/20260801-0137-track-c-exact-unready-gate.md`): (1)
 plan-tier expressibility — A1's backend is JS mutations/live queries
 over `ctx.membership.*`, `requireRole`, unique-key idempotent create,
 revision patches, and `ctx.assets.attach`, while LLP 0064 §4 rules

@@ -57,7 +57,7 @@ writeFileSync(3, JSON.stringify({
 // the client root (393,584 bytes at raise time).
 // 400 KiB initial budget (LLP 0194 OQ1) saturated on 2026-08-15 when the
 // expo-snapback-client page reached 408 KiB; raised one notch while OQ1's
-// module-slicing question stays open (issues/20260815-symbol-registry-client-page-budget.md).
+// module-slicing question stays open (issues/shelved/20260815-symbol-registry-client-page-budget.md).
 // The LLP 0258 application-auth bootstrap owner/facade surface (424,758
 // bytes standalone at its own raise time) lands within this 450 KiB notch.
 // 2026-08-21: raised from 450 KiB after the LLP 0295 W1 ruled lifecycle types
@@ -69,13 +69,13 @@ writeFileSync(3, JSON.stringify({
 // resolver and shared-development client-half exports. Both land on the same
 // page, so the budget takes the higher of the two raises rather than their sum.
 // Same one-notch relief as every prior raise; OQ1's module-slicing question
-// stays open in issues/20260815-symbol-registry-client-page-budget.md.
+// stays open in issues/shelved/20260815-symbol-registry-client-page-budget.md.
 // 2026-08-24 (second raise that day): the LLP 0267 §§7.2/7.4 W5 client
 // inspection surface (MutationPhaseCostV1, subscription/ownership inspection,
 // pendingDeliveryReason join — lane B) plus the same-day W5 lane C
 // diagnostics types pushed expo-snapback-client.md to 495,791 bytes. One
 // notch (480 KiB → 512 KiB); OQ1's module-slicing question stays open in
-// issues/20260815-symbol-registry-client-page-budget.md.
+// issues/shelved/20260815-symbol-registry-client-page-budget.md.
 const modulePageBudgetBytes = 524_288;
 const indexPageBudgetBytes = 32_768;
 const scopes = [

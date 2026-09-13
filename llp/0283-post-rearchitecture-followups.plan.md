@@ -21,7 +21,7 @@ users; npm publication may proceed without F-1 being complete. The security
 posture is unchanged and must be stated honestly: the four F-1 defect
 families remain OPEN, the LLP 0284 gates remain RED by design, and per the
 2026-08-21 ruling recorded in
-`issues/20260820-handler-sandbox-triage-and-scheduling.md`, pre-public-release
+`issues/shelved/20260820-handler-sandbox-triage-and-scheduling.md`, pre-public-release
 npm publications claim NO adversarial-handler containment and NO F-1 closure —
 each publication's closure record must carry those disclaimers explicitly.
 This ruling expires when the author says so or when F-1 closes, whichever
@@ -30,7 +30,7 @@ comes first.)
 with the required disclaimers, closure recorded at `52ecabae5`; the
 detached-action nested-mutation fence landed (`52baa704f`), route-closing
 the top authorized-effect path for both caller classes — the program's live
-index at `issues/20260822-authorized-effect-program-status.md` records the
+index at `issues/shelved/20260822-authorized-effect-program-status.md` records the
 new shortest violation (session-only pairing-code mint, fence in flight) and
 this row defers to it; the F-1-adjacent property remains FALSE and F-1's
 four defect families remain OPEN.)
@@ -99,8 +99,8 @@ is claimed.
 | Item | State |
 | --- | --- |
 | F-1 | **Reachability half implemented; forgery half not started. Still FOUR defects.** LLP 0285 §6 steps 1–4 landed after seven implementation rounds and six independent review rounds (each returned BLOCK on a real defect). Steps 5–6 — where `System` becomes computed rather than declared — have NOT started, so **F-1, all four defects, and publication remain open**. Original entry follows.<br>**Designed, not implemented — and now FOUR defects, not three.** Two independent blind designs commissioned; synthesized as **LLP 0285**. Author approved the two LLP 0225 ownership moves the closure requires. Implementation runs as its own reviewed program. Publication remains blocked. |
-| F-1 adjacent | **Authorized-effect fence program — landed, and it does NOT close F-1.** A separate durable-write fence program runs under F-1's umbrella, indexed at `issues/20260822-authorized-effect-program-status.md` (~15 tickets, governed by LLP 0058/0059). Landed 2026-08-22/23: the split-phase authorized-effect primitive, ten mode-epoch fences, fourteen asset and migration sites, the bounded commit capsule, watch-management fencing, the R1 stream-attempt authorization stack, and the capsule's construction-origin seal. **Stated plainly so the rows are not confused:** this program pursues "a session or scoped-service caller cannot commit a durable write after their own authority has gone terminal". That property is **still false** — the detached-action nested `ctx.runMutation` fence landed 2026-08-23 (`52baa704f`), route-closing that top path for both caller classes; the new shortest violation is session-only pairing-code mint (fence in flight; the program index is authoritative for the live frontier). It closes **none** of F-1's four defect families, changes **nothing** about the publication posture above, and must not be cited as F-1 progress. |
-| F-2 | **Done.** Specified as **LLP 0284**, independently authored by a model family that wrote neither the code nor the original gates, then implemented across four rounds under adversarial review. The three gates are rewritten on syn + `cargo metadata` + `rustc` span assertions (rustdoc JSON is unavailable on the pinned 1.97.0 toolchain). They are **RED on `main` by design** — 127 privilege violations over 26 feature cells, and 23 of 33 compile-fail attacks still compiling — because LLP 0284 §8.5 forbids allowlisting a live F-1 defect. Wired to the scheduled complete battery, not the landing path, until F-1 closes (`issues/20260819-security-gates-expected-red-until-f1.md`). |
+| F-1 adjacent | **Authorized-effect fence program — landed, and it does NOT close F-1.** A separate durable-write fence program runs under F-1's umbrella, indexed at `issues/shelved/20260822-authorized-effect-program-status.md` (~15 tickets, governed by LLP 0058/0059). Landed 2026-08-22/23: the split-phase authorized-effect primitive, ten mode-epoch fences, fourteen asset and migration sites, the bounded commit capsule, watch-management fencing, the R1 stream-attempt authorization stack, and the capsule's construction-origin seal. **Stated plainly so the rows are not confused:** this program pursues "a session or scoped-service caller cannot commit a durable write after their own authority has gone terminal". That property is **still false** — the detached-action nested `ctx.runMutation` fence landed 2026-08-23 (`52baa704f`), route-closing that top path for both caller classes; the new shortest violation is session-only pairing-code mint (fence in flight; the program index is authoritative for the live frontier). It closes **none** of F-1's four defect families, changes **nothing** about the publication posture above, and must not be cited as F-1 progress. |
+| F-2 | **Done.** Specified as **LLP 0284**, independently authored by a model family that wrote neither the code nor the original gates, then implemented across four rounds under adversarial review. The three gates are rewritten on syn + `cargo metadata` + `rustc` span assertions (rustdoc JSON is unavailable on the pinned 1.97.0 toolchain). They are **RED on `main` by design** — 127 privilege violations over 26 feature cells, and 23 of 33 compile-fail attacks still compiling — because LLP 0284 §8.5 forbids allowlisting a live F-1 defect. Wired to the scheduled complete battery, not the landing path, until F-1 closes (`issues/shelved/20260819-security-gates-expected-red-until-f1.md`). |
 | F-3 | **Complete battery ran 2026-08-23/24; cold-clone now PASSES; npm cold-install still outstanding.** The `com.snapback.local-proof-backstop` and `com.snapback.drift-backstop` launchd schedules were found uninstalled on the author's machine and reinstalled, and the backstop runner executed the complete inventory against `88476b032` on the pinned toolchain: 175 gates selected — 111 PASS, 46 FAIL, 15 BLOCKED, 3 INAPPLICABLE. Two of the fails are the documented expected security reds (F-2 row); the rest are content reds filed as 25 per-signature `issues/20260824-battery-*.md` tickets (ticket commit `a1401f375`) for ordinary fix-forward under LLP 0189. The dominant blocked cascade is `generated-artifacts` (stale committed authorization-review projections). **`scripts/cold-clone-check.sh` PASSES** (2026-08-26): it first passed at `75961ea9b`; after later default-outbox behavior exposed a leaked acceptance-client writer, the lifecycle repair at `5ca80841e` was focused-tested, mutation-tested, and reverified through the full lane at 34/34. The test still proves a cron-authored server delta reaches browser bindings with no pump, and the single-writer invariant remains intact (revision (k)). The **npm closure/cold-install witness is the one remaining F-3 item.** Battery maps to `scripts/verify-local-proof --complete` plus `scripts/cold-clone-check.sh` and the npm closure/cold-install witnesses. |
 | F-4 | **Fixed.** `caught_denial_with_unrelated_failure_is_not_restored` triaged **pre-existing** (traced to `7437e6e07`; redaction landed in `a8787cb53`; reproduced at `pre-0276-rearchitecture`). The `auth_invocation_v1` refusal-precedence divergence was ruled a defect by the author and the JS-path ordering was fixed. Fixture drift repaired. |
 | F-5 | **Done.** Schema export, telemetry proof, and fork-promotion benchmark now compose downward in rank-7 `snapback-tools`; all three named exceptions are closed. |
@@ -136,7 +136,7 @@ renamed imports, `pub use` from private modules and through `crate::`,
 `AsRef`/`From` conversions, `default-features = false` cells, nested `cfg_attr`
 `#[path]`, and a phantom sink registry entry that named a function existing
 nowhere in the tree. The residuals that remain open are recorded honestly in
-LLP 0284 §3.7 and `issues/20260819-privilege-scanner-residual-evasions.md`:
+LLP 0284 §3.7 and `issues/shelved/20260819-privilege-scanner-residual-evasions.md`:
 the scanner is a ratchet, not a proof, and now says so.
 
 ## F-1 — The authorization model is not closed (BLOCKING publication)
@@ -321,7 +321,7 @@ reviewed design.
 2. **Rust's inherent-impl rule constrains owner-based carving.** An inherent
    `impl Type` must live in the crate defining `Type`, so a module cannot always
    follow its assigned owner. Measured: 26 conflicts, 22 first breaking at the
-   *first* carve. See `issues/20260818-inherent-impl-blocks-owner-based-carves.md`.
+   *first* carve. See `issues/shelved/20260818-inherent-impl-blocks-owner-based-carves.md`.
 3. **Do not let a lane write the gate that constrains it.** See F-2.
 4. **Compile-first, repair-with-the-compiler works** for structure. The four
    god-file splits (manifest.rs 20.6k, local.rs 33.8k, runtime.rs, instance_fork.rs)

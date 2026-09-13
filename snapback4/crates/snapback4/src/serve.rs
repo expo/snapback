@@ -31,6 +31,9 @@ pub struct Shared {
     /// Serializes asset responses for one `(asset, principal)` so two
     /// overlapping requests cannot both consume a one-view grant.
     pub asset_transfers: AssetTransfers,
+    /// The app's native module, served at `/native.wasm` and named in
+    /// `/schema` (LLP 3000.005 §9); none when the schema declares nothing native.
+    pub native: Mutex<Option<crate::native::Installed>>,
 }
 
 /// A panicking request must not turn one poisoned process mutex into a
@@ -144,12 +147,12 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev {
         crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
     }
-    crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
+    let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
     let presence = Arc::new(Live::default());
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
-    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default() });
+    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed) });
     let server = Server::http((bind, port)).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -214,7 +217,10 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                     Ok(next) => {
                         if let Some(built) = &rebuilt {
                             match crate::native::install(&mut lock(&shared.engine), &project) {
-                                Ok(_) => println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", ")),
+                                Ok(installed) => {
+                                    *lock(&shared.native) = installed;
+                                    println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", "));
+                                }
                                 Err(problem) => eprintln!("snapback4 dev: {problem}"),
                             }
                         }
@@ -533,11 +539,27 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Get, "/schema") => {
             // The compiled backend a device runs locally: the schema and the
             // programs' IR, bound to a generation.
-            let (schema, programs, generation) = {
+            let (schema, programs, generation, native) = {
                 let bound = lock(&shared.bound);
-                (bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()).collect::<Vec<_>>(), *lock(&shared.generation))
+                (bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()).collect::<Vec<_>>(), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
             };
-            respond(request, 200, json!({ "generation": generation, "schema": schema, "programs": programs }));
+            let native = native.map(|(digest, jobs, reads)| json!({ "digest": digest, "jobs": jobs, "reads": reads }));
+            respond(request, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native }));
+        }
+        (Method::Get, "/native.wasm") => {
+            // The app's module, for a device to run its native reads over
+            // the rows it holds (LLP 3000.005 §9).
+            let installed = lock(&shared.native).clone();
+            match installed {
+                Some(module) => {
+                    let mut response = Response::from_data(module.bytes);
+                    response.add_header(Header::from_bytes("Content-Type", "application/wasm").unwrap());
+                    response.add_header(Header::from_bytes("ETag", format!("\"{}\"", module.digest)).unwrap());
+                    response.add_header(Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap());
+                    let _ = request.respond(response);
+                }
+                None => respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_NATIVE", "schema", "this backend has no native module")) })),
+            }
         }
         (Method::Get, "/api.ts") => {
             let text = snapback4_lang::emit::typescript(&lock(&shared.bound));
@@ -974,6 +996,7 @@ mod tests {
             entropy: Mutex::new(1),
             presence: Arc::new(Live::default()),
             asset_transfers: AssetTransfers::default(),
+            native: Mutex::new(None),
         });
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {

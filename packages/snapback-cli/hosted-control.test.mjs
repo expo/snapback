@@ -136,7 +136,7 @@ try {
   assert.equal(refusal.code, 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE');
   assert.deepEqual(refusal.recommendedNext, {
     owner: 'Snapback hosted control plane',
-    ticketOrDesignPointer: 'issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md',
+    ticketOrDesignPointer: 'issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md',
     note: 'Complete the reviewed per-operation carrier, supervisor-only lease custody, bootstrap/listener proof, and live Fly/Tigris journey before enabling lifecycle effects.',
   });
   assert(refusal.diagnostics.some(

@@ -72,7 +72,7 @@ layer keeps failing the same way:
   candidate cuts were abandoned because "the mandatory post-review fetch found
   newer main" before performance could run. The loop was broken only by an
   author ruling (recorded in
-  `issues/20260803-0163-public-operation-identity-carrier.md`) that dual-READY
+  `issues/shelved/20260803-0163-public-operation-identity-carrier.md`) that dual-READY
   reviews survive normal merges.
 - **The derived-fork publication withdrawal (2026-08-07).** The
   `operating.instance-forks` claim landed at `7cada777b` after twelve review
@@ -175,7 +175,7 @@ No test, assertion, or qualification command is deleted. Publication,
 promotion, destructive migration, urgent-security, active-corruption, and
 other irreversible/high-danger protocols retain their own blocking gates.
 Restoration is tracked in
-`issues/20260824-restore-automatic-actions-after-low-noise-interval.md` and
+`issues/shelved/20260824-restore-automatic-actions-after-low-noise-interval.md` and
 requires an author-directed end to this exception.
 
 **D-3 — Claims are snapshots.** A capability claim, publication, or promotion

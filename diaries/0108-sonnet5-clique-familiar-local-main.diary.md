@@ -15,7 +15,7 @@ N=1 diagnostic evidence, not scored or claim-eligible. Full diary, essay,
 final report, and generated app remain under
 `/Users/ccheever/clique-main-20260822/familiar/` on this machine (outside
 git). **Read this diary together with
-`issues/20260822-membership-visibility-read-denial-needs-reverify.md`** —
+`issues/shelved/20260822-membership-visibility-read-denial-needs-reverify.md`** —
 the most important finding of this run is there, not summarized away below.
 
 ## The headline finding: a shipped, disclosed privacy regression
@@ -49,7 +49,7 @@ this"), or whether there's a separate, real defect in the read path that the
 now-shipped public-read compromise is currently masking. The lane
 deliberately did not re-test with corrected principals to find out, and
 said so rather than guessing — filed as
-`issues/20260822-membership-visibility-read-denial-needs-reverify.md` for
+`issues/shelved/20260822-membership-visibility-read-denial-needs-reverify.md` for
 someone to actually re-verify.
 
 ## What else went well
@@ -102,7 +102,7 @@ hits.
 
 6 total: 1 `environment` (the same runtime-readiness checkout-root class of
 bug the Explicit lane hit, see
-`issues/20260817-0275-auto-qualify-packaged-runtime-in-prove.md`), 1
+`issues/shelved/20260817-0275-auto-qualify-packaged-runtime-in-prove.md`), 1
 `ambiguous`/doc-gap (`defineStarterVerifyProfile`'s receipt-shape
 requirements are undocumented outside the template's own pre-authored
 script), 3 `ambiguous` (the membership-visibility saga above, explicitly
@@ -125,4 +125,4 @@ that would have caught its own bug at `snapback generate` time instead of
 two milestones later. That recommendation, and the still-open question of
 whether membership-visibility reads have an independent defect, are carried
 forward in
-`issues/20260822-membership-visibility-read-denial-needs-reverify.md`.
+`issues/shelved/20260822-membership-visibility-read-denial-needs-reverify.md`.

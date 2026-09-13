@@ -1110,8 +1110,8 @@ custody/barrier semantics.
   still governed by `issues/20260816-custody-first-publish-gate.md`.
 - Remaining closure outside completed Phase 2 is tracked by
   `issues/20260815-llp-0258-phase-3-remainders.md`,
-  `issues/20260815-llp-0258-phase-4-external-qualification.md`, and
-  `issues/20260815-llp-0258-rebind-0241-successor-proof.md` (today's binding
+  `issues/shelved/20260815-llp-0258-phase-4-external-qualification.md`, and
+  `issues/shelved/20260815-llp-0258-rebind-0241-successor-proof.md` (today's binding
   carries no LLP 0241 activation proof; the shipped rebind enforces only the
   provable subset, so `b186296fd`'s D5/D2 claims are scoped by that ticket).
 - Phase 3 closure (2026-08-16): `54bb1cd44` (D9 completeness rows +

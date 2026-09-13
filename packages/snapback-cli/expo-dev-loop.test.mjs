@@ -4945,7 +4945,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
         // only has to exceed real supervised startup, and 15 s did not on a
         // loaded machine — the carrier fired before startup reached the barrier
         // and the row read as a supervisor defect
-        // (issues/20260826-expo-dev-loop-carrier-startup-timeout-load-sensitive.md).
+        // (issues/shelved/20260826-expo-dev-loop-carrier-startup-timeout-load-sensitive.md).
         startupTimeoutMs: 60_000,
       },
     },

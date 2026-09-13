@@ -10,7 +10,7 @@ import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 // LLP 0231's explicit table-policy requirement postdates this frozen control.
 // Public-read preserves instrument fidelity: the source-faithful handler
 // boundaries stay unchanged. Honest-narrowest declarations require an author
-// decision tracked in issues/20260824-zerobugs-control-honest-narrowest-visibility.md.
+// decision tracked in issues/shelved/20260824-zerobugs-control-honest-narrowest-visibility.md.
 
 export const user = defineTable({
   id: v.string(),

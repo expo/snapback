@@ -345,8 +345,8 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    It does not seal the open `PendingCommit` adapter, prevent closure capture
    of cloneable commit authority, or close `PreparedAuthority` publication
    substitution. Those remain in
-   `issues/20260822-capsule-structural-residuals.md` and
-   `issues/20260822-authority-publication-binding-design.md`.
+   `issues/shelved/20260822-capsule-structural-residuals.md` and
+   `issues/shelved/20260822-authority-publication-binding-design.md`.
 2. **The generation-activation coordinator owns the atomic transition, not
    the transaction.** The minimum atomic set — the manifest/generation
    record, projection digest pins, sequence installs/enrollment, and auth
@@ -512,7 +512,7 @@ place: every serving path that can reach Hermes eval or rusqlite acquires
 the writer through this gate (or the read lane), and CPU/network
 preparation belongs outside the guard (§3.6) — the prerequisite for the
 deferred asset render/canonicalize-outside-the-writer move recorded in
-`issues/20260808-assets-finalize-memory-and-cpu-under-global-lock.md`.
+`issues/shelved/20260808-assets-finalize-memory-and-cpu-under-global-lock.md`.
 
 Baseline disposition: one **time-bounded waiver** (§2) —
 `crates/snapback/src/server/writer_gate.rs → crates/snapback/src/local.rs` (transport→unassigned), the

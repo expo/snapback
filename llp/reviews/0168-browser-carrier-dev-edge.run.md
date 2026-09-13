@@ -93,7 +93,7 @@ Blind-family-only findings, both accepted:
   **A (preconditions to open)** and **B (conditions before acceptance)** with a
   time-boxed fenced spike as the sanctioned way to produce B-evidence.
 - The live tunnel exposure re-routed out of the deferred gate to
-  `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, plus a
+  `issues/shelved/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, plus a
   present-day mitigation sentence on the tunnel rows (set `SNAPBACK_PROFILE`
   explicitly).
 

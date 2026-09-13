@@ -320,7 +320,7 @@ breakdown: the fingerprinting surface stays one bit per probe.
   attachments — with mode-specific proofs; only anonymous/service
   principals are per-principal `false` as pinned above. **Hosted:**
   multi-instance aggregation is in-scope work (Phase 5; completion design
-  filed as `issues/20260810-connected-client-hosted-aggregation.md`); a
+  filed as `issues/shelved/20260810-connected-client-hosted-aggregation.md`); a
   hosted target honestly reports the capability Missing only in the
   interim before that lands, because a single-authority false negative
   must not be advertised as global truth. Targets without the capability
@@ -378,7 +378,7 @@ transport-registry observation, not an ephemeral-collection read.
    authority per app instance today (`authorityScope:
    "app-instance-process"`), and the hosted completion design — how
    probes and witnesses meet when principals span instances — is filed as
-   `issues/20260810-connected-client-hosted-aggregation.md`. Hosted
+   `issues/shelved/20260810-connected-client-hosted-aggregation.md`. Hosted
    targets report the capability once wired; problems surfaced land as
    tickets per the ruling. Proof: a two-instance acceptance showing
    existential truth across instances and budget-bounded staleness.
@@ -394,7 +394,7 @@ transport widening.)
 - **OQ1 — Hosted authority: resolved.** Attempt the aggregation story
   rather than standing on Missing; Phase 5 work under the shipped
   single-authority-routing scope, completion design in
-  `issues/20260810-connected-client-hosted-aggregation.md`. Missing
+  `issues/shelved/20260810-connected-client-hosted-aggregation.md`. Missing
   remains only as the honest interim report before that lands on a hosted
   target.
 - **OQ2 — Poll transport: resolved.** The shipped contract

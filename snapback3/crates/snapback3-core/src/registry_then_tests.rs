@@ -1,6 +1,7 @@
 use super::*;
 use crate::schema::Schema;
-use crate::{Actor, SYSTEM_PRINCIPAL_ID};
+use crate::search_key::IndexComponent;
+use crate::{Actor, ColumnType, Index, SYSTEM_PRINCIPAL_ID, public_table};
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -43,11 +44,7 @@ fn rejected_then_fault_after_commit_cannot_replay_after_time_changes() {
         emit.now = Some(1);
         emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
         runtime.execute("clock.emit", emit).unwrap();
-        runtime
-            .store()
-            .outbox_claim_next(1, &["clock.effect".to_owned()])
-            .unwrap().claimed
-            .unwrap();
+        runtime.claim_effect(1).unwrap().claimed.unwrap();
         runtime
             .store()
             .outbox_settle(
@@ -100,35 +97,183 @@ fn rejected_then_fault_after_commit_cannot_replay_after_time_changes() {
     cleanup(&path);
 }
 
+#[test]
+fn claimed_then_binding_covers_body_arguments_schema_and_effect_grants() {
+    assert_changed_then(|project| {
+        project
+            .programs
+            .iter_mut()
+            .find(|program| program.name == "clock.then")
+            .unwrap()
+            .body = vec![Stmt::Return(Expr::Literal(Value::Null))];
+    });
+    assert_changed_then(|project| {
+        project
+            .programs
+            .iter_mut()
+            .find(|program| program.name == "clock.then")
+            .unwrap()
+            .args
+            .insert("newRequiredArgument".into(), crate::ArgType::Id);
+    });
+    assert_changed_then(|project| {
+        project.effects[0].grants = vec!["https://changed.example".into()];
+    });
+    assert_changed_then(|project| {
+        project
+            .schema
+            .tables
+            .get_mut("clockRows")
+            .unwrap()
+            .columns
+            .insert(
+                "note".into(),
+                ColumnType::Optional(Box::new(ColumnType::Text { max: 20 })),
+            );
+    });
+}
+
+#[test]
+fn unrelated_compatible_successor_keeps_claimed_then_valid() {
+    let mut runtime = pending_then_runtime("outbox-compatible");
+    let mut project = timed_then_project();
+    project.programs.push(Program {
+        name: "unrelated.query".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Literal(Value::Null))],
+    });
+    project
+        .schema
+        .tables
+        .insert("unrelatedRows".into(), id_table());
+    let successor = Generation::certify(&project, Ceilings::default()).unwrap();
+    runtime.apply_successor(successor).unwrap();
+    let execution = runtime
+        .execute_then(
+            "clock.then",
+            BTreeMap::new(),
+            15,
+            None,
+            VecDeque::new(),
+            "outbox-compatible",
+        )
+        .unwrap();
+    assert!(
+        matches!(execution.state, ExecutionState::Committed { .. }),
+        "compatible successor changed then outcome: {:?}",
+        execution.state
+    );
+}
+
+#[test]
+fn direct_store_claim_cannot_mint_then_execution_custody() {
+    let generation = timed_then_generation();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let mut emit = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
+    emit.now = Some(1);
+    emit.new_ids = VecDeque::from(["outbox-legacy".to_owned()]);
+    runtime.execute("clock.emit", emit).unwrap();
+    let claimed = runtime
+        .store()
+        .outbox_claim_next(1, &["clock.effect".to_owned()])
+        .unwrap()
+        .claimed
+        .unwrap();
+    assert_eq!(claimed.claim_binding, None);
+    runtime
+        .store()
+        .outbox_settle(
+            "outbox-legacy",
+            "then_pending",
+            Some(&serde_json::Value::Null),
+            None,
+            None,
+        )
+        .unwrap();
+    let execution = runtime
+        .execute_then(
+            "clock.then",
+            BTreeMap::new(),
+            15,
+            None,
+            VecDeque::new(),
+            "outbox-legacy",
+        )
+        .unwrap();
+    assert!(matches!(
+        execution.state,
+        ExecutionState::Rejected { ref code, .. } if code == "E_EFFECT_THEN_CHANGED"
+    ));
+}
+
+fn assert_changed_then(edit: impl FnOnce(&mut ProjectJson)) {
+    let mut runtime = pending_then_runtime("outbox-changed");
+    let mut project = timed_then_project();
+    edit(&mut project);
+    runtime
+        .apply_successor(Generation::certify(&project, Ceilings::default()).unwrap())
+        .unwrap();
+    let execution = runtime
+        .execute_then(
+            "clock.then",
+            BTreeMap::new(),
+            15,
+            None,
+            VecDeque::new(),
+            "outbox-changed",
+        )
+        .unwrap();
+    assert!(matches!(
+        execution.state,
+        ExecutionState::Rejected { ref code, .. } if code == "E_EFFECT_THEN_CHANGED"
+    ));
+    assert_eq!(
+        runtime
+            .store()
+            .outbox_get("outbox-changed")
+            .unwrap()
+            .unwrap()
+            .last_error
+            .as_deref(),
+        Some("E_EFFECT_THEN_CHANGED")
+    );
+}
+
 fn timed_then_generation() -> Generation {
-    Generation::certify(
-        &ProjectJson {
-            version: 1,
-            schema: Schema {
-                tables: BTreeMap::new(),
-                schedules: Vec::new(),
-                maintains: Vec::new(),
-                channels: BTreeMap::new(),
-                auth: Auth::default(),
-                effects: vec!["clock.effect".to_owned()],
+    Generation::certify(&timed_then_project(), Ceilings::default()).unwrap()
+}
+
+fn timed_then_project() -> ProjectJson {
+    ProjectJson {
+        version: 1,
+        schema: Schema {
+            tables: BTreeMap::from([("clockRows".into(), id_table())]),
+            schedules: Vec::new(),
+            maintains: Vec::new(),
+            channels: BTreeMap::new(),
+            auth: Auth::default(),
+            effects: vec!["clock.effect".to_owned()],
+        },
+        programs: vec![
+            Program {
+                name: "clock.emit".to_owned(),
+                kind: ProgramKind::Mutation,
+                args: BTreeMap::new(),
+                read_time_granularity_ms: None,
+                body: vec![Stmt::Emit {
+                    effect: "clock.effect".to_owned(),
+                    payload: Expr::Literal(Value::Null),
+                }],
             },
-            programs: vec![
-                Program {
-                    name: "clock.emit".to_owned(),
-                    kind: ProgramKind::Mutation,
-                    args: BTreeMap::new(),
-                    read_time_granularity_ms: None,
-                    body: vec![Stmt::Emit {
-                        effect: "clock.effect".to_owned(),
-                        payload: Expr::Literal(Value::Null),
-                    }],
-                },
-                Program {
-                    name: "clock.then".to_owned(),
-                    kind: ProgramKind::Mutation,
-                    args: BTreeMap::new(),
-                    read_time_granularity_ms: None,
-                    body: vec![Stmt::Require {
+            Program {
+                name: "clock.then".to_owned(),
+                kind: ProgramKind::Mutation,
+                args: BTreeMap::new(),
+                read_time_granularity_ms: None,
+                body: vec![
+                    Stmt::Require {
                         site: None,
                         condition: Expr::Binary {
                             op: crate::ir::BinaryOp::Gte,
@@ -136,20 +281,38 @@ fn timed_then_generation() -> Generation {
                             right: Box::new(Expr::Literal(Value::Int(10))),
                         },
                         code: "TOO_EARLY".to_owned(),
-                    }],
-                },
-            ],
-            effects: vec![EffectDecl {
-                name: "clock.effect".to_owned(),
-                grants: Vec::new(),
-                source: "async () => null".to_owned(),
-                then: Some("clock.then".to_owned()),
-            }],
-            auth: Auth::default(),
-        },
-        Ceilings::default(),
+                    },
+                    Stmt::Return(Expr::Get(crate::ir::Read {
+                        site: "clock.then.read".into(),
+                        table: "clockRows".into(),
+                        index: "byId".into(),
+                        key: vec![Expr::Literal(Value::Id("never".into()))],
+                        provenance: crate::ir::KeyProvenance::Const,
+                    })),
+                ],
+            },
+        ],
+        effects: vec![EffectDecl {
+            name: "clock.effect".to_owned(),
+            grants: Vec::new(),
+            source: "async () => null".to_owned(),
+            then: Some("clock.then".to_owned()),
+        }],
+        auth: Auth::default(),
+    }
+}
+
+fn id_table() -> crate::schema::Table {
+    public_table(
+        BTreeMap::from([("id".into(), ColumnType::Id)]),
+        BTreeMap::from([(
+            "byId".into(),
+            Index {
+                components: vec![IndexComponent::Column("id".into())],
+                unique: true,
+            },
+        )]),
     )
-    .unwrap()
 }
 
 fn pending_then_runtime(outbox_id: &str) -> Runtime {
@@ -158,11 +321,7 @@ fn pending_then_runtime(outbox_id: &str) -> Runtime {
     emit.now = Some(1);
     emit.new_ids = VecDeque::from([outbox_id.to_owned()]);
     runtime.execute("clock.emit", emit).unwrap();
-    runtime
-        .store()
-        .outbox_claim_next(1, &["clock.effect".to_owned()])
-        .unwrap().claimed
-        .unwrap();
+    runtime.claim_effect(1).unwrap().claimed.unwrap();
     runtime
         .store()
         .outbox_settle(

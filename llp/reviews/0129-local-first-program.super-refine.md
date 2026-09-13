@@ -502,7 +502,7 @@ split. The guide's refused-replay sentence narrowed to the store
 contract, disclosing that the client's refusal wiring is untested.
 
 Two dangling obligations filed as tickets rather than left as prose:
-`issues/20260801-js-arm-integrated-authenticated-restart-witness.md` and
+`issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md` and
 `issues/20260801-cold-process-claim-vocabulary-collision.md`.
 
 `./ref-check` and `node scripts/check-guide.mjs` green; the edited

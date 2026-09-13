@@ -45,6 +45,20 @@ pub struct JobRecord {
     pub finished_at: Option<i64>,
     pub last_error: Option<JobRefusal>,
 }
+
+/// The deliberately redacted durable projection returned by operator recovery.
+/// Arguments, source, executable custody, and failure details never enter this
+/// read path.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JobRecoveryRecord {
+    pub id: String,
+    pub name: String,
+    pub state: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub finished_at: Option<i64>,
+}
 /// A job-family refusal, or a chunk's underlying rejection kept whole with the job context added.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[error("{code}: {message}; rewrite: {rewrite}")]

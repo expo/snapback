@@ -219,7 +219,7 @@ declaration here, and neither does a per-field default. Mint ids with
 `v.id(table)`/`_id`, or allocate a human-facing number with a
 [scoped sequence](../backend/sequences.md), which is dense, transactional, and
 scoped to a row of a parent table. The identity-column gap is owned by
-`issues/20260808-numeric-identity-default-columns.md` under
+`issues/shelved/20260808-numeric-identity-default-columns.md` under
 [LLP 0191](repo:llp/0191-scale-architecture-revisits.research.md)'s
 commissioned identity-architecture Decision.
 

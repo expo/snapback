@@ -8,6 +8,8 @@ export interface ProgramJson {
   kind: "Query" | "Mutation" | "job";
   args: Record<string, unknown>;
   body: unknown[];
+  /** The body is the app's native module (LLP 3000.005). */
+  native?: boolean;
 }
 
 export interface TableJson {
@@ -24,10 +26,21 @@ export interface SchemaJson {
   maintains?: unknown[];
 }
 
+/** The app's native module the server serves at `/native.wasm` (LLP
+ * 3000.005 §9): its digest, and the jobs and reads it implements. A
+ * device installs it once per digest and answers native reads over the
+ * rows it holds. */
+export interface NativeJson {
+  digest: string;
+  jobs: string[];
+  reads: string[];
+}
+
 export interface BackendJson {
   generation: number;
   schema: SchemaJson;
   programs: ProgramJson[];
+  native?: NativeJson | null;
 }
 
 /** The tables an operation reads or writes, its rules' included: what

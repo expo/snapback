@@ -9,7 +9,7 @@
 to Review LLP 0305; this Accepted Plan retains only backend/cell portability
 and graduation obligations); 2026-08-18 (LLP 0276 crate-path relocation);
 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
-**Related:** LLP 0007, LLP 0012, LLP 0037, LLP 0044, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, LLP 0276, LLP 0277, LLP 0305, `issues/20260815-storage-graduation-plan-commission.md`, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
+**Related:** LLP 0007, LLP 0012, LLP 0037, LLP 0044, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, LLP 0276, LLP 0277, LLP 0305, `issues/20260815-storage-graduation-plan-commission.md`, `issues/shelved/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## 0. Charter and position
 
@@ -465,7 +465,7 @@ refusals, bounds, parser-semantics version, and implementation acceptance.
 This Plan no longer owns or restates those parser rules.
 
 This addition routes LLP 0277 F8 and
-`issues/20260817-upload-intent-codec-duration-admission-facts.md` through the
+`issues/shelved/20260817-upload-intent-codec-duration-admission-facts.md` through the
 existing storage-graduation seam only. It does not fire §0's Postgres demand
 gate: byte inspection is asset-domain preparation, not a new authority-store
 engine.

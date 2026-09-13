@@ -9,6 +9,7 @@ import { comparePrimitive, scalarText, validateIdentity, validateWriteRow, rowFr
 import type { ClosureReceipt, IndexAtom } from "../../../evaluator/src/types.js";
 import { schemaDigest } from "../../../evaluator/src/value-runtime.js";
 import { asRowRef, escapedFields, mapRowValues } from "./row-values.js";
+import { cloneJson } from './signal.js';
 
 /** Transaction-only decoded image transfer. Symbols never enter wire or persisted state. */
 export { preparedDeliveryRows } from '../../../evaluator/src/row-image.js';
@@ -492,7 +493,7 @@ function uint(value: unknown, path: string): asserts value is number { if (!Numb
 function uintOrSigned(value: unknown, path: string): asserts value is number { if (!Number.isSafeInteger(value)) fail(path, "expected safe integer"); }
 function digest(value: unknown, path: string): asserts value is string { if (!isSha256(value)) fail(path, "expected lowercase SHA-256 digest"); }
 function poolKey(table: string, id: string): string { return `${table.length}:${table}${id}`; }
-function clone<T>(value: T): T { return structuredClone(value); }
+function clone<T>(value: T): T { return cloneJson(value, 'S3_PROTOCOL'); }
 function fail(path: string, detail: string): never { throw new DeliveryEnvelopeDecodeError(path, detail); }
 
 /** Structural parsing never normalizes a descriptor or infers Q. */

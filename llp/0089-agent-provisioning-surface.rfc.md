@@ -281,7 +281,7 @@ plan's to schedule, behind its prerequisites.
    implement one atop the other. Does the local target expose both ids, or
    does `schema.push` subsume `schema.load` locally? Decide at
    implementation start; the build issue
-   (`issues/20260723-0086-cc1-provisioning-build.md`) carries it.
+   (`issues/shelved/20260723-0086-cc1-provisioning-build.md`) carries it.
 2. **Remote MCP authentication.** Instant's remote MCP uses OAuth. Snapback's
    equivalent needs an LLP 0011-shaped answer (service-principal issuance
    for agent harnesses, token TTL, revocation via LLP 0053's machinery
@@ -307,7 +307,7 @@ Draft. Authored 2026-07-23 under LLP 0086 §CC-1 (spec half,
 direction ahead of the LLP 0082 evidence review — CC-1 is
 commitment-gated on that review per LLP 0086 governing constraint 2, and
 this document drafting early does not waive the gate. The build half
-(`issues/20260723-0086-cc1-provisioning-build.md`) stays blocked until
+(`issues/shelved/20260723-0086-cc1-provisioning-build.md`) stays blocked until
 this spec passes review. Resolves LLP 0086 open question 4 (new owning
 document; LLP 0024 unexpanded) and proposes the resolution to open
 question 1 (one table, remote MCP projection first, platform HTTP API

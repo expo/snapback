@@ -596,7 +596,8 @@ repository keeps its own corpus under [`llp/`](./llp/).
 
 **Tracking work:** prefer filesystem tickets under [`issues/`](./issues/)
 (`issues/YYYYMMDD-slug.md`, moved to `issues/closed/` with a recorded
-resolution) for repository-scoped bugs, follow-ups, and maintenance. Graduate to
+resolution; work parked outside the current working set lives under
+`issues/shelved/`) for repository-scoped bugs, follow-ups, and maintenance. Graduate to
 Linear only when the work needs human project-management state, assignment,
 cycles, or cross-repository coordination.
 

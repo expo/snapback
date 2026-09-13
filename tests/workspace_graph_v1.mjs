@@ -163,7 +163,7 @@ function syntheticMembershipException() {
     actualMember: 'snapback-tools',
     expiresAt: '2026-09-15',
     reason: 'negative fixture for the fail-closed membership-exception contract',
-    ticket: 'issues/20260819-security-gates-expected-red-until-f1.md',
+    ticket: 'issues/shelved/20260819-security-gates-expected-red-until-f1.md',
   };
 }
 

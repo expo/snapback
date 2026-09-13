@@ -2225,7 +2225,7 @@ LLP 0086 governing constraint 2.
   memory-store state — not a genuinely process-isolated restart witness.
   No suite currently proves the process-isolated class; that witness is
   owned by
-  `issues/20260801-js-arm-integrated-authenticated-restart-witness.md`.
+  `issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md`.
   Terminology only; no contract or evidence change.
 - **2026-07-31 (LLP 0044 companion classification; still Accepted).** Added
   §Asset read-authorization inputs: one admitted expression kind (the

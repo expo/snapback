@@ -1,19 +1,21 @@
 import { ClientStore } from '../../../evaluator/src/store.js';
+import { EvalError } from '../../../evaluator/src/errors.js';
 import { queryState, validateCertificate } from '../../../evaluator/src/runner.js';
-import { canonicalJson, prepareSchema, validateInputs, valueFromWire, wireJson } from '../../../evaluator/src/value-runtime.js';
+import { canonicalJson, prepareOwnedSchema, validateInputs, valueFromWire, wireJson } from '../../../evaluator/src/value-runtime.js';
 import { isSha256, sha256 } from '../../../evaluator/src/hash.js';
-import type { Context, Value } from '../../../evaluator/src/types.js';
+import type { Context, TraceWrite, Value } from '../../../evaluator/src/types.js';
 import { expandRows, ownDeliveryEnvelope, prepareClosureReceipt, type DeliveryEnvelopeV1 } from './protocol.js';
 import { ownJson } from './signal.js';
 import { rowKey } from './storage.js';
-import { SnapbackError, type Args, type FramePatch, type Manifest, type ResourceSnapshot, type Session, type StoredResource } from './types.js';
+import { SnapbackError, type Args, type FramePatch, type Manifest, type PendingResourceItem,
+  type ResourceSnapshot, type Session, type StoredResource } from './types.js';
 
 export function validateManifest(input: Manifest): Manifest {
   const isolated = ownJson(input);
   if (!isSha256(isolated.generation) || !isSha256(isolated.schemaHash)
     || !Number.isSafeInteger(isolated.seq) || isolated.seq < 0)
     throw new SnapbackError('S3_PROTOCOL', 'The server manifest has an invalid identity.');
-  const schema = prepareSchema(isolated.schema, isolated.schemaHash);
+  const schema = prepareOwnedSchema(isolated.schema, isolated.schemaHash);
   if (!schema) throw new SnapbackError('S3_PROTOCOL', 'The server manifest has an invalid identity.');
   // Keep the evaluator's exact validated immutable schema object: cloning this
   // assembled manifest again would discard its module-private hash custody.
@@ -48,6 +50,17 @@ export function taggedArgs(manifest: Manifest, op: string, args: Args): Record<s
 }
 
 type Acquisition = { key: string; op: string; args: Args; envelope: DeliveryEnvelopeV1 };
+export type PendingPrediction = { operationId: string; op: string; args: Args; createdAt: number };
+export type PredictionWork = { restoredRows: number; appliedWrites: number; predictedOperations: number; skippedOperations: number };
+
+const noPredictionWork = (): PredictionWork =>
+  ({ restoredRows: 0, appliedWrites: 0, predictedOperations: 0, skippedOperations: 0 });
+
+export function operationIdSupplier(principal: string, intent: string): () => string | undefined {
+  const namespace = sha256(canonicalJson([principal, intent]));
+  let ordinal = 0;
+  return () => ordinal < 4096 ? `s3-${namespace}-${(ordinal++).toString(16).padStart(4, '0')}` : undefined;
+}
 
 // @ref LLP 2000#composed-reads — evidence is owned per query while all resources
 // evaluate against one authorized pool. A partial sibling confers no completeness.
@@ -55,12 +68,29 @@ export class FactPool {
   private store: ClientStore;
   private owners = new Map<string, Acquisition>();
   private currentSeq = -1;
+  private pending: readonly PendingPrediction[] = [];
+  private pendingIdentity = '';
+  private predicted: readonly PendingResourceItem[] = [];
+  private lastPredictionWork = noPredictionWork();
   constructor(readonly manifest: Manifest, readonly session: Session) {
     this.store = new ClientStore(manifest.schema);
   }
   get seq(): number { return this.currentSeq; }
+  get predictionWork(): Readonly<PredictionWork> { return this.lastPredictionWork; }
+  get predictedTables(): ReadonlySet<string> { return new Set(this.predicted.map(item => item.table)); }
   envelope(key: string): DeliveryEnvelopeV1 | undefined { return this.owners.get(key)?.envelope; }
-  clear(): void { this.store = new ClientStore(this.manifest.schema); this.owners.clear(); this.currentSeq = -1; }
+  clear(): void {
+    this.store = new ClientStore(this.manifest.schema); this.owners.clear(); this.currentSeq = -1;
+    this.predicted = []; this.lastPredictionWork = noPredictionWork();
+  }
+
+  setPending(operations: readonly PendingPrediction[]): PredictionWork {
+    const identity = canonicalJson(operations);
+    this.pending = operations;
+    if (identity === this.pendingIdentity) return noPredictionWork();
+    this.pendingIdentity = identity;
+    return this.rebasePending();
+  }
 
   advance(seq: number): FramePatch | null {
     const staged = this.prepare([], seq);
@@ -99,7 +129,7 @@ export class FactPool {
     const checkCurrentRows = () => {
       if (seq !== this.currentSeq) return;
       for (const row of rows.values()) {
-        const previous = this.store.byId(row.table, row.id);
+        const previous = this.store.baseById(row.table, row.id);
         if (previous && !equal(previous, row.row)) throw new SnapbackError('S3_PROTOCOL', 'Rows disagree within one server snapshot.');
       }
     };
@@ -119,11 +149,13 @@ export class FactPool {
       if (seq < this.currentSeq) return false;
       checkCurrentRows();
       if (seq > this.currentSeq) { this.clear(); this.currentSeq = seq; }
+      else this.store.clearOverlay();
       for (const row of rows.values()) this.store.put(row.table, row.row);
       for (const item of decoded) if (!item.envelope.connected) {
         this.store.setReceipt(item.key, item.prepared, this.manifest.programs[item.op]!.ir);
         this.owners.set(item.key, item);
       }
+      this.rebasePending();
       return true;
     } };
   }
@@ -140,26 +172,72 @@ export class FactPool {
       }) } })));
   }
 
-  read<T>(op: string, args: Args): ResourceSnapshot<T> | undefined {
+  read<T>(op: string, args: Args, ownerFresh = false): ResourceSnapshot<T> | undefined {
     const owned = this.owners.get(queryKey(op, args));
-    if (owned) return snapshot<T>(owned.envelope, false);
     const program = this.manifest.programs[op];
     if (!program || program.kind.toLowerCase() !== 'query' || this.currentSeq < 0
       || program.ir.read_time_granularity_ms != null) return;
+    const base = owned ? snapshot<T>(owned.envelope, ownerFresh) : undefined;
+    if (base?.status === 'denied') return base;
+    const readTables = new Set<string>((program.certificate.read_sites ?? []).map((site: any) => site.table));
+    const pending = this.predicted.filter(item => readTables.has(item.table));
+    if (owned && !pending.length) return base;
     try {
       const context: Context = { viewer: this.session.principal.id, principal_kind: this.session.principal.kind,
         auth_epoch: this.session.authEpoch, args: taggedArgs(this.manifest, op, args),
         now: null, new_ids: [], read_time: null };
       const local = this.store.reexecute(program.ir, context, program.certificate);
-      if (local.state !== 'fresh') return;
-      return Object.freeze({ data: ownJson(wireJson(local.execution.result)) as T,
-        status: 'ready', complete: queryState(program.certificate, local.execution.trace, context.viewer) === 'complete',
-        fresh: false, next: local.execution.next, seq: this.currentSeq });
+      if (local.state !== 'fresh') return base;
+      const data = ownJson(wireJson(local.execution.result)) as T;
+      if (base && canonicalJson(base.data) === canonicalJson(data)) return base;
+      const items = pending.length ? Object.freeze(pending.map(item => Object.freeze({ ...item }))) : undefined;
+      return Object.freeze({ data, status: 'ready',
+        complete: base?.complete ?? queryState(program.certificate, local.execution.trace, context.viewer) === 'complete',
+        fresh: items ? false : ownerFresh, next: base?.next ?? (items ? undefined : local.execution.next),
+        seq: this.currentSeq, ...(items ? { pending: items } : {}) });
     } catch {
       // A failed local proof is unavailable knowledge. It is never an empty
       // collection, zero count, or authoritative application refusal.
-      return;
+      return base;
     }
+  }
+
+  private rebasePending(): PredictionWork {
+    const work: PredictionWork = { restoredRows: this.store.clearOverlay(), appliedWrites: 0,
+      predictedOperations: 0, skippedOperations: 0 };
+    const items: PendingResourceItem[] = [];
+    for (const operation of this.pending) {
+      const program = this.manifest.programs[operation.op];
+      if (!program || program.kind.toLowerCase() !== 'mutation'
+        || (program.certificate.read_sites ?? []).some((site: any) => site.table === '_connected')) {
+        work.skippedOperations++; continue;
+      }
+      let local;
+      try {
+        const context: Context = { viewer: this.session.principal.id, principal_kind: this.session.principal.kind,
+          auth_epoch: this.session.authEpoch, args: taggedArgs(this.manifest, operation.op, operation.args),
+          now: operation.createdAt, new_ids: [], new_id: operationIdSupplier(this.session.principal.id, operation.operationId),
+          read_time: null };
+        local = this.store.applyMutation(program.ir, context, true, program.certificate, true);
+      } catch (error) {
+        if (!(error instanceof EvalError) && !(error instanceof SnapbackError)) throw error;
+        work.skippedOperations++; continue;
+      }
+      if (local.state !== 'predicted' || local.partialSites.length || local.uncoveredSites?.length) {
+        work.skippedOperations++; continue;
+      }
+      const writes = local.execution.writes;
+      for (const write of writes) {
+        const before = this.store.byId(write.table, write.id);
+        items.push(Object.freeze({ operationId: operation.operationId, table: write.table, id: write.id,
+          effect: write.row === null ? 'delete' : write.fields || before !== null ? 'update' : 'create' }));
+      }
+      work.appliedWrites += this.store.applyOverlay(writes);
+      work.predictedOperations++;
+    }
+    this.predicted = Object.freeze(items);
+    this.lastPredictionWork = work;
+    return work;
   }
 }
 

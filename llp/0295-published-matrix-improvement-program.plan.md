@@ -108,8 +108,8 @@ Diary 0092, Diary 0093, Diary 0094, Diary 0095, Diary 0096, Diary 0097,
 Diary 0098, Diary 0099, Diary 0100, Diary 0101, Diary 0102, Diary 0103,
 Diary 0104, Diary 0105,
 `benchmarks/runs/2026-08-20-clique-local-main-sol-high/record.md`,
-`issues/20260820-familiar-live-subscription-contention.md`,
-`issues/20260820-debug-binary-symbol-bloat.md`,
+`issues/shelved/20260820-familiar-live-subscription-contention.md`,
+`issues/shelved/20260820-debug-binary-symbol-bloat.md`,
 `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`,
 `issues/20260809-per-milestone-token-metering.md`,
 `issues/20260822-declared-refusal-client-code-preservation.md`,
@@ -312,11 +312,11 @@ Move 5 instruments all of them and supplies the evidence for Phase 3.
 
 | Move | Landed on `main` | Still open |
 | --- | --- | --- |
-| 1. Vertical contract defects | 1A closed as a batch (five tickets); 1B four of five closed; 1C seven of eight closed; the Familiar `v.doc` and handler-dialect receipts landed | `issues/20260822-declared-refusal-client-code-preservation.md`; `issues/closed/20260822-guide-derived-where-applicable-index-fact.md`; the W3 packed fixture catalogue and entrypoint export parity in `issues/20260821-authoring-profile-vertical-contract-fixtures.md` |
+| 1. Vertical contract defects | 1A closed as a batch (five tickets); 1B four of five closed; 1C seven of eight closed; the Familiar `v.doc` and handler-dialect receipts landed | `issues/20260822-declared-refusal-client-code-preservation.md`; `issues/closed/20260822-guide-derived-where-applicable-index-fact.md`; the W3 packed fixture catalogue and entrypoint export parity in `issues/shelved/20260821-authoring-profile-vertical-contract-fixtures.md` |
 | 2. Fixed-origin lifecycle | W1 closed 2026-08-21 (`15efbe6cb`, `7a2903ae6`, `a3a2d8725`, `e98961ad3`, `70e2b9af4`); Guide recipe ticket closed | none owned here; R1 verifies the packed journey |
-| 3. Authority transitions and live composition | W2 conformance closed (`cebbf5c1a`, `f22cd67d6`, `94d4d8546`, `ea062befb`, `411334ae5`); 1D classified the six-subscription case as an LLP 0200 composition bound; LLP 0267 §7's owner acceptance landed at v0.15 | the pre-inconsistency client diagnostic in `issues/20260820-familiar-live-subscription-contention.md`, owned by `issues/20260822-client-runtime-cost-and-delivery-inspection.md` |
+| 3. Authority transitions and live composition | W2 conformance closed (`cebbf5c1a`, `f22cd67d6`, `94d4d8546`, `ea062befb`, `411334ae5`); 1D classified the six-subscription case as an LLP 0200 composition bound; LLP 0267 §7's owner acceptance landed at v0.15 | the pre-inconsistency client diagnostic in `issues/shelved/20260820-familiar-live-subscription-contention.md`, owned by `issues/20260822-client-runtime-cost-and-delivery-inspection.md` |
 | 4. Safe private composition | W4 closed 2026-08-22 (`a0bb35684`, `0b0bbaac7`, `810eacd2c`); D0.5 closed with four implementation records | none owned here |
-| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5's four source slices and Guide exist; LLP 0267 §7.7 integration is closed with real enqueue/replay, live-query, React asset, bounded host/client pull, redaction, join, and dev-on/direct+hosted-off composition receipts | `issues/20260821-clique-instrument-observability-version-bump.md` remains W6 (LLP 0281 Draft); the binary-size drift metric in `issues/20260820-debug-binary-symbol-bloat.md` and post-landing R1 remain open |
+| 5. Cost and evidence visibility | per-milestone token metering (`59894588b`); W5's four source slices and Guide exist; LLP 0267 §7.7 integration is closed with real enqueue/replay, live-query, React asset, bounded host/client pull, redaction, join, and dev-on/direct+hosted-off composition receipts | `issues/shelved/20260821-clique-instrument-observability-version-bump.md` remains W6 (LLP 0281 Draft); the binary-size drift metric in `issues/shelved/20260820-debug-binary-symbol-bloat.md` and post-landing R1 remain open |
 
 The consumer-skill size ceiling breach found while staging the Air run
 (`issues/20260822-consumer-skill-body-exceeds-0259-ceiling.md`) is an
@@ -482,7 +482,7 @@ promises beyond maximal declaration. The decision packet must include:
 LLP 0252/0253 and LLP 0275 own the decisions. No default-profile change occurs
 until a later claim-eligible wave shows both outcome and cost evidence.
 Cross-layer fixture ticket:
-`issues/20260821-authoring-profile-vertical-contract-fixtures.md`.
+`issues/shelved/20260821-authoring-profile-vertical-contract-fixtures.md`.
 
 Ruled 2026-08-21 (adopted; author may revise): LLP 0253 S9 (Familiar
 contract R1–R7 and the W3 fixture catalogue), LLP 0275 D8 (Explicit
@@ -631,9 +631,9 @@ requires a cold retrieval probe, not only prose presence.
 
 ### 1D. Current-source qualification and developer-loop cost
 
-- `issues/20260820-familiar-live-subscription-contention.md`
-- `issues/20260820-debug-binary-symbol-bloat.md`
-- existing `issues/20260816-write-posture-migration-closure.md`
+- `issues/shelved/20260820-familiar-live-subscription-contention.md`
+- `issues/shelved/20260820-debug-binary-symbol-bloat.md`
+- existing `issues/shelved/20260816-write-posture-migration-closure.md`
 
 These are deliberately not all called straight repairs. The subscription case
 now has a minimized two-principal, six-reference reproduction that records and
@@ -805,7 +805,7 @@ Implement D0.6 plus LLP 0281:
 The last item reduces reporting work without deleting the qualitative essay:
 the essay remains pre-metrics narrative evidence, while pins, counts, timing,
 and correction tables become generated projections. Coordinated version-bump
-ticket: `issues/20260821-clique-instrument-observability-version-bump.md`.
+ticket: `issues/shelved/20260821-clique-instrument-observability-version-bump.md`.
 
 ### W7. Exact/Contract coordination
 
@@ -880,7 +880,7 @@ Packed iOS/Android digest parity, native-custody provider, and Expo-closure
 checks passed. The actual native process boot remains unexecuted because this
 host has neither `simctl` nor `adb`, and its documented fleet record is absent.
 That evidence blocker stays owned by
-`issues/20260821-expo-crypto-adapter-native-witness.md`; it is not recorded as
+`issues/shelved/20260821-expo-crypto-adapter-native-witness.md`; it is not recorded as
 a Snapback failure and the native R1 extension is not green yet. No new issue
 was filed because the primary cells found no genuine product failure and the
 two non-green observations already have exact live owner tickets.
@@ -1083,7 +1083,7 @@ for the efficiency scorecard while retaining its product findings.
 | Provider/paged composition | LLP 0278, LLP 0280 | requires bounded connection/query budgets |
 | Benchmark observability | LLP 0281 | sequences before R2 |
 | Exact-side defects | LLP 0279 / Exact repository | coordinates release and rerun only |
-| Debug artifact attribution | `issues/20260820-debug-binary-symbol-bloat.md` | records developer-loop impact; does not prescribe stripping |
+| Debug artifact attribution | `issues/shelved/20260820-debug-binary-symbol-bloat.md` | records developer-loop impact; does not prescribe stripping |
 | Early-Expo repairs and routes | LLP 0294 and its 20260821 tickets | registers the evidence stratum; does not sequence or own |
 | Capability links | LLP 0204, LLP 0150 | registers demand evidence, does not sequence or own |
 | Field masking | LLP 0235 | registers demand evidence, does not sequence or own |

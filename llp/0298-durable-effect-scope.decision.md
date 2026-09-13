@@ -11,7 +11,7 @@ LLP v2 larger kernel)
 **Revised:** 2026-08-23 (a — initial ruling)
 **Related:** LLP 0058, LLP 0059, LLP 0283,
 `issues/20260823-remeasurement-after-detached-action-fence.md`,
-`issues/20260823-implementation-sequencing.md`
+`issues/shelved/20260823-implementation-sequencing.md`
 
 ## The question
 

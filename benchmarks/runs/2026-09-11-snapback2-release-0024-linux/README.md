@@ -107,7 +107,7 @@ No third Black retry, timeout relaxation or security-setting change is made.
 Use the identical artifacts and existing publisher on Silver, injecting npm
 authentication process-locally without secrets in source, logs or persistent
 configuration. Both failed attempts stay retained, and the
-[publisher-host follow-up](../../../issues/20260911-snapback2-black-publication-consumer-execution-timeouts.md)
+[publisher-host follow-up](../../../issues/shelved/20260911-snapback2-black-publication-consumer-execution-timeouts.md)
 tracks diagnosis separately from release progress.
 
 The broader correction-delta reviews are complete and preserved in
@@ -118,7 +118,7 @@ than treating it as a release blocker. Canonical calendar names work; aliases
 such as `islamicc` do not. This predates the reviewed correction delta and
 is not evidence of complete ES2020 conformance. Sol's verdict is not rewritten
 or represented as READY. The existing
-[Intl follow-up](../../../issues/20260911-snapback2-effect-intl-declarations-exceed-runtime.md)
+[Intl follow-up](../../../issues/shelved/20260911-snapback2-effect-intl-declarations-exceed-runtime.md)
 records alias behavior, the unchanged constructable String case wrappers,
 and a stronger nonconstructability test pattern suggested by Sol. No fourth
 whole-Intl review or new conformance program is started. Ibex's docs-only
@@ -280,7 +280,7 @@ Linux's number formatting, locale case mapping and date parts contain actual
 stubs; Collator, date text formatting and canonical locale parsing work in the
 focused controls. Shared missing constructors and inherited Mac NumberFormat
 gaps are tracked in the
-[separate surface ticket](../../../issues/20260911-snapback2-effect-intl-declarations-exceed-runtime.md).
+[separate surface ticket](../../../issues/shelved/20260911-snapback2-effect-intl-declarations-exceed-runtime.md).
 Two supplementary probes crashed an older Mac debug CLI; their exit139 logs
 remain in the archive and support no positive or new-candidate claim.
 

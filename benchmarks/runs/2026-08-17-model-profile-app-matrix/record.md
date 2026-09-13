@@ -46,7 +46,7 @@ carry each lane's numbers in their headers.
    navigation intermittently detaches Exact SPA links mid-route, wedging the
    shared browser page for later attempts. 1 reproduction / 2 clean passes
    across the three coterie-familiar-adjacent lanes; filed as
-   `issues/20260818-exact-spa-link-detachment-under-choreography.md`.
+   `issues/shelved/20260818-exact-spa-link-detachment-under-choreography.md`.
 3. **Explicit vs familiar (within model, clique):** sol 3,720s vs 4,748s;
    grok 4,336s vs 19,346s (load-contaminated); opus 27,282s (contaminated +
    API interruption) vs 12,367s. No stable profile ordering at N=1; token

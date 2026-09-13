@@ -1,7 +1,7 @@
 # Snapback 2 changed-binary doctor qualification
 
 This run tests the remaining acceptance clause in
-[`issues/20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md`](../../../issues/20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md):
+[`issues/shelved/20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md`](../../../issues/shelved/20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md):
 two fresh changed release binaries must each complete their first external
 `snapback2 doctor --json` launch in at most 0.5 seconds. No first observation
 was discarded or used as a prewarm.

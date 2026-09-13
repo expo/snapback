@@ -41,7 +41,7 @@ LLP 0299, LLP 0300, LLP 0301, LLP 0302, LLP 0306, LLP 0307, LLP 0310.000,
 LLP 0315, `issues/20260826-probe-successor-binding-rotation-json-stream.md`,
 `issues/20260826-probe-expo-presence-facade-bare-provider.md`,
 `issues/20260826-inline-handler-free-identifier-recovery.md`,
-`issues/20260826-membership-scoped-query-reachability.md`,
+`issues/shelved/20260826-membership-scoped-query-reachability.md`,
 `benchmarks/runs/2026-08-25-clique-grok-0127/record.md`,
 Diary 0113, Diary 0106, Diary 0096, Diary 0097, Diary 0114
 
@@ -452,7 +452,7 @@ Orientation is inside the Clique clock. Wrong first pages are not free.
   loudly enough.
 - `defineCommand` admits at most one asset input. Multi-image posts used
   `assets.upload` then mutate. Owned by open
-  `issues/20260815-finish-media-happy-path.md` / LLP 0239 — do not
+  `issues/shelved/20260815-finish-media-happy-path.md` / LLP 0239 — do not
   re-open here.
 - Result contracts, `reads`/`writes`/`refusals` on every function, and
   asset intent names that must exist in the same generate are ceremony
@@ -554,7 +554,7 @@ in 0.1.27.
 | P6 | familiar | presence | `touch()` generation-fenced; per-keystroke publish cancels | snapback-defect | RFC Track D; `issues/closed/20260826-activity-presence-one-generation-per-episode.md` | **implemented 2026-08-26 (not published)** |
 | P7 | explicit | grammar | inline handler cannot capture a top-level `const` (`SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER`). Hoisting a shared regex to a module const is the ordinary JS move; the grammar refuses it and the lane had to discover that a function declaration is the admitted shape | snapback-defect (recovery, not grammar) — **re-dispositioned in r6**: the refusal may be by design, but a design that refuses the idiomatic spelling owes the reader the admitted one | RFC keeps the grammar with LLP 0108; `issues/closed/20260826-inline-handler-free-identifier-recovery.md` | **implemented 2026-08-26 (not published)** — the diagnostic names the admitted rewrite; `guide/backend/handler-runtime.md` and the expo-chat start packet warn first |
 | P8 | explicit | grammar | durable custody unavailable on Node `memory` | snapback-defect | `issues/closed/20260825-guide-gap-memory-platform-durable-custody.md` | done (docs on main) |
-| P9 | explicit | assets | `defineCommand` max one asset | known | existing `issues/20260815-finish-media-happy-path.md` / LLP 0239 | planned, not started (out of 0310.000 bar) |
+| P9 | explicit | assets | `defineCommand` max one asset | known | existing `issues/shelved/20260815-finish-media-happy-path.md` / LLP 0239 | planned, not started (out of 0310.000 bar) |
 | P10 | both | guide | `_generated/` still in packets; 0.1.27 refuses it | snapback-defect | `issues/closed/20260825-guide-gap-generated-directory-spelling.md` | done (docs on main; re-verified r3) |
 | P11 | familiar | guide | `SNAPBACK_AUTH_STALE_RESULT` lookup hits assets page | snapback-defect | `issues/closed/20260825-guide-gap-stale-result-lookup.md` | done (docs on main) |
 | P12 | explicit | guide | successor-mismatch diagnosis missing; the mismatch page does not cross-reference the remint the adjacent section documents | snapback-defect | `issues/20260826-guide-gap-same-owner-successor-mismatch.md` (independent of Track A) | done (landed `7bbb3b0bd`, not published) |
@@ -563,7 +563,7 @@ in 0.1.27.
 | P15 | familiar | auth | profile editor saved empty handle before `getMine` | snapback-defect (was agent-error) | folded into P17 | done (landed `c80a35f0c`, not published; same ticket as P17) |
 | P16 | both | instrument | no `sm-nav-chats`; typing clock includes `pressSequentially` | instrument | genuinely outside Snapback's control — the instrument owns its own test IDs and its frozen clock, and no Snapback change would have prevented this | out of bar |
 | P17 | both | auth | signup/profile save races the authenticated dispatcher; remount drops `HANDLE_TAKEN` | snapback-defect (undocumented seam) | `issues/closed/20260826-guide-gap-signup-dispatcher-and-profile-hydrate.md` | done (landed `c80a35f0c`, not published) |
-| P18 | familiar | auth | the lane set conversations/members/messages `public-read` to make its queries reachable, and said in its own diary this was “not a production ACL.” A capable agent knowingly shipping a posture it calls wrong is a signal that the reachable-and-correct shape was too hard to reach | snapback-defect (authoring surface) — **re-dispositioned in r6** from “out of bar” under the pit-of-success standard | not this program's repair bar, but `issues/20260826-membership-scoped-query-reachability.md` now asks the design question rather than dismissing the row: what is the paved way to make a membership-scoped query reachable without widening the read posture? | planned, not started |
+| P18 | familiar | auth | the lane set conversations/members/messages `public-read` to make its queries reachable, and said in its own diary this was “not a production ACL.” A capable agent knowingly shipping a posture it calls wrong is a signal that the reachable-and-correct shape was too hard to reach | snapback-defect (authoring surface) — **re-dispositioned in r6** from “out of bar” under the pit-of-success standard | not this program's repair bar, but `issues/shelved/20260826-membership-scoped-query-reachability.md` now asks the design question rather than dismissing the row: what is the paved way to make a membership-scoped query reachable without widening the read posture? | planned, not started |
 | P19 | explicit | identity | **reproduce** a schema successor under supervised `--expo --expo-platform web` with the `--json` stream retained, and record whether `binding-rotated` fired and what the next exchange carried | investigation | **answered 2026-08-26** — `binding-rotated` fired, `generated-and-loaded` preceded the remint on the live stream, the next exchange returned the successor binding, and the **delivered binding** is the stale side; `tests/probes/successor-binding-rotation-20260826/`; `issues/closed/20260826-probe-successor-binding-rotation-json-stream.md` | **done 2026-08-26** |
 | P20 | familiar | presence | **re-test** `@expo/snapback-expo` `useSnapbackActivityPresence` under a bare URL-first `SnapbackProvider` on web; the “requires the Expo lifecycle context” premise is unverified and contradicted by the shipped fallback | investigation | settled Ruling 3's package boundary (there is none) and the LLP 0257 conflict; `tests/probes/expo-presence-bare-provider-20260826/`; `issues/closed/20260826-probe-expo-presence-facade-bare-provider.md` | **done 2026-08-26 — `works`** |
 
@@ -622,8 +622,8 @@ published 0.1.27, and every repair below post-dates that pin.
 | LLP 0310.000 W2 — the residual activation window | I1 narrows it; the RFC records closing it as an open obligation, and it needs the arm-side seam A2's acceptance row names |
 | B1 against the landed Track B code | The RFC's row was written against its own text, not the implementation that shipped at `15797fe10` |
 | The LLP 0258 D5 precedence obligation | Track B's explicit-adoption row shipped without a recorded D5 amendment. Whether it needs one is a question for LLP 0258's owner about shipped code |
-| **P18** — membership-scoped query reachability | Needs a design owner. `issues/20260826-membership-scoped-query-reachability.md`. The declarative path exists and is documented (`.visibility({ kind: 'membership', … })` on `guide/auth/protecting-data.md` and `guide/backend/familiar-profile.md`), so the live question is narrower than "does it exist": why did an agent that went looking not reach it |
-| **P9** — `defineCommand` max one asset | Other program: LLP 0239 / `issues/20260815-finish-media-happy-path.md` |
+| **P18** — membership-scoped query reachability | Needs a design owner. `issues/shelved/20260826-membership-scoped-query-reachability.md`. The declarative path exists and is documented (`.visibility({ kind: 'membership', … })` on `guide/auth/protecting-data.md` and `guide/backend/familiar-profile.md`), so the live question is narrower than "does it exist": why did an agent that went looking not reach it |
+| **P9** — `defineCommand` max one asset | Other program: LLP 0239 / `issues/shelved/20260815-finish-media-happy-path.md` |
 
 ### Out of bar
 

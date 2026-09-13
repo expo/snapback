@@ -85,7 +85,7 @@ Spec remains `Draft` and every related capability remains `Missing`.
 **Qualification amendment (2026-08-06, landing ruling):** Exact C33 received
 fresh mutually blind Codex-family and Fable-family `READY` verdicts. Per the
 author ruling recorded in
-`issues/20260803-0163-public-operation-identity-carrier.md`, subsequent normal
+`issues/shelved/20260803-0163-public-operation-identity-carrier.md`, subsequent normal
 mainline merges preserve that reviewed work and do not create C34/C35 or
 require re-review. The conflict-resolved tree lands after proportional
 build/test verification; row 13 then runs against the landed commit. The Spec
@@ -368,7 +368,7 @@ The public mutation wire does not yet issue/carry authenticated ranges, the
 clients do not yet atomically persist a range with queued intent, no production
 target activates a complete writer manifest, and no host-originated job/cron/
 migration caller invokes the host seam. Those residues are tracked in
-[`issues/20260803-0163-public-operation-identity-carrier.md`](../issues/20260803-0163-public-operation-identity-carrier.md)
+[`issues/shelved/20260803-0163-public-operation-identity-carrier.md`](../issues/shelved/20260803-0163-public-operation-identity-carrier.md)
 and prohibit capability publication.
 
 | LLP 0162 acceptance row | State after durable storage slice |

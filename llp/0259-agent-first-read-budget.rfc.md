@@ -497,13 +497,13 @@ not to accumulate history.
 
 ### 6. Ticket hygiene
 
-- `issues/20260808-guide-gap-principal-to-app-identity-binding.md` — the
+- `issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md` — the
   page `guide/auth/app-identity-binding.md` exists. Close the docs ask or
   retarget at the remaining platform ask (verified identity claims in
   handlers).
-- `issues/20260808-guide-gap-declared-refusals-discoverability.md` — the
+- `issues/shelved/20260808-guide-gap-declared-refusals-discoverability.md` — the
   mutations page landed; remainder is codegen advisory / client hint.
-- `issues/20260808-guide-freshness-warning-saturation.md` — 69% of pages
+- `issues/shelved/20260808-guide-freshness-warning-saturation.md` — 69% of pages
   warning (45 of 65 at filing) hides new drift. Out of this RFC's
   landing path. Start-packet authorities should be *stable* (templates,
   this RFC) so the new default context is not immediately noisy.
@@ -524,7 +524,7 @@ cannot be mistaken for the Clique close-out.
    in source 2026-08-15; the *defect* is still present in the newest
    published closure 0.1.21. The fixes are unpublished.
 3. `snapback init` into an existing Expo/React app
-   (`issues/20260808-guide-gap-compose-snapback-into-existing-app.md`).
+   (`issues/shelved/20260808-guide-gap-compose-snapback-into-existing-app.md`).
 4. Keep making `SNAPBACK_*` refusals name the fix (LLP 0178 / 0193).
 5. Diary 0083 explicit-lane seams, to be filed as ordinary tickets at
    landing: Expo admission rejecting generated `authoringProfile`;

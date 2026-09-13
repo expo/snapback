@@ -424,7 +424,7 @@ source-input authority, the relocated backend owns its disjoint publication
 lock, and authored dirt outside the exact output directory fails the release by
 default; excluding an in-project output directory wholesale remains a
 pre-existing hardening gap. These residual routes are tracked in
-`issues/20260827-release-output-root-alias-hardening.md`.
+`issues/shelved/20260827-release-output-root-alias-hardening.md`.
 
 For v1, `releaseId` is SHA-256 over the domain separator
 `snapback-release-manifest-v1` plus a NUL byte plus canonical JSON of every

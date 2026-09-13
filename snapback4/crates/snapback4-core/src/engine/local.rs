@@ -67,3 +67,35 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     runner.charge_output(&result)?;
     Ok(Prediction { new_ids: runner.context.minted_ids.clone(), result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
 }
+
+/// A native read over the device's rows (LLP 3000.005 §9): the app's module,
+/// the same one the server runs, over what the device holds, with the
+/// device's words — a page at the horizon or an online-only table is
+/// `complete: false`, and the second is the coverage the host falls back on.
+#[cfg(feature = "wasm-host")]
+pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool) {
+    if let Err(error) = validate_inputs(schema, program, &mut context.args) {
+        return (Err(error.refusal()), false);
+    }
+    let args = context.args.clone();
+    let now = context.now.unwrap_or(0);
+    let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
+    runner.device = true;
+    let (value, mut runner) = super::native::run_read(module, runner, &program.name, &args, now);
+    let result = (|| {
+        let data = value?;
+        runner.charge_output(&data)?;
+        Ok(QueryOutcome {
+            complete: runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.beyond_horizon,
+            capped_at: runner.meter.capped_at.clone(),
+            next: None,
+            data,
+            seq: 0,
+            metered: runner.meter.used,
+            tables: runner.read_tables.iter().cloned().collect(),
+            next_expiry: runner.next_expiry,
+        })
+    })();
+    (result, runner.beyond_horizon)
+}
+

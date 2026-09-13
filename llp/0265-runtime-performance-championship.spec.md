@@ -17,7 +17,7 @@ and claim gating), LLP 0197 (competitive benchmark publication), LLP 0198
 (surpass-Convex authoring plan and outstanding claims), LLP 0200 (live
 evaluation scheduling and settlement), LLP 0201 (Clique benchmark), LLP 0209
 (bounded live graph profile),
-`issues/20260808-live-query-reevaluation-cost-at-scale.md`,
+`issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md`,
 `issues/20260809-mutate-stage-turn-cost-bisect.md`,
 `demos/zerobugs/control/scripts/run-oq4-arm.sh`,
 `demos/zerobugs/control/scripts/run-p1-ab.sh`

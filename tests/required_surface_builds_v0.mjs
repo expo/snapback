@@ -126,7 +126,7 @@ try {
     'demos/all-aboard/surfaces/react/App.tsx',
     'demos/todo/snapback/schema.mjs',
     'guide/index.md',
-    'issues/20260824-restore-automatic-actions-after-low-noise-interval.md',
+    'issues/shelved/20260824-restore-automatic-actions-after-low-noise-interval.md',
     'llp/0316-development-velocity-program.plan.md',
     'packages/snapback-acceptance/package.test.mjs',
     'packages/snapback-acceptance/replay-child.fixture.mjs',
