@@ -151,6 +151,26 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   }
   if (!backend) backend = (await call({ op: "backend" })).ok as BackendJson;
+  // The app's native module (LLP 3000.005 §9): fetched once per digest and
+  // installed on the device, which keeps it; offline, the device answers
+  // native reads with the module it kept, or says it has none.
+  const installNative = async (signal?: AbortSignal) => {
+    const wanted = backend?.native?.digest;
+    if (!wanted) return;
+    const have = (await call({ op: "state" })).ok as { native?: string | null } | undefined;
+    if (have?.native === wanted) return;
+    try {
+      const response = await doFetch(`${base}/native.wasm`, { headers, ...(signal ? { signal } : {}) });
+      if (!response.ok) return;
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let hex = "";
+      for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
+      await call({ op: "install_native", wasm: hex, digest: wanted });
+    } catch {
+      // Offline or refused: the device answers with what it kept.
+    }
+  };
+  await installNative();
   const online = createClient({ url: base, ...(options.persona ? { persona: options.persona } : {}), ...(session ? { session } : {}), fetch: doFetch });
   let closed = false;
   let closing: Promise<void> | undefined;
@@ -263,6 +283,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (closed) return false;
             const adopted = await call({ op: "adopt", backend });
             if (adopted.denied) return false;
+            await installNative(aborter.signal);
             generation = Number(backend.generation ?? pageGeneration);
           } catch {
             return false;

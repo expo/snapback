@@ -282,11 +282,12 @@ job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 Jobs are not on `api.ts`.
 
-### Native jobs
+### Native jobs and reads
 
 ```quarry
 job rescore(): native                    -- the body is snapback/native/, in Rust
 schedule rescoreEvery every 5m: rescore  -- fired like any job
+query personalize(first: int): native    -- a read: on the server as the viewer, on a device over its rows
 ```
 
 A job whose body is not Quarry but the app's own Rust (LLP 3000.005), for
@@ -307,7 +308,7 @@ it here; `doctor` says whether the module and the toolchain are in place.
 use snapback4_native::{Chunk, Ctx, Next, Order, Result, from_row, json, row_of};
 mod schema { include!("../../generated/native.rs"); }
 use schema::*;
-snapback4_native::jobs! { rescore }
+snapback4_native::module! { jobs: [rescore], reads: [personalize] }
 
 fn rescore(ctx: &Ctx, chunk: &Chunk) -> Result<Next> {
     let page = ctx.scan(tables::POSTS, indexes::posts::BY_ID, &[], Order::Asc, 100, chunk.state.as_ref())?;
@@ -320,7 +321,37 @@ fn rescore(ctx: &Ctx, chunk: &Chunk) -> Result<Next> {
     }
     Ok(match page.next { Some(state) => Next::Again(state), None => Next::Done })
 }
+
+fn personalize(ctx: &Ctx, args: &Json) -> Result<Json> {
+    let viewer = ctx.viewer()?;
+    let page = ctx.scan(tables::RANKED, indexes::ranked::BY_SCORE, &[], Order::Desc, 50, None)?;
+    let mut items: Vec<(i64, Json)> = Vec::new();
+    for row in page.rows {
+        let ranked: Ranked = from_row(row)?;
+        let seen = ctx.lookup(tables::SEEN, indexes::seen::BY_READER_POST, &[json!(viewer), json!(ranked.post_id)])?.is_some();
+        items.push((ranked.score - if seen { 1000 } else { 0 }, json!({ "postId": ranked.post_id, "seen": seen })));
+    }
+    items.sort_by_key(|(weight, _)| -*weight);
+    Ok(Json::Array(items.into_iter().map(|(_, item)| item).collect()))
+}
 ```
+
+**A native read is the twin** (LLP 3000.005 §9): `query name(args):
+native` runs the same Rust on the server as the viewer — every `Ctx` read
+under the viewer's rules and the read meter, `complete` from the meter —
+and on a native device (the Expo module, Exact2's hosts, the `snapback4
+device` process) over the rows it holds, with the device's words (a page at
+the horizon is `complete: false`); the same rows give the same answer,
+floats included (`wasmi` is built deterministic). The client fetches the
+module from `/native.wasm` once per digest (`/schema` names it) and
+installs it on the device, which keeps it, so a cold start offline answers
+native reads too. The web device carries no wasm host (with one its wasm
+doubled, to 648 KB gzip) and says so; the client then asks the server, as
+it does for a device without the module. A native read cannot write,
+returns no cursor (page by your own arguments) and returns the value model
+(ints, not floats: round a score); `api.ts` types its result `unknown`. A
+mutation cannot be native: a device predicts Quarry and the server replays
+it.
 
 One chunk per call, one transaction per chunk, under the job ceilings: the
 job returns `Next::Again(state)` to be called again with that state after

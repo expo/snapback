@@ -1,5 +1,5 @@
 //! Programs, chunks and schedules: `query`, `mutation`, `job` (Quarry
-//! chunks or `native`, LLP 3000.005) and `schedule`. Split from the parser
+//! chunks or `native`, LLP 3000.005; a query may be `native` too, §9) and `schedule`. Split from the parser
 //! so each file stays under the line budget.
 
 use super::Parser;
@@ -64,8 +64,8 @@ impl Parser {
             // `job name(): native` — the body is the app's Rust (LLP 3000.005).
             let native = self.take("native")?;
             self.end_line(&native.site)?;
-            if kind != ProgramKind::Job {
-                return Err(Diagnostic::new(&native.site, "E_NATIVE", format!("only a job can be native; a {} runs in the interpreter so a device can predict it and the certificate can read it", kind_token.value), format!("job {name}(): native")).guide("native"));
+            if kind == ProgramKind::Mutation {
+                return Err(Diagnostic::new(&native.site, "E_NATIVE", format!("only a job or a query can be native; a mutation runs in the interpreter so a device can predict it and the server can replay it"), format!("job {name}(): native  -- or: query {name}(): native")).guide("native"));
             }
             return Ok(ProgramDecl { kind, name, args, body: Vec::new(), native: true, site: kind_token.site });
         }

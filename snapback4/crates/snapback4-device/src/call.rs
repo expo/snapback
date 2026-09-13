@@ -4,7 +4,7 @@
 //! card's `denied` inside `ok`, as a screen reads it. Nothing panics.
 //! Ops: state, sync_state, begin_send, adopt, apply, query, backend,
 //! admit, settle, predict, withdraw, enqueue, queued, next_submission,
-//! dequeue, meta, set_meta, clear_rows.
+//! dequeue, meta, set_meta, clear_rows, install_native.
 
 use crate::device::{Backend, Device, Queued, StreamPage};
 use crate::store::DeviceStore;
@@ -44,7 +44,14 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
         Ok(match op {
             "state" => {
                 let (watermark, generation) = device.state()?;
-                json!({ "watermark": watermark, "generation": generation })
+                json!({ "watermark": watermark, "generation": generation, "native": device.native_digest() })
+            }
+            "install_native" => {
+                // The app's module from `/native.wasm`, as hex, with the digest
+                // the server named (LLP 3000.005 §9).
+                let bytes = snapback4_core::value::decode_bytes_hex(text(request, "wasm")?).ok_or_else(|| RuntimeError::Input("wasm is the module's bytes as lowercase base16".into()))?;
+                let (jobs, reads) = device.install_native(&bytes, text(request, "digest")?)?;
+                json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&device.sync_state()?)?,
             "begin_send" => json!({ "send_revision": device.begin_send()? }),

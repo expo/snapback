@@ -2082,3 +2082,42 @@ first publish attempt. `snapback4@0.2.2` and `snapback4-darwin-arm64@0.2.2`
 are on npm (the record is in `metrics/publish.jsonl`; production profile,
 7.3 MB binary, 438 KB client tarball with `dist/worker.js` and the wasm
 device). `snapback4-expo` stays at 0.2.0: its module's ops did not change.
+
+## 2026-09-13 — the device-side twin: native reads, the same Rust on the server and on the device; LLP 3000.005 §9
+
+The author ruled on LLP 3000.005's third decision first: the device-side
+twin over the same `Rows` trait is the next native-module step. Built the
+same day, on top of the one-implementation device that landed meanwhile.
+`query name(args): native` is a **native read**: the module's `sb4_read`
+over a `Runner` built for the viewer on the server — every `get`,
+`lookup`, `scan` the interpreter's own, hidden rows null, the read meter
+capping, `complete` the meter's word, writes refused — and over the
+device's transaction on a native device (`engine::local::native_query`,
+`runner.device = true`, a page at the horizon `complete: false`, the
+coverage flag the client already falls back on). The device installs the
+module through the one JSON call (`install_native { wasm, digest }`),
+keeps its bytes in the store beside the backend so a cold start offline
+reloads it, and reports the digest in `state`; the server names the module
+in `/schema` and serves it at `/native.wasm`; the client fetches it once
+per digest at open and on adopt. `wasmi` is built `deterministic`. The
+core's host moved behind a `wasm-host` feature so a device carries it
+without SQLite; the device's `native` feature does, its `web` feature
+does not: measured on one tree, the web device's wasm with the host is
+647,583 B gzip against 384,531 without, and doubling every web app's
+wasm for a feature most will not use was refused — a web device says it
+has no module and the client asks the server; a second wasm build chosen
+by the opener is the follow-up, after the diet. The SDK gained `module!
+{ jobs: [..], reads: [..] }` (`jobs!` stays), `sb4_reads`/`sb4_read`,
+`Ctx::viewer`. The fixture gained `personalize` — the shared `ranked`
+page lifted by the viewer's `affinity`, sunk when `seen`, the viewer's own
+vote beside each row, a float in the weight — and its own `schema.q` the
+sim and device tests both compile. `tests/native_reads.rs` proves the
+twin: the server's answer for bob and the memory device's and the SQLite
+device's are byte-equal, a device without the module says so with
+`unknown: true`, a reopened device with no server holds the module and
+answers, a read the module lacks refuses by name. A mutation cannot be
+native; `check` refuses a declared read the module does not implement;
+the guide's `native` card, the language card, the programs card and the
+README carry the read. Not done: the web's second build; the SDK on
+crates.io.
+

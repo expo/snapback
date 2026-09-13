@@ -3,7 +3,10 @@
 //! A native job is a job whose body is the app's own Rust: `job name():
 //! native` in `schema.q`, a crate under `snapback/native/` built to wasm by
 //! `snapback4 check`, hosted by the engine one chunk per commit. The crate
-//! names its jobs with [`jobs!`]; each is `fn(&Ctx, &Chunk) -> Result<Next>`.
+//! names its jobs and reads with [`module!`]; a job is `fn(&Ctx, &Chunk) ->
+//! Result<Next>`, a read (`query name(args): native`) is `fn(&Ctx, &Json) ->
+//! Result<Json>`, run on the server as the viewer and on the device over the
+//! rows it holds — the same Rust, the same answer (LLP 3000.005 §9).
 //! Every read and write on [`Ctx`] is the interpreter's own operation on the
 //! chunk's transaction: rules pass for the system, validation, constraints,
 //! maintains and partition events apply, and the meter counts it. The
@@ -62,6 +65,14 @@ pub struct Page {
 pub enum Next {
     Done,
     Again(Value),
+}
+
+/// One native read: its name, its arguments, and the host's clock in ms.
+#[derive(Clone, Debug)]
+pub struct ReadCall {
+    pub read: String,
+    pub args: Value,
+    pub now: i64,
 }
 
 /// One invocation: the job's name, its arguments, the state the previous
@@ -157,6 +168,11 @@ impl Ctx {
 
     pub fn delete(&self, table: &str, id: &str) -> Result<()> {
         self.call(json!({ "op": "delete", "table": table, "id": id })).map(|_| ())
+    }
+
+    /// Who is reading: the viewer of a native read; the system in a job.
+    pub fn viewer(&self) -> Result<String> {
+        Ok(self.call(json!({ "op": "viewer" }))?.as_str().unwrap_or_default().to_owned())
     }
 
     /// The host's clock, as `now` is for a Quarry program.
@@ -276,6 +292,33 @@ pub mod abi {
         })
     }
 
+    /// The host's read request: the read's name, its arguments, the clock.
+    ///
+    /// # Safety
+    /// `ptr` came from [`alloc`] with capacity `len` and holds `len` bytes.
+    pub unsafe fn read_request(ptr: *mut u8, len: usize) -> Result<ReadCall> {
+        // SAFETY: the caller's contract.
+        let bytes = unsafe { Vec::from_raw_parts(ptr, len, len.max(1)) };
+        let value: Value = serde_json::from_slice(&bytes).map_err(|error| Error::new("E_NATIVE", format!("the host's request is not JSON: {error}")))?;
+        Ok(ReadCall {
+            read: value.get("read").and_then(Value::as_str).unwrap_or_default().to_owned(),
+            args: value.get("args").cloned().unwrap_or(Value::Object(Map::new())),
+            now: value.get("now").and_then(Value::as_i64).unwrap_or(0),
+        })
+    }
+
+    /// Run the named read once and say what it returned.
+    pub fn run_read(call: ReadCall, reads: &[(&str, fn(&Ctx, &Json) -> Result<Json>)]) -> Value {
+        install_panic_hook();
+        let Some((_, read)) = reads.iter().find(|(name, _)| *name == call.read) else {
+            return json!({ "error": { "code": "E_NATIVE", "message": format!("this module implements no read {}", call.read) } });
+        };
+        match read(&Ctx { _private: () }, &call.args) {
+            Ok(value) => json!({ "ok": value }),
+            Err(error) => json!({ "error": { "code": error.code, "message": error.message } }),
+        }
+    }
+
     /// Run the named job once and say what it returned.
     pub fn run(chunk: Chunk, jobs: &[(&str, fn(&Ctx, &Chunk) -> Result<Next>)]) -> Value {
         install_panic_hook();
@@ -301,12 +344,46 @@ pub mod abi {
     }
 }
 
-/// Name the jobs this module implements: `snapback4_native::jobs! { rescore,
-/// digest }`. Each is a `fn(&Ctx, &Chunk) -> Result<Next>` in scope. Writes
+/// Name what this module implements: `snapback4_native::module! { jobs:
+/// [rescore], reads: [personalize] }` (either list may be left out). A job
+/// is a `fn(&Ctx, &Chunk) -> Result<Next>` in scope; a read — a `query
+/// name(args): native` — is a `fn(&Ctx, &Json) -> Result<Json>`, run on the
+/// server as the viewer and on the device over the rows it holds. Writes
 /// the module's exports into the app's crate so the linker keeps them.
+#[macro_export]
+macro_rules! module {
+    (jobs: [$($job:ident),* $(,)?], reads: [$($read:ident),* $(,)?] $(,)?) => {
+        $crate::__exports!();
+        $crate::__jobs!($($job),*);
+        $crate::__reads!($($read),*);
+    };
+    (reads: [$($read:ident),* $(,)?], jobs: [$($job:ident),* $(,)?] $(,)?) => {
+        $crate::__exports!();
+        $crate::__jobs!($($job),*);
+        $crate::__reads!($($read),*);
+    };
+    (jobs: [$($job:ident),* $(,)?] $(,)?) => {
+        $crate::__exports!();
+        $crate::__jobs!($($job),*);
+    };
+    (reads: [$($read:ident),* $(,)?] $(,)?) => {
+        $crate::__exports!();
+        $crate::__reads!($($read),*);
+    };
+}
+
+/// `snapback4_native::jobs! { rescore }` is `module! { jobs: [rescore] }`.
 #[macro_export]
 macro_rules! jobs {
     ($($name:ident),+ $(,)?) => {
+        $crate::module! { jobs: [$($name),+] }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __exports {
+    () => {
         #[unsafe(no_mangle)]
         pub extern "C" fn sb4_alloc(len: usize) -> *mut u8 {
             $crate::abi::alloc(len)
@@ -318,10 +395,16 @@ macro_rules! jobs {
         pub unsafe extern "C" fn sb4_free(ptr: *mut u8, len: usize) {
             unsafe { $crate::abi::free(ptr, len) }
         }
+    };
+}
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __jobs {
+    ($($name:ident),*) => {
         #[unsafe(no_mangle)]
         pub extern "C" fn sb4_jobs() -> u64 {
-            $crate::abi::answer(&$crate::json!([$(stringify!($name)),+]))
+            $crate::abi::answer(&$crate::json!([$(stringify!($name)),*]))
         }
 
         /// # Safety
@@ -332,8 +415,31 @@ macro_rules! jobs {
                 Ok(chunk) => chunk,
                 Err(error) => return $crate::abi::answer(&$crate::json!({ "error": { "code": error.code, "message": error.message } })),
             };
-            let jobs: &[(&str, fn(&$crate::Ctx, &$crate::Chunk) -> $crate::Result<$crate::Next>)] = &[$((stringify!($name), $name)),+];
+            let jobs: &[(&str, fn(&$crate::Ctx, &$crate::Chunk) -> $crate::Result<$crate::Next>)] = &[$((stringify!($name), $name)),*];
             $crate::abi::answer(&$crate::abi::run(chunk, jobs))
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __reads {
+    ($($name:ident),*) => {
+        #[unsafe(no_mangle)]
+        pub extern "C" fn sb4_reads() -> u64 {
+            $crate::abi::answer(&$crate::json!([$(stringify!($name)),*]))
+        }
+
+        /// # Safety
+        /// `ptr` came from `sb4_alloc` with capacity `len` and holds `len` bytes.
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn sb4_read(ptr: *mut u8, len: usize) -> u64 {
+            let call = match unsafe { $crate::abi::read_request(ptr, len) } {
+                Ok(call) => call,
+                Err(error) => return $crate::abi::answer(&$crate::json!({ "error": { "code": error.code, "message": error.message } })),
+            };
+            let reads: &[(&str, fn(&$crate::Ctx, &$crate::Json) -> $crate::Result<$crate::Json>)] = &[$((stringify!($name), $name)),*];
+            $crate::abi::answer(&$crate::abi::run_read(call, reads))
         }
     };
 }

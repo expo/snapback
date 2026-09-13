@@ -7,7 +7,7 @@
 pub mod effects;
 #[cfg(feature = "sqlite")]
 pub mod job;
-#[cfg(feature = "native")]
+#[cfg(feature = "wasm-host")]
 pub mod native;
 pub mod local;
 pub mod admission;
@@ -276,6 +276,13 @@ impl Engine {
         self.native.is_some()
     }
 
+    /// The installed module: what it implements, for the host to check
+    /// against the declared native programs.
+    #[cfg(feature = "native")]
+    pub fn native_module(&self) -> Option<&native::Module> {
+        self.native.as_deref()
+    }
+
     /// What native jobs logged since the last call.
     #[cfg(feature = "native")]
     pub fn take_native_logs(&mut self) -> Vec<String> {
@@ -284,7 +291,12 @@ impl Engine {
 
     /// The jobs the schema declares as native, in name order.
     pub fn declared_native_jobs(&self) -> Vec<String> {
-        self.programs.values().filter(|program| program.native).map(|program| program.name.clone()).collect()
+        self.programs.values().filter(|program| program.native && program.kind == ProgramKind::Job).map(|program| program.name.clone()).collect()
+    }
+
+    /// The reads (`query name(): native`) the schema declares, in name order.
+    pub fn declared_native_reads(&self) -> Vec<String> {
+        self.programs.values().filter(|program| program.native && program.kind == ProgramKind::Query).map(|program| program.name.clone()).collect()
     }
 
     pub fn set_ceilings(&mut self, ceilings: Ceilings) {
@@ -502,6 +514,29 @@ impl Engine {
         }
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()? - 1;
+        if program.native {
+            // A native read (LLP 3000.005 §9): the module over this viewer's
+            // rules under the read meter; the same call a device makes over
+            // its held rows.
+            #[cfg(feature = "native")]
+            {
+                let module = self.native.as_deref().ok_or_else(|| RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read but no module is installed; `snapback4 check` builds it") })?;
+                let args = context.args.clone();
+                let now = context.now.unwrap_or(0);
+                let runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+                let (value, mut runner) = native::run_read(module, runner, name, &args, now);
+                let data = value?;
+                runner.charge_output(&data)?;
+                let outcome = QueryOutcome { complete: runner.meter.capped_at.is_none() && !runner.non_uniform, capped_at: runner.meter.capped_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect() };
+                drop(runner);
+                tx.rollback()?;
+                return Ok(outcome);
+            }
+            #[cfg(not(feature = "native"))]
+            {
+                return Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this server was built without the wasm host") }.into());
+            }
+        }
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
         let data = runner.run(&program)?;
         runner.charge_output(&data)?;

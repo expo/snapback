@@ -33,9 +33,42 @@ pub struct Built {
     pub ms: u128,
 }
 
-/// Whether the schema declares any native job.
+/// The native programs the schema declares: jobs and reads.
 pub fn declared(bound: &Bound) -> Vec<String> {
     bound.programs.iter().filter(|p| p.program.native).map(|p| p.program.name.clone()).collect()
+}
+
+fn declared_of(bound: &Bound, kind: snapback4_core::ProgramKind) -> Vec<String> {
+    bound.programs.iter().filter(|p| p.program.native && p.program.kind == kind).map(|p| p.program.name.clone()).collect()
+}
+
+/// The module as the server serves it (`GET /native.wasm`) and names it in
+/// `GET /schema`: its bytes, their digest, what it implements.
+#[derive(Clone, Debug)]
+pub struct Installed {
+    pub bytes: Vec<u8>,
+    pub digest: String,
+    pub jobs: Vec<String>,
+    pub reads: Vec<String>,
+}
+
+pub fn digest(bytes: &[u8]) -> String {
+    use sha2::Digest;
+    let hash = sha2::Sha256::digest(bytes);
+    hash.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Every declared native job is one the module implements, and every
+/// declared native read likewise; the message names the first that is not.
+fn check_implemented(declared_jobs: &[String], declared_reads: &[String], module: &snapback4_core::engine::native::Module) -> Result<(), Problem> {
+    let rewrite = format!("snapback4_native::module! {{ jobs: [{}], reads: [{}] }}  -- in snapback/native/src/lib.rs", declared_jobs.join(", "), declared_reads.join(", "));
+    if let Some(missing) = declared_jobs.iter().find(|job| !module.jobs().contains(job)) {
+        return Err(Problem { code: "E_NATIVE", message: format!("job {missing} is declared native but the module implements {}", if module.jobs().is_empty() { "no jobs".to_owned() } else { format!("only {}", module.jobs().join(", ")) }), rewrite: format!("{rewrite}, with fn {missing}(ctx: &Ctx, chunk: &Chunk) -> Result<Next>") });
+    }
+    if let Some(missing) = declared_reads.iter().find(|read| !module.reads().contains(read)) {
+        return Err(Problem { code: "E_NATIVE", message: format!("query {missing} is declared native but the module implements {}", if module.reads().is_empty() { "no reads".to_owned() } else { format!("only the reads {}", module.reads().join(", ")) }), rewrite: format!("{rewrite}, with fn {missing}(ctx: &Ctx, args: &Json) -> Result<Json>") });
+    }
+    Ok(())
 }
 
 /// Write the schema's Rust types and build the module, when the schema
@@ -91,28 +124,30 @@ pub fn build(project: &Project, bound: &Bound) -> Result<Option<Built>, Problem>
     if std::fs::read(&path).ok().as_deref() != Some(bytes.as_slice()) {
         std::fs::write(&path, &bytes).map_err(|e| Problem { code: "E_NATIVE_BUILD", message: format!("cannot write {}: {e}", path.display()), rewrite: "check the directory's permissions".into() })?;
     }
-    let module = snapback4_core::engine::native::Module::compile(&bytes).map_err(|e| Problem { code: "E_NATIVE", message: e.to_string(), rewrite: "snapback4_native::jobs! { .. } names the jobs the module implements".into() })?;
-    let implemented = module.jobs().to_vec();
-    if let Some(missing) = jobs.iter().find(|job| !implemented.contains(job)) {
-        return Err(Problem { code: "E_NATIVE", message: format!("job {missing} is declared native but the module implements {}", if implemented.is_empty() { "no jobs".to_owned() } else { format!("only {}", implemented.join(", ")) }), rewrite: format!("snapback4_native::jobs! {{ {} }}  -- in snapback/native/src/lib.rs, with fn {missing}(ctx: &Ctx, chunk: &Chunk) -> Result<Next>", jobs.join(", ")) });
-    }
+    let module = snapback4_core::engine::native::Module::compile(&bytes).map_err(|e| Problem { code: "E_NATIVE", message: e.to_string(), rewrite: "snapback4_native::module! { jobs: [..], reads: [..] } names what the module implements".into() })?;
+    check_implemented(&declared_of(bound, snapback4_core::ProgramKind::Job), &declared_of(bound, snapback4_core::ProgramKind::Query), &module)?;
+    let mut implemented = module.jobs().to_vec();
+    implemented.extend(module.reads().iter().cloned());
     Ok(Some(Built { path, bytes: bytes.len() as u64, jobs: implemented, ms: started.elapsed().as_millis() }))
 }
 
 /// Install the built module into an engine whose schema declares native
-/// jobs; refuse when it is missing or does not implement a declared job.
-pub fn install(engine: &mut Engine, project: &Project) -> Result<Vec<String>, Problem> {
+/// programs; refuse when it is missing or does not implement one. `None`
+/// when the schema declares none.
+pub fn install(engine: &mut Engine, project: &Project) -> Result<Option<Installed>, Problem> {
     let jobs = engine.declared_native_jobs();
-    if jobs.is_empty() {
-        return Ok(Vec::new());
+    let reads = engine.declared_native_reads();
+    if jobs.is_empty() && reads.is_empty() {
+        return Ok(None);
     }
+    let mut declared = jobs.clone();
+    declared.extend(reads.iter().cloned());
     let path = project.native_module();
-    let bytes = std::fs::read(&path).map_err(|_| Problem { code: "E_NATIVE", message: format!("{} declared native but {} is not built", list("job", &jobs), path.display()), rewrite: "snapback4 check  -- builds snapback/native into it".into() })?;
-    let implemented = engine.install_native(&bytes).map_err(|e| Problem { code: "E_NATIVE", message: e.to_string(), rewrite: "snapback4 check".into() })?;
-    if let Some(missing) = jobs.iter().find(|job| !implemented.contains(job)) {
-        return Err(Problem { code: "E_NATIVE", message: format!("job {missing} is declared native but the module implements {}", if implemented.is_empty() { "no jobs".to_owned() } else { format!("only {}", implemented.join(", ")) }), rewrite: format!("snapback4_native::jobs! {{ {} }}  -- then `snapback4 check`", jobs.join(", ")) });
-    }
-    Ok(implemented)
+    let bytes = std::fs::read(&path).map_err(|_| Problem { code: "E_NATIVE", message: format!("{} declared native but {} is not built", list("program", &declared), path.display()), rewrite: "snapback4 check  -- builds snapback/native into it".into() })?;
+    engine.install_native(&bytes).map_err(|e| Problem { code: "E_NATIVE", message: e.to_string(), rewrite: "snapback4 check".into() })?;
+    let module = engine.native_module().expect("just installed");
+    check_implemented(&jobs, &reads, module)?;
+    Ok(Some(Installed { digest: digest(&bytes), jobs: module.jobs().to_vec(), reads: module.reads().to_vec(), bytes }))
 }
 
 /// Whether the toolchain a native job needs is present: `cargo`, and the

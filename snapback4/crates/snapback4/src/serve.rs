@@ -28,6 +28,9 @@ pub struct Shared {
     pub entropy: Mutex<u64>,
     /// Who holds a long poll open right now: what `connected[p]` reads.
     pub presence: Arc<Live>,
+    /// The app's native module, served at `/native.wasm` and named in
+    /// `/schema` (LLP 3000.005 §9); none when the schema declares nothing native.
+    pub native: Mutex<Option<crate::native::Installed>>,
 }
 
 /// A connection lasts as long as its poll and a grace after it: a client
@@ -97,12 +100,12 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev {
         crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
     }
-    crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
+    let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
     let presence = Arc::new(Live::default());
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
-    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence });
+    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, native: Mutex::new(installed) });
     let server = Server::http((bind, port)).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -157,7 +160,10 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                         let _ = project.write_generated(&bound);
                         if let Some(built) = &rebuilt {
                             match crate::native::install(&mut shared.engine.lock().unwrap(), &project) {
-                                Ok(_) => println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", ")),
+                                Ok(installed) => {
+                                    *shared.native.lock().unwrap() = installed;
+                                    println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", "));
+                                }
                                 Err(problem) => eprintln!("snapback4 dev: {problem}"),
                             }
                         }
@@ -461,9 +467,25 @@ fn handle(mut request: Request, shared: &Shared) {
             let body = {
                 let bound = shared.bound.lock().unwrap();
                 let programs: Vec<Json> = bound.programs.iter().map(|p| serde_json::to_value(&p.program).unwrap_or(Json::Null)).collect();
-                json!({ "generation": *shared.generation.lock().unwrap(), "schema": bound.schema, "programs": programs })
+                let native = shared.native.lock().unwrap().as_ref().map(|n| json!({ "digest": n.digest, "jobs": n.jobs, "reads": n.reads }));
+                json!({ "generation": *shared.generation.lock().unwrap(), "schema": bound.schema, "programs": programs, "native": native })
             };
             respond(request, 200, body);
+        }
+        (Method::Get, "/native.wasm") => {
+            // The app's module, for a device to run its native reads over
+            // the rows it holds (LLP 3000.005 §9).
+            let installed = shared.native.lock().unwrap().clone();
+            match installed {
+                Some(module) => {
+                    let mut response = Response::from_data(module.bytes);
+                    response.add_header(Header::from_bytes("Content-Type", "application/wasm").unwrap());
+                    response.add_header(Header::from_bytes("ETag", format!("\"{}\"", module.digest)).unwrap());
+                    response.add_header(Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap());
+                    let _ = request.respond(response);
+                }
+                None => respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_NATIVE", "schema", "this backend has no native module")) })),
+            }
         }
         (Method::Get, "/api.ts") => {
             let text = snapback4_lang::emit::typescript(&shared.bound.lock().unwrap());

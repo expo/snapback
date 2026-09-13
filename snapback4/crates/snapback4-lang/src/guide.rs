@@ -288,6 +288,7 @@ job nightly(periodStart: time, periodEnd: time):                    -- the serve
       update posts[p.id] { score: p.score + i }
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
+query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
 ```
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
@@ -658,7 +659,8 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
 
 The table names are the language card's; a `job` is `chunk row in
 t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
-own Rust, hosted as wasm (guide native). Operations in `schema.q`
+own Rust, hosted as wasm; a `query` may be `native` too, run on the server
+as the viewer and on a device over its rows (guide native). Operations in `schema.q`
 are called by name (`api.thread`); operations in `snapback/feed.q` are
 `api.feed.<name>`; jobs are not on api.ts. `require cond else CODE` refuses
 with the program's own code, which reaches the client as `{ code, family:
@@ -701,28 +703,30 @@ a job: a schedule fires it once per period boundary of the server's clock,
 exactly once across restarts, passing `periodStart` and `periodEnd` when
 the job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now."##,
-        "native" => r##"# Native jobs: the app's Rust, hosted as wasm, metered like a job
+        "native" => r##"# Native jobs and reads: the app's Rust, hosted as wasm, metered like a job
 
 ```quarry
 job rescore(): native                    -- the body is snapback/native/, in Rust
 schedule rescoreEvery every 5m: rescore  -- fired like any job
+query personalize(first: int): native    -- a read: on the server as the viewer, on a device over its rows
 ```
 
 `snapback/native/` is a Cargo package the app owns (`crate-type =
-["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native`).
-`snapback4 check` writes `snapback/generated/native.rs` — a constant per
+["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native`);
+`module!` names its jobs and its reads. `snapback4 check` writes `snapback/generated/native.rs` — a constant per
 table, index and maintain, a `serde` struct per table — builds the package
 for wasm32-unknown-unknown into `snapback/generated/native.wasm`, and
-refuses if a declared job is not one the module implements. `dev` rebuilds
-on save; `deploy` ships the module with the release; `run <job>` runs it
-here; `doctor` says whether the module and the toolchain are in place.
+refuses if a declared job or read is not one the module implements. `dev`
+rebuilds on save; `deploy` ships the module with the release; `run <name>`
+runs one here; `doctor` says whether the module and the toolchain are in
+place.
 
 ```rust
 // snapback/native/src/lib.rs
 use snapback4_native::{Chunk, Ctx, Next, Order, Result, from_row, json, row_of};
 mod schema { include!("../../generated/native.rs"); }
 use schema::*;
-snapback4_native::jobs! { rescore }
+snapback4_native::module! { jobs: [rescore], reads: [personalize] }
 
 fn rescore(ctx: &Ctx, chunk: &Chunk) -> Result<Next> {
     let page = ctx.scan(tables::POSTS, indexes::posts::BY_ID, &[], Order::Asc, 100, chunk.state.as_ref())?;
@@ -735,7 +739,33 @@ fn rescore(ctx: &Ctx, chunk: &Chunk) -> Result<Next> {
     }
     Ok(match page.next { Some(state) => Next::Again(state), None => Next::Done })
 }
+
+fn personalize(ctx: &Ctx, args: &Json) -> Result<Json> {
+    let viewer = ctx.viewer()?;
+    let page = ctx.scan(tables::RANKED, indexes::ranked::BY_SCORE, &[], Order::Desc, 50, None)?;
+    let mut items: Vec<(i64, Json)> = Vec::new();
+    for row in page.rows {
+        let ranked: Ranked = from_row(row)?;
+        let seen = ctx.lookup(tables::SEEN, indexes::seen::BY_READER_POST, &[json!(viewer), json!(ranked.post_id)])?.is_some();
+        items.push((ranked.score - if seen { 1000 } else { 0 }, json!({ "postId": ranked.post_id, "seen": seen })));
+    }
+    items.sort_by_key(|(weight, _)| -*weight);
+    Ok(Json::Array(items.into_iter().map(|(_, item)| item).collect()))
+}
 ```
+
+A **native read** (`query name(args): native`) is the twin: the same Rust
+runs on the server as the viewer — every `Ctx` read under the viewer's
+rules and the read meter, `complete` from the meter — and on a device over
+the rows it holds, with the device's words (a page at the horizon is
+`complete: false`); the same rows give the same answer, floats included
+(`wasmi` is built deterministic). A device fetches the module from
+`/native.wasm` once per digest and keeps it, so a cold start offline
+answers native reads too; a device without the module says so and the
+client asks the server. A native read cannot write, returns no cursor
+(page by your own arguments), and returns the value model (ints, not
+floats: round a score). A mutation cannot be native: a device predicts
+Quarry and the server replays it.
 
 One chunk per call, one transaction per chunk, under the job ceilings
 (guide bounds): the job returns `Next::Again(state)` to be called again with
@@ -756,7 +786,7 @@ a native job runs under the simulator like any job. Quarry still declares
 the table, its rules and its `sync`; a query or mutation cannot be native,
 because a device predicts Quarry and the certificate reads it. Anything
 that needs the network stays outside and writes into a table the job
-reads (LLP 3000.005)."##,
+reads. A query, not a mutation, can be native too (LLP 3000.005 §9)."##,
         "feeds" => r##"# Feeds: fan out on write, read one page
 
 A feed can merge followed accounts' ordered lanes. Uniform lanes with a
@@ -1186,7 +1216,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_JOB_CURSOR_INDEX", "a job's chunk sweeps an index a write could change under the cursor; declare its non-id columns `immutable`, or sweep by `byId`."),
     ("E_OP_RESERVED", "refusal codes in `require .. else CODE` cannot start with E_; that namespace is the platform's."),
     ("E_EMIT_IN_QUERY", "queries cannot emit effects; make it a mutation. An emitted effect is kept in the mutation's commit and performed by a worker with a service token (guide effects)."),
-    ("E_NATIVE", "family schema — `native` on a query or mutation (only a job can be native: a device predicts Quarry, not wasm); a native job declared with no snapback/native/Cargo.toml; a job the module does not implement (the message lists what it does); a module that does not load; a native job run with no module installed (`snapback4 check` builds it). guide native."),
+    ("E_NATIVE", "family schema — `native` on a mutation (a job or a query can be native; a mutation is predicted on a device and replayed by the server, in Quarry); a native read that writes; a read the module does not implement; a native job declared with no snapback/native/Cargo.toml; a job the module does not implement (the message lists what it does); a module that does not load; a native job run with no module installed (`snapback4 check` builds it). guide native."),
     ("E_NATIVE_TOOLCHAIN", "family store — cargo is not on PATH, or the wasm32-unknown-unknown target is not installed; the rewrite is the rustup line. A native job is Rust compiled to wasm by `snapback4 check`."),
     ("E_NATIVE_BUILD", "family schema — `cargo build` of snapback/native failed; the message is the tail of its output. Build it by hand with the rewrite to see everything."),
     ("E_NATIVE_TRAP", "family native — the module trapped in a chunk: a panic (its text follows), an unreachable, an out-of-bounds memory access. The chunk rolled back and the job is parked; fix the module, `snapback4 check`, and queue the job again."),

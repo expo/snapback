@@ -131,7 +131,10 @@ pub fn check(options: &Options) -> i32 {
 fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name)];
     if program.native {
-        lines.push(format!("    native: the module's reads and writes go through the host, metered per chunk under the job ceilings ({} rows examined, {} written), {} fuel per chunk", snapback4_core::Ceilings::job().examined, snapback4_core::Ceilings::job().rows_written, snapback4_core::engine::native::FUEL_PER_CHUNK));
+        lines.push(match program.kind {
+            ProgramKind::Query => format!("    native read: the module's reads go through the host as the viewer, metered under the read ceilings ({} rows examined), {} fuel; no writes, no cursor; on a device, over the rows it holds", snapback4_core::Ceilings::default().examined, snapback4_core::engine::native::FUEL_PER_READ),
+            _ => format!("    native: the module's reads and writes go through the host, metered per chunk under the job ceilings ({} rows examined, {} written), {} fuel per chunk", snapback4_core::Ceilings::job().examined, snapback4_core::Ceilings::job().rows_written, snapback4_core::engine::native::FUEL_PER_CHUNK),
+        });
         return lines.join("\n");
     }
     let sites = ir::read_sites(program);
@@ -406,7 +409,7 @@ pub fn doctor(options: &Options) -> i32 {
                 why
             }
         };
-        lines.push(format!("native    {} declared: {}; {built}; {toolchain}", if native_jobs.len() == 1 { "job" } else { "jobs" }, native_jobs.join(", ")));
+        lines.push(format!("native    {} declared: {}; {built}; {toolchain}", if native_jobs.len() == 1 { "program" } else { "programs" }, native_jobs.join(", ")));
     }
     // Source diagnostics and persisted backend health are independent. Even
     // broken or destructive edits must leave the active generation usable.

@@ -22,6 +22,9 @@ use std::collections::BTreeMap;
 /// about 750,000,000; this leaves the row ceilings binding first.
 pub const FUEL_PER_CHUNK: u64 = 2_000_000_000;
 
+/// A read's instruction budget: a native query answers a screen.
+pub const FUEL_PER_READ: u64 = 200_000_000;
+
 /// The most rows one `scan` may ask for: the job's examined ceiling.
 const SCAN_MAX: u64 = 16_384;
 
@@ -30,6 +33,7 @@ pub struct Module {
     engine: wasmi::Engine,
     module: wasmi::Module,
     jobs: Vec<String>,
+    reads: Vec<String>,
 }
 
 fn structural(message: String) -> RuntimeError {
@@ -66,11 +70,13 @@ pub(crate) struct Host<'a> {
     logs: Vec<String>,
     memory: Option<wasmi::Memory>,
     alloc: Option<wasmi::TypedFunc<i32, i32>>,
+    /// A native read: writes are refused, the meter caps.
+    read_only: bool,
 }
 
 impl<'a> Host<'a> {
     fn idle() -> Self {
-        Self { runner: None, job: String::new(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None }
+        Self { runner: None, job: String::new(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None, read_only: false }
     }
 }
 
@@ -81,8 +87,12 @@ impl Module {
         config.consume_fuel(true);
         let engine = wasmi::Engine::new(&config);
         let module = wasmi::Module::new(&engine, bytes).map_err(|e| structural(format!("the native module does not load: {e}")))?;
-        let mut module = Self { engine, module, jobs: Vec::new() };
-        module.jobs = module.list_jobs()?;
+        let mut module = Self { engine, module, jobs: Vec::new(), reads: Vec::new() };
+        module.jobs = module.list("sb4_jobs")?;
+        module.reads = module.list("sb4_reads")?;
+        if module.jobs.is_empty() && module.reads.is_empty() {
+            return Err(structural("the native module names no jobs and no reads; declare them with snapback4_native::module! { jobs: [..], reads: [..] }".into()));
+        }
         Ok(module)
     }
 
@@ -91,14 +101,20 @@ impl Module {
         &self.jobs
     }
 
-    fn list_jobs(&self) -> Result<Vec<String>, RuntimeError> {
+    /// The reads the module implements, as `sb4_reads` named them.
+    pub fn reads(&self) -> &[String] {
+        &self.reads
+    }
+
+    /// The names an export lists; none when the module has no such export.
+    fn list(&self, export: &str) -> Result<Vec<String>, RuntimeError> {
         let mut store = wasmi::Store::new(&self.engine, Host::idle());
         store.set_fuel(FUEL_PER_CHUNK).map_err(|e| structural(e.to_string()))?;
         let instance = self.instantiate(&mut store)?;
-        let jobs = instance.get_typed_func::<(), i64>(&store, "sb4_jobs").map_err(|_| structural("the native module exports no sb4_jobs; declare its jobs with snapback4_native::jobs! { .. }".into()))?;
-        let packed = jobs.call(&mut store, ()).map_err(|e| structural(format!("sb4_jobs trapped: {e}")))?;
+        let Ok(names) = instance.get_typed_func::<(), i64>(&store, export) else { return Ok(Vec::new()) };
+        let packed = names.call(&mut store, ()).map_err(|e| structural(format!("{export} trapped: {e}")))?;
         let text = read_packed(&mut store, packed)?;
-        serde_json::from_str(&text).map_err(|e| structural(format!("sb4_jobs answered something other than a list of names: {e}")))
+        serde_json::from_str(&text).map_err(|e| structural(format!("{export} answered something other than a list of names: {e}")))
     }
 
     fn instantiate<'a>(&self, store: &mut wasmi::Store<Host<'a>>) -> Result<wasmi::Instance, RuntimeError> {
@@ -155,7 +171,7 @@ fn write_bytes<'a>(store: &mut wasmi::Store<Host<'a>>, bytes: &[u8]) -> Result<(
 /// Run one chunk: instantiate the module, hand it the job's arguments and
 /// the state it returned last time, and collect what the chunk wrote.
 pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i64) -> ChunkOutcome {
-    let mut store = wasmi::Store::new(&module.engine, Host { runner: Some(runner), job: job.to_owned(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None });
+    let mut store = wasmi::Store::new(&module.engine, Host { runner: Some(runner), job: job.to_owned(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None, read_only: false });
     let step = (|| -> Result<Step, RuntimeError> {
         store.set_fuel(FUEL_PER_CHUNK).map_err(|e| structural(e.to_string()))?;
         let instance = module.instantiate(&mut store)?;
@@ -211,6 +227,51 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
     }
 }
 
+/// A native read (LLP 3000.005 §9): the module's `sb4_read` over the runner
+/// the host built — a viewer's rules on the server, the device's words on a
+/// device — under the read meter, writes refused. Returns the value and the
+/// runner, whose flags say whether the read was complete.
+pub fn run_read<'a>(module: &Module, runner: Runner<'a>, name: &str, args: &BTreeMap<String, Value>, now: i64) -> (Result<Value, RuntimeError>, Runner<'a>) {
+    let mut store = wasmi::Store::new(&module.engine, Host { runner: Some(runner), job: name.to_owned(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None, read_only: true });
+    let value = (|| -> Result<Value, RuntimeError> {
+        store.set_fuel(FUEL_PER_READ).map_err(|e| structural(e.to_string()))?;
+        let instance = module.instantiate(&mut store)?;
+        let read = instance.get_typed_func::<(i32, i32), i64>(&store, "sb4_read").map_err(|_| structural("the native module exports no sb4_read; declare its reads with snapback4_native::module! { reads: [..] }".into()))?;
+        let input = serde_json::to_vec(&json!({ "read": name, "args": wire::map_to_json(args), "now": now })).unwrap_or_default();
+        let (ptr, len) = write_bytes(&mut store, &input)?;
+        let called = read.call(&mut store, (ptr, len));
+        if let Some(failed) = store.data_mut().failed.take() {
+            return Err(failed);
+        }
+        if let Some(refusal) = store.data().refused.clone() {
+            return Err(RuntimeError::Native { code: refusal.code, message: refusal.message });
+        }
+        let packed = match called {
+            Ok(packed) => packed,
+            Err(error) => {
+                if error.as_trap_code() == Some(wasmi::TrapCode::OutOfFuel) {
+                    return Err(RuntimeError::Bound { kind: MeterKind::Steps, actual: FUEL_PER_READ, ceiling: FUEL_PER_READ, site: format!("native.{name}") });
+                }
+                let why = store.data().logs.last().cloned().unwrap_or_else(|| error.to_string());
+                return Err(RuntimeError::Native { code: "E_NATIVE_TRAP".into(), message: format!("read {name} trapped: {why}") });
+            }
+        };
+        let text = read_packed(&mut store, packed)?;
+        let answer: Json = serde_json::from_str(&text).map_err(|e| structural(format!("read {name} answered something other than JSON: {e}")))?;
+        if let Some(error) = answer.get("error") {
+            let code = error.get("code").and_then(Json::as_str).unwrap_or("E_NATIVE").to_owned();
+            let message = error.get("message").and_then(Json::as_str).unwrap_or("the read refused").to_owned();
+            return Err(RuntimeError::Native { code, message });
+        }
+        let Some(value) = answer.get("ok") else { return Err(structural(format!("read {name} answered neither ok nor error: {text}"))) };
+        // The value model: ints, text, ids as strings, rows; a float is not
+        // a value, so a score is rounded before it is returned.
+        wire::untyped(value).map_err(|why| RuntimeError::Native { code: "E_NATIVE".into(), message: format!("read {name} returned something outside the value model: {why}") })
+    })();
+    let host = store.into_data();
+    (value, host.runner.expect("the read's runner"))
+}
+
 /// The chunk of a native job when no module is installed.
 pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
     drop(runner);
@@ -231,8 +292,13 @@ fn handle(host: &mut Host<'_>, request: &Json) -> Json {
         return json!({ "error": Refusal::new("E_STORE", "store", "the store failed earlier in this chunk") });
     }
     let Some(runner) = host.runner.as_mut() else {
-        return json!({ "error": Refusal::new("E_NATIVE", "schema", "no transaction: only sb4_jobs runs outside a chunk") });
+        return json!({ "error": Refusal::new("E_NATIVE", "schema", "no transaction: only sb4_jobs and sb4_reads run outside a chunk") });
     };
+    if host.read_only && matches!(op, "mint" | "insert" | "insert_if_absent" | "update" | "upsert" | "delete") {
+        let refusal = Refusal::new("E_NATIVE", "native", format!("a native read cannot {op}; make it a job"));
+        host.refused = Some(refusal.clone());
+        return json!({ "error": refusal });
+    }
     match dispatch(runner, &host.job, op, request) {
         Ok(value) => json!({ "ok": value }),
         Err(error) => {
@@ -281,6 +347,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
     let site = format!("native.{job}.{op}");
     match op {
         "now" => Ok(json!(runner.context.now)),
+        "viewer" => Ok(json!(runner.context.viewer)),
         "mint" => Ok(json!(runner.context.mint())),
         "get" => {
             let table = text_field(request, "table", op)?;
@@ -405,6 +472,6 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
             runner.delete(table_name, id)?;
             Ok(Json::Null)
         }
-        other => Err(RuntimeError::Input(format!("unknown native op {other}; the ops are get, lookup, scan, mint, insert, insert_if_absent, update, upsert, delete, log, now"))),
+        other => Err(RuntimeError::Input(format!("unknown native op {other}; the ops are get, lookup, scan, mint, insert, insert_if_absent, update, upsert, delete, log, now, viewer"))),
     }
 }
