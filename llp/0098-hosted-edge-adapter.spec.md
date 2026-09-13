@@ -16,7 +16,7 @@ keeps the documented stop-then-start handoff with bounded downtime, and
 any production `globallyFenced` claim requires enforced single-instance
 (refuse admission install when the platform reports more than one running
 instance) — commissioned as
-`issues/20260730-0098-single-instance-enforcement.md` (open question 3).)
+`issues/shelved/20260730-0098-single-instance-enforcement.md` (open question 3).)
 2026-07-27 (§8.5: the served-origin LLP 0077 matrix ran for the
 first time against the real public HTTPS origin and found D-2, a bound-key
 re-exchange 500 on client-controllable input, now fixed in LLP 0077;
@@ -948,7 +948,7 @@ capability.
    **production** `globallyFenced` claim additionally requires the profile to
    *enforce* single-instance — refuse to install an admission while the
    platform reports more than one running instance — commissioned as
-   `issues/20260730-0098-single-instance-enforcement.md`.)* Does a second
+   `issues/shelved/20260730-0098-single-instance-enforcement.md`.)* Does a second
    instance ever become admissible for this profile under a documented
    handoff (stop-then-start with lock transfer), or does `globallyFenced`
    require the deployment to accept bounded downtime on every deploy?

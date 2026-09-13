@@ -86,7 +86,7 @@ tarball/native-byte hashes](fix-evidence/focused-measure.json).
   budgets. No budgets or deadlines changed. The measured record's `sha`
   is the remote snapshot's synthetic Git identity `6249276`; the source
   manifest above binds that snapshot to the reviewed source. The original
-  record is preserved rather than relabeled. [Budget follow-up](../../../issues/20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md).
+  record is preserved rather than relabeled. [Budget follow-up](../../../issues/shelved/20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md).
 - `ref-check` and `caps` pass. [Reference validation](fix-evidence/ref-check-final.log),
   [size/rule budgets](fix-evidence/caps-final.log). Snapback 1 inventories and
   bootstrap protocols do not apply inside the Snapback 2 fence.

@@ -218,14 +218,14 @@ raw-retained-not-joined, with no milestone cap or priced efficiency claim.
 
 ### Follow-up disposition
 
-The existing [editing lifecycle ticket](../../../issues/20260909-clique-refused-edit-leaves-edit-mode.md)
+The existing [editing lifecycle ticket](../../../issues/shelved/20260909-clique-refused-edit-leaves-edit-mode.md)
 now links the new rapid-edit/error-banner reproduction without pretending
-it is the same older copied fixture. The [M7 calibration ticket](../../../issues/20260829-social-messenger-m7-calibration-nondeterminism.md)
+it is the same older copied fixture. The [M7 calibration ticket](../../../issues/shelved/20260829-social-messenger-m7-calibration-nondeterminism.md)
 adds the observed DOM semantics case without claiming its original cause
-is solved. The [M8 grader-schema ticket](../../../issues/20260908-social-messenger-grader-schema-rejects-m8-assertions.md)
+is solved. The [M8 grader-schema ticket](../../../issues/shelved/20260908-social-messenger-grader-schema-rejects-m8-assertions.md)
 retains the schema/trace split rather than rewriting this frozen instrument.
 All three remain open. The separate
-[release-size cleanup](../../../issues/20260911-snapback2-package-growth-after-four-plans.md)
+[release-size cleanup](../../../issues/shelved/20260911-snapback2-package-growth-after-four-plans.md)
 also remains open; the author's one-time release allowance did not reset
 any normal size guard or runtime ceiling. No frozen app repair or rescore
 was performed after the actors finished.

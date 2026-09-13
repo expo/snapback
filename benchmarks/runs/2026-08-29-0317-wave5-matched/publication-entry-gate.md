@@ -41,4 +41,4 @@ and E404 for exact `0.1.30`. Therefore:
   partial matrix.
 
 The product blocker and exact authority boundary are recorded in
-`issues/20260815-finish-media-happy-path.md`.
+`issues/shelved/20260815-finish-media-happy-path.md`.

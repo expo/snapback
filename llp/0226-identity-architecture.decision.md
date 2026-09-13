@@ -28,8 +28,8 @@ open; no Decision ruling changed)
 LLP 0058, LLP 0081, LLP 0110, LLP 0129, LLP 0133, LLP 0135, LLP 0148,
 LLP 0151, LLP 0158, LLP 0163, LLP 0191, LLP 0192,
 issues/20260808-identity-architecture-decision.md,
-issues/20260808-numeric-identity-default-columns.md,
-issues/20260808-guide-gap-principal-to-app-identity-binding.md,
+issues/shelved/20260808-numeric-identity-default-columns.md,
+issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md,
 issues/closed/20260808-handler-settlement-identity-surface.md
 
 ## Context
@@ -43,7 +43,7 @@ namespaces, provenance, uniqueness, mutability, conversion rules — with
 implementation authority distributed to the schema, auth/D7, and D5/effects
 owners as amendments. Writing this Decision was greenlit 2026-08-10, together
 with a wholesale endorsement of the schema lane's worked proposal
-(`issues/20260808-numeric-identity-default-columns.md`, "Author ruling —
+(`issues/shelved/20260808-numeric-identity-default-columns.md`, "Author ruling —
 2026-08-10").
 
 This document is that Decision. It holds **vocabulary and conformance, not
@@ -263,7 +263,7 @@ one-line pointer per landed lane.
 
 Owner: LLP 0004 (authoring grammar) + LLP 0007 (physical mapping and
 evolution) + LLP 0135 (counter substrate). Ticket:
-`issues/20260808-numeric-identity-default-columns.md`, whose worked proposal
+`issues/shelved/20260808-numeric-identity-default-columns.md`, whose worked proposal
 the 2026-08-10 author ruling endorsed **wholesale** and which is hereby
 folded in as the ruled direction:
 
@@ -321,7 +321,7 @@ folded in as the ruled direction:
 
 Owner: the auth provider protocol and session surface (LLP 0057/0058 seam;
 LLP 0151 for the first-party provider substrate). Ticket:
-`issues/20260808-guide-gap-principal-to-app-identity-binding.md` (open).
+`issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md` (open).
 Constraints from this Decision:
 
 - The §1 principal/provider-identity split governs: the principal (`usr_…`,

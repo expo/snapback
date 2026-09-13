@@ -7,7 +7,7 @@
 live data, offline behavior, performance, developer tools, deployment and operations
 **Author:** Codex / GPT-6 Astra, at Charlie Cheever's request
 **Date:** 2026-09-12
-**Revised:** 2026-09-12 (first slice, focused Clique evidence, and qualified SDK acquisition)
+**Revised:** 2026-09-12 (first slice, qualified SDK acquisition, and full Clique implementation commission)
 **Related:** LLP 2000.000 (second opinion: keep the core, flip two substrates), LLP 3000 (Snapback 4, the sibling candidate that builds it), LLP 0000, LLP 0329, LLP 1000, LLP 1014, LLP 1018,
 LLP 1018.008, LLP 1018.008.008, LLP 1018.008.009, LLP 1020, LLP 1023
 
@@ -875,7 +875,7 @@ The SDK owns those transitions so every application does not design them again.
 Adapt useful Snapback2 work: [incremental bookkeeping and publication](./1018.008.007.001-acquisition-with-incremental-work.plan.md),
 [bounded transport/commit grouping](./1018.008.007.002-bounded-bulk-acquisition.plan.md),
 and measured preparation/index reuse. Fit it to S3's existing resource and
-operation owners. Its [remaining acquisition record](../issues/20260911-snapback2-full-acquisition-and-foreground-send.md)
+operation owners. Its [remaining acquisition record](../issues/shelved/20260911-snapback2-full-acquisition-and-foreground-send.md)
 also warns against expecting batching alone to reach three seconds: later
 individual diagnostics still took about 25 seconds and did not qualify that
 target. Those measurements use a different receipt-bearing workflow and are
@@ -1045,3 +1045,316 @@ recomputes the reported cohort statistics and checks its content bindings.
 This qualifies the implemented path, not a new outside-builder run or the whole
 Clique product. The original package, every failed or excluded candidate, and
 the unresolved scaling/storage issue remain preserved.
+
+## 17. Completing the full Clique product
+
+Charlie subsequently commissioned completing Snapback 3 so the **entire Clique
+benchmark can run**, keeping the product performant, elegant, beautiful,
+ergonomic, coherent and excellent as a whole. Reuse from Snapback 1, 2, 4 or
+elsewhere is authorized. This extends the experiment beyond the selected
+milestones in §15; it does not turn their exclusions into the final scope.
+Implementation is owned by Codex, starting 2026-09-12. This section records
+work in progress, not newly qualified capabilities.
+
+The authority for observable behavior is the
+[canonical brief](../benchmarks/briefs/social-messenger.md), its
+[atomic assertions](../benchmarks/schema/social-messenger/assertions.json),
+and [applicability rules](../benchmarks/schema/social-messenger/applicability.json).
+Full scope is M1–M8, with M8 in the continuous session and M7 in a fresh session.
+Media, server schedules, the native offline artifacts, scale replay, and the
+third-party API remain included. Clique Pay is the separately specified
+extension, outside the canonical full run.
+
+### Required product behavior
+
+| Scope | Required behavior and evidence |
+| --- | --- |
+| M1: identity and profiles | Real password signup, expiring and revocable sessions, restoration, unique handles, all profile fields and avatar replacement; another client renders the uploaded avatar and live changes |
+| M2: posts and graph | Text, multiple images and video; self-inclusive Following and Global projections; idempotent follows/likes/reposts, direct replies, accurate counts, and 20-item pagination without gaps or duplicates |
+| M3: messaging | Unique DMs, independent group entities, membership/admin rules, prior history for joiners, retained pre-removal history for departed members, typing latency/expiry, quoted replies, and monotonic receipts against the send-time audience |
+| M4: media and changes | Actual photo/video upload and playback, reactions, server-clock edit/delete windows, tombstones and immediate denial of deleted media |
+| M5: ephemeral and search | Expiry with every client closed; connected/reconnect purge of rows, bytes and search; per-recipient once-open photos with no durable cache; authorized customization; Unicode-normalized word-prefix search in all three scopes, including warm offline |
+| M6: offline and API | Cold offline history, viewed ordinary media and search; ordered pending writes; iOS simulator artifacts; disconnected-user push payloads; documented expiring/revocable user-token API and headless demo; complete action-log replay adapter |
+| M7: evolution | Fresh-session polls and idempotent offline votes; populated count backfill; exact pre/post preservation of the full message field manifest including media, timestamps, receipts and reactions; prior suites still pass |
+| M8: reporting and deeper offline | Six exact server-computed totals, seven UTC buckets, correctly ranked/time-filtered Trending, autonomous idempotent authorized digests, same-account convergence and durable offline writes across native restart |
+| Distribution and craft | Installable package, matching generated types/guide/CLI/runtime; reachable screens, real media, preserved input, useful pending/error/retry states, keyboard/accessibility and web/native build artifacts |
+| Performance | Correct full fixture replay and each growth probe; bounded foreground work during sync/media/jobs; repeat §16 acquisition controls after relevant changes and measure the full app's required receipt/search/media work separately |
+
+At commission, the first slice refused media, effects, jobs, schedules,
+channels, connected presence and time-sensitive live queries; native persistence
+and media were absent. The current integration adds media, autonomous jobs,
+schedules, clock refresh and native storage, with qualification still in
+progress. Effects, channels and connected presence remain refused until their
+owners are integrated. Independent resources and durable operation identity
+remain useful foundations, but their tests do not prove delivered-history
+retention, native prediction, automatic delivery acknowledgements or the full
+search surface.
+
+### Integration choices
+
+Keep one Node owner and one serial Rust data owner. Reuse the inherited engine's
+asset ledger, certified channel rules, connected-state semantics, transactional
+effect outbox, timers and bounded jobs. Node owns HTTP, validated external bytes,
+effect execution and wake-ups; the worker owns authorization and transactional
+state. Public routes name allowed operations explicitly. Local operator tools
+must authenticate separately from ordinary user sessions. No public request can
+select an arbitrary worker method or provide trusted media-validation facts.
+
+Recovery must use the project meaning that actually committed. A successor's
+SQLite commit cannot depend on Node later receiving its reply and updating a
+restart file. The owner must recover the accepted programs and schema after
+that reply is lost; a rejected successor must leave the prior generation intact.
+Likewise, a committed operator job needs a bounded authenticated discovery path
+from durable state, even when Node never received its ID. An in-memory log
+written after a successful reply is insufficient for either promise.
+
+The worker stores the project input in the same SQLite transaction as generation
+custody. Reopening recertifies that input and checks its schema, program and
+effect identities against the installed records. Only an explicit initial source
+acceptance may apply a different candidate; automatic child replacement opens
+the committed definition. Legacy stores without this record require the operator
+to verify the intended source and explicitly pass `--adopt-legacy-project`.
+That flag establishes custody once rather than making subsequent restarts trust
+a filesystem artifact.
+Recovery-only launches do not parse or certify an unused filesystem candidate
+before opening that custody. An already initialized store must reopen when a
+stale build artifact is missing or damaged. Explicit acceptance supplies a
+candidate; automatic replacement recovers the committed definition.
+
+A requested atomic first seed is a bootstrap obligation until it commits. A
+replacement child must retry it while the store is still at sequence zero, or
+fail explicitly if required input is unavailable. It must not publish a healthy
+empty store after interruption, nor replay an upsert seed after a seed or user
+commit. Once initialized, recovery does not depend on the obsolete seed file.
+
+`job recover` reads a bounded page from durable operator-attributed job custody.
+It returns IDs, names, states and timestamps, with an opaque continuation for
+another page; it does not expose arguments or enqueue replacement work. The
+local operator credential remains separate from application sessions. Recent
+in-memory logs can explain an owner event but are not the recovery authority.
+A recovery page must also bound database work: use an indexed stable keyset
+scoped to the operator and select the redacted fields directly. A small result
+limit cannot justify scanning/sorting the full retained history or decoding job
+arguments that the response will omit.
+
+Submission and confirmation are separate operational states. A lost project
+reply cannot establish that the prior generation is still serving; report the
+uncertainty, then the generation actually observed after recovery. A job status
+read failing after enqueue cannot imply that re-enqueue is safe. Preserve its
+known committed ID when possible and direct uncertain submissions to durable
+recovery before retry.
+
+The public operation set is enforced at invocation as well as in generated
+metadata. A session cannot invoke a timer binding, schedule target, job, or
+effect bookkeeping mutation by guessing its name. Those programs enter through
+their named operator or runtime path. This boundary must be exercised using
+compiler-produced programs; a manifest that merely omits a name proves little.
+
+Effect settlement stores the provider's raw result, then the worker constructs
+the authored bookkeeping arguments `{ outboxId, effect, result }` from durable
+custody. Its claim must bind the effect declaration and the target mutation's
+semantics across an update. A changed target cannot silently execute old work
+under a new meaning. Cleanup of removed effect declarations is bounded too;
+bounded execution of one live effect does not justify an unbounded cleanup turn.
+
+The first Node effect implementation uses one disposable child process and one
+SES compartment per claim. The compartment receives the compiler's declared
+globals and granted tools; it receives no Node module loader or ambient process
+authority. SES remains an external runtime dependency. Request, response,
+result, log, concurrency and time limits accompany the compartment. V8's heap
+limit alone does not cover typed-array backing memory, so the child also has
+an independent RSS watchdog and a completion-time RSS check. This sampled
+control can overshoot between observations; it is not a kernel memory ceiling.
+Process startup cost and throughput still need measurement in the complete app.
+
+If an isolated child dies after dispatching provider work, a healthy owner must
+record that exact claim as `sent_unknown` after confirming the child's death.
+Operator inspection and explicit requeue then work without restarting the
+whole owner. The transition must not retry the provider or rewrite another
+attempt's custody. Blanket recovery of running rows belongs only to the fresh
+worker initialization barrier, before new claims can run.
+
+An individual claim's identity is separate from its semantic binding and
+retry count. Explicit requeue can reset the retry count while keeping the same
+outbox ID and program meaning. Each settlement therefore names a durable claim
+token that changes on every claim, so a delayed callback cannot settle a later
+attempt. Repeating a settlement for the same claim remains idempotent.
+
+An asset's owning row determines read authority. File existence, an upload ID,
+or possession of a prior URL confers no continuing access. A once-open request
+reauthorizes and atomically consumes its allowance before exposing bytes;
+concurrent requests cannot both receive an allowance. Ordinary media can become
+durably available offline only under the same account and retained-row policy
+as its owner. Account changes, revocation and expiry must withdraw both the
+rendered content and its durable availability. Transient media failures need
+SDK-owned recovery instead of requiring a page reload.
+
+The full Clique media envelope is JPEG, PNG and WebP images up to 10 MB, and
+MP4 with H.264 video and AAC audio up to 50 MB and 60 seconds, as the canonical
+brief specifies. This is narrower than Snapback2's HEIC/MOV authoring contract;
+those additional formats are not part of the current S3 qualification. The
+helper handshake names its protocol and exact supported format set and proves
+its decoder paths with real fixtures. A generic image/video boolean is not
+sufficient to qualify a stale or differently built helper.
+
+Video admission must establish bounded, consistent container and sample
+structure, including actual media data, codec configuration, data extents and
+duration. A recognized `avc1` label or movie header alone cannot establish those
+facts. This is structural validation, not a claim to decode every video frame;
+the ordinary playback path is also exercised with real uploaded clips.
+Computed sample timing has the same hard duration ceiling as the headers;
+one unusually large sample delta cannot excuse an overlong timeline. AVC
+configuration checks parse bounded SPS/PPS syntax and reject truncated data
+with a typed refusal rather than relying on NAL labels or panicking.
+
+Private player URLs use an opaque, expiring media-only session carrier. It is
+bounded, held only in owner memory, and never accepted on general data or auth
+routes. Each byte request rechecks the current session and owning row, including
+ranges and conditional requests. A carrier is never the application bearer
+token. Credential-free ordinary assets use the inherited certified
+`public(reason)` path; private, once and unavailable assets remain
+indistinguishable to an anonymous requester. Carrier responses forbid caching
+and referrer disclosure.
+For a certified public ordinary asset, a carrier URL redirects to its canonical
+tokenless URL with a non-cacheable redirect. A missing, invalid or expired
+carrier cannot suppress that public authority. Private and once assets retain
+their current session and row checks.
+
+Upload custody lasts through body ingestion, helper exit and cleanup. Rejecting
+a body cannot release its concurrency slot while unbounded draining continues.
+Shutdown fences admission, stops owned body/helper work, and completes or records
+its cleanup while the worker is still available. Validated byte growth is
+reserved before physical publication; readiness follows durable bytes. A raw
+stage carrying original metadata cannot be abandoned after an asset becomes
+attachable. Recovery uses bounded owned scratch work rather than scanning every
+long-lived blob before the owner can start.
+
+An authorized recipient's consumed once image has the same unavailable-view
+state for HEAD and GET; HEAD does not consume an available view. The transport
+uses the inherited viewed response (410) only after current row authorization;
+missing, foreign, and unreadable assets remain indistinguishable. Storage or
+invariant failures retain their diagnostic identity. Discard and later
+reclamation form a complete lifecycle: the worker yields a bounded page of
+reclaimable IDs, Node deletes their bytes, and the worker releases the durable
+staging charge only after confirmation. Interrupted deletion resumes from that
+ledger, including uploads that never became ready.
+
+SQLite on native devices implements the existing atomic client-storage
+contract, including conditional authority withdrawal, acquisition sequence
+floors and immutable operation identities. It stores rows, resources and work
+incrementally. A browser-only proof or an in-memory substitute cannot qualify
+native restart. Native dependencies belong to a separate package entrypoint so
+web acquisition does not pay for them.
+
+The native entrypoint supplies SQLite, streaming HTTP and secure identities to
+the same portable client through explicit platform defaults. An application
+that supplies its own storage retains ownership of that adapter. `close()`
+fences new work immediately; `closeAsync()` also waits for already admitted
+writes and closes only the client's owned storage. Local `ready` means the
+durable session, facts, acquisition evidence and operation journal have been
+restored. Network confirmation proceeds separately, so an unreachable server
+cannot prevent a previously synchronized application from reopening offline.
+Browser lifecycle integration checks for actual event capabilities: React
+Native's `window` alias does not make it a DOM event target. Applications must
+not supply browser shims to construct or close the native client.
+
+The default native database is scoped to the normalized backend URL, as browser
+storage already is. Changing servers must not restore or transmit another
+server's session or journal. An explicit database name is a caller-owned
+namespace; no legacy unscoped file is adopted automatically. Storage and signal
+observers run after their state transition and are isolated from one another.
+A callback failure remains visible, but cannot turn an already committed write
+into an apparent admission failure or suppress another client's authority
+withdrawal.
+
+Periodic work runs without connected clients and yields between bounded turns.
+Clock-sensitive subscriptions renew on their declared clock, even with no data
+commit. A timer-firing storage fault fails the owner, following LLP 1025.001;
+it cannot leave healthy HTTP admission and a zero-delay retry loop. Recoverable
+transport outages use bounded backoff and the fresh-child recovery barrier. Local queue
+saturation is nonfatal backpressure. Background work backs off and yields while
+foreground calls complete; sustained ordinary overload cannot become a
+retry-count-triggered shutdown of a healthy owner.
+Effects remain outside data transactions, with stable provider retry
+identity and durable result settlement. An enabled declaration must have a
+working compiler, runtime, transport, SDK where relevant, and recovery path;
+removing an admission refusal alone establishes none of those properties.
+
+### Execution and completion evidence
+
+Implementation proceeds through seven independently checkable work packages:
+media transport; native persistence; effects/jobs/schedules/operator tools;
+presence/channels/clock refresh; SDK media and durable cache policy;
+delivery/retention/pending prediction; and complete authoring/search/evolution.
+Qualification then covers installed-package authoring, an unabridged Clique
+run with independent grading, native journeys, and scale/performance/interaction
+checks. The initial requirement map is a separate completed planning artifact;
+the eleven implementation/qualification packages remain unverified at commission.
+
+Use the normal affected checks and existing benchmark instruments. Tests must
+assert actual user behavior and expected contents, including negative controls,
+lost replies, restart and persistence failures. Inspect coverage rather than
+accepting a green receipt on its own. Review changes with two independent
+families and resolve material findings before delivery. The run record must
+retain failures and distinguish platform gaps from application defects.
+
+The §16 result remains scoped to its frozen package and fixture. New media,
+receipt, search or native work does not inherit its timing claim. Preserve that
+control, then measure the complete app under declared hardware/network/fixture
+conditions. Completion requires current evidence for the entire requirement
+map; a package that compiles, a narrower benchmark, or the absence of a known
+failure is insufficient.
+
+The [native persistence witness](../snapback3/benchmarks/native-platform/README.md)
+now passes on iOS26.5 with ExpoGo57.0.9 and Hermes: real SQLite holds two
+queued operations through process death and an unavailable content/auth proxy;
+reconnection submits their original complete request bodies once in FIFO order;
+a third process restores the resulting committed receipts. The private package
+is SHA-256 `cafa9b8b1487ab6b5928731f568550af644258776b123ef4b359548f4824bbcd`.
+Its native sources match the frozen repair revision, while its Node/worker
+snapshot predates the current media and owner work. It is a component
+qualification, not a final Cargo-backed whole-product package or a Clique
+M6/M8 result. Restarted acquisition checkpoints may resume validation; the
+witness does not turn that state into a claim of fresh confirmation.
+The subsequent
+[integrity-bound rerun](../snapback3/benchmarks/native-platform/results/20260913-ios-hermes-restart-bound.json)
+uses unchanged SDK and app bytes. It compares complete acquisition identity
+and exact row/resource links across four SQLite captures, full immutable
+requests and Rust-compatible terminal digests, all 127 installed package files
+before and after Metro, and the three SDK modules in Metro's actual source map.
+Root independently checked that evidence and the final 57-file manifest.
+The reusable instrument has a separate scoped review; these checks retain the
+same narrow native qualification limits.
+
+### Comparison checkpoint: Snapback3 and Snapback4
+
+Work toward the full S3 product is paused as of 2026-09-12. Charlie asked
+whether to stop and focus effort on S4; Codex recommended that shift and
+stopped the active S3 agents. This is a prioritization decision, not a completed
+Clique result or an accepted claim that S4 has won. The
+[pause handoff](../snapback3/PAUSE.md) preserves the tested snapshots, unfinished
+changes and remaining scope for possible reuse.
+
+The current architectural preference is a hypothesis to test, not a winner
+declared by this implementation. Snapback4's declared partition and runtime
+metering align directly with a broad offline application and remove some of the
+coverage and static-budget coordination that troubled Snapback2. Snapback3's
+query resources can acquire useful pieces independently and avoid requiring a
+complete partition before a screen becomes useful. That additional evidence
+machinery has to earn its cost in the full product.
+
+Snapback4 currently has stronger repeated builder evidence: its
+[three fresh Astra-medium loop-bar runs](../benchmarks/runs/2026-09-12-snapback4-loopbar/README.md)
+on 0.0.11 finished the reduced M1–M3 task in 443–537 seconds with no
+Snapback-attributed correction loop, independently checked. That is a small
+calibration set on a React web task without media. Its
+[broader run](../benchmarks/runs/2026-09-12-snapback4-clique-0002/README.md)
+excluded media, schedules and native artifacts, and independent grading
+retained product defects. Later fixes do not replace the owed regrade.
+
+Snapback3 has the qualified acquisition result in §16: 2.807 seconds median
+for the fixed 10k endpoint with durable storage and physical offline reopening.
+That compares two Snapback3 paths, not Snapback3 against Snapback4. Its new
+receipt, search, media and native integration inherits no timing claim. The
+full Clique work is the next test of whether S3's design improves ordinary
+building and complete application behavior enough to justify its machinery.

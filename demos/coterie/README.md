@@ -456,7 +456,7 @@ preserves
 only `name`, `message`, and `stack`, however, so the generated error union's
 typed `code` field is not populated at runtime yet. Callers must match `name`
 until the Exact envelope gap tracked in
-[`issues/20260816-exact-declared-error-code-envelope.md`](../../issues/20260816-exact-declared-error-code-envelope.md)
+[`issues/shelved/20260816-exact-declared-error-code-envelope.md`](../../issues/shelved/20260816-exact-declared-error-code-envelope.md)
 is fixed.
 
 ## Run it

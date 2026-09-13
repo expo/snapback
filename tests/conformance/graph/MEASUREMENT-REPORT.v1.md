@@ -276,7 +276,7 @@ node scripts/check-inventories.mjs
 - The requested commission pathname
   `issues/20260825-llp0209-g3-measurement-publication-commission.md` does not
   exist in this checkout or the locally visible `origin/main`; the available
-  predecessors are `issues/20260824-llp0209-g3-commission.md` and
+  predecessors are `issues/shelved/20260824-llp0209-g3-commission.md` and
   `issues/20260824-g0-bcast-bounds-large-hot-observations.md`. This report
   follows the user's supplied P-B recipe and the checked-in pinned commands.
 - The worktree began at landed commit `93058b6eb9`, then `origin/main` advanced

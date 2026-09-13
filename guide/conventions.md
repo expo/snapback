@@ -101,7 +101,7 @@ and removes its inventory row. A declaration that still has an inventory row,
 a missing inventoried page, and a new unscoped page also fail. Updating a hash
 to extend an exemption or adding a new legacy row is not a migration and is
 forbidden. The remaining corpus conversion is tracked in
-`issues/20260828-migrate-guide-authoring-profile-frontmatter.md`.
+`issues/shelved/20260828-migrate-guide-authoring-profile-frontmatter.md`.
 
 ### Banner
 

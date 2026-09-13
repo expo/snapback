@@ -810,7 +810,7 @@ without browser automation.
 The same exercise confirmed a separate Exact/Coterie pagination seam outside
 the current fixture envelope: non-virtual list reach geometry mixes item count
 with pixel offsets, leaving the end edge sticky. It is recorded in
-`issues/20260817-coterie-feed-pagination-third-page-stall.md`; this review did
+`issues/shelved/20260817-coterie-feed-pagination-third-page-stall.md`; this review did
 not disguise that latent third-page failure as part of the two-page media fix.
 ## 2026-08-16 — Snapback `ContractDataProvider` adapter growth (M3-minus-typing)
 
@@ -934,7 +934,7 @@ row change, and a healthy full query afterward. The codes surface as
 not new vocabulary in byte-frozen declaration v8. The future M6 choice—larger
 engine windows or a token-bumped `listMessages` cursor modeled on
 `listFeed@3`—is recorded in
-`issues/20260817-coterie-message-envelope-growth.md`.
+`issues/shelved/20260817-coterie-message-envelope-growth.md`.
 
 The stored projection fields also forced an explicit transition statement.
 Coterie has no populated production database, so this lane uses the Guide's

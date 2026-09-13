@@ -17,10 +17,10 @@ LLP 0307,
 `benchmarks/runs/2026-08-22-clique-full-familiar-vs-explicit/record.md`,
 `issues/20260824-familiar-offline-replay-capability-unathorable.md`,
 `issues/20260822-declared-refusal-client-code-preservation.md`,
-`issues/20260822-m7-handoff-not-self-contained.md`,
-`issues/20260820-familiar-live-subscription-contention.md`,
-`issues/20260816-default-retained-query-facts-js-clients.md`,
-`issues/20260821-clique-instrument-observability-version-bump.md`
+`issues/shelved/20260822-m7-handoff-not-self-contained.md`,
+`issues/shelved/20260820-familiar-live-subscription-contention.md`,
+`issues/shelved/20260816-default-retained-query-facts-js-clients.md`,
+`issues/shelved/20260821-clique-instrument-observability-version-bump.md`
 
 ## Summary
 
@@ -266,7 +266,7 @@ declaration. The sharp edges are operational:
 - **Scale as an app-owned protocol.** No first-party headless fixture replay
   that disposes clients, skips live queries, and opts out of result custody.
 - **Handoff.** Explicit M7 lacked `personas.json`, reproducing
-  `issues/20260822-m7-handoff-not-self-contained.md`.
+  `issues/shelved/20260822-m7-handoff-not-self-contained.md`.
 - **Harness vs RN Web.** Frozen `observableState` watches the testID node's
   own attributes; RN Image puts `src` on a child. Those are measurement
   artifacts. They still burned tokens because the agent could not tell
@@ -300,17 +300,17 @@ against LLP 0299/0301/0302. Keep LLP 0297 as the node-ceiling owner.
 | Item | Owner |
 | --- | --- |
 | Familiar cannot author `offline_mutation_replay` while the target advertises it | `issues/20260824-familiar-offline-replay-capability-unathorable.md` (filed from this run) |
-| Preserve `ctx.refuse` / declared `appCode` at every client | `issues/20260822-declared-refusal-client-code-preservation.md`; remaining asks 2–3 on `issues/20260808-guide-gap-declared-refusals-discoverability.md` |
-| M7 handoff not relocatable / missing `personas.json` | `issues/20260822-m7-handoff-not-self-contained.md` |
-| Application-visible diagnostic before six-subscription overload / auth-suspended overlay | `issues/20260820-familiar-live-subscription-contention.md` |
-| Default query retention on JS clients | `issues/20260816-default-retained-query-facts-js-clients.md` |
-| Clique instrument bump: typing clock vs render, structural selectors, media compose, isolate poisoned retries | `issues/20260821-clique-instrument-observability-version-bump.md` (LLP 0281). Child tickets it names are missing on disk in this working copy. |
-| Migration rollback / rehearsal / tighten ceremony matching the Guide | `issues/20260803-0160-migration-experience-program.md` |
-| First-use ceremony budget | `issues/20260817-0275-first-use-ceremony-budget-harness.md` |
-| Domain-neutral Expo starter | `issues/20260819-minimal-expo-starter.md` |
-| Live-query re-eval cost under fan-out | `issues/20260808-live-query-reevaluation-cost-at-scale.md` (rung-1 coalescing landed; incremental D2 is not) |
-| React live-query debug/receipt projection | `issues/20260808-react-live-query-debug-projection.md` (demand-gated) |
-| Familiar imported helpers (full negative matrix) | remainder of `issues/20260821-familiar-imported-helper-support.md` |
+| Preserve `ctx.refuse` / declared `appCode` at every client | `issues/20260822-declared-refusal-client-code-preservation.md`; remaining asks 2–3 on `issues/shelved/20260808-guide-gap-declared-refusals-discoverability.md` |
+| M7 handoff not relocatable / missing `personas.json` | `issues/shelved/20260822-m7-handoff-not-self-contained.md` |
+| Application-visible diagnostic before six-subscription overload / auth-suspended overlay | `issues/shelved/20260820-familiar-live-subscription-contention.md` |
+| Default query retention on JS clients | `issues/shelved/20260816-default-retained-query-facts-js-clients.md` |
+| Clique instrument bump: typing clock vs render, structural selectors, media compose, isolate poisoned retries | `issues/shelved/20260821-clique-instrument-observability-version-bump.md` (LLP 0281). Child tickets it names are missing on disk in this working copy. |
+| Migration rollback / rehearsal / tighten ceremony matching the Guide | `issues/shelved/20260803-0160-migration-experience-program.md` |
+| First-use ceremony budget | `issues/shelved/20260817-0275-first-use-ceremony-budget-harness.md` |
+| Domain-neutral Expo starter | `issues/shelved/20260819-minimal-expo-starter.md` |
+| Live-query re-eval cost under fan-out | `issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md` (rung-1 coalescing landed; incremental D2 is not) |
+| React live-query debug/receipt projection | `issues/shelved/20260808-react-live-query-debug-projection.md` (demand-gated) |
+| Familiar imported helpers (full negative matrix) | remainder of `issues/shelved/20260821-familiar-imported-helper-support.md` |
 | Cost/evidence visibility (runtime cost recorder, delivery inspection) | LLP 0295 move 5 |
 
 ### No real plan to "fix," or correctly out of scope
@@ -522,11 +522,11 @@ latency/size diagnostics, and capability/refusal vocabulary parity.
 | Node ceiling / catalog vs result identity | LLP 0297 |
 | Familiar `offline_mutation_replay` authoring | `issues/20260824-familiar-offline-replay-capability-unathorable.md` |
 | Declared refusal client codes | `issues/20260822-declared-refusal-client-code-preservation.md` (LLP 0144) |
-| M7 handoff relocatability | `issues/20260822-m7-handoff-not-self-contained.md` |
-| Six-subscription / auth-suspended overlay diagnostic | `issues/20260820-familiar-live-subscription-contention.md` |
-| Instrument typing/selectors/media/poisoned retries | LLP 0281 + `issues/20260821-clique-instrument-observability-version-bump.md` |
+| M7 handoff relocatability | `issues/shelved/20260822-m7-handoff-not-self-contained.md` |
+| Six-subscription / auth-suspended overlay diagnostic | `issues/shelved/20260820-familiar-live-subscription-contention.md` |
+| Instrument typing/selectors/media/poisoned retries | LLP 0281 + `issues/shelved/20260821-clique-instrument-observability-version-bump.md` |
 | Generated-module Metro freshness | `issues/20260824-metro-generated-module-freshness.md` (filed 2026-08-24 after verifying the supervised path also performs no invalidation) |
-| First-party headless replay helper | `issues/20260824-first-party-headless-replay-helper.md` (filed 2026-08-24; Spec owned under LLP 0043 / 0201; not folded into 0295 Phase 0) |
+| First-party headless replay helper | `issues/shelved/20260824-first-party-headless-replay-helper.md` (filed 2026-08-24; Spec owned under LLP 0043 / 0201; not folded into 0295 Phase 0) |
 | Live latency/size timeline | LLP 0219 + 0295 move 5 |
 | Cross-cutting authoring/lifecycle/efficiency program | LLP 0295 |
 | Multi-run Clique/Coterie register | LLP 0277; this LLP is the 0.1.25 full-scope pair |

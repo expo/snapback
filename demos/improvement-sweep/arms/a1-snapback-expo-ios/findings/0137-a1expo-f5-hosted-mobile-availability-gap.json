@@ -24,6 +24,6 @@
   "acceptanceWitness": "An Expo simulator app signs in through a documented hosted path and completes the EXPO-04 realtime check against a hosted target.",
   "owner": {
     "kind": "filesystem-issue",
-    "reference": "issues/20260801-0137-a1expo-f5-hosted-mobile-gap.md"
+    "reference": "issues/shelved/20260801-0137-a1expo-f5-hosted-mobile-gap.md"
   }
 }

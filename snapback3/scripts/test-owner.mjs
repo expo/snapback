@@ -13,7 +13,7 @@ await access(compiler);
 const state = join(root, '.snapback3');
 await mkdir(state, { recursive: true });
 const output = await mkdtemp(join(state, 'owner-tests-'));
-const names = ['node-http', 'node-worker', 'node-project'];
+const names = ['node-http', 'node-worker', 'node-background', 'node-operator', 'node-project', 'node-cli', 'node-autonomy-real', 'node-owner-recovery-real'];
 try {
   await build({
     input: Object.fromEntries(names.map(name => [name, join(root, `packages/snapback3/tests/${name}.test.ts`)])),

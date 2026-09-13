@@ -745,7 +745,7 @@ function commandNew(root, args) {
   const path = `issues/${filename}`;
   // Both halves of the lifecycle share one filename space: an open issue that
   // collides with a CLOSED one turns `close` into a file-destroying move.
-  for (const candidate of [path, `issues/closed/${filename}`]) {
+  for (const candidate of [path, `issues/closed/${filename}`, `issues/shelved/${filename}`]) {
     if (existsSync(resolve(root, candidate))) {
       return fail(`${candidate} already exists — pick a discriminating slug with --slug (cdcstack same-day collision rule).`);
     }
@@ -776,7 +776,14 @@ function commandNew(root, args) {
 function resolveIssuePath(root, given) {
   const candidates = given.includes('/')
     ? [given]
-    : [`issues/${given}`, `issues/${given}.md`, `issues/closed/${given}`, `issues/closed/${given}.md`];
+    : [
+        `issues/${given}`,
+        `issues/${given}.md`,
+        `issues/closed/${given}`,
+        `issues/closed/${given}.md`,
+        `issues/shelved/${given}`,
+        `issues/shelved/${given}.md`,
+      ];
   for (const candidate of candidates) {
     if (existsSync(resolve(root, candidate))) return candidate;
   }
@@ -797,7 +804,9 @@ function commandClose(root, args) {
   const path = resolveIssuePath(root, given);
   if (!path) return fail(`no such issue: ${given}`);
   if (path.startsWith('issues/closed/')) return fail(`${path} is already closed.`);
-  const target = path.replace(/^issues\//, 'issues/closed/');
+  const target = path.startsWith('issues/shelved/')
+    ? path.replace(/^issues\/shelved\//, 'issues/closed/')
+    : path.replace(/^issues\//, 'issues/closed/');
   const targetAbsolute = resolve(root, target);
   if (existsSync(targetAbsolute)) {
     return fail(`${target} already exists — closing would destroy it. Rename one of the two (cdcstack same-day collision rule).`);

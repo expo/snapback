@@ -214,7 +214,7 @@ with its intent overlay and reset rules.
 currently designing its own page envelope, boundary witness, cursor
 vocabulary, and live/snapshot composition from first principles. Routed to
 LLP 0278 (paged live results); envelope growth options are ticketed in
-`issues/20260817-coterie-message-envelope-growth.md`.
+`issues/shelved/20260817-coterie-message-envelope-growth.md`.
 
 ### F2. Aggregate projections do not compose across entity sets — single-run, structurally significant
 
@@ -316,7 +316,7 @@ read path, including fixture helpers, where review caught a bypass.
 Upload intents bound media type and byte size, but the brief's H.264/AAC and
 60-second ceilings are inexpressible, so M2 video admission is honest about
 enforcing less than the product rule. Ticketed as
-`issues/20260817-upload-intent-codec-duration-admission-facts.md`; the
+`issues/shelved/20260817-upload-intent-codec-duration-admission-facts.md`; the
 dedicated Review Spec is LLP 0305 under LLP 0044's asset authority. LLP 0269
 retains only the SQLite → Postgres → transactional-cell graduation obligations.
 
@@ -599,7 +599,7 @@ Current lanes reproduced or added Exact-side issues: result alias collisions,
 multiline object types embedded in quoted metadata, controlled-input event
 gaps, scroll/flex sizing, route-link detachment, and whole-tree republishing on
 transport-only changes. These are not Snapback repository tickets. LLP 0279
-remains the Exact program owner; `issues/20260818-exact-spa-link-detachment-under-choreography.md`
+remains the Exact program owner; `issues/shelved/20260818-exact-spa-link-detachment-under-choreography.md`
 is the local cross-repo pointer for the one matrix red.
 
 #### P26. The benchmark instrument creates avoidable correction loops — convergent
@@ -693,7 +693,7 @@ such as "P14 cost 12% of tokens" would be invented.
 | Ephemeral role narrowing, overlay Error arm, Coterie typing adoption | closed records under `issues/closed/20260817-ephemeral-membership-role-narrowing.md`, `issues/closed/20260817-ephemeral-overlay-missing-error-arm.md`, and `issues/closed/20260817-coterie-typing-allow-members-adoption.md` |
 | Published 0.1.24 cross-cutting authoring/lifecycle/efficiency program | LLP 0295 (new Plan), with mechanisms retained by their subsystem owners |
 | Clique Explicit/Familiar historical register and prior rerun protocol | LLP 0236; superseding matrix evidence is in this amendment and LLP 0295 |
-| Media/codec admission facts | Review LLP 0305 under LLP 0044; LLP 0269 graduation obligations; `issues/20260817-upload-intent-codec-duration-admission-facts.md` |
+| Media/codec admission facts | Review LLP 0305 under LLP 0044; LLP 0269 graduation obligations; `issues/shelved/20260817-upload-intent-codec-duration-admission-facts.md` |
 | Ceremony-reduction classification | LLP 0275 (already Draft; this run's evidence corroborates its derivation rule) |
 
 ## Open questions

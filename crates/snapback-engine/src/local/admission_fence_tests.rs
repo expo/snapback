@@ -1329,7 +1329,7 @@ fn watch_creation_refuses_retired_mode_epoch_and_holds_mode_guard_through_commit
     // This proves only the correlated mode-admission epoch and its COMMIT
     // span. It is not a caller-publication fence proof: watch creation
     // deliberately remains mode-only for the reasons recorded in
-    // issues/20260822-watch-creation-fence-design-decision.md.
+    // issues/shelved/20260822-watch-creation-fence-design-decision.md.
     let (mut snapback, controller) = watch_creation_fixture();
     let authority = session_authority_for_source(&mut snapback, InvocationSource::WatchManagement);
     let before = durable_database_image(&snapback);

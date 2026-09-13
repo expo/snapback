@@ -1,6 +1,6 @@
 import { referenceName, type Op } from '../api.js';
 import { canonicalJson, wireJson } from '../../../evaluator/src/value-runtime.js';
-import { sha256 } from '../../../evaluator/src/hash.js';
+import { sha256, utf8Length } from '../../../evaluator/src/hash.js';
 import { FactPool, queryKey, taggedArgs } from './facts.js';
 import { expandRows, ownDeliveryEnvelope, type DeliveryEnvelopeV1 } from './protocol.js';
 import { ownJson } from './signal.js';
@@ -42,7 +42,7 @@ export interface AcquisitionSpec<Root = unknown> {
 }
 
 export function resolveChain(manifest: Manifest, page: PageChain): AcquisitionDeclaration {
-  if (typeof page.key !== 'string' || !page.key || new TextEncoder().encode(page.key).length > 512)
+  if (typeof page.key !== 'string' || !page.key || utf8Length(page.key) > 512)
     throw new SnapbackError('S3_ACQUISITION_DECLARATION', 'An acquisition chain key must be 1 through 512 UTF-8 bytes.');
   const program = manifest.programs[page.op];
   if (!program || program.kind.toLowerCase() !== 'query')

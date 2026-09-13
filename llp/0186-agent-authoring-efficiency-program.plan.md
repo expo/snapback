@@ -48,7 +48,7 @@ registration), LLP 0295 (published-matrix improvement program — its
 efficiency scorecard targets are registered in the 2026-08-21 amendment),
 `issues/20260809-per-milestone-token-metering.md`,
 `issues/20260820-matrix-lane-skill-routing-context-budget.md`,
-`issues/20260821-clique-instrument-observability-version-bump.md`
+`issues/shelved/20260821-clique-instrument-observability-version-bump.md`
 
 ## Summary
 

@@ -772,7 +772,7 @@ needed an ordinary avatar or video. A first-party happy path needs bounded
 one-to-many media collections and an atomic media command spanning selection,
 upload intent, durable application record, delivery URL, and revocation. The
 current residual is tracked in
-[finish the media happy path](../issues/20260815-finish-media-happy-path.md).
+[finish the media happy path](../issues/shelved/20260815-finish-media-happy-path.md).
 The lower-level asset lifecycle should remain available, but “one avatar,”
 “several post images,” and “one post video” must not each require a new
 backend-specific representation trick.

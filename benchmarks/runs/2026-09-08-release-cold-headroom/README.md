@@ -85,7 +85,7 @@ table reads and all seven supported same-named calls pass. The retired
 
 The frozen grader report schema excludes M8 assertion keys. The diagnostic
 assessment will retain those outcomes in a companion record; the concrete
-[instrument follow-up](../../../issues/20260908-social-messenger-grader-schema-rejects-m8-assertions.md)
+[instrument follow-up](../../../issues/shelved/20260908-social-messenger-grader-schema-rejects-m8-assertions.md)
 keeps that reporting gap visible without altering this run’s instrument.
 
 The obsolete `core_test_s` headroom ticket is also retired: `2ac66517b`
@@ -96,7 +96,7 @@ suite timing issues remain open. A read-only independent audit by
 
 The M3 group receipt choreography also omits seeded recipient Erin while
 requiring aggregate read. Independent source inspection confirmed the
-[instrument inconsistency](../../../issues/20260906-clique-m3-group-receipt-missing-seeded-actor.md).
+[instrument inconsistency](../../../issues/shelved/20260906-clique-m3-group-receipt-missing-seeded-actor.md).
 The cold run’s failed receipt remains evidence; this finding does not establish
 an independent app pass. The frozen instrument is unchanged.
 
@@ -106,7 +106,7 @@ The three 0.0.20 repair candidates were rejected. Their qualification records
 and independent reviews are retained here as failure evidence. None of their
 product, version, or proposed LLP 1012 contract changes is part of this
 evidence-only landing. Published 0.0.19 remains the cold builder’s pin. The
-[open cumulative issue](../../../issues/20260906-snapback2-offline-entrypoint-isolation-and-projection.md)
+[open cumulative issue](../../../issues/shelved/20260906-snapback2-offline-entrypoint-isolation-and-projection.md)
 records the first-write baseline defect and pending additional-round decision.
 
 Read-only independent audit `/root/invalidation_audit` returned READY for the
@@ -117,7 +117,7 @@ failures remain visible. `ref-check` passed with 419 documents/7,842 references;
 `caps` passed all seven categories. No product test rerun is claimed.
 
 The M5 stock React Native Web preview also has a confirmed
-[observer interoperability gap](../../../issues/20260908-social-messenger-m5-background-observer-misses-rn-web-image.md):
+[observer interoperability gap](../../../issues/shelved/20260908-social-messenger-m5-background-observer-misses-rn-web-image.md):
 loaded child media can change without the root snapshot changing. The
 independent source audit and bounded observations are retained; this finding
 does not establish full M5 success or modify the frozen instrument.

@@ -19,6 +19,8 @@ use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+#[path = "registry_effects.rs"]
+mod registry_effects;
 #[path = "registry_offline.rs"]
 mod registry_offline;
 #[path = "registry_seed.rs"]
@@ -47,6 +49,8 @@ pub struct ProjectJson {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Generation {
+    #[serde(skip_serializing)]
+    project: ProjectJson,
     schema: Schema,
     programs: BTreeMap<String, (Program, Certificate)>,
     #[serde(skip_serializing)]
@@ -124,6 +128,13 @@ impl Generation {
 
     pub fn effects(&self) -> &BTreeMap<String, EffectDecl> {
         &self.effects
+    }
+
+    /// The exact compiler project whose meaning was certified into this
+    /// generation. Restart custody persists this input, never its certificates,
+    /// so a fresh worker must perform certification again before serving it.
+    pub fn project(&self) -> &ProjectJson {
+        &self.project
     }
 
     /// A schedule binding's program and certificate: certified beside the operations, never one of them.
@@ -480,6 +491,13 @@ impl Generation {
             programs.remove(&certificates.binding.name);
         }
         if errors.is_empty() {
+            let certified_project = ProjectJson {
+                version: project.version,
+                schema: schema.clone(),
+                programs: project.programs.clone(),
+                effects: project.effects.clone(),
+                auth: project.auth.clone(),
+            };
             let certified_programs = programs
                 .iter()
                 .map(|(name, (program, certificate))| (name, program, digest(certificate)))
@@ -501,6 +519,7 @@ impl Generation {
                 digest(&(schema.hash(), certified_programs, bindings))
             };
             Ok(Self {
+                project: certified_project,
                 schema,
                 programs,
                 program_hash,
@@ -911,27 +930,12 @@ impl Runtime {
                 pending.state
             )));
         }
-        let current = self.generation.effects.get(&pending.effect);
-        let claimed = pending
-            .generation
-            .as_deref()
-            .map(|generation| format!("effects_json:{generation}"))
-            .map(|key| self.engine.store().meta(&key))
-            .transpose()?
-            .flatten()
-            .map(|json| {
-                serde_json::from_str::<BTreeMap<String, EffectDecl>>(&json)
-                    .map_err(|error| RuntimeError::Serialization(error.to_string()))
-            })
-            .transpose()?
-            .and_then(|effects| effects.get(&pending.effect).cloned());
-        let binding_matches = current
-            .zip(claimed.as_ref())
-            .is_some_and(|(current, claimed)| {
-                current.then.as_deref() == Some(op)
-                    && pending.then_op.as_deref() == Some(op)
-                    && digest(&current.source) == digest(&claimed.source)
-            });
+        let binding_matches = pending.then_op.as_deref() == Some(op)
+            && pending.claim_binding.as_deref()
+                == self
+                    .generation
+                    .effect_claim_identity(&pending.effect)
+                    .as_deref();
         let target = self.generation.programs.get(op).cloned();
         if !binding_matches
             || !target
@@ -1118,8 +1122,8 @@ impl Runtime {
         if !migration.drops.is_empty() {
             return Err(SuccessorRefusal::destructive(migration));
         }
-        if let Some(refusal) = additive_refusal(&transaction, &current, &next.schema, &owned)
-            .map_err(store_refusal)?
+        if let Some(refusal) =
+            additive_refusal(&transaction, &current, &next.schema, &owned).map_err(store_refusal)?
         {
             return Err(refusal);
         }
@@ -1195,9 +1199,12 @@ impl Runtime {
         let transaction = self.engine.store_mut().conn.transaction()?;
         apply_migration_drops(&transaction, &mut reduced, migration, released_at)?;
         // Ownership was read above, before the drops cleared the columns it derives from.
-        if let Some(refusal) =
-            additive_refusal(&transaction, &reduced, &next.schema, &replaced_projection_ids)?
-        {
+        if let Some(refusal) = additive_refusal(
+            &transaction,
+            &reduced,
+            &next.schema,
+            &replaced_projection_ids,
+        )? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
         let mut report = apply_additive(
@@ -1257,7 +1264,6 @@ impl Runtime {
     }
 }
 
-
 fn persist_generation(
     store: &mut Store,
     generation: &Generation,
@@ -1309,6 +1315,8 @@ fn persist_generation_transaction(
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     let effects_json = serde_json::to_string(&generation.effects)
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
+    let project_json = serde_json::to_string(generation.project())
+        .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     let effects_hash = generation.effects_hash();
     for (key, value) in [
         ("schema_hash", generation.schema.hash()),
@@ -1316,6 +1324,7 @@ fn persist_generation_transaction(
         ("program_generation", generation.program_hash().to_owned()),
         ("schema_json", schema_json),
         ("effects_json", effects_json),
+        ("project_json", project_json),
         ("effects_generation", effects_hash.clone()),
         (
             "evaluator_version",

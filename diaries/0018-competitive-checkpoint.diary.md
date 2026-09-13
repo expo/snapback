@@ -656,7 +656,7 @@ tracks surface polish.
   vendored identity. The old ignored artifact was stale enough to fail the
   provenance check, which is the right failure, but rebuilding the exact patch
   stack consumed most of the carrier work. The gap is now tracked in
-  `issues/20260803-linux-hermes-release-carrier-gap.md`.
+  `issues/shelved/20260803-linux-hermes-release-carrier-gap.md`.
 - Fly's default Depot builder was killed while optimizing the Snapback release
   library. Building the exact release on a high-memory Linux host and letting a
   tiny Dockerfile verify and assemble the closure worked, but it adds a second

@@ -60,8 +60,8 @@ LLP 0107 (optimistic lifecycle), LLP 0114 (React projections), LLP 0012
 (headless contract), LLP 0061 (guide),
 `issues/20260809-asset-upload-dx-papercuts-g11.md`,
 `issues/20260809-asset-recipient-grant-authority-g4.md`,
-`issues/20260816-signed-delivery-cdn-posture.md`,
-`issues/20260816-media-placeholder-projection.md`
+`issues/shelved/20260816-signed-delivery-cdn-posture.md`,
+`issues/shelved/20260816-media-placeholder-projection.md`
 
 ## Summary
 
@@ -126,9 +126,9 @@ omission default of its own.
 
 Two follow-ups bound what this default does not solve. Private signed delivery
 still needs a hosted CDN/edge posture before scale claims
-(`issues/20260816-signed-delivery-cdn-posture.md`), and projecting admission-time
+(`issues/shelved/20260816-signed-delivery-cdn-posture.md`), and projecting admission-time
 placeholders could hide private-tier issuance latency without weakening
-authorization (`issues/20260816-media-placeholder-projection.md`).
+authorization (`issues/shelved/20260816-media-placeholder-projection.md`).
 
 ## Evidence
 

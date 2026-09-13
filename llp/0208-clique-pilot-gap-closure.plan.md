@@ -160,7 +160,7 @@ per LLP 0189, independent of this Plan's review state:
   Convex comparison names "auth-in-a-box" as Convex's clearest win.
 - **Closure:** this Plan does **not** commission an auth lane — identity
   is Wave 4's program (LLP 0151,
-  `issues/20260808-wave4-identity-program.md`,
+  `issues/shelved/20260808-wave4-identity-program.md`,
   `issues/20260808-identity-architecture-decision.md`). It contributes
   the evidence and one shaping input: short of full built-in password
   auth, a supported **credential-provider seam** (platform owns hash

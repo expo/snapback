@@ -34,7 +34,7 @@ confirms these distinctions:
   failed receipt; the report's d-03/application attribution is unsupported.
   The supplemental observer also uses `.catch()` as an attribute fallback,
   which does not handle an ordinary null return. The existing
-  [actor ticket](../../../../issues/20260906-clique-m3-group-receipt-missing-seeded-actor.md)
+  [actor ticket](../../../../issues/shelved/20260906-clique-m3-group-receipt-missing-seeded-actor.md)
   owns the unresolved instrument correction.
 - **M5-a03 has missing independent proof.** The retained API check establishes
   server expiry only. It performs no offline transition or post-expiry search;

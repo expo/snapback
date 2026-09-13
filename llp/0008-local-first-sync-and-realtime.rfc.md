@@ -938,7 +938,7 @@ costs ~1.3 s per observer, and a 16-mutation burst produced settle latencies
 of 111 ms–148 s (median ~74 s) because every backlogged commit re-ran every
 observer's handler — evaluation × subscribers × queue-depth
 (`snapback-control-hot.zb5.v10.json`;
-`issues/20260808-live-query-reevaluation-cost-at-scale.md`).
+`issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md`).
 
 **Decision.** The server may coalesce the *data* fan-out of backlogged
 commits: when a commit's fan-out dispatch detects backlog (the previous

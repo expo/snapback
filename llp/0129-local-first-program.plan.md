@@ -208,7 +208,7 @@ mismatch refusal/quarantine/resync, with the normative consequence
 stated: criterion 3 cannot pass and no same-code claim may ship until
 element 5 has an owner (§Open questions 11). Two dangling obligations
 are ticketed rather than left as prose:
-`issues/20260801-js-arm-integrated-authenticated-restart-witness.md`
+`issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md`
 (the authenticated React/browser/full-process-restart conjunction that
 neither existing ticket forces into one run) and
 `issues/20260801-cold-process-claim-vocabulary-collision.md` (retained
@@ -1122,7 +1122,7 @@ in this form does not exit.
    requires authenticated shell **and** authorized rows **and** a real
    process restart in one run. That integrated witness is now ticketed
    (v0.8):
-   `issues/20260801-js-arm-integrated-authenticated-restart-witness.md`.
+   `issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md`.
    Whether it is a conjunct of the SD-5 Phase 0 gate, of the Phase 0
    exit criteria, or both follows from §Open questions 7; until that is
    answered, a public-browser-only witness must not be treated as

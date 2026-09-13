@@ -245,7 +245,7 @@ Preview and failed/refused attempts never fabricate committed receipts.
 The `generatedAuthorityOperation` marker is currently trusted as deployment
 content; activation does not yet recompute it from the synthesized operation
 implementation. That verification is the open
-[marker-activation hardening ticket](repo:issues/20260816-generated-authority-op-marker-activation-verification.md).
+[marker-activation hardening ticket](repo:issues/shelved/20260816-generated-authority-op-marker-activation-verification.md).
 
 The generated profile facade never projects a raw membership row or its `_id`.
 That is a boundary of the generated operations, not a blanket `ctx.db` denial:

@@ -9,13 +9,13 @@
 **Revised:** 2026-08-26 (u — a retainable value guarded by a destructor is the same defect; generalized to any caller-authored fact)
 **Revised:** 2026-08-25 (s — Q23 owner-bound; scoped landings)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
-`issues/20260824-liveness-row-bucket-assignment.md`,
-`issues/20260824-entitlement-predicates-for-the-live-sites.md`
+`issues/shelved/20260824-liveness-row-bucket-assignment.md`,
+`issues/shelved/20260824-entitlement-predicates-for-the-live-sites.md`
 
 ## Ruling
 
 Author ruling 2026-08-24, on the 45 open authorization questions covering 68 liveness-only
-factory rows (`issues/20260824-liveness-row-bucket-assignment.md`).
+factory rows (`issues/shelved/20260824-liveness-row-bucket-assignment.md`).
 
 **The recommendations recorded in this document are approved. Implement them.**
 
@@ -520,7 +520,7 @@ already performed the caller-built-attempt composition as a **happy path**, and 
 token state. The suite was exercising the exploit and asserting it was fine.
 
 This follows from the projection rule in
-`issues/20260824-assertion-provenance-is-the-recurring-test-defect.md`: the test read
+`issues/shelved/20260824-assertion-provenance-is-the-recurring-test-defect.md`: the test read
 `(generation, revoked_at)` and rotation writes `token_hash`. A readback that omits the column a path
 writes cannot see that path's mutation. When adding a per-path test, project the columns **that
 path** writes, not the columns the previously-fixed path wrote.
@@ -544,7 +544,7 @@ Both reviewers were competent; one asked the narrower question. So:
 > pair of public calls where neither alone produces it.
 
 This is the same shape as
-`issues/20260825-production-equivalent-is-not-a-clearing-rule.md`, where 166 items were cleared by a
+`issues/shelved/20260825-production-equivalent-is-not-a-clearing-rule.md`, where 166 items were cleared by a
 rule that evaluated each helper in isolation: a claim that holds for one thing and fails for a pair.
 It also recurs as the *partial APIs compose* finding against agent registration, where
 `create_agent_principal` and `issue_initial_agent_credential` are individually harmless and jointly
@@ -765,7 +765,7 @@ code does routinely: a child that inherits a graph and keeps acting on it is a p
 an attack, and fail-closed is the behaviour that makes the accident visible instead of silent.
 
 The corresponding implementation work is one change to the shared primitive rather than a change per
-row, tracked at `issues/20260826-allocation-identity-fails-open-across-fork.md`. Reviewers should
+row, tracked at `issues/shelved/20260826-allocation-identity-fails-open-across-fork.md`. Reviewers should
 raise fork only where a carrier does **not** yet carry the creator-process identity, and should cite
 this revision rather than re-deriving the argument.
 

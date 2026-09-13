@@ -473,7 +473,7 @@ ordinary target-fenced replay path. It does **not** currently adopt a different
 origin or a predecessor record with no v2 target identity.
 
 Until the explicit
-[outbox target-adoption protocol](../../issues/20260825-outbox-target-adoption-protocol.md)
+[outbox target-adoption protocol](../../issues/shelved/20260825-outbox-target-adoption-protocol.md)
 lands, a v2 cross-origin or otherwise different-target record pauses with
 `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`; a legacy pre-v2 targetless record
 pauses with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. Both paths send zero

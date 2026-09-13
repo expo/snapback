@@ -1905,4 +1905,4 @@ provider I/O. CLI plans and supervisor health report disabled per-operation
 availability until a separately reviewed closed-carrier design, Rust-owned
 schemas, bootstrap/custody installation, public listener proof, and packed live
 Fly/Tigris receipt all land. The tracked resolution criteria are in
-`issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md`.
+`issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md`.

@@ -42,7 +42,7 @@ M6. **At least two non-scale correction causes are absent from the inventory.** 
 
 ## Non-blocking findings
 
-m1. **F3’s closure column says its heavier primitive question is “listed in O15,” but O15 concerns causal subscription diagnostics, not time-window primitives.** The primitive remains in the clock ticket. [F3/O15 text](/Users/ccheever/lanes/llp0317/llp/0317-clique-0129-correction-loop-disposition.research.md:101), [ticket’s open primitive](/Users/ccheever/lanes/llp0317/issues/20260825-clock-dependent-visibility-authoring-friction.md:63). Correct the cross-reference or add a distinct backlog row.
+m1. **F3’s closure column says its heavier primitive question is “listed in O15,” but O15 concerns causal subscription diagnostics, not time-window primitives.** The primitive remains in the clock ticket. [F3/O15 text](/Users/ccheever/lanes/llp0317/llp/0317-clique-0129-correction-loop-disposition.research.md:101), [ticket’s open primitive](/Users/ccheever/lanes/llp0317/issues/shelved/20260825-clock-dependent-visibility-authoring-friction.md:63). Correct the cross-reference or add a distinct backlog row.
 
 m2. **O6 is the only O-row omitted from all five priority bundles.** Either place it in template/lifecycle closure or explicitly state that it remains unbundled pending comparison with F1. [O6](/Users/ccheever/lanes/llp0317/llp/0317-clique-0129-correction-loop-disposition.research.md:158), [priority synthesis](/Users/ccheever/lanes/llp0317/llp/0317-clique-0129-correction-loop-disposition.research.md:209).
 

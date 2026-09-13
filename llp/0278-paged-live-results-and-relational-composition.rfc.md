@@ -24,11 +24,11 @@ LLP 0266,
 LLP 0267, LLP 0270,
 LLP 0274, LLP 0277, LLP 0279, LLP 0280, LLP 0295, Diary 0078, Diary 0086,
 Diary 0105,
-`issues/20260817-coterie-message-envelope-growth.md`,
+`issues/shelved/20260817-coterie-message-envelope-growth.md`,
 `issues/closed/20260817-guide-gap-chunked-semijoin-feed-recipe.md`,
 `issues/closed/20260821-provider-connection-subscription-budget-decision.md`,
 `issues/closed/20260821-private-authority-product-roster-decision.md`,
-`issues/20260820-familiar-live-subscription-contention.md`
+`issues/shelved/20260820-familiar-live-subscription-contention.md`
 
 ## Summary
 
@@ -188,7 +188,7 @@ declaration reuses D3's operand-bound handling.
   piece above is a closed shape with declared bounds.
 - No change to window ceilings themselves. The Coterie 1,024 envelope ruling
   stands as the current product posture; the growth options in
-  `issues/20260817-coterie-message-envelope-growth.md` (larger engine
+  `issues/shelved/20260817-coterie-message-envelope-growth.md` (larger engine
   windows vs. token-bumped cursor continuation) become a choice *about D1
   configuration* once D1 exists, which is the cleanest argument for doing D1
   first.
@@ -266,7 +266,7 @@ The transport facts are already hard ceilings, not composition guidance:
 `crates/snapback-engine/src/local/engine.rs`). This amendment adds the missing
 *application composition contract* on top of them. All numbers below are
 **explicit provisional bounds**: the six-subscription investigation
-(`issues/20260820-familiar-live-subscription-contention.md`, LLP 0295 1D) is
+(`issues/shelved/20260820-familiar-live-subscription-contention.md`, LLP 0295 1D) is
 running in parallel, and its classification may tighten — or confirm — them.
 They are commissioning bounds for design and diagnostics, not yet
 conformance-frozen values.

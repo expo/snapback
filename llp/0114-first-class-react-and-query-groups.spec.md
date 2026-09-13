@@ -1711,7 +1711,7 @@ provider-bound diagnostics projection from the shared implementation.
 
 **DRAFT-PENDING-REVIEW — design only.** This amendment owns the group and
 provider semantics proposed for Wanted #4 in
-`issues/20260820-familiar-live-subscription-contention.md`. It is inactive;
+`issues/shelved/20260820-familiar-live-subscription-contention.md`. It is inactive;
 the shipped optionless group continues to make no atomic claim.
 
 ### API, pressure interest, and compatibility

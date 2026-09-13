@@ -151,7 +151,7 @@ remotely, and the receipt says exactly which faults ran where.
 ## Approval and rehearsal custody
 
 This section closes the 0072-lane custody residuals recorded in
-`issues/20260724-step5-impl-0081-hosted-do-executor.md` (relocated from the
+`issues/shelved/20260724-step5-impl-0081-hosted-do-executor.md` (relocated from the
 frictions ticket) — the two things the local profile's structural custody
 cannot express:
 

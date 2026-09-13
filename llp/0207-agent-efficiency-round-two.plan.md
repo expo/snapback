@@ -48,10 +48,10 @@ P1/P2/P3/P6/P7), LLP 0146 (D7 substrate, D2 verifier), LLP 0156
 >   refusal with repair pointer) — confirming the dissolution rationale
 >   that this work rode its existing tickets.
 > - **Evidence bundle (was S5)** →
->   `issues/20260809-runtime-failure-evidence-bundle-proposal.md`
+>   `issues/shelved/20260809-runtime-failure-evidence-bundle-proposal.md`
 >   (proposal to LLP 0156).
 > - **Feedback verb (was S6)** →
->   `issues/20260809-snapback-feedback-verb-proposal.md` (proposal to
+>   `issues/shelved/20260809-snapback-feedback-verb-proposal.md` (proposal to
 >   LLP 0193 Phase 4).
 > - **P2a/P2b/P2c and the tombstone/`whatsnew` projections** —
 >   deliberately not commissioned anywhere. They remain evaluated-and-

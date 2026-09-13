@@ -4,7 +4,7 @@ id: recipes.split-sensitive-fields
 order: 16
 audience: agent-first
 capabilities: [auth.table-visibility]
-authorities: [llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0235-field-masking-class-m.spec.md, issues/20260821-0235-field-masking-productization.md, packages/snapback-codegen/define.mjs]
+authorities: [llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0235-field-masking-class-m.spec.md, issues/shelved/20260821-0235-field-masking-productization.md, packages/snapback-codegen/define.mjs]
 examples: []
 status: current
 targets: [local]

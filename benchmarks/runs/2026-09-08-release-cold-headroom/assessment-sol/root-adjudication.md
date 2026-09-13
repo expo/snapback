@@ -15,7 +15,7 @@ command outputs. No additional app execution is represented by those audits.
 - The reported major M3 app defect is not established. Its evidence is the
   historical choreography that never exercised seeded recipient Erin. Preserve
   the failed receipt and qualify `m3-a09` as instrument-confounded/unresolved;
-  the [existing instrument issue](../../../../issues/20260906-clique-m3-group-receipt-missing-seeded-actor.md)
+  the [existing instrument issue](../../../../issues/shelved/20260906-clique-m3-group-receipt-missing-seeded-actor.md)
   remains open. No corrected all-recipient run was supplied.
 - Coverage mismatches are supported: several mapped tests exercise API flags,
   subsets, local arrays or synthetic filtered objects instead of the declared

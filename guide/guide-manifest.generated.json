@@ -4011,7 +4011,7 @@
         "llp/0111-fly-completion-and-hosted-ephemeral.plan.md",
         "packages/snapback-cli/hosted-control.mjs",
         "packages/snapback-cli/index.mjs",
-        "issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md"
+        "issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
@@ -4044,8 +4044,8 @@
         "packages/snapback-cli/deployment-control.mjs",
         "packages/snapback-cli/hosted-control.mjs",
         "targets/cloudflare/deploy.sh",
-        "issues/20260726-0072-fly-adapter-remaining-surface.md",
-        "issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md"
+        "issues/shelved/20260726-0072-fly-adapter-remaining-surface.md",
+        "issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md"
       ],
       "examples": [],
       "reviewed": "2026-08-08",
@@ -6362,7 +6362,7 @@
       "authorities": [
         "llp/0231-entity-and-permissioning-recommendation.rfc.md",
         "llp/0235-field-masking-class-m.spec.md",
-        "issues/20260821-0235-field-masking-productization.md",
+        "issues/shelved/20260821-0235-field-masking-productization.md",
         "packages/snapback-codegen/define.mjs"
       ],
       "examples": [],

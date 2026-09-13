@@ -10,7 +10,7 @@ import type { SearchExecution } from './search-runtime';
 import { Runner } from './runner';
 import { asString, field, fieldOrNull, canonicalJson, wireJson, validateInputs } from './value-runtime';
 import type { LogicalIndexAtom } from './search-key';
-import type { ClosureReceipt, Context, Execution, LocalExecution, Trace, TraceRange, Value } from './types';
+import type { ClosureReceipt, Context, Execution, LocalExecution, Trace, TraceRange, TraceWrite, Value } from './types';
 
 export interface ClientStoreOptions {
   readable?: Iterable<string>;
@@ -24,6 +24,8 @@ export class ClientStore {
   private facts: CoverageIndex;
   private readonly readableTables: Set<string>;
   private journal?: Map<string, { table: string; id: string; row: Value | null }>;
+  private overlay?: Map<string, { table: string; id: string; row: Value | null }>;
+  private reversibleDepth = 0;
   private readonly schemaHash: string;
   private directories = new Map<any, ReadableDirectory>();
   constructor(readonly schema: any, receipt: ClosureReceipt = empty(), private readonly options: ClientStoreOptions = {}) {
@@ -121,7 +123,46 @@ export class ClientStore {
   }
   private rollback(): void {
     const journal = this.journal!; this.journal = undefined;
-    for (const r of journal.values()) { if (r.row) this.put(r.table, r.row); else this.remove(r.table, r.id); }
+    this.reversibleDepth++;
+    try { for (const r of journal.values()) { if (r.row) this.put(r.table, r.row); else this.remove(r.table, r.id); } }
+    finally { this.reversibleDepth--; }
+  }
+
+  /** Apply only mutation-produced rows above authoritative rows/evidence. The
+   * first touch records the base image, so a FIFO rebase scales with changed
+   * rows rather than copying the held pool. */
+  applyOverlay(writes: readonly TraceWrite[]): number {
+    this.overlay ??= new Map();
+    this.reversibleDepth++;
+    try {
+      for (const write of writes) {
+        const key = JSON.stringify([write.table, write.id]);
+        if (!this.overlay.has(key)) this.overlay.set(key,
+          { table: write.table, id: write.id, row: this.byId(write.table, write.id) });
+        if (write.row) this.put(write.table, write.row); else this.remove(write.table, write.id);
+      }
+    } finally { this.reversibleDepth--; }
+    return writes.length;
+  }
+
+  /** Remove every pending image while retaining the authoritative pool and its
+   * closure evidence. Returns the number of row keys restored. */
+  clearOverlay(): number {
+    const overlay = this.overlay;
+    if (!overlay) return 0;
+    this.overlay = undefined;
+    this.reversibleDepth++;
+    try {
+      for (const base of overlay.values()) {
+        if (base.row) this.put(base.table, base.row); else this.remove(base.table, base.id);
+      }
+    } finally { this.reversibleDepth--; }
+    return overlay.size;
+  }
+
+  /** Authoritative image beneath a pending overlay, for same-sequence conflict checks. */
+  baseById(table: string, id: string): Value | null {
+    return this.overlay?.get(JSON.stringify([table, id]))?.row ?? this.byId(table, id);
   }
   reexecute(program: any, context: Context, certificate: any = null, search?: SearchExecution): LocalExecution {
     validateInputs(this.schema, program, context.args);
@@ -183,7 +224,7 @@ export class ClientStore {
     for (const name of Object.keys(this.schema.tables[table].indexes)) this.index(table, name).putPrepared(id, value, RowImage.keys(value)[name]);
     rows.set(id, value);
     if (changed) {
-      if (!this.journal) this.facts.changed(table, id);
+      if (!this.journal && this.reversibleDepth === 0) this.facts.changed(table, id);
       this.touchRows(table, old, value);
     }
     return changed;
@@ -193,7 +234,7 @@ export class ClientStore {
     this.record(table, id);
     for (const name of Object.keys(this.schema.tables[table].indexes)) this.index(table, name).remove(id);
     this.tables.get(table)!.delete(id);
-    if (!this.journal) this.facts.changed(table, id);
+    if (!this.journal && this.reversibleDepth === 0) this.facts.changed(table, id);
     this.touchRows(table, old, null);
     return old;
   }

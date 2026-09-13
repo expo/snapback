@@ -40,7 +40,7 @@ resolution floor/shape validation, and mandatory supersession witness)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0108,
 LLP 0114, LLP 0200, LLP 0219, LLP 0267, LLP 0278, LLP 0279, LLP 0280, LLP 0295,
 `issues/closed/20260821-provider-connection-subscription-budget-decision.md`,
-`issues/20260820-familiar-live-subscription-contention.md`,
+`issues/shelved/20260820-familiar-live-subscription-contention.md`,
 `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`
 
 ## Summary
@@ -685,7 +685,7 @@ fan-out, and callback-reentrancy contract. LLP 0280's matching note registers
 the auth-transition rebuild as a consumer of the persona-replacement seam.
 The numeric bounds here are **explicit provisional bounds**: the parallel
 six-subscription investigation
-(`issues/20260820-familiar-live-subscription-contention.md`, LLP 0295 1D) may
+(`issues/shelved/20260820-familiar-live-subscription-contention.md`, LLP 0295 1D) may
 tighten or confirm them before they are conformance-frozen as fixtures.
 
 ### Connection ownership per app authority/origin

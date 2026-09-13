@@ -98,7 +98,7 @@ It produced a retained transition only after the backend resumed, immediately
 followed by current reconciliation. That is recovery, not a retained offline
 cold render. The guarantees ledger therefore records this row as **missing / not
 proved**, and the follow-up remains in
-[`../../../issues/20260806-expo-file-carrier-process-kill-witness.md`](../../../issues/20260806-expo-file-carrier-process-kill-witness.md).
+[`../../../issues/shelved/20260806-expo-file-carrier-process-kill-witness.md`](../../../issues/shelved/20260806-expo-file-carrier-process-kill-witness.md).
 
 ## Cleanup
 

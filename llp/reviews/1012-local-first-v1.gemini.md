@@ -119,7 +119,7 @@ LLP 1012 establishes a disciplined, coherent architectural direction that honors
   > "A crash mid-swap leaves the previous generation intact, which the kill witness (§10) asserts."
   > "2. Stop the backend. **Kill the process** (browser tab discarded; simulator app terminated), not `close()'."
 - **Evidence (`path:line`):**
-  `issues/20260806-expo-file-carrier-process-kill-witness.md:42-58`.
+  `issues/shelved/20260806-expo-file-carrier-process-kill-witness.md:42-58`.
 - **Why it matters:**
   Step 2 of the witness kills the app process *after* draining the log and viewing chats—when the carrier is idle and quiescent. It never kills the process during an active `RangeStore.swap()` or outbox enqueue transaction. This tests clean restart from a committed state, but completely fails to verify whether a mid-swap crash corrupts carrier state or leaves orphaned predicted rows.
 - **Resolution:**

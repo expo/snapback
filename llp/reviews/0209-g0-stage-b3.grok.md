@@ -603,7 +603,7 @@ Non-material but real:
 - Labels completeness keyed on `commentsCursor` (`261`, `448:451`).
 - Physical bounds are copied, not recomputed (`889:908`).
 - Captured-read vector is synthetic (`732:737` `resultCount: 0`).
-- `issues/20260823-zerobugs-control-descending-tiebreak-deviation.md` is stale vs this freezer.
+- `issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md` is stale vs this freezer.
 
 Serving `functions.mjs` is imported as oracle only (`963:968`). Mutation is in-memory (`installBinding`, mock `db`). The serving file is not written.
 
@@ -675,7 +675,7 @@ Fix: set comments `maxWindowPages` from the obtainable interval at declared page
 ### M3 — two tickets still describe pre-fix corpus evidence
 **MATERIAL (h)**
 
-`issues/20260823-zerobugs-control-descending-tiebreak-deviation.md:22–25` still says `issueListV2-backward-tied-modified` freezes `oracleDivergence: "direction-tie-break"` and normalizes equal-`modified` groups. HEAD’s case has `residualImplicitTieGroups: 0`, `comparison: "exact-id-order"`, and no `oracleDivergence` (`freeze-graph-g0-corpus.mjs:1094–1096`). The live disposition is the comments child tie (`:1104–1106`). Comparator claim at `functions.mjs:2824–2833` remains true.
+`issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md:22–25` still says `issueListV2-backward-tied-modified` freezes `oracleDivergence: "direction-tie-break"` and normalizes equal-`modified` groups. HEAD’s case has `residualImplicitTieGroups: 0`, `comparison: "exact-id-order"`, and no `oracleDivergence` (`freeze-graph-g0-corpus.mjs:1094–1096`). The live disposition is the comments child tie (`:1104–1106`). Comparator claim at `functions.mjs:2824–2833` remains true.
 
 `issues/20260823-graph-empty-child-demand-window-vector.md:16–19` still says B3 uses the point/list graph for hidden-root and “does not mint a fake parent or interval.” HEAD freezes `g0-pair-detail-internal-root` on `issueDetail` (`freeze-graph-g0-corpus.mjs:1193–1198`) and `windowVector` always emits a comments interval whose `parentKey.id` is `args.sourceIssueID` (`:514–524`), including `zbav1_internal_issue` on a zero-row root.
 
@@ -737,7 +737,7 @@ Serving control `demos/zerobugs/control/snapback/functions.mjs` is untouched. No
 
 **L5 — FIXED.** Comments `maxWindowPages = ceil(21 / 1024) = 1`, marked provisional (`bound-derivation.v1.json` issueDetail n2; `queries.mjs:184`). Lineage: scanned 1,025, ranges 1, result rows 1, bytes 8,388,608. Rollup: pages 2, root rows 1, scanned 2,092 (= 44 + 2×1024), result rows 2, bytes 16,777,216, ranges 27 — matches §2.6 with `C_comments = 1024`. `bounds_are_fixture_derived` exact-checks this (`graph_corpus_v1.rs:1672-1700`).
 
-**L6 — FIXED.** `issues/20260823-graph-empty-child-demand-window-vector.md` names `g0-pair-detail-hidden-root-empty-child-demand`, empty child intervals, physical parent key, and the B1 `SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID` blocker. `issues/20260823-zerobugs-control-descending-tiebreak-deviation.md` records list as latent (69 `modified` groups, 0 residual `sourceIssueID` groups) and the live comments child tie. Both match HEAD. The third ticket (`issues/20260823-graph-codegen-rust-admission-parity-gaps.md`) still correctly describes the unfixed JS/Rust admission twin; it was not this round’s evidence target.
+**L6 — FIXED.** `issues/20260823-graph-empty-child-demand-window-vector.md` names `g0-pair-detail-hidden-root-empty-child-demand`, empty child intervals, physical parent key, and the B1 `SNAPBACK_GRAPH_WINDOW_VECTOR_INVALID` blocker. `issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md` records list as latent (69 `modified` groups, 0 residual `sourceIssueID` groups) and the live comments child tie. Both match HEAD. The third ticket (`issues/shelved/20260823-graph-codegen-rust-admission-parity-gaps.md`) still correctly describes the unfixed JS/Rust admission twin; it was not this round’s evidence target.
 
 **L7 — FIXED.** Checklist statuses match the artifacts. `G0-BCAST-CLASS` is **NOT SATISFIED** (every base is class 2 / projection class 3, `base-not-class-1`; L1 does not create a class-1 broadcast base). Continuation is claimed as a real `commentsPage` resume with the digest above, not as an unresumed window. Frozen artifact content digests in the draft match the files.
 

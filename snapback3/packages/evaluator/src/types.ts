@@ -28,6 +28,9 @@ export interface Context {
   args: Record<string, Value>;
   now: number | null;
   new_ids: string[];
+  /** Optional lazy source used by S3 durable-operation prediction. Explicit
+   * queued IDs retain priority for inherited corpus and replay callers. */
+  new_id?: () => string | undefined;
   read_time: number | null;
 }
 

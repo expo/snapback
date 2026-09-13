@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
 import { checkProject, startProject } from "../src/node/project.js";
 import { findWorker } from "../src/node/worker.js";
 
 let built = true;
-try { findWorker(); } catch { built = false; }
+try {
+  const worker = findWorker();
+  built = process.env.SNAPBACK3_WORKER !== undefined
+    || (await stat(worker)).mtimeMs >= (await stat(resolve("crates/snapback3-worker/src/capabilities.rs"))).mtimeMs;
+} catch { built = false; }
 
 const schema = `use identity
 

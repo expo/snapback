@@ -311,19 +311,19 @@ not bypass custody or readiness barriers.
 
 The implementation program is split along existing ownership boundaries:
 
-1. `issues/20260816-default-retained-query-facts-js-clients.md` — remove
+1. `issues/shelved/20260816-default-retained-query-facts-js-clients.md` — remove
    retention feature opt-ins for owner-admitted React/headless queries.
 2. `issues/20260816-default-generated-optimistic-projection.md` — attach
    generated mutation IR to ordinary React/Expo/headless presentation.
 3. `issues/20260816-default-headless-outbox-settlement.md` — give the headless
    client a default drain lifecycle.
-4. `issues/20260816-qualify-expo-local-first-carrier.md` — install and qualify
+4. `issues/shelved/20260816-qualify-expo-local-first-carrier.md` — install and qualify
    the carrier Expo needs for durable outbox and evaluator claims.
-5. `issues/20260816-complete-d3-default-local-query-evaluation.md` — execute,
+5. `issues/shelved/20260816-complete-d3-default-local-query-evaluation.md` — execute,
    rather than fork, LLP 0190 D3 and the LLP 0209 agreement seam.
-6. `issues/20260816-swift-local-first-read-path.md` — build native retention
+6. `issues/shelved/20260816-swift-local-first-read-path.md` — build native retention
    and local evaluation.
-7. `issues/20260816-swift-local-first-write-path.md` — build native generated
+7. `issues/shelved/20260816-swift-local-first-write-path.md` — build native generated
    prediction and offline settlement.
 
 Each ticket lands affected-scope tests and documentation with its mechanism.

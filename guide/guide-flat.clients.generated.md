@@ -2033,7 +2033,7 @@ persisted store carrier:
 | Carrier | Receipt persisted by online preparation | Offline cold boot reaches `source: 'persisted-receipt'` | Witness |
 | --- | --- | --- | --- |
 | Browser IndexedDB + Web Locks (browser default) | Yes — the commit defers until this tab's writer election settles (before 2026-08-06 a boot-time election race silently dropped it) | Yes | `packages/snapback-react/cold-boot-binding-indexeddb.test.mjs` (Node simulation: fake IndexedDB plus a Web Locks double); the real-Chrome repro in `demos/warble` remains a manual witness |
-| Expo / registered file store | Yes — the file arm settles writer election before its writer check | Yes, proven for a fresh client in the same process; a physical-device process-kill witness is still open (`issues/20260806-expo-file-carrier-process-kill-witness.md`) | `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs` |
+| Expo / registered file store | Yes — the file arm settles writer election before its writer check | Yes, proven for a fresh client in the same process; a physical-device process-kill witness is still open (`issues/shelved/20260806-expo-file-carrier-process-kill-witness.md`) | `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs` |
 | Memory fallback | In-memory only — nothing survives the process | No — a process-cold boot has neither receipt nor rows | `packages/snapback-react/cold-boot-binding.test.mjs` (two sessions over one memory store in one process) |
 
 A tab that is not the elected writer defers its receipt commit until it is
@@ -4528,7 +4528,7 @@ from it (`binding.source: 'persisted-receipt'`) and renders the retained
 rows through the hooks. The fresh-client witness is
 `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs`; a
 physical-device process-kill witness is still open
-(`issues/20260806-expo-file-carrier-process-kill-witness.md`).
+(`issues/shelved/20260806-expo-file-carrier-process-kill-witness.md`).
 
 The **supervised** provider takes the same fallback on a cold boot with the
 supervisor unreachable. A successful supervised adoption caches the

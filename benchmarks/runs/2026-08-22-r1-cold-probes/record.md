@@ -104,7 +104,7 @@ The required cold native process launch could not run: this macOS host has only
 absent, and the documented `~/Dropbox/APIKeys/MACHINE_FLEET.md` dispatch file
 is absent. This is an environment/evidence blocker, not a Snapback failure.
 The existing owner is
-[`issues/20260821-expo-crypto-adapter-native-witness.md`](../../../issues/20260821-expo-crypto-adapter-native-witness.md);
+[`issues/shelved/20260821-expo-crypto-adapter-native-witness.md`](../../../issues/shelved/20260821-expo-crypto-adapter-native-witness.md);
 the dated attempt is appended there rather than creating a duplicate issue.
 
 ## What a cold agent needed beyond the paved harnesses

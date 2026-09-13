@@ -9,7 +9,7 @@ Server, Test support, Operations
 **Revised:** 2026-08-26
 **Related:** LLP 0039, LLP 0044, LLP 0055, LLP 0058, LLP 0225, LLP 0276,
 LLP 0291, LLP 0303, LLP 0311,
-`issues/20260824-implementation-plans-remaining-p2-rows.md`
+`issues/shelved/20260824-implementation-plans-remaining-p2-rows.md`
 
 ## Summary
 

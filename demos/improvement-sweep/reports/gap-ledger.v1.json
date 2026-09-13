@@ -501,7 +501,7 @@
       "class": "maturity",
       "group": "mobile-floor",
       "disposition": "open-ticket (program-level; LLP 0045/0072/0129 lines)",
-      "ticket": "issues/20260801-0137-a1expo-f5-hosted-mobile-gap.md"
+      "ticket": "issues/shelved/20260801-0137-a1expo-f5-hosted-mobile-gap.md"
     },
     {
       "id": "0137-a1expo-f6-react-expo-guide-page-stale-api-guide-gap",
@@ -562,7 +562,7 @@
       "kind": "program-gap",
       "disposition": "blocked (four unready gates G-C1..G-C4)",
       "artifact": "demos/improvement-sweep/arms/a1-exact-graduation/gap-record.json",
-      "ticket": "issues/20260801-0137-track-c-exact-unready-gate.md"
+      "ticket": "issues/shelved/20260801-0137-track-c-exact-unready-gate.md"
     },
     {
       "id": "assistance-policy-ratification",

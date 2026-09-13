@@ -128,7 +128,7 @@ LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
 LLP 0137,
 issues/closed/20260801-0137-a4expo-f1-no-mobile-push-boundary.md,
 issues/20260801-0137-a4-outbound-notification-effects-unauthorable.md,
-issues/20260801-0137-a1expo-f5-hosted-mobile-gap.md,
+issues/shelved/20260801-0137-a1expo-f5-hosted-mobile-gap.md,
 issues/20260728-guide-gap-assets-and-notifications-capability-rows.md
 
 ## Summary
@@ -519,7 +519,7 @@ provider I/O, and settlement proceed from the durable intent and must not be
 vetoed by a later live-session check. An optional check before reservation may
 only fail fast; it cannot replace the reservation's atomic validation. The
 required implementation correction is tracked by
-`issues/20260823-expo-push-reservation-authority-handoff.md`.
+`issues/shelved/20260823-expo-push-reservation-authority-handoff.md`.
 
 Crash recovery by point, discriminated by the marker: before reserve —
 nothing exists, the send never happened; after reserve or claim,

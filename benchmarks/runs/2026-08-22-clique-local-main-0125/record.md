@@ -52,7 +52,7 @@ not regressions or claims.
 1. **Familiar live-subscription contention — fixed in this sample.** Zero
    `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED` events, no >15s projections, and
    no cross-client disagreement in either lane. The six-subscription repro
-   from `issues/20260820-familiar-live-subscription-contention.md` did not
+   from `issues/shelved/20260820-familiar-live-subscription-contention.md` did not
    recur without a minimized reproducer having landed; treat as encouraging,
    not closed.
 2. **Write-posture migration noise — fixed.** Zero

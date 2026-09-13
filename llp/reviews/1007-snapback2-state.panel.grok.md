@@ -147,7 +147,7 @@ Required, not a wishlist:
 
 4. **Newest-first pagination that paginates.** `issues/20260831-descending-cursor-after-semantics.md`: descending `after` is still exclusive greater-than, so feed page 2 duplicates page 1. Clique M2 is a feed. The workaround (negated-time `ord` column) is not something a fresh agent should have to invent.
 
-5. **Mutation reads and admin authority, at least as a taught refusal.** `issues/20260831-mutation-reads-obey-read-rules-admin-null.md`: `db.get` inside a mutation returns null for rows the viewer's read rule hides; Clique burned two designs. `guide/grammar.md` does not mention it. Minimum: a recipe and a diagnostic. `reads:` per mutation is the paved design (LLP 0329.014.004 dimension L) and is the one language addition I would allow, because the alternative is a denormalized "roster table" every app rediscovers.
+5. **Mutation reads and admin authority, at least as a taught refusal.** `issues/shelved/20260831-mutation-reads-obey-read-rules-admin-null.md`: `db.get` inside a mutation returns null for rows the viewer's read rule hides; Clique burned two designs. `guide/grammar.md` does not mention it. Minimum: a recipe and a diagnostic. `reads:` per mutation is the paved design (LLP 0329.014.004 dimension L) and is the one language addition I would allow, because the alternative is a denormalized "roster table" every app rediscovers.
 
 6. **The default matching the binary.** If the published package still `init`s TypeScript while the guide-of-record says Quarry, the fresh agent is in the two-profile maze on minute one. Either Q1's deletion lands before publish, or the docs say TypeScript until it does.
 

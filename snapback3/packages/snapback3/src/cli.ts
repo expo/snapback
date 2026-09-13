@@ -4,13 +4,19 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { checkProject, errorMessage, startProject } from "./node/project.js";
 import { OwnerError } from "./node/worker.js";
+import { readOperatorCredential } from "./node/operator.js";
 
 const usage = `Snapback 3 — experimental application backend
 
   snapback3 check [projectDir] [--json]
-  snapback3 dev [projectDir] [--port 4383] [--host 127.0.0.1]
-  snapback3 serve [projectDir] [--port 4383] [--host 127.0.0.1]
-  snapback3 run <operation> [JSON] --as alice [--project projectDir]
+  snapback3 dev [projectDir] [--port 4383] [--host 127.0.0.1] [--adopt-legacy-project]
+  snapback3 serve [projectDir] [--port 4383] [--host 127.0.0.1] [--adopt-legacy-project]
+  snapback3 run <operation> [JSON] --as alice|system [--project projectDir]
+  snapback3 operator logs --as system [--project projectDir]
+  snapback3 job enqueue|plan <job> [JSON] --as system [--project projectDir]
+  snapback3 job status|resume|cancel <jobId> --as system [--project projectDir]
+  snapback3 job recover [JSON] --as system [--project projectDir]
+  snapback3 effect logs | list [JSON] | requeue <outboxId> --as system [--project projectDir]
 
 dev runs in the foreground and updates accepted Quarry changes automatically.
 serve disables personas. Both can serve the project's dist/ or public/ files.
@@ -26,7 +32,7 @@ function parse(argv: string[]) {
     if (!argument.startsWith("--")) { positionals.push(argument); continue; }
     const [key, ...inline] = argument.slice(2).split("=");
     if (options.has(key)) throw new OwnerError("S3_INPUT", `--${key} was provided more than once.`);
-    if (key === "help" || key === "json") {
+    if (key === "help" || key === "json" || key === "adopt-legacy-project") {
       if (inline.length) throw new OwnerError("S3_INPUT", `--${key} does not take a value.`);
       options.set(key, true); continue;
     }
@@ -56,6 +62,7 @@ async function main(): Promise<void> {
       root: resolve(positionals[0] ?? "."), dev: command === "dev", port,
       host: options.get("host") as string | undefined,
       origins: options.has("origin") ? [String(options.get("origin"))] : undefined,
+      adoptLegacyProject: options.has("adopt-legacy-project"),
     });
     process.stdout.write(`SNAPBACK_URL=${app.url}\nSnapback 3 ${command} is ready.\n`);
     let stopping = false;
@@ -71,19 +78,21 @@ async function main(): Promise<void> {
   if (command === "run") {
     if (positionals.length < 1 || positionals.length > 2) throw new OwnerError("S3_INPUT", "run needs an operation name and optional JSON arguments.");
     const name = options.get("as");
-    if (typeof name !== "string") throw new OwnerError("S3_INPUT", "Use --as <persona> to run against a development server.");
-    if (name === "system") throw new OwnerError("S3_FORBIDDEN", "The initial Snapback 3 slice has no system operator surface. Use an application persona.");
+    if (typeof name !== "string") throw new OwnerError("S3_INPUT", "Use --as <persona|system> to choose an explicit caller.");
     let args: unknown;
     try { args = JSON.parse(positionals[1] ?? "{}"); }
     catch { throw new OwnerError("S3_INPUT", "Operation arguments must be JSON."); }
     if (!args || typeof args !== "object" || Array.isArray(args)) throw new OwnerError("S3_INPUT", "Operation arguments must be a JSON object.");
-    let url = options.get("url");
-    if (typeof url !== "string") {
-      const root = resolve(String(options.get("project") ?? "."));
-      try { url = JSON.parse(await readFile(join(root, ".snapback3", "dev.json"), "utf8")).url; }
-      catch { throw new OwnerError("S3_OWNER_MISSING", "Start snapback3 dev in this project first, or pass --project <directory>." ); }
-    }
+    const root = resolve(String(options.get("project") ?? "."));
+    const url = await ownerUrl(root, options.get("url"));
     if (typeof url !== "string" || !/^https?:\/\//.test(url)) throw new OwnerError("S3_INPUT", "The development URL is invalid.");
+    if (name === "system") {
+      const token = await operatorToken(root);
+      const result = await request(url, "/control/operator/run", { op: positionals[0], args }, token,
+        "The operator mutation may have committed. Do not replay it automatically; inspect the authenticated operator log.");
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
     const manifest = await request(url, "/api/manifest");
     const op = positionals[0], operation = manifest.programs?.[op];
     if (!operation) throw new OwnerError("S3_OP_UNKNOWN", `Unknown operation ${op}.`);
@@ -101,10 +110,69 @@ async function main(): Promise<void> {
     } else throw new OwnerError("S3_OP_KIND", "run currently supports named queries and mutations.");
     return;
   }
+  if (command === "operator") {
+    if (positionals.length !== 1 || positionals[0] !== "logs") {
+      throw new OwnerError("S3_INPUT", "operator currently supports only logs.");
+    }
+    requireSystem(options);
+    const root = resolve(String(options.get("project") ?? "."));
+    const url = await ownerUrl(root, options.get("url")), token = await operatorToken(root);
+    const result = await request(url, "/control/operator/logs", undefined, token);
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
+  if (command === "job") {
+    const action = positionals.shift();
+    if (!action || !["enqueue", "recover", "plan", "status", "resume", "cancel"].includes(action)) {
+      throw new OwnerError("S3_INPUT", "job needs enqueue, recover, plan, status, resume, or cancel.");
+    }
+    requireSystem(options);
+    const named = action === "enqueue" || action === "plan";
+    const recovering = action === "recover";
+    if ((named && (positionals.length < 1 || positionals.length > 2))
+      || (recovering && positionals.length > 1)
+      || (!named && !recovering && positionals.length !== 1)) {
+      throw new OwnerError("S3_INPUT", named
+        ? `job ${action} needs a job name and optional JSON arguments.`
+        : recovering ? "job recover accepts optional JSON pagination arguments." : `job ${action} needs one job ID.`);
+    }
+    const root = resolve(String(options.get("project") ?? "."));
+    const url = await ownerUrl(root, options.get("url")), token = await operatorToken(root);
+    const path = named || recovering
+      ? `/control/jobs/${action}`
+      : `/control/jobs/${encodeURIComponent(positionals[0])}${action === "status" ? "" : `/${action}`}`;
+    const body = named ? { op: positionals[0], args: parseObject(positionals[1]) }
+      : recovering ? parseObject(positionals[0]) : {};
+    const uncertainty = action === "enqueue"
+      ? "The job may have been enqueued. Do not enqueue it again; run `snapback3 job recover --as system --project <projectDir>` to inspect bounded durable IDs."
+      : ["resume", "cancel"].includes(action)
+        ? `The job ${action} may have committed. Observe the existing job before another operator action.`
+        : undefined;
+    const result = await request(url, path, action === "status" ? undefined : body, token, uncertainty);
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
+  if (command === "effect") {
+    const action = positionals.shift();
+    if (!action || !["logs", "list", "requeue"].includes(action)
+      || (action === "logs" && positionals.length !== 0)
+      || (action === "list" && positionals.length > 1)
+      || (action === "requeue" && positionals.length !== 1)) {
+      throw new OwnerError("S3_INPUT", "effect needs logs, list [JSON], or requeue <outboxId>.");
+    }
+    requireSystem(options);
+    const root = resolve(String(options.get("project") ?? "."));
+    const url = await ownerUrl(root, options.get("url")), token = await operatorToken(root);
+    const path = action === "logs" ? "/control/effects/logs" : action === "list" ? "/control/effects/list" : `/control/effects/${encodeURIComponent(positionals[0])}/requeue`;
+    const result = await request(url, path, action === "logs" ? undefined : action === "list" ? parseObject(positionals[0]) : {}, token,
+      action === "requeue" ? "The explicit effect requeue may have committed. Inspect effect logs before another recovery action." : undefined);
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
   throw new OwnerError("S3_INPUT", `Unknown command ${command}. Run snapback3 --help.`);
 }
 
-async function request(url: string, path: string, body?: unknown, token?: string): Promise<any> {
+async function request(url: string, path: string, body?: unknown, token?: string, uncertainty?: string): Promise<any> {
   let response: Response;
   try {
     response = await fetch(new URL(path, url), {
@@ -112,10 +180,52 @@ async function request(url: string, path: string, body?: unknown, token?: string
       headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-  } catch { throw new OwnerError("S3_TRANSPORT", "The development server did not answer. A submitted write may have committed; retain its printed operation ID."); }
-  const result = await response.json() as any;
-  if (!response.ok) throw new OwnerError(result.error?.code ?? "S3_HTTP", result.error?.message ?? `Server returned HTTP ${response.status}.`);
+  } catch { throw new OwnerError("S3_TRANSPORT", uncertainty ?? "The development server did not answer. A submitted write may have committed; retain its printed operation ID."); }
+  let result: any;
+  try {
+    result = await response.json();
+  } catch {
+    throw new OwnerError(
+      "S3_RESPONSE",
+      uncertainty
+        ? `The development server returned an unreadable response after submission.\n${uncertainty}`
+        : "The development server returned an unreadable response.",
+    );
+  }
+  if (!response.ok) {
+    const code = result.error?.code ?? "S3_HTTP";
+    const message = result.error?.message ?? `Server returned HTTP ${response.status}.`;
+    const submittedUnknown = response.status >= 500 || String(code).startsWith("S3_WORKER");
+    throw new OwnerError(code, uncertainty && submittedUnknown && !message.includes("job recover")
+      ? `${message}\n${uncertainty}` : message);
+  }
   return result;
+}
+
+async function ownerUrl(root: string, configured: string | true | undefined): Promise<string> {
+  if (typeof configured === "string") return configured;
+  try { return JSON.parse(await readFile(join(root, ".snapback3", "dev.json"), "utf8")).url; }
+  catch { throw new OwnerError("S3_OWNER_MISSING", "Start snapback3 dev in this project first, or pass --project <directory>."); }
+}
+
+async function operatorToken(root: string): Promise<string> {
+  try { return await readOperatorCredential(root); }
+  catch (error) {
+    if (error instanceof OwnerError) throw error;
+    throw new OwnerError("S3_OPERATOR_CREDENTIAL", "The local operator credential is unavailable. Start this project's owner first.");
+  }
+}
+
+function requireSystem(options: Map<string, string | true>): void {
+  if (options.get("as") !== "system") throw new OwnerError("S3_FORBIDDEN", "This command requires the explicit local operator seat: --as system.");
+}
+
+function parseObject(source: string | undefined): Record<string, unknown> {
+  let value: unknown;
+  try { value = JSON.parse(source ?? "{}"); }
+  catch { throw new OwnerError("S3_INPUT", "Operation arguments must be JSON."); }
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new OwnerError("S3_INPUT", "Operation arguments must be a JSON object.");
+  return value as Record<string, unknown>;
 }
 
 function expandRows(envelope: any): unknown {

@@ -130,11 +130,11 @@ fresh session from the other model family, which was not invoked.
 6. **Orchestrator/tooling gap: lane-setup assumes a starter log per milestone.**
    M4–M8 have none, so the generated orientation listed reduced scope; full
    scope had to ride in the prompt. Filed as
-   `issues/20260822-lane-setup-starter-assumption.md`.
+   `issues/shelved/20260822-lane-setup-starter-assumption.md`.
 7. **Handoff not self-contained (explicit M7).** The exported M7 handoff's
    replay scripts referenced fixture paths relative to the original lane root
    (`ENOENT .../handoff/instrument/...`), so the M7 fresh session first failed
-   to re-seed. Filed as `issues/20260822-m7-handoff-not-self-contained.md`.
+   to re-seed. Filed as `issues/shelved/20260822-m7-handoff-not-self-contained.md`.
 
 Native-artifact (iOS simulator) assertions for M6/M8 were attempted only through
 the contract's prerequisite check and recorded `null/not-recorded` in both web

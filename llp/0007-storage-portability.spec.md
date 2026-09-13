@@ -941,7 +941,7 @@ vocabulary is unchanged by this amendment.
 **The identity-column boundary, recorded so it is not rediscovered.** The
 companion porting gap — a server-owned monotonic numeric column with a
 configurable start, PostgreSQL's `GENERATED ... AS IDENTITY`
-(`issues/20260808-numeric-identity-default-columns.md`) — is deliberately
+(`issues/shelved/20260808-numeric-identity-default-columns.md`) — is deliberately
 *not* answered by this amendment, and the schema surface deliberately did not
 grow a counter of its own. Three standing facts converge:
 

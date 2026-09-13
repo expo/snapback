@@ -8,10 +8,10 @@ supervisor assumption pending the author's ratification (see §6).
 **Date:** 2026-08-27
 **Revised:** 2026-08-27 (initial)
 **Related:** LLP 0283, LLP 0303, LLP 0313 §8, LLP 0284, LLP 0311, LLP 0165,
-`issues/20260826-root-identity-mechanism-survey.md`,
-`issues/20260826-landing-a-cannot-establish-file-wide-authority.md`,
-`issues/20260826-step-up-claimant-root-requires-new-ceremony.md`,
-`issues/20260826-security-gate-is-an-instance-of-the-defect.md`
+`issues/shelved/20260826-root-identity-mechanism-survey.md`,
+`issues/shelved/20260826-landing-a-cannot-establish-file-wide-authority.md`,
+`issues/shelved/20260826-step-up-claimant-root-requires-new-ceremony.md`,
+`issues/shelved/20260826-security-gate-is-an-instance-of-the-defect.md`
 
 ## 1. The decision
 
@@ -76,7 +76,7 @@ that the strong profile fail closed rather than pretend.
 This is the load-bearing operational consequence, and it is what makes the
 adversarial review loop finite.
 
-`issues/20260826-security-gate-is-an-instance-of-the-defect.md` records that the
+`issues/shelved/20260826-security-gate-is-an-instance-of-the-defect.md` records that the
 workspace security gate is itself an instance of the DERIVE-over-VERIFY defect:
 it validates an authority for liveness while the subject it acts on is supplied
 independently. Sixteen adversarial rounds against that gate each closed a
@@ -134,7 +134,7 @@ advisory.
 
 **Not a residual, and not dismissible** — the false-witness class. A regression
 test for a security property must be shown to fail when that property is
-removed (`issues/20260826-regression-tests-must-fail-when-reverted.md`). Round
+removed (`issues/shelved/20260826-regression-tests-must-fail-when-reverted.md`). Round
 11 found two witnesses that passed with or without their claimed protection.
 Scoping does not touch this: a witness that cannot fail is worthless in every
 profile.

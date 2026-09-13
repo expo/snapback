@@ -1,0 +1,147 @@
+{
+  "format": "snapback3-native-platform-result/1",
+  "result": "PASS",
+  "completedAt": "2026-09-13T02:43:14.762Z",
+  "scope": "focused actual Expo/Hermes native witness; does not replace canonical Clique M6/M8",
+  "buildClaim": "fixed-native integration snapshot; no Cargo executed; not final whole-product package",
+  "runId": "native-witness-local-20260913T022601Z-a2",
+  "runtime": {
+    "os": "iOS 26.5 (23F77)",
+    "deviceModel": "iPhone 17 Pro simulator",
+    "expoGo": "57.0.9",
+    "expo": "57.0.11",
+    "reactNative": "0.86.3",
+    "hermes": true,
+    "entrypoint": "createExpoClient({ url })",
+    "overrides": []
+  },
+  "bindings": {
+    "packageSha256": "cafa9b8b1487ab6b5928731f568550af644258776b123ef4b359548f4824bbcd",
+    "packageSourceSha256": "e0712a87cc4c2e1f508d6e02e3b6409f529871985c5a4049f05a27d689eb5cea",
+    "workerSha256": "6f7b4b92a288947ab3bc09247e29fb31cd5ae22791811becb17f2a9bda329a5c",
+    "runnerSha256": "4069c31ee7f54518febdba0f080e5b6d4b40d3b8f72a1973043641acad7cb19b",
+    "proofHelpersSha256": "936f2adf7ea640b8b57662f758bdeedfb6e4cfcdacec4e952d1167261962d7cb",
+    "appSha256": "7da8e734cc24a7f2ae6dd0ec94a7ab66fac21a60edfa3a492b2826d773af344c"
+  },
+  "assertions": {
+    "hermesAndNativeDefaults": true,
+    "localAuthentication": true,
+    "knownRowsAndDurableAcquisition": true,
+    "liveDefaultExpoStreaming": true,
+    "contentAndAuthUnavailable": true,
+    "noMutationRequestDuringOutage": true,
+    "firstProcessDeathAndOfflineRestore": true,
+    "sameImmutableIdsAndBodies": true,
+    "fifoExactlyOnceReplayRequests": true,
+    "exactlyOnceAuthoritativeRows": true,
+    "durableServerTerminals": true,
+    "secondProcessDeathAndTerminalRestore": true,
+    "allExpoProcessesTerminated": true
+  },
+  "rootAudit": {
+    "ok": true,
+    "entireImmutableRequestsEqualReplay": true,
+    "allThreeClientDatabaseHashesVerified": true,
+    "nativeV3ComparedSourceFiles": 18,
+    "nativeV3SourceMismatches": []
+  },
+  "offline": {
+    "contentAndAuthResponses503": 4,
+    "mutationRequests": 0,
+    "instrumentationAndMetroReachable": true
+  },
+  "live": {
+    "successfulDefaultExpoStreamingRequests": 2
+  },
+  "operations": [
+    {
+      "id": "fac2c013-57f7-476f-ba71-ce5d157f7c38",
+      "ordinal": 1,
+      "immutableRequest": {
+        "args": {
+          "body": "Offline FIFO alpha survives OS process death",
+          "clientTag": "offline-alpha",
+          "conversationId": "native-room"
+        },
+        "intent": "fac2c013-57f7-476f-ba71-ce5d157f7c38",
+        "op": "messages.send",
+        "planHash": "df255c029b96c8dda341c66aeab9d96a46f40687b1bc75ace336c0573bec9fb8",
+        "schemaHash": "291e78840e2edd63353b89a0260d37fdbde77898c2ab2c2a9d746cf397b25c57"
+      },
+      "serverRequestDigest": "33685f36d8d34e37cb99e9172f4547e427444b529ed9c1b241b2c1add60adc1c",
+      "statusesAcrossClientBackups": [
+        "queued",
+        "committed",
+        "committed"
+      ],
+      "committedSeq": 3
+    },
+    {
+      "id": "9c058442-cb2b-4720-8467-3558772e968e",
+      "ordinal": 2,
+      "immutableRequest": {
+        "args": {
+          "body": "Offline FIFO beta survives OS process death",
+          "clientTag": "offline-beta",
+          "conversationId": "native-room"
+        },
+        "intent": "9c058442-cb2b-4720-8467-3558772e968e",
+        "op": "messages.send",
+        "planHash": "df255c029b96c8dda341c66aeab9d96a46f40687b1bc75ace336c0573bec9fb8",
+        "schemaHash": "291e78840e2edd63353b89a0260d37fdbde77898c2ab2c2a9d746cf397b25c57"
+      },
+      "serverRequestDigest": "9cdf98d641d4146aa70e647eacd08aa357ffcf0085acc10f9f0b2d267ff492a8",
+      "statusesAcrossClientBackups": [
+        "queued",
+        "committed",
+        "committed"
+      ],
+      "committedSeq": 4
+    }
+  ],
+  "sqliteSha256": {
+    "queued": "6239ef1097152e5c293aa8295a609e515df9092d692ac8448212b105c5bd6fb1",
+    "settled": "2fad898b0ebcf4d0ff1f6e090ea7e3f73a824b33c901e3e3d6034ea729ed573f",
+    "final": "2fad898b0ebcf4d0ff1f6e090ea7e3f73a824b33c901e3e3d6034ea729ed573f",
+    "server": "31d284a8c54ffe2dc343e4f9bd403f2e05eabe601871b2aa886435a6ce96b9dd"
+  },
+  "processes": [
+    {
+      "name": "initial-expo-go",
+      "pid": 85175,
+      "startedAt": "2026-09-13T02:43:02.021Z",
+      "endedAt": "2026-09-13T02:43:06.587Z",
+      "termination": "first-process-death"
+    },
+    {
+      "name": "restart-offline-expo-go",
+      "pid": 85950,
+      "startedAt": "2026-09-13T02:43:07.003Z",
+      "endedAt": "2026-09-13T02:43:10.871Z",
+      "termination": "second-process-death"
+    },
+    {
+      "name": "final-relaunch-expo-go",
+      "pid": 86574,
+      "startedAt": "2026-09-13T02:43:11.284Z",
+      "endedAt": "2026-09-13T02:43:14.557Z",
+      "termination": "final-teardown"
+    }
+  ],
+  "evidence": {
+    "localRunPath": ".llp/ship-runs/20260912-snapback3-full-clique/native-witness-local-20260913T022601Z/evidence",
+    "trackedRawEvidence": false,
+    "rawResultSha256": "0fc31d2b8318a3dc21b9ddee88cf1eb66c525149988d013950478c729afbe52d",
+    "qualificationSha256": "c5d2aab30cefcaa2ba07f100cde7393495d2df7c5f312a663cb5c19e22b1d1ef",
+    "manifestSha256": "c6e1248daa26e26d521968dd460bc0528a61990dcf9a3dff82c0a7a9f6b40eed",
+    "rootAuditSha256": "4bdcb4aef1bd6b7786df89c300ad611f445c3f07a7edda4ad122d04674c39d66"
+  },
+  "limits": [
+    "Backend unavailable; Metro and the instrumentation endpoint remained reachable. This does not qualify airplane-mode bundle startup.",
+    "Two queued operations and a small known dataset; no acquisition performance claim.",
+    "An actual app process was terminated twice; the simulator OS itself was not rebooted.",
+    "This private integration package uses a frozen worker and does not qualify the latest full product or a Cargo-backed release.",
+    "Full Clique M6/M8, Android, native media, native search, scale and a shipping app remain unqualified.",
+    "Prior failed attempts remain under the ignored run root; unavailable Durand final remote PID audit remains unconfirmed."
+  ]
+}

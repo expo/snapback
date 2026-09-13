@@ -19,6 +19,9 @@ use std::os::raw::{c_char, c_int};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[path = "store_outbox.rs"]
+mod store_outbox;
+
 const STORE_VERSION: &str = "2";
 const ID_NAMESPACE_KEY: &str = "id_namespace";
 const ID_HIGH_WATER_KEY: &str = "id_high_water";
@@ -85,6 +88,32 @@ pub struct OutboxCounts {
 pub struct OutboxClaim {
     pub failed: Vec<OutboxRow>,
     pub claimed: Option<OutboxRow>,
+    pub more: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct EffectClaimBinding {
+    pub then_op: Option<String>,
+    pub identity: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutboxRecoverySummary {
+    pub id: String,
+    pub effect: String,
+    pub state: String,
+    pub attempts: u32,
+    pub last_error: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutboxRecoveryPage {
+    pub items: Vec<OutboxRecoverySummary>,
+    pub continuation: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,9 +130,12 @@ pub struct OutboxRow {
     pub result: Option<serde_json::Value>,
     pub then_op: Option<String>,
     pub then_seq: Option<u64>,
-    /// Project generation active when this row was claimed. The retained
-    /// declaration metadata for that generation binds restart replay.
+    /// Project effect generation active when this row was claimed, retained
+    /// for diagnostics. `claim_binding` is the execution custody fence.
     pub generation: Option<String>,
+    /// Stable, target-specific claim custody. Legacy rows have no identity and
+    /// therefore fail closed before `then` conversion or execution.
+    pub claim_binding: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -216,6 +248,7 @@ impl Store {
                 result TEXT,
                 then_op TEXT,
                 generation TEXT,
+                claim_binding TEXT,
                 then_seq INTEGER,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
@@ -325,6 +358,7 @@ impl Store {
         ensure_column(connection, "_commits", "schedule", "TEXT")?;
         ensure_column(connection, "_outbox", "then_op", "TEXT")?;
         ensure_column(connection, "_outbox", "generation", "TEXT")?;
+        ensure_column(connection, "_outbox", "claim_binding", "TEXT")?;
         ensure_column(connection, "_outbox", "then_seq", "INTEGER")?;
         ensure_column(connection, "_assets", "released_at", "INTEGER")?;
         ensure_column(
@@ -513,8 +547,12 @@ impl Store {
     }
 
     /// Persist a refusal made at owner admission after the grant and slice were validated.
-    pub fn record_replay_rejection(&self, principal: &str, replay: &ReplayCommit,
-        response: &serde_json::Value) -> Result<(), RuntimeError> {
+    pub fn record_replay_rejection(
+        &self,
+        principal: &str,
+        replay: &ReplayCommit,
+        response: &serde_json::Value,
+    ) -> Result<(), RuntimeError> {
         let transaction = self.conn.unchecked_transaction()?;
         let seq = self.commit_seq()?;
         Self::record_replay_terminal(&transaction, principal, replay, response, seq)?;
@@ -529,7 +567,13 @@ impl Store {
         response: &serde_json::Value,
         seq: u64,
     ) -> Result<(), RuntimeError> {
-        Self::record_terminal(transaction, principal, &crate::operations::TerminalCommit::from(replay), response, seq)
+        Self::record_terminal(
+            transaction,
+            principal,
+            &crate::operations::TerminalCommit::from(replay),
+            response,
+            seq,
+        )
     }
 
     pub(crate) fn sweep_offline(&self, now: i64) -> Result<(), RuntimeError> {
@@ -643,127 +687,18 @@ impl Store {
         Ok(counts)
     }
 
-    /// Fail queued rows outside `declared_names`, then claim the oldest ready
-    /// declared row and bind it to the current effect declaration. Unknown
-    /// settlement, selection, `running`, the attempt increment, and the binding
-    /// are committed together before any row leaves the writer; the failed rows
-    /// are read inside that transaction so the report matches what committed.
+    /// Compatibility claim for direct store callers. Runtime-owned claims use
+    /// target-specific binding identity; a direct claim with a `then` deliberately
+    /// leaves legacy custody that later fails closed.
     // @ref LLP 1003#2-the-outbox-lifecycle — a claim is atomic and binds restart replay to its declaration.
     pub fn outbox_claim_next(
         &self,
         now: i64,
         declared_names: &[String],
     ) -> Result<OutboxClaim, RuntimeError> {
-        let transaction = self.conn.unchecked_transaction()?;
-        let placeholders = (0..declared_names.len())
-            .map(|index| format!("?{}", index + 2))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let unknown_predicate = if declared_names.is_empty() {
-            String::new()
-        } else {
-            format!(" AND effect NOT IN ({placeholders})")
-        };
-        let unknown_params = || {
-            params_from_iter(
-                std::iter::once(&now as &dyn rusqlite::ToSql).chain(
-                    declared_names
-                        .iter()
-                        .map(|name| name as &dyn rusqlite::ToSql),
-                ),
-            )
-        };
-        // `?1 IS NOT NULL` keeps the shared parameter list valid with no declarations.
-        let failed_sql = format!(
-            "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at, then_seq
-             FROM _outbox WHERE state = 'queued'{unknown_predicate} AND ?1 IS NOT NULL
-             ORDER BY seq, id"
-        );
-        let mut statement = transaction.prepare(&failed_sql)?;
-        let failed = statement
-            .query_map(unknown_params(), raw_outbox_row)?
-            .map(|row| decode_outbox_row(row?))
-            .collect::<Result<Vec<_>, _>>()?;
-        drop(statement);
-        let unknown_sql = format!(
-            "UPDATE _outbox
-             SET state = 'failed', last_error = 'E_EFFECT_UNKNOWN', updated_at = ?1
-             WHERE state = 'queued'{unknown_predicate}"
-        );
-        transaction.execute(&unknown_sql, unknown_params())?;
-        let mut claim = OutboxClaim {
-            failed,
-            claimed: None,
-        };
-        if declared_names.is_empty() {
-            transaction.commit()?;
-            return Ok(claim);
-        }
-        let candidate_sql = format!(
-            "SELECT id, effect FROM _outbox
-             WHERE state = 'queued' AND next_at <= ?1 AND effect IN ({placeholders})
-             ORDER BY next_at ASC, created_at ASC, id ASC LIMIT 1"
-        );
-        let candidate = transaction
-            .query_row(
-                &candidate_sql,
-                params_from_iter(
-                    std::iter::once(&now as &dyn rusqlite::ToSql).chain(
-                        declared_names
-                            .iter()
-                            .map(|name| name as &dyn rusqlite::ToSql),
-                    ),
-                ),
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-            )
-            .optional()?;
-        let Some((id, effect)) = candidate else {
-            transaction.commit()?;
-            return Ok(claim);
-        };
-        let effects = transaction
-            .query_row(
-                "SELECT value FROM _meta WHERE key = 'effects_json'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?
-            .map(|json| {
-                serde_json::from_str::<BTreeMap<String, EffectDecl>>(&json)
-                    .map_err(|error| RuntimeError::Serialization(error.to_string()))
-            })
-            .transpose()?
-            .unwrap_or_default();
-        let declaration = effects.get(&effect).ok_or_else(|| {
-            RuntimeError::Serialization(format!(
-                "declared effect {effect} is missing from current store metadata"
-            ))
-        })?;
-        let then_op = declaration.then.as_deref();
-        let generation = transaction
-            .query_row(
-                "SELECT value FROM _meta WHERE key = 'effects_generation'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        let changed = transaction.execute(
-            "UPDATE _outbox
-             SET state = 'running', attempts = attempts + 1,
-                 then_op = ?1, generation = ?2, updated_at = ?3
-             WHERE id = ?4 AND state = 'queued' AND next_at <= ?3",
-            params![then_op, generation, now, id],
-        )?;
-        if changed != 1 {
-            transaction.commit()?;
-            return Ok(claim);
-        }
-        claim.claimed = outbox_get_connection(&transaction, &id)?;
-        transaction.commit()?;
-        Ok(claim)
+        let declarations = self.effect_claims_without_target_identity(declared_names)?;
+        self.outbox_claim_next_bound(now, &declarations)
     }
-
     pub fn outbox_settle(
         &self,
         id: &str,
@@ -794,6 +729,7 @@ impl Store {
                 END,
                 then_op = CASE WHEN ?1 = 'queued' THEN NULL ELSE then_op END,
                 generation = CASE WHEN ?1 = 'queued' THEN NULL ELSE generation END,
+                claim_binding = CASE WHEN ?1 = 'queued' THEN NULL ELSE claim_binding END,
                 updated_at = ?5
              WHERE id = ?6 AND (
                 state = 'running' OR (?1 = 'failed' AND state = 'then_pending')
@@ -848,7 +784,7 @@ impl Store {
     pub fn outbox_for_seq(&self, seq: u64) -> Result<Vec<OutboxRow>, RuntimeError> {
         let mut statement = self.conn.prepare(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at, then_seq
+                    last_error, result, then_op, generation, claim_binding, created_at, updated_at, then_seq
              FROM _outbox WHERE seq = ?1 ORDER BY created_at ASC, id ASC",
         )?;
         let rows = statement.query_map([seq as i64], raw_outbox_row)?;
@@ -871,7 +807,7 @@ impl Store {
         let (seq, id) = after.unwrap_or((0, ""));
         let mut statement = self.conn.prepare(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at, then_seq
+                    last_error, result, then_op, generation, claim_binding, created_at, updated_at, then_seq
              FROM _outbox WHERE (?1 IS NULL OR state = ?1)
                AND (seq > ?2 OR (seq = ?2 AND id > ?3)) AND seq <= ?4
              ORDER BY seq, id LIMIT ?5",
@@ -901,7 +837,7 @@ impl Store {
     pub fn outbox_then_pending(&self, limit: usize) -> Result<Vec<OutboxRow>, RuntimeError> {
         let mut statement = self.conn.prepare(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at, then_seq
+                    last_error, result, then_op, generation, claim_binding, created_at, updated_at, then_seq
              FROM _outbox WHERE state = 'then_pending'
              ORDER BY created_at ASC, id ASC LIMIT ?1",
         )?;
@@ -915,7 +851,7 @@ impl Store {
         let changed = self.conn.execute(
             "UPDATE _outbox SET state = 'queued', attempts = 0, next_at = ?1,
                     last_error = NULL, result = NULL, then_op = NULL, then_seq = NULL,
-                    generation = NULL, updated_at = ?1
+                    generation = NULL, claim_binding = NULL, updated_at = ?1
              WHERE id = ?2 AND state IN ('sent_unknown', 'failed')",
             params![now, id],
         )?;
@@ -962,6 +898,7 @@ type RawOutboxRow = (
     Option<String>,
     Option<String>,
     Option<String>,
+    Option<String>,
     i64,
     i64,
     Option<u64>,
@@ -983,6 +920,7 @@ fn raw_outbox_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawOutboxRow> {
         row.get(11)?,
         row.get(12)?,
         row.get(13)?,
+        row.get(14)?,
     ))
 }
 
@@ -999,6 +937,7 @@ fn decode_outbox_row(raw: RawOutboxRow) -> Result<OutboxRow, RuntimeError> {
         result,
         then_op,
         generation,
+        claim_binding,
         created_at,
         updated_at,
         then_seq,
@@ -1022,6 +961,7 @@ fn decode_outbox_row(raw: RawOutboxRow) -> Result<OutboxRow, RuntimeError> {
         then_op,
         then_seq,
         generation,
+        claim_binding,
         created_at,
         updated_at,
     })
@@ -1034,7 +974,7 @@ fn outbox_get_connection(
     connection
         .query_row(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at, then_seq
+                    last_error, result, then_op, generation, claim_binding, created_at, updated_at, then_seq
              FROM _outbox WHERE id = ?1",
             [id],
             raw_outbox_row,

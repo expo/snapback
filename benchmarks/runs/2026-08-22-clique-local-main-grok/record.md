@@ -65,7 +65,7 @@ compaction at 1787398057 that forced run-log reconstruction.
    reply count incremented. `messagesForConversation` had the same family
    of miss until it became a JS live query. Workaround: `defineJsLiveQuery`
    plus a local cache. Filed as
-   `issues/20260822-guide-gap-table-live-query-blank-after-insert.md`.
+   `issues/shelved/20260822-guide-gap-table-live-query-blank-after-insert.md`.
 2. **CanonicalClientValueV1 `maxNodes=4096` can refuse Expo boot.** Adding
    M3 queries grew `app.api.queries` to ~6,251 nodes and blanked the web
    app with `SNAPBACK_REACT_ARGS_INVALID`. Deleting unused queries and

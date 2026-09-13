@@ -1,7 +1,10 @@
 # Issues
 
-An issue is a markdown file. Open issues live in `issues/YYYYMMDD-slug.md`. Closed ones
-live in `issues/closed/` and carry a one-line resolution. That is the whole mechanism.
+An issue is a markdown file. Open issues in the working set live in
+`issues/YYYYMMDD-slug.md`. Closed ones live in `issues/closed/` and carry a
+one-line resolution. Tickets that are parked without being closed live in
+`issues/shelved/` (**Status:** stays Open). The format checker scans the
+working set and `closed/` only.
 
 The official word is **issue** — the directory is `issues/`, the tool is `issue.mjs`, the
 command is `issue new`. People will say "ticket" and everyone will know what they mean;
@@ -61,6 +64,8 @@ stack is required to have.
 
 ## What this is not
 
-Not a workflow engine. There are two states. There is no triage queue, no assignee, no
-sprint, no automation that moves issues between states on your behalf. Those are what a
-tracker is for, and reaching for one is a signal that this issue has graduated.
+Not a workflow engine. Status is still only `Open` or `Closed`. `shelved/` is a
+location, not a third status: the ticket remains open, just outside the working
+set. There is no triage queue, no assignee, no sprint, no automation that moves
+issues between states on your behalf. Those are what a tracker is for, and
+reaching for one is a signal that this issue has graduated.

@@ -13,7 +13,7 @@ same-day — 0269 was already claimed by llp/0269-storage-graduation.plan.md,
 which landed first)
 **Related:** LLP 0134, LLP 0189, LLP 0130,
 `issues/20260816-llp0134-d4-range-relaxation-needs-sound-derivation.md`,
-`issues/20260816-capability-maturity-a5-merge-bypass.md`
+`issues/shelved/20260816-capability-maturity-a5-merge-bypass.md`
 
 ## Summary — the decision
 
@@ -150,7 +150,7 @@ carrying to implementation.
 Two real weaknesses in the *existing* exact-pin gate were found while designing
 the relaxation. They are worth fixing **independently** of range relaxation,
 because they harden exact-pin itself. They are filed as a small follow-up ticket,
-`issues/20260816-capability-maturity-a5-merge-bypass.md`:
+`issues/shelved/20260816-capability-maturity-a5-merge-bypass.md`:
 
 - **A5 sole-parent merge bypass (a real exact-pin hole).**
   `validateTransitionRange` skips every commit with ≠1 parent unconditionally

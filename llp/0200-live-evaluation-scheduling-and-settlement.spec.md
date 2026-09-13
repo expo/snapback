@@ -33,8 +33,8 @@ LLP 0094 (wire negotiation and pressure-interest registration),
 LLP 0114 (query groups), LLP 0135 (optimistic overlay / withheld changesets),
 LLP 0219 (client diagnostic carrier), LLP 0267 (overload episode registry),
 `issues/closed/20260808-oq4-coalescing-measurement-spike.md` (measured
-basis), `issues/20260808-live-query-reevaluation-cost-at-scale.md`
-(workstream anchor), `issues/20260808-d2-d4-owner-specs-commission.md`
+basis), `issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md`
+(workstream anchor), `issues/shelved/20260808-d2-d4-owner-specs-commission.md`
 
 ## 0. Charter
 
@@ -536,7 +536,7 @@ preserved under the committed harness):**
 - **H-1: NOT met.** Settle p50 at six observers is ~15 s, not < 1 s:
   mutations and evaluation turns share the instance lock without write
   priority, so burst settles queue behind interleaved ~0.9 s turns
-  (`issues/20260808-p1-write-priority-scheduling.md` — §2.5's fairness
+  (`issues/shelved/20260808-p1-write-priority-scheduling.md` — §2.5's fairness
   content pulled into the immediate remainder). Zero-observer settle
   regressed 171→629 ms (~4× per-commit-turn overhead,
   `issues/20260808-p1-commit-turn-overhead.md`). Fence-applied p95 is
@@ -635,7 +635,7 @@ just-arrived writer waits behind (structural until turn cost falls),
 evaluation cost at 5.5M rows — the D2 sharing/widening ladder, not
 scheduling. Fence-applied p95 remains unmeasured (the hot inventory
 still fires no mid-burst authority transitions; the requalification
-arm still needs one). `issues/20260808-p1-write-priority-scheduling.md`
+arm still needs one). `issues/shelved/20260808-p1-write-priority-scheduling.md`
 is refreshed to carry exactly this remainder. Formal N≥3
 requalification per LLP 0189 stays gated on the remainder ticket.
 
@@ -702,7 +702,7 @@ obligation-only frames (no same-envelope proof — reprojection/backpressure
 hints under sustained load) each restored by the next delivery. Whether
 those hint frames should carry the current ticket or ride LLP 0053's
 retain producer is
-`issues/20260809-sustained-reprojection-hints-still-quarantine.md`.
+`issues/shelved/20260809-sustained-reprojection-hints-still-quarantine.md`.
 
 Authority arm (burst 6-obs, 4 mid-burst transitions 1.5 s apart):
 fence-applied p95 **0.09 ms** across 20 per-subscription markings
@@ -771,13 +771,13 @@ Phase 4 (§2.6 lifecycle closure + the §3/§5 deferred remainder) landed:
 default-on, A/B'd, fix-forward per LLP 0189. Open remainders, by owner:
 
 - H-1 numeric remainder + N≥3 requalification of H-1/H-2/H-3/H-4
-  (`issues/20260808-p1-write-priority-scheduling.md`): the
+  (`issues/shelved/20260808-p1-write-priority-scheduling.md`): the
   unpreemptible in-flight turn and raw evaluation cost are D2-ladder
   scope; the stage-turn bisect is
   `issues/20260809-mutate-stage-turn-cost-bisect.md`.
 - H-3 convergence clause (evaluation-cost bound; D2 sharing/widening).
 - Sustained-load hint-frame quarantines
-  (`issues/20260809-sustained-reprojection-hints-still-quarantine.md`).
+  (`issues/shelved/20260809-sustained-reprojection-hints-still-quarantine.md`).
 - OQ-1 (hosted DO profile mapping), OQ-3 (watermark wire economics at
   high commit rates), and the OQ-4 owner-document review remain open
   spec questions; v0.4's post-round-3 repairs remain unreviewed.
@@ -787,7 +787,7 @@ default-on, A/B'd, fix-forward per LLP 0189. Open remainders, by owner:
 **DRAFT-PENDING-REVIEW — design only.** This amendment has not been accepted
 and changes no served protocol or client behavior. It is the proposed closure
 mechanism for Wanted #4 in
-`issues/20260820-familiar-live-subscription-contention.md`, after the
+`issues/shelved/20260820-familiar-live-subscription-contention.md`, after the
 2026-08-25 review retracted the commit-relative five-second client timer. An
 implementation round may begin only after this amendment survives review.
 

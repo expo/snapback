@@ -62,7 +62,7 @@ further reviewed round)
 LLP 0030, LLP 0044, LLP 0061, LLP 0072, LLP 0081, LLP 0088, LLP 0097,
 LLP 0099, LLP 0113, LLP 0134, LLP 0158, LLP 0162, LLP 0163, LLP 0164,
 LLP 0165, LLP 0184; `issues/20260803-guide-gap-instance-forks.md`;
-`issues/20260803-agent-safe-storage-acceptance-tail.md`
+`issues/shelved/20260803-agent-safe-storage-acceptance-tail.md`
 
 ## Summary
 

@@ -2033,7 +2033,7 @@ async function freezeFilterOrderMatrix({
           ? 'exact-after-pinned-physical-id-tiebreak-normalization'
           : 'exact',
         deviationTicket: orderWasNormalized
-          ? 'issues/20260823-zerobugs-control-descending-tiebreak-deviation.md'
+          ? 'issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md'
           : null,
         present: {
           rawDigest: worlds.present.rawOracleDigest,
@@ -2372,13 +2372,13 @@ function normalizationDisposition(rawOrder, normalizedOrder, direction, authorit
       ? 'exact-after-pinned-physical-id-tiebreak-normalization'
       : 'exact',
     deviationTicket: orderWasNormalized
-      ? 'issues/20260823-zerobugs-control-descending-tiebreak-deviation.md'
+      ? 'issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md'
       : null,
   };
   if (direction === 'backward') {
     assert(
       disposition.comparison === 'exact'
-        || disposition.deviationTicket === 'issues/20260823-zerobugs-control-descending-tiebreak-deviation.md',
+        || disposition.deviationTicket === 'issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md',
       'every backward row has an explicit exact or authorized-normalization disposition',
     );
   }

@@ -35,7 +35,7 @@ LLP 0074 gate 2, including the durable-row secret scans.
   `75d7202611cbe4d912f21f83f10384852331d9c043512c1076724cfab0b8751a`;
   the embedded provenance pins patch-stack digest
   `sha256-9a846368e13304659cb6e0d4be78853bad6415de01f68a4191f7cd9b3af2c7d7`.
-  `issues/20260803-linux-hermes-release-carrier-gap.md` tracks restoring the
+  `issues/shelved/20260803-linux-hermes-release-carrier-gap.md` tracks restoring the
   ordinary published-artifact path.
 
   On 2026-08-07, the `hermes-artifacts` workflow publishes on every Ibex
@@ -207,7 +207,7 @@ control logs with a verified `remoteProviderAttestation`, and a platform
 stop/start interruption observed through the adapter. Receipt:
 `demos/competitive-checkpoint/acceptance/results/control-plane-remote.v0.json`.
 Lifecycle operations are deliberately unimplemented in this driver slice and
-fail closed (`issues/20260726-0072-fly-adapter-remaining-surface.md`).
+fail closed (`issues/shelved/20260726-0072-fly-adapter-remaining-surface.md`).
 
 Known incident (2026-07-26): the origin's Let's Encrypt certificate lapsed
 into the 5-per-168h duplicate-certificate rate limit (retry after 2026-07-27

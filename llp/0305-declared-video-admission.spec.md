@@ -6,7 +6,7 @@
 **Author:** Codex, commissioned by Charlie Cheever for the 2026-08-24 design-revision round
 **Date:** 2026-08-24
 **Revised:** 2026-08-24 (v0.4 — scopes cross-deploy determinism to the single reference parser at a pinned semantics version, pins reference reservation ordinals, and moves exact ledger identity into implementation acceptance; design only, implementation and capability claims remain open)
-**Related:** LLP 0000, LLP 0012, LLP 0037, LLP 0044, LLP 0189, LLP 0225, LLP 0269, LLP 0276, LLP 0277, Diary 0086, `issues/20260817-upload-intent-codec-duration-admission-facts.md`
+**Related:** LLP 0000, LLP 0012, LLP 0037, LLP 0044, LLP 0189, LLP 0225, LLP 0269, LLP 0276, LLP 0277, Diary 0086, `issues/shelved/20260817-upload-intent-codec-duration-admission-facts.md`
 
 ## Summary and authority
 

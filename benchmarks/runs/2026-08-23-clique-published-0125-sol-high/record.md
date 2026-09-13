@@ -128,7 +128,7 @@ an app-owned localStorage set-state queue instead. This is filed as
 
 The Explicit handoff also omitted `personas.json`, reproducing the existing
 relocatability ticket
-[`issues/20260822-m7-handoff-not-self-contained.md`](../../../issues/20260822-m7-handoff-not-self-contained.md).
+[`issues/shelved/20260822-m7-handoff-not-self-contained.md`](../../../issues/shelved/20260822-m7-handoff-not-self-contained.md).
 
 ## Builder-experience self-scores
 

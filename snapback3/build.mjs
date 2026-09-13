@@ -15,6 +15,7 @@ if (outArgument >= 0 && (!process.argv[outArgument + 1] || process.argv[outArgum
 }
 const dist = outArgument >= 0 ? resolve(process.argv[outArgument + 1]) : resolve(sdk, "dist");
 const compiler = resolve(packages, "compiler");
+const effectSources = ["effects", "effect-child", "effect-fetch"].map(name => resolve(sdk, `src/node/${name}.ts`));
 const onlyCompiler = process.argv.includes("--compiler-only");
 const onlyEvaluator = process.argv.includes("--evaluator-only");
 
@@ -26,7 +27,7 @@ await mkdir(dist, { recursive: true });
 // identity. New public arms only need an entry here and a package export.
 const sdkEntries = { index: resolve(sdk, "src/index.ts"), "compiler-api": resolve(sdk, "src/compiler.ts") };
 if (!onlyCompiler) {
-  for (const name of ["client", "react", "cli"]) {
+  for (const name of ["client", "react", "expo", "cli"]) {
     const source = ["ts", "tsx"].map(extension => resolve(sdk, `src/${name}.${extension}`)).find(existsSync);
     if (source) sdkEntries[name] = source;
   }
@@ -38,7 +39,10 @@ if (process.argv.includes("--check")) {
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, compiler);
   if (parsed.errors.length) failDiagnostics(parsed.errors);
   failDiagnostics(ts.getPreEmitDiagnostics(ts.createProgram(parsed.fileNames, parsed.options)));
-  emitDeclarations(Object.values(sdkEntries), true);
+  const { expo: expoEntry, ...portableEntries } = sdkEntries;
+  emitDeclarations(Object.values(portableEntries), true);
+  if (expoEntry) emitDeclarations([expoEntry], true);
+  if (!onlyCompiler) emitDeclarations(effectSources, true);
   console.log("snapback3: compiler and SDK TypeScript checks passed");
   process.exit(0);
 }
@@ -57,7 +61,19 @@ if (!onlyEvaluator) {
   await bundle({ input: sdkEntries, external: externalPackage, plugins: [compilerCore()] }, {
     dir: dist, entryFileNames: "[name].mjs", chunkFileNames: "shared-[hash].mjs",
   });
-  emitDeclarations(Object.values(sdkEntries));
+  if (!onlyCompiler) {
+    await bundle({ input: effectSources[0] }, {
+      file: resolve(dist, "effect-runner.mjs"), codeSplitting: false,
+    });
+    // SES is the audited confinement layer. Keep its pinned package external
+    // so Rolldown/minification cannot rewrite the security boundary.
+    await bundle({ input: effectSources[1], external: ["ses"] }, {
+      file: resolve(dist, "effect-child.mjs"), codeSplitting: false,
+    });
+  }
+  const { expo: expoEntry, ...portableEntries } = sdkEntries;
+  emitDeclarations(Object.values(portableEntries));
+  if (expoEntry) emitDeclarations([expoEntry]);
   for (const [name, source] of Object.entries(sdkEntries)) {
     const stem = source.split("/").at(-1).replace(/\.tsx?$/, "");
     await writeFile(resolve(dist, `${name}.d.ts`), `export * from "./types/snapback3/src/${stem}.js";\n`);

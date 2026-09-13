@@ -16930,7 +16930,7 @@
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md",
           "present": {
             "rawDigest": "sha256:ad3ace1d23811760e081830e019df62585ff563e3c99f0383d2e594901473abd",
             "rawOrder": [
@@ -21708,7 +21708,7 @@
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md",
           "present": {
             "rawDigest": "sha256:8a2e72c2a39c116739c94308d630ebfc08c759325315b062c236bc7df6633feb",
             "rawOrder": [
@@ -24097,7 +24097,7 @@
         "oracleEvidence": {
           "authority": "zerobugs-serving-control-opaque-handler",
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md",
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md",
           "present": {
             "rawDigest": "sha256:ed7efb12f910cd1fdb6e44cfd34d79933b6668e8798309633d97ebb59f25a37b",
             "rawOrder": [
@@ -42404,7 +42404,7 @@
           ],
           "orderWasNormalized": true,
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md"
         },
         "expectedCompletePhysicalOrder": [
           "issueListRead_matrix_decoy_assignee",
@@ -43502,7 +43502,7 @@
           ],
           "orderWasNormalized": true,
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md"
         },
         "expectedCompletePhysicalOrder": [
           "issueListRead_matrix_decoy_assignee",
@@ -43878,7 +43878,7 @@
           ],
           "orderWasNormalized": true,
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md"
         },
         "expectedCompletePhysicalOrder": [
           "issueListRead_matrix_decoy_assignee",
@@ -44244,7 +44244,7 @@
           ],
           "orderWasNormalized": true,
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md"
         },
         "expectedCompletePhysicalOrder": [
           "issueListRead_matrix_c",
@@ -44610,7 +44610,7 @@
           ],
           "orderWasNormalized": true,
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md"
         },
         "expectedCompletePhysicalOrder": [
           "issueListRead_matrix_c",
@@ -44976,7 +44976,7 @@
           ],
           "orderWasNormalized": true,
           "comparison": "exact-after-pinned-physical-id-tiebreak-normalization",
-          "deviationTicket": "issues/20260823-zerobugs-control-descending-tiebreak-deviation.md"
+          "deviationTicket": "issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md"
         },
         "expectedCompletePhysicalOrder": [
           "issueListRead_matrix_decoy_assignee",

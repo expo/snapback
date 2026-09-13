@@ -35,7 +35,7 @@ checkout-root inference assumes a one-level-nested release layout and came
 up short for a `target/debug/snapback` cargo path, wrongly refusing the
 runtime-readiness receipt as drifted despite byte-identical artifacts
 (related open ticket:
-`issues/20260817-0275-auto-qualify-packaged-runtime-in-prove.md`); and
+`issues/shelved/20260817-0275-auto-qualify-packaged-runtime-in-prove.md`); and
 `snapback dev --expo`'s zero-config auto-session-mint actively fights an app
 implementing real first-party auth (signing out the phantom principal
 revoked one session shared by every browser context). Both have findable

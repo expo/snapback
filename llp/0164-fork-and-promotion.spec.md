@@ -537,7 +537,7 @@ capability claim changes.
    LLP 0158 F0a/F0b remain landed dependencies rather than blockers.
 5. The consolidated acceptance tail, including author bound ratification and
    the residual corpus, is tracked in
-   [`issues/20260803-agent-safe-storage-acceptance-tail.md`](../issues/20260803-agent-safe-storage-acceptance-tail.md).
+   [`issues/shelved/20260803-agent-safe-storage-acceptance-tail.md`](../issues/shelved/20260803-agent-safe-storage-acceptance-tail.md).
 
 ## Status
 

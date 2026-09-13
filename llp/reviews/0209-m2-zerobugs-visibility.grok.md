@@ -2,7 +2,7 @@
 
 **Change:** behavior-preserving `public-read` declarations + identity-only corpus re-freeze (landed on main as `db1574a9c..06e6b4a6b`, 2026-08-24)
 **Reviewer:** grok-4.6, xhigh, blind
-**Orchestrator:** Claude Fable 5 (session 01VKza4iiZ918TtDxobNDvvy); measurement-tail prerequisite of `issues/20260824-llp0209-g3-commission.md`
+**Orchestrator:** Claude Fable 5 (session 01VKza4iiZ918TtDxobNDvvy); measurement-tail prerequisite of `issues/shelved/20260824-llp0209-g3-commission.md`
 **Provenance:** the review below was actually received from the named model; verbatim (including streamed narration preamble).
 **Disposition:** r1 VERDICT: READY.
 
@@ -18,7 +18,7 @@ Range `c2371f43f^..70bfbe23b` (`8e9086c73` → `70bfbe23b`). Three commits, work
 
 LLP 0231 D2’s fail phase refuses omitted table policy at generation (`packages/snapback-codegen/index.mjs:3092–3101`). The public-read remediation text there says not to declare `public-read` merely to unblock generation. That is the right default for a new app. It is the wrong default for the LLP 0182/0183 D1 control: the last successful implicit posture already lowered to unrestricted reads at the data layer, and honest-narrowest would change the parity instrument.
 
-The series does the thing the diagnostic warns against, **and records that fact**: schema comment at `demos/zerobugs/control/snapback/schema.mjs:10-13`, incident update still **Open**, follow-up `issues/20260824-zerobugs-control-honest-narrowest-visibility.md` with per-table evidence. That is the honest shape.
+The series does the thing the diagnostic warns against, **and records that fact**: schema comment at `demos/zerobugs/control/snapback/schema.mjs:10-13`, incident update still **Open**, follow-up `issues/shelved/20260824-zerobugs-control-honest-narrowest-visibility.md` with per-table evidence. That is the honest shape.
 
 ---
 
@@ -143,7 +143,7 @@ See (j). Omitted already lowered to unrestricted reads. Public-read is the expli
 Repo search finds that digest only in the incident ticket’s before/after record. Live `artifacts.json` carries `fbfb92e0…`.
 
 **REFUTED — Write-posture advisory flood (warnings 2 → 122) is a generate refusal or a shipped-policy change.**  
-`SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING` is a `migrationAdvisories` row, not a D2 error. Generate produced `artifacts.json` with `ok` implied by a written review manifest. Separate closed-track work (`issues/20260816-write-posture-migration-closure.md`).
+`SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING` is a `migrationAdvisories` row, not a D2 error. Generate produced `artifacts.json` with `ok` implied by a written review manifest. Separate closed-track work (`issues/shelved/20260816-write-posture-migration-closure.md`).
 
 ---
 

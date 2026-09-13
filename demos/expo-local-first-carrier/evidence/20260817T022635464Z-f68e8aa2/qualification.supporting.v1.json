@@ -90,7 +90,7 @@
       "guide/reference/index.md",
       "guide/reference/registry.json",
       "guide/sync/offline-and-retention.md",
-      "issues/20260816-qualify-expo-local-first-carrier.md",
+      "issues/shelved/20260816-qualify-expo-local-first-carrier.md",
       "packages/snapback-client/app-client-internal.d.mts",
       "packages/snapback-client/app-client.d.mts",
       "packages/snapback-client/app-client.mjs",

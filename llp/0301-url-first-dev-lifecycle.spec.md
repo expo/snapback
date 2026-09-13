@@ -353,7 +353,7 @@ this table as a checked test-inventory comment.
 
 The normative design is **deferred to a future Spec** and is not part of
 this implementation set (tracked by
-`issues/20260824-signed-discovery-future-spec.md`). The
+`issues/shelved/20260824-signed-discovery-future-spec.md`). The
 non-normative sketch — a store-minted dev-identity key signing the fact,
 a fingerprint delivered out-of-band, refusal when configured — carries
 known open problems a future Spec must solve before anything freezes:

@@ -28,7 +28,7 @@ LLP 0226 chooses one coordinating identity vocabulary while leaving schema, auth
 
 The overall architecture is right. LLP 0191 concludes that schema identity, auth binding, and settlement identity share vocabulary but have distinct trust domains, recommending one coordinating document with distributed implementation authority ([LLP 0191:371-385](/Users/ccheever/projects/snapback-worktrees/sr-r1/llp/0191-scale-architecture-revisits.research.md:371)); its author ruling explicitly chooses that structure ([LLP 0191:525-530](/Users/ccheever/projects/snapback-worktrees/sr-r1/llp/0191-scale-architecture-revisits.research.md:525)). LLP 0226 follows it at [lines 20-35](/Users/ccheever/projects/snapback-worktrees/sr-r1/llp/0226-identity-architecture.decision.md:20).
 
-The serial-column direction is also reasonable: `W-SHORTID` is a measured schema gap, and a gap-admitting successor must remain distinct from LLP 0135’s dense transactional counters ([issue:5-14](/Users/ccheever/projects/snapback-worktrees/sr-r1/issues/20260808-numeric-identity-default-columns.md:5), [LLP 0135:349-377](/Users/ccheever/projects/snapback-worktrees/sr-r1/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:349)).
+The serial-column direction is also reasonable: `W-SHORTID` is a measured schema gap, and a gap-admitting successor must remain distinct from LLP 0135’s dense transactional counters ([issue:5-14](/Users/ccheever/projects/snapback-worktrees/sr-r1/issues/shelved/20260808-numeric-identity-default-columns.md:5), [LLP 0135:349-377](/Users/ccheever/projects/snapback-worktrees/sr-r1/llp/0135-sequence-allocation-and-snapshot-batch.spec.md:349)).
 
 The problem is the grain of the namespace map. It collapses distinctions already load-bearing in accepted specifications: authoritative versus speculative/captured row IDs, and principals versus provider identities. Because vocabulary and conformance are this Decision’s entire authority, those are defects in the decision itself, not details that owner amendments should reinterpret.
 
@@ -96,7 +96,7 @@ The problem is the grain of the namespace map. It collapses distinctions already
 ## Verifications performed
 
 - Confirmed the distributed decision structure against LLP 0191 and the commissioning ticket ([issue:1-27](/Users/ccheever/projects/snapback-worktrees/sr-r1/issues/20260808-identity-architecture-decision.md:1)).
-- Confirmed the schema proposal was expressly endorsed wholesale, including `v.serial({ start })`, server-owned values, rollback burning, and non-empty-table refusal ([issue:109-123](/Users/ccheever/projects/snapback-worktrees/sr-r1/issues/20260808-numeric-identity-default-columns.md:109)).
+- Confirmed the schema proposal was expressly endorsed wholesale, including `v.serial({ start })`, server-owned values, rollback burning, and non-empty-table refusal ([issue:109-123](/Users/ccheever/projects/snapback-worktrees/sr-r1/issues/shelved/20260808-numeric-identity-default-columns.md:109)).
 - Confirmed the current validator vocabulary contains `v.principal()` and `v.id()` but no `v.serial()` ([define.mjs:327-344](/Users/ccheever/projects/snapback-worktrees/sr-r1/packages/snapback-codegen/define.mjs:327)); a repository search found no competing validator/schema use of `serial`.
 - Confirmed LLP 0148’s prefix grammar and per-table row-ID derivation against both the decision and implementation ([LLP 0148:102-113](/Users/ccheever/projects/snapback-worktrees/sr-r1/llp/0148-prefixed-identifiers.decision.md:102), [ids.rs:382-401](/Users/ccheever/projects/snapback-worktrees/sr-r1/src/ids.rs:382)).
 - Confirmed C-2’s bypass warning and unique-index-on-every-side recipe ([guide:34-75](/Users/ccheever/projects/snapback-worktrees/sr-r1/guide/auth/app-identity-binding.md:34)).
@@ -264,7 +264,7 @@ The blocker is not the architecture’s organizing idea. It is that several boun
    - M-3: table-scoped serial counters have “the public serial value … bare numeric with no prefix” (`llp/0226-identity-architecture.decision.md:161-167`).
    - Schema lane: “the successor profile’s incarnation-prefix carrier applies where a constraint stores allocated values” (`:231-234`).
 
-   LLP 0135’s prefix belongs specifically to row-scoped counters that restart with a recreated scope (`llp/0135-sequence-allocation-and-snapshot-batch.spec.md:254-270`). The source ticket preserved that qualification—only when a value is stored under a constraint on an incarnation-scoped table (`issues/20260808-numeric-identity-default-columns.md:79-81`). The Decision’s current wording no longer distinguishes that case from the primary unique index over a serial column.
+   LLP 0135’s prefix belongs specifically to row-scoped counters that restart with a recreated scope (`llp/0135-sequence-allocation-and-snapshot-batch.spec.md:254-270`). The source ticket preserved that qualification—only when a value is stored under a constraint on an incarnation-scoped table (`issues/shelved/20260808-numeric-identity-default-columns.md:79-81`). The Decision’s current wording no longer distinguishes that case from the primary unique index over a serial column.
 
    Fix shape: state that a serial column and its ordinary unique index use the bare numeric alone. Retain `(scopeId, relationIncarnation)` only for independently row-scoped LLP 0135 relationships that copy/store such a value.
 

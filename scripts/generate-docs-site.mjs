@@ -1223,7 +1223,7 @@ function serve(root, outputRoot, port, basePath) {
     const address = server.address();
     const actualPort = typeof address === 'object' && address ? address.port : port;
     console.log(`[docs-site] serving ${relative(root, outputRoot)}/ at http://127.0.0.1:${actualPort}${basePath}`);
-    console.log('[docs-site] publication authorized (D1 ruled 2026-08-08); deploy per issues/20260808-llp0195-docs-site-staging-execution.md.');
+    console.log('[docs-site] publication authorized (D1 ruled 2026-08-08); deploy per issues/shelved/20260808-llp0195-docs-site-staging-execution.md.');
   });
 }
 

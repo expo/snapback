@@ -46,7 +46,7 @@ pub struct DurableStreamAttempt<ReadContext> {
 
 // The `new` fixture above is not an exhaustive public-constructor check: a
 // future `issue` or `from_parts` spelling would require its own guard. See
-// issues/20260822-rustdoc-compile-fail-error-codes-are-not-enforced.md.
+// issues/shelved/20260822-rustdoc-compile-fail-error-codes-are-not-enforced.md.
 impl<ReadContext> DurableStreamAttempt<ReadContext> {
     pub fn persisted(&self) -> &crate::stream_attempt::PersistedStreamAttempt {
         &self.persisted

@@ -38,9 +38,9 @@ LLP 0196, LLP 0259, LLP 0275, Diary 0091,
 issues/20260819-verify-starter-receipt-field-diagnostics.md,
 issues/20260819-expo-web-carrier-supervised-origin.md,
 issues/closed/20260819-template-script-surface-glossary.md,
-issues/20260819-expo-everyday-simulator-launch.md,
-issues/20260819-heic-image-normalization.md,
-issues/20260819-minimal-expo-starter.md,
+issues/shelved/20260819-expo-everyday-simulator-launch.md,
+issues/shelved/20260819-heic-image-normalization.md,
+issues/shelved/20260819-minimal-expo-starter.md,
 issues/20260819-readme-notifications-capability-overclaim.md,
 issues/closed/20260821-guide-gap-asset-client-accessor-mismatch.md,
 issues/closed/20260821-guest-session-client-entry.md,
@@ -49,7 +49,7 @@ issues/closed/20260821-expo-supervised-binding-refresh.md,
 issues/20260821-guide-gap-capability-link-app-flows.md,
 issues/20260821-starter-verify-provenance-warning.md,
 issues/20260821-0275-acceptance-harness-library.md,
-issues/20260821-0235-field-masking-productization.md,
+issues/shelved/20260821-0235-field-masking-productization.md,
 issues/20260821-authority-independent-type-coupling.md,
 issues/20260821-guide-gap-scheduled-status-flips.md
 
@@ -196,7 +196,7 @@ Direct work is tracked by the two existing LLP 0275 tickets plus
 
 Direct work is tracked by
 `issues/20260819-expo-web-carrier-supervised-origin.md` and
-`issues/20260819-expo-everyday-simulator-launch.md`.
+`issues/shelved/20260819-expo-everyday-simulator-launch.md`.
 
 ### W3 — Close the mobile photo workflow honestly
 
@@ -229,7 +229,7 @@ hosted delivery programs; this Plan does not relabel a local MinIO-qualified
 lane as an UploadThing-like hosted product.
 
 Design and execution are tracked by
-`issues/20260819-heic-image-normalization.md`.
+`issues/shelved/20260819-heic-image-normalization.md`.
 
 ### W4 — Provide a domain-neutral Expo starting point
 
@@ -252,7 +252,7 @@ scaffold → install → generate → typecheck → supervised development → p
 The template must not improve apparent simplicity by omitting auth, runtime,
 or acceptance checks.
 
-Tracked by `issues/20260819-minimal-expo-starter.md`.
+Tracked by `issues/shelved/20260819-minimal-expo-starter.md`.
 
 ### W5 — Separate in-app messaging from external notifications
 
@@ -353,7 +353,7 @@ this Plan authority over them:
   pair unrepresentable while retaining runtime validation for JavaScript,
   casts, and version skew.
 
-Tracked by `issues/20260821-0235-field-masking-productization.md` and
+Tracked by `issues/shelved/20260821-0235-field-masking-productization.md` and
 `issues/20260821-authority-independent-type-coupling.md`.
 
 ## Current-main disposition of the remaining 0.1.24 suggestions
@@ -374,7 +374,7 @@ already has an owner and a shipped or explicit tracked posture:
   convenience broker must not imply otherwise.
 - React/Expo lifecycle integration already follows `AppState`, pausing and
   resynchronizing the provider; qualified offline mutation custody remains
-  tracked by `issues/20260816-qualify-expo-local-first-carrier.md`.
+  tracked by `issues/shelved/20260816-qualify-expo-local-first-carrier.md`.
 - Expo config plugins and simulator onboarding/dialog automation are shipped
   and documented; the ordinary simulator-launch ergonomics remain W2.
 - Secure native auth custody is owned by the first-party custody module under

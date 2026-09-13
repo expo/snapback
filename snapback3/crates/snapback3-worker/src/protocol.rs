@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
 use snapback3_core::{
     Actor, ArgType, Context, DeliveryEnvelopeV1, DeliveryProjectionContext, DeliveryState,
-    IdentityError, OperationError, OperationRequest, ProgramKind, Runtime, RuntimeError,
-    SessionAuthority, project_delivery, value_to_wire_json,
+    Generation, IdentityError, OperationError, OperationRequest, Program, ProgramKind, Runtime,
+    RuntimeError, SessionAuthority, project_delivery, value_to_wire_json,
 };
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -143,16 +143,45 @@ fn sequence_changed(expected: u64, actual: u64) -> Fault {
     )
 }
 
+/// The public manifest and every token-authenticated execution path share this
+/// one admission predicate. System programs remain installed for their
+/// purpose-specific operator/effect/timer entry points, but possession or a
+/// guess of their authored name is never a public capability.
+// @ref LLP 2000#integration-choices — public routes name allowed operations explicitly.
+fn public_program(generation: &Generation, name: &str, program: &Program) -> bool {
+    !name.starts_with("__")
+        && matches!(program.kind, ProgramKind::Query | ProgramKind::Mutation)
+        && !generation
+            .schema()
+            .schedules
+            .iter()
+            .any(|schedule| schedule.target == name)
+        && !generation
+            .effects()
+            .values()
+            .any(|effect| effect.then.as_deref() == Some(name))
+        && !generation
+            .timer_binding_programs()
+            .iter()
+            .any(|binding| binding.name == name)
+}
+
 pub struct Owner {
     pub runtime: Runtime,
     pub development: bool,
+    pub capabilities: crate::project::RuntimeCapabilities,
+    pub connected_counts: BTreeMap<String, u64>,
 }
 impl Owner {
-    fn authority(&self, params: &Json, at: i64) -> Result<SessionAuthority, Fault> {
+    pub(crate) fn authority(&self, params: &Json, at: i64) -> Result<SessionAuthority, Fault> {
         let token = params.get("token").and_then(Json::as_str).unwrap_or("");
         self.runtime.authenticate(token, at).map_err(Fault::auth)
     }
-    fn context(authority: &SessionAuthority, at: i64, mutation: bool) -> Result<Context, Fault> {
+    pub(crate) fn context(
+        authority: &SessionAuthority,
+        at: i64,
+        mutation: bool,
+    ) -> Result<Context, Fault> {
         let actor = Actor::try_from(&authority.principal).map_err(Fault::input)?;
         let mut context = if mutation {
             Context::mutation(actor, BTreeMap::new())
@@ -217,6 +246,25 @@ impl Owner {
                 request.remove("token");
                 let request: OperationRequest =
                     serde_json::from_value(Json::Object(request)).map_err(Fault::input)?;
+                let (program, _) = self
+                    .runtime
+                    .generation()
+                    .programs()
+                    .get(&request.op)
+                    .ok_or_else(|| {
+                        Fault::new(
+                            "S3_OPERATION_UNKNOWN",
+                            format!("unknown mutation {}", request.op),
+                        )
+                    })?;
+                if program.kind != ProgramKind::Mutation
+                    || !public_program(self.runtime.generation(), &request.op, program)
+                {
+                    return Err(Fault::new(
+                        "S3_OPERATION_KIND",
+                        "mutation route accepts public mutations only",
+                    ));
+                }
                 self.runtime
                     .execute_operation(&request, Self::context(&authority, at, true)?)
                     .map_err(Fault::operation)
@@ -239,11 +287,14 @@ impl Owner {
                         .ok_or_else(|| Fault::input("project required"))?,
                 )
                 .map_err(Fault::input)?;
-                let next = crate::project::certify(project)?;
+                let next = crate::project::certify(project, &self.capabilities)?;
                 self.runtime
                     .apply_successor(next)
                     .map_err(|error| Fault::new("S3_SUCCESSOR", error))?;
                 Ok(self.manifest())
+            }
+            method if crate::capabilities::handles(method) => {
+                crate::capabilities::call(self, method, params, at)
             }
             _ => Err(Fault::new("S3_METHOD", "unknown private worker method")),
         }
@@ -297,7 +348,7 @@ impl Owner {
             .generation()
             .programs()
             .get(op)
-            .filter(|(_, _)| !op.starts_with("__"))
+            .filter(|(program, _)| public_program(self.runtime.generation(), op, program))
             .ok_or_else(|| Fault::new("S3_OPERATION_UNKNOWN", format!("unknown query {op}")))?
             .clone();
         if program.kind != ProgramKind::Query {
@@ -553,7 +604,7 @@ impl Owner {
             .generation()
             .programs()
             .get(&chain.op)
-            .filter(|_| !chain.op.starts_with("__"))
+            .filter(|(program, _)| public_program(self.runtime.generation(), &chain.op, program))
             .ok_or_else(|| {
                 Fault::new(
                     "S3_OPERATION_UNKNOWN",
@@ -582,11 +633,48 @@ impl Owner {
     }
     fn manifest(&self) -> Json {
         let generation = self.runtime.generation();
-        let programs: serde_json::Map<String, Json> = generation.programs().iter().filter(|(name, _)| !name.starts_with("__"))
-            .map(|(name, (program, certificate))| (name.clone(), json!({"kind":match program.kind { ProgramKind::Query => "query", _ => "mutation" },
-                "ir":program,"certificate":certificate,"planHash":certificate.plan_hash}))).collect();
+        let system_operations = generation
+            .schema()
+            .schedules
+            .iter()
+            .map(|schedule| schedule.target.as_str())
+            .chain(
+                generation
+                    .effects()
+                    .values()
+                    .filter_map(|effect| effect.then.as_deref()),
+            )
+            .collect::<BTreeSet<_>>();
+        let descriptor = |program: &snapback3_core::Program,
+                          certificate: &snapback3_core::Certificate| {
+            json!({"kind":match program.kind { ProgramKind::Query => "query", ProgramKind::Mutation => "mutation", ProgramKind::Job => "job" },
+                "ir":program,"certificate":certificate,"planHash":certificate.plan_hash})
+        };
+        let programs: serde_json::Map<String, Json> = generation
+            .programs()
+            .iter()
+            .filter(|(name, (program, _))| public_program(generation, name, program))
+            .map(|(name, (program, certificate))| (name.clone(), descriptor(program, certificate)))
+            .collect();
+        let jobs: serde_json::Map<String, Json> = generation
+            .programs()
+            .iter()
+            .filter(|(_, (program, _))| program.kind == ProgramKind::Job)
+            .map(|(name, (program, certificate))| (name.clone(), descriptor(program, certificate)))
+            .collect();
+        let internal: serde_json::Map<String, Json> = generation
+            .programs()
+            .iter()
+            .filter(|(name, (program, _))| {
+                system_operations.contains(name.as_str()) && program.kind == ProgramKind::Mutation
+            })
+            .map(|(name, (program, certificate))| (name.clone(), descriptor(program, certificate)))
+            .collect();
         json!({"generation":generation.program_hash(),"schemaHash":generation.schema().hash(),
-            "schema":generation.schema(),"programs":programs,"seq":self.runtime.store().commit_seq().unwrap_or(0)})
+            "schema":generation.schema(),"programs":programs,"jobs":jobs,"systemOperations":internal,
+            "runtimeCapabilities":self.capabilities.names(),
+            "clockQueries":crate::capabilities::clock_queries(self),
+            "seq":self.runtime.store().commit_seq().unwrap_or(0)})
     }
 }
 
@@ -677,6 +765,8 @@ mod tests {
         let mut owner = Owner {
             runtime,
             development: true,
+            capabilities: crate::project::RuntimeCapabilities::default(),
+            connected_counts: Default::default(),
         };
         let session = owner
             .call("auth", &json!({"action":"persona","name":"alice"}))

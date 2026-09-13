@@ -16,11 +16,11 @@ friction recorded across Diary 0086's M1–M3 entries into one prioritized
 program with ticket pointers)
 **Related:** LLP 0266, LLP 0277,
 Diary 0086,
-`issues/20260816-exact-declared-error-code-envelope.md`,
-`issues/20260815-coterie-exact-native-controlled-input-clear.md`,
-`issues/20260815-guide-gap-coterie-exact-prebuilt-macos-host.md`,
-`issues/20260817-coterie-feed-pagination-third-page-stall.md`,
-`issues/20260802-exact-production-runtime-breaks-contract-routes.md`
+`issues/shelved/20260816-exact-declared-error-code-envelope.md`,
+`issues/shelved/20260815-coterie-exact-native-controlled-input-clear.md`,
+`issues/shelved/20260815-guide-gap-coterie-exact-prebuilt-macos-host.md`,
+`issues/shelved/20260817-coterie-feed-pagination-third-page-stall.md`,
+`issues/shelved/20260802-exact-production-runtime-breaks-contract-routes.md`
 
 ## Summary
 
@@ -56,7 +56,7 @@ tests are currently working around them with weaker vocabulary.
    except name/message/stack, so Coterie tests and both providers branch on
    error *name* and Snapback's stable `SNAPBACK_*`/application codes are
    flattened at the boundary. Ticket:
-   `issues/20260816-exact-declared-error-code-envelope.md`. Acceptance:
+   `issues/shelved/20260816-exact-declared-error-code-envelope.md`. Acceptance:
    Coterie's adapters return codes end to end and the name-branching in
    the acceptance runner is deleted.
 2. **Mutation compatibility tokens get a core schema key.** Queries carry
@@ -119,7 +119,7 @@ Silent-wrongness classes; each produced a subtle defect or manual repair.
 10. **Native controlled-input reset.** UIKit retains submitted glyphs after
     Contract state clears; Coterie double-buffers the composer's native
     input identity (seven extra nodes, inspector warnings). Ticket:
-    `issues/20260815-coterie-exact-native-controlled-input-clear.md`.
+    `issues/shelved/20260815-coterie-exact-native-controlled-input-clear.md`.
     Acceptance: the double-buffer workaround is deleted.
 11. **Mutation-observability annotation for intentional cross-route
     writes.** The checker's locality warnings are accurate but noisy for
@@ -142,7 +142,7 @@ Silent-wrongness classes; each produced a subtle defect or manual repair.
 14. **Prebuilt macOS host must load the requested URL.** `exact run macos
     --url ...` selected a verified host that displayed its embedded Caltrain
     bundle; the command made the artifact look usable. Ticket:
-    `issues/20260815-guide-gap-coterie-exact-prebuilt-macos-host.md`.
+    `issues/shelved/20260815-guide-gap-coterie-exact-prebuilt-macos-host.md`.
 15. **Dev-loop hygiene bundle.** Scoped typecheck so a dirty sibling Exact
     checkout cannot fail an app's `bun run typecheck` (nonlocal outcomes);
     recover from coalesced hot reloads rejecting `ViewNotFound` without a
@@ -157,7 +157,7 @@ Silent-wrongness classes; each produced a subtle defect or manual repair.
     variable-height feed cards (fixed by the documented non-virtual list),
     and the non-virtual list's reach geometry mixes item count with pixel
     offsets, leaving the end edge sticky at the third page. Ticket:
-    `issues/20260817-coterie-feed-pagination-third-page-stall.md`.
+    `issues/shelved/20260817-coterie-feed-pagination-third-page-stall.md`.
 
 ## Sequencing and evidence discipline
 

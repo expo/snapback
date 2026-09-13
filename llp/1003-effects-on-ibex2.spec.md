@@ -80,7 +80,7 @@ Rules the compiler enforces (family `effect`, each with a rewrite):
   `Intl.RelativeTimeFormat`, `Intl.Locale` and `Intl.DisplayNames` are
   declared but absent on both native hosts. Mac also has inherited
   NumberFormat parts/sign/notation/unit gaps and ungrouped BigInt locale
-  formatting. The [focused follow-up](../issues/20260911-snapback2-effect-intl-declarations-exceed-runtime.md)
+  formatting. The [focused follow-up](../issues/shelved/20260911-snapback2-effect-intl-declarations-exceed-runtime.md)
   records the exact declaration and executable evidence. The native Linux
   Intl completion is separately qualified; it does not close these inherited
   gaps or turn the top-level `Intl` witness into proof of every member.

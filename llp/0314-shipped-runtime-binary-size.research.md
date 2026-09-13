@@ -296,8 +296,8 @@ block the two are indistinguishable in the identity.
 `SNAPBACK_OUTBOX_NOT_WRITER`, identically on both platforms and on repeat runs.
 That diagnostic is raised inside `packages/snapback-client`, which Phase 1 does
 not touch, and it matches the standing report in
-`issues/20260825-cron-authored-delta-not-outbox-writer.md`. Filed as
-`issues/20260828-cold-install-comparator-outbox-not-writer.md`; Phase 1's
+`issues/shelved/20260825-cron-authored-delta-not-outbox-writer.md`. Filed as
+`issues/shelved/20260828-cold-install-comparator-outbox-not-writer.md`; Phase 1's
 exit evidence records the cold-install leg as red rather than claiming it green.
 
 ## Evidence

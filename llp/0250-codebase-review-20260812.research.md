@@ -63,14 +63,14 @@ target-limited, conditional, or presently masked; P3 has narrower impact.
 
 Already-open tickets that this review **does not re-file**:
 
-- `issues/20260808-admin-console-origin-hardening-revisit.md` (app-origin
+- `issues/shelved/20260808-admin-console-origin-hardening-revisit.md` (app-origin
   `localStorage` console credential; loopback admin reads / DNS rebinding)
-- `issues/20260808-live-query-reevaluation-cost-at-scale.md`
-- `issues/20260808-p1-write-priority-scheduling.md`
-- `issues/20260808-assets-finalize-memory-and-cpu-under-global-lock.md`
+- `issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md`
+- `issues/shelved/20260808-p1-write-priority-scheduling.md`
+- `issues/shelved/20260808-assets-finalize-memory-and-cpu-under-global-lock.md`
   (updated in this pass with the S3 streaming remainder)
-- `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`
-- `issues/20260810-hosted-gates-phase1-ungated-plane.md`
+- `issues/shelved/20260804-tunnelled-loopback-server-keeps-dev-profile.md`
+- `issues/shelved/20260810-hosted-gates-phase1-ungated-plane.md`
 - Query/mutation wall-clock / CPU as honest Missing (LLP 0009 / 0047 / 0216)
 - Table visibility warn-only (LLP 0231 D2); function auth implicit
   `optional-user` (LLP 0172)

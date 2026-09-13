@@ -8,7 +8,7 @@ Proof/gates
 **Date:** 2026-08-27
 **Related:** LLP 0175 (D4 and Phase 4 — the sequencing this discharges),
 LLP 0189, LLP 0232, LLP 0276, LLP 0325,
-`issues/20260820-debug-binary-symbol-bloat.md`
+`issues/shelved/20260820-debug-binary-symbol-bloat.md`
 
 ## Summary
 

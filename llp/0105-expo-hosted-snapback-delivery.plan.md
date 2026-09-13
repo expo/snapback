@@ -552,7 +552,7 @@ platform/pricing facts.
   The corrected topology uses a no-outbound handler dispatch binding for native
   CPU enforcement and an outbound action binding with a fail-closed generated
   subrequest guard; the narrower composition question remains in
-  `issues/20260804-eas-phase0-wfp-outbound-custom-limit-interaction.md`. A
+  `issues/shelved/20260804-eas-phase0-wfp-outbound-custom-limit-interaction.md`. A
   Workers.dev barrier now requires three body-verified rounds with eight
   independently bounded retry lanes, followed by three consecutive clean rounds
   across all eight namespaced scripts. The final run absorbed 22 transient

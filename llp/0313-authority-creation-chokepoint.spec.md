@@ -287,7 +287,7 @@ instance lock).
      work, not kernel work.
 
 The full analysis, with citations for each reachable case, is at
-`issues/20260826-landing-a-cannot-establish-file-wide-authority.md`.
+`issues/shelved/20260826-landing-a-cannot-establish-file-wide-authority.md`.
 
 ### Required atomic groups
 

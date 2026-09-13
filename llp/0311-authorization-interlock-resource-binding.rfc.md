@@ -8,8 +8,8 @@ Operations
 **Date:** 2026-08-25
 **Revised:** 2026-08-25
 **Related:** LLP 0053, LLP 0059, LLP 0291, LLP 0303,
-[`issues/20260825-a-second-database-handle-publishes-without-the-interlock.md`](../issues/20260825-a-second-database-handle-publishes-without-the-interlock.md),
-[`issues/20260825-no-in-database-mechanism-defends-against-a-raw-connection.md`](../issues/20260825-no-in-database-mechanism-defends-against-a-raw-connection.md)
+[`issues/shelved/20260825-a-second-database-handle-publishes-without-the-interlock.md`](../issues/shelved/20260825-a-second-database-handle-publishes-without-the-interlock.md),
+[`issues/shelved/20260825-no-in-database-mechanism-defends-against-a-raw-connection.md`](../issues/shelved/20260825-no-in-database-mechanism-defends-against-a-raw-connection.md)
 
 ## Summary
 

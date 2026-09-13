@@ -102,7 +102,7 @@ Do not ship both policies on `messages` and a range thread.
 
 **Claim.** Kill after drain; cold start shows inbox, three chats, two images; “a message queued before the kill is still `queued`”; resume evicts an expired message. O2 is “the browser kill witness”; O4 is images + simulator (`§10`, `§12`).
 
-**Evidence.** Steps 1–3 never enqueue a message, yet step 3 asserts one is still `queued`. Images are O4 (`§9`, `§12`). Mid-swap crash is asserted (“A crash mid-swap leaves the previous generation intact, which the kill witness asserts,” §4) but the procedure kills *after* drain, not during `swap`. Browser IDB eviction under quota is not a process kill. Snapback 1’s hole was exactly this class of witness (`issues/20260806-expo-file-carrier-process-kill-witness.md`).
+**Evidence.** Steps 1–3 never enqueue a message, yet step 3 asserts one is still `queued`. Images are O4 (`§9`, `§12`). Mid-swap crash is asserted (“A crash mid-swap leaves the previous generation intact, which the kill witness asserts,” §4) but the procedure kills *after* drain, not during `swap`. Browser IDB eviction under quota is not a process kill. Snapback 1’s hole was exactly this class of witness (`issues/shelved/20260806-expo-file-carrier-process-kill-witness.md`).
 
 **Resolve.** Split witnesses: O2 browser = rows + outbox, kill *during* `swap` once, enqueue before kill, no images, no expiry. O4 adds images, view-once non-render, simulator. Expiry belongs with M5 acc 1 / M6 acc 1, on a recipe that can actually evict (B2).
 

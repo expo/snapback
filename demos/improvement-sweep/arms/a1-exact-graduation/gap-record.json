@@ -57,6 +57,6 @@
     "a native asset surface for A1-04 and a sessions-custody story for the native carrier (after the web-closure asset defects 0137-a1-f1/f2/f3 are fixed)",
     "then: run the three-surface exercise with its own diary and capsule at demos/improvement-sweep/arms/a1-exact-graduation/ under LLP 0064's independent per-OS receipts"
   ],
-  "ticket": "issues/20260801-0137-track-c-exact-unready-gate.md",
+  "ticket": "issues/shelved/20260801-0137-track-c-exact-unready-gate.md",
   "result": "blocked"
 }

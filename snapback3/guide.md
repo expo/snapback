@@ -3,7 +3,7 @@
 An application has a `snapback/` directory containing a Quarry schema, named
 queries and mutations, and an optional development `seed.ts`. The compiler
 infers the API from those operations. The server certifies them and owns the
-authoritative SQLite database. The SDK owns live reads, browser storage, and
+authoritative SQLite database. The SDK owns live reads, device storage, and
 durable mutation recovery.
 
 Start with the working [Commonroom example](examples/chat/README.md). Its
@@ -31,8 +31,8 @@ TypeScript configuration. Development mode refreshes it after an accepted backen
 change. Generated declarations extend the `api` imported from `snapback3/client`;
 there is no separately maintained list of operation names or argument types.
 
-The CLI accepts `check`, `dev`, `serve`, and `run`. `check --json` prints structured
-certification results. During development, a query can be inspected with:
+`check --json` prints structured certification results. During development,
+a query can be inspected with:
 
 ```sh
 snapback3 run messages.page '{"conversationId":"studio"}' --as alice --project examples/chat
@@ -42,6 +42,33 @@ snapback3 run messages.page '{"conversationId":"studio"}' --as alice --project e
 Accepted backend edits preserve the database; a rejected edit leaves the previous
 generation serving and reports the compiler's diagnosis. A second owner cannot
 open the same database. Each application stores its private state in `.snapback3/`.
+
+The accepted project definition is committed with its database generation.
+After a worker restart, the owner recertifies that committed definition before
+serving reads, including when an update committed but its reply was lost.
+An older experimental database without this recovery record refuses startup
+with `S3_PROJECT_RECOVERY_REQUIRED`. After verifying that the current backend
+source is the intended installed project, run `dev` or `serve` once with
+`--adopt-legacy-project` to establish the record. Automatic worker recovery
+never adopts a legacy project or installs a new source definition.
+
+Jobs and system mutations use the separate local operator credential stored in
+`.snapback3/operator.json`. For example:
+
+```sh
+snapback3 job enqueue messages.backfill '{}' --as system --project my-app
+snapback3 job recover '{"limit":32}' --as system --project my-app
+snapback3 job status JOB_ID --as system --project my-app
+```
+
+If an enqueue response is lost, use `job recover` to discover committed jobs
+before taking another action. It reads durable IDs, names, states and timestamps
+for this operator, including after the whole owner restarts. Follow a non-null
+`next` cursor by passing it as `after`; `limit` defaults to 32 and is at most 64.
+`job plan`, `resume` and `cancel` inspect or control an existing declaration or
+job. `operator logs --as system` provides recent owner diagnostics, while durable job
+recovery remains available after those in-memory logs are gone. Application
+session credentials cannot use operator routes.
 
 ## Read independently useful values
 
@@ -58,6 +85,46 @@ await client.auth.persona('alice');
 
 <SnapbackProvider client={client}><App /></SnapbackProvider>;
 ```
+
+`client.ready` restores local state. It does not wait for a network connection
+or assert that cached data is fresh. A restored session reconnects in the
+background; resources continue to report their own completeness and freshness.
+
+For an Expo 57 native application, install `expo-sqlite` and `expo-crypto` with
+Expo's package installer, then use the native entrypoint:
+
+```tsx
+import { createExpoClient, SnapbackProvider } from 'snapback3/expo';
+
+const client = createExpoClient({
+  url: backendUrl,
+});
+await client.ready;
+
+<SnapbackProvider client={client}><App /></SnapbackProvider>;
+```
+
+This entrypoint supplies SQLite persistence, Expo's streaming fetch, and secure
+operation identities. Use the same query, acquisition and mutation APIs as on
+the web. Its default SQLite filename includes a hash of the backend URL, so
+switching servers cannot restore another server's session or queued writes.
+Trailing slashes do not create another database. Browser applications keep
+using `snapback3/client`.
+
+An explicit `databaseName` selects a plain basename in the application's private
+database directory. The caller then owns that namespace: reuse it only for the
+same backend. The earlier unscoped `snapback3.db` is never adopted automatically.
+After independently confirming which backend owns an existing file, an
+application can select that exact name to reopen it.
+
+Keep the client for the application's lifetime. `client.close()` immediately
+stops new work; `await client.closeAsync()` also waits for pending storage work
+and closes its owned database connection. An explicitly supplied `storage`
+adapter remains the caller's responsibility. The
+[Expo/Hermes witness](benchmarks/native-platform/README.md) now exercises real
+iOS simulator SQLite, offline reopening across process death, FIFO replay and
+terminal receipt restoration. Full Clique's native media, search and scale
+journeys remain unqualified by that small persistence fixture.
 
 A query returns a resource snapshot, including its value and what is known about
 that value. Reading messages and an unread count separately lets each remain
@@ -212,3 +279,46 @@ contract. `createMemoryStorage()` is for tests or explicitly ephemeral sessions;
 it does not make process-restart durability promises.
 
 The [README](README.md) lists the supported runtime and its current omissions.
+
+## Media HTTP transport
+
+The experimental Node owner now serves validated images and videos through the
+following headless HTTP surface. The ordinary SDK upload/cache/rendering API is
+still being integrated. Build both `snapback3-worker` and `snapback3-media`;
+project admission qualifies the helper's exact protocol and supported formats.
+
+| Request | Result | Authentication |
+| --- | --- | --- |
+| `POST /api/assets?kind=image` | Raw JPEG/PNG/WebP upload, at most 10 MiB; returns `{ id, width, height }` | Application bearer |
+| `POST /api/assets?kind=video` | Raw MP4/H.264 with optional AAC, at most 50 MiB and 60 seconds; also returns duration in milliseconds | Application bearer |
+| `GET /api/assets/:id/status` | Creator's upload lifecycle: `receiving` or `ready` | Application bearer |
+| `POST /api/assets/:id/discard` with `{}` | Discard an unattached upload; bounded reclamation releases its storage charge | Application bearer |
+| `POST /api/assets/session` with no body | `{ token, expiresAt }` for private media playback | Application bearer |
+| `GET` or `HEAD /api/assets/:id` | Currently authorized bytes or metadata; ordinary assets support ranges and ETags | Application bearer, or anonymous for certified public ordinary assets |
+| `GET` or `HEAD /api/assets/:id?s=token` | Private player URL using the media-only token | Media carrier only |
+
+Set the actual image/video `Content-Type` on upload. Pass the returned record
+as the corresponding image/video argument to the authored attachment mutation.
+Readiness follows validation, quota reservation, durable bytes and removal of
+the original metadata-bearing stage. An upload does not itself attach an asset
+to an application row.
+
+Media-only tokens expire within ten minutes, never outlive their application
+session, and disappear when the owner restarts. Every byte request rechecks the
+current session and owning row. Send a carrier only on the asset GET/HEAD route;
+never put the application bearer in a URL or combine both credentials. A client
+can obtain a new carrier after expiry or owner restart.
+
+An available once image is consumed by an authorized GET; HEAD does not consume
+it. A previously consumed image returns 410 only to a currently authorized
+recipient. Anonymous, foreign and unreadable assets return 404. Once images use
+`no-store`; request them only when the user opens them and keep their bytes in
+memory. Ordinary media caching and its account/revocation lifecycle will be
+owned by the SDK media integration.
+
+The focused Mac qualification used the real worker/helper/HTTP path, including
+an uploaded five-second MP4 played by Chrome through a private carrier. It also
+exercised row denial, once behavior, restart/logout, reclamation, helper process
+limits and interrupted uploads. This is not yet the full Clique media or native
+media qualification. Linux helper memory-limit code has been cross-compiled;
+the current browser proof is on macOS.

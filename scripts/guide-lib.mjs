@@ -64,7 +64,7 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // GAP row (issues/20260815-guide-gap-familiar-authoring-profile-page.md).
 // Bumped 58368 -> 58880 on 2026-08-15 for the assets.media-collection.v1
 // experimental introduction row (LLP 0239 R3,
-// issues/20260815-finish-media-happy-path.md).
+// issues/shelved/20260815-finish-media-happy-path.md).
 // Bumped 58880 -> 60416 on 2026-08-16 for LLP 0240's shipped custom-authority
 // and effective-authority-inspection rows.
 // Bumped 60416 -> 61440 on 2026-08-21 for the required auth.field-masking GAP

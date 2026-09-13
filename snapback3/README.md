@@ -4,6 +4,12 @@ An independent Snapback candidate that designs the whole application together:
 authoring, live data, offline work, interface behavior, and the development loop.
 The design and experiment are in [LLP 2000](../llp/2000-snapback3.rfc.md).
 
+Expansion toward the full Clique benchmark is paused as of 2026-09-12 while
+effort shifts toward evaluating Snapback 4. The current checkout includes
+unfinished integration work; earlier component results do not qualify it as a
+complete product. [The pause handoff](PAUSE.md) identifies preserved evidence,
+reusable work and remaining gaps.
+
 This directory is its own Cargo and Bun workspace. Snapback 1 remains at the
 repository root; Snapback 2 and Snapback 4 live beside it. All four can be
 inspected in the same checkout.
@@ -32,7 +38,7 @@ From this directory, with Bun, Node 22.12 or newer, and Rust installed:
 
 ```sh
 bun install --frozen-lockfile
-cargo build -p snapback3-worker --release
+cargo build -p snapback3-worker -p snapback3-media --release
 node build.mjs
 node examples/chat/build.mjs
 node packages/snapback3/dist/cli.mjs dev examples/chat --port 4383
@@ -44,6 +50,11 @@ without resetting data. Failed compilation keeps the previous generation serving
 Interface changes need another example build. `check examples/chat` certifies
 the backend and writes its inferred API declarations. `serve` disables personas
 and development seeding; it is a foreground self-hosted owner, not a managed host.
+Accepted backend definitions are stored with their database generation so worker
+recovery preserves committed changes even after a lost reply. Older experimental
+stores require explicit `--adopt-legacy-project` after verifying the intended
+source. The [guide](guide.md) also covers authenticated operator jobs and durable
+job discovery after an uncertain enqueue.
 
 Run focused verification:
 
@@ -83,12 +94,20 @@ excluding browser persistence and rendering. It is not a full Clique or sibling
 comparison. Input files and measurements live in ignored `.snapback3/fixtures/`
 under the example.
 
-This remains an experimental candidate. Runtime admission supports persisted
-Quarry queries and mutations. Effects, jobs, schedules, channels, connected
-presence, clock-driven live queries, and media are refused until their runtime
-slices exist. Mutation timestamps work. Native clients, hosted deployment,
-backup/restore tooling, and automatic cache eviction remain work to do. Inherited compiler exports do not imply those
-capabilities are served. The acquisition experiment compares the new SDK path
+This remains an experimental candidate. The full Clique implementation is in
+progress: current sources add a media owner and isolated codec helper, autonomous
+jobs and schedules, clock renewal, operator tools, and an Expo SQLite entrypoint.
+The focused media integration passes real HTTP/helper and Chrome playback
+checks; its final independent review and whole-product qualification remain
+pending. [The guide](guide.md#media-http-transport) records the HTTP media surface.
+The [native persistence witness](benchmarks/native-platform/README.md) has passed
+offline restoration, FIFO replay and terminal receipt restoration across three
+Expo/Hermes process lifetimes on iOS; full native Clique remains outstanding.
+Media admission requires a working helper; effects, channels, and connected
+presence remain refused until their owner integrations are available. Hosted
+deployment, backup/restore tooling, and automatic cache eviction remain work to
+do. Inherited compiler exports do not imply those capabilities are served.
+The acquisition experiment compares the new SDK path
 with the prior Snapback3 serial walker at a fixed scope. A whole-product win
 over Snapback2 or Snapback4 and production readiness remain unproven.
 

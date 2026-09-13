@@ -55,7 +55,7 @@ authoritative capture on Cloudflare stays open. Implemented 2026-08-04 with
 `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED` at the Cloudflare arm's
 compiled-schema load and `/app/ensure` seams; the local enforcing target is
 unchanged.) 2026-08-04 (D2/D3 first-tranche implementation record
-(`issues/20260803-0146-d1-d3-tranche.md`): `snapback verify` is a
+(`issues/shelved/20260803-0146-d1-d3-tranche.md`): `snapback verify` is a
 package-owned CLI composition in `packages/snapback-cli/verify.mjs`, not an
 `acceptance.run` host operation. Its five ordered stages cover
 source-regenerated artifact identity, the digest-bound LLP 0010 runtime
@@ -84,7 +84,7 @@ served envelope. Tests are `packages/snapback-cli/verify.test.mjs` and
 admission, automatic acceptance-path discovery, dynamic observation custody,
 the missing public row-count/D1 projections, `acceptance.run`, D4–D7, or
 anything CV-14.) 2026-08-03 (D1 first-tranche implementation record 2026-08-03 (D1 first-tranche implementation record
-(`issues/20260803-0146-d1-d3-tranche.md`): D1 surfaces 1 and 3 are
+(`issues/shelved/20260803-0146-d1-d3-tranche.md`): D1 surfaces 1 and 3 are
 implemented on the local target — the per-invocation class-tagged report
 with per-class provenance lands on the admin runner's `FunctionRunResult`
 (`crates/snapback/src/conformance.rs`, `crates/snapback/src/local.rs`) and on the `function.run` envelope
@@ -106,7 +106,7 @@ escape hatch, Cloudflare-arm enforcement or capture authority (OQ14), and
 anything CV-14 (OQ7 unruled — no custody claim).) 2026-08-03 (author decision sitting #2
 (`issues/20260803-author-decision-sitting-2.md`): the D1–D3 first tranche
 is ratified for implementation
-(`issues/20260803-0146-d1-d3-tranche.md`); OQ1 ruled — D1 strict mode is
+(`issues/shelved/20260803-0146-d1-d3-tranche.md`); OQ1 ruled — D1 strict mode is
 opt-in for newly generated apps; OQ8 ruled — Cloudflare fan-out stays
 conservative widening for now, with no hosted claim gated on precision.
 OQ7's CV-14 custody trigger is deliberately not ruled.) 2026-08-01 (implementation reconciliation outside the RFC's unratified D1 program: the independently ticketed Cloudflare live-delivery defect is fixed by conservative fan-out widening; OQ8 is narrowed to whether and how to recover precision). 2026-08-01 (v0.1, initial draft)
@@ -1282,7 +1282,7 @@ value an agent cannot exploit while its model of the app is still wrong.
 **Ruled 2026-08-03 — author decision sitting #2
 (`issues/20260803-author-decision-sitting-2.md`).** The D1–D3 first
 tranche is ratified for implementation (commissioned as
-`issues/20260803-0146-d1-d3-tranche.md`). OQ1: D1 strict mode is
+`issues/shelved/20260803-0146-d1-d3-tranche.md`). OQ1: D1 strict mode is
 **opt-in** for newly generated apps — a newly generated app does not opt
 in by default. OQ8: the Cloudflare fan-out stays **conservative
 widening** for now; no hosted claim is gated on recovering precision.
@@ -1293,7 +1293,7 @@ custody owner's ratification. The remaining questions stay open.
 **Ruled 2026-08-04 — author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`).** Two rulings
 on the D1 tranche's accumulated author questions
-(`issues/20260803-0146-d1-d3-tranche.md`):
+(`issues/shelved/20260803-0146-d1-d3-tranche.md`):
 
 - **Escape hatch: none in v1.** The boolean `strictDeclarations`
   strict-mode opt-in ships as-is. The per-dependency-class vocabulary
@@ -1409,7 +1409,7 @@ that artifact remains open in the D1–D3 tranche ticket.
 Draft. No implementation was authorized by this document as written;
 on 2026-08-03 the author ratified the D1–D3 first tranche for
 implementation (author decision sitting #2, see §Open questions and
-`issues/20260803-0146-d1-d3-tranche.md`) — the remaining decisions stay
+`issues/shelved/20260803-0146-d1-d3-tranche.md`) — the remaining decisions stay
 unratified. The D1 report and strict-mode surfaces landed that day on the local
 target; the D2/D3 v0 surfaces landed in the 2026-08-04 worktree record (see the
 dated records in the Revised header). The 2026-08-16 residue record completes

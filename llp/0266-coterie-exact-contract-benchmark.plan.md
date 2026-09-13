@@ -18,7 +18,7 @@ single-window live replacement, qualify its measurable cost, and refuse the
 LLP 0108, LLP 0137, LLP 0189, LLP 0200, LLP 0201, LLP 0267, LLP 0278,
 `benchmarks/briefs/social-messenger.md`,
 `benchmarks/tools/social-messenger/CONTRACT.md`,
-`issues/20260817-coterie-message-envelope-growth.md`
+`issues/shelved/20260817-coterie-message-envelope-growth.md`
 
 ## Summary
 

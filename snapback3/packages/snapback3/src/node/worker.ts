@@ -16,13 +16,22 @@ export interface WorkerTransport {
 
 export interface WorkerOptions {
   command: string;
+  /** Initial explicit-source launch arguments. */
   args: string[];
+  /** Recovery-only arguments for replacement children. */
+  restartArgs?: string[];
+  env?: NodeJS.ProcessEnv;
   cwd?: string;
   timeoutMs?: number;
   maxPending?: number;
   maxFrameBytes?: number;
   /** At most this many fresh children; submitted requests are never replayed. */
   restarts?: number;
+  /** Runs once per fresh child through a transport that deliberately bypasses
+   * the barrier. Ordinary requests cannot reach the child until it resolves. */
+  initialize?: (transport: WorkerTransport, child: { replacement: boolean }) => Promise<void>;
+  closeDrainMs?: number;
+  closeExitMs?: number;
   onStderr?: (text: string) => void;
   onUnavailable?: (error: OwnerError) => void;
 }
@@ -40,11 +49,15 @@ interface Pending {
 export class WorkerClient implements WorkerTransport {
   private child?: ChildProcessWithoutNullStreams;
   private readonly children = new Set<ChildProcessWithoutNullStreams>();
+  private readonly expectedExit = new Set<ChildProcessWithoutNullStreams>();
   private readonly pending = new Map<number, Pending>();
+  private readonly active = new Set<Promise<unknown>>();
+  private initialization?: { child: ChildProcessWithoutNullStreams; promise: Promise<void> };
   private nextId = 0;
   private starts = 0;
   private closed = false;
   private stopping = false;
+  private inputClosing = false;
   private failure?: OwnerError;
 
   constructor(private readonly options: WorkerOptions) {}
@@ -52,8 +65,34 @@ export class WorkerClient implements WorkerTransport {
   request<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     if (this.closed) return Promise.reject(new OwnerError("S3_OWNER_CLOSED", "The Snapback 3 owner is closed."));
     if (this.stopping) return Promise.reject(this.failure ?? new OwnerError("S3_WORKER_STOPPING", "The worker is restarting; retry shortly."));
-    if (this.pending.size >= (this.options.maxPending ?? 64)) {
+    if (this.active.size >= (this.options.maxPending ?? 64)) {
       return Promise.reject(new OwnerError("S3_OWNER_BUSY", "The owner is busy; retry after current work finishes."));
+    }
+    const request = this.dispatch<T>(method, params);
+    this.active.add(request);
+    void request.then(() => this.active.delete(request), () => this.active.delete(request));
+    return request;
+  }
+
+  private async dispatch<T>(method: string, params: Record<string, unknown>): Promise<T> {
+    const child = await this.readyChild();
+    return this.send<T>(child, method, params);
+  }
+
+  private async readyChild(): Promise<ChildProcessWithoutNullStreams> {
+    if (this.stopping) throw this.failure ?? new OwnerError("S3_WORKER_STOPPING", "The worker is restarting; retry shortly.");
+    const child = this.child ?? this.start();
+    const initialization = this.initialization;
+    if (initialization?.child === child) await initialization.promise;
+    if (this.child !== child || this.stopping || this.inputClosing) {
+      throw this.failure ?? new OwnerError("S3_WORKER_EXIT", "The worker stopped during initialization.");
+    }
+    return child;
+  }
+
+  private send<T>(child: ChildProcessWithoutNullStreams, method: string, params: Record<string, unknown>): Promise<T> {
+    if (this.child !== child || this.stopping || this.inputClosing || child.stdin.destroyed) {
+      return Promise.reject(this.failure ?? new OwnerError("S3_WORKER_EXIT", "The worker connection is unavailable."));
     }
     const id = ++this.nextId;
     let frame: string;
@@ -62,9 +101,6 @@ export class WorkerClient implements WorkerTransport {
     if (Buffer.byteLength(frame) > 2 * 1024 * 1024) {
       return Promise.reject(new OwnerError("S3_INPUT_TOO_LARGE", "The worker request exceeds 2 MiB."));
     }
-    let child: ChildProcessWithoutNullStreams;
-    try { child = this.child ?? this.start(); }
-    catch (error) { return Promise.reject(error); }
     return new Promise<T>((resolveRequest, reject) => {
       const timer = setTimeout(() => {
         this.fail(child, new OwnerError("S3_WORKER_TIMEOUT", "The worker did not answer in time. A submitted write may have committed; retain its operation ID."));
@@ -81,16 +117,19 @@ export class WorkerClient implements WorkerTransport {
     if (this.starts >= 1 + (this.options.restarts ?? 1)) {
       throw this.failure ?? new OwnerError("S3_WORKER_EXIT", "The worker stopped repeatedly. Restart snapback3 dev after correcting the error.");
     }
-    this.starts++;
-    const child = spawn(this.options.command, this.options.args, {
-      cwd: this.options.cwd, stdio: ["pipe", "pipe", "pipe"], windowsHide: true,
+    const first = this.starts++ === 0;
+    this.failure = undefined;
+    this.inputClosing = false;
+    const child = spawn(this.options.command, first ? this.options.args : (this.options.restartArgs ?? this.options.args), {
+      cwd: this.options.cwd, env: this.options.env,
+      stdio: ["pipe", "pipe", "pipe"], windowsHide: true,
     });
     this.child = child;
     this.children.add(child);
     let chunks: Buffer[] = [];
     let bytes = 0;
     child.stdout.on("data", (chunk: Buffer) => {
-      if (this.child !== child || this.stopping) return;
+      if (this.child !== child) return;
       let offset = 0;
       for (;;) {
         const newline = chunk.indexOf(10, offset);
@@ -111,16 +150,38 @@ export class WorkerClient implements WorkerTransport {
       }
     });
     child.stderr.on("data", (chunk: Buffer) => this.options.onStderr?.(chunk.toString("utf8")));
-    child.stdin.on("error", () => this.fail(child, new OwnerError("S3_WORKER_IO", "The worker connection closed. Retain any submitted operation ID.")));
+    child.stdin.on("error", () => {
+      if (!this.expectedExit.has(child)) this.fail(child, new OwnerError("S3_WORKER_IO", "The worker connection closed. Retain any submitted operation ID."));
+    });
     child.on("error", error => this.fail(child, new OwnerError("S3_WORKER_START", `Cannot start the Snapback 3 worker: ${error.message}`)));
     child.on("close", (code, signal) => {
       this.children.delete(child);
       if (this.child === child) {
-        this.fail(child, new OwnerError("S3_WORKER_EXIT", `The worker stopped (${signal ?? code ?? "unknown"}). Retain any submitted operation ID.`), false);
+        const failureWasReported = this.failure !== undefined;
+        const expected = this.expectedExit.delete(child);
+        const error = expected
+          ? new OwnerError("S3_OWNER_CLOSED", "The Snapback 3 owner closed. Retain any submitted operation ID.")
+          : this.failure ?? new OwnerError("S3_WORKER_EXIT", `The worker stopped (${signal ?? code ?? "unknown"}). Retain any submitted operation ID.`);
+        this.rejectPending(error);
+        if (!expected && !this.closed && !failureWasReported) this.options.onUnavailable?.(error);
         this.child = undefined;
+        if (this.initialization?.child === child) this.initialization = undefined;
         this.stopping = false;
+        this.inputClosing = false;
       }
     });
+    const raw: WorkerTransport = { request: <T = unknown>(method: string, params: Record<string, unknown> = {}) => this.send<T>(child, method, params) };
+    const promise = (async () => {
+      try { await this.options.initialize?.(raw, { replacement: !first }); }
+      catch (error) {
+        const reason = error instanceof OwnerError
+          ? error
+          : new OwnerError("S3_WORKER_INIT", `Worker recovery failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.fail(child, reason);
+        throw reason;
+      }
+    })();
+    this.initialization = { child, promise };
     return child;
   }
 
@@ -152,13 +213,17 @@ export class WorkerClient implements WorkerTransport {
   }
 
   private fail(child: ChildProcessWithoutNullStreams, error: OwnerError, terminate = true): void {
-    if (this.child !== child || this.stopping) return;
+    if (this.child !== child || (this.stopping && terminate)) return;
     this.failure = error;
-    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(error); }
-    this.pending.clear();
+    this.rejectPending(error);
     this.stopping = terminate;
     if (!this.closed) this.options.onUnavailable?.(error);
     if (terminate) this.terminate(child);
+  }
+
+  private rejectPending(error: OwnerError): void {
+    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(error); }
+    this.pending.clear();
   }
 
   private terminate(child: ChildProcessWithoutNullStreams): void {
@@ -173,17 +238,42 @@ export class WorkerClient implements WorkerTransport {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
-    for (const pending of this.pending.values()) {
-      clearTimeout(pending.timer);
-      pending.reject(new OwnerError("S3_OWNER_CLOSED", "The Snapback 3 owner closed. Retain any submitted operation ID."));
-    }
-    this.pending.clear();
-    const children = [...this.children];
-    await Promise.all(children.map(child => new Promise<void>(done => {
-      child.once("close", () => done());
-      this.terminate(child);
-    })));
+    await boundedWait(Promise.allSettled([...this.active]), this.options.closeDrainMs ?? 5_000);
+    const child = this.child;
+    if (!child) return;
+    this.inputClosing = true;
+    this.expectedExit.add(child);
+    child.stdin.end();
+    if (await childExit(child, this.options.closeExitMs ?? 1_000)) return;
+    if (this.child === child && this.children.has(child)) child.kill("SIGTERM");
+    if (await childExit(child, this.options.closeExitMs ?? 1_000)) return;
+    if (this.child === child && this.children.has(child)) child.kill("SIGKILL");
+    await childExit(child, this.options.closeExitMs ?? 1_000);
   }
+}
+
+async function boundedWait(promise: Promise<unknown>, timeoutMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    promise.then(() => undefined, () => undefined),
+    new Promise<void>(done => { timer = setTimeout(done, positiveTimeout(timeoutMs)); timer.unref(); }),
+  ]);
+  if (timer) clearTimeout(timer);
+}
+
+async function childExit(child: ChildProcessWithoutNullStreams, timeoutMs: number): Promise<boolean> {
+  if (child.exitCode !== null || child.signalCode !== null) return true;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const exited = await Promise.race([
+    new Promise<true>(done => child.once("close", () => done(true))),
+    new Promise<false>(done => { timer = setTimeout(() => done(false), positiveTimeout(timeoutMs)); timer.unref(); }),
+  ]);
+  if (timer) clearTimeout(timer);
+  return exited;
+}
+
+function positiveTimeout(value: number): number {
+  return Number.isFinite(value) && value >= 1 ? Math.min(Math.floor(value), 2_147_483_647) : 1_000;
 }
 
 export function findWorker(projectRoot = process.cwd()): string {

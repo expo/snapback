@@ -226,7 +226,7 @@ impl Runner<'_> {
             }
         }
         // @ref LLP 1001#2-what-a-commit-records — receipt absences stay inside the server trace.
-        // issues/20260829-bounded-programs-receipt-absences-unvalidated.md
+        // issues/shelved/20260829-bounded-programs-receipt-absences-unvalidated.md
         for absence in &self.receipt.absences {
             if !self.trace.absences.contains(absence) {
                 return Err(RuntimeError::TraceSubset(format!(

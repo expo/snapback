@@ -332,7 +332,7 @@
         }
       ],
       "observabilityBump": {
-        "issue": "issues/20260821-clique-instrument-observability-version-bump.md",
+        "issue": "issues/shelved/20260821-clique-instrument-observability-version-bump.md",
         "status": "landed",
         "included": true
       }

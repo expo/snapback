@@ -57,11 +57,11 @@ five Expo/EAS audit artifacts `llp/reviews/0331-coverage-audit.eas*.md`,
 [guide/auth/protecting-data.md](../guide/auth/protecting-data.md),
 [guide/backend/assets.md](../guide/backend/assets.md),
 [guide/recipes/membership-roster-projection.md](../guide/recipes/membership-roster-projection.md),
-`issues/20260826-membership-scoped-query-reachability.md`,
-`issues/20260822-membership-visibility-read-denial-needs-reverify.md`,
-`issues/20260808-guide-gap-principal-to-app-identity-binding.md`,
-`issues/20260819-generated-role-checks-launder-roles-through-array-slice.md`,
-`issues/20260826-stale-handle-membership-plan-bypasses-successor-transition-policy.md`,
+`issues/shelved/20260826-membership-scoped-query-reachability.md`,
+`issues/shelved/20260822-membership-visibility-read-denial-needs-reverify.md`,
+`issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md`,
+`issues/shelved/20260819-generated-role-checks-launder-roles-through-array-slice.md`,
+`issues/shelved/20260826-stale-handle-membership-plan-bypasses-successor-transition-policy.md`,
 `issues/closed/20260821-private-authority-product-roster-decision.md`,
 Diary 0014, Diary 0015, Diary 0021, Diary 0026, Diary 0027, Diary 0028,
 Diary 0042, Diary 0044, Diary 0045-a4-events-sweep, Diary 0046-a5-ai-research-room-sweep,
@@ -161,7 +161,7 @@ implementation-focused Snapback2 LLPs numbered 1001 or higher. Per the
 Snapback2 fence, only implemented specs bind. LLP 0310 already owns the 0.1.27
 Clique DX inventory and the pit-of-success standard; this document owns the
 membership-system reading across the diary corpus, of which LLP 0310's F8 /
-P18 (`issues/20260826-membership-scoped-query-reachability.md`) is one row.
+P18 (`issues/shelved/20260826-membership-scoped-query-reachability.md`) is one row.
 
 ## Governing context and document posture
 
@@ -1367,7 +1367,7 @@ copy the template and Coterie.
 agent working from the packet meets read posture first as a silent empty
 query. `public-read` is the edit that makes the failure go away. That is
 the pit-of-success miss already filed as
-`issues/20260826-membership-scoped-query-reachability.md` (LLP 0310 F8 /
+`issues/shelved/20260826-membership-scoped-query-reachability.md` (LLP 0310 F8 /
 P18). This document adds: the first-party social artifacts teach the
 wrong production posture, so fixing the packet without fixing the template
 and Coterie will not change what Clique lanes copy.
@@ -1426,7 +1426,7 @@ posture as wrong and shipped it anyway.
 | 0105 sol-high familiar | inbox projection `public-read`, narrowed only by the app function | “honest production hardening gap.” |
 | 0108 sonnet familiar | `messages`, receipts, reactions, presentational roster `public-read`; write-path `assertConversationMember` only | Membership-scoped reads denied bona-fide members (see Finding 6). Any authenticated user who guessed a conversation id could read messages. |
 | grok familiar 0.1.29 | durable typing table instead of `allow.members()` | “too expensive to adopt in-budget.” |
-| `issues/20260826-membership-scoped-query-reachability.md` | familiar Clique 0.1.27 | Lane **named** it “not a production ACL.” |
+| `issues/shelved/20260826-membership-scoped-query-reachability.md` | familiar Clique 0.1.27 | Lane **named** it “not a production ACL.” |
 
 The paved path exists on `guide/backend/familiar-profile.md` and
 `guide/auth/protecting-data.md` (“Do not use public-read merely to silence
@@ -1501,13 +1501,13 @@ query, the documented `requireRole` + `elevated.query` sequence, and a
 bare `ctx.db.get` on a committed row. They later found the type confusion,
 **did not re-test** membership visibility with corrected principals, and
 left `public-read` in place.
-`issues/20260822-membership-visibility-read-denial-needs-reverify.md` is
+`issues/shelved/20260822-membership-visibility-read-denial-needs-reverify.md` is
 still open.
 
 At the JS layer both ids are opaque strings. A branded `Principal` that
 cannot be assigned from `Id<'users'>` would have caught 0108 at
 `snapback generate` time instead of two milestones later. Related:
-`issues/20260808-guide-gap-principal-to-app-identity-binding.md` (guide
+`issues/shelved/20260808-guide-gap-principal-to-app-identity-binding.md` (guide
 page landed; verified-provisioning writer still deferred).
 
 The expo-chat template uses `userId: v.id('users')` on an ordinary
@@ -1600,8 +1600,8 @@ column.
 | `requireRole` exact vs `hasRole` hierarchical | 0101 | Still the contract. |
 | Start-packet / template visibility pit | 0310 F8, 0081, 0092, 0104, 0105, 0108 | Open. |
 | Membership-visibility reverify after principal fix | 0108 | Open. |
-| Generated `requireRole` / `allowsRole` laundering via `Array.prototype.slice` | `issues/20260819-generated-role-checks-launder-roles-through-array-slice.md` | Open. |
-| Stale-handle membership plan bypasses successor policy | `issues/20260826-stale-handle-membership-plan-bypasses-successor-transition-policy.md` and the last-holder sibling | Open. |
+| Generated `requireRole` / `allowsRole` laundering via `Array.prototype.slice` | `issues/shelved/20260819-generated-role-checks-launder-roles-through-array-slice.md` | Open. |
+| Stale-handle membership plan bypasses successor policy | `issues/shelved/20260826-stale-handle-membership-plan-bypasses-successor-transition-policy.md` and the last-holder sibling | Open. |
 | Generated profile ops are directly callable; a coordinator cannot be the only writer | 0058-messaging-snapback | By design; `artifacts.json` made the bypass visible. |
 
 The self-service and kick gaps being closed is real progress. The *shape*

@@ -253,7 +253,7 @@ stays shelved; revisit only if a future pin's diaries ask.
 
 ### Instrument ticket disposition
 
-`issues/20260821-clique-instrument-observability-version-bump.md` gains
+`issues/shelved/20260821-clique-instrument-observability-version-bump.md` gains
 this run as real-lane evidence: typing boundary v2 stamped end-to-end, the
 standalone fresh-M7 choreography green, the strengthened cutoff assertion
 firing on a real leak, and green/aborted/blocked outcome classes exercised

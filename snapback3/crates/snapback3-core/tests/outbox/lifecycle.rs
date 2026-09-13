@@ -18,21 +18,15 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     runtime.execute("ops.audit", context).unwrap();
 
     let claimed = runtime
-        .store()
-        .outbox_claim_next(100, &["audit".to_owned()])
-        .unwrap().claimed
+        .claim_effect(100)
+        .unwrap()
+        .claimed
         .expect("queued row");
     assert_eq!(claimed.state, "running");
     assert_eq!(claimed.attempts, 1);
     assert_eq!(claimed.payload, Value::String("payload".to_owned()));
     assert_eq!(claimed.generation, Some(generation.effects_hash()));
-    assert!(
-        runtime
-            .store()
-            .outbox_claim_next(100, &["audit".to_owned()])
-            .unwrap().claimed
-            .is_none()
-    );
+    assert!(runtime.claim_effect(100).unwrap().claimed.is_none());
 
     runtime
         .store()
@@ -42,11 +36,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     let requeued = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
     assert_eq!(requeued.state, "queued");
     assert_eq!(requeued.attempts, 0);
-    let claimed = runtime
-        .store()
-        .outbox_claim_next(i64::MAX, &["audit".to_owned()])
-        .unwrap().claimed
-        .unwrap();
+    let claimed = runtime.claim_effect(i64::MAX).unwrap().claimed.unwrap();
     assert_eq!(claimed.attempts, 1);
     assert_eq!(runtime.store().outbox_mark_unknown_running().unwrap(), 1);
     assert_eq!(
@@ -58,13 +48,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
             .state,
         "sent_unknown"
     );
-    assert!(
-        runtime
-            .store()
-            .outbox_claim_next(i64::MAX, &["audit".to_owned()])
-            .unwrap().claimed
-            .is_none()
-    );
+    assert!(runtime.claim_effect(i64::MAX).unwrap().claimed.is_none());
 }
 
 #[test]
@@ -77,6 +61,7 @@ fn store_open_adds_then_binding_columns_to_an_existing_outbox() {
             .execute_batch(
                 "ALTER TABLE _outbox DROP COLUMN then_op;
                  ALTER TABLE _outbox DROP COLUMN generation;
+                 ALTER TABLE _outbox DROP COLUMN claim_binding;
                  ALTER TABLE _outbox DROP COLUMN then_seq;
                  INSERT INTO _outbox VALUES
                     ('old', 1, 'audit', '\"Null\"', 'queued', 0, 0, NULL, NULL, 0, 0);",
@@ -87,6 +72,7 @@ fn store_open_adds_then_binding_columns_to_an_existing_outbox() {
     let old = store.outbox_get("old").unwrap().unwrap();
     assert_eq!(old.then_op, None);
     assert_eq!(old.generation, None);
+    assert_eq!(old.claim_binding, None);
     assert_eq!(old.then_seq, None);
     drop(store);
     cleanup(&path);
@@ -189,7 +175,7 @@ fn changed_effect_source_fails_pending_then_without_running_new_target() {
 }
 
 #[test]
-fn rejected_then_is_sent_with_error_across_an_unchanged_effect_declaration() {
+fn changed_then_body_fails_pending_custody_before_running_the_new_target() {
     let source = "async () => ({ providerId: 'same' })";
     let mut runtime = Runtime::open(Store::memory().unwrap(), then_generation(source)).unwrap();
     leave_then_pending(&mut runtime);
@@ -200,15 +186,11 @@ fn rejected_then_is_sent_with_error_across_an_unchanged_effect_declaration() {
     let execution = execute_then(&mut runtime).unwrap();
     assert!(matches!(
         execution.state,
-        ExecutionState::Rejected { ref code, .. } if code == "THEN_REFUSED"
+        ExecutionState::Rejected { ref code, .. } if code == "E_EFFECT_THEN_CHANGED"
     ));
     let row = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
-    assert_eq!(row.state, "sent");
-    assert!(
-        row.last_error
-            .as_deref()
-            .is_some_and(|error| error.contains("THEN_REFUSED"))
-    );
+    assert_eq!(row.state, "failed");
+    assert_eq!(row.last_error.as_deref(), Some("E_EFFECT_THEN_CHANGED"));
 }
 
 #[test]
@@ -251,10 +233,15 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
-    context.now = Some(10);
-    context.new_ids = VecDeque::from(["unknown-outbox".to_owned(), "return-id".to_owned()]);
-    runtime.execute("ops.audit", context).unwrap();
+    for number in 0..65 {
+        let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
+        context.now = Some(10);
+        context.new_ids = VecDeque::from([
+            format!("unknown-outbox-{number:03}"),
+            format!("return-id-{number:03}"),
+        ]);
+        runtime.execute("ops.audit", context).unwrap();
+    }
 
     let mut successor = empty_schema();
     successor.effects = vec!["kept".to_owned()];
@@ -280,18 +267,12 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     context.new_ids = VecDeque::from(["kept-outbox".to_owned(), "kept-return".to_owned()]);
     runtime.execute("ops.kept", context).unwrap();
 
-    let claim = runtime
-        .store()
-        .outbox_claim_next(11, &["kept".to_owned()])
-        .unwrap();
-    assert_eq!(
-        claim
-            .failed
-            .iter()
-            .map(|row| (row.id.as_str(), row.effect.as_str(), row.state.as_str()))
-            .collect::<Vec<_>>(),
-        vec![("unknown-outbox", "audit", "queued")],
-        "the claim transaction reports the rows it failed, as they were before it"
+    let claim = runtime.claim_effect(11).unwrap();
+    assert_eq!(claim.failed.len(), 64);
+    assert!(claim.failed.iter().all(|row| row.effect == "audit"));
+    assert!(
+        claim.more,
+        "the bounded claim reports remaining cleanup work"
     );
     let claimed = claim
         .claimed
@@ -299,16 +280,13 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     assert_eq!(claimed.id, "kept-outbox");
     assert_eq!(claimed.state, "running");
     assert_eq!(claimed.attempts, 1);
-    assert!(
-        runtime
-            .store()
-            .outbox_claim_next(11, &["kept".to_owned()])
-            .unwrap().claimed
-            .is_none()
-    );
+    let tail = runtime.claim_effect(11).unwrap();
+    assert_eq!(tail.failed.len(), 1);
+    assert!(tail.claimed.is_none());
+    assert!(!tail.more);
     let row = runtime
         .store()
-        .outbox_get("unknown-outbox")
+        .outbox_get("unknown-outbox-064")
         .unwrap()
         .unwrap();
     assert_eq!(row.state, "failed");
@@ -470,11 +448,7 @@ fn leave_then_pending(runtime: &mut Runtime) {
     emit.now = Some(10);
     emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
     runtime.execute("notifications.emit", emit).unwrap();
-    runtime
-        .store()
-        .outbox_claim_next(10, &["notifications.notify".to_owned()])
-        .unwrap().claimed
-        .unwrap();
+    runtime.claim_effect(10).unwrap().claimed.unwrap();
     runtime
         .store()
         .outbox_settle(

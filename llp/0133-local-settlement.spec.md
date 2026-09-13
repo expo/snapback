@@ -762,7 +762,7 @@ What landed:
   authority's response and exactly-once settlement retain `claimLedger` and
   lane-L `idMap`, while fan-out strips both private value carriers. The
   provisional wire spellings and row-4 ownership are recorded in
-  `issues/20260802-0133-receipt-wire-coordination.md`.
+  `issues/shelved/20260802-0133-receipt-wire-coordination.md`.
 - `ClientMutationIdentity` binds the lane, activation/implementation claims,
   recorded claim set, and bounded-skew declaration before freshness or
   effects. Exact duplicates republish retained settlement facts; any identity

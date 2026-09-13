@@ -70,7 +70,7 @@ Three design choices do most of that work:
 1. **Reads are keywords with the index inside the form.** `get users.byId [key]`,
    `scan cards.byParentOrder [key] take=50`. A read without an index does not
    parse. This is also the shape that would have caught the defect in
-   `issues/20260828-plan-get-accepts-untyped-id-expression.md`, where a TypeScript
+   `issues/shelved/20260828-plan-get-accepts-untyped-id-expression.md`, where a TypeScript
    builder accepted a `v.string()` where a document id was required because there
    was nowhere to hang the relationship.
 2. **Every read carries its bound.** `take=` is required; three of the eight

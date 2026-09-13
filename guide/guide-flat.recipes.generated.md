@@ -3838,7 +3838,7 @@ behaving correctly.
 The run that exposed the poisoned overlay also used six live subscriptions.
 Consolidating them removed its repeated trigger, but that behavior remains a
 separate open contention investigation:
-[the retained ticket](repo:issues/20260820-familiar-live-subscription-contention.md).
+[the retained ticket](repo:issues/shelved/20260820-familiar-live-subscription-contention.md).
 This recipe settles the foreground promise safely; it does not classify the
 subscription behavior or make one aggregate query a universal requirement.
 
@@ -5504,7 +5504,7 @@ id: recipes.split-sensitive-fields
 order: 16
 audience: agent-first
 capabilities: [auth.table-visibility]
-authorities: [llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0235-field-masking-class-m.spec.md, issues/20260821-0235-field-masking-productization.md, packages/snapback-codegen/define.mjs]
+authorities: [llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0235-field-masking-class-m.spec.md, issues/shelved/20260821-0235-field-masking-productization.md, packages/snapback-codegen/define.mjs]
 examples: []
 status: current
 targets: [local]

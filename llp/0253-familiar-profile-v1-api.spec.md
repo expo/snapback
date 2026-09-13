@@ -106,7 +106,7 @@ r1 and r2; every r2-delta MATERIAL is addressed in r3.)
 **Related:** LLP 0252, LLP 0237, LLP 0238, LLP 0241, LLP 0242, LLP 0245,
 LLP 0246, LLP 0247, LLP 0248, LLP 0249, LLP 0218, LLP 0225, LLP 0108,
 LLP 0127, LLP 0130, LLP 0037, LLP 0203, LLP 0258, LLP 0275, LLP 0295,
-`issues/20260821-authoring-profile-vertical-contract-fixtures.md`
+`issues/shelved/20260821-authoring-profile-vertical-contract-fixtures.md`
 
 ## Summary
 
@@ -1028,7 +1028,7 @@ required resource-id field on a child table are the contract — the engine
 already admits them — and a generated-type layer that rejects `"_id"` as
 outside the authored field union is a defect against this Spec, not
 contract; fixture VCF-F-MB1 is the receipt
-(`issues/20260821-authoring-profile-vertical-contract-fixtures.md`); **sequences** — (c): disposition 4
+(`issues/shelved/20260821-authoring-profile-vertical-contract-fixtures.md`); **sequences** — (c): disposition 4
 stands, and parity means the refusal and its route are stable and
 first-read-discoverable (VCF-F-SQ1), not that Familiar gains the
 constructor.
@@ -1139,7 +1139,7 @@ fixtures run in authored form with the plan-derived form added at closure.
 VCF-E-L1 is the recurring-lifecycle-scaffolding receipt LLP 0295 W3 names
 for the Explicit economy lane; it binds the LLP 0275 D6 cold-install
 closure, not a new lifecycle mechanism (D0.1/W1 own lifecycle design).
-`issues/20260821-authoring-profile-vertical-contract-fixtures.md` is the
+`issues/shelved/20260821-authoring-profile-vertical-contract-fixtures.md` is the
 execution ticket and carries the lane checklists.
 
 ### Dated amendment — 2026-08-25: authorable offline mutation replay

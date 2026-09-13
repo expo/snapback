@@ -200,7 +200,7 @@ automatic rewriting out of scope.
 Rollouts 1–3 plus cost/dependency evidence and the Rollout 5 N+1 diagnostic are
 implemented; the Cloudflare DO and remote-service targets carry explicit
 capability gaps; the measurement rerun remains open
-(`issues/20260812-0247-0248-measurement-reruns.md`).
+(`issues/shelved/20260812-0247-0248-measurement-reruns.md`).
 
 ## Addendum — invocation-snapshot scope (2026-08-12)
 

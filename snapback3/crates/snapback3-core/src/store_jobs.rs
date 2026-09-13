@@ -1,7 +1,14 @@
-use crate::jobs::{JobRecord, JobRefusal};
+use crate::jobs::{JobRecord, JobRecoveryRecord, JobRefusal};
 use crate::{RuntimeError, Store};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Serialize, de::DeserializeOwned};
+
+const RECOVERY_INITIAL_SQL: &str = "SELECT id,name,state,created_at,updated_at,finished_at
+     FROM _jobs WHERE enqueued_by=?1
+     ORDER BY created_at DESC,id DESC LIMIT ?2";
+const RECOVERY_AFTER_SQL: &str = "SELECT id,name,state,created_at,updated_at,finished_at
+     FROM _jobs WHERE enqueued_by=?1 AND (created_at,id)<(?2,?3)
+     ORDER BY created_at DESC,id DESC LIMIT ?4";
 
 pub(crate) fn create(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
@@ -11,7 +18,9 @@ pub(crate) fn create(conn: &Connection) -> Result<(), rusqlite::Error> {
         sweep INTEGER NOT NULL, upper_key TEXT, cursor TEXT, chunks INTEGER NOT NULL,
         rows_written TEXT NOT NULL, enqueued_by TEXT NOT NULL, created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL, finished_at INTEGER, last_error TEXT);
-        CREATE INDEX IF NOT EXISTS _jobs_state_created ON _jobs(state, created_at);",
+        CREATE INDEX IF NOT EXISTS _jobs_state_created ON _jobs(state, created_at);
+        CREATE INDEX IF NOT EXISTS _jobs_operator_recovery
+          ON _jobs(enqueued_by, created_at DESC, id DESC);",
     )?;
     Ok(())
 }
@@ -79,6 +88,52 @@ impl Store {
                     .ok_or_else(|| RuntimeError::Input("job disappeared".into()))
             })
             .collect()
+    }
+    /// A bounded reverse-chronological recovery page for one authenticated
+    /// operator identity. `after` is an opaque job-id cursor whose ownership is
+    /// checked before it can influence the stable `(created_at,id)` keyset.
+    // @ref LLP 2000#integration-choices — durable job discovery is operator-scoped, bounded, redacted, and observe-only.
+    pub fn jobs_for_operator(
+        &self,
+        by: &str,
+        after: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<JobRecoveryRecord>, RuntimeError> {
+        let cursor = after
+            .map(|id| {
+                self.conn
+                    .query_row(
+                        "SELECT created_at,id FROM _jobs WHERE id=?1 AND enqueued_by=?2",
+                        params![id, by],
+                        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+                    )
+                    .optional()
+                    .map_err(RuntimeError::from)?
+                    .ok_or_else(|| RuntimeError::Input("unknown job recovery cursor".into()))
+            })
+            .transpose()?;
+        let bound = limit.min(65) as i64;
+        let read = |row: &rusqlite::Row<'_>| {
+            Ok(JobRecoveryRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                state: row.get(2)?,
+                created_at: row.get(3)?,
+                updated_at: row.get(4)?,
+                finished_at: row.get(5)?,
+            })
+        };
+        if let Some((created_at, id)) = cursor {
+            let mut statement = self.conn.prepare(RECOVERY_AFTER_SQL)?;
+            Ok(statement
+                .query_map(params![by, created_at, id, bound], read)?
+                .collect::<Result<Vec<_>, _>>()?)
+        } else {
+            let mut statement = self.conn.prepare(RECOVERY_INITIAL_SQL)?;
+            Ok(statement
+                .query_map(params![by, bound], read)?
+                .collect::<Result<Vec<_>, _>>()?)
+        }
     }
     pub fn job_counts(&self) -> Result<serde_json::Value, RuntimeError> {
         let mut counts = serde_json::json!({"running":0,"queued":0,"parked":0});
@@ -158,7 +213,7 @@ impl Store {
         // Read the ledger in bounded pages, selecting the job before applying the cap.
         let mut stmt = self
             .conn
-            .prepare("SELECT seq FROM _commits WHERE job=?1 AND seq>?2 ORDER BY seq LIMIT ?3")?;
+            .prepare("SELECT seq FROM _commits WHERE job=?1 AND job_chunk IS NOT NULL AND seq>?2 ORDER BY seq LIMIT ?3")?;
         let seqs = stmt
             .query_map(params![id, after as i64, limit.min(500) as i64], |r| {
                 r.get::<_, i64>(0)
@@ -214,7 +269,7 @@ pub(crate) fn audit_control(
             principal: crate::SYSTEM_PRINCIPAL_ID.to_owned(),
             kind: "operator".into(),
             by: Some(by.into()),
-            job: None,
+            job: Some(row.id.clone()),
             job_chunk: None,
             schedule: None,
             touched: Vec::new(),
@@ -228,7 +283,7 @@ pub(crate) fn audit_control(
 impl Store {
     pub fn job_commit_summary(&self, id: &str) -> Result<serde_json::Value, RuntimeError> {
         let (first, last, count) = self.conn.query_row(
-            "SELECT MIN(seq),MAX(seq),COUNT(*) FROM _commits WHERE job=?1",
+            "SELECT MIN(seq),MAX(seq),COUNT(job_chunk) FROM _commits WHERE job=?1",
             [id],
             |r| {
                 Ok((
@@ -297,4 +352,138 @@ pub(crate) fn enqueue(
     )?;
     save(conn, &row)?;
     Ok(row)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn job_recovery_is_indexed_redacted_and_stable_across_equal_timestamps() {
+        let mut store = Store::memory().unwrap();
+        store
+            .conn
+            .execute("DROP INDEX _jobs_operator_recovery", [])
+            .unwrap();
+        create(&store.conn).unwrap();
+        create(&store.conn).unwrap();
+        let index_count: i64 = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='_jobs_operator_recovery'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            index_count, 1,
+            "existing stores gain the recovery index idempotently"
+        );
+
+        let transaction = store.conn.transaction().unwrap();
+        let mut expected = Vec::new();
+        let mut foreign_cursor = String::new();
+        for ordinal in 0..4_096 {
+            let owned = ordinal % 7 == 0;
+            let by = if owned {
+                "operator-owned"
+            } else {
+                "operator-foreign"
+            };
+            let id = format!("job_{ordinal:05}");
+            let created_at = 1_700_000_000_000_i64 + i64::from(ordinal % 5);
+            if owned {
+                expected.push((created_at, id.clone()));
+            } else if foreign_cursor.is_empty() {
+                foreign_cursor = id.clone();
+            }
+            transaction
+                .execute(
+                    "INSERT INTO _jobs (
+                       id,name,source,program_hash,generation,args,state,sweep,upper_key,cursor,
+                       chunks,rows_written,enqueued_by,created_at,updated_at,finished_at,last_error
+                     ) VALUES (?1,?2,NULL,'program','generation',?3,'queued',0,NULL,NULL,0,'{}',?4,?5,?6,NULL,NULL)",
+                    params![
+                        id,
+                        if owned { "owned.job" } else { "foreign.job" },
+                        if owned { "opaque-not-json" } else { "{}" },
+                        by,
+                        created_at,
+                        created_at + 1,
+                    ],
+                )
+                .unwrap();
+        }
+        transaction.commit().unwrap();
+        expected.sort_by(|left, right| right.cmp(left));
+
+        let initial_plan = query_plan(&store.conn, RECOVERY_INITIAL_SQL, false);
+        let cursor_plan = query_plan(&store.conn, RECOVERY_AFTER_SQL, true);
+        eprintln!("job recovery initial plan: {initial_plan:?}");
+        eprintln!("job recovery cursor plan: {cursor_plan:?}");
+        for plan in [&initial_plan, &cursor_plan] {
+            assert!(
+                plan.iter()
+                    .any(|detail| detail.contains("_jobs_operator_recovery")),
+                "{plan:?}"
+            );
+            assert!(
+                !plan.iter().any(|detail| detail.contains("SCAN _jobs")),
+                "{plan:?}"
+            );
+            assert!(
+                !plan.iter().any(|detail| detail.contains("TEMP B-TREE")),
+                "{plan:?}"
+            );
+        }
+
+        let mut after: Option<String> = None;
+        let mut observed = Vec::new();
+        loop {
+            let mut page = store
+                .jobs_for_operator("operator-owned", after.as_deref(), 14)
+                .unwrap();
+            let more = page.len() > 13;
+            page.truncate(13);
+            assert!(page.iter().all(|row| row.name == "owned.job"));
+            observed.extend(page.iter().map(|row| (row.created_at, row.id.clone())));
+            if !more {
+                break;
+            }
+            after = page.last().map(|row| row.id.clone());
+        }
+        assert_eq!(observed, expected);
+        assert_eq!(observed.len(), 586);
+
+        let foreign = store
+            .jobs_for_operator("operator-owned", Some(&foreign_cursor), 2)
+            .unwrap_err();
+        assert!(foreign.to_string().contains("unknown job recovery cursor"));
+        let unknown = store
+            .jobs_for_operator("operator-owned", Some("job_missing"), 2)
+            .unwrap_err();
+        assert!(unknown.to_string().contains("unknown job recovery cursor"));
+    }
+
+    fn query_plan(conn: &Connection, query: &str, after: bool) -> Vec<String> {
+        let mut statement = conn
+            .prepare(&format!("EXPLAIN QUERY PLAN {query}"))
+            .unwrap();
+        if after {
+            statement
+                .query_map(
+                    params!["operator-owned", 1_700_000_000_002_i64, "job_02000", 14],
+                    |row| row.get(3),
+                )
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        } else {
+            statement
+                .query_map(params!["operator-owned", 14], |row| row.get(3))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        }
+    }
 }

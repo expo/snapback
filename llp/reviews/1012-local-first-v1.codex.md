@@ -111,7 +111,7 @@ The proposed enum covers only message/edit/delete, while M5–M6 require reactio
 
 **Text:** “A crash mid-swap leaves the previous generation intact, which the kill witness asserts.”
 
-**Evidence:** Section 10 kills only after drain/open/view and has no barrier inside a swap. The prior ticket correctly says a fresh client in the same process does not prove real process death and requires a real carrier plus unreachable backend (`issues/20260806-expo-file-carrier-process-kill-witness.md:22-37`).
+**Evidence:** Section 10 kills only after drain/open/view and has no barrier inside a swap. The prior ticket correctly says a fresh client in the same process does not prove real process death and requires a real carrier plus unreachable backend (`issues/shelved/20260806-expo-file-carrier-process-kill-witness.md:22-37`).
 
 **Why it matters:** Tab discard may be graceful; the pre-kill queued message is omitted from the “both committed” assertion; and the matrix omits lost-response replay, auth-partition wipe, carrier corruption/open failure, hidden-versus-absent, offline reactions, and explicit view-once exclusion.
 

@@ -64,4 +64,4 @@ familiar}/` on the execution machine. Consolidated results are in
 0108. The most consequential single finding — a shipped, disclosed privacy
 regression in the Familiar lane's messaging tables, with an open question
 about its true root cause — is tracked in
-`issues/20260822-membership-visibility-read-denial-needs-reverify.md`.
+`issues/shelved/20260822-membership-visibility-read-denial-needs-reverify.md`.

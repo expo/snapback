@@ -81,7 +81,7 @@ LLP 0095 and LLP 0278 (D0.5 owner-inspection floor and subscription budgets,
 consumed by §7), LLP 0114 (React provider identity),
 LLP 0031 (D3 public/gated inspection split — §7's snapshot carrier),
 `issues/20260815-query-cost-guardrails-commission.md`,
-`issues/20260808-live-query-reevaluation-cost-at-scale.md`,
+`issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md`,
 `issues/closed/20260821-app-boundary-runtime-cost-diagnostics-design.md`,
 `issues/closed/20260808-p1-commit-turn-overhead.md`
 

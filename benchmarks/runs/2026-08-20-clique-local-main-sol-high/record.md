@@ -61,7 +61,7 @@ subscription/projection corrections and M3 membership-authority modeling.
    `SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED`, own-post projection exceeded 15s,
    and independent result sets disagreed. A single live state query removed
    the contention and stabilized all trials. This needs a minimized repro;
-   filed as `issues/20260820-familiar-live-subscription-contention.md`.
+   filed as `issues/shelved/20260820-familiar-live-subscription-contention.md`.
 3. **The fixed-origin Expo development path is still expensive.** Explicit
    `snapback dev --expo` treated its expected dynamic Metro listener as an
    incomplete enumeration and tore down a working fixed-port pair; Familiar
@@ -83,7 +83,7 @@ subscription/projection corrections and M3 membership-authority modeling.
    debug binary, making the current artifact about 151 MB / 45% larger than
    that nearest written comparison. The current Mach-O has about 278 MB of
    `__LINKEDIT`, a 164 MB string table, and 3.17 million symbols. Filed as
-   `issues/20260820-debug-binary-symbol-bloat.md`.
+   `issues/shelved/20260820-debug-binary-symbol-bloat.md`.
 
 ## Interpretation
 

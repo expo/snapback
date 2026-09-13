@@ -22,8 +22,8 @@ LLP 0080/0110/0135/0157 (current bounded relational plans and composition),
 LLP 0170 (information flow), LLP 0190 (D3 seams; §4's authority question this
 Spec shares an answer with), LLP 0007 (query semantics, order/tie-break),
 `issues/closed/20260808-oq4-coalescing-measurement-spike.md` (measured basis),
-`issues/20260808-live-query-reevaluation-cost-at-scale.md` (workstream anchor),
-`issues/20260808-d2-d4-owner-specs-commission.md` (charter source),
+`issues/shelved/20260808-live-query-reevaluation-cost-at-scale.md` (workstream anchor),
+`issues/shelved/20260808-d2-d4-owner-specs-commission.md` (charter source),
 `issues/20260823-llp0209-g0-commission.md` (G0 commissioning packet),
 LLP 0267 §5 (`queryCost.graph` — the sole bound-declaration carrier),
 LLP 0268 §7 (nine named G0 inputs the exit record must carry)
@@ -92,7 +92,7 @@ implementation record and its A/B against the same baseline).
   p50 at six observers is ~15 s, not < 1 s, because mutations queue
   behind interleaved ~0.9 s evaluation turns — a scheduling-policy
   remainder (write priority,
-  `issues/20260808-p1-write-priority-scheduling.md`) that LLP 0200 owns,
+  `issues/shelved/20260808-p1-write-priority-scheduling.md`) that LLP 0200 owns,
   multiplied by a per-turn cost only this Spec's rungs reduce. Whatever
   the D4 remainder recovers on settle latency, queue drain and
   convergence stay bounded by turn count × turn cost; making turns fewer
@@ -3431,7 +3431,7 @@ capability flip.
 
 ### v0.10 — G3-A: memoization landed (dated note, 2026-08-24)
 
-**G3-A** (commission `issues/20260824-llp0209-g3-commission.md`, deliverable 1)
+**G3-A** (commission `issues/shelved/20260824-llp0209-g3-commission.md`, deliverable 1)
 landed as `69e5fee9d` + fix round `6a370fdc7`: the scheduler memoizes graph
 evaluations keyed by the §6 owner-recomputed tuple (outer materialization
 identity, authority-partition identity, `authorizationVersion`,
@@ -3569,7 +3569,7 @@ longer prover or corpus structure.
   **LLP 0268 exit extension**
   (`issues/20260824-llp0268-exit-extension-commission.md`), running in
   parallel by author ruling.
-- **v0.6 (2026-08-23).** **G0 exit recorded** (see §9 "Exit"). Stages A, B1, B2, B3 landed; checklist rows 1/2/5/9 COMPLETE, 3/4/6/7 PARTIAL, 8 NOT SATISFIED (only `G0-BCAST-IDENTITY` of the LLP 0268 §7 labels is satisfied; the exit must be extended and re-recorded before 0268 B1). Author ratification owed on: the six hash domains, `CapturedReadKind::GraphNode`, the headroom factors and the fixture-derived bound values (provisional where large-fixture maxima are unverified), and the logical/physical bound split. Status Draft → Review. Open follow-ups: `issues/20260823-graph-empty-child-demand-window-vector.md` (B1 hidden-root pair), `issues/20260823-graph-codegen-rust-admission-parity-gaps.md`, `issues/20260823-zerobugs-control-descending-tiebreak-deviation.md` (control-owned), the large-fixture spot check (zb5 rerun), and the 0267/0268 drift requests listed in v0.5.
+- **v0.6 (2026-08-23).** **G0 exit recorded** (see §9 "Exit"). Stages A, B1, B2, B3 landed; checklist rows 1/2/5/9 COMPLETE, 3/4/6/7 PARTIAL, 8 NOT SATISFIED (only `G0-BCAST-IDENTITY` of the LLP 0268 §7 labels is satisfied; the exit must be extended and re-recorded before 0268 B1). Author ratification owed on: the six hash domains, `CapturedReadKind::GraphNode`, the headroom factors and the fixture-derived bound values (provisional where large-fixture maxima are unverified), and the logical/physical bound split. Status Draft → Review. Open follow-ups: `issues/20260823-graph-empty-child-demand-window-vector.md` (B1 hidden-root pair), `issues/shelved/20260823-graph-codegen-rust-admission-parity-gaps.md`, `issues/shelved/20260823-zerobugs-control-descending-tiebreak-deviation.md` (control-owned), the large-fixture spot check (zb5 rerun), and the 0267/0268 drift requests listed in v0.5.
 - **v0.5 (2026-08-23, Stage A).** Tightened G0 as a docs-only landing:
   §2 now fixes the normalized graph record, all seven node kinds and their
   edges/cardinalities, stable refusal precedence, plan/instance identity,
@@ -3696,7 +3696,7 @@ longer prover or corpus structure.
      clone-free with a 256 MiB budget sized to the measured hot shape.
 - **v0.2 (2026-08-15).** G1 same-principal live-evaluation memoization landed.
 - **v0.1 (2026-08-09).** Initial draft per
-  `issues/20260808-d2-d4-owner-specs-commission.md`, grounded in the OQ4
+  `issues/shelved/20260808-d2-d4-owner-specs-commission.md`, grounded in the OQ4
   spike disposition and LLP 0200 §6a. Before landing, one informal
   read-only pre-landing review pass from a second model family (Codex,
   gpt-5.6-sol, 2026-08-09) was taken on the draft; its corrections were

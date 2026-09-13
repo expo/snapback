@@ -89,7 +89,7 @@ been reviewed by anyone, and is what you are here to break.
    file for "### M5" and "### M6").
 8. Snapback 1's offline story, for what not to rebuild:
    `guide/sync/offline-and-retention.md` (skim the routing table and the
-   dead-ends), `issues/20260806-expo-file-carrier-process-kill-witness.md`,
+   dead-ends), `issues/shelved/20260806-expo-file-carrier-process-kill-witness.md`,
    `issues/20260830-snapback2-wire-evaluator-into-public-client.md`.
 
 ## The questions
