@@ -28,3 +28,13 @@ dispatch lock across five arrivals with four idle workers: the old predicate
 starts only four tasks before release, while the fixed predicate starts five.
 The helper only exposes that locked dispatch path to its unit test. Connection
 parsing, request/response framing and the bounded drain above are unchanged.
+
+Local change, 2026-09-13 (HTTP correctness): `src/response.rs` omits
+`Content-Length` for 1xx and 204 responses, whose bodies the response writer
+already suppresses. This prevents a 204 CORS preflight from advertising JSON
+bytes that will never be sent. `src/request.rs` also exposes
+`respond_checked`, which preserves client disconnect, write and flush errors
+for one-view asset delivery; ordinary responses retain upstream's behavior.
+`src/client.rs` bounds request/header lines at 8 KiB, the complete header
+section at 64 KiB and the header count at 100; an oversized header section is
+answered with 431 instead of growing until the peer stops sending.

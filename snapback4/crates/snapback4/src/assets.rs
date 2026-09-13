@@ -4,7 +4,7 @@
 //! served once per principal and never cached anywhere; a deleted, cleared
 //! or expired home stops the bytes at the server.
 
-use crate::serve::{Shared, principal_of, refusal_json, respond};
+use crate::serve::{Shared, lock, principal_of, refusal_json, respond};
 use serde_json::json;
 use snapback4_core::error::Refusal;
 use std::io::{Read as _, Seek, SeekFrom};
@@ -22,7 +22,7 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     if body.is_empty() {
         return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_TYPE", "asset", "the upload is empty: POST the file's bytes as the body").guide("assets")) }));
     }
-    let stored = shared.engine.lock().unwrap().store_asset(&principal, &body, snapback4_core::now_ms());
+    let stored = lock(&shared.engine).store_asset(&principal, &body, snapback4_core::now_ms());
     match stored {
         Ok(asset) => respond(request, 200, json!({ "asset": { "id": asset.id, "type": asset.content_type, "bytes": asset.bytes, "width": asset.width, "height": asset.height, "duration": asset.duration } })),
         Err(error) => {
@@ -40,7 +40,8 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
         return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "no asset is served under that id to this viewer").guide("assets")) }));
     }
-    let granted = shared.engine.lock().unwrap().asset_access(&principal, id, snapback4_core::now_ms());
+    let _transfer = shared.asset_transfers.enter(id, &principal);
+    let granted = lock(&shared.engine).asset_access(&principal, id, snapback4_core::now_ms());
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
@@ -58,7 +59,11 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")) }));
     };
     let total = grant.bytes;
-    let range = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("range")).and_then(|h| byte_range(h.value.as_str(), total));
+    let range_header = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("range"));
+    if grant.once && range_header.is_some() {
+        return respond(request, 416, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a one-view photo must be fetched as one complete response; retry without Range").guide("assets")) }));
+    }
+    let range = range_header.and_then(|h| byte_range(h.value.as_str(), total));
     let mut headers = vec![
         Header::from_bytes("Content-Type", grant.content_type.as_str()).unwrap(),
         Header::from_bytes("Accept-Ranges", "bytes").unwrap(),
@@ -82,7 +87,12 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     if status == 206 {
         response = response.with_status_code(206);
     }
-    let _ = request.respond(response);
+    let delivered = request.respond_checked(response);
+    if grant.once && delivered.is_ok() {
+        if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, snapback4_core::now_ms()) {
+            eprintln!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
+        }
+    }
 }
 
 /// One `bytes=a-b` range, clamped; anything else is the whole file.

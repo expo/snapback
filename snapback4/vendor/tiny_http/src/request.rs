@@ -440,6 +440,35 @@ impl Request {
         res
     }
 
+    /// Sends a response and preserves disconnect/write/flush errors for a
+    /// caller whose durable state depends on complete delivery.
+    pub fn respond_checked<R>(mut self, response: Response<R>) -> Result<(), IoError>
+    where
+        R: Read,
+    {
+        let res = self.respond_checked_impl(response);
+        if let Some(sender) = self.notify_when_responded.take() {
+            sender.send(()).unwrap();
+        }
+        res
+    }
+
+    fn respond_checked_impl<R>(&mut self, response: Response<R>) -> Result<(), IoError>
+    where
+        R: Read,
+    {
+        let mut writer = self.extract_writer_impl();
+        let do_not_send_body = self.method == Method::Head;
+        response.raw_print(
+            writer.by_ref(),
+            self.http_version.clone(),
+            &self.headers,
+            do_not_send_body,
+            None,
+        )?;
+        writer.flush()
+    }
+
     fn respond_impl<R>(&mut self, response: Response<R>) -> Result<(), IoError>
     where
         R: Read,

@@ -16,6 +16,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
 
   init [dir]                       start a project: snapback/schema.q
   check [--cost] [--json]          compile snapback/*.q; write snapback/generated/api.ts; build snapback/native if there is one
+  types                            compile and write snapback/generated/api.ts
   dev [--port N] [--no-watch] [--fresh]  serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
@@ -24,7 +25,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   test [--fixture dir] [--as p]    load a fixture, run every query, print the meters
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
   guide [keyword]                  the language card, or one keyword card (guide lists them)
-  data <table> [--limit N]         print rows
+  data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor                           say what is and is not in place
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
@@ -106,7 +107,7 @@ mod tests {
             let address = server.server_addr().to_ip().unwrap();
             let worker = std::thread::spawn(move || {
                 let request = server.recv_timeout(Duration::from_secs(5)).unwrap().expect("request");
-                crate::serve::respond(request, 204, serde_json::Value::Null);
+                crate::serve::respond_empty(request, 204);
             });
             let stream = TcpStream::connect(address).unwrap();
             stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
@@ -142,7 +143,11 @@ mod tests {
         let worker = std::thread::spawn(move || {
             for (_, status, body) in responses {
                 let request = server.recv_timeout(Duration::from_secs(5)).unwrap().expect("next request");
-                crate::serve::respond(request, status, body);
+                if status == 204 {
+                    crate::serve::respond_empty(request, status);
+                } else {
+                    crate::serve::respond(request, status, body);
+                }
             }
         });
         let stream = TcpStream::connect(address).unwrap();
@@ -162,8 +167,13 @@ mod tests {
                 let (name, value) = line.split_once(':').expect("header");
                 headers.insert(name.to_ascii_lowercase(), value.trim().to_owned());
             }
-            assert_eq!(headers["content-type"], "application/json");
             assert_eq!(headers["access-control-allow-origin"], "*");
+            if status == 204 {
+                assert!(!headers.contains_key("content-type"));
+                assert!(!headers.contains_key("content-length"));
+            } else {
+                assert_eq!(headers["content-type"], "application/json");
+            }
             let mut received = Vec::new();
             if method != "HEAD" && status != 204 {
                 if headers.get("transfer-encoding").is_some_and(|v| v == "chunked") {
@@ -185,6 +195,13 @@ mod tests {
             }
         }
         worker.join().unwrap();
+    }
+
+    #[test]
+    fn help_names_every_dispatched_verb() {
+        for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "token", "doctor", "device"] {
+            assert!(super::HELP.lines().any(|line| line.trim_start().starts_with(verb)), "HELP omits {verb}");
+        }
     }
 
     /// The binary and the client package publish together at one version.

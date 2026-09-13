@@ -10,9 +10,9 @@ use snapback4_core::ir::ProgramKind;
 use snapback4_core::{Context, Engine, Presence, WriteState, wire};
 use snapback4_lang::Bound;
 use serde_json::{Value as Json, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
 
@@ -28,6 +28,53 @@ pub struct Shared {
     pub entropy: Mutex<u64>,
     /// Who holds a long poll open right now: what `connected[p]` reads.
     pub presence: Arc<Live>,
+    /// Serializes asset responses for one `(asset, principal)` so two
+    /// overlapping requests cannot both consume a one-view grant.
+    pub asset_transfers: AssetTransfers,
+}
+
+/// A panicking request must not turn one poisoned process mutex into a
+/// permanent server-wide panic loop. The guarded value is retained, the
+/// poison marker is cleared, and the next request can make progress.
+pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("snapback4: recovered a mutex after a request panicked");
+            mutex.clear_poison();
+            poisoned.into_inner()
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct AssetTransfers {
+    active: Mutex<BTreeSet<(String, String)>>,
+    available: Condvar,
+}
+
+impl AssetTransfers {
+    pub(crate) fn enter<'a>(&'a self, asset: &str, principal: &str) -> AssetTransfer<'a> {
+        let key = (asset.to_owned(), principal.to_owned());
+        let mut active = lock(&self.active);
+        while active.contains(&key) {
+            active = self.available.wait(active).unwrap_or_else(|poisoned| poisoned.into_inner());
+        }
+        active.insert(key.clone());
+        AssetTransfer { transfers: self, key }
+    }
+}
+
+pub(crate) struct AssetTransfer<'a> {
+    transfers: &'a AssetTransfers,
+    key: (String, String),
+}
+
+impl Drop for AssetTransfer<'_> {
+    fn drop(&mut self) {
+        lock(&self.transfers.active).remove(&self.key);
+        self.transfers.available.notify_all();
+    }
 }
 
 /// A connection lasts as long as its poll and a grace after it: a client
@@ -42,12 +89,12 @@ pub struct Live(Mutex<BTreeMap<String, (u32, Option<Instant>)>>);
 
 impl Live {
     fn enter(&self, principal: &str) {
-        let mut map = self.0.lock().unwrap();
+        let mut map = lock(&self.0);
         map.entry(principal.to_owned()).or_insert((0, None)).0 += 1;
     }
 
     fn leave(&self, principal: &str) {
-        let mut map = self.0.lock().unwrap();
+        let mut map = lock(&self.0);
         if let Some(entry) = map.get_mut(principal) {
             entry.0 = entry.0.saturating_sub(1);
             entry.1 = Some(Instant::now());
@@ -59,7 +106,7 @@ impl Live {
 
 impl Presence for Live {
     fn connections(&self, principal: &str) -> u64 {
-        let map = self.0.lock().unwrap();
+        let map = lock(&self.0);
         match map.get(principal) {
             Some((open, _)) if *open > 0 => u64::from(*open),
             Some((_, Some(last))) if last.elapsed() < PRESENCE_GRACE => 1,
@@ -102,7 +149,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
-    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence });
+    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default() });
     let server = Server::http((bind, port)).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -124,11 +171,15 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // request once N devices are connected — the (N+1)th client saw
     // `/schema` wait 14 s behind four polls. The engine serializes behind
     // its own lock; a waiting poll holds nothing but its thread.
-    for request in server.incoming_requests() {
-        let shared = shared.clone();
-        std::thread::spawn(move || handle(request, &shared));
+    loop {
+        match server.recv() {
+            Ok(request) => {
+                let shared = shared.clone();
+                std::thread::spawn(move || handle(request, &shared));
+            }
+            Err(error) => return Err(format!("HTTP receive failed: {error}")),
+        }
     }
-    Ok(())
 }
 
 fn watch_sources(project: Project, shared: Arc<Shared>) {
@@ -150,24 +201,30 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                         continue;
                     }
                 };
-                let steps = snapback4_core::successor::classify(&shared.bound.lock().unwrap().schema, &bound.schema);
+                let steps = snapback4_core::successor::classify(&lock(&shared.bound).schema, &bound.schema);
                 let worst = snapback4_core::successor::worst(&steps);
-                match shared.engine.lock().unwrap().adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
+                let generated = match project.write_generated(&bound) {
+                    Ok(generated) => generated,
+                    Err(error) => {
+                        eprintln!("snapback4 dev: cannot write generated types: {error}\nsnapback4 dev: serving the previous generation");
+                        continue;
+                    }
+                };
+                match lock(&shared.engine).adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
                     Ok(next) => {
-                        let _ = project.write_generated(&bound);
                         if let Some(built) = &rebuilt {
-                            match crate::native::install(&mut shared.engine.lock().unwrap(), &project) {
+                            match crate::native::install(&mut lock(&shared.engine), &project) {
                                 Ok(_) => println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", ")),
                                 Err(problem) => eprintln!("snapback4 dev: {problem}"),
                             }
                         }
                         // Publish the advertised backend and identity together:
                         // /schema takes these guards in the same order.
-                        let mut active = shared.bound.lock().unwrap();
-                        let mut generation = shared.generation.lock().unwrap();
+                        let mut active = lock(&shared.bound);
+                        let mut generation = lock(&shared.generation);
                         *active = bound;
                         *generation = next;
-                        println!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms", *generation, worst, started.elapsed().as_millis());
+                        println!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
                         for step in steps {
                             println!("  {:?}: {}", step.change, step.message);
                         }
@@ -203,13 +260,13 @@ fn maintain(shared: Arc<Shared>) {
         std::thread::sleep(Duration::from_secs(1));
         tick += 1;
         let now = snapback4_core::now_ms();
-        let swept = shared.engine.lock().unwrap().sweep_expired(now, 2_000);
+        let swept = lock(&shared.engine).sweep_expired(now, 2_000);
         match swept {
             Ok(0) => {}
             Ok(_) => bump_seq(&shared),
             Err(error) => eprintln!("snapback4: the expiry sweep failed: {error}"),
         }
-        match shared.engine.lock().unwrap().fire_schedules(now) {
+        match lock(&shared.engine).fire_schedules(now) {
             Ok(fired) => {
                 for name in fired {
                     println!("snapback4: schedule {name} fired");
@@ -220,12 +277,12 @@ fn maintain(shared: Arc<Shared>) {
         let mut budget = 500;
         while budget > 0 {
             budget -= 1;
-            let ran = shared.engine.lock().unwrap().run_job_chunk(snapback4_core::now_ms());
+            let ran = lock(&shared.engine).run_job_chunk(snapback4_core::now_ms());
             match ran {
                 Ok(None) => break,
                 Ok(Some(run)) => {
                     bump_seq(&shared);
-                    for line in shared.engine.lock().unwrap().take_native_logs() {
+                    for line in lock(&shared.engine).take_native_logs() {
                         println!("snapback4: native {line}");
                     }
                     match run.state {
@@ -233,6 +290,9 @@ fn maintain(shared: Arc<Shared>) {
                         snapback4_core::JobState::Parked => eprintln!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or("")),
                         _ => {}
                     }
+                    // Give waiting request threads a scheduling point between
+                    // chunks in a large background run.
+                    std::thread::yield_now();
                 }
                 Err(error) => {
                     eprintln!("snapback4: job failed: {error}");
@@ -241,7 +301,7 @@ fn maintain(shared: Arc<Shared>) {
             }
         }
         if tick % 5 == 0 {
-            let requeued = shared.engine.lock().unwrap().requeue_expired_effects(now);
+            let requeued = lock(&shared.engine).requeue_expired_effects(now);
             match requeued {
                 Ok(0) => {}
                 Ok(n) => {
@@ -251,7 +311,7 @@ fn maintain(shared: Arc<Shared>) {
                 Err(error) => eprintln!("snapback4: the effect lease sweep failed: {error}"),
             }
         }
-        if tick % 60 == 0 && let Err(error) = shared.engine.lock().unwrap().sweep_assets(now) {
+        if tick % 60 == 0 && let Err(error) = lock(&shared.engine).sweep_assets(now) {
             eprintln!("snapback4: the asset sweep failed: {error}");
         }
     }
@@ -272,8 +332,8 @@ fn effect_json(run: &snapback4_core::EffectRun) -> Json {
 
 /// A commit outside a request: let every long poll see it.
 fn bump_seq(shared: &Shared) {
-    if let Ok(seq) = shared.engine.lock().unwrap().seq() {
-        let mut current = shared.seq.lock().unwrap();
+    if let Ok(seq) = lock(&shared.engine).seq() {
+        let mut current = lock(&shared.seq);
         if seq > *current {
             *current = seq;
             shared.committed.notify_all();
@@ -345,6 +405,17 @@ pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize
     }
 }
 
+/// A 204 has no representation metadata or advertised bytes. Keeping it out
+/// of the JSON response helper also prevents an unread `null` from framing the
+/// next response on a persistent connection.
+pub(crate) fn respond_empty(request: Request, status: u16) {
+    let mut response = Response::empty(status);
+    for header in cors().into_iter().filter(|header| !header.field.equiv("Content-Type")) {
+        response.add_header(header);
+    }
+    let _ = request.respond(response);
+}
+
 pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
     serde_json::to_value(refusal).unwrap_or(Json::Null)
 }
@@ -364,7 +435,7 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
         }
     }
     if let Some(token) = bearer {
-        let engine = shared.engine.lock().unwrap();
+        let engine = lock(&shared.engine);
         return match snapback4_core::identity::resolve(engine.store(), &token, snapback4_core::now_ms()) {
             Ok(Some((principal, _))) => Ok(principal),
             Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),
@@ -405,7 +476,7 @@ fn handle(mut request: Request, shared: &Shared) {
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
     if method == Method::Options {
-        respond(request, 204, Json::Null);
+        respond_empty(request, 204);
         return;
     }
     let mut bytes = Vec::new();
@@ -446,12 +517,16 @@ fn handle(mut request: Request, shared: &Shared) {
         Err(_) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
     };
     match (method, path.as_str()) {
+        (Method::Get, "/probe") => match principal_of(&request, shared) {
+            Ok(_) => respond(request, 200, json!({ "ok": true })),
+            Err(refusal) => respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+        },
         (Method::Get, "/") => {
             let body = {
-                let bound = shared.bound.lock().unwrap();
+                let bound = lock(&shared.bound);
                 let ops: Vec<Json> = bound.programs.iter().map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word() })).collect();
                 let tables: Vec<Json> = bound.schema.tables.iter().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
-                json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *shared.generation.lock().unwrap(), "seq": *shared.seq.lock().unwrap(), "ops": ops, "tables": tables })
+                json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *lock(&shared.generation), "seq": *lock(&shared.seq), "ops": ops, "tables": tables })
             };
             respond(request, 200, body);
         }
@@ -459,14 +534,14 @@ fn handle(mut request: Request, shared: &Shared) {
             // The compiled backend a device runs locally: the schema and the
             // programs' IR, bound to a generation.
             let body = {
-                let bound = shared.bound.lock().unwrap();
+                let bound = lock(&shared.bound);
                 let programs: Vec<Json> = bound.programs.iter().map(|p| serde_json::to_value(&p.program).unwrap_or(Json::Null)).collect();
-                json!({ "generation": *shared.generation.lock().unwrap(), "schema": bound.schema, "programs": programs })
+                json!({ "generation": *lock(&shared.generation), "schema": bound.schema, "programs": programs })
             };
             respond(request, 200, body);
         }
         (Method::Get, "/api.ts") => {
-            let text = snapback4_lang::emit::typescript(&shared.bound.lock().unwrap());
+            let text = snapback4_lang::emit::typescript(&lock(&shared.bound));
             let mut response = Response::from_string(text);
             response.add_header(Header::from_bytes("Content-Type", "text/plain; charset=utf-8").unwrap());
             response.add_header(Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap());
@@ -490,7 +565,7 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
             let replay = if path.starts_with("/m/") {
-                payload.get("id").and_then(Json::as_str).and_then(|id| shared.engine.lock().unwrap().replay(&principal, id).ok().flatten().map(|outcome| (id, outcome)))
+                payload.get("id").and_then(Json::as_str).and_then(|id| lock(&shared.engine).replay(&principal, id).ok().flatten().map(|outcome| (id, outcome)))
             } else { None };
             if let Some((id, outcome)) = replay {
                 // A resend of an applied write: its recorded outcome, before the
@@ -506,7 +581,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 respond(request, 200, body);
                 return;
             }
-            let program = shared.bound.lock().unwrap().programs.iter().find(|p| p.program.name == op).map(|p| p.program.clone());
+            let program = lock(&shared.bound).programs.iter().find(|p| p.program.name == op).map(|p| p.program.clone());
             let Some(program) = program else {
                 respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")) }));
                 return;
@@ -538,7 +613,13 @@ fn handle(mut request: Request, shared: &Shared) {
                     respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}"))) }));
                     return;
                 }
-                let outcome = shared.engine.lock().unwrap().query(&op, context);
+                let reader = { lock(&shared.engine).reader() };
+                let outcome = match reader {
+                    Ok(mut reader) => reader.query(&op, context),
+                    // `--fresh` deliberately uses an in-memory store, which
+                    // has no second SQLite connection to detach.
+                    Err(_) => lock(&shared.engine).query(&op, context),
+                };
                 match outcome {
                     // The meter's numbers and its cut site stay off the wire: they
                     // measure hidden rows. `complete` is the one word.
@@ -548,11 +629,13 @@ fn handle(mut request: Request, shared: &Shared) {
                             complete: bool,
                             data: wire::Plain<'a>,
                             next: &'a Option<String>,
+                            #[serde(rename = "nextExpiry")]
+                            next_expiry: Option<i64>,
                             seq: u64,
                             tables: &'a [String],
                             viewer: &'a str,
                         }
-                        respond(request, 200, QueryReply { complete: outcome.complete, data: wire::Plain(&outcome.data), next: &outcome.next, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer });
+                        respond(request, 200, QueryReply { complete: outcome.complete, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer });
                     }
                     Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
                 }
@@ -569,11 +652,11 @@ fn handle(mut request: Request, shared: &Shared) {
                 if let Some(ids) = payload.get("newIds").and_then(Json::as_array) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
-                let outcome = shared.engine.lock().unwrap().mutate(&op, id.as_deref(), context);
+                let outcome = lock(&shared.engine).mutate(&op, id.as_deref(), context);
                 match outcome {
                     Ok(outcome) => {
                         if let WriteState::Sent { seq, .. } = &outcome.state {
-                            *shared.seq.lock().unwrap() = *seq;
+                            *lock(&shared.seq) = *seq;
                             shared.committed.notify_all();
                         }
                         let body = match outcome.state {
@@ -602,24 +685,28 @@ fn handle(mut request: Request, shared: &Shared) {
                 shared.presence.enter(principal);
             }
             {
-                let mut seq = shared.seq.lock().unwrap();
+                let mut seq = lock(&shared.seq);
                 while *seq <= since && Instant::now() < deadline {
                     let remaining = deadline.saturating_duration_since(Instant::now());
-                    let (guard, _) = shared.committed.wait_timeout(seq, remaining).unwrap();
+                    let (guard, _) = shared.committed.wait_timeout(seq, remaining).unwrap_or_else(|poisoned| poisoned.into_inner());
                     seq = guard;
                 }
             }
             if let Some(principal) = &connected {
                 shared.presence.leave(principal);
             }
-            let changes = shared.engine.lock().unwrap().changes(since, 500);
+            let reader = { lock(&shared.engine).reader() };
+            let changes = match reader {
+                Ok(mut reader) => reader.changes(since, 500),
+                Err(_) => lock(&shared.engine).changes(since, 500),
+            };
             match changes {
                 Ok(changes) => {
                     let seq = changes.last().map(|(seq, _)| *seq).unwrap_or(since);
                     let mut tables: Vec<String> = changes.into_iter().flat_map(|(_, tables)| tables).collect();
                     tables.sort();
                     tables.dedup();
-                    let generation = *shared.generation.lock().unwrap();
+                    let generation = *lock(&shared.generation);
                     respond(request, 200, json!({ "seq": seq, "tables": tables, "generation": generation }));
                 }
                 Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
@@ -645,8 +732,17 @@ fn handle(mut request: Request, shared: &Shared) {
                 // page returned; `next` is the one for the following page.
                 let after = params.get("after").cloned();
                 let (outcome, generation) = {
-                    let mut engine = shared.engine.lock().unwrap();
-                    (engine.snapshot_page(&principal, after.as_deref(), limit).and_then(|(events, watermark, next)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, acks))), *shared.generation.lock().unwrap())
+                    let reader = { lock(&shared.engine).reader() };
+                    match reader {
+                        Ok(mut reader) => {
+                            let generation = reader.generation();
+                            (reader.snapshot_page(&principal, after.as_deref(), limit).and_then(|(events, watermark, next)| reader.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, acks))), generation)
+                        }
+                        Err(_) => {
+                            let mut engine = lock(&shared.engine);
+                            (engine.snapshot_page(&principal, after.as_deref(), limit).and_then(|(events, watermark, next)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, acks))), *lock(&shared.generation))
+                        }
+                    }
                 };
                 match outcome {
                     Ok((events, watermark, next, acknowledged)) => {
@@ -657,8 +753,17 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             } else {
                 let (outcome, generation) = {
-                    let mut engine = shared.engine.lock().unwrap();
-                    (engine.stream(&principal, from, limit).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *shared.generation.lock().unwrap())
+                    let reader = { lock(&shared.engine).reader() };
+                    match reader {
+                        Ok(mut reader) => {
+                            let generation = reader.generation();
+                            (reader.stream(&principal, from, limit).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
+                        }
+                        Err(_) => {
+                            let mut engine = lock(&shared.engine);
+                            (engine.stream(&principal, from, limit).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
+                        }
+                    }
                 };
                 match outcome {
                     Ok((page, acknowledged)) => {
@@ -683,7 +788,7 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let now = snapback4_core::now_ms();
             let outcome = {
-                let engine = shared.engine.lock().unwrap();
+                let engine = lock(&shared.engine);
                 if path == "/auth/session" {
                     let kind = payload.get("kind").and_then(Json::as_str).unwrap_or("account");
                     let days = payload.get("days").and_then(Json::as_i64).unwrap_or(snapback4_core::identity::SESSION_DAYS);
@@ -709,14 +814,14 @@ fn handle(mut request: Request, shared: &Shared) {
             let wait = payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25);
             let deadline = Instant::now() + Duration::from_secs(wait);
             loop {
-                let claimed = shared.engine.lock().unwrap().claim_effects(&worker, effect.as_deref(), limit, lease_ms, snapback4_core::now_ms());
+                let claimed = lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, snapback4_core::now_ms());
                 match claimed {
                     Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
                         // Nothing due: wait for a commit (an emit), or for a
                         // backoff to pass, then look again.
-                        let seq = shared.seq.lock().unwrap();
+                        let seq = lock(&shared.seq);
                         let remaining = deadline.saturating_duration_since(Instant::now()).min(Duration::from_secs(2));
-                        let _ = shared.committed.wait_timeout(seq, remaining).unwrap();
+                        let _ = shared.committed.wait_timeout(seq, remaining).unwrap_or_else(|poisoned| poisoned.into_inner());
                     }
                     Ok(runs) => return respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
                     Err(error) => { let refusal = error.refusal(); return respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
@@ -742,7 +847,7 @@ fn handle(mut request: Request, shared: &Shared) {
             } else {
                 snapback4_core::Settled::Failed { error: payload.get("error").and_then(Json::as_str).unwrap_or("the worker failed").to_owned(), retry: payload.get("retry").and_then(Json::as_bool).unwrap_or(true) }
             };
-            let outcome = shared.engine.lock().unwrap().settle_effect(&id, &worker, settled, snapback4_core::now_ms());
+            let outcome = lock(&shared.engine).settle_effect(&id, &worker, settled, snapback4_core::now_ms());
             match outcome {
                 Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
                 Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_EFFECT_UNKNOWN" { 404 } else { 200 }, json!({ "denied": refusal_json(&refusal) })) }
@@ -755,25 +860,25 @@ fn handle(mut request: Request, shared: &Shared) {
             let params = query_params(&url);
             let state = params.get("state").cloned();
             let limit: usize = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(100);
-            let outcome = shared.engine.lock().unwrap().effects(state.as_deref(), limit);
+            let outcome = lock(&shared.engine).effects(state.as_deref(), limit);
             match outcome {
                 Ok(runs) => respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
                 Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
             }
         }
         (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login") | (Method::Post, "/auth/logout") => {
-            let auth = shared.bound.lock().unwrap().schema.auth.clone();
+            let auth = lock(&shared.bound).schema.auth.clone();
             let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
             let now = snapback4_core::now_ms();
             let outcome = {
-                let engine = shared.engine.lock().unwrap();
+                let engine = lock(&shared.engine);
                 let store = engine.store();
                 match path.as_str() {
                     "/auth/guest" => {
                         if !auth.guests {
                             Err(snapback4_core::RuntimeError::Auth("this backend has no guests; declare `use identity guests` (or `use identity`) in schema.q".into()))
                         } else {
-                            let mut entropy = shared.entropy.lock().unwrap();
+                            let mut entropy = lock(&shared.entropy);
                             snapback4_core::identity::guest(store, now, &mut entropy)
                         }
                     }
@@ -783,7 +888,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         if !auth.password {
                             Err(snapback4_core::RuntimeError::Auth("this backend has no password accounts; declare `use identity password` (or `use identity`) in schema.q".into()))
                         } else if path == "/auth/signup" {
-                            let mut entropy = shared.entropy.lock().unwrap();
+                            let mut entropy = lock(&shared.entropy);
                             snapback4_core::identity::signup(store, &email, &password, now, &mut entropy)
                         } else {
                             snapback4_core::identity::login(store, &email, &password, now)
@@ -816,7 +921,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
             };
-            let schema = shared.bound.lock().unwrap().schema.clone();
+            let schema = lock(&shared.bound).schema.clone();
             let mut typed = Vec::new();
             for entry in &rows {
                 let (Some(table), Some(row)) = (entry.get("table").and_then(Json::as_str), entry.get("row")) else {
@@ -835,11 +940,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                 }
             }
-            let outcome = shared.engine.lock().unwrap().seed(typed);
+            let outcome = lock(&shared.engine).seed(typed);
             match outcome {
                 Ok(count) => {
-                    if let Ok(seq) = shared.engine.lock().unwrap().seq() {
-                        *shared.seq.lock().unwrap() = seq;
+                    if let Ok(seq) = lock(&shared.engine).seq() {
+                        *lock(&shared.seq) = seq;
                         shared.committed.notify_all();
                     }
                     respond(request, 200, json!({ "seeded": count }));
@@ -848,5 +953,52 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         _ => respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("no route {path}; operations are POST /q/<op> and POST /m/<op>"))) })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpStream};
+
+    #[test]
+    fn a_request_after_engine_poison_still_serves() {
+        let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
+        let shared = Arc::new(Shared {
+            engine: Mutex::new(engine),
+            bound: Mutex::new(Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
+            generation: Mutex::new(1),
+            committed: Condvar::new(),
+            seq: Mutex::new(0),
+            personas: true,
+            entropy: Mutex::new(1),
+            presence: Arc::new(Live::default()),
+            asset_transfers: AssetTransfers::default(),
+        });
+        let poisoned = shared.clone();
+        assert!(std::thread::spawn(move || {
+            let _engine = poisoned.engine.lock().unwrap();
+            panic!("request panic while the engine is locked");
+        }).join().is_err());
+        assert!(shared.engine.is_poisoned());
+
+        let server = tiny_http::Server::http(("127.0.0.1", 0)).unwrap();
+        let address = server.server_addr().to_ip().unwrap();
+        let serving = shared.clone();
+        let worker = std::thread::spawn(move || {
+            let request = server.recv_timeout(Duration::from_secs(5)).unwrap().expect("request");
+            handle(request, &serving);
+        });
+        let mut stream = TcpStream::connect(address).unwrap();
+        stream.write_all(b"POST /seed HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 2\r\n\r\n[]").unwrap();
+        stream.shutdown(Shutdown::Write).unwrap();
+        let mut answer = String::new();
+        stream.read_to_string(&mut answer).unwrap();
+        worker.join().unwrap();
+
+        assert!(answer.starts_with("HTTP/1.1 200 "), "{answer}");
+        assert!(answer.contains("\"seeded\":0"), "{answer}");
+        assert!(!shared.engine.is_poisoned());
     }
 }

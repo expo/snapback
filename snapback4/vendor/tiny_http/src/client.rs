@@ -12,6 +12,11 @@ use crate::util::RefinedTcpStream;
 use crate::util::{SequentialReader, SequentialReaderBuilder, SequentialWriterBuilder};
 use crate::Request;
 
+const REQUEST_LINE_CEILING: usize = 8 * 1024;
+const HEADER_LINE_CEILING: usize = 8 * 1024;
+const HEADER_BYTES_CEILING: usize = 64 * 1024;
+const HEADER_COUNT_CEILING: usize = 100;
+
 /// A ClientConnection is an object that will store a socket to a client
 /// and return Request objects.
 pub struct ClientConnection {
@@ -41,6 +46,7 @@ pub struct ClientConnection {
 enum ReadError {
     WrongRequestLine,
     WrongHeader(HTTPVersion),
+    HeadersTooLarge(HTTPVersion),
     /// the client sent an unrecognized `Expect` header
     ExpectationFailed(HTTPVersion),
     ReadIoError(IoError),
@@ -77,7 +83,7 @@ impl ClientConnection {
     ///
     /// Reads until `CRLF` is reached. The next read will start
     ///  at the first byte of the new line.
-    fn read_next_line(&mut self) -> IoResult<AsciiString> {
+    fn read_next_line(&mut self, ceiling: usize) -> IoResult<AsciiString> {
         let mut buf = Vec::new();
         let mut prev_byte_was_cr = false;
 
@@ -97,6 +103,9 @@ impl ClientConnection {
 
             prev_byte_was_cr = byte == b'\r';
 
+            if buf.len() >= ceiling {
+                return Err(IoError::new(ErrorKind::InvalidData, "HTTP line exceeds its byte limit"));
+            }
             buf.push(byte);
         }
     }
@@ -107,7 +116,13 @@ impl ClientConnection {
         let (method, path, version, headers) = {
             // reading the request line
             let (method, path, version) = {
-                let line = self.read_next_line().map_err(ReadError::ReadIoError)?;
+                let line = self.read_next_line(REQUEST_LINE_CEILING).map_err(|error| {
+                    if error.kind() == ErrorKind::InvalidData {
+                        ReadError::WrongRequestLine
+                    } else {
+                        ReadError::ReadIoError(error)
+                    }
+                })?;
 
                 parse_request_line(
                     line.as_str().trim(), // TODO: remove this conversion
@@ -117,12 +132,23 @@ impl ClientConnection {
             // getting all headers
             let headers = {
                 let mut headers = Vec::new();
+                let mut header_bytes = 0_usize;
                 loop {
-                    let line = self.read_next_line().map_err(ReadError::ReadIoError)?;
+                    let line = self.read_next_line(HEADER_LINE_CEILING).map_err(|error| {
+                        if error.kind() == ErrorKind::InvalidData {
+                            ReadError::HeadersTooLarge(version.clone())
+                        } else {
+                            ReadError::ReadIoError(error)
+                        }
+                    })?;
 
                     if line.is_empty() {
                         break;
                     };
+                    header_bytes = header_bytes.saturating_add(line.len() + 2);
+                    if header_bytes > HEADER_BYTES_CEILING || headers.len() >= HEADER_COUNT_CEILING {
+                        return Err(ReadError::HeadersTooLarge(version));
+                    }
                     headers.push(match FromStr::from_str(line.as_str().trim()) {
                         // TODO: remove this conversion
                         Ok(h) => h,
@@ -201,6 +227,13 @@ impl Iterator for ClientConnection {
                     response.raw_print(writer, ver, &[], false, None).ok();
                     return None; // we don't know where the next request would start,
                                  // se we have to close
+                }
+
+                Err(ReadError::HeadersTooLarge(ver)) => {
+                    let writer = self.sink.next().unwrap();
+                    let response = Response::new_empty(StatusCode(431));
+                    response.raw_print(writer, ver, &[], false, None).ok();
+                    return None;
                 }
 
                 Err(ReadError::ReadIoError(ref err)) if err.kind() == ErrorKind::TimedOut => {

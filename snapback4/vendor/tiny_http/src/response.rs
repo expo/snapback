@@ -407,13 +407,19 @@ where
                 assert!(data_length.is_some());
                 let data_length = data_length.unwrap();
 
-                self.headers.push(
-                    Header::from_bytes(
-                        &b"Content-Length"[..],
-                        format!("{}", data_length).as_bytes(),
+                // RFC 9110 forbids Content-Length on 1xx and 204 responses.
+                // The body is suppressed below; advertising even zero bytes
+                // has caused strict clients to wait or misframe a reused
+                // connection.
+                if self.status_code.0 >= 200 && self.status_code.0 != 204 {
+                    self.headers.push(
+                        Header::from_bytes(
+                            &b"Content-Length"[..],
+                            format!("{}", data_length).as_bytes(),
+                        )
+                        .unwrap(),
                     )
-                    .unwrap(),
-                )
+                }
             }
 
             _ => (),

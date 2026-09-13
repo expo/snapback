@@ -20,8 +20,14 @@ table items:
   read <- allow
   insert <- allow
   sync public last 10000 by byId
+table photos:
+  image: image <=10000000 once
+  read <- allow
+  insert <- allow
 mutation add():
   return insert items { body: 'admitted' }
+mutation attach(photo: image <=10000000):
+  return insert photos { image: photo }
 query ping():
   return 1
 query count():
@@ -62,7 +68,17 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     const deadline = Date.now() + 3000;
     while (!url && child.exitCode == null && Date.now() < deadline) await sleep(10);
     assert.ok(url, log || "server did not listen");
+    await t.test("the liveness probe requires credentials and has an explicit success body", async () => {
+      const missing = await fetch(url + "/probe", { signal: AbortSignal.timeout(1000) });
+      assert.equal(missing.status, 401);
+      assert.equal((await missing.json()).denied?.code, "E_AUTH");
+      const admitted = await fetch(url + "/probe", { headers, signal: AbortSignal.timeout(1000) });
+      assert.equal(admitted.status, 200);
+      assert.deepEqual(await admitted.json(), { ok: true });
+    });
     await t.test("declared/chunked oversize, truncation and invalid UTF-8 do not execute a write", async () => {
+      const oversizedHeader = await raw(`GET / HTTP/1.1\r\nHost: localhost\r\nX-Oversized: ${"x".repeat(8193)}\r\nConnection: close\r\n\r\n`);
+      assert.match(oversizedHeader, /^HTTP\/1.1 431/m);
       const declared = await raw(`POST /m/add HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: ${MiB + 1}\r\nExpect: 100-continue\r\nx-snapback-persona: alice\r\n\r\n`);
       assert.match(declared, /^HTTP\/1.1 413/m);
       assert.match(declared, /E_INPUT/);
@@ -87,6 +103,42 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const upload = await post("/assets", "not an image" + " ".repeat(2 * MiB));
       assert.notEqual(upload.status, 413, "uploads keep the 64 MiB ceiling");
       assert.match((await upload.json()).denied?.code ?? "", /^E_ASSET/);
+    });
+    await t.test("one-view assets finalize only after a complete non-range response", async () => {
+      const png = new Uint8Array(8 * MiB);
+      png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 2, 0, 0, 0, 3, 8, 6]);
+      const uploaded = await (await post("/assets", png)).json();
+      assert.ok(uploaded.asset?.id, JSON.stringify(uploaded));
+      const id = uploaded.asset.id;
+      const attached = await (await post("/m/attach", JSON.stringify({ args: { photo: { id } } }))).json();
+      assert.equal(attached.state, "sent", JSON.stringify(attached));
+
+      const ranged = await fetch(`${url}/assets/${id}`, { headers: { ...headers, range: "bytes=0-0" }, signal: AbortSignal.timeout(3000) });
+      assert.equal(ranged.status, 416);
+      assert.equal((await ranged.json()).denied?.code, "E_INPUT");
+
+      await new Promise((resolve, reject) => {
+        const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port) });
+        sockets.add(socket);
+        let answer = "";
+        socket.on("error", reject);
+        socket.on("connect", () => socket.write(`GET /assets/${id} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\n\r\n`));
+        socket.on("data", (chunk) => {
+          answer += chunk.toString("latin1");
+          if (answer.includes("\r\n\r\n")) {
+            assert.match(answer, /^HTTP\/1.1 200/m);
+            socket.destroy();
+          }
+        });
+        socket.on("close", () => { sockets.delete(socket); resolve(); });
+      });
+
+      const complete = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(5000) });
+      assert.equal(complete.status, 200);
+      assert.equal((await complete.arrayBuffer()).byteLength, png.length);
+      const viewed = await fetch(`${url}/assets/${id}`, { headers, signal: AbortSignal.timeout(3000) });
+      assert.equal(viewed.status, 410);
+      assert.equal((await viewed.json()).denied?.code, "E_ASSET_VIEWED");
     });
     await t.test("eight idle polls leave health/schema/query work free and commits wake subscribers", async () => {
       const controllers = Array.from({ length: 8 }, () => new AbortController());
