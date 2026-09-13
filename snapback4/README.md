@@ -26,3 +26,35 @@ scope is [`NOT-DOING.md`](./NOT-DOING.md); the chronology is
 | `apps/chat`, `apps/chat-expo` | the chat reference app on the web and on React Native; `snapback/schema.q` is the backend |
 | `corpus/`, `fixtures/`, `floors/` | Snapback 2's conformance corpus; the Clique hub fixture wrapper; the five physical floors |
 | `scripts/test.sh` | everything blocking, under 60 s |
+
+`snapback4 dev` accepts browser requests only from `http(s)://localhost` or
+literal loopback origins (any app port), with a loopback Host header. A
+non-browser local tool may omit Origin. Personas and `/seed` are local
+development capabilities; a DNS name that resolves to loopback is not one.
+
+`snapback4 serve <dir>` defaults to HTTP on `127.0.0.1:4400`. Put a TLS
+reverse proxy on the same host in front of it, and configure clients with
+the public **https** URL. Preserve `Authorization` and `Origin`, strip
+`x-snapback-persona`, and restrict direct access to the backend socket.
+The backend always uses bearer tokens in `serve`; a proxy's loopback peer
+address never grants developer identity. It does not trust forwarded IP or
+scheme headers for identity or transport protection. A nonloopback literal
+`--bind` needs `--i-understand-cleartext` and prints a warning; use it only
+for a protected private hop to a TLS terminator.
+
+The catalog (`/`, `/schema`, `/api.ts`) and `/changes` require a live bearer
+session, or a local development persona. Public `GET /auth/config` returns
+only the `guests` and `password` sign-in capabilities. The HTTP host caps
+connections at 128, reserves 32 request workers and 32 separate long-wait
+workers for change polls and effect claims, and closes excess requests. Headers have a 32 KiB / 5 second limit,
+bodies a 30 second deadline, idle reads a 5 second limit, and responses a
+5 second write deadline. These deadlines cover each complete phase, so
+dribbling bytes does not extend them.
+
+`POST /auth/refresh` rotates a live bearer session and returns the same
+`{ session: { principal, kind, token, expiresAt } }` shape as sign-in; the
+old token stops working in the same store transaction. `POST
+/auth/logout-all` revokes every session for the current principal. Both take
+the current bearer token. Viewer-authorized asset responses use
+`Cache-Control: private, no-store`; a valid range beyond the file answers
+416 with `Content-Range: bytes */N`, and view-once assets refuse every Range.

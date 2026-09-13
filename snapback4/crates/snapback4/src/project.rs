@@ -121,7 +121,7 @@ impl Project {
 
     /// Open (or create) the project's store and install the compiled schema.
     pub fn open_engine(&self, bound: &Bound) -> Result<Engine, RuntimeError> {
-        std::fs::create_dir_all(self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        snapback4_core::private_fs::directory(&self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
         let store = Store::open(&self.store_path())?;
         if store.meta("release")?.is_some() {
             return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into()));
@@ -136,6 +136,7 @@ impl Project {
         if !path.is_file() {
             return Err(RuntimeError::Store(format!("no store at {}; run `snapback4 dev` first", path.display())));
         }
+        snapback4_core::private_fs::directory(&self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
         Store::open(&path)
     }
 

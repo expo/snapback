@@ -1,6 +1,7 @@
 use std::io::Result as IoResult;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr};
+use std::sync::Arc;
 
 use crate::connection::Connection;
 #[cfg(any(feature = "ssl-openssl", feature = "ssl-rustls"))]
@@ -86,6 +87,7 @@ pub struct RefinedTcpStream {
     stream: Stream,
     close_read: bool,
     close_write: bool,
+    limits: Option<Arc<crate::limits::ConnectionState>>,
 }
 
 impl RefinedTcpStream {
@@ -101,15 +103,22 @@ impl RefinedTcpStream {
             stream: read,
             close_read: true,
             close_write: false,
+            limits: None,
         };
 
         let write = RefinedTcpStream {
             stream: write,
             close_read: false,
             close_write: true,
+            limits: None,
         };
 
         (read, write)
+    }
+
+    pub(crate) fn with_limits(mut self, limits: Option<Arc<crate::limits::ConnectionState>>) -> Self {
+        self.limits = limits;
+        self
     }
 
     /// Returns true if this struct wraps around a secure connection.
@@ -137,16 +146,27 @@ impl Drop for RefinedTcpStream {
 
 impl Read for RefinedTcpStream {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        self.stream.read(buf)
+        if let Some(limits) = &self.limits { limits.before_read()?; }
+        let result = self.stream.read(buf);
+        if result.as_ref().err().is_some_and(|e| e.kind() != std::io::ErrorKind::Interrupted) {
+            if let Some(limits) = &self.limits { limits.shutdown(); }
+        }
+        result
     }
 }
 
 impl Write for RefinedTcpStream {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        self.stream.write(buf)
+        if let Some(limits) = &self.limits { limits.before_write()?; }
+        let result = self.stream.write(buf);
+        if result.as_ref().err().is_some_and(|e| e.kind() != std::io::ErrorKind::Interrupted) {
+            if let Some(limits) = &self.limits { limits.shutdown(); }
+        }
+        result
     }
 
     fn flush(&mut self) -> IoResult<()> {
+        if let Some(limits) = &self.limits { limits.before_write()?; }
         self.stream.flush()
     }
 }

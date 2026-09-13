@@ -1,4 +1,4 @@
-# tiny_http 0.12.0: bounded unread-body draining and worker reservation
+# tiny_http 0.12.0: bounded host, unread-body draining and worker reservation
 
 Source: the crates.io `tiny_http` 0.12.0 archive, from
 <https://github.com/tiny-http/tiny-http>. The original MIT and Apache-2.0
@@ -15,9 +15,8 @@ in the HTTP handler still allocated the oversized declared body. EOF or an
 I/O error now exits that drain without an allocation based on Content-Length.
 Focused unit tests cover EOF, an I/O error and a normal multi-buffer drain.
 
-This patch bounds drain memory; it does not introduce a socket deadline or
-change tiny_http's connection/reuse protocol. Replace it with an upstream
-release when that release contains the equivalent correction.
+This first patch bounds drain memory. Replace it with an upstream release
+when that release contains the equivalent correction.
 
 Local change, 2026-09-13 (performance work): `src/util/task_pool.rs` reserves
 reported idle workers for already queued connections before assigning another
@@ -28,3 +27,17 @@ dispatch lock across five arrivals with four idle workers: the old predicate
 starts only four tasks before release, while the fixed predicate starts five.
 The helper only exposes that locked dispatch path to its unit test. Connection
 parsing, request/response framing and the bounded drain above are unchanged.
+
+Local change, 2026-09-13 (security S11): `Server::http_with_limits` admits a
+bounded number of accepted sockets before creating connection threads. A
+lease covers the connection and every request-owned reader/writer. This
+entrypoint serializes requests within each persistent connection until the
+previous response and body reader finish; pipelining cannot build an
+unbounded request queue. `ConnectionLimits` sets a header byte cap and
+absolute header/body/write deadlines plus idle socket timeouts. Read/write
+syscalls use the smaller remaining phase deadline, so progress cannot reset
+it. Timed-out sockets close; `Request::abort` lets the host close an
+admission-refused request immediately without draining its body. The legacy
+entrypoints retain their API and framing. Snapback's binary unit tests cover
+connection overload, idle clients, header/body dribbling, stalled readers,
+bounded pipelining and short requests progressing under saturated polls.

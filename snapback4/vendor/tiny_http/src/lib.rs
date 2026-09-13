@@ -99,7 +99,7 @@ use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
 use std::io::Result as IoResult;
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -113,12 +113,14 @@ use util::MessagesQueue;
 pub use common::{HTTPVersion, Header, HeaderField, Method, StatusCode};
 pub use connection::{ConfigListenAddr, ListenAddr, Listener};
 pub use request::{ReadWrite, Request};
+pub use limits::ConnectionLimits;
 pub use response::{Response, ResponseBox};
 pub use test::TestRequest;
 
 mod client;
 mod common;
 mod connection;
+mod limits;
 mod request;
 mod response;
 mod ssl;
@@ -140,6 +142,7 @@ pub struct Server {
 
     // result of TcpListener::local_addr()
     listening_addr: ListenAddr,
+    connections: Arc<AtomicUsize>,
 }
 
 enum Message {
@@ -189,6 +192,16 @@ pub struct SslConfig {
 }
 
 impl Server {
+    /// HTTP with admission before connection threads and absolute I/O deadlines.
+    pub fn http_with_limits<A: ToSocketAddrs>(addr: A, limits: ConnectionLimits) -> Result<Server, Box<dyn Error + Send + Sync + 'static>> {
+        if limits.max_connections == 0 || limits.max_header_bytes == 0
+            || [limits.idle_timeout, limits.header_timeout, limits.body_timeout, limits.write_timeout].iter().any(Duration::is_zero) {
+            return Err("HTTP limits must be positive".into());
+        }
+        let listener = ConfigListenAddr::from_socket_addrs(addr)?.bind()?;
+        Self::from_listener_with_limits(listener, None, Some(limits))
+    }
+
     /// Shortcut for a simple server on a specific address.
     #[inline]
     pub fn http<A>(addr: A) -> Result<Server, Box<dyn Error + Send + Sync + 'static>>
@@ -243,7 +256,14 @@ impl Server {
         listener: L,
         ssl_config: Option<SslConfig>,
     ) -> Result<Server, Box<dyn Error + Send + Sync + 'static>> {
-        let listener = listener.into();
+        Self::from_listener_with_limits(listener.into(), ssl_config, None)
+    }
+
+    fn from_listener_with_limits(
+        listener: Listener,
+        ssl_config: Option<SslConfig>,
+        limits: Option<ConnectionLimits>,
+    ) -> Result<Server, Box<dyn Error + Send + Sync + 'static>> {
         // building the "close" variable
         let close_trigger = Arc::new(AtomicBool::new(false));
 
@@ -285,14 +305,28 @@ impl Server {
 
         let inside_close_trigger = close_trigger.clone();
         let inside_messages = messages.clone();
+        let connections = Arc::new(AtomicUsize::new(0));
+        let inside_connections = connections.clone();
         thread::spawn(move || {
             // a tasks pool is used to dispatch the connections into threads
-            let tasks_pool = util::TaskPool::new();
+            let tasks_pool = limits.is_none().then(util::TaskPool::new);
 
             log::debug!("Running accept thread");
             while !inside_close_trigger.load(Relaxed) {
                 let new_client = match server.accept() {
                     Ok((sock, _)) => {
+                        // Refuse before any connection parser/thread exists. A
+                        // full host closes excess sockets rather than queuing work.
+                        let state = if let Some(limits) = &limits {
+                            let Some(lease) = limits::ConnectionLease::acquire(&inside_connections, limits.max_connections) else {
+                                let _ = sock.shutdown(Shutdown::Both);
+                                continue;
+                            };
+                            match limits::ConnectionState::new(&sock, limits.clone(), lease) {
+                                Ok(state) => Some(state),
+                                Err(_) => continue,
+                            }
+                        } else { None };
                         use util::RefinedTcpStream;
                         let (read_closable, write_closable) = match ssl {
                             None => RefinedTcpStream::new(sock),
@@ -311,7 +345,7 @@ impl Server {
                             Some(ref _ssl) => unreachable!(),
                         };
 
-                        Ok(ClientConnection::new(write_closable, read_closable))
+                        Ok(ClientConnection::new(write_closable.with_limits(state.clone()), read_closable.with_limits(state.clone()), state))
                     }
                     Err(e) => Err(e),
                 };
@@ -320,14 +354,17 @@ impl Server {
                     Ok(client) => {
                         let messages = inside_messages.clone();
                         let mut client = Some(client);
-                        tasks_pool.spawn(Box::new(move || {
+                        let bounded = limits.is_some();
+                        let work = move || {
                             if let Some(client) = client.take() {
-                                // Synchronization is needed for HTTPS requests to avoid a deadlock
-                                if client.secure() {
+                                // Bounded HTTP admits one request per connection
+                                // until its response completes, so pipelining
+                                // cannot grow the server's request queue.
+                                if client.secure() || bounded {
                                     let (sender, receiver) = mpsc::channel();
                                     for rq in client {
                                         messages.push(rq.with_notify_sender(sender.clone()).into());
-                                        receiver.recv().unwrap();
+                                        if receiver.recv().is_err() { break; }
                                     }
                                 } else {
                                     for rq in client {
@@ -335,7 +372,8 @@ impl Server {
                                     }
                                 }
                             }
-                        }));
+                        };
+                        if bounded { thread::spawn(work); } else { tasks_pool.as_ref().unwrap().spawn(Box::new(work)); }
                     }
 
                     Err(e) => {
@@ -353,6 +391,7 @@ impl Server {
             messages,
             close: close_trigger,
             listening_addr: local_addr,
+            connections,
         })
     }
 
@@ -372,8 +411,7 @@ impl Server {
 
     /// Returns the number of clients currently connected to the server.
     pub fn num_connections(&self) -> usize {
-        unimplemented!()
-        //self.requests_receiver.lock().len()
+        self.connections.load(Relaxed)
     }
 
     /// Blocks until an HTTP request has been submitted and returns it.

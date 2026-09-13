@@ -12,9 +12,15 @@ use snapback4_lang::Bound;
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
 use std::io::{self, Write as _};
+use std::net::IpAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
+
+#[cfg(test)]
+#[path = "serve_tests.rs"]
+mod tests;
 
 pub struct Shared {
     pub engine: Mutex<Engine>,
@@ -31,6 +37,12 @@ pub struct Shared {
     /// The app's native module, served at `/native.wasm` and named in
     /// `/schema` (LLP 3000.005 §9); none when the schema declares nothing native.
     pub native: Mutex<Option<crate::native::Installed>>,
+    pub auth: crate::auth::Admission,
+    pub uploads: AtomicUsize,
+    #[cfg(test)]
+    pub auth_work: WorkHook,
+    #[cfg(test)]
+    pub upload_work: WorkHook,
 }
 
 /// A connection lasts as long as its poll and a grace after it: a client
@@ -55,7 +67,6 @@ impl Live {
             entry.0 = entry.0.saturating_sub(1);
             entry.1 = Some(Instant::now());
         }
-        // Forget principals long gone, so the map is the connected set.
         map.retain(|_, (open, last)| *open > 0 || last.is_some_and(|at| at.elapsed() < PRESENCE_GRACE));
     }
 }
@@ -69,6 +80,14 @@ impl Presence for Live {
             _ => 0,
         }
     }
+}
+
+#[cfg(test)]
+pub(crate) type WorkHook = Mutex<Option<Arc<dyn Fn() + Send + Sync>>>;
+#[cfg(test)]
+pub(crate) fn test_work(hook: &WorkHook) {
+    let work = hook.lock().unwrap().clone();
+    if let Some(work) = work { work(); }
 }
 
 /// How the server is run: `dev` on a project (personas, watch), or a
@@ -105,8 +124,12 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
-    let shared = Arc::new(Shared { engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, native: Mutex::new(installed) });
-    let server = Server::http((bind, port)).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
+    let shared = Arc::new(Shared {
+        engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        #[cfg(test)] auth_work: Mutex::new(None),
+        #[cfg(test)] upload_work: Mutex::new(None),
+    });
+    let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
     match &generated {
@@ -122,16 +145,43 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         let shared = shared.clone();
         std::thread::spawn(move || maintain(shared));
     }
-    // One thread per request, not a pool: every connected device keeps a
-    // long poll open (`/changes?wait=25`), so a pool of N stalls every other
-    // request once N devices are connected — the (N+1)th client saw
-    // `/schema` wait 14 s behind four polls. The engine serializes behind
-    // its own lock; a waiting poll holds nothing but its thread.
-    for request in server.incoming_requests() {
-        let shared = shared.clone();
-        std::thread::spawn(move || handle(request, &shared));
+    // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
+    let admission = Arc::new(RequestAdmission::default());
+    loop {
+        let request = server.recv().map_err(|error| format!("HTTP listener stopped: {error}"))?;
+        dispatch(request, shared.clone(), admission.clone());
     }
-    Ok(())
+}
+
+const REQUEST_WORKERS: usize = 32;
+const WAIT_WORKERS: usize = 32;
+
+#[derive(Default)]
+struct RequestAdmission { short: AtomicUsize, waiters: AtomicUsize }
+
+struct RequestPermit { admission: Arc<RequestAdmission>, waiter: bool }
+impl Drop for RequestPermit {
+    fn drop(&mut self) { self.admission.counter(self.waiter).fetch_sub(1, Ordering::AcqRel); }
+}
+impl RequestAdmission {
+    fn counter(&self, waiter: bool) -> &AtomicUsize { if waiter { &self.waiters } else { &self.short } }
+    fn acquire(self: &Arc<Self>, waiter: bool) -> Option<RequestPermit> {
+        let limit = if waiter { WAIT_WORKERS } else { REQUEST_WORKERS };
+        self.counter(waiter).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
+        Some(RequestPermit { admission: self.clone(), waiter })
+    }
+}
+
+fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>) {
+    let path = request.url().split('?').next().unwrap_or("");
+    let waiter = is_waiter(request.method(), path);
+    let Some(permit) = admission.acquire(waiter) else { request.abort(); return; };
+    std::thread::spawn(move || { let _permit = permit; handle(request, &shared); });
+}
+
+fn is_waiter(method: &Method, path: &str) -> bool {
+    (method == &Method::Get && path == "/changes")
+        || (method == &Method::Post && path == "/effects/claim")
 }
 
 fn watch_sources(project: Project, shared: Arc<Shared>) {
@@ -155,11 +205,12 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                 };
                 let steps = snapback4_core::successor::classify(&shared.bound.lock().unwrap().schema, &bound.schema);
                 let worst = snapback4_core::successor::worst(&steps);
-                match shared.engine.lock().unwrap().adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
+                let mut engine = shared.engine.lock().unwrap();
+                match engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
                     Ok(next) => {
                         let _ = project.write_generated(&bound);
                         if let Some(built) = &rebuilt {
-                            match crate::native::install(&mut shared.engine.lock().unwrap(), &project) {
+                            match crate::native::install(&mut engine, &project) {
                                 Ok(installed) => {
                                     *shared.native.lock().unwrap() = installed;
                                     println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", "));
@@ -257,8 +308,19 @@ fn maintain(shared: Arc<Shared>) {
                 Err(error) => eprintln!("snapback4: the effect lease sweep failed: {error}"),
             }
         }
-        if tick % 60 == 0 && let Err(error) = shared.engine.lock().unwrap().sweep_assets(now) {
-            eprintln!("snapback4: the asset sweep failed: {error}");
+        if tick % 60 == 0 {
+            let prepared = shared.engine.lock().unwrap().prepare_asset_sweep(now);
+            match prepared {
+                Ok(mut sweep) => match sweep.remove_files() {
+                    Ok(()) => {
+                        if let Err(error) = shared.engine.lock().unwrap().finish_asset_sweep(&sweep) {
+                            eprintln!("snapback4: the asset sweep catalog update failed: {error}");
+                        }
+                    }
+                    Err(error) => eprintln!("snapback4: the asset file sweep failed: {error}"),
+                },
+                Err(error) => eprintln!("snapback4: the asset sweep failed: {error}"),
+            }
         }
     }
 }
@@ -287,13 +349,61 @@ fn bump_seq(shared: &Shared) {
     }
 }
 
-fn cors() -> Vec<Header> {
-    vec![
-        Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap(),
+fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>, ()> {
+    let mut headers = request.headers().iter().filter(|h| h.field.as_str().as_str().eq_ignore_ascii_case(name));
+    let value = headers.next().map(|h| h.value.as_str());
+    if headers.next().is_some() { Err(()) } else { Ok(value) }
+}
+
+fn authority_host(authority: &str) -> Option<&str> {
+    if authority.is_empty() || authority.chars().any(|c| c.is_ascii_whitespace() || "/\\?#@,".contains(c)) { return None; }
+    if let Some(rest) = authority.strip_prefix('[') {
+        let (host, tail) = rest.split_once(']')?;
+        if !matches!(host.parse::<IpAddr>().ok(), Some(IpAddr::V6(_))) { return None; }
+        if !tail.is_empty() { tail.strip_prefix(':')?.parse::<u16>().ok().filter(|p| *p > 0)?; }
+        Some(host)
+    } else if let Some((host, port)) = authority.split_once(':') {
+        port.parse::<u16>().ok().filter(|p| *p > 0)?;
+        if host.is_empty() { None } else { Some(host) }
+    } else { Some(authority) }
+}
+
+fn local_authority(authority: &str) -> bool {
+    authority_host(authority).is_some_and(|host| host.eq_ignore_ascii_case("localhost") || host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback()))
+}
+
+fn origin_authority(origin: &str) -> Option<&str> {
+    let authority = origin.strip_prefix("http://").or_else(|| origin.strip_prefix("https://"))?;
+    authority_host(authority)?;
+    Some(authority)
+}
+
+/// Browser developers use different local app ports. Trust literal loopback
+/// names, never DNS resolution: a foreign hostname may resolve to loopback.
+fn dev_request(request: &Request, shared: &Shared) -> Result<(), Refusal> {
+    if !shared.personas { return Ok(()); }
+    let host = single_header(request, "host");
+    let origin = single_header(request, "origin");
+    if !request.remote_addr().is_some_and(|addr| addr.ip().is_loopback())
+        || !request.url().starts_with('/') || request.url().starts_with("//")
+        || !matches!(host, Ok(Some(host)) if local_authority(host))
+        || !matches!(origin, Ok(None) | Ok(Some(_)))
+        || origin.ok().flatten().is_some_and(|origin| !origin_authority(origin).is_some_and(local_authority)) {
+        return Err(Refusal::new("E_AUTH", "auth", "development HTTP requires a loopback Host and a loopback browser Origin; use localhost or a literal loopback address").guide("personas"));
+    }
+    Ok(())
+}
+
+pub(crate) fn cors(request: &Request) -> Vec<Header> {
+    let mut headers = vec![
+        Header::from_bytes("Vary", "Origin").unwrap(),
         Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, authorization, range").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
-        Header::from_bytes("Content-Type", "application/json").unwrap(),
-    ]
+    ];
+    if let Ok(Some(origin)) = single_header(request, "origin") && origin_authority(origin).is_some() {
+        headers.push(Header::from_bytes("Access-Control-Allow-Origin", origin).unwrap());
+    }
+    headers
 }
 
 const JSON_REQUEST_CEILING: usize = 1 << 20;
@@ -315,6 +425,10 @@ impl io::Write for JsonBuffer {
 }
 
 pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize) {
+    respond_with_cors(request, status, body, true)
+}
+
+fn respond_with_cors(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool) {
     let mut bytes = JsonBuffer(Vec::new());
     let encoded = serde_json::to_writer(&mut bytes, &body);
     drop(body);
@@ -326,8 +440,14 @@ pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize
     } else { status };
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
-    for header in cors() {
-        response.add_header(header);
+    response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
+    response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+    if allow_origin {
+        for header in cors(&request) { response.add_header(header); }
+    }
+    if status >= 400 && request.method() == &Method::Post {
+        let _ = request.respond_and_close(response);
+        return;
     }
     // `into_writer` drops the request reader before it returns. tiny_http
     // prebuffers ordinary bodies up to 1 KiB; other readers may drain on
@@ -357,6 +477,7 @@ pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
 
 /// Who is asking: a bearer session, or (in `dev`, from loopback) a persona.
 pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
+    dev_request(request, shared)?;
     let mut persona = None;
     let mut bearer = None;
     for header in request.headers() {
@@ -410,15 +531,48 @@ fn handle(mut request: Request, shared: &Shared) {
     let method = request.method().clone();
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
+    if let Err(refusal) = dev_request(&request, shared) {
+        respond_with_cors(request, 403, json!({ "denied": refusal_json(&refusal) }), false);
+        return;
+    }
     if method == Method::Options {
         respond(request, 204, Json::Null);
         return;
     }
+    if method == Method::Post && path == "/seed" && !shared.personas {
+        return respond(request, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
+    }
+    // Check identity before upload admission or allocating any large body.
+    // The route rechecks after reading, so expiry/revocation during a slow
+    // upload cannot retain the authority held at its start.
+    if method == Method::Post && (path == "/assets" || path.starts_with("/q/") || path.starts_with("/m/")
+        || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
+        if let Err(refusal) = principal_of(&request, shared) {
+            return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+        }
+    }
+    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/")) {
+        if let Err(refusal) = service_of(&request, shared) {
+            return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+        }
+    }
+    if method == Method::Get && matches!(path.as_str(), "/" | "/schema" | "/api.ts" | "/native.wasm" | "/changes") {
+        if let Err(refusal) = principal_of(&request, shared) {
+            return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
+        }
+    }
+    let _upload_permit = if method == Method::Post && path == "/assets" {
+        match crate::assets::admit(shared) {
+            Some(permit) => Some(permit),
+            None => return respond(request, 429, json!({ "denied": refusal_json(&Refusal::new("E_RATE_LIMIT", "auth", "too many concurrent uploads; retry shortly")) })),
+        }
+    } else { None };
     let mut bytes = Vec::new();
     if method == Method::Post {
         let ceiling = match path.as_str() {
             "/assets" => crate::assets::UPLOAD_CEILING,
             "/seed" => SEED_REQUEST_CEILING,
+            path if path.starts_with("/auth/") => crate::auth::BODY_CEILING,
             _ => JSON_REQUEST_CEILING,
         };
         let length = request.body_length();
@@ -452,6 +606,10 @@ fn handle(mut request: Request, shared: &Shared) {
         Err(_) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
     };
     match (method, path.as_str()) {
+        (Method::Get, "/auth/config") => {
+            let auth = shared.bound.lock().unwrap().schema.auth.clone();
+            respond(request, 200, json!({ "guests": auth.guests, "password": auth.password }));
+        }
         (Method::Get, "/") => {
             let body = {
                 let bound = shared.bound.lock().unwrap();
@@ -481,7 +639,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     let mut response = Response::from_data(module.bytes);
                     response.add_header(Header::from_bytes("Content-Type", "application/wasm").unwrap());
                     response.add_header(Header::from_bytes("ETag", format!("\"{}\"", module.digest)).unwrap());
-                    response.add_header(Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap());
+                    response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
+                    for header in cors(&request) { response.add_header(header); }
                     let _ = request.respond(response);
                 }
                 None => respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_NATIVE", "schema", "this backend has no native module")) })),
@@ -491,7 +650,8 @@ fn handle(mut request: Request, shared: &Shared) {
             let text = snapback4_lang::emit::typescript(&shared.bound.lock().unwrap());
             let mut response = Response::from_string(text);
             response.add_header(Header::from_bytes("Content-Type", "text/plain; charset=utf-8").unwrap());
-            response.add_header(Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap());
+            response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+            for header in cors(&request) { response.add_header(header); }
             let _ = request.respond(response);
         }
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
@@ -633,6 +793,9 @@ fn handle(mut request: Request, shared: &Shared) {
             }
             if let Some(principal) = &connected {
                 shared.presence.leave(principal);
+            }
+            if let Err(refusal) = principal_of(&request, shared) {
+                return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
             }
             let changes = shared.engine.lock().unwrap().changes(since, 500);
             match changes {
@@ -783,48 +946,9 @@ fn handle(mut request: Request, shared: &Shared) {
                 Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
             }
         }
-        (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login") | (Method::Post, "/auth/logout") => {
-            let auth = shared.bound.lock().unwrap().schema.auth.clone();
-            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
-            let now = snapback4_core::now_ms();
-            let outcome = {
-                let engine = shared.engine.lock().unwrap();
-                let store = engine.store();
-                match path.as_str() {
-                    "/auth/guest" => {
-                        if !auth.guests {
-                            Err(snapback4_core::RuntimeError::Auth("this backend has no guests; declare `use identity guests` (or `use identity`) in schema.q".into()))
-                        } else {
-                            let mut entropy = shared.entropy.lock().unwrap();
-                            snapback4_core::identity::guest(store, now, &mut entropy)
-                        }
-                    }
-                    "/auth/signup" | "/auth/login" => {
-                        let email = payload.get("email").and_then(Json::as_str).unwrap_or("").to_owned();
-                        let password = payload.get("password").and_then(Json::as_str).unwrap_or("").to_owned();
-                        if !auth.password {
-                            Err(snapback4_core::RuntimeError::Auth("this backend has no password accounts; declare `use identity password` (or `use identity`) in schema.q".into()))
-                        } else if path == "/auth/signup" {
-                            let mut entropy = shared.entropy.lock().unwrap();
-                            snapback4_core::identity::signup(store, &email, &password, now, &mut entropy)
-                        } else {
-                            snapback4_core::identity::login(store, &email, &password, now)
-                        }
-                    }
-                    _ => {
-                        let token = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("authorization")).and_then(|h| h.value.as_str().strip_prefix("Bearer ").map(|t| t.trim().to_owned()));
-                        match token {
-                            Some(token) => snapback4_core::identity::close_session(store, &token).map(|()| snapback4_core::identity::Session { principal: String::new(), kind: String::new(), token: String::new(), expires_at: 0 }),
-                            None => Err(snapback4_core::RuntimeError::Auth("logout needs the bearer token".into())),
-                        }
-                    }
-                }
-            };
-            match outcome {
-                Ok(_) if path == "/auth/logout" => respond(request, 200, json!({ "ok": true })),
-                Ok(session) => respond(request, 200, json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at } })),
-                Err(error) => respond(request, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
-            }
+        (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login")
+        | (Method::Post, "/auth/logout") | (Method::Post, "/auth/refresh") | (Method::Post, "/auth/logout-all") => {
+            crate::auth::handle(request, shared, &path, &body);
         }
         (Method::Post, "/seed") => {
             if !shared.personas || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {

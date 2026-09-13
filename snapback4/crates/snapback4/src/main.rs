@@ -4,6 +4,7 @@
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
 mod assets;
+mod auth;
 mod native;
 mod project;
 mod serve;
@@ -19,7 +20,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   dev [--port N] [--no-watch] [--fresh]  serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
-  serve <dir> [--port N] [--bind H]   serve a release on 0.0.0.0:4400; tokens only, no personas
+  serve <dir> [--port N] [--bind IP]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
+    --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
   run <op> [json] --as <persona>   run one operation against the local store (a job runs whole, as the system)
   test [--fixture dir] [--as p]    load a fixture, run every query, print the meters
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
@@ -150,7 +152,7 @@ mod tests {
         let mut reader = BufReader::new(stream);
         for (method, status, body) in cases {
             let body_wire = if method == "POST" { "Content-Length: 2\r\n\r\n{}" } else { "\r\n" };
-            write!(reader.get_mut(), "{method} / HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n{body_wire}").unwrap();
+            write!(reader.get_mut(), "{method} / HTTP/1.1\r\nHost: localhost\r\nOrigin: http://localhost:5173\r\nConnection: keep-alive\r\n{body_wire}").unwrap();
             let mut line = String::new();
             reader.read_line(&mut line).unwrap();
             assert!(line.starts_with(&format!("HTTP/1.1 {status} ")), "{line:?}");
@@ -163,7 +165,7 @@ mod tests {
                 headers.insert(name.to_ascii_lowercase(), value.trim().to_owned());
             }
             assert_eq!(headers["content-type"], "application/json");
-            assert_eq!(headers["access-control-allow-origin"], "*");
+            assert_eq!(headers["access-control-allow-origin"], "http://localhost:5173");
             let mut received = Vec::new();
             if method != "HEAD" && status != 204 {
                 if headers.get("transfer-encoding").is_some_and(|v| v == "chunked") {

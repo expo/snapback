@@ -6,6 +6,7 @@ use std::io::{BufReader, BufWriter, ErrorKind, Read};
 
 use std::net::SocketAddr;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::common::{HTTPVersion, Method};
 use crate::util::RefinedTcpStream;
@@ -34,12 +35,15 @@ pub struct ClientConnection {
 
     // true if the connection goes through SSL
     secure: bool,
+    limits: Option<Arc<crate::limits::ConnectionState>>,
+    header_bytes: usize,
 }
 
 /// Error that can happen when reading a request.
 #[derive(Debug)]
 enum ReadError {
     WrongRequestLine,
+    UnsupportedVersion,
     WrongHeader(HTTPVersion),
     /// the client sent an unrecognized `Expect` header
     ExpectationFailed(HTTPVersion),
@@ -51,6 +55,7 @@ impl ClientConnection {
     pub fn new(
         write_socket: RefinedTcpStream,
         mut read_socket: RefinedTcpStream,
+        limits: Option<Arc<crate::limits::ConnectionState>>,
     ) -> ClientConnection {
         let remote_addr = read_socket.peer_addr();
         let secure = read_socket.secure();
@@ -65,6 +70,8 @@ impl ClientConnection {
             next_header_source: first_header,
             no_more_requests: false,
             secure,
+            limits,
+            header_bytes: 0,
         }
     }
 
@@ -82,6 +89,12 @@ impl ClientConnection {
         let mut prev_byte_was_cr = false;
 
         loop {
+            if let Some(limits) = &self.limits {
+                self.header_bytes += 1;
+                if self.header_bytes > limits.limits.max_header_bytes {
+                    return Err(IoError::new(ErrorKind::InvalidData, "HTTP headers exceed the host limit"));
+                }
+            }
             let byte = self.next_header_source.by_ref().bytes().next();
 
             let byte = match byte {
@@ -104,6 +117,8 @@ impl ClientConnection {
     /// Reads a request from the stream.
     /// Blocks until the header has been read.
     fn read(&mut self) -> Result<Request, ReadError> {
+        self.header_bytes = 0;
+        if let Some(limits) = &self.limits { limits.headers(); }
         let (method, path, version, headers) = {
             // reading the request line
             let (method, path, version) = {
@@ -137,6 +152,11 @@ impl ClientConnection {
         };
 
         // building the writer for the request
+        // Refuse before allocating this request's sequential writer. Taking
+        // a second writer while the Request owns the first deadlocks before
+        // reaching the socket deadline, permanently retaining the lease.
+        if version > (1, 1) { return Err(ReadError::UnsupportedVersion); }
+        if let Some(limits) = &self.limits { limits.body(); }
         let writer = self.sink.next().unwrap();
 
         // follow-up for next potential request
@@ -165,7 +185,7 @@ impl ClientConnection {
         })?;
 
         // return the request
-        Ok(request)
+        Ok(request.with_limits(self.limits.clone()))
     }
 }
 
@@ -193,6 +213,14 @@ impl Iterator for ClientConnection {
                         .ok();
                     return None; // we don't know where the next request would start,
                                  // se we have to close
+                }
+
+                Err(ReadError::UnsupportedVersion) => {
+                    let writer = self.sink.next().unwrap();
+                    Response::from_string("This server only supports HTTP versions 1.0 and 1.1")
+                        .with_status_code(StatusCode(505))
+                        .raw_print(writer, HTTPVersion(1, 1), &[], false, None).ok();
+                    return None;
                 }
 
                 Err(ReadError::WrongHeader(ver)) => {
@@ -224,19 +252,6 @@ impl Iterator for ClientConnection {
 
                 Ok(rq) => rq,
             };
-
-            // checking HTTP version
-            if *rq.http_version() > (1, 1) {
-                let writer = self.sink.next().unwrap();
-                let response = Response::from_string(
-                    "This server only supports HTTP versions 1.0 and 1.1".to_owned(),
-                )
-                .with_status_code(StatusCode(505));
-                response
-                    .raw_print(writer, HTTPVersion(1, 1), &[], false, None)
-                    .ok();
-                continue;
-            }
 
             // updating the status of the connection
             let connection_header = rq

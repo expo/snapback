@@ -74,6 +74,7 @@ pub struct Request {
 
     // If Some, a message must be sent after responding
     notify_when_responded: Option<Sender<()>>,
+    limits: Option<std::sync::Arc<crate::limits::ConnectionState>>,
 }
 
 struct NotifyOnDrop<R> {
@@ -238,10 +239,25 @@ where
         body_length: content_length,
         must_send_continue: expects_continue,
         notify_when_responded: None,
+        limits: None,
     })
 }
 
 impl Request {
+    /// Close a bounded-host request immediately, without draining its body.
+    /// Used for admission refusal when no response worker is available.
+    pub fn abort(mut self) {
+        if let Some(limits) = &self.limits { limits.shutdown(); }
+        drop(self.response_writer.take());
+        drop(self.data_reader.take());
+        if let Some(sender) = self.notify_when_responded.take() { let _ = sender.send(()); }
+    }
+
+    pub(crate) fn with_limits(mut self, limits: Option<std::sync::Arc<crate::limits::ConnectionState>>) -> Self {
+        self.limits = limits;
+        self
+    }
+
     /// Returns true if the request was made through HTTPS.
     #[inline]
     pub fn secure(&self) -> bool {
@@ -371,6 +387,7 @@ impl Request {
             .ok();
             self.response_writer.as_mut().unwrap().flush().ok();
             self.must_send_continue = false;
+            if let Some(limits) = &self.limits { limits.continued(); }
         }
 
         self.data_reader.as_mut().unwrap()
@@ -434,9 +451,23 @@ impl Request {
         R: Read,
     {
         let res = self.respond_impl(response);
+        // The bounded connection parser starts the next header deadline only
+        // after this request has relinquished its body reader.
+        if self.limits.is_some() { drop(self.data_reader.take()); }
         if let Some(sender) = self.notify_when_responded.take() {
             sender.send(()).unwrap();
         }
+        res
+    }
+
+    /// Send a final refusal, then close the bounded socket before dropping
+    /// its unread body. An untrusted sender cannot make refusal drain a body.
+    pub fn respond_and_close<R>(mut self, response: Response<R>) -> Result<(), IoError>
+    where
+        R: Read,
+    {
+        let res = self.respond_impl(response);
+        self.abort();
         res
     }
 
