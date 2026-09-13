@@ -15,6 +15,17 @@ const t0 = Date.now();
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: ["ignore", "pipe", "inherit"], encoding: "utf8", ...opts });
 const version = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8")).version;
 
+// The suite first, and a red suite is a refusal: nothing publishes over a
+// failing test (0.1.10 went out on a red suite through a chained shell
+// command; this gate is the durable answer).
+console.log(`== the suite`);
+try {
+  execFileSync("bash", [join(root, "scripts/test.sh")], { stdio: "inherit", cwd: root });
+} catch {
+  console.error(`publish: the suite is red; snapback4@${version} is not published`);
+  process.exit(1);
+}
+
 console.log(`== build snapback4@${version}`);
 rmSync(join(pkg, "dist"), { recursive: true, force: true });
 run("bun", ["run", "--cwd", pkg, "build"]);

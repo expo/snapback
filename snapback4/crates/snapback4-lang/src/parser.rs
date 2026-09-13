@@ -1021,7 +1021,7 @@ impl Parser {
             } else if self.at("[") && matches!(value, Expr::Name { .. }) {
                 let Expr::Name { name, site } = value else { unreachable!() };
                 value = Expr::Read(self.parse_read(&name, &site)?);
-            } else if matches!(value, Expr::Name { .. }) && matches!(self.peek().value.as_str(), "first" | "after" | "last") {
+            } else if matches!(value, Expr::Name { .. }) && matches!(self.peek().value.as_str(), "first" | "after" | "last") && !stops.contains(&self.peek().value.as_str()) {
                 // `t first N by index`: the whole table's page, the empty
                 // prefix spelled without brackets, as `chunk` takes it.
                 let Expr::Name { name, site } = value else { unreachable!() };

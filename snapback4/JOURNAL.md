@@ -1221,3 +1221,18 @@ wrote `messages first 50 by index` with no `[..]` and the parser refused
 it; it found the empty prefix from the grammar in one step. `chunk`
 already took the bare form; reads take it now too (0.1.10). Record:
 `benchmarks/runs/2026-09-12-snapback4-loopbar/`.
+
+## 2026-09-13 — 0.1.10 was broken and went out anyway; 0.1.11, and the gate
+
+The bare-read form in 0.1.10 matched a cursor variable too: in `messages[..]
+after c last 50 by byConvTime` the parser took `c last 50` as a table
+read of `c`, and every read with a cursor was refused. The suite caught
+it — the chat schema no longer compiled — and the release went out
+regardless, because the shell chain ran the publish after the suite with
+a `;`, not an `&&`: a red result that did not stop anything, the failure
+class NOT-DOING names. 0.1.10 is deprecated on the registry (both
+packages) with the reason and the successor. 0.1.11: the bare form honours
+the range parser's stop words, so a cursor is a cursor; and
+`scripts/publish.mjs` now runs the suite itself and refuses to publish
+over a red one, so the gate is in the script and not in the hand that
+types the chain.
