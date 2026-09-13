@@ -1133,6 +1133,49 @@ The same source archive also built successfully on Linux at production
 optimization level 3, and both production-profile store tests passed
 (0.24 seconds after an 87-second test build); the Linux binary SHA-256 is
 `251e607404f3faa4e2b0fb05eb3ae42afd4aa03fe204b8532eaf0ad1afe66718`.
-These are source, build, test, consumer and publication receipts. HTTP
-performance has not yet been measured for 0.2.5, and the earlier native-core
-experiment is not an HTTP or exact published-artifact performance result.
+These are source, build, test, consumer and publication receipts. The
+formal 0.2.5 HTTP comparison is underway; the earlier native-core experiment
+is not an HTTP or exact published-artifact performance result.
+
+## Optional write/read and traversal timing — local correctness checks
+
+`--private-write-read` adds a serial acknowledged-mutation/category-read
+pair to the existing eleven private-catalog cases. Use the same flag, trial
+and sample count for `--private-restart`. `--membership-traversal-timing`
+adds per-page and whole-walk observations to the existing exact membership
+traversals; it also works with `--membership-verify-only`. Both flags are
+optional. Native query caches remain enabled.
+
+Local instrument correctness smokes on 2026-09-13 passed on the primary Apple
+M5 Max using Node 24.18.0 and the published 0.2.5 Darwin CLI
+(`9250a61ee8ad3b7a9fb899e43368e43a041e8508`, binary SHA256
+`e752662aa96f5d224da46b333540a8e6e4b186ffc248a8b4c7c69a077a5989b3`). Both use
+combined instrument SHA256
+`ebe5b64dd15a6e16371a7449bd8ec55e6a5421ec392bec64b943472f42d616be`. These are
+local correctness checks on a separate machine from the Office M1 Max
+comparison. Their observed latency summaries are retained without a controlled
+performance or comparator claim.
+
+The private `--private-write-read` smoke used 20,000 rows and 12 cases: 550
+timed single-request samples across the existing 11 cases, plus 50 serial
+write-then-category-read pairs (100 HTTP requests). The new case also
+performed 30 excluded warmup pairs (60 requests), two prime reads and two
+changed-payload replay checks. Pair and read/write component latencies have
+separate summaries. Full partition, authentication, ownership, contention and
+replay checks passed. An actual owned-process SIGTERM/relaunch with the same
+database then passed full-state and receipt replay checks; the final and both
+restart hashes are
+`42ecd0c14ec9109a3584b061f27b90319081dbe1754c3a48ac988df580ac9188`. This
+establishes process-restart correctness, with no power-loss durability claim.
+
+The membership `--membership-verify-only --membership-traversal-timing` smoke
+first verified all 501 groups, 186 memberships and 100,000 messages through
+complete logical fixture hashes. Nine exact authorized/control walks then
+measured 1,852 feed pages and 13 representative-thread pages, including
+outsider and empty-group controls. All five timed identities and the absence
+of repeated-case samples are correctly labelled; this invocation performed no
+39-case run, leave or regrant. Exact page oracles follow each request timer
+and remain inside traversal wall time; no cache reset is claimed.
+Convex/Supabase validation of these new opt-in modes remains pending. The
+formal 0.2.5 comparison remains bound to the unchanged original instrument
+SHA256 `36f4026bcbef551d675842c760fbdc491f94e5d8b062fe8626bdf2a4cb12c39b`.
