@@ -35,6 +35,6 @@ files afterward. Independent KDF and upload caps prevent those slow paths from
 occupying every request slot.
 
 Focused regressions cover concurrent short queries, early unauthenticated-body
-refusal, staging cleanup, and sweep behavior. The exact delivered commit's full
-blocking-suite and independent-review evidence is retained in the
-`sb4-security-20260913` ship-run ledger.
+refusal, staging cleanup, and sweep behavior. The exact integrated proof and
+independent-review evidence is retained in the
+[security remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

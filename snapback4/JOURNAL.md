@@ -2172,3 +2172,12 @@ before consuming a view; ordinary unsatisfiable ranges return 416, and every
 asset response is private and `no-store`. The exact checks and independent
 review for the integrated result live in the 2026-09-13 security remediation
 record beside LLP 3000.
+
+## 2026-09-13 — effect claims close the wait boundary
+
+The independent remediation review found one remaining authorization gap in
+the long effect-claim path: a service session was checked before waiting, but
+could be revoked or expire before the next claim attempt. The claim loop now
+reauthenticates at every attempt, including every wake, before it can observe
+or lease newly available work. A deterministic host regression revokes the
+service token exactly at that boundary and requires `E_AUTH`.

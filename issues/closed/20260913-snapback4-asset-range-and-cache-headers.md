@@ -29,5 +29,6 @@ to the server and re-evaluate the current principal and home-row read rule.
 View-once assets continue to refuse partial ranges before consuming a view.
 
 Focused host tests cover suffix/open/closed ranges, past-EOF 416 behavior, and
-the cache headers. The exact delivered commit's suite and independent-review
-evidence is retained in the `sb4-security-20260913` ship-run ledger.
+the cache headers. The exact integrated proof and independent-review evidence
+is retained in the
+[security remediation record](../../llp/reviews/3000-security-remediation-20260913.md).

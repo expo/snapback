@@ -42,5 +42,6 @@ later authenticated metadata, sync, and change requests.
 
 Regressions prove that rotation kills the old token, logout-all kills multiple
 tokens, expiry prunes dead rows, and the default store does not touch
-`localStorage`. The exact delivered commit's suite and independent-review
-evidence is retained in the `sb4-security-20260913` ship-run ledger.
+`localStorage`. The exact integrated proof and independent-review evidence is
+retained in the
+[security remediation record](../../llp/reviews/3000-security-remediation-20260913.md).
