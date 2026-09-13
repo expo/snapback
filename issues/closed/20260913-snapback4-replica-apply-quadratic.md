@@ -1,6 +1,6 @@
 # Snapback 4: Replica apply path is quadratic in table size
 
-Status: Open
+Status: Resolved as obsolete (2026-09-13)
 Severity: minor
 Priority: P2
 Area: perf
@@ -11,7 +11,7 @@ Review provenance: Snapback4 comprehensive-review synthesis (2026-09-13 child re
 
 ## Problem and reproduction
 
-`put` in [store.ts](../snapback4/packages/snapback4/src/replica/store.ts)
+`put` in `packages/snapback4/src/replica/store.ts`
 does, per row and per index: a binary search, a `splice(at, 1)` removal
 and a `splice(at, 0, ...)` insertion into a plain array, plus
 `structuredClone(row)` on every `put`/`get`/`lookup`/`scan`/`page`. Each
@@ -26,7 +26,7 @@ will never notice.
 
 ## Implementation locations
 
-- [packages/snapback4/src/replica/store.ts](../snapback4/packages/snapback4/src/replica/store.ts) (`put`, `page`, `scan`, `lookup`)
+- `packages/snapback4/src/replica/store.ts` (`put`, `page`, `scan`, `lookup`; removed)
 
 ## Suggestion
 
@@ -34,3 +34,12 @@ Batch index maintenance (sort-then-merge per index instead of per-row
 splice), avoid cloning rows that never cross an API boundary, and add a
 sync-apply benchmark (e.g. 10k-row table, time `apply`) with a budget so
 regressions fail loudly.
+
+## Resolution
+
+The reported TypeScript store and the entire `src/replica/*` interpreter/store
+tree were removed by the 0.2.0 unified-device landing `993688b29`. Current
+0.2.3 routes web, native and process local clients through the Rust device, so
+none of the array `splice` or `structuredClone` paths named here exists in the
+shipped client. This report offers no measurement of the replacement device
+and therefore does not justify a new benchmark or performance claim for it.

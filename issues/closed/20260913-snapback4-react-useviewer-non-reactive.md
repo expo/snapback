@@ -1,12 +1,12 @@
 # Snapback 4: React useViewer hook lacks subscription to auth and session state changes
 
-Status: Open
+Status: Resolved (2026-09-13)
 Priority: P2
 Observed: 2026-09-13
 Review finding: E02
 Evidence: Code-traced
 Baseline: `6918cccbc264cf000982b03a5a11a2cf5563f885` / Snapback 4 0.1.15
-Related: [react.tsx](../snapback4/packages/snapback4/src/react.tsx), [contract.ts](../snapback4/packages/snapback4/src/contract.ts), [client.ts](../snapback4/packages/snapback4/src/client.ts), [local.ts](../snapback4/packages/snapback4/src/local.ts)
+Related: [react.tsx](../../snapback4/packages/snapback4/src/react.tsx), [contract.ts](../../snapback4/packages/snapback4/src/contract.ts), [client.ts](../../snapback4/packages/snapback4/src/client.ts), [local.ts](../../snapback4/packages/snapback4/src/local.ts)
 
 ## Problem and reproduction
 
@@ -41,7 +41,17 @@ does not declare an `onViewer` event listener.
 
 ## Implementation locations
 
-- [packages/snapback4/src/contract.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/contract.ts#L103) (`Client`)
-- [packages/snapback4/src/react.tsx](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/react.tsx#L197-L199) (`useViewer`)
-- [packages/snapback4/src/client.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/client.ts)
-- [packages/snapback4/src/local.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/local.ts)
+- [packages/snapback4/src/contract.ts](../../snapback4/packages/snapback4/src/contract.ts) (`Client`)
+- [packages/snapback4/src/react.tsx](../../snapback4/packages/snapback4/src/react.tsx) (`useViewer`)
+- [packages/snapback4/src/client.ts](../../snapback4/packages/snapback4/src/client.ts)
+- [packages/snapback4/src/local.ts](../../snapback4/packages/snapback4/src/local.ts)
+
+## Resolution
+
+`Client.onViewer` is now part of the card. The online client emits when a
+bare token resolves to its server-reported viewer and when authentication
+ends; the unified local client emits on session end; the mock follows its
+link-controlled viewer. `useViewer` reads and subscribes with
+`useSyncExternalStore`. The React regression changes the viewer in a
+component that uses no other Snapback hook and observes the immediate rerender.
+Implemented by `f0a69cd08` and `2ae63ec45`.

@@ -252,7 +252,16 @@ test("local observations rerun when the device-reported visible lifetime expires
   const unsubscribe = observed.subscribe(() => {});
   await until(() => observed.getSnapshot().data?.[0] === "alive", "pre-expiry row was not observed");
   await until(() => queries >= 2 && observed.getSnapshot().data?.length === 0, "expiry did not rerun the observation", 1000);
-  unsubscribe(); observed.close(); await client.close();
+  unsubscribe(); observed.close();
+  expiresAt = Date.now() + 80;
+  const before = queries;
+  const abandoned = client.observe(query("read"), { abandoned: true });
+  const stop = abandoned.subscribe(() => {});
+  await until(() => queries === before + 1, "second observation did not schedule expiry");
+  stop(); abandoned.close();
+  await sleep(120);
+  assert.equal(queries, before + 1, "closed observation retained its expiry timer");
+  await client.close();
 });
 
 test("a refused device adopt keeps the previous backend active in JavaScript", { timeout: 5000 }, async () => {

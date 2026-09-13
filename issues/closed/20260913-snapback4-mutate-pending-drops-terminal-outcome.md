@@ -1,11 +1,11 @@
 # Snapback 4: `mutate` can return `pending` and drop the terminal Write
 
-Status: Open
+Status: Resolved (2026-09-13)
 Priority: P1
 Date: 2026-09-13
 Systems: local/native/online clients, `useMutation`, reference composers
 Author: Grok 4.6 (comprehensive review of origin/main `f9bf18f0e`)
-Related: [LLP 3000.001](../llp/3000.001-durable-replica-and-write-lifecycle.research.md) (durable discovery of a write’s terminal outcome)
+Related: [LLP 3000.001](../../llp/3000.001-durable-replica-and-write-lifecycle.research.md) (durable discovery of a write’s terminal outcome)
 
 ## Problem and reproduction
 
@@ -19,12 +19,26 @@ The card’s only write API therefore cannot report the eventual refusal after t
 
 ## Implementation locations
 
-- [snapback4/packages/snapback4/src/local.ts](../snapback4/packages/snapback4/src/local.ts) (~541)
-- [snapback4/packages/snapback4/src/native.ts](../snapback4/packages/snapback4/src/native.ts) (~528)
-- [snapback4/packages/snapback4/src/client.ts](../snapback4/packages/snapback4/src/client.ts) (~318)
-- [snapback4/packages/snapback4/src/react.tsx](../snapback4/packages/snapback4/src/react.tsx) (`useMutation`)
-- [snapback4/apps/chat/src/Composer.tsx](../snapback4/apps/chat/src/Composer.tsx)
+- [snapback4/packages/snapback4/src/local.ts](../../snapback4/packages/snapback4/src/local.ts) (~541)
+- [snapback4/packages/snapback4/src/native.ts](../../snapback4/packages/snapback4/src/native.ts) (~528)
+- [snapback4/packages/snapback4/src/client.ts](../../snapback4/packages/snapback4/src/client.ts) (~318)
+- [snapback4/packages/snapback4/src/react.tsx](../../snapback4/packages/snapback4/src/react.tsx) (`useMutation`)
+- [snapback4/apps/chat/src/Composer.tsx](../../snapback4/apps/chat/src/Composer.tsx)
 
 ## Suggestion
 
 Keep `mutate`’s promise open until a terminal `Write`, or have `useMutation` subscribe to settlement by id instead of the first return value. The composer should treat row `pending` / `link`, not `last === pending`, as “queued”.
+
+## Resolution
+
+`Client.onWrite` now emits each live client's terminal `sent` or `failed`
+outcome once after `mutate` returned `pending`. The online, unified local and
+mock clients implement it, and `useMutation.last` follows settlement for the
+latest submitted id, including the event-versus-pending-return race. Focused
+client lifecycle tests cover pending-to-sent on both real client tiers; the
+React test covers pending-to-failed and the race.
+
+This closes the dropped live outcome. Durable discovery after a process
+restart remains the explicit research question in LLP 3000.001 rather than an
+unearned claim of this notification API. Implemented by `f0a69cd08`,
+`4a69619d0`, and `2ae63ec45`.

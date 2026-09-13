@@ -1,6 +1,6 @@
 # Snapback 4: live queries re-run on every `/changes` timeout and miss expiry
 
-Status: Open
+Status: Resolved (2026-09-13)
 Priority: P2
 Date: 2026-09-13
 Systems: local/native observe, replica follow, expiry
@@ -20,10 +20,28 @@ Every local/native `mutate` also invalidates every watch with no table filter.
 
 ## Implementation locations
 
-- [snapback4/packages/snapback4/src/local.ts](../snapback4/packages/snapback4/src/local.ts) (`waitForChange`, `onChange`, `observe`)
-- [snapback4/packages/snapback4/src/native.ts](../snapback4/packages/snapback4/src/native.ts)
-- [snapback4/packages/snapback4/src/replica/replica.ts](../snapback4/packages/snapback4/src/replica/replica.ts) (`follow`, `syncRound`)
+- [snapback4/packages/snapback4/src/local.ts](../../snapback4/packages/snapback4/src/local.ts) (`waitForChange`, `observe`)
+- [snapback4/packages/snapback4/src/client.ts](../../snapback4/packages/snapback4/src/client.ts) (`poll`, `observe`)
+- `snapback4/packages/snapback4/src/replica/replica.ts` (`follow`, `syncRound`; removed in 0.2.0)
 
 ## Suggestion
 
 Do not rerun on empty `touched`; flip `fresh`/`since` in place when only catch-up status changed. `waitForChange` should only wake `syncOnce`. Skip `syncOnce` when the poll did not advance seq/generation. When observed tables have `expire`, schedule a rerun at the next remaining expire time (capped).
+
+## Resolution
+
+The unified local follower now distinguishes an idle `/changes` response from
+an advancing sequence/generation. Idle polls continue polling without a sync
+or query run; an advancing poll syncs first and only then reruns observations
+whose tables the applied device page touched. An empty catch-up changes a
+ready snapshot's freshness in place instead of running the interpreter.
+Predictions likewise rerun only watches whose tables their device-reported
+written rows touched.
+
+Query outcomes now carry the earliest future expiry encountered by the visible
+read. Both online and local observations schedule one capped timer at that
+instant, replace it on rerun, and clear it when the observation or client
+closes. Core `4b70bdb6f`, device `66651204e`, host `91c408ab7`, and client
+`2ae63ec45` implement the path. Focused tests prove no idle apply/rerun, apply
+before rerun, visible expiry while otherwise idle, timer disposal, and
+table-scoped prediction invalidation.

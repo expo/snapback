@@ -1,12 +1,12 @@
 # Snapback 4: Client offline probe targets nonexistent /q/__probe and relies on 404 status
 
-Status: Open
+Status: Resolved (2026-09-13)
 Priority: P2
 Observed: 2026-09-13
 Review finding: E01
 Evidence: Code-traced
 Baseline: `6918cccbc264cf000982b03a5a11a2cf5563f885` / Snapback 4 0.1.15
-Related: [local.ts](../snapback4/packages/snapback4/src/local.ts), [client.ts](../snapback4/packages/snapback4/src/client.ts), [native.ts](../snapback4/packages/snapback4/src/native.ts), [serve.rs](../snapback4/crates/snapback4/src/serve.rs)
+Related: [local.ts](../../snapback4/packages/snapback4/src/local.ts), [client.ts](../../snapback4/packages/snapback4/src/client.ts), [native.ts](../../snapback4/packages/snapback4/src/native.ts), [serve.rs](../../snapback4/crates/snapback4/src/serve.rs)
 
 ## Problem and reproduction
 
@@ -51,7 +51,18 @@ Because `404 < 500` and the refusal code is `E_OP` (not `E_AUTH`), the client co
 
 ## Implementation locations
 
-- [crates/snapback4/src/serve.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4/src/serve.rs) (`handle_request`)
-- [packages/snapback4/src/local.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/local.ts#L263-L268) (`waitForChange`)
-- [packages/snapback4/src/client.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/client.ts#L198-L203) (`poll`)
-- [packages/snapback4/src/native.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/native.ts#L300-L305) (`waitForChange`)
+- [crates/snapback4/src/serve.rs](../../snapback4/crates/snapback4/src/serve.rs) (`handle_request`)
+- [packages/snapback4/src/local.ts](../../snapback4/packages/snapback4/src/local.ts) (`waitForChange`)
+- [packages/snapback4/src/client.ts](../../snapback4/packages/snapback4/src/client.ts) (`poll`)
+- [packages/snapback4/src/native.ts](../../snapback4/packages/snapback4/src/native.ts)
+
+## Resolution
+
+The host now serves authenticated `GET /probe`: valid bearer/persona
+credentials receive HTTP 200 `{ "ok": true }`, while missing or invalid
+credentials use the existing 401 `E_AUTH` path. Both client tiers use that
+route and require the 200 status plus literal `ok: true` before restoring an
+offline link. Controlled regressions prove that a proxy-style 404 and an
+invalid 200 body leave each tier offline; the host regression proves the real
+route without an `E_OP` log. Implemented by host `91c408ab7` (source
+checkpoint `1bcd83759`) and client `2ae63ec45`.

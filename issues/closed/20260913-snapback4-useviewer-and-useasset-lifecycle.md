@@ -1,6 +1,6 @@
 # Snapback 4: `useViewer` does not subscribe; `useAsset(null)` looks like loading
 
-Status: Open
+Status: Resolved (2026-09-13)
 Priority: P2
 Date: 2026-09-13
 Systems: React hooks
@@ -19,10 +19,26 @@ Native generation adopt assigns JS `backend` before `call({ op: "adopt" })` succ
 
 ## Implementation locations
 
-- [snapback4/packages/snapback4/src/react.tsx](../snapback4/packages/snapback4/src/react.tsx) (`useViewer`, `useAsset`)
-- [snapback4/packages/snapback4/src/local.ts](../snapback4/packages/snapback4/src/local.ts) (startup `sync`, generation adopt)
-- [snapback4/packages/snapback4/src/native.ts](../snapback4/packages/snapback4/src/native.ts)
+- [snapback4/packages/snapback4/src/react.tsx](../../snapback4/packages/snapback4/src/react.tsx) (`useViewer`, `useAsset`)
+- [snapback4/packages/snapback4/src/local.ts](../../snapback4/packages/snapback4/src/local.ts) (startup `sync`, generation adopt)
+- [snapback4/packages/snapback4/src/native.ts](../../snapback4/packages/snapback4/src/native.ts)
 
 ## Suggestion
 
 Subscribe `useViewer` the way `useSession` does. Return a distinct empty state when `id` is null; `.catch` asset fetch. `try/finally` around startup sync to close the store on throw. Keep native `backend` on the previous value until `adopt` returns `ok`.
+
+## Resolution
+
+`useViewer` now subscribes through `Client.onViewer`. `useAsset(null)` returns
+the distinct `{ status: "empty" }` state without fetching, and a rejected
+asset promise becomes a typed `E_CLIENT` denial; ready object URLs still
+revoke on id change and unmount. React/Strict Mode regressions cover all four
+transitions.
+
+The unified `createLocalClient` constructor now owns the device handle from
+the moment `open` succeeds and closes it on every later startup exception,
+including failures after the compatibility probe. Generation change loads a
+candidate backend, asks the device to adopt it, and assigns the JavaScript
+backend only after success. Focused regressions prove later-startup cleanup
+and that a denied adopt leaves prediction routing on the old backend.
+Implemented by `f0a69cd08` and `2ae63ec45`.
