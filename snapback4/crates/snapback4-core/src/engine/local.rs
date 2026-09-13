@@ -38,6 +38,7 @@ pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, 
         seq: 0,
         metered: runner.meter.used,
         tables: runner.read_tables.iter().cloned().collect(),
+        next_expiry: runner.next_expiry,
     })
     })();
     (result, runner.beyond_horizon)

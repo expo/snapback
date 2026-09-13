@@ -30,6 +30,7 @@ pub struct Replica {
     script: Script,
     /// Tables whose rows go when the device leaves a group.
     until_revoked: BTreeSet<String>,
+    audiences: BTreeMap<String, Vec<String>>,
     // Durable state, persisted as JSON.
     watermark: u64,
     rows: BTreeMap<String, BTreeMap<String, Json>>,
@@ -50,9 +51,9 @@ pub struct Replica {
 }
 
 impl Replica {
-    pub fn factory(server: HostId, viewer: &str, script: Script, until_revoked: BTreeSet<String>) -> crate::world::HostFactory {
+    pub fn factory(server: HostId, viewer: &str, script: Script, until_revoked: BTreeSet<String>, audiences: BTreeMap<String, Vec<String>>) -> crate::world::HostFactory {
         let viewer = viewer.to_owned();
-        Box::new(move || Box::new(Replica { server, viewer: viewer.clone(), script: script.clone(), until_revoked: until_revoked.clone(), watermark: 0, rows: BTreeMap::new(), outbox: Vec::new(), acked: BTreeMap::new(), failed: BTreeMap::new(), left: Vec::new(), minted: 0, generation: 0, rebootstraps: 0, rid: 0, inflight_sync: None, reads: BTreeMap::new(), unadmitted: 0, watermark_regressions: 0, started_at: 0 }))
+        Box::new(move || Box::new(Replica { server, viewer: viewer.clone(), script: script.clone(), until_revoked: until_revoked.clone(), audiences: audiences.clone(), watermark: 0, rows: BTreeMap::new(), outbox: Vec::new(), acked: BTreeMap::new(), failed: BTreeMap::new(), left: Vec::new(), minted: 0, generation: 0, rebootstraps: 0, rid: 0, inflight_sync: None, reads: BTreeMap::new(), unadmitted: 0, watermark_regressions: 0, started_at: 0 }))
     }
 
     fn durable(&self) -> Json {
@@ -151,7 +152,7 @@ impl Replica {
                     if self.until_revoked.contains(&table)
                         && let Some(rows) = self.rows.get_mut(&table)
                     {
-                        rows.retain(|_, row| !matches_group(row, &group));
+                        rows.retain(|_, row| !matches_group(row, &group, self.audiences.get(&table).map(Vec::as_slice).unwrap_or(&[])));
                     }
                     self.left.push((table, group, seq));
                 }
@@ -161,11 +162,21 @@ impl Replica {
     }
 }
 
-fn matches_group(row: &Json, group: &[Json]) -> bool {
-    // The chat fixture's audience prefix is one column; a group value equal
-    // to any reference-shaped field of the row is a member of that group.
-    let Some(object) = row.as_object() else { return false };
-    group.iter().all(|value| object.values().any(|field| field == value))
+fn matches_group(row: &Json, group: &[Json], columns: &[String]) -> bool {
+    !columns.is_empty() && columns.len() == group.len()
+        && columns.iter().zip(group).all(|(column, value)| row.get(column) == Some(value))
+}
+
+#[test]
+fn scope_membership_uses_only_the_ordered_audience_columns() {
+    let columns = vec!["conversationId".to_owned()];
+    let row = json!({"id":"row", "conversationId":"B", "unrelated":"A"});
+    assert!(!matches_group(&row, &[json!("A")], &columns));
+    assert!(matches_group(&row, &[json!("B")], &columns));
+    let columns = vec!["first".to_owned(), "second".to_owned()];
+    let row = json!({"first":"A", "second":"B"});
+    assert!(!matches_group(&row, &[json!("B"),json!("A")], &columns));
+    assert!(matches_group(&row, &[json!("A"),json!("B")], &columns));
 }
 
 impl Host for Replica {

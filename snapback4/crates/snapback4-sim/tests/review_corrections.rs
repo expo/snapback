@@ -217,3 +217,93 @@ fn drained_partitions_cover_successful_writes_without_viewer_events() {
         watermark = page.watermark;
     }
 }
+
+#[test]
+fn cursorless_nonunique_scans_keep_live_siblings_after_an_expired_batch() {
+    let mut e = engine("table notes:\n  tag: text <=10\n  until: time ?\n  by byTag: tag\n  by byExpiry: until\n  expire at .until\n  read <- allow\n  sync public\nquery q():\n  return notes[] first 10 by byTag\n");
+    let rows = (0..17).map(|n| serde_json::json!({"id":format!("n{n:02}"),"tag":"open","until":if n<12 {serde_json::json!(10)} else {serde_json::Value::Null}})).collect::<Vec<_>>();
+    seed(&mut e,"notes",serde_json::json!(rows));
+    let result=e.query("q",ctx()).unwrap();
+    assert_eq!(result.data.as_array().unwrap().len(),5);
+    assert!(result.complete);
+}
+
+#[test]
+fn job_chunks_enforce_final_exists_and_rollback_the_whole_chunk() {
+    let mut e=engine("table inputs:\n  read <- allow\n  sync public\ntable targets:\n  name: text <=10\n  unique byName: name\n  read <- allow\ntable sources:\n  name: text <=10\n  read <- allow\n  insert <- allow\n  after insert <- exists targets[.name]\njob j():\n  chunk i in inputs first 5 by byId:\n    insert sources {name: 'ghost'}\n");
+    seed(&mut e,"inputs",serde_json::json!([{"id":"one"}]));
+    let run=e.run_job("j",BTreeMap::new(),1000).unwrap();
+    assert_eq!(run.state,snapback4_core::JobState::Parked);
+    assert!(run.error.unwrap().contains("E_CONSTRAINT"));
+    assert!(e.store().rows("sources").unwrap().is_empty());
+}
+
+#[test]
+fn schedules_do_not_rewind_and_changed_shapes_start_at_the_next_boundary() {
+    let source="table rows:\n  read <- allow\njob tick():\n  chunk r in rows first 1 by byId:\n    break\nschedule clock every 2m: tick\n";
+    let mut e=engine(source);
+    assert!(e.fire_schedules(600001).unwrap().is_empty());
+    assert_eq!(e.fire_schedules(720001).unwrap().len(),1);
+    for now in [600001,720001] {assert!(e.fire_schedules(now).unwrap().is_empty());}
+    adopt(&mut e,&source.replace("every 2m","every 5m")).unwrap();
+    assert!(e.fire_schedules(840001).unwrap().is_empty());
+    assert_eq!(e.fire_schedules(900001).unwrap().len(),1);
+    let b=compile(source);let before=e.generation();
+    assert!(e.adopt(b.schema,std::iter::empty()).is_err());
+    assert_eq!(e.generation(),before);
+    assert_eq!(e.jobs(10).unwrap().len(),2);
+}
+
+#[test]
+fn released_assets_can_move_and_be_reclaimed_before_collection() {
+    let mut e=engine("table items:\n  photo: image <=10000 ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  sync public\nmutation move(a: items,b: items):\n  row = items[a] ! else NOT_FOUND\n  p = row.photo\n  update items[a] {photo: null}\n  update items[b] {photo: p}\nmutation place(a: items,p: image <=10000 ?):\n  update items[a] {photo: p}\n");
+    let mut png=b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR".to_vec();png.extend([0,0,0,1,0,0,0,1]);
+    let asset=e.store_asset("dev:alice",&png,1000).unwrap();
+    e.seed([("items".into(),snapback4_core::value::object([("id",Value::Id("a".into())),("photo",asset.column_value())])),("items".into(),snapback4_core::value::object([("id",Value::Id("b".into())),("photo",Value::Null)]))]).unwrap();
+    let context=|a:&str,p:Value|Context::new("dev:alice",BTreeMap::from([("a".into(),Value::Id(a.into())),("p".into(),p)])).at(1000);
+    let outcome=e.mutate("move",Some("move"),Context::new("dev:alice",BTreeMap::from([("a".into(),Value::Id("a".into())),("b".into(),Value::Id("b".into()))])).at(1000)).unwrap();
+    assert!(matches!(outcome.state,WriteState::Sent{..}),"{outcome:?}");
+    assert_eq!(e.store().asset(&asset.id).unwrap().unwrap().home.unwrap().1,"b");
+    assert!(matches!(e.mutate("place",Some("clear"),context("b",Value::Null)).unwrap().state,WriteState::Sent{..}));
+    assert!(matches!(e.mutate("place",Some("reset"),context("b",asset.column_value())).unwrap().state,WriteState::Sent{..}));
+    assert!(e.store().asset(&asset.id).unwrap().unwrap().released_at.is_none());
+}
+
+#[test]
+fn expired_rows_do_not_consume_the_acquisition_horizon() {
+    let mut e=engine("table notes:\n  at: time\n  until: time ?\n  by byTime: at, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\n  sync public last 2 by byTime\nquery q():\n  return notes[] last 2 by byTime\n");
+    seed(&mut e,"notes",serde_json::json!([{"id":"live","at":1,"until":null},{"id":"expired-a","at":2,"until":10},{"id":"expired-b","at":3,"until":10}]));
+    let (events,_) = e.snapshot("dev:alice").unwrap();
+    assert_eq!(events.iter().map(|e|e.id.as_str()).collect::<Vec<_>>(),vec!["live"]);
+    let (events,_,next)=e.snapshot_page("dev:alice",None,1).unwrap();
+    assert_eq!(events[0].id,"live");
+    assert!(next.is_none());
+    assert_eq!(e.store().count("notes").unwrap(),3,"logical acquisition must not need the sweep");
+}
+
+#[test]
+fn detached_sync_reads_do_not_reserve_the_writer_and_detect_activation() {
+    let dir=std::env::temp_dir().join(format!("sb4-read-owner-{}-{}",std::process::id(),snapback4_core::now_ms()));std::fs::create_dir_all(&dir).unwrap();
+    let b=compile(ITEMS);
+    let mut e=Engine::new(Store::open(&dir.join("store.sqlite")).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut reader=e.reader().unwrap();
+    let tx=reader.store_mut().read_transaction().unwrap();
+    assert_eq!(tx.next_seq().unwrap(),1);
+    seed(&mut e,"items",serde_json::json!([{"id":"a","body":"new"}]));
+    assert!(tx.get("items","a").unwrap().is_none(),"read snapshot is stable while a writer commits");
+    tx.rollback().unwrap();
+    assert_eq!(reader.snapshot("dev:alice").unwrap().0.len(),1);
+    adopt(&mut e,&ITEMS.replace("<=100","<=200")).unwrap();
+    assert!(matches!(reader.snapshot("dev:alice"),Err(snapback4_core::error::RuntimeError::Generation(_))));
+    drop(reader);drop(e);std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn projected_reads_retain_the_next_visible_expiry() {
+    let mut e=engine("table rows:\n  body: text <=10\n  until: time ?\n  by byExpiry: until\n  expire at .until\n  read <- allow\n  sync public\nquery q():\n  r = rows['a'] ! else NOT_FOUND\n  return r.body\n");
+    seed(&mut e,"rows",serde_json::json!([{"id":"a","body":"live","until":2000}]));
+    let q=e.query("q",ctx()).unwrap();
+    assert_eq!(q.next_expiry,Some(2000));
+    assert_eq!(q.data,Value::String("live".into()));
+    assert!(e.query("q",ctx().at(2000)).is_err());
+}

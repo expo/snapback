@@ -241,6 +241,7 @@ impl Engine {
             Ok(None) => Ok((Chunk { last_key: None, visited: 0, ended: true, finished: false }, None)),
             Err(error) => Err(error),
         };
+        let outcome = outcome.and_then(|chunk| runner.check_final_exists().map(|()| chunk));
         let events = std::mem::take(&mut runner.events);
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let outbox = std::mem::take(&mut runner.outbox);
@@ -248,7 +249,7 @@ impl Engine {
         drop(runner);
         match outcome {
             Ok((chunk, upper)) => {
-                if rows_written > 0 || !events.is_empty() {
+                if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
                     tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
                     partition::append(&tx, seq, &events)?;
                     for (id, effect, payload) in &outbox {
@@ -289,13 +290,25 @@ impl Engine {
         for schedule in self.schema.schedules.clone() {
             let boundary = schedule.boundary(now);
             let key = format!("schedule:{}", schedule.name);
+            let shape_key = format!("schedule-shape:{}", schedule.name);
+            let shape = digest(&schedule);
+            let program = self.programs.get(&schedule.target).filter(|p| p.kind == crate::ir::ProgramKind::Job)
+                .ok_or_else(|| RuntimeError::Schema(format!("schedule {} names missing job {}; restore its target before firing it", schedule.name, schedule.target)))?.clone();
             let tx = self.store.transaction()?;
-            let last: Option<i64> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [&key], |row| row.get::<_, String>(0)).optional()?.and_then(|value| value.parse().ok());
-            if last == Some(boundary) {
+            let previous_shape: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [&shape_key], |row| row.get(0)).optional()?;
+            if previous_shape.as_ref().is_some_and(|previous| previous != &shape) {
+                tx.set_meta(&key, &boundary.to_string())?;
+                tx.set_meta(&shape_key, &shape)?;
+                tx.commit()?;
                 continue;
             }
-            let program = self.programs.get(&schedule.target).cloned();
-            let (Some(program), Some(_)) = (program, last) else {
+            tx.set_meta(&shape_key, &shape)?;
+            let last: Option<i64> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [&key], |row| row.get::<_, String>(0)).optional()?.and_then(|value| value.parse().ok());
+            if last.is_some_and(|last| last >= boundary) {
+                tx.commit()?;
+                continue;
+            }
+            let Some(_) = last else {
                 tx.set_meta(&key, &boundary.to_string())?;
                 tx.commit()?;
                 continue;

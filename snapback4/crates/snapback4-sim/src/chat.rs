@@ -140,12 +140,20 @@ pub const MEMBERS: [&str; 3] = ["dev:alice", "dev:bob", "dev:charlie"];
 pub fn world_with(seed: u64, faults: Faults, scripts: Vec<Script>) -> World {
     let engine = Rc::new(RefCell::new(chat_engine(&MEMBERS)));
     let until_revoked: BTreeSet<String> = engine.borrow().schema().tables.iter().filter(|(_, t)| t.leave == snapback4_core::schema::LeavePolicy::UntilRevoked).map(|(name, _)| name.clone()).collect();
+    let audiences = engine.borrow().schema().synced().map(|(name, _, sync)| {
+        let columns = match &sync.audience {
+            snapback4_core::schema::Audience::Public => Vec::new(),
+            snapback4_core::schema::Audience::Column(column) => vec![column.clone()],
+            snapback4_core::schema::Audience::Target { prefix, .. } => prefix.clone(),
+        };
+        (name.to_owned(), columns)
+    }).collect::<BTreeMap<_, _>>();
     let mut sim = Sim::new(seed);
     sim.faults = faults;
     let server = sim.add(ServerHost::factory(engine.clone()));
     let mut clients = Vec::new();
     for (member, script) in MEMBERS.iter().zip(scripts) {
-        let host = sim.add_with_disk(Replica::factory(server, member, script, until_revoked.clone()), 0.1);
+        let host = sim.add_with_disk(Replica::factory(server, member, script, until_revoked.clone(), audiences.clone()), 0.1);
         clients.push((host, (*member).to_owned()));
     }
     World { sim, server, clients, engine }

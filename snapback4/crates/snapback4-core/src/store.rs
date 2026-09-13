@@ -105,6 +105,24 @@ impl Store {
         Ok(Tx { tx, catalog: &self.catalog })
     }
 
+    /// A consistent read snapshot does not reserve SQLite's writer lock.
+    pub fn read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+        if activation::identity(&tx)? != self.identity {
+            return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
+        }
+        Ok(Tx { tx, catalog: &self.catalog })
+    }
+
+    /// An independent read connection, bound to this catalog and identity.
+    pub fn reader(&self) -> Result<Self, RuntimeError> {
+        let path = self.conn.path().filter(|path| !path.is_empty())
+            .ok_or_else(|| RuntimeError::Store("an in-memory store has no independent reader".into()))?;
+        let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        Ok(Self { conn, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), identity: self.identity.clone() })
+    }
+
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Ok(self.conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
@@ -129,6 +147,17 @@ impl Store {
         let mut statement = self.conn.prepare("SELECT data FROM r WHERE t = ?1 ORDER BY id")?;
         let rows = statement.query_map([t], |row| row.get::<_, String>(0))?;
         rows.map(|data| serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))).collect()
+    }
+
+    /// A bounded administrative table listing, including whether another row exists.
+    pub fn rows_limited(&self, table: &str, limit: usize) -> Result<(Vec<Value>, bool), RuntimeError> {
+        let t = self.catalog.get(table).ok_or_else(|| RuntimeError::Schema(format!("no table {table}")))?;
+        let mut statement = self.conn.prepare_cached("SELECT data FROM r WHERE t = ?1 ORDER BY id LIMIT ?2")?;
+        let rows = statement.query_map(params![t, limit.saturating_add(1).min(i64::MAX as usize) as i64], |row| row.get::<_, String>(0))?;
+        let mut rows = rows.map(|data| serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))).collect::<Result<Vec<Value>, _>>()?;
+        let more = rows.len() > limit;
+        rows.truncate(limit);
+        Ok((rows, more))
     }
 
     /// How many client-minted operation ids have been applied (sent or failed).
@@ -392,6 +421,36 @@ impl Tx<'_> {
     /// Every event of one commit in a partition, however many.
     pub fn read_log_seq(&self, partition: &str, seq: u64) -> Result<Vec<LogEvent>, RuntimeError> {
         self.log_rows("SELECT seq, ord, t, kind, id, data FROM _log WHERE partition = ?1 AND seq = ?2 ORDER BY ord", params![partition, seq as i64])
+    }
+
+    /// All membership transitions through the transaction head, independently
+    /// of the bounded content page whose visibility they establish.
+    pub fn membership_transitions(&self, partition: &str, after: u64) -> Result<Vec<LogEvent>, RuntimeError> {
+        self.log_rows("SELECT seq, ord, t, kind, id, data FROM _log WHERE partition = ?1 AND seq > ?2 AND kind IN ('join', 'scope') ORDER BY seq, ord", &[&partition, &(after.min(i64::MAX as u64) as i64)])
+    }
+
+    /// Merge every authorized interval with one SQLite statement. The JSON
+    /// parameter is a relation of (partition, inclusive start, exclusive end),
+    /// so query count is independent of the number of held groups.
+    pub fn read_log_spans(&self, spans: &[(String, u64, Option<u64>)], after: u64, only_seq: Option<u64>, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> {
+        let spans = serde_json::to_string(spans).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        self.log_rows(
+            "SELECT l.seq, l.ord, l.t, l.kind, l.id, l.data FROM json_each(?1) AS span JOIN _log AS l
+             ON l.partition = json_extract(span.value, '$[0]')
+             AND l.seq >= json_extract(span.value, '$[1]')
+             AND (json_extract(span.value, '$[2]') IS NULL OR l.seq < json_extract(span.value, '$[2]'))
+             WHERE l.seq > ?2 AND (?3 IS NULL OR l.seq = ?3) ORDER BY l.seq, l.ord LIMIT ?4",
+            &[&spans, &(after.min(i64::MAX as u64) as i64), &only_seq.map(|s| s.min(i64::MAX as u64) as i64), &(limit.min(i64::MAX as usize) as i64)])
+    }
+
+    /// The row images that existed when a membership began, excluding later
+    /// updates and rows created after the member had already left.
+    pub fn group_at(&self, partition: &str, seq: u64) -> Result<Vec<LogEvent>, RuntimeError> {
+        self.log_rows(
+            "SELECT seq, ord, t, kind, id, data FROM (
+               SELECT seq, ord, t, kind, id, data, ROW_NUMBER() OVER (PARTITION BY t, id ORDER BY seq DESC, ord DESC) AS position
+               FROM _log WHERE partition = ?1 AND seq <= ?2 AND kind IN ('put', 'del')
+             ) WHERE position = 1 AND kind = 'put'", &[&partition, &(seq.min(i64::MAX as u64) as i64)])
     }
 
     fn log_rows(&self, sql: &str, params: &[&dyn rusqlite::ToSql]) -> Result<Vec<LogEvent>, RuntimeError> {

@@ -2082,3 +2082,37 @@ first publish attempt. `snapback4@0.2.2` and `snapback4-darwin-arm64@0.2.2`
 are on npm (the record is in `metrics/publish.jsonl`; production profile,
 7.3 MB binary, 438 KB client tarball with `dist/worker.js` and the wasm
 device). `snapback4-expo` stays at 0.2.0: its module's ops did not change.
+
+
+## 2026-09-13 — remaining-ticket repair, core boundary checkpoint (Codex)
+
+The 36-ticket repair run starts from origin/main `42437496d`, after the
+unified device, compiled guide, search and effects landings. The engine
+remains under one implementation owner, with compiler/device, JavaScript
+client and HTTP/CLI lanes isolated beside it. The shared dirty main
+checkout is preserved.
+
+This checkpoint makes membership reconstruction read every transition
+through its transaction head, then batches authorized log intervals in one
+SQLite statement per page/probe. Join expansion uses the images at the join
+commit, including a join followed by a later leave; it never substitutes an
+image changed after the leave. Same-commit grants still disclose nothing.
+Read-only connections retain catalog/generation identity and use deferred
+transactions, so HTTP response construction can leave the engine mutex.
+
+Non-unique internal scan continuations keep the appended id. Acquisition
+horizons count living rows. Job chunks check final-existence constraints
+before commit, and emit-only chunks commit their effects. Schedule
+activation refuses missing jobs; boundary state is monotone and a changed
+schedule shape begins from its next boundary. Released assets detach their
+home and can be reclaimed by their uploader while bytes remain. Asset
+authorization no longer consumes a view: the host records successful
+delivery separately. The simulator uses audience columns in order for
+scope removal. Projected queries retain the next visible expiry so clients
+can invalidate without polling.
+
+Focused review suites pass 31 tests, including new regressions for both
+sides of the membership disclosure boundary, duplicate-index continuation,
+job rollback, rewind/shape changes, reclaim, acquisition expiry and a
+concurrent writer under a stable reader snapshot. HTTP wiring, full-suite
+qualification and blind review follow before delivery.

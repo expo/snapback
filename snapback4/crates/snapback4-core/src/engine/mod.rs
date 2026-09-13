@@ -127,6 +127,8 @@ pub struct QueryOutcome {
     pub seq: u64,
     pub metered: Metered,
     pub tables: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_expiry: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -187,6 +189,15 @@ impl Engine {
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, None)?;
         Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+    }
+
+    /// A detached read owner for HTTP query/sync computation. Creating it is
+    /// brief; materializing its response does not hold the serving engine.
+    pub fn reader(&self) -> Result<Self, RuntimeError> {
+        Ok(Self { store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
+            ceilings: self.ceilings, entropy: 0, generation: self.generation,
+            #[cfg(feature = "native")] native: self.native.clone(),
+            #[cfg(feature = "native")] native_logs: Vec::new(), presence: self.presence.clone() })
     }
 
     /// The registry every program's `connected[p]` reads, on this engine.
@@ -312,6 +323,14 @@ impl Engine {
     }
 
     fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>) -> Result<u64, RuntimeError> {
+        for schedule in &schema.schedules {
+            if schedule.every_ms == 0 || schedule.every_ms > i64::MAX as u64 || schedule.offset_ms >= schedule.every_ms {
+                return Err(RuntimeError::Schema(format!("schedule {} has an invalid period or offset", schedule.name)));
+            }
+            if !programs.get(&schedule.target).is_some_and(|program| program.kind == ProgramKind::Job) {
+                return Err(RuntimeError::Schema(format!("schedule {} names missing job {}; restore or remove the schedule", schedule.name, schedule.target)));
+            }
+        }
         store.activate(schema, Some(programs), false, |tx, changed| {
             if let Some((release, expected)) = release {
                 use rusqlite::OptionalExtension;
@@ -382,9 +401,10 @@ impl Engine {
     }
 
     /// Whether `principal` may have the bytes of `id` now: the uploader
-    /// always; anyone else through the home row's read rule, on the row as
-    /// it stands (present, still naming the asset, not expired). A
-    /// `once` image records the view; the second view is refused. Hidden,
+    /// before placement; after placement, the home must still name it and
+    /// be unexpired. Other viewers also need its read rule. This grants a
+    /// delivery without consuming a `once` view; the host records success.
+    /// A previously completed view is refused. Hidden,
     /// released and absent are one word.
     pub fn asset_access(&mut self, principal: &str, id: &str, now: i64) -> Result<AssetGrant, RuntimeError> {
         let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: "no asset is served under that id to this viewer".into() };
@@ -395,11 +415,13 @@ impl Engine {
             return Err(unknown());
         }
         let grant = |once: bool| AssetGrant { path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
-        if asset.owner == principal {
-            tx.rollback()?;
-            return Ok(grant(false));
-        }
-        let Some((table_name, row_id, column)) = &asset.home else { return Err(unknown()) };
+        let Some((table_name, row_id, column)) = &asset.home else {
+            if asset.owner == principal {
+                tx.rollback()?;
+                return Ok(grant(false));
+            }
+            return Err(unknown());
+        };
         let table = self.schema.table(table_name).ok_or_else(unknown)?;
         let Some(row) = tx.get(table_name, row_id)? else { return Err(unknown()) };
         if asset_id(row.field(column).ok()) != Some(id) || table.expired(&row, now) {
@@ -408,7 +430,7 @@ impl Engine {
         let mut image = row.clone();
         materialize_optional_fields(&mut image, table);
         let mut runner = Runner::new(&tx, &self.schema, Context::new(principal, BTreeMap::new()).at(now), Meter::new(self.ceilings, Cut::Cap), 0);
-        let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?;
+        let allowed = asset.owner == principal || runner.check_rule(table_name, Effect::Read, None, &image)?;
         drop(runner);
         if !allowed {
             tx.rollback()?;
@@ -420,10 +442,20 @@ impl Engine {
                 tx.rollback()?;
                 return Err(RuntimeError::Asset { code: "E_ASSET_VIEWED", message: "this photo was for one view, and it was viewed".into() });
             }
-            tx.record_asset_view(id, principal, now)?;
         }
-        tx.commit()?;
+        tx.rollback()?;
         Ok(grant(once))
+    }
+
+    /// Complete a view after the host has successfully sent the bytes.
+    /// Hosts serialize deliveries for the same asset and principal.
+    pub fn record_asset_view(&mut self, principal: &str, id: &str, now: i64) -> Result<(), RuntimeError> {
+        let tx = self.store.transaction()?;
+        if tx.asset_viewed(id, principal)? {
+            return Err(RuntimeError::Asset { code: "E_ASSET_VIEWED", message: "this photo was for one view, and it was viewed".into() });
+        }
+        tx.record_asset_view(id, principal, now)?;
+        tx.commit()
     }
 
     /// Unlink and forget the assets nobody serves any more: released by
@@ -500,7 +532,7 @@ impl Engine {
         if context.presence.is_none() {
             context.presence = self.presence.clone();
         }
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let seq = tx.next_seq()? - 1;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
         let data = runner.run(&program)?;
@@ -516,6 +548,7 @@ impl Engine {
             seq,
             metered: runner.meter.used,
             tables: runner.read_tables.iter().cloned().collect(),
+            next_expiry: runner.next_expiry,
         };
         drop(runner);
         tx.rollback()?;
@@ -528,7 +561,7 @@ impl Engine {
     pub fn acknowledged(&mut self, principal: &str, pending: &[String], through: u64) -> Result<BTreeMap<String, u64>, RuntimeError> {
         use rusqlite::OptionalExtension;
         if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let mut acknowledged = BTreeMap::new();
         for id in pending {
             let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3", rusqlite::params![principal, id, through.min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
@@ -754,7 +787,7 @@ impl Engine {
             Some(token) => Some(partition::SnapshotCursor::decode(token).ok_or_else(|| RuntimeError::Input("the snapshot cursor is not one this server minted".into()))?),
             None => None,
         };
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let page = partition::snapshot_page(&tx, &self.schema, principal, cursor, limit)?;
         tx.rollback()?;
         Ok((page.events, page.watermark, page.next.map(|next| next.encode())))
@@ -762,7 +795,7 @@ impl Engine {
 
     /// The whole snapshot at once (the simulator's device, tests).
     pub fn snapshot(&mut self, principal: &str) -> Result<(Vec<Event>, u64), RuntimeError> {
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let watermark = tx.next_seq()? - 1;
         let events = partition::snapshot(&tx, &self.schema, principal)?;
         tx.rollback()?;
@@ -770,7 +803,7 @@ impl Engine {
     }
 
     pub fn stream(&mut self, principal: &str, watermark: u64, limit: usize) -> Result<partition::StreamPage, RuntimeError> {
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let page = partition::stream(&tx, &self.schema, principal, watermark, limit)?;
         tx.rollback()?;
         Ok(page)
@@ -779,7 +812,7 @@ impl Engine {
     /// Commits after `seq`, as the tables each touched: the online tier's
     /// invalidation signal.
     pub fn changes(&mut self, seq: u64, limit: usize) -> Result<Vec<(u64, Vec<String>)>, RuntimeError> {
-        let tx = self.store.transaction()?;
+        let tx = self.store.read_transaction()?;
         let out = tx.commits_after(seq, limit)?;
         tx.rollback()?;
         Ok(out)

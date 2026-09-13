@@ -50,6 +50,7 @@ pub struct Runner<'a> {
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
     pub(crate) rows_written: u64,
+    pub(crate) next_expiry: Option<i64>,
     /// Partition events, accumulated for the commit.
     pub(crate) events: Vec<Event>,
     /// Queued effects: `(id, effect, payload)`.
@@ -106,6 +107,7 @@ impl<'a> Runner<'a> {
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,
+            next_expiry: None,
             events: Vec::new(),
             outbox: Vec::new(),
             page_depth: 0,

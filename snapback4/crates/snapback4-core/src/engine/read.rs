@@ -46,7 +46,11 @@ impl Probe for Runner<'_> {
         self.read_tables.insert(table.to_owned());
         let found = self.tx.lookup(table, index, index_def, key)?;
         if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
-        Ok(found.is_some_and(|row| !self.expired(definition, &row)))
+        Ok(found.is_some_and(|row| {
+            let live = !self.expired(definition, &row);
+            if live { self.note_expiry(definition, &row); }
+            live
+        }))
     }
 
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool {
@@ -61,6 +65,15 @@ impl Runner<'_> {
     /// than anyone: an expired row contributes to nothing.
     pub(super) fn expired(&self, table: &Table, row: &Value) -> bool {
         self.context.now.is_some_and(|now| table.expired(row, now))
+    }
+
+    fn note_expiry(&mut self, table: &Table, row: &Value) {
+        if let Some(column) = &table.expire
+            && let Ok(Value::Int(at)) = row.field(column)
+            && self.context.now.is_some_and(|now| *at > now)
+        {
+            self.next_expiry = Some(self.next_expiry.map_or(*at, |prior| prior.min(*at)));
+        }
     }
 
     /// Whether the viewer may `effect` the row. The system principal is the
@@ -119,6 +132,7 @@ impl Runner<'_> {
         // same of a miss and of a row the viewer may not read; the probes
         // that decided a hidden row are rolled back.
         let mark = self.meter.mark();
+        let expiry_mark = self.next_expiry;
         let found = self.tx.lookup(&read.table, &read.index, index, &key)?;
         if !self.meter.charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
@@ -132,8 +146,10 @@ impl Runner<'_> {
         }
         materialize_optional_fields(&mut row, table);
         if self.check_rule(&read.table, Effect::Read, None, &row)? {
+            self.note_expiry(table, &row);
             Ok(row)
         } else {
+            self.next_expiry = expiry_mark;
             self.meter.restore(mark);
             self.meter.charge(MeterKind::Examined, 1)?;
             Ok(Value::Null)
@@ -349,6 +365,7 @@ impl Runner<'_> {
         let mut cursor = bounds.clone();
         let batch = if visibility.uniform { take + 1 } else { (take + 1).max(32) };
         let mark = self.meter.mark();
+        let expiry_mark = self.next_expiry;
         'outer: loop {
             let fetched = self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)?;
             if fetched.is_empty() {
@@ -360,7 +377,7 @@ impl Runner<'_> {
                     capped = true;
                     break 'outer;
                 }
-                cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().take(index.components.len()).skip(prefix.len()).collect());
+                cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
                     continue;
@@ -375,6 +392,7 @@ impl Runner<'_> {
                     continue;
                 }
                 materialize_optional_fields(&mut row, table);
+                let row_expiry_mark = self.next_expiry;
                 let allowed = match uniform_verdict {
                     Some(verdict) => verdict,
                     None => {
@@ -390,6 +408,7 @@ impl Runner<'_> {
                     break 'outer;
                 }
                 if allowed {
+                    self.note_expiry(table, &row);
                     if visible.len() == take {
                         has_more = true;
                         break 'outer;
@@ -399,8 +418,11 @@ impl Runner<'_> {
                 } else if visibility.uniform {
                     // One hidden row hides the prefix: stop without reading
                     // it, and at the cost of an empty range.
+                    self.next_expiry = expiry_mark;
                     self.meter.restore(mark);
                     break 'outer;
+                } else {
+                    self.next_expiry = row_expiry_mark;
                 }
             }
             if fetched_len < batch {

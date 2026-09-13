@@ -575,6 +575,18 @@ time-ordered 128-bit form.
   compiled and run beside the fan-out recipe, and the fan-out recipe is
   measured at the brief's probe: 500 follows examine what 5 examine.
 
+- **2026-09-13 — remaining-ticket corrections (lead).** A partition stream
+  reconstructs membership through one transaction head, batches its
+  authorized intervals, and expands a join from images at that commit,
+  including intervals closed by a later leave. Detached read owners keep
+  the same catalog/generation identity without reserving the writer.
+  Acquisition counts live rows; internal continuations retain the stored
+  id. Schedule boundaries are monotone and shape changes start at the next
+  boundary. Released asset bytes may be reclaimed until collected; a
+  view-once grant is consumed only after the host successfully sends its
+  full response. Viewer changes and terminal write settlements have client
+  subscriptions, and reads carry their next visible expiry for invalidation.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

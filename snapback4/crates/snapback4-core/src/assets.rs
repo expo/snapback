@@ -160,7 +160,8 @@ fn webp_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
     while i + 8 <= bytes.len() {
         let fourcc = &bytes[i..i + 4];
         let length = u32::from_le_bytes(bytes[i + 4..i + 8].try_into().expect("four bytes")) as usize;
-        let payload = &bytes[i + 8..];
+        let end = (i + 8).checked_add(length)?;
+        let payload = bytes.get(i + 8..end)?;
         match fourcc {
             b"VP8X" if payload.len() >= 10 => return Some((1 + u24_le(&payload[4..7]), 1 + u24_le(&payload[7..10]))),
             b"VP8L" if payload.len() >= 5 && payload[0] == 0x2f => {
@@ -255,6 +256,21 @@ mod tests {
         webp.extend_from_slice(&[0, 0, 0, 0, 0x1F, 0x03, 0x00, 0xDF, 0x01, 0x00]);
         let sniffed = sniff(&webp).unwrap();
         assert_eq!((sniffed.content_type, sniffed.width, sniffed.height), ("image/webp", Some(800), Some(480)));
+    }
+
+    #[test]
+    fn webp_headers_never_borrow_bytes_from_the_next_chunk() {
+        for (kind, payload) in [(b"VP8X", vec![0,0,0,0,31,3,0,223,1,0]), (b"VP8L", vec![0x2f,0,0,0,0]), (b"VP8 ", vec![0,0,0,0x9d,1,0x2a,1,0,1,0])] {
+            let mut webp = b"RIFF\0\0\0\0WEBP".to_vec();
+            webp.extend(kind);
+            webp.extend(1u32.to_le_bytes());
+            webp.extend(&payload);
+            assert!(sniff(&webp).is_err());
+            webp[16..20].copy_from_slice(&100u32.to_le_bytes());
+            assert!(sniff(&webp).is_err());
+            webp[16..20].copy_from_slice(&(payload.len() as u32).to_le_bytes());
+            assert!(sniff(&webp).is_ok());
+        }
     }
 
     #[test]
@@ -357,14 +373,13 @@ impl Tx<'_> {
         if asset.owner != by && by != crate::SYSTEM_PRINCIPAL {
             return Err(unknown());
         }
-        if asset.released_at.is_some() {
-            return Err(unknown());
-        }
+        // Release detaches the previous home. The uploader may reclaim
+        // the still-present bytes until the garbage collector removes them.
         match &asset.home {
             Some((t, r, c)) if (t.as_str(), r.as_str(), c.as_str()) == (table, row_id, column) => {}
             Some((t, _, _)) => return Err(RuntimeError::Asset { code: "E_ASSET_PLACED", message: format!("asset {id} already belongs to a row of {t}; upload it again for a second home") }),
             None => {
-                self.conn().execute("UPDATE _assets SET home_table = ?2, home_id = ?3, home_column = ?4 WHERE id = ?1", params![id, table, row_id, column])?;
+                self.conn().execute("UPDATE _assets SET home_table = ?2, home_id = ?3, home_column = ?4, released_at = NULL WHERE id = ?1", params![id, table, row_id, column])?;
             }
         }
         Ok(asset)
@@ -373,7 +388,7 @@ impl Tx<'_> {
     /// The home let go of the asset (the row is deleted, or the column
     /// cleared or replaced): served no more, unlinked by the sweep.
     pub fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
-        self.conn().execute("UPDATE _assets SET released_at = ?2 WHERE id = ?1 AND released_at IS NULL", params![id, now])?;
+        self.conn().execute("UPDATE _assets SET released_at = ?2, home_table = NULL, home_id = NULL, home_column = NULL WHERE id = ?1 AND released_at IS NULL", params![id, now])?;
         Ok(())
     }
 

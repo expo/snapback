@@ -244,3 +244,49 @@ fn m3_e_bound_names_the_ceiling_not_the_count() {
     assert!(!refusal.message.contains("8193"), "{}", refusal.message);
     assert!(refusal.message.contains("8192"), "{}", refusal.message);
 }
+
+#[test]
+fn a_closed_membership_acquires_only_its_join_time_history() {
+    let mut engine = chat_engine(&["dev:alice"]);
+    sent(&mut engine, "before", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("before join".into()))], &["old"]);
+    let from = engine.seq().unwrap();
+    let join = sent(&mut engine, "invite", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
+    sent(&mut engine, "leave", "dev:bob", "leave", &[("conversationId", id("c1"))], &[]);
+    sent(&mut engine, "edit-after-leave", "dev:alice", "edit", &[("messageId", id("old")), ("body", Value::String("private edit after leave".into()))], &[]);
+    sent(&mut engine, "after", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("private new row".into()))], &["new"]);
+    for limit in [1, 1000] {
+        let mut watermark = from;
+        let mut messages = Vec::new();
+        loop {
+            let page = engine.stream("dev:bob", watermark, limit).unwrap();
+            messages.extend(page.events.into_iter().filter(|e| e.table == "messages" && e.kind == "put"));
+            assert!(page.watermark >= watermark);
+            watermark = page.watermark;
+            if !page.more { break; }
+        }
+        assert_eq!(messages.len(), 1, "{messages:?}");
+        assert_eq!(messages[0].id, "old");
+        assert_eq!(messages[0].seq, join);
+        assert_eq!(messages[0].data.as_ref().unwrap().field("body").unwrap(), &Value::String("before join".into()));
+    }
+}
+
+#[test]
+fn a_truncated_own_page_never_grants_a_later_membership_early() {
+    let mut engine = chat_engine(&["dev:alice"]);
+    let watermark = engine.seq().unwrap();
+    sent(&mut engine, "before", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("secret until invited".into()))], &["before-invite"]);
+    // Populate an earlier own-partition page with an unrelated group join.
+    engine.seed([
+        ("conversations".into(), object([("id", id("c2")), ("title", Value::String("Other".into())), ("creatorId", id("dev:alice"))])),
+        ("memberships".into(), object([("id", id("other")), ("conversationId", id("c2")), ("principal", id("dev:bob")), ("role", Value::String("member".into())), ("joinedAt", Value::Int(1))])),
+    ]).unwrap();
+    let join = sent(&mut engine, "invite", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
+    let mut from = watermark;
+    loop {
+        let page = engine.stream("dev:bob", from, 1).unwrap();
+        assert!(page.events.iter().all(|e| e.table != "messages" || e.seq >= join), "early disclosure: {:?}", page.events);
+        from = page.watermark;
+        if !page.more { break; }
+    }
+}
